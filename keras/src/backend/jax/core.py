@@ -53,7 +53,7 @@ class JaxVariable(KerasVariable):
         self._initialize_layout()
         layout = self._layout
         shape = self._shape
-        if check_memory_spec(layout, shape):
+        if should_shard_at_init(layout, shape):
             jitted_initializer = jax.jit(
                 initializer.__call__,
                 out_shardings=layout,
@@ -312,19 +312,16 @@ if config.is_nnx_enabled():
     NnxVariable.__setattr__ = __setattr__
 
 
-def check_memory_spec(init_layout, shape):
-    is_named_sharding = isinstance(init_layout, jax.sharding.NamedSharding)
-    # Check if PartitionSpec has any non-None values
-    spec = getattr(init_layout, "spec", None)
-    partition_spec = spec if spec is not None else ()
-    is_partitioned = any(dim is not None for dim in partition_spec)
-    is_partitioned = is_partitioned and is_named_sharding
-    # Size check: Allow sharding at init only for large arrays
-    # Sharding smaller arrays at init increases loading time
-    size_threshold = 250 * 1024 * 1024  # 250MB
-    array_size = np.prod(shape) * 4  # Assume 4 bytes per element
-    size_check = True if array_size >= size_threshold else False
-    return is_partitioned and size_check
+def should_shard_at_init(init_layout, shape):
+    if not isinstance(init_layout, jax.sharding.NamedSharding):
+        return False
+
+    if all(dim is None for dim in init_layout.spec):
+        return False
+
+    size_threshold = 250 * 1024 * 1024
+    array_size = np.prod(shape) * 4
+    return array_size >= size_threshold
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
