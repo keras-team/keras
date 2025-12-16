@@ -10,6 +10,8 @@ from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
+from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 
 
 @keras_export("keras.layers.Embedding")
@@ -315,16 +317,16 @@ class Embedding(Layer):
             ],
         }
 
-    def quantized_build(self, embeddings_shape, mode):
+    def quantized_build(self, embeddings_shape, mode, config=None):
         if mode == "int8":
-            self._int8_build(embeddings_shape)
+            self._int8_build(embeddings_shape, config)
         elif mode == "int4":
-            self._int4_build(embeddings_shape)
+            self._int4_build(embeddings_shape, config)
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
 
-    def _int8_build(self, embeddings_shape):
+    def _int8_build(self, embeddings_shape, config=None):
         self._embeddings = self.add_weight(
             name="embeddings",
             shape=embeddings_shape,
@@ -342,7 +344,7 @@ class Embedding(Layer):
             trainable=False,
         )
 
-    def _int4_build(self, embeddings_shape):
+    def _int4_build(self, embeddings_shape, config=None):
         input_dim, output_dim = embeddings_shape
         packed_rows = (output_dim + 1) // 2  # ceil for odd dims
 
@@ -407,31 +409,42 @@ class Embedding(Layer):
             )
         return outputs
 
-    def quantize(self, mode, type_check=True, config=None):
+    def quantize(self, mode=None, type_check=True, config=None):
         # Prevent quantization of the subclasses.
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
+
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
 
         embeddings_shape = (self.input_dim, self.output_dim)
         if mode == "int8":
             # Quantize `self._embeddings` to int8 and compute corresponding
             # scale.
-            embeddings_value, embeddings_scale = quantizers.abs_max_quantize(
-                self._embeddings, axis=-1, to_numpy=True
+            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
+                config,
+                quantizers.AbsMaxQuantizer(axis=-1),
+            )
+            embeddings_value, embeddings_scale = weight_quantizer(
+                self._embeddings, to_numpy=True
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             del self._embeddings
-            self.quantized_build(embeddings_shape, mode)
+            self.quantized_build(embeddings_shape, mode, config)
             self._embeddings.assign(embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
         elif mode == "int4":
             # Quantize to int4 values (stored in int8 dtype, range [-8, 7]).
-            embeddings_value, embeddings_scale = quantizers.abs_max_quantize(
-                self._embeddings,
-                axis=-1,
-                value_range=(-8, 7),
-                dtype="int8",
-                to_numpy=True,
+            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
+                config,
+                quantizers.AbsMaxQuantizer(
+                    axis=-1,
+                    value_range=(-8, 7),
+                    output_dtype="int8",
+                ),
+            )
+            embeddings_value, embeddings_scale = weight_quantizer(
+                self._embeddings, to_numpy=True
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             # 2. Pack two int4 values into a single int8 byte.
@@ -439,7 +452,7 @@ class Embedding(Layer):
                 embeddings_value, axis=-1
             )
             del self._embeddings
-            self.quantized_build(embeddings_shape, mode)
+            self.quantized_build(embeddings_shape, mode, config)
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
         else:
