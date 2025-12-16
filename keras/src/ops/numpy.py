@@ -6451,6 +6451,9 @@ class Tile(Operation):
         repeats = self.repeats
         if isinstance(repeats, int):
             repeats = [repeats]
+        else:
+            repeats = list(repeats)
+
         if len(x_shape) > len(repeats):
             repeats = [1] * (len(x_shape) - len(repeats)) + repeats
         else:
@@ -6458,10 +6461,10 @@ class Tile(Operation):
 
         output_shape = []
         for x_size, repeat in zip(x_shape, repeats):
-            if x_size is None:
-                output_shape.append(None)
-            else:
+            if isinstance(x_size, int):
                 output_shape.append(x_size * repeat)
+            else:
+                output_shape.append(None)
         return KerasTensor(output_shape, dtype=x.dtype)
 
 

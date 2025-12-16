@@ -2755,19 +2755,33 @@ def round(x, decimals=0):
 
 def tile(x, repeats):
     x = convert_to_tensor(x)
-    repeats = tf.reshape(convert_to_tensor(repeats, dtype="int32"), [-1])
-    repeats_size = tf.size(repeats)
-    repeats = tf.pad(
-        repeats,
-        [[tf.maximum(x.shape.rank - repeats_size, 0), 0]],
-        constant_values=1,
-    )
-    x_shape = tf.pad(
-        tf.shape(x),
-        [[tf.maximum(repeats_size - x.shape.rank, 0), 0]],
-        constant_values=1,
-    )
-    x = tf.reshape(x, x_shape)
+
+    # Convert repeats to a list (works for both sequences and 1D tensors)
+    if isinstance(repeats, int):
+        repeats = [repeats]
+    else:
+        repeats = [v for v in repeats]
+
+    # Process list elements: convert concrete scalar tensors to Python ints
+    processed_repeats = []
+    for r in repeats:
+        if hasattr(r, "numpy") and r.shape == ():
+            processed_repeats.append(int(r.numpy()))
+        else:
+            processed_repeats.append(r)
+    repeats = processed_repeats
+
+    # Get x rank
+    x_rank = x.shape.rank
+
+    # Pad repeats if needed
+    if len(repeats) < x_rank:
+        repeats = [1] * (x_rank - len(repeats)) + repeats
+
+    # Add dimensions to x if needed using tf.expand_dims
+    while len(repeats) > x.shape.rank:
+        x = tf.expand_dims(x, 0)
+
     return tf.tile(x, repeats)
 
 

@@ -1840,6 +1840,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.tile(x, [1, 2]).shape, (None, 6))
         self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, None, 6))
 
+        # Test with multi-dimensional input
+        x = KerasTensor((None, 3, 2, 2))
+        self.assertEqual(knp.tile(x, [1, 2, 1, 1]).shape, (None, 6, 2, 2))
+
     def test_trace(self):
         x = KerasTensor((None, 3, None, 5))
         self.assertEqual(knp.trace(x).shape, (None, 5))
@@ -9614,3 +9618,20 @@ class HistogramTest(testing.TestCase):
         model.compile(jit_compile=jit_compile)
 
         model.predict(np.random.randn(1, 8))
+
+
+class TileTest(testing.TestCase):
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="`tile` is not supported with openvino backend",
+    )
+    def test_tile_shape_inference_in_layer(self):
+        class TileLayer(keras.layers.Layer):
+            def call(self, x):
+                repeats = [1, 2, 1, 1]
+                return knp.tile(x, repeats)
+
+        inputs = keras.Input(shape=(3, 2, 2))
+        output = TileLayer()(inputs)
+
+        self.assertEqual(output.shape, (None, 6, 2, 2))
