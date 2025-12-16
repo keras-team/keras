@@ -200,8 +200,12 @@ class RandomResizedCrop(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
-        input_shape[self.height_axis] = self.height
-        input_shape[self.width_axis] = self.width
+        if len(input_shape) == 4 and input_shape[-1] in (1,3,4):
+            input_shape[1] = self.height
+            input_shape[2] = self.width
+        else:
+            input_shape[self.height_axis] = self.height
+            input_shape[self.width_axis] = self.width
         return tuple(input_shape)
 
     def get_config(self):
