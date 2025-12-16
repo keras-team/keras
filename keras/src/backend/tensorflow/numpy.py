@@ -2744,7 +2744,10 @@ def tile(x, repeats):
     x = convert_to_tensor(x)
 
     # Convert repeats to a list (works for both sequences and 1D tensors)
-    repeats = [v for v in repeats]
+    if isinstance(repeats, int):
+        repeats = [repeats]
+    else:
+        repeats = [v for v in repeats]
 
     # Process list elements: convert concrete scalar tensors to Python ints
     processed_repeats = []
