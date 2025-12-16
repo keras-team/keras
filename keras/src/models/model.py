@@ -7,10 +7,11 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
+from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
-from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import gptq_quantize
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
@@ -424,7 +425,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             **kwargs,
         )
 
-    def get_quantization_layer_structure(self, mode):
+    def get_quantization_layer_structure(self, mode=None):
         """Returns the quantization structure for the model.
 
         This method is intended to be overridden by model authors to provide
@@ -447,25 +448,76 @@ class Model(Trainer, base_trainer.Trainer, Layer):
         del mode  # Unused.
         return None
 
-    def quantize(self, mode, config=None, filters=None, **kwargs):
+    def quantize(self, mode=None, config=None, filters=None, **kwargs):
         """Quantize the weights of the model.
 
         Note that the model must be built first before calling this method.
-        `quantize` will recursively call `quantize(mode)` in all layers and
+        `quantize` will recursively call `quantize(...)` in all layers and
         will be skipped if the layer doesn't implement the function.
 
+        This method can be called by passing a `mode` string, which uses the
+        default configuration for that mode. Alternatively, a `config` object
+        can be passed to customize the behavior of the quantization (e.g. to
+        use specific quantizers for weights or activations).
+
         Args:
-            mode: The mode of the quantization. Supported modes are: 'int4',
-            'int8', 'float8', 'gptq'.
+            mode: The mode of the quantization. Supported modes are:
+                `"int8"`, `"int4"`, `"float8"`, `"gptq"`. This is
+                optional if `config` is provided.
             config: The configuration object specifying additional
-            quantization options for supported modes.
+                quantization options. This argument allows to configure
+                the weight and activation quantizers. be an instance of
+                `keras.quantizers.QuantizationConfig`.
             filters: Optional filters to apply to the quantization. Can be a
-             regex string, a list of regex strings, or a callable. Only the
-             layers which match the filter conditions will be quantized.
+                regex string, a list of regex strings, or a callable. Only the
+                layers which match the filter conditions will be quantized.
+            **kwargs: Additional keyword arguments.
+
+        Example:
+
+        Quantize a model to int8 with default configuration:
+
+        ```python
+        # Build the model
+        model = keras.Sequential([
+            keras.Input(shape=(10,)),
+            keras.layers.Dense(10),
+        ])
+        model.build((None, 10))
+
+        # Quantize with default int8 config
+        model.quantize("int8")
+        ```
+
+        Quantize a model to int8 with a custom configuration:
+
+        ```python
+        from keras.quantizers import Int8QuantizationConfig
+        from keras.quantizers import AbsMaxQuantizer
+
+        # Build the model
+        model = keras.Sequential([
+            keras.Input(shape=(10,)),
+            keras.layers.Dense(10),
+        ])
+        model.build((None, 10))
+
+        # Create a custom config
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(
+                axis=0,
+                value_range=(-127, 127)
+            ),
+            activation_quantizer=AbsMaxQuantizer(
+                axis=-1,
+                value_range=(-127, 127)
+            ),
+        )
+
+        # Quantize with custom config
+        model.quantize(config=config)
+        ```
         """
-
-        from keras.src.dtype_policies import QUANTIZATION_MODES
-
         # Validate inputs.
         type_check = kwargs.pop("type_check", True)
         if kwargs:
@@ -488,18 +540,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     f"{type(filters)}"
                 )
 
-        if mode == "gptq":
-            if not isinstance(config, GPTQConfig):
-                raise ValueError(
-                    "Mode 'gptq' requires a valid `config` argument of type "
-                    f"`GPTQConfig`. Received: {type(config)}"
-                )
-        elif config is not None:
-            # All other modes must not receive a config
-            raise ValueError(
-                f"The `config` argument is only supported for 'gptq' mode, "
-                f"but received mode='{mode}' and a non-None config."
-            )
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
 
         graph_modified = False
         for layer in self._flatten_layers():

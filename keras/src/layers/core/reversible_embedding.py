@@ -6,6 +6,8 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 
 
 @keras_export("keras.layers.ReversibleEmbedding")
@@ -172,20 +174,25 @@ class ReversibleEmbedding(layers.Embedding):
                     variable_spec.append("reverse_embeddings_scale")
         return _spec
 
-    def quantized_build(self, embeddings_shape, mode):
+    def quantized_build(self, embeddings_shape, mode, config=None):
         if mode == "int8":
-            self._int8_build(embeddings_shape)
+            self._int8_build(embeddings_shape, config)
         elif mode == "int4":
-            self._int4_build(embeddings_shape)
+            self._int4_build(embeddings_shape, config)
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
 
-    def _int8_build(self, embeddings_shape):
+    def _int8_build(self, embeddings_shape, config=None):
         if embeddings_shape is None:
             embeddings_shape = (self.input_dim, self.output_dim)
         super()._int8_build(embeddings_shape=embeddings_shape)
-        self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+
+        self.inputs_quantizer = (
+            QuantizationConfig.activation_quantizer_or_default(
+                config, quantizers.AbsMaxQuantizer(axis=-1)
+            )
+        )
         if not self.tie_weights:
             self.reverse_embeddings = self.add_weight(
                 name="reverse_embeddings",
@@ -201,11 +208,16 @@ class ReversibleEmbedding(layers.Embedding):
                 trainable=False,
             )
 
-    def _int4_build(self, embeddings_shape):
+    def _int4_build(self, embeddings_shape, config=None):
         if embeddings_shape is None:
             embeddings_shape = (self.input_dim, self.output_dim)
-        super()._int4_build(embeddings_shape=embeddings_shape)
-        self.inputs_quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+        super()._int4_build(embeddings_shape=embeddings_shape, config=config)
+
+        self.inputs_quantizer = (
+            QuantizationConfig.activation_quantizer_or_default(
+                config, quantizers.AbsMaxQuantizer(axis=-1)
+            )
+        )
         if not self.tie_weights:
             packed_rows = (self.output_dim + 1) // 2  # ceil for odd dims
             self.reverse_embeddings = self.add_weight(
@@ -232,7 +244,10 @@ class ReversibleEmbedding(layers.Embedding):
             else:
                 kernel = self.reverse_embeddings
                 scale = self.reverse_embeddings_scale
-            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            if self.inputs_quantizer:
+                inputs, inputs_scale = self.inputs_quantizer(inputs)
+            else:
+                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
             logits = ops.matmul(inputs, kernel)
             # De-scale outputs
             logits = ops.cast(logits, self.compute_dtype)
@@ -258,7 +273,10 @@ class ReversibleEmbedding(layers.Embedding):
             unpacked_embeddings = quantizers.unpack_int4(
                 embeddings, self.output_dim, axis=0
             )
-            inputs, inputs_scale = self.inputs_quantizer(inputs)
+            if self.inputs_quantizer:
+                inputs, inputs_scale = self.inputs_quantizer(inputs)
+            else:
+                inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
             logits = ops.matmul(inputs, unpacked_embeddings)
             # De-scale outputs
             logits = ops.cast(logits, self.compute_dtype)
@@ -271,31 +289,41 @@ class ReversibleEmbedding(layers.Embedding):
                 )
             return logits
 
-    def quantize(self, mode, type_check=True, config=None):
-        del config
+    def quantize(self, mode=None, type_check=True, config=None):
         if type_check and type(self) is not ReversibleEmbedding:
             raise self._not_implemented_error(self.quantize)
+
+        config = validate_and_resolve_config(mode, config)
+        mode = config.mode
 
         embeddings_shape = (self.input_dim, self.output_dim)
         if mode == "int8":
             # Quantize `self._embeddings` to int8 and compute corresponding
             # scale.
-            embeddings_value, embeddings_scale = quantizers.abs_max_quantize(
-                self._embeddings, axis=-1, to_numpy=True
+            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
+                config, quantizers.AbsMaxQuantizer(axis=-1)
+            )
+            embeddings_value, embeddings_scale = weight_quantizer(
+                self._embeddings, to_numpy=True
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             del self._embeddings
             if not self.tie_weights:
+                reverse_weight_quantizer = (
+                    QuantizationConfig.weight_quantizer_or_default(
+                        config, quantizers.AbsMaxQuantizer(axis=0)
+                    )
+                )
                 reverse_embeddings_value, reverse_embeddings_scale = (
-                    quantizers.abs_max_quantize(
-                        self.reverse_embeddings, axis=0, to_numpy=True
+                    reverse_weight_quantizer(
+                        self.reverse_embeddings, to_numpy=True
                     )
                 )
                 reverse_embeddings_scale = ops.squeeze(
                     reverse_embeddings_scale, axis=0
                 )
                 del self.reverse_embeddings
-            self.quantized_build(embeddings_shape, mode)
+            self.quantized_build(embeddings_shape, mode, config)
             self._embeddings.assign(embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
             if not self.tie_weights:
@@ -303,12 +331,16 @@ class ReversibleEmbedding(layers.Embedding):
                 self.reverse_embeddings_scale.assign(reverse_embeddings_scale)
         elif mode == "int4":
             # Quantize to int4 values (stored in int8 dtype, range [-8, 7]).
-            embeddings_value, embeddings_scale = quantizers.abs_max_quantize(
-                self._embeddings,
-                axis=-1,
-                value_range=(-8, 7),
-                dtype="int8",
-                to_numpy=True,
+            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
+                config,
+                quantizers.AbsMaxQuantizer(
+                    axis=-1,
+                    value_range=(-8, 7),
+                    output_dtype="int8",
+                ),
+            )
+            embeddings_value, embeddings_scale = weight_quantizer(
+                self._embeddings, to_numpy=True
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             # 2. Pack two int4 values into a single int8 byte.
@@ -317,13 +349,19 @@ class ReversibleEmbedding(layers.Embedding):
             )
             del self._embeddings
             if not self.tie_weights:
+                reverse_weight_quantizer = (
+                    QuantizationConfig.weight_quantizer_or_default(
+                        config,
+                        quantizers.AbsMaxQuantizer(
+                            axis=0,
+                            value_range=(-8, 7),
+                            output_dtype="int8",
+                        ),
+                    )
+                )
                 reverse_embeddings_value, reverse_embeddings_scale = (
-                    quantizers.abs_max_quantize(
-                        self.reverse_embeddings,
-                        axis=0,
-                        value_range=(-8, 7),
-                        dtype="int8",
-                        to_numpy=True,
+                    reverse_weight_quantizer(
+                        self.reverse_embeddings, to_numpy=True
                     )
                 )
                 reverse_embeddings_scale = ops.squeeze(
@@ -334,7 +372,7 @@ class ReversibleEmbedding(layers.Embedding):
                     reverse_embeddings_value, axis=0
                 )
                 del self.reverse_embeddings
-            self.quantized_build(embeddings_shape, mode)
+            self.quantized_build(embeddings_shape, mode, config)
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
             if not self.tie_weights:
