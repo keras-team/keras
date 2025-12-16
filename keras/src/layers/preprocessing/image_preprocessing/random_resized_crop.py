@@ -124,6 +124,8 @@ class RandomResizedCrop(BaseImagePreprocessingLayer):
     def _random_crop_params(self, input_h, input_w, seed):
         if seed is None:
             seed = self.generator
+        elif isinstance(seed, int):
+            seed = SeedGenerator(seed)
 
         scale_min, scale_max = self.scale
         ratio_min, ratio_max = self.ratio
@@ -198,20 +200,8 @@ class RandomResizedCrop(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
-        if self.data_format == "channels_last":
-            if len(input_shape) == 4:
-                input_shape[1] = self.height
-                input_shape[2] = self.width
-            else:
-                input_shape[0] = self.height
-                input_shape[1] = self.width
-        else:
-            if len(input_shape) == 4:
-                input_shape[2] = self.height
-                input_shape[3] = self.width
-            else:
-                input_shape[1] = self.height
-                input_shape[2] = self.width
+        input_shape[self.height_axis] = self.height
+        input_shape[self.width_axis] = self.width
         return tuple(input_shape)
 
     def get_config(self):
