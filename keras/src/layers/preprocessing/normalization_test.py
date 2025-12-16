@@ -204,7 +204,7 @@ class NormalizationTest(testing.TestCase):
         self.assertEqual(output.shape, (1, 32, 32, 3))
 
     def test_adapt_tf_dataset_with_labels(self):
-        """Normalization.adapt should support supervisedtf.data.Dataset."""
+        """Normalization.adapt should support supervised tf.data.Dataset."""
         import tensorflow as tf
 
         x = np.ones((32, 3), dtype="float32")
