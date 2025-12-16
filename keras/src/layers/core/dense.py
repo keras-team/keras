@@ -14,6 +14,7 @@ from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
+from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.Dense")
@@ -97,8 +98,6 @@ class Dense(Layer):
         quantization_config=None,
         **kwargs,
     ):
-        from keras.src.saving import serialization_lib
-
         if not isinstance(units, int) or units <= 0:
             raise ValueError(
                 "Received an invalid value for `units`, expected a positive "
@@ -328,8 +327,6 @@ class Dense(Layer):
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
 
     def get_config(self):
-        from keras.src.saving import serialization_lib
-
         base_config = super().get_config()
         config = {
             "units": self.units,

@@ -12,6 +12,7 @@ from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
+from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.Embedding")
@@ -95,8 +96,6 @@ class Embedding(Layer):
         quantization_config=None,
         **kwargs,
     ):
-        from keras.src.saving import serialization_lib
-
         input_length = kwargs.pop("input_length", None)
         if input_length is not None:
             warnings.warn(
@@ -279,8 +278,6 @@ class Embedding(Layer):
             )
 
     def get_config(self):
-        from keras.src.saving import serialization_lib
-
         base_config = super().get_config()
         config = {
             "input_dim": self.input_dim,

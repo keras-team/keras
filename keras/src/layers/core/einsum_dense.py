@@ -19,6 +19,7 @@ from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
+from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.EinsumDense")
@@ -140,8 +141,6 @@ class EinsumDense(Layer):
         quantization_config=None,
         **kwargs,
     ):
-        from keras.src.saving import serialization_lib
-
         super().__init__(**kwargs)
         self.equation = equation
         if isinstance(output_shape, int):
@@ -386,8 +385,6 @@ class EinsumDense(Layer):
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
 
     def get_config(self):
-        from keras.src.saving import serialization_lib
-
         base_config = super().get_config()
         config = {
             "output_shape": self.partial_output_shape,
