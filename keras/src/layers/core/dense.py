@@ -94,8 +94,11 @@ class Dense(Layer):
         bias_constraint=None,
         lora_rank=None,
         lora_alpha=None,
+        quantization_config=None,
         **kwargs,
     ):
+        from keras.src.saving import serialization_lib
+
         if not isinstance(units, int) or units <= 0:
             raise ValueError(
                 "Received an invalid value for `units`, expected a positive "
@@ -115,13 +118,23 @@ class Dense(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
+        if isinstance(quantization_config, dict):
+            self.quantization_config = (
+                serialization_lib.deserialize_keras_object(quantization_config)
+            )
+        else:
+            self.quantization_config = quantization_config
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
 
     def build(self, input_shape):
         kernel_shape = (input_shape[-1], self.units)
         if self.quantization_mode:
-            self.quantized_build(kernel_shape, mode=self.quantization_mode)
+            self.quantized_build(
+                kernel_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
         if self.quantization_mode not in ("int8", "int4", "gptq"):
             # If the layer is quantized to int8 or int4, `self._kernel` will be
             # added in `self._int8_build` or `_int4_build`. Therefore, we skip
@@ -315,6 +328,8 @@ class Dense(Layer):
             self.lora_kernel_b.assign(ops.zeros(self.lora_kernel_b.shape))
 
     def get_config(self):
+        from keras.src.saving import serialization_lib
+
         base_config = super().get_config()
         config = {
             "units": self.units,
@@ -330,6 +345,9 @@ class Dense(Layer):
             "bias_regularizer": regularizers.serialize(self.bias_regularizer),
             "kernel_constraint": constraints.serialize(self.kernel_constraint),
             "bias_constraint": constraints.serialize(self.bias_constraint),
+            "quantization_config": serialization_lib.serialize_keras_object(
+                self.quantization_config
+            ),
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
@@ -777,13 +795,13 @@ class Dense(Layer):
         if type_check and (type(self) is not Dense):
             raise self._not_implemented_error(self.quantize)
 
-        config = validate_and_resolve_config(mode, config)
-        mode = config.mode
+        self.quantization_config = validate_and_resolve_config(mode, config)
+        mode = self.quantization_config.mode
 
         kernel_shape = self._kernel.shape
         if mode == "int8":
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                config, quantizers.AbsMaxQuantizer(axis=0)
+                self.quantization_config, quantizers.AbsMaxQuantizer(axis=0)
             )
             kernel_value, kernel_scale = weight_quantizer(
                 self._kernel, to_numpy=True
@@ -791,13 +809,13 @@ class Dense(Layer):
             kernel_scale = ops.squeeze(kernel_scale, axis=0)
             del self._kernel
             # Build variables for int8 mode
-            self.quantized_build(kernel_shape, mode, config)
+            self.quantized_build(kernel_shape, mode, self.quantization_config)
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
         elif mode == "int4":
             # 1. Quantize to int4 values (still int8 dtype, range [-8,7])
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                config,
+                self.quantization_config,
                 quantizers.AbsMaxQuantizer(
                     axis=0, value_range=(-8, 7), output_dtype="int8"
                 ),
@@ -811,12 +829,12 @@ class Dense(Layer):
             del self._kernel
             # Build variables using the original kernel shape; _int4_build will
             # compute the packed shape internally.
-            self.quantized_build(kernel_shape, mode, config)
+            self.quantized_build(kernel_shape, mode, self.quantization_config)
             # Assign packed values.
             self._kernel.assign(packed_kernel_value)
             self.kernel_scale.assign(kernel_scale)
         elif mode == "gptq":
-            self.quantized_build(kernel_shape, mode, config)
+            self.quantized_build(kernel_shape, mode, self.quantization_config)
         elif mode == "float8":
             self.quantized_build(kernel_shape, mode)
         else:
@@ -828,7 +846,7 @@ class Dense(Layer):
 
             policy_name = mode
             if mode == "gptq":
-                policy_name = config.dtype_policy_string()
+                policy_name = self.quantization_config.dtype_policy_string()
             policy = dtype_policies.get(
                 f"{policy_name}_from_{self.dtype_policy.name}"
             )

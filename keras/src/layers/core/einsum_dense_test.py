@@ -71,7 +71,7 @@ class EinsumDenseTest(testing.TestCase):
         if activation_quantizer_args is not None:
             # Verify inputs_quantizer is set correctly
             self.assertIsInstance(layer.inputs_quantizer, AbsMaxQuantizer)
-            self.assertEqual(layer.inputs_quantizer.axis, (-1,))
+            self.assertEqual(layer.inputs_quantizer.axis, (1,))
         else:
             # Verify inputs_quantizer is None
             self.assertIsNone(layer.inputs_quantizer)

@@ -92,8 +92,11 @@ class Embedding(Layer):
         weights=None,
         lora_rank=None,
         lora_alpha=None,
+        quantization_config=None,
         **kwargs,
     ):
+        from keras.src.saving import serialization_lib
+
         input_length = kwargs.pop("input_length", None)
         if input_length is not None:
             warnings.warn(
@@ -111,6 +114,12 @@ class Embedding(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
+        if isinstance(quantization_config, dict):
+            self.quantization_config = (
+                serialization_lib.deserialize_keras_object(quantization_config)
+            )
+        else:
+            self.quantization_config = quantization_config
 
         if weights is not None:
             self.build()
@@ -123,7 +132,11 @@ class Embedding(Layer):
             return
         embeddings_shape = (self.input_dim, self.output_dim)
         if self.quantization_mode:
-            self.quantized_build(embeddings_shape, mode=self.quantization_mode)
+            self.quantized_build(
+                embeddings_shape,
+                mode=self.quantization_mode,
+                config=self.quantization_config,
+            )
         if self.quantization_mode not in ("int8", "int4"):
             self._embeddings = self.add_weight(
                 shape=embeddings_shape,
@@ -266,6 +279,8 @@ class Embedding(Layer):
             )
 
     def get_config(self):
+        from keras.src.saving import serialization_lib
+
         base_config = super().get_config()
         config = {
             "input_dim": self.input_dim,
@@ -283,6 +298,9 @@ class Embedding(Layer):
                 self.embeddings_constraint
             ),
             "mask_zero": self.mask_zero,
+            "quantization_config": serialization_lib.serialize_keras_object(
+                self.quantization_config
+            ),
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
@@ -414,7 +432,7 @@ class Embedding(Layer):
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
 
-        config = validate_and_resolve_config(mode, config)
+        self.quantization_config = validate_and_resolve_config(mode, config)
         mode = config.mode
 
         embeddings_shape = (self.input_dim, self.output_dim)
@@ -422,7 +440,7 @@ class Embedding(Layer):
             # Quantize `self._embeddings` to int8 and compute corresponding
             # scale.
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                config,
+                self.quantization_config,
                 quantizers.AbsMaxQuantizer(axis=-1),
             )
             embeddings_value, embeddings_scale = weight_quantizer(
@@ -430,13 +448,15 @@ class Embedding(Layer):
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             del self._embeddings
-            self.quantized_build(embeddings_shape, mode, config)
+            self.quantized_build(
+                embeddings_shape, mode, self.quantization_config
+            )
             self._embeddings.assign(embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
         elif mode == "int4":
             # Quantize to int4 values (stored in int8 dtype, range [-8, 7]).
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                config,
+                self.quantization_config,
                 quantizers.AbsMaxQuantizer(
                     axis=-1,
                     value_range=(-8, 7),
@@ -452,7 +472,9 @@ class Embedding(Layer):
                 embeddings_value, axis=-1
             )
             del self._embeddings
-            self.quantized_build(embeddings_shape, mode, config)
+            self.quantized_build(
+                embeddings_shape, mode, self.quantization_config
+            )
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
         else:
