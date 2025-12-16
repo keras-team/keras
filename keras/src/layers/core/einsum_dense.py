@@ -17,7 +17,6 @@ from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
-from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
@@ -1001,8 +1000,7 @@ class EinsumDense(Layer):
         if type_check and (type(self) is not EinsumDense):
             raise self._not_implemented_error(self.quantize)
 
-        self.quantization_config = validate_and_resolve_config(mode, config)
-        mode = self.quantization_config.mode
+        self.quantization_config = config
 
         kernel_shape = self._kernel.shape
         if mode in ("int8", "int4", "gptq"):

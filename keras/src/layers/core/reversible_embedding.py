@@ -7,7 +7,6 @@ from keras.src import quantizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.quantizers.quantization_config import QuantizationConfig
-from keras.src.quantizers.quantization_config import validate_and_resolve_config
 
 
 @keras_export("keras.layers.ReversibleEmbedding")
@@ -293,8 +292,7 @@ class ReversibleEmbedding(layers.Embedding):
         if type_check and type(self) is not ReversibleEmbedding:
             raise self._not_implemented_error(self.quantize)
 
-        self.quantization_config = validate_and_resolve_config(mode, config)
-        mode = self.quantization_config.mode
+        self.quantization_config = config
 
         embeddings_shape = (self.input_dim, self.output_dim)
         if mode == "int8":

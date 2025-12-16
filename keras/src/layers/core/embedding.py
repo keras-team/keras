@@ -11,7 +11,6 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
-from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.saving import serialization_lib
 
 
@@ -429,8 +428,7 @@ class Embedding(Layer):
         if type_check and (type(self) is not Embedding):
             raise self._not_implemented_error(self.quantize)
 
-        self.quantization_config = validate_and_resolve_config(mode, config)
-        mode = config.mode
+        self.quantization_config = config
 
         embeddings_shape = (self.input_dim, self.output_dim)
         if mode == "int8":
