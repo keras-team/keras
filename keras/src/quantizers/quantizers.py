@@ -281,7 +281,7 @@ def fake_quant_with_min_max_vars(
             ops.add(ops.multiply(-nudged_min, inv_scale), 0.5)
         )
         x_clamped = ops.clip(
-            x, ops.cast(nudged_min, x.dtype), ops.cast(nudged_max, x.dtype)
+            ops.cast(x, nudged_min.dtype), nudged_min, nudged_max
         )
         x_clamped_shifted = ops.subtract(x_clamped, nudged_min)
         result = ops.multiply(
@@ -318,6 +318,7 @@ def fake_quant_with_min_max_vars(
                 grad_min = ops.sum(grad_min, axis=axes)
             else:
                 grad_min = ops.sum(grad_min)
+            grad_min = ops.reshape(grad_min, ops.shape(min_val))
 
             # Gradient for max_val
             # When x is clipped to max, the gradient flows to max_val
@@ -327,6 +328,7 @@ def fake_quant_with_min_max_vars(
                 grad_max = ops.sum(grad_max, axis=axes)
             else:
                 grad_max = ops.sum(grad_max)
+            grad_max = ops.reshape(grad_max, ops.shape(max_val))
 
             return dx, grad_min, grad_max
 

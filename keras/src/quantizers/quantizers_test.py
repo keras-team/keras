@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -194,6 +192,19 @@ class QuantizersTest(testing.TestCase):
                 "narrow_range": False,
                 "input_mins": [0.0],
                 "input_maxs": [255.0],
+                "num_bits": 8,
+                "expected_nudged_input_mins": [0.0],
+                "expected_nudged_input_maxs": [255.0],
+                "expected_steps": [1.0],
+                "axis": None,
+            },
+            {
+                "testcase_name": (
+                    "wide_8bits_scalar_input_mins_0.0_input_maxs_255.0"
+                ),
+                "narrow_range": False,
+                "input_mins": 0.0,
+                "input_maxs": 255.0,
                 "num_bits": 8,
                 "expected_nudged_input_mins": [0.0],
                 "expected_nudged_input_maxs": [255.0],
@@ -432,7 +443,7 @@ class QuantizersTest(testing.TestCase):
         expected_nudged_input_maxs,
         expected_steps,
     ):
-        num_channels = len(input_mins)
+        num_channels = len(expected_nudged_input_mins)
         inputs_list = []
         expected_list = []
         initial_gradients_list = []
@@ -538,19 +549,18 @@ class QuantizersTest(testing.TestCase):
             ):
                 # Define the function to compute gradients for
                 def quantize_fn(x):
-                    return quantizers.fake_quant_with_min_max_vars(
-                        x, input_mins, input_maxs, num_bits, narrow_range, axis
+                    return ops.sum(
+                        quantizers.fake_quant_with_min_max_vars(
+                            x,
+                            input_mins,
+                            input_maxs,
+                            num_bits,
+                            narrow_range,
+                            axis,
+                        )
                     )
 
-                _, f_vjp = jax.vjp(quantize_fn, inputs)
-
-                if getattr(jax.config, "jax_vjp3", False):
-                    input_gradients = f_vjp.opaque_residuals[0]
-                elif sys.version_info >= (3, 10):
-                    input_gradients = f_vjp.args[0].args[0][0]
-                else:
-                    input_gradients = f_vjp.args[0].args[0][1]
-
+                input_gradients = jax.grad(quantize_fn)(inputs)
                 return ops.multiply(initial_gradients, input_gradients)
 
         gradients = test_op(
