@@ -150,7 +150,7 @@ class AdaptivePooling2DLayerTest(testing.TestCase):
             output_size=2, data_format="channels_first"
         )
         outputs = layer(inputs)
-        np.testing.assert_allclose(outputs, expected, atol=1e-4)
+        self.assertAllClose(outputs, expected, atol=1e-4)
 
     def test_max_pooling2d_numerical(self):
         """Test AdaptiveMaxPooling2D numerical correctness."""
@@ -173,4 +173,4 @@ class AdaptivePooling2DLayerTest(testing.TestCase):
             output_size=2, data_format="channels_first"
         )
         outputs = layer(inputs)
-        np.testing.assert_allclose(outputs, expected, atol=1e-4)
+        self.assertAllClose(outputs, expected, atol=1e-4)

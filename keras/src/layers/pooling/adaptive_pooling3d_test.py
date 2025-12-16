@@ -135,13 +135,16 @@ class AdaptivePooling3DLayerTest(testing.TestCase):
             [[[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]]],
             dtype="float32",
         )
+        expected = np.array(
+            [[[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]]],
+            dtype="float32",
+        )
+
         layer = layers.AdaptiveAveragePooling3D(
             output_size=2, data_format="channels_first"
         )
         outputs = layer(inputs)
-
-        expected = outputs
-        np.testing.assert_allclose(outputs, expected, atol=1e-4)
+        self.assertAllClose(outputs, expected, atol=1e-4)
 
     def test_max_pooling3d_numerical(self):
         """Test AdaptiveMaxPooling3D numerical correctness."""
@@ -149,10 +152,13 @@ class AdaptivePooling3DLayerTest(testing.TestCase):
             [[[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]]],
             dtype="float32",
         )
+        expected = np.array(
+            [[[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]]],
+            dtype="float32",
+        )
+
         layer = layers.AdaptiveMaxPooling3D(
             output_size=2, data_format="channels_first"
         )
         outputs = layer(inputs)
-
-        expected = outputs
-        np.testing.assert_allclose(outputs, expected, atol=1e-4)
+        self.assertAllClose(outputs, expected, atol=1e-4)
