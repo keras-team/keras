@@ -264,20 +264,20 @@ class Normalization(DataLayer):
         if isinstance(data, np.ndarray) or backend.is_tensor(data):
             input_shape = data.shape
         elif isinstance(data, tf.data.Dataset):
-            element_spec = data.element_spec
-            if isinstance(element_spec, tuple):
-                x_spec = element_spec[0]
-            else:
-                x_spec = element_spec
-            input_shape = tuple(x_spec.shape)
+
+            def get_input_shape(d):
+                element_spec = d.element_spec
+                x_spec = (
+                    element_spec[0]
+                    if isinstance(element_spec, tuple)
+                    else element_spec
+                )
+                return tuple(x_spec.shape)
+
+            input_shape = get_input_shape(data)
             if len(input_shape) == 1:
                 data = data.batch(128)
-            element_spec = data.element_spec
-            if isinstance(element_spec, tuple):
-                x_spec = element_spec[0]
-            else:
-                x_spec = element_spec
-            input_shape = tuple(x_spec.shape)
+                input_shape = get_input_shape(data)
         elif isinstance(data, PyDataset):
             data = data[0]
             if isinstance(data, tuple):
