@@ -151,10 +151,9 @@ class PyDatasetAdapterTest(testing.TestCase):
         CPU_DEVICES = {
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
-            "torch": "cpu",
-            "numpy": "cpu",
         }
-        with backend.device(CPU_DEVICES[backend.backend()]):
+        cpu_device = CPU_DEVICES.get(backend.backend(), "cpu")
+        with backend.device(cpu_device):
             if dataset_type == "tf":
                 x, y = tf.constant(x), tf.constant(y)
             elif dataset_type == "jax":
@@ -174,10 +173,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             py_dataset, shuffle=shuffle
         )
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
@@ -186,6 +182,9 @@ class PyDatasetAdapterTest(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         sample_order = []
         adapter.on_epoch_begin()
@@ -228,14 +227,14 @@ class PyDatasetAdapterTest(testing.TestCase):
         adapter = py_dataset_adapter.PyDatasetAdapter(
             py_dataset, shuffle=False, class_weight=class_w
         )
-        if backend.backend() == "numpy":
-            gen = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             gen = adapter.get_tf_dataset()
         elif backend.backend() == "jax":
             gen = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             gen = adapter.get_torch_dataloader()
+        else:
+            gen = adapter.get_numpy_iterator()
 
         for index, batch in enumerate(gen):
             # Batch is a tuple of (x, y, class_weight)
@@ -343,14 +342,14 @@ class PyDatasetAdapterTest(testing.TestCase):
             TestPyDataset(), shuffle=False
         )
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        else:
+            it = adapter.get_numpy_iterator()
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)
@@ -404,9 +403,7 @@ class PyDatasetAdapterTest(testing.TestCase):
         adapter = py_dataset_adapter.PyDatasetAdapter(dataset, shuffle=False)
 
         expected_exception_class = ValueError
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             # tf.data wraps the exception
             expected_exception_class = tf.errors.InvalidArgumentError
@@ -414,6 +411,8 @@ class PyDatasetAdapterTest(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        else:
+            it = adapter.get_numpy_iterator()
 
         it = iter(it)
         next(it)
