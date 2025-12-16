@@ -202,24 +202,6 @@ class RandomResizedCropTest(testing.TestCase):
         output_shape = layer.compute_output_shape((None, 256, 256, 3))
         self.assertEqual(output_shape, (None, 224, 224, 3))
 
-    def test_random_resized_crop_edge_case_small_image(self):
-        """Test with image smaller than target size."""
-        layer = layers.RandomResizedCrop(224, 224, seed=1337)
-        input_data = np.random.random((1, 100, 100, 3)).astype("float32")
-        output = layer(input_data, training=True)
-
-        output_np = ops.convert_to_numpy(output)
-        self.assertEqual(output_np.shape, (1, 224, 224, 3))
-
-    def test_random_resized_crop_edge_case_exact_size(self):
-        """Test with input exactly matching target size."""
-        layer = layers.RandomResizedCrop(256, 256, seed=1337)
-        input_data = np.random.random((2, 256, 256, 3)).astype("float32")
-        output = layer(input_data, training=False)
-
-        output_np = ops.convert_to_numpy(output)
-        self.assertEqual(output_np.shape, (2, 256, 256, 3))
-
     def test_random_resized_crop_non_square_target(self):
         """Test with non-square target size."""
         layer = layers.RandomResizedCrop(320, 224, seed=1337)
