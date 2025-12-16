@@ -1190,7 +1190,7 @@ class AdaptiveMaxPool(Operation):
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
 
-@keras_export("keras.ops.adaptive_max_pool")
+@keras_export(["keras.ops.adaptive_max_pool", "keras.ops.nn.adaptive_max_pool"])
 def adaptive_max_pool(
     inputs,
     output_size,
@@ -1366,7 +1366,9 @@ class AdaptiveAveragePool(Operation):
         return backend.KerasTensor(output_shape, dtype=inputs.dtype)
 
 
-@keras_export("keras.ops.adaptive_average_pool")
+@keras_export(
+    ["keras.ops.adaptive_average_pool", "keras.ops.nn.adaptive_average_pool"]
+)
 def adaptive_average_pool(
     inputs,
     output_size,
