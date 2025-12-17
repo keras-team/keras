@@ -3,7 +3,6 @@ NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
-NumpyDtypeTest::test_empty_like
 NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
@@ -21,9 +20,7 @@ NumpyDtypeTest::test_diagonal
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_flip
-NumpyDtypeTest::test_floor_divide
 NumpyDtypeTest::test_inner
-NumpyDtypeTest::test_isin
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
@@ -35,7 +32,6 @@ NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_quantile
-NumpyDtypeTest::test_roll
 NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
@@ -50,7 +46,6 @@ NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_vander
 NumpyDtypeTest::test_var
-NumpyDtypeTest::test_vdot
 NumpyDtypeTest::test_view
 NumpyDtypeTest::test_vstack
 HistogramTest
@@ -69,13 +64,11 @@ NumpyOneInputOpsCorrectnessTest::test_diagflat
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_flip
-NumpyOneInputOpsCorrectnessTest::test_floor_divide
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_logaddexp2
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
-NumpyOneInputOpsCorrectnessTest::test_roll
 NumpyOneInputOpsCorrectnessTest::test_round
 NumpyOneInputOpsCorrectnessTest::test_searchsorted
 NumpyOneInputOpsCorrectnessTest::test_select
@@ -103,15 +96,12 @@ NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_gcd
 NumpyTwoInputOpsCorrectnessTest::test_hypot
 NumpyTwoInputOpsCorrectnessTest::test_inner
-NumpyTwoInputOpsCorrectnessTest::test_isin
 NumpyTwoInputOpsCorrectnessTest::test_kron
 NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_ldexp
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
-NumpyTwoInputOpsCorrectnessTest::test_vdot
 NumpyOneInputOpsDynamicShapeTest::test_angle
-NumpyOneInputOpsDynamicShapeTest::test_empty_like
 NumpyOneInputOpsDynamicShapeTest::test_cbrt
 NumpyOneInputOpsDynamicShapeTest::test_corrcoef
 NumpyOneInputOpsDynamicShapeTest::test_hanning
@@ -124,13 +114,11 @@ NumpyOneInputOpsStaticShapeTest::test_isreal
 NumpyOneInputOpsStaticShapeTest::test_view
 NumpyTwoInputOpsDynamicShapeTest::test_gcd
 NumpyTwoInputOpsDynamicShapeTest::test_hypot
-NumpyTwoInputOpsDynamicShapeTest::test_isin
 NumpyTwoInputOpsDynamicShapeTest::test_kron
 NumpyTwoInputOpsDynamicShapeTest::test_lcm
 NumpyTwoInputOpsDynamicShapeTest::test_ldexp
 NumpyTwoInputOpsStaticShapeTest::test_gcd
 NumpyTwoInputOpsStaticShapeTest::test_hypot
-NumpyTwoInputOpsStaticShapeTest::test_isin
 NumpyTwoInputOpsStaticShapeTest::test_kron
 NumpyTwoInputOpsStaticShapeTest::test_lcm
 NumpyTwoInputOpsStaticShapeTest::test_ldexp
@@ -261,10 +249,8 @@ LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_cholesky_inverse
 NNOpsDynamicShapeTest::test_binary_crossentropy
 NNOpsDynamicShapeTest::test_categorical_crossentropy
-NNOpsDynamicShapeTest::test_multi_hot_dtype_
 NNOpsCorrectnessTest::test_conv_transpose_
 NNOpsCorrectnessTest::test_ctc_decode
-NNOpsCorrectnessTest::test_multi_hot_
 NNOpsCorrectnessTest::test_binary_crossentropy
 NNOpsCorrectnessTest::test_categorical_crossentropy
 NNOpsCorrectnessTest::test_log_softmax_correctness_with_axis_tuple
@@ -274,7 +260,6 @@ NNOpsCorrectnessTest::test_glu
 NNOpsCorrectnessTest::test_moments
 NNOpsCorrectnessTest::test_normalize
 NNOpsCorrectnessTest::test_polar_corectness
-NNOpsCorrectnessTest::test_psnr
 NNOpsCorrectnessTest::test_sparse_categorical_crossentropy
 NNOpsCorrectnessTest::test_sparsemax
 NNOpsCorrectnessTest::test_rms_normalization_10.0

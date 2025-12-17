@@ -7414,8 +7414,11 @@ class NumpyDtypeTest(testing.TestCase):
     def test_empty_like(self, dtype):
         import jax.numpy as jnp
 
-        x = jnp.empty([2, 3, 4], dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.empty_like(x, dtype=dtype).dtype)
+        x_jax = jnp.empty([2, 3, 4], dtype=dtype)
+        x = knp.ones([2, 3, 4], dtype=dtype)
+        expected_dtype = standardize_dtype(
+            jnp.empty_like(x_jax, dtype=dtype).dtype
+        )
 
         self.assertEqual(
             standardize_dtype(knp.empty_like(x, dtype=dtype).dtype),
