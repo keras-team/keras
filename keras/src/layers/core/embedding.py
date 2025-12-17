@@ -306,7 +306,7 @@ class Embedding(Layer):
                 config.get("quantization_config", None)
             )
         )
-        return cls(**config)
+        return super().from_config(config)
 
     def _quantization_mode_error(self, mode):
         return NotImplementedError(

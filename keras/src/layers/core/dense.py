@@ -353,7 +353,7 @@ class Dense(Layer):
                 config.get("quantization_config", None)
             )
         )
-        return cls(**config)
+        return super().from_config(config)
 
     @property
     def variable_serialization_spec(self):
