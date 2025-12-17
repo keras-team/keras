@@ -34,29 +34,6 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         clear_session(free_memory=False)
         if traceback_utils.is_traceback_filtering_enabled():
             traceback_utils.disable_traceback_filtering()
-        self.on_tpu = False
-        if backend.backend() == "jax":
-            import jax
-
-            available_devices = jax.devices()
-            self.on_tpu = any(
-                d.platform.lower() == "tpu" for d in available_devices
-            )
-            jax.clear_caches()
-        elif backend.backend() == "tensorflow":
-            import tensorflow as tf
-
-            try:
-                resolver = tf.distribute.cluster_resolver.TPUClusterResolver()
-                tf.config.experimental_connect_to_cluster(resolver)
-                tf.tpu.experimental.initialize_tpu_system(resolver)
-                devices = tf.config.list_logical_devices()
-                tpu_devices = [d for d in devices if "TPU" in d.device_type]
-                if len(tpu_devices) > 0:
-                    self.on_tpu = True
-            except (ValueError, RuntimeError):
-                # No TPU found or initialization failed.
-                pass
 
     def get_temp_dir(self):
         temp_dir = tempfile.mkdtemp()
@@ -73,9 +50,9 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         tpu_rtol=None,
         msg=None,
     ):
-        if tpu_atol is not None and self.on_tpu:
+        if tpu_atol is not None and uses_tpu():
             atol = tpu_atol
-        if tpu_rtol is not None and self.on_tpu:
+        if tpu_rtol is not None and uses_tpu():
             rtol = tpu_rtol
         if not isinstance(x1, np.ndarray):
             x1 = backend.convert_to_numpy(x1)
@@ -94,7 +71,7 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         )
 
     def assertAlmostEqual(self, x1, x2, decimal=3, tpu_decimal=None, msg=None):
-        if tpu_decimal is not None and self.on_tpu:
+        if tpu_decimal is not None and uses_tpu():
             decimal = tpu_decimal
         msg = msg or ""
         if not isinstance(x1, np.ndarray):
