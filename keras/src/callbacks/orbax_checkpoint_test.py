@@ -25,7 +25,7 @@ class MockLayerWithAssets(layers.Layer):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.dense = layers.Dense(4)
+        self.dense = layers.Dense(4, name=f"{self.name}_dense")
         # Mock asset data - binary data that should be saved separately
         self.asset_data = {
             "binary_blob": b"test binary data 12345",
@@ -300,6 +300,84 @@ class OrbaxCheckpointTest(testing.TestCase):
                 np.allclose(orig, loaded),
                 "Weights should match after loading from checkpoint",
             )
+
+    @pytest.mark.requires_trainable_backend
+    def test_load_weights_with_assets_from_orbax_checkpoint(self):
+        """Test load_weights with assets from Orbax checkpoint."""
+        import keras
+
+        # Create model with actual assets
+        model, asset_layer = self._create_test_model_with_assets()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), "test_load_weights_assets_orbax"
+        )
+
+        # Clean directory if it exists
+        if os.path.exists(checkpoint_dir):
+            import shutil
+
+            shutil.rmtree(checkpoint_dir)
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_weights_only=True,
+            save_freq="epoch",
+        )
+
+        # Train to create checkpoint
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Get original weights and assets after training
+        original_weights = model.get_weights()
+        original_assets = asset_layer.asset_data
+
+        # Create a new model with the same architecture
+        new_model, new_asset_layer = self._create_test_model_with_assets()
+
+        # Initialize with different weights to ensure loading works
+        different_weights = [w * 2 for w in original_weights]
+        new_model.set_weights(different_weights)
+
+        # Verify weights are different initially
+        new_weights_before = new_model.get_weights()
+        for orig, new in zip(original_weights, new_weights_before):
+            self.assertFalse(
+                np.allclose(orig, new),
+                "Weights should be different before loading",
+            )
+
+        # Load weights from Orbax checkpoint
+        keras.saving.load_weights(new_model, checkpoint_dir)
+
+        # Verify weights were loaded correctly
+        loaded_weights = new_model.get_weights()
+        for orig, loaded in zip(original_weights, loaded_weights):
+            self.assertTrue(
+                np.allclose(orig, loaded),
+                "Weights should match after loading from checkpoint",
+            )
+
+        # Verify assets were loaded correctly
+        loaded_assets = new_asset_layer.asset_data
+
+        self.assertEqual(
+            original_assets["binary_blob"],
+            loaded_assets["binary_blob"],
+            "Binary blob should match",
+        )
+        self.assertEqual(
+            original_assets["text_data"],
+            loaded_assets["text_data"],
+            "Text data should match",
+        )
+        np.testing.assert_array_equal(
+            original_assets["numpy_array"],
+            loaded_assets["numpy_array"],
+            "Numpy array should match",
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_save_freq_epoch(self):

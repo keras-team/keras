@@ -260,6 +260,23 @@ class OrbaxCheckpoint(MonitorCallback):
                 composite_state["non_trainable_variables"] = state_tree[
                     "non_trainable_variables"
                 ]
+            # Include assets even for weights-only checkpoints
+            assets_tree = {}
+            for layer in self.model.layers:
+                if hasattr(layer, "asset_data"):
+                    # Convert TrackedDict to dict, handle bytes as base64
+                    asset_dict = {}
+                    for key, value in layer.asset_data.items():
+                        if isinstance(value, bytes):
+                            import base64
+
+                            asset_dict[key] = base64.b64encode(value).decode(
+                                "ascii"
+                            )
+                        else:
+                            asset_dict[key] = value
+                    assets_tree[layer.name] = asset_dict
+            composite_state["assets"] = assets_tree
         else:
             composite_state = {
                 "model_config": self.model.get_config(),
