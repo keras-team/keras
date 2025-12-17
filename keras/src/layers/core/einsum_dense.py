@@ -158,12 +158,7 @@ class EinsumDense(Layer):
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
         self.gptq_unpacked_column_size = gptq_unpacked_column_size
-        if isinstance(quantization_config, dict):
-            self.quantization_config = (
-                serialization_lib.deserialize_keras_object(quantization_config)
-            )
-        else:
-            self.quantization_config = quantization_config
+        self.quantization_config = quantization_config
 
     def build(self, input_shape):
         shape_data = _analyze_einsum_string(
@@ -413,6 +408,16 @@ class EinsumDense(Layer):
         if self.gptq_unpacked_column_size:
             config["gptq_unpacked_column_size"] = self.gptq_unpacked_column_size
         return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        config = config.copy()
+        config["quantization_config"] = (
+            serialization_lib.deserialize_keras_object(
+                config.get("quantization_config", None)
+            )
+        )
+        return cls(**config)
 
     @property
     def variable_serialization_spec(self):

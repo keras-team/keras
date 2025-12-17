@@ -116,12 +116,7 @@ class Dense(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
-        if isinstance(quantization_config, dict):
-            self.quantization_config = (
-                serialization_lib.deserialize_keras_object(quantization_config)
-            )
-        else:
-            self.quantization_config = quantization_config
+        self.quantization_config = quantization_config
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
 
@@ -349,6 +344,16 @@ class Dense(Layer):
             config["lora_rank"] = self.lora_rank
             config["lora_alpha"] = self.lora_alpha
         return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        config = config.copy()
+        config["quantization_config"] = (
+            serialization_lib.deserialize_keras_object(
+                config.get("quantization_config", None)
+            )
+        )
+        return cls(**config)
 
     @property
     def variable_serialization_spec(self):

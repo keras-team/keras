@@ -1025,3 +1025,123 @@ class DenseTest(testing.TestCase):
 
         quantized_kernel_params = ops.prod(layer.quantized_kernel.shape)
         self.assertEqual(quantized_kernel_params, original_kernel_params // 2)
+
+    def _check_quantizer_config(
+        self, quantizer, valid_class, axis, value_range
+    ):
+        self.assertIsInstance(quantizer, valid_class)
+        self.assertEqual(quantizer.axis, axis)
+
+        # Normalize value_range to list
+        if value_range is not None:
+            self.assertAllEqual(quantizer.value_range, value_range)
+
+    def test_dense_int8_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for dense layer.
+        """
+        # Setup
+        weight_range = (-127, 127)
+        act_range = (-5, 5)
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0, value_range=weight_range),
+            activation_quantizer=AbsMaxQuantizer(
+                axis=-1, value_range=act_range
+            ),
+        )
+
+        # Build & Quantize
+        layer = layers.Dense(10)
+        layer.build((None, 5))
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Dense.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.weight_quantizer,
+            AbsMaxQuantizer,
+            axis=(0,),
+            value_range=weight_range,
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.activation_quantizer,
+            AbsMaxQuantizer,
+            axis=(-1,),
+            value_range=act_range,
+        )
+
+    def test_dense_int8_weight_only_quantizer(self):
+        """
+        Test custom quantizer serialization for dense layer with
+        weight-only quantization.
+        """
+        # Setup
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0),
+            activation_quantizer=None,
+        )
+
+        # Build & Quantize
+        layer = layers.Dense(10)
+        layer.build((None, 5))
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Dense.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        self.assertIsInstance(
+            new_layer.quantization_config.weight_quantizer, AbsMaxQuantizer
+        )
+        self.assertIsNone(new_layer.quantization_config.activation_quantizer)
+
+    def test_dense_int4_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for dense layer with
+        int4 quantization.
+        """
+        # Setup
+        weight_range = (-8, 7)
+        act_range = (-2, 2)
+        config = Int4QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0, value_range=weight_range),
+            activation_quantizer=AbsMaxQuantizer(
+                axis=-1, value_range=act_range
+            ),
+        )
+
+        # Build & Quantize
+        layer = layers.Dense(10)
+        layer.build((None, 5))
+        layer.quantize("int4", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Dense.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int4QuantizationConfig
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.weight_quantizer,
+            AbsMaxQuantizer,
+            axis=(0,),
+            value_range=weight_range,
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.activation_quantizer,
+            AbsMaxQuantizer,
+            axis=(-1,),
+            value_range=act_range,
+        )
