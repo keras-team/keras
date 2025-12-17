@@ -1,3 +1,8 @@
+import os
+
+from keras.src import layers
+from keras.src import models
+from keras.src import saving
 from keras.src import testing
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
@@ -117,3 +122,42 @@ class QuantizationConfigTest(testing.TestCase):
         q = AbsMaxQuantizer(axis=0, value_range=(-8, 7), output_dtype="int16")
         with self.assertRaisesRegex(ValueError, "output_dtype='int8'"):
             Int4QuantizationConfig(weight_quantizer=q)
+
+    def test_model_save_and_load(self):
+        """
+        Test custom quantizer serialization for model save and load.
+        """
+        # Setup
+        weight_range = (-100, 100)
+        custom_quantizer = AbsMaxQuantizer(axis=0, value_range=weight_range)
+        config = Int8QuantizationConfig(
+            weight_quantizer=custom_quantizer,
+            activation_quantizer=None,
+        )
+
+        layer = layers.Dense(10)
+        layer.build((None, 5))
+        layer.quantize("int8", config=config)
+
+        model = models.Sequential([layer])
+        model.build((None, 5))
+
+        # Save to temp file
+        filepath = os.path.join(self.get_temp_dir(), "quantized_model.keras")
+        model.save(filepath)
+
+        # Load back
+        loaded_model = saving.load_model(filepath)
+
+        # Verify
+        loaded_layer = loaded_model.layers[0]
+        self.assertIsInstance(
+            loaded_layer.quantization_config, Int8QuantizationConfig
+        )
+
+        quantizer = loaded_layer.quantization_config.weight_quantizer
+        self.assertIsInstance(quantizer, AbsMaxQuantizer)
+        self.assertEqual(quantizer.axis, (0,))
+        self.assertAllEqual(quantizer.value_range, weight_range)
+        self.assertIsNone(loaded_layer.quantization_config.activation_quantizer)
+        self.assertTrue(loaded_layer._is_quantized)

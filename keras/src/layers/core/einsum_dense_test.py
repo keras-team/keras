@@ -71,7 +71,7 @@ class EinsumDenseTest(testing.TestCase):
         if activation_quantizer_args is not None:
             # Verify inputs_quantizer is set correctly
             self.assertIsInstance(layer.inputs_quantizer, AbsMaxQuantizer)
-            self.assertEqual(layer.inputs_quantizer.axis, (-1,))
+            self.assertEqual(layer.inputs_quantizer.axis, (1,))
         else:
             # Verify inputs_quantizer is None
             self.assertIsNone(layer.inputs_quantizer)
@@ -1252,3 +1252,34 @@ class EinsumDenseTest(testing.TestCase):
             quantized_kernel_params,
             original_kernel_params // 2,
         )
+
+    def test_einsum_dense_int8_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for einsum dense layer with
+        int8 quantization.
+        """
+        # Setup
+        weight_range = (-10, 10)
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0, value_range=weight_range),
+            activation_quantizer=None,
+        )
+
+        # Build & Quantize
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=10)
+        layer.build((None, 5))
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.EinsumDense.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+
+        quantizer = new_layer.quantization_config.weight_quantizer
+        self.assertIsInstance(quantizer, AbsMaxQuantizer)
+        self.assertEqual(quantizer.axis, (0,))
+        self.assertAllEqual(quantizer.value_range, weight_range)

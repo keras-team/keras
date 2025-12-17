@@ -231,3 +231,32 @@ class ReversibleEmbeddingTest(test_case.TestCase):
             expected_num_non_trainable_weights=num_non_trainable_weights,
             expected_num_non_trainable_variables=num_non_trainable_weights,
         )
+
+    def test_reversible_embedding_int8_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for reversible embedding layer with
+        int8 quantization.
+        """
+        # Setup
+        weight_range = (-20, 20)
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=-1, value_range=weight_range),
+        )
+
+        # Build & Quantize
+        layer = layers.ReversibleEmbedding(input_dim=100, output_dim=16)
+        layer.build(None)
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.ReversibleEmbedding.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        quantizer = new_layer.quantization_config.weight_quantizer
+        self.assertIsInstance(quantizer, AbsMaxQuantizer)
+        self.assertEqual(quantizer.axis, (-1,))
+        self.assertAllEqual(quantizer.value_range, weight_range)
