@@ -4,7 +4,6 @@ import numpy as np
 
 from keras.src import backend
 from keras.src import tree
-from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
@@ -54,7 +53,6 @@ def _get_state_tree(model):
         return state_tree
 
 
-@keras_export("keras.callbacks.OrbaxCheckpoint")
 class OrbaxCheckpoint(MonitorCallback):
     """Callback to save and load model state using Orbax with a similar API to
     ModelCheckpoint.
