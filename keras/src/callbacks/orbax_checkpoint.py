@@ -1,4 +1,3 @@
-import os
 import warnings
 
 import numpy as np
@@ -9,7 +8,6 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
-from keras.src.saving.saving_lib import DiskIOStore
 from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
@@ -267,6 +265,24 @@ class OrbaxCheckpoint(MonitorCallback):
                 "model_config": self.model.get_config(),
                 **state_tree,
             }
+            # Include assets as part of the tree
+            if not self.save_weights_only:
+                assets_tree = {}
+                for layer in self.model.layers:
+                    if hasattr(layer, "asset_data"):
+                        # Convert TrackedDict to dict, handle bytes as base64
+                        asset_dict = {}
+                        for key, value in layer.asset_data.items():
+                            if isinstance(value, bytes):
+                                import base64
+
+                                asset_dict[key] = base64.b64encode(
+                                    value
+                                ).decode("ascii")
+                            else:
+                                asset_dict[key] = value
+                        assets_tree[layer.name] = asset_dict
+                composite_state["assets"] = assets_tree
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
@@ -275,33 +291,6 @@ class OrbaxCheckpoint(MonitorCallback):
                 self.checkpointer.save_pytree_async(step, composite_state)
             else:
                 self.checkpointer.save_pytree(step, composite_state)
-
-        # Save assets separately since PyTree can't handle binary data
-        if not self.save_weights_only:
-            self._save_assets(step)
-
-    def _save_assets(self, step):
-        """Save model assets to a separate directory."""
-        from keras.src.saving.saving_lib import _save_state
-
-        assets_dir = os.path.join(self.directory, "assets", str(step))
-        try:
-            assets_store = DiskIOStore(assets_dir, mode="w")
-        except FileExistsError:
-            # Directory already exists, skip asset saving
-            return
-        try:
-            # Use the same recursive saving logic as _save_state
-            visited = set()
-            _save_state(
-                self.model,
-                None,  # No weights store
-                assets_store,  # Assets store
-                "",  # Root path
-                visited,
-            )
-        finally:
-            assets_store.close()
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):

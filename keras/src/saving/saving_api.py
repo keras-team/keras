@@ -124,7 +124,26 @@ def _load_model_from_orbax_checkpoint(
 
     model.set_state_tree(state_to_set)
 
-    # Load assets if they exist
+    # Load assets from state if present (new format)
+    if "assets" in loaded_state:
+        for layer in model.layers:
+            if layer.name in loaded_state["assets"]:
+                asset_dict = loaded_state["assets"][layer.name]
+                # Convert base64 strings back to bytes if needed
+                restored_dict = {}
+                for key, value in asset_dict.items():
+                    if isinstance(value, str):
+                        try:
+                            import base64
+
+                            restored_dict[key] = base64.b64decode(value)
+                        except:
+                            restored_dict[key] = value
+                    else:
+                        restored_dict[key] = value
+                layer.asset_data = restored_dict
+
+    # Load assets if they exist (fallback to old format)
     _load_orbax_assets(model, filepath)
 
     return model

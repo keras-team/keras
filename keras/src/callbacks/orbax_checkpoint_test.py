@@ -803,29 +803,14 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Train for 1 epoch
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
 
-        # Check that checkpoint and assets were created
+        # Check that checkpoint was created
         checkpoint_files = os.listdir(checkpoint_dir)
         self.assertGreater(
             len(checkpoint_files), 0, "Should have checkpoint files"
         )
 
-        # Check that assets directory exists
-        assets_dir = os.path.join(checkpoint_dir, "assets")
-        self.assertTrue(
-            os.path.exists(assets_dir), "Assets directory should exist"
-        )
-
-        # Check that assets for step 0 exist
-        step_assets_dir = os.path.join(assets_dir, "0")
-        self.assertTrue(
-            os.path.exists(step_assets_dir), "Step 0 assets should exist"
-        )
-
-        # Check that asset files were actually created
-        asset_files = []
-        for root, dirs, files in os.walk(step_assets_dir):
-            asset_files.extend(files)
-        self.assertGreater(len(asset_files), 0, "Should have asset files")
+        # Assets are now saved in the checkpoint tree, not as separate files
+        # So no assets directory checks needed
 
         # Test loading the model with assets
         import keras
@@ -895,29 +880,14 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
         callback.wait_until_finished()
 
-        # Check that checkpoint and assets were created
+        # Check that checkpoint was created
         checkpoint_files = os.listdir(checkpoint_dir)
         self.assertGreater(
             len(checkpoint_files), 0, "Should have checkpoint files"
         )
 
-        # Check that assets directory exists
-        assets_dir = os.path.join(checkpoint_dir, "assets")
-        self.assertTrue(
-            os.path.exists(assets_dir), "Assets directory should exist"
-        )
-
-        # Check that assets for step 0 exist
-        step_assets_dir = os.path.join(assets_dir, "0")
-        self.assertTrue(
-            os.path.exists(step_assets_dir), "Step 0 assets should exist"
-        )
-
-        # Check that asset files were actually created
-        asset_files = []
-        for root, dirs, files in os.walk(step_assets_dir):
-            asset_files.extend(files)
-        self.assertGreater(len(asset_files), 0, "Should have asset files")
+        # Assets are now saved in the checkpoint tree, not as separate files
+        # So no assets directory checks needed
 
         # Test loading the model with assets
         import keras
