@@ -17,7 +17,7 @@ from keras.src.testing.test_utils import named_product
 
 class QuantizersTest(testing.TestCase):
     def test_get_method(self):
-        quantizer = quantizers.get("abs_max_quantizer", axis=-1)
+        quantizer = quantizers.get("abs_max_quantizer")
         self.assertTrue(quantizer, quantizers.AbsMaxQuantizer)
 
         quantizer = quantizers.get(None)
@@ -28,10 +28,10 @@ class QuantizersTest(testing.TestCase):
 
     def test_abs_max_quantizer(self):
         values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float32")
-        quantizer = quantizers.AbsMaxQuantizer(axis=-1)
+        quantizer = quantizers.AbsMaxQuantizer()
 
         # Test quantizing
-        quantized_values, scale = quantizer(values)
+        quantized_values, scale = quantizer(values, axis=-1)
         self.assertDType(quantized_values, "int8")
         self.assertDType(scale, "float32")
         self.assertEqual(tuple(quantized_values.shape), (3, 4, 5))
@@ -53,11 +53,11 @@ class QuantizersTest(testing.TestCase):
         values = random.uniform(
             [3, 4, 5], minval=-1, maxval=1, dtype="bfloat16"
         )
-        quantized_values, scale = quantizer(values)
+        quantized_values, scale = quantizer(values, axis=-1)
         self.assertDType(quantized_values, "int8")
         self.assertDType(scale, "bfloat16")
         values = random.uniform([3, 4, 5], minval=-1, maxval=1, dtype="float16")
-        quantized_values, scale = quantizer(values)
+        quantized_values, scale = quantizer(values, axis=-1)
         self.assertDType(quantized_values, "int8")
         self.assertDType(scale, "float16")
 

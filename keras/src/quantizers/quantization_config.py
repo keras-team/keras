@@ -76,7 +76,7 @@ class Int8QuantizationConfig(QuantizationConfig):
         from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
         if activation_quantizer == "default":
-            activation_quantizer = AbsMaxQuantizer(axis=-1)
+            activation_quantizer = AbsMaxQuantizer()
         super().__init__(weight_quantizer, activation_quantizer)
         if self.weight_quantizer is not None:
             if self.weight_quantizer.output_dtype != "int8":
@@ -105,7 +105,7 @@ class Int4QuantizationConfig(QuantizationConfig):
         from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
         if activation_quantizer == "default":
-            activation_quantizer = AbsMaxQuantizer(axis=-1)
+            activation_quantizer = AbsMaxQuantizer()
         super().__init__(weight_quantizer, activation_quantizer)
         if self.weight_quantizer is not None:
             if self.weight_quantizer.value_range != (-8, 7):
