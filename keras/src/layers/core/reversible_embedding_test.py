@@ -258,5 +258,4 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         )
         quantizer = new_layer.quantization_config.weight_quantizer
         self.assertIsInstance(quantizer, AbsMaxQuantizer)
-        self.assertEqual(quantizer.axis, (-1,))
         self.assertAllEqual(quantizer.value_range, weight_range)

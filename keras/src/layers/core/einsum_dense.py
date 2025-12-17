@@ -479,13 +479,12 @@ class EinsumDense(Layer):
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
                 config,
-                quantizers.AbsMaxQuantizer(axis=self._input_reduced_axes),
+                quantizers.AbsMaxQuantizer(),
             )
         )
         # If the config provided a default AbsMaxQuantizer, we need to
         # override the axis to match the equation's reduction axes.
-        if isinstance(self.inputs_quantizer, quantizers.AbsMaxQuantizer):
-            self.inputs_quantizer.axis = tuple(self._input_reduced_axes)
+        self.quantization_axis = tuple(self._input_reduced_axes)
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
@@ -632,13 +631,12 @@ class EinsumDense(Layer):
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
                 config,
-                quantizers.AbsMaxQuantizer(axis=self._input_reduced_axes),
+                quantizers.AbsMaxQuantizer(),
             )
         )
         # If the config provided a default AbsMaxQuantizer, we need to
         # override the axis to match the equation's reduction axes.
-        if isinstance(self.inputs_quantizer, quantizers.AbsMaxQuantizer):
-            self.inputs_quantizer.axis = tuple(self._input_reduced_axes)
+        self.quantization_axis = tuple(self._input_reduced_axes)
 
         # Choose the axis to perform int4 packing - use the first reduced axis
         # for the kernel (analogous to the input dimension of a Dense layer).
@@ -761,7 +759,9 @@ class EinsumDense(Layer):
                 return (inputs_grad, None, None)
 
             if self.inputs_quantizer:
-                inputs, inputs_scale = self.inputs_quantizer(inputs)
+                inputs, inputs_scale = self.inputs_quantizer(
+                    inputs, axis=self.quantization_axis
+                )
                 # Align `inputs_scale` axes with the output
                 # for correct broadcasting
                 inputs_scale = self._adjust_scale_for_quant(
@@ -858,7 +858,9 @@ class EinsumDense(Layer):
 
             # Quantize inputs per `self.inputs_quantizer`.
             if self.inputs_quantizer:
-                inputs_q, inputs_scale = self.inputs_quantizer(inputs)
+                inputs_q, inputs_scale = self.inputs_quantizer(
+                    inputs, axis=self.quantization_axis
+                )
                 # Align `inputs_scale` axes with the output
                 # for correct broadcasting
                 inputs_scale = self._adjust_scale_for_quant(

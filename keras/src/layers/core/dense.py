@@ -413,7 +413,7 @@ class Dense(Layer):
     def _int8_build(self, kernel_shape, config=None):
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
-                config, quantizers.AbsMaxQuantizer(axis=-1)
+                config, quantizers.AbsMaxQuantizer()
             )
         )
 
@@ -526,7 +526,7 @@ class Dense(Layer):
         # Per-channel int8 quantizer for the last axis (features).
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
-                config, quantizers.AbsMaxQuantizer(axis=-1)
+                config, quantizers.AbsMaxQuantizer()
             )
         )
         input_dim, output_dim = kernel_shape
@@ -618,7 +618,7 @@ class Dense(Layer):
 
             output_scale = kernel_scale
             if self.inputs_quantizer:
-                inputs, inputs_scale = self.inputs_quantizer(inputs)
+                inputs, inputs_scale = self.inputs_quantizer(inputs, axis=-1)
                 output_scale = ops.multiply(output_scale, inputs_scale)
 
             x = ops.matmul(inputs, kernel)
@@ -674,7 +674,7 @@ class Dense(Layer):
             output_scale = kernel_scale
 
             if self.inputs_quantizer:
-                inputs, inputs_scale = self.inputs_quantizer(inputs)
+                inputs, inputs_scale = self.inputs_quantizer(inputs, axis=-1)
                 output_scale = ops.multiply(output_scale, inputs_scale)
 
             x = ops.matmul(inputs, unpacked_kernel)
