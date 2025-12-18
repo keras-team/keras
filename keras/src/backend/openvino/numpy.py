@@ -2509,10 +2509,9 @@ def divide(x1, x2):
 def divide_no_nan(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
-    x1_type = x1.get_element_type()
-    x2_type = x2.get_element_type()
-
-
+    
+    x1_type = ov_to_keras_type(x1.get_element_type())
+    x2_type = ov_to_keras_type(x2.get_element_type())
     result_type = dtypes.result_type(x1_type, x2_type, float)
     result_type = OPENVINO_DTYPES[result_type]
     x1 = ov_opset.convert(x1, result_type).output(0)
@@ -2524,7 +2523,7 @@ def divide_no_nan(x1, x2):
     ninf = ov_opset.constant(float("-inf"), dtype=result_type).output(0)
     
     is_inf = ov_opset.logical_or(ov_opset.equal(result,inf).output(0), ov_opset.equal(result,ninf).output(0))
-    is_nan = ov_opset.logical_not(result).output(0)
+    is_nan = ov_opset.is_nan(result).output(0)
 
     is_invalid = ov_opset.logical_or(is_inf, is_nan).output(0)
     const_zero = ov_opset.constant(0, dtype=result_type).output(0)
@@ -2608,30 +2607,35 @@ def transpose(x, axes=None):
 
 
 def _helper_trapezoid(y, axis):
-    
-    shape_y = ov_opset.shape_of(y, Type.i64).output(0)
-    rank_y = shape_y.get_partial_shape().to_shape()[0]
-    dim = y.get_partial_shape().to_shape()[axis]
+    rank = y.get_partial_shape().rank.get_length()
+    strides = ov_opset.constant([1] * rank, dtype=Type.i64).output(0)
 
-    # slicing first n-1 elements from y
-    begin1 = zeros([rank_y], dtype = "int64")
-    end1 = [0]*rank_y
-    end1[-1] = dim-1
-    end1 = ov_opset.constant(end1, dtype=Type.i64).output(0)
-    strides = get_ov_output(ones([rank_y], dtype = "int64"))
-    mask = [1]*rank_y
-    mask[-1] = 0
-    mask = ov_opset.constant(mask, dtype=Type.i64).output(0)
-    y1 = ov_opset.strided_slice(y, begin1, end1, strides, mask, mask).output(0)
+    # y[:-1]
+    begin1 = ov_opset.constant([0] * rank, dtype=Type.i64).output(0)
+    end1_list = [0] * rank
+    end1_list[axis] = -1
+    end1 = ov_opset.constant(end1_list, dtype=Type.i64).output(0)
+    begin_mask1 = [1] * rank
+    begin_mask1[axis] = 0
+    end_mask1 = [1] * rank
+    end_mask1[axis] = 0
+    y1 = ov_opset.strided_slice(
+        y, begin1, end1, strides, begin_mask1, end_mask1
+    ).output(0)
 
-    # slicing last n-1 elements from y
-    begin2 = zeros([rank_y], dtype = "int64")
-    end2 = [0]*rank_y
-    end2[-1] = dim-1
-    end2 = ov_opset.constant(end2, dtype=Type.i64).output(0)
-    y2 = ov_opset.strided_slice(y, begin2, end2, strides, mask, mask).output(0)
+    # y[1:]
+    begin2_list = [0] * rank
+    begin2_list[axis] = 1
+    begin2 = ov_opset.constant(begin2_list, dtype=Type.i64).output(0)
+    end2 = ov_opset.constant([0] * rank, dtype=Type.i64).output(0)
+    begin_mask2 = [1] * rank
+    begin_mask2[axis] = 0
+    end_mask2 = [1] * rank
+    y2 = ov_opset.strided_slice(
+        y, begin2, end2, strides, begin_mask2, end_mask2
+    ).output(0)
 
-    return y1,y2
+    return y1, y2
 
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
@@ -2645,7 +2649,7 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         y = ov_opset.convert(y, y_type).output(0)
 
     shape_y = ov_opset.shape_of(y, Type.i64).output(0)
-    rank_y = shape_y.get_partial_shape().to_shape()[0]
+    rank_y = y.get_partial_shape().rank.get_length()
 
 
     y1,y2 = _helper_trapezoid(y,axis)
@@ -2654,7 +2658,7 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     y_final = ov_opset.divide(y_final, const_two).output(0)
 
 
-    if x:
+    if x is not None:
         x = get_ov_output(x)
         x_type = x.get_element_type()
         if x_type.is_integral():
@@ -2824,8 +2828,8 @@ def correlate(x1, x2, mode="valid"):
     x1_type = x1.get_element_type()
     x2_type = x2.get_element_type()
     
-    x1_type = ov_to_keras_type(x1.get_element_type())
-    x2_type = ov_to_keras_type(x2.get_element_type())
+    x1_type = ov_to_keras_type(x1_type)
+    x2_type = ov_to_keras_type(x2_type)
     result_type = dtypes.result_type(x1_type, x2_type, float)
 
     result_type = OPENVINO_DTYPES[result_type]
