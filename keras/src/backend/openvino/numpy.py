@@ -2548,10 +2548,9 @@ def divide(x1, x2):
 def divide_no_nan(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
-    x1_type = x1.get_element_type()
-    x2_type = x2.get_element_type()
-
-
+    
+    x1_type = ov_to_keras_type(x1.get_element_type())
+    x2_type = ov_to_keras_type(x2.get_element_type())
     result_type = dtypes.result_type(x1_type, x2_type, float)
     result_type = OPENVINO_DTYPES[result_type]
     x1 = ov_opset.convert(x1, result_type).output(0)
@@ -2563,7 +2562,7 @@ def divide_no_nan(x1, x2):
     ninf = ov_opset.constant(float("-inf"), dtype=result_type).output(0)
     
     is_inf = ov_opset.logical_or(ov_opset.equal(result,inf).output(0), ov_opset.equal(result,ninf).output(0))
-    is_nan = ov_opset.logical_not(result).output(0)
+    is_nan = ov_opset.is_nan(result).output(0)
 
     is_invalid = ov_opset.logical_or(is_inf, is_nan).output(0)
     const_zero = ov_opset.constant(0, dtype=result_type).output(0)
@@ -2865,7 +2864,6 @@ def correlate(x1, x2, mode="valid"):
     x2 = get_ov_output(x2)
     x1_type = x1.get_element_type()
     x2_type = x2.get_element_type()
-
     x1_type = ov_to_keras_type(x1_type)
     x2_type = ov_to_keras_type(x2_type)
     result_type = dtypes.result_type(x1_type, x2_type, float)
