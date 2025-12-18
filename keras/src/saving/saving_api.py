@@ -13,8 +13,6 @@ from keras.src.utils import io_utils
 
 # Import Orbax functions
 _load_model_from_orbax_checkpoint = orbax_util._load_model_from_orbax_checkpoint
-_load_assets_from_tree = orbax_util._load_assets_from_tree
-_load_orbax_assets = orbax_util._load_orbax_assets
 _is_orbax_checkpoint = orbax_util._is_orbax_checkpoint
 _find_latest_orbax_checkpoint = orbax_util._find_latest_orbax_checkpoint
 

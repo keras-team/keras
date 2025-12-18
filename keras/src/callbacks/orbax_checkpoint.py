@@ -244,109 +244,6 @@ class OrbaxCheckpoint(MonitorCallback):
             return True
         return False
 
-    def _collect_assets_recursive(self, saveable, path=""):
-        """Recursively collect assets from all KerasSaveable objects
-        in the hierarchy."""
-        import base64
-        import os
-        import tempfile
-
-        from keras.src.saving.keras_saveable import KerasSaveable
-        from keras.src.saving.saving_lib import _walk_saveable
-
-        assets_tree = {}
-
-        # Handle the case where saveable is a list of KerasSaveable objects
-        if isinstance(saveable, list):
-            for i, item in enumerate(saveable):
-                if isinstance(item, KerasSaveable):
-                    item_path = f"{path}/layers/{i}" if path else f"layers/{i}"
-                    item_assets = self._collect_assets_recursive(
-                        item, item_path
-                    )
-                    if item_assets:
-                        # Merge the nested structure
-                        self._merge_assets_tree(assets_tree, item_assets)
-            return assets_tree
-
-        # Only process KerasSaveable objects
-        if not isinstance(saveable, KerasSaveable):
-            return assets_tree
-
-        # Check if this object has save_assets method
-        if hasattr(saveable, "save_assets"):
-            # Create temporary directory for save_assets to write to
-            with tempfile.TemporaryDirectory() as temp_dir:
-                # Call save_assets to create files
-                saveable.save_assets(temp_dir)
-
-                # Read all files created and store as base64
-                asset_dict = {}
-                for root, dirs, files in os.walk(temp_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(file_path, temp_dir)
-
-                        with open(file_path, "rb") as f:
-                            file_content = f.read()
-
-                        # Store as base64-encoded string
-                        asset_dict[rel_path] = base64.b64encode(
-                            file_content
-                        ).decode("ascii")
-
-                if asset_dict:  # Only add if there are assets
-                    # Store assets under the path
-                    self._set_nested_asset(assets_tree, path, asset_dict)
-
-        # Recursively walk through all child KerasSaveable objects
-        for attr_name, child in _walk_saveable(saveable):
-            child_path = f"{path}/{attr_name}" if path else attr_name
-            if isinstance(child, KerasSaveable):
-                child_assets = self._collect_assets_recursive(child, child_path)
-                if child_assets:
-                    self._merge_assets_tree(assets_tree, child_assets)
-            elif isinstance(child, list):
-                # Handle lists of KerasSaveable objects
-                for i, item in enumerate(child):
-                    if isinstance(item, KerasSaveable):
-                        item_path = f"{child_path}/{i}"
-                        item_assets = self._collect_assets_recursive(
-                            item, item_path
-                        )
-                        if item_assets:
-                            self._merge_assets_tree(assets_tree, item_assets)
-
-        return assets_tree
-
-    def _set_nested_asset(self, tree, path, asset_dict):
-        """Set a nested asset in the tree at the given path."""
-        if not path:
-            # Root level - shouldn't happen for assets
-            return
-
-        parts = path.split("/")
-        current = tree
-        for part in parts[:-1]:
-            if part not in current:
-                current[part] = {}
-            current = current[part]
-
-        last_part = parts[-1]
-        current[last_part] = asset_dict
-
-    def _merge_assets_tree(self, target, source):
-        """Merge source assets tree into target."""
-        for key, value in source.items():
-            if key in target:
-                if isinstance(target[key], dict) and isinstance(value, dict):
-                    self._merge_assets_tree(target[key], value)
-                else:
-                    # Overwrite if not both dicts
-                    target[key] = value
-            else:
-                target[key] = value
-
     def _save_checkpoint(self, step, logs=None):
         """Save a checkpoint at the given step with multi-host coordination."""
 
@@ -363,18 +260,11 @@ class OrbaxCheckpoint(MonitorCallback):
                 composite_state["non_trainable_variables"] = state_tree[
                     "non_trainable_variables"
                 ]
-            # Include assets even for weights-only checkpoints
-            assets_tree = self._collect_assets_recursive(self.model)
         else:
             composite_state = {
                 "model_config": self.model.get_config(),
                 **state_tree,
             }
-            # Include assets as part of the tree
-            assets_tree = self._collect_assets_recursive(self.model)
-
-        if assets_tree:  # Only add assets key if there are any assets
-            composite_state["assets"] = assets_tree
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
