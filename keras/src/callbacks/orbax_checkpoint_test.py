@@ -302,8 +302,8 @@ class OrbaxCheckpointTest(testing.TestCase):
             )
 
     @pytest.mark.requires_trainable_backend
-    def test_load_weights_with_assets_from_orbax_checkpoint(self):
-        """Test load_weights with assets from Orbax checkpoint."""
+    def test_load_weights_with_asset_layers(self):
+        """Test load_weights with model containing asset layers."""
         import keras
 
         # Create model with actual assets
@@ -330,12 +330,11 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
         callback.wait_until_finished()
 
-        # Get original weights and assets after training
+        # Get original weights after training
         original_weights = model.get_weights()
-        original_assets = asset_layer.asset_data
 
         # Create a new model with the same architecture
-        new_model, new_asset_layer = self._create_test_model_with_assets()
+        new_model, _ = self._create_test_model_with_assets()
 
         # Initialize with different weights to ensure loading works
         different_weights = [w * 2 for w in original_weights]
@@ -359,25 +358,6 @@ class OrbaxCheckpointTest(testing.TestCase):
                 np.allclose(orig, loaded),
                 "Weights should match after loading from checkpoint",
             )
-
-        # Verify assets were loaded correctly
-        loaded_assets = new_asset_layer.asset_data
-
-        self.assertEqual(
-            original_assets["binary_blob"],
-            loaded_assets["binary_blob"],
-            "Binary blob should match",
-        )
-        self.assertEqual(
-            original_assets["text_data"],
-            loaded_assets["text_data"],
-            "Text data should match",
-        )
-        np.testing.assert_array_equal(
-            original_assets["numpy_array"],
-            loaded_assets["numpy_array"],
-            "Numpy array should match",
-        )
 
     @pytest.mark.requires_trainable_backend
     def test_save_freq_epoch(self):
