@@ -909,7 +909,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         values = jnp.greater_equal(jnp.ravel(x), 0).astype(dtype)
         values_count = values.shape[0]
         indices = [jnp.arange(dim) for dim in x.shape]
-        indices = jnp.meshgrid(*indices, indexing="ij")
+        indices = list(jnp.meshgrid(*indices, indexing="ij"))
         indices.insert(axis, jnp.maximum(x, 0))  # Deal with negative indices
         indices = [a.reshape(values_count, 1).astype("int32") for a in indices]
         indices = jnp.concatenate(indices, axis=1)
