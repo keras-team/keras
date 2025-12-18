@@ -1,3 +1,4 @@
+import numpy as np
 import openvino.opset14 as ov_opset
 from openvino import Type
 
@@ -264,6 +265,40 @@ def average_pool(
         data_format,
         exclude_pad=True,
     )
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    return _adaptive_pool(
+        inputs, output_size, data_format, ov_opset.adaptive_avg_pool
+    )
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    return _adaptive_pool(
+        inputs, output_size, data_format, ov_opset.adaptive_max_pool
+    )
+
+
+def _adaptive_pool(inputs, output_size, data_format, pool_func):
+    inputs = get_ov_output(inputs)
+
+    # Handle output_size
+    if isinstance(output_size, int):
+        output_size = [output_size] * (
+            inputs.get_partial_shape().rank.get_length() - 2
+        )
+
+    output_size_node = ov_opset.constant(output_size, Type.i32).output(0)
+
+    # OpenVINO AdaptiveAvgPool expects inputs in NC... format
+    data_format = backend.standardize_data_format(data_format)
+    num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
+    inputs = _adjust_input(inputs, num_spatial_dims, data_format)
+
+    pool = pool_func(inputs, output_size_node).output(0)
+
+    pool = _adjust_outputs(pool, num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(pool)
 
 
 def _pool(
@@ -549,28 +584,92 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
 
 def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
-    raise NotImplementedError(
-        "`multi_hot` is not supported with openvino backend"
-    )
+    reduction_axis = 1 if len(x.shape) > 1 else 0
+    if backend.standardize_dtype(dtype) == "bool":
+        outputs = one_hot(x, num_classes, axis=axis, dtype=dtype, sparse=sparse)
+        result = ov_opset.reduce_logical_or(outputs, reduction_axis)
+    else:
+        outputs = one_hot(x, num_classes, axis=axis, dtype=dtype)
+        result = ov_opset.reduce_max(outputs, reduction_axis)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    raise NotImplementedError(
-        "`categorical_crossentropy` is not supported with openvino backend"
-    )
+    target = get_ov_output(target)
+    output = get_ov_output(output)
+
+    if from_logits:
+        log_prob = ov_opset.log_softmax(output, axis).output(0)
+    else:
+        epsilon = backend.epsilon()
+        output = ov_opset.clamp(output, epsilon, 1.0 - epsilon).output(0)
+        log_prob = ov_opset.log(output).output(0)
+
+    if target.get_element_type() != output.get_element_type():
+        target = ov_opset.convert(target, output.get_element_type()).output(0)
+
+    prod = ov_opset.multiply(target, log_prob).output(0)
+
+    if isinstance(axis, int):
+        axis = [axis]
+    axes_node = ov_opset.constant(axis, Type.i32).output(0)
+
+    sum_score = ov_opset.reduce_sum(prod, axes_node, False).output(0)
+    return OpenVINOKerasTensor(ov_opset.negative(sum_score).output(0))
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    raise NotImplementedError(
-        "`sparse_categorical_crossentropy` is not supported "
-        "with openvino backend"
+    target = get_ov_output(target)
+    output = get_ov_output(output)
+
+    output_shape = ov_opset.shape_of(output).output(0)
+    axis_node = ov_opset.constant([axis], Type.i32).output(0)
+    gather_axis = ov_opset.constant([0], Type.i32).output(0)
+    depth = ov_opset.gather(output_shape, axis_node, gather_axis).output(0)
+
+    target = ov_opset.convert(target, Type.i32).output(0)
+
+    ov_dtype = output.get_element_type()
+    on_value = get_ov_output(1.0, ov_dtype)
+    off_value = get_ov_output(0.0, ov_dtype)
+
+    target_one_hot = ov_opset.one_hot(
+        target, depth, on_value, off_value, axis
+    ).output(0)
+
+    return categorical_crossentropy(
+        OpenVINOKerasTensor(target_one_hot),
+        OpenVINOKerasTensor(output),
+        from_logits=from_logits,
+        axis=axis,
     )
 
 
 def binary_crossentropy(target, output, from_logits=False):
-    raise NotImplementedError(
-        "`binary_crossentropy` is not supported with openvino backend"
-    )
+    target = get_ov_output(target)
+    output = get_ov_output(output)
+
+    if from_logits:
+        output = ov_opset.sigmoid(output).output(0)
+
+    epsilon = backend.epsilon()
+    output = ov_opset.clamp(output, epsilon, 1.0 - epsilon).output(0)
+
+    if target.get_element_type() != output.get_element_type():
+        target = ov_opset.convert(target, output.get_element_type()).output(0)
+
+    one = get_ov_output(1.0, output.get_element_type())
+
+    log_out = ov_opset.log(output).output(0)
+    term1 = ov_opset.multiply(target, log_out).output(0)
+
+    one_minus_target = ov_opset.subtract(one, target).output(0)
+    one_minus_output = ov_opset.subtract(one, output).output(0)
+    log_one_minus_out = ov_opset.log(one_minus_output).output(0)
+    term2 = ov_opset.multiply(one_minus_target, log_one_minus_out).output(0)
+
+    total = ov_opset.add(term1, term2).output(0)
+    return OpenVINOKerasTensor(ov_opset.negative(total).output(0))
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
@@ -660,7 +759,27 @@ def ctc_decode(
 
 
 def psnr(x1, x2, max_val):
-    raise NotImplementedError("`psnr` is not supported with openvino backend")
+    from keras.src.backend.openvino.numpy import log10
+
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    max_val = get_ov_output(max_val, x1.get_element_type())
+    diff = ov_opset.subtract(x1, x2)
+    squared_diff = ov_opset.multiply(diff, diff)
+    reduction_axes = list(range(0, x1.get_partial_shape().rank.get_length()))
+    mse = ov_opset.reduce_mean(squared_diff, reduction_axes).output(0)
+    log_max_val = get_ov_output(log10(OpenVINOKerasTensor(max_val)))
+    log_mse = get_ov_output(log10(OpenVINOKerasTensor(mse)))
+
+    psnr = ov_opset.subtract(
+        ov_opset.multiply(
+            ov_opset.constant(20, log_max_val.get_element_type()), log_max_val
+        ),
+        ov_opset.multiply(
+            ov_opset.constant(10, log_mse.get_element_type()), log_mse
+        ),
+    ).output(0)
+    return OpenVINOKerasTensor(psnr)
 
 
 def dot_product_attention(

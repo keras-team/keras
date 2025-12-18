@@ -74,10 +74,7 @@ class TestArrayDataAdapter(testing.TestCase):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             if array_type == "tf_ragged":
                 expected_class = tf.RaggedTensor
@@ -96,6 +93,9 @@ class TestArrayDataAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         x_order = []
         y_order = []
@@ -128,7 +128,8 @@ class TestArrayDataAdapter(testing.TestCase):
 
             if shuffle == "batch":
                 self.assertAllClose(
-                    sorted(x_batch_order), range(i * 16, i * 16 + bx.shape[0])
+                    sorted(x_batch_order),
+                    list(range(i * 16, i * 16 + bx.shape[0])),
                 )
 
         self.assertAllClose(x_order, y_order)

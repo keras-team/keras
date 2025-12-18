@@ -64,6 +64,8 @@ from keras.src.ops.math import stft as stft
 from keras.src.ops.math import top_k as top_k
 from keras.src.ops.math import view_as_complex as view_as_complex
 from keras.src.ops.math import view_as_real as view_as_real
+from keras.src.ops.nn import adaptive_average_pool as adaptive_average_pool
+from keras.src.ops.nn import adaptive_max_pool as adaptive_max_pool
 from keras.src.ops.nn import average_pool as average_pool
 from keras.src.ops.nn import batch_normalization as batch_normalization
 from keras.src.ops.nn import binary_crossentropy as binary_crossentropy
@@ -296,6 +298,7 @@ from keras.src.ops.numpy import triu as triu
 from keras.src.ops.numpy import true_divide as true_divide
 from keras.src.ops.numpy import trunc as trunc
 from keras.src.ops.numpy import unravel_index as unravel_index
+from keras.src.ops.numpy import vander as vander
 from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize
