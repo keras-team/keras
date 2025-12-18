@@ -2546,29 +2546,9 @@ def divide(x1, x2):
 
 
 def divide_no_nan(x1, x2):
-    x1 = get_ov_output(x1)
-    x2 = get_ov_output(x2)
-    
-    x1_type = ov_to_keras_type(x1.get_element_type())
-    x2_type = ov_to_keras_type(x2.get_element_type())
-    result_type = dtypes.result_type(x1_type, x2_type, float)
-    result_type = OPENVINO_DTYPES[result_type]
-    x1 = ov_opset.convert(x1, result_type).output(0)
-    x2 = ov_opset.convert(x2, result_type).output(0)
-
-    result = ov_opset.divide(x1, x2).output(0)
-
-    inf = ov_opset.constant(float("inf"), dtype=result_type).output(0)
-    ninf = ov_opset.constant(float("-inf"), dtype=result_type).output(0)
-    
-    is_inf = ov_opset.logical_or(ov_opset.equal(result,inf).output(0), ov_opset.equal(result,ninf).output(0))
-    is_nan = ov_opset.is_nan(result).output(0)
-
-    is_invalid = ov_opset.logical_or(is_inf, is_nan).output(0)
-    const_zero = ov_opset.constant(0, dtype=result_type).output(0)
-    result = ov_opset.select(is_invalid, const_zero, result).output(0)
-
-    return OpenVINOKerasTensor(result)
+    raise NotImplementedError(
+        "`divide_no_nan` is not supported with openvino backend"
+    )
 
 
 
@@ -2696,8 +2676,8 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
             x_type = OPENVINO_DTYPES[config.floatx()]
             x = ov_opset.convert(x, x_type).output(0)
 
-        x1, x2 = _helper_trapezoid(x, axis)
-        x_final = ov_opset.subtract(x2, x1).output(0)
+        x1,x2 = _helper_trapezoid(x,axis) 
+        x_final = ov_opset.subtract(x2,x1).output(0)
 
     else:
         x_final = ov_opset.constant(dx, dtype=y_type).output(0)
@@ -2719,10 +2699,18 @@ def vander(x, N=None, increasing=False):
     const_zero = ov_opset.constant(0, dtype=Type.i64).output(0)
     const_one = ov_opset.constant(1, dtype=Type.i64).output(0)
     const_mone = ov_opset.constant(-1, dtype=Type.i64).output(0)
-
+    
     if N is None:
-        const_N = ov_opset.squeeze(shape_x, const_zero_1D).output(0)
+        const_N = ov_opset.squeeze(shape_x,const_zero_1D).output(0)
         const_N_1D = shape_x
+    else:
+        const_N = ov_opset.constant(N, Type.i64).output(0)
+        const_N_1D = ov_opset.constant([N], Type.i64).output(0)
+
+    const_N_minus_one = ov_opset.subtract(const_N, const_one).output(0)
+    
+    if increasing:
+        powers = ov_opset.range(const_zero, const_N, const_one, x_type).output(0)
     else:
         const_N = ov_opset.constant(N, Type.i64).output(0)
         const_N_1D = ov_opset.constant([N], Type.i64).output(0)
@@ -2917,10 +2905,11 @@ def correlate(x1, x2, mode="valid"):
 
 
 
-    M =  x2.get_partial_shape().to_shape()[0]
-    const_m = ov_opset.constant([M], dtype = result_type).output(0)
-    const_zero = ov_opset.constant(0, dtype = result_type).output(0)
-
+    shape_filter = ov_opset.shape_of(x2, Type.i64).output(0)
+    const_two = ov_opset.constant(2, Type.f64).output(0)
+    const_one = ov_opset.constant(1, Type.i64).output(0)
+    const_zero = ov_opset.constant(0, result_type).output(0)
+    shape_filter_minus_one = ov_opset.subtract(shape_filter, const_one).output(0)
     
 
     # padding x1 
@@ -2928,15 +2917,18 @@ def correlate(x1, x2, mode="valid"):
         pass
 
     elif mode == "same":
-        right = (M-1)//2
-        left_pad = ov_opset.constant([M-1-right], dtype = Type.i64).output(0)
-        right_pad = ov_opset.constant([right], dtype = Type.i64).output(0)
-        x1 = ov_opset.pad(x1, left_pad, right_pad, "constant", const_zero).output(0)
+        shape_minus_one_float = ov_opset.convert(shape_filter_minus_one, Type.f64).output(0)
+
+        right = ov_opset.divide(shape_minus_one_float, const_two).output(0)
+        left = ov_opset.ceil(right).output(0)
+        right = ov_opset.floor(right).output(0)
+        left = ov_opset.convert(left, Type.i64).output(0)
+        right = ov_opset.convert(right, Type.i64).output(0)
+        x1 = ov_opset.pad(x1, left, right, "constant", const_zero).output(0)
     
     elif mode == "full":
-        left_pad = ov_opset.constant([M-1], dtype = Type.i64).output(0)
-        right_pad = ov_opset.constant([M-1], dtype = Type.i64).output(0)
-        x1 = ov_opset.pad(x1, left_pad, right_pad, "constant", const_zero).output(0)
+        pad = shape_filter_minus_one
+        x1 = ov_opset.pad(x1, pad, pad, "constant", const_zero).output(0)
     
     else:
         raise ValueError(f"mode: {mode} not available chose from valid, same, full.")
