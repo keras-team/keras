@@ -1026,9 +1026,7 @@ def empty(shape, dtype=None):
 
 
 def empty_like(x, dtype=None):
-    raise NotImplementedError(
-        "`empty_like` is not supported with openvino backend"
-    )
+    return zeros_like(x, dtype=dtype)
 
 
 def equal(x1, x2):
@@ -1206,7 +1204,25 @@ def isfinite(x):
 
 
 def isin(x1, x2, assume_unique=False, invert=False):
-    raise NotImplementedError("`isin` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    output_shape = ov_opset.shape_of(x1).output(0)
+    x1, x2 = _align_operand_types(x1, x2, "isin()")
+
+    minus_one = ov_opset.constant([-1], dtype=Type.i64)
+    x1 = ov_opset.reshape(x1, minus_one, special_zero=False).output(0)
+    x2 = ov_opset.reshape(x2, minus_one, special_zero=False).output(0)
+    if not assume_unique:
+        x2 = ov_opset.unique(x2).output(0)
+    x1 = ov_opset.unsqueeze(x1, 1).output(0)
+    x2 = ov_opset.unsqueeze(x2, 0).output(0)
+    cmp = ov_opset.equal(x1, x2).output(0)
+    result_flat = ov_opset.reduce_logical_or(cmp, 1).output(0)
+
+    if invert:
+        result_flat = ov_opset.logical_not(result_flat).output(0)
+    result = ov_opset.reshape(result_flat, output_shape, False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def isinf(x):
@@ -2056,7 +2072,17 @@ def reshape(x, newshape):
 
 
 def roll(x, shift, axis=None):
-    raise NotImplementedError("`roll` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if axis is not None:
+        result = ov_opset.roll(x, shift, axis).output(0)
+    else:
+        output_shape = ov_opset.shape_of(x).output(0)
+        flattened = ov_opset.reshape(
+            x, ov_opset.constant([-1], Type.i32), False
+        ).output(0)
+        result = ov_opset.roll(flattened, shift, 0).output(0)
+        result = ov_opset.reshape(result, output_shape, False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def sign(x):
@@ -2447,7 +2473,20 @@ def triu(x, k=0):
 
 
 def vdot(x1, x2):
-    raise NotImplementedError("`vdot` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "vdot()")
+    if x1.get_partial_shape().rank == 0 or x2.get_partial_shape().rank == 0:
+        return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
+    flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+    x1 = ov_opset.reshape(x1, flatten_shape, False).output(0)
+    x2 = ov_opset.reshape(x2, flatten_shape, False).output(0)
+    return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
 
 def vstack(xs):
@@ -2774,12 +2813,22 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
-    result = divide(x1,x2)
-    result = ov_opset.floor(result).output(0)
-    return OpenVINOKerasTensor(result)
-    
-
-
+    x1_output = get_ov_output(x1)
+    x2_output = get_ov_output(x2)
+    if x1_output.get_element_type() == Type.boolean:
+        x1_output = ov_opset.convert(x1_output, Type.i32).output(0)
+    if isinstance(x2, (int, float)):
+        if x1_output.get_element_type().is_integral() and isinstance(x2, float):
+            ov_type = OPENVINO_DTYPES[config.floatx()]
+        else:
+            ov_type = x1_output.get_element_type()
+        x1 = ov_opset.convert(x1_output, ov_type).output(0)
+        x2 = ov_opset.convert(x2_output, ov_type).output(0)
+    else:
+        x1, x2 = _align_operand_types(x1_output, x2_output, "floor_divide()")
+    div = ov_opset.divide(x1, x2).output(0)
+    floored_div = ov_opset.floor(div).output(0)
+    return OpenVINOKerasTensor(floored_div)
 
 
 def logical_xor(x1, x2):

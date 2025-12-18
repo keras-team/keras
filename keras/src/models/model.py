@@ -7,11 +7,9 @@ from collections.abc import Callable
 from keras.src import backend
 from keras.src import utils
 from keras.src.api_export import keras_export
-from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
 from keras.src.quantizers.gptq_core import gptq_quantize
-from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
 from keras.src.trainers import trainer as base_trainer
@@ -526,12 +524,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"passed to {self.__class__.__name__}: {kwargs}"
             )
 
-        if mode not in QUANTIZATION_MODES:
-            raise ValueError(
-                "Invalid quantization mode. "
-                f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
-            )
-
         if filters is not None:
             if not isinstance(filters, (str, Callable, list, tuple)):
                 raise ValueError(
@@ -539,9 +531,6 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     "regex strings, or a callable. Received: "
                     f"{type(filters)}"
                 )
-
-        config = validate_and_resolve_config(mode, config)
-        mode = config.mode
 
         graph_modified = False
         for layer in self._flatten_layers():

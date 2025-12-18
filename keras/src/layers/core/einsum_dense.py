@@ -18,6 +18,7 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
+from keras.src.saving import serialization_lib
 
 
 @keras_export("keras.layers.EinsumDense")
@@ -136,6 +137,7 @@ class EinsumDense(Layer):
         lora_rank=None,
         lora_alpha=None,
         gptq_unpacked_column_size=None,
+        quantization_config=None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -156,6 +158,7 @@ class EinsumDense(Layer):
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
         self.gptq_unpacked_column_size = gptq_unpacked_column_size
+        self.quantization_config = quantization_config
 
     def build(self, input_shape):
         shape_data = _analyze_einsum_string(
@@ -171,6 +174,7 @@ class EinsumDense(Layer):
             self.quantized_build(
                 kernel_shape,
                 mode=self.quantization_mode,
+                config=self.quantization_config,
             )
         # Skip creating a duplicate kernel variable when the layer is already
         # quantized to int8 or int4, because `quantized_build` has created the
@@ -394,6 +398,9 @@ class EinsumDense(Layer):
             ),
             "kernel_constraint": constraints.serialize(self.kernel_constraint),
             "bias_constraint": constraints.serialize(self.bias_constraint),
+            "quantization_config": serialization_lib.serialize_keras_object(
+                self.quantization_config
+            ),
         }
         if self.lora_rank:
             config["lora_rank"] = self.lora_rank
@@ -401,6 +408,16 @@ class EinsumDense(Layer):
         if self.gptq_unpacked_column_size:
             config["gptq_unpacked_column_size"] = self.gptq_unpacked_column_size
         return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        config = config.copy()
+        config["quantization_config"] = (
+            serialization_lib.deserialize_keras_object(
+                config.get("quantization_config", None)
+            )
+        )
+        return super().from_config(config)
 
     @property
     def variable_serialization_spec(self):
@@ -462,9 +479,12 @@ class EinsumDense(Layer):
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
                 config,
-                quantizers.AbsMaxQuantizer(axis=self._input_reduced_axes),
+                quantizers.AbsMaxQuantizer(),
             )
         )
+        # If the config provided a default AbsMaxQuantizer, we need to
+        # override the axis to match the equation's reduction axes.
+        self.quantization_axis = tuple(self._input_reduced_axes)
         self._kernel = self.add_weight(
             name="kernel",
             shape=kernel_shape,
@@ -611,9 +631,12 @@ class EinsumDense(Layer):
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
                 config,
-                quantizers.AbsMaxQuantizer(axis=self._input_reduced_axes),
+                quantizers.AbsMaxQuantizer(),
             )
         )
+        # If the config provided a default AbsMaxQuantizer, we need to
+        # override the axis to match the equation's reduction axes.
+        self.quantization_axis = tuple(self._input_reduced_axes)
 
         # Choose the axis to perform int4 packing - use the first reduced axis
         # for the kernel (analogous to the input dimension of a Dense layer).
@@ -736,7 +759,9 @@ class EinsumDense(Layer):
                 return (inputs_grad, None, None)
 
             if self.inputs_quantizer:
-                inputs, inputs_scale = self.inputs_quantizer(inputs)
+                inputs, inputs_scale = self.inputs_quantizer(
+                    inputs, axis=self.quantization_axis
+                )
                 # Align `inputs_scale` axes with the output
                 # for correct broadcasting
                 inputs_scale = self._adjust_scale_for_quant(
@@ -833,7 +858,9 @@ class EinsumDense(Layer):
 
             # Quantize inputs per `self.inputs_quantizer`.
             if self.inputs_quantizer:
-                inputs_q, inputs_scale = self.inputs_quantizer(inputs)
+                inputs_q, inputs_scale = self.inputs_quantizer(
+                    inputs, axis=self.quantization_axis
+                )
                 # Align `inputs_scale` axes with the output
                 # for correct broadcasting
                 inputs_scale = self._adjust_scale_for_quant(
@@ -980,6 +1007,8 @@ class EinsumDense(Layer):
         if type_check and (type(self) is not EinsumDense):
             raise self._not_implemented_error(self.quantize)
 
+        self.quantization_config = config
+
         kernel_shape = self._kernel.shape
         if mode in ("int8", "int4", "gptq"):
             self._set_quantization_info()
@@ -987,7 +1016,7 @@ class EinsumDense(Layer):
         if mode == "int8":
             # Quantize `self._kernel` to int8 and compute corresponding scale
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                config,
+                self.quantization_config,
                 quantizers.AbsMaxQuantizer(axis=self._kernel_reduced_axes),
             )
             kernel_value, kernel_scale = weight_quantizer(
@@ -998,7 +1027,7 @@ class EinsumDense(Layer):
         elif mode == "int4":
             # Quantize to int4 values (stored in int8 dtype, range [-8, 7])
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                config,
+                self.quantization_config,
                 quantizers.AbsMaxQuantizer(
                     axis=self._kernel_reduced_axes,
                     value_range=(-8, 7),
@@ -1017,7 +1046,7 @@ class EinsumDense(Layer):
             )
             kernel_value = packed_kernel_value
             del self._kernel
-        self.quantized_build(kernel_shape, mode, config)
+        self.quantized_build(kernel_shape, mode, self.quantization_config)
 
         # Assign values to the newly created variables.
         if mode in ("int8", "int4"):
@@ -1028,7 +1057,7 @@ class EinsumDense(Layer):
         if self.dtype_policy.quantization_mode is None:
             policy_name = mode
             if mode == "gptq":
-                policy_name = config.dtype_policy_string()
+                policy_name = self.quantization_config.dtype_policy_string()
             policy = dtype_policies.get(
                 f"{policy_name}_from_{self.dtype_policy.name}"
             )
