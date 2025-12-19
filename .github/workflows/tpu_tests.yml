@@ -1,10 +1,15 @@
-name: Keras TPU Tests
+name: Keras Tests
+
+# TODO: Consider enabling all tests (pytest, applications, etc.) with NNX in the future
+# Currently only basic flow tests run with NNX enabled
 
 on:
   push:
     branches: [ master ]
   pull_request:
     types: [labeled]
+  pull_request_review:
+    types: [submitted]
   release:
     types: [created]
 
@@ -16,11 +21,12 @@ jobs:
   test-in-container:
     name: Run tests on TPU
     runs-on: linux-x86-ct6e-44-1tpu
-    # Only run on pushes to master, releases or "run_tpu_tests" labels
+    # Only run on approved PRs, pushes to master, releases or "run_tpu_tests" labels
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'run_tpu_tests')
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'run_tpu_tests') ||
+      (github.event_name == 'pull_request_review' && github.event.review.state == 'approved')
 
     strategy:
       fail-fast: false
