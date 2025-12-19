@@ -96,10 +96,6 @@ class OrbaxCheckpoint(MonitorCallback):
         verbose: Verbosity mode, 0 or 1.
         save_best_only: if `save_best_only=True`, it only saves when the model
             is considered the "best" based on the monitored quantity.
-        save_weights_only: if `save_weights_only=True`, only the model's
-            weights will be saved. Otherwise, the full model state
-            (weights, non-trainable variables, optimizer state, and
-            metrics state) will be saved. Defaults to False.
         mode: one of {'auto', 'min', 'max'}. Used with `save_best_only`.
         save_freq: `'epoch'` or integer. Frequency to save checkpoints.
         max_to_keep: Integer, maximum number of recent checkpoints to keep.
@@ -116,7 +112,6 @@ class OrbaxCheckpoint(MonitorCallback):
         monitor="val_loss",
         verbose=0,
         save_best_only=False,
-        save_weights_only=False,
         mode="auto",
         save_freq="epoch",
         initial_value_threshold=None,
@@ -133,7 +128,6 @@ class OrbaxCheckpoint(MonitorCallback):
         self.directory = directory
         self.verbose = verbose
         self.save_best_only = save_best_only
-        self.save_weights_only = save_weights_only
         self.save_freq = save_freq
         self.max_to_keep = max_to_keep
         self.save_on_background = save_on_background
@@ -252,19 +246,10 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Save the nested state structures directly (preserving layer
         # names and structure)
-        if self.save_weights_only:
-            composite_state = {
-                "trainable_variables": state_tree["trainable_variables"],
-            }
-            if "non_trainable_variables" in state_tree:
-                composite_state["non_trainable_variables"] = state_tree[
-                    "non_trainable_variables"
-                ]
-        else:
-            composite_state = {
-                "model_config": self.model.get_config(),
-                **state_tree,
-            }
+        composite_state = {
+            "model_config": self.model.get_config(),
+            **state_tree,
+        }
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.

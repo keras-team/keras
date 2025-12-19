@@ -143,49 +143,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_save_weights_only(self):
-        """Test save_weights_only parameter."""
-        model = self._create_test_model()
-        x, y = self._create_dummy_data()
-
-        # Test save_weights_only=True
-        checkpoint_dir_weights = os.path.join(
-            self.get_temp_dir(), "test_weights_only"
-        )
-        callback_weights = OrbaxCheckpoint(
-            directory=checkpoint_dir_weights,
-            save_weights_only=True,
-            save_freq="epoch",
-        )
-
-        model.fit(x, y, epochs=1, callbacks=[callback_weights], verbose=0)
-        callback_weights.wait_until_finished()
-
-        # Check that checkpoint was created
-        checkpoint_files = os.listdir(checkpoint_dir_weights)
-        self.assertGreater(
-            len(checkpoint_files), 0, "Should have checkpoint files"
-        )
-
-        # Test save_weights_only=False (default - saves optimizer state)
-        checkpoint_dir_full = os.path.join(
-            self.get_temp_dir(), "test_full_save"
-        )
-        callback_full = OrbaxCheckpoint(
-            directory=checkpoint_dir_full,
-            save_weights_only=False,
-            save_freq="epoch",
-        )
-
-        model.fit(x, y, epochs=1, callbacks=[callback_full], verbose=0)
-        callback_full.wait_until_finished()
-
-        checkpoint_files_full = os.listdir(checkpoint_dir_full)
-        self.assertGreater(
-            len(checkpoint_files_full), 0, "Should have checkpoint files"
-        )
-
-    @pytest.mark.requires_trainable_backend
     def test_load_weights_from_orbax_checkpoint(self):
         """Test loading weights from Orbax checkpoint using load_weights."""
         import keras
@@ -199,7 +156,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
         callback = OrbaxCheckpoint(
             directory=checkpoint_dir,
-            save_weights_only=True,
             save_freq="epoch",
         )
 
@@ -359,54 +315,26 @@ class OrbaxCheckpointTest(testing.TestCase):
 
     @parameterized.parameters(
         {
-            "save_weights_only": False,
             "include_metrics": False,
-            "use_model_load": False,
             "save_on_background": False,
-        },  # basic_weights
+        },  # basic
         {
-            "save_weights_only": True,
             "include_metrics": False,
-            "use_model_load": False,
-            "save_on_background": False,
-        },  # weights_only
+            "save_on_background": True,
+        },  # background_save
         {
-            "save_weights_only": False,
-            "include_metrics": False,
-            "use_model_load": False,
-            "save_on_background": False,
-        },  # with_optimizer
-        {
-            "save_weights_only": False,
             "include_metrics": True,
-            "use_model_load": False,
             "save_on_background": False,
         },  # with_metrics
         {
-            "save_weights_only": False,
-            "include_metrics": False,
-            "use_model_load": True,
-            "save_on_background": False,
-        },  # orbax_load_sync
-        {
-            "save_weights_only": False,
-            "include_metrics": False,
-            "use_model_load": True,
-            "save_on_background": False,
-        },  # orbax_load_sync
-        {
-            "save_weights_only": False,
-            "include_metrics": False,
-            "use_model_load": True,
+            "include_metrics": True,
             "save_on_background": True,
-        },  # orbax_load_async
+        },  # with_metrics_background
     )
     @pytest.mark.requires_trainable_backend
     def test_checkpoint_loading_comprehensive(
         self,
-        save_weights_only,
         include_metrics,
-        use_model_load,
         save_on_background,
     ):
         """Test comprehensive checkpoint loading functionality."""
@@ -415,13 +343,11 @@ class OrbaxCheckpointTest(testing.TestCase):
         if include_metrics:
             model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
-        x, y = self._create_dummy_data(
-            num_samples=200 if not save_weights_only else 100
-        )
+        x, y = self._create_dummy_data(num_samples=200)
 
         checkpoint_dir = os.path.join(
             self.get_temp_dir(),
-            f"test_loading_{save_weights_only}_{include_metrics}_{use_model_load}_{save_on_background}_{id(self)}",
+            f"test_loading_{include_metrics}_{save_on_background}_{id(self)}",
         )
 
         # Clean directory if it exists from previous runs
@@ -440,12 +366,11 @@ class OrbaxCheckpointTest(testing.TestCase):
         callback = OrbaxCheckpoint(
             directory=checkpoint_dir,
             save_freq="epoch",
-            save_weights_only=save_weights_only,
             save_on_background=save_on_background,
         )
 
         # Train to create checkpoint
-        epochs = 1 if save_on_background else (3 if use_model_load else 1)
+        epochs = 1 if save_on_background else 1
         model.fit(x, y, epochs=epochs, callbacks=[callback], verbose=0)
 
         if save_on_background:
@@ -455,127 +380,68 @@ class OrbaxCheckpointTest(testing.TestCase):
         original_state_tree = model.get_state_tree()
         original_weights = model.get_weights()
 
-        if use_model_load:
-            # Test load_model method
-            import keras
-
-            # Load checkpoint using load_model
-            loaded_model = keras.saving.load_model(checkpoint_dir)
-            loaded_weights = loaded_model.get_weights()
-            loaded_state = loaded_model.get_state_tree()
-
-            # Verify loaded weights match trained weights
-            for trained_w, loaded_w in zip(original_weights, loaded_weights):
-                self.assertTrue(
-                    np.allclose(trained_w, loaded_w),
-                    "Loaded weights should match trained model's weights",
-                )
-
-            # Verify optimizer state if not save_weights_only
-            if not save_weights_only:
-                trained_opt_flat = {
-                    ".".join(p): v
-                    for p, v in tree.flatten_with_path(
-                        original_state_tree["optimizer_variables"]
-                    )
-                }
-                loaded_opt_flat = {
-                    ".".join(p): v
-                    for p, v in tree.flatten_with_path(
-                        loaded_state["optimizer_variables"]
-                    )
-                }
-                self.assertEqual(
-                    set(trained_opt_flat.keys()),
-                    set(loaded_opt_flat.keys()),
-                    "Optimizer variable keys should match",
-                )
-                for key in trained_opt_flat:
-                    trained_np = backend.convert_to_numpy(trained_opt_flat[key])
-                    loaded_np = backend.convert_to_numpy(loaded_opt_flat[key])
-                    self.assertTrue(
-                        np.allclose(trained_np, loaded_np),
-                        f"Optimizer variable {key} should match",
-                    )
-
-            # Verify metrics state if include_metrics
-            if include_metrics:
-                tree.map_structure(
-                    self.assertAllClose,
-                    original_state_tree["metrics_variables"],
-                    loaded_state["metrics_variables"],
-                )
+        # Test manual pytree loading
+        new_model = self._create_test_model()
+        if include_metrics:
+            new_model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+            # Initialize metrics by running a training step
+            new_x, new_y = self._create_dummy_data(num_samples=10)
+            new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
         else:
-            # Test manual pytree loading
-            new_model = self._create_test_model()
-            if include_metrics:
-                new_model.compile(optimizer="adam", loss="mse", metrics=["mae"])
-                # Initialize metrics by running a training step
-                new_x, new_y = self._create_dummy_data(num_samples=10)
-                new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
-            elif not save_weights_only:
-                # Initialize optimizer by running a training step
-                new_model.compile(optimizer="adam", loss="mse")
-                new_x, new_y = self._create_dummy_data(num_samples=10)
-                new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
+            # Initialize optimizer by running a training step
+            new_model.compile(optimizer="adam", loss="mse")
+            new_x, new_y = self._create_dummy_data(num_samples=10)
+            new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
 
-            # Load checkpoint manually
-            checkpoint_path = os.path.join(checkpoint_dir, "0")
-            loaded_state = load_pytree(checkpoint_path)
+        # Load checkpoint manually
+        checkpoint_path = os.path.join(checkpoint_dir, "0")
+        loaded_state = load_pytree(checkpoint_path)
 
-            # Set state based on what was saved
-            state_to_set = {
-                "trainable_variables": loaded_state["trainable_variables"]
-            }
-            if not save_weights_only:
-                state_to_set.update(
-                    {
-                        "optimizer_variables": loaded_state[
-                            "optimizer_variables"
-                        ],
-                    }
-                )
-                if include_metrics:
-                    state_to_set.update(
-                        {
-                            "non_trainable_variables": loaded_state[
-                                "non_trainable_variables"
-                            ],
-                            "metrics_variables": loaded_state[
-                                "metrics_variables"
-                            ],
-                        }
-                    )
+        # Set full state (always saved)
+        state_to_set = {
+            "trainable_variables": loaded_state["trainable_variables"],
+            "optimizer_variables": loaded_state["optimizer_variables"],
+        }
+        if include_metrics:
+            state_to_set.update(
+                {
+                    "non_trainable_variables": loaded_state[
+                        "non_trainable_variables"
+                    ],
+                    "metrics_variables": loaded_state["metrics_variables"],
+                }
+            )
 
-            new_model.set_state_tree(state_to_set)
-            loaded_state_tree = new_model.get_state_tree()
+        new_model.set_state_tree(state_to_set)
+        loaded_state_tree = new_model.get_state_tree()
 
-            # Compare weights
-            loaded_weights = new_model.get_weights()
-            for orig, loaded in zip(original_weights, loaded_weights):
-                np.testing.assert_array_almost_equal(orig, loaded)
+        # Compare weights
+        loaded_weights = new_model.get_weights()
+        for orig, loaded in zip(original_weights, loaded_weights):
+            np.testing.assert_array_almost_equal(orig, loaded)
 
-            # Compare additional state if not save_weights_only
-            if not save_weights_only:
-                # Compare optimizer variables
-                tree.map_structure(
-                    self.assertAllClose,
-                    original_state_tree["optimizer_variables"],
-                    loaded_state_tree["optimizer_variables"],
-                )
+        # Compare full state (always saved)
+        loaded_state_tree = new_model.get_state_tree()
 
-                if include_metrics:
-                    # Compare non-trainable and metrics variables
-                    tree.map_structure(
-                        self.assertAllClose,
-                        original_state_tree["non_trainable_variables"],
-                        loaded_state_tree["non_trainable_variables"],
-                    )
-                    tree.map_structure(
-                        self.assertAllClose,
-                        original_state_tree["metrics_variables"],
-                        loaded_state_tree["metrics_variables"],
-                    )
+        # Compare optimizer variables
+        tree.map_structure(
+            self.assertAllClose,
+            original_state_tree["optimizer_variables"],
+            loaded_state_tree["optimizer_variables"],
+        )
+
+        if include_metrics:
+            # Compare non-trainable and metrics variables
+            tree.map_structure(
+                self.assertAllClose,
+                original_state_tree["non_trainable_variables"],
+                loaded_state_tree["non_trainable_variables"],
+            )
+            tree.map_structure(
+                self.assertAllClose,
+                original_state_tree["metrics_variables"],
+                loaded_state_tree["metrics_variables"],
+            )
 
     @pytest.mark.skipif(
         backend.backend() != "jax", reason="Sharding tests require JAX backend"
@@ -656,11 +522,13 @@ class OrbaxCheckpointTest(testing.TestCase):
             model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
             callback.wait_until_finished()
 
-            # Load using load_model
+            # Load using load_weights
             import keras
 
-            loaded_model = keras.saving.load_model(checkpoint_dir)
-            loaded_weights = loaded_model.get_weights()
+            # Create fresh model and load weights
+            fresh_model = self._create_test_model()
+            keras.saving.load_weights(fresh_model, checkpoint_dir)
+            loaded_weights = fresh_model.get_weights()
 
             # Get original weights for comparison
             original_weights = model.get_weights()
@@ -776,7 +644,6 @@ class OrbaxCheckpointTest(testing.TestCase):
             callback = OrbaxCheckpoint(
                 directory=checkpoint_dir,
                 save_freq="epoch",
-                save_weights_only=False,  # Save full state
             )
 
             # Train to create checkpoint
@@ -787,18 +654,20 @@ class OrbaxCheckpointTest(testing.TestCase):
             original_predictions = model.predict(x[:5], verbose=0)
             original_weights = model.get_weights()
 
-            # Load checkpoint using load_model
+            # Load checkpoint using load_weights
             import keras
 
-            loaded_model = keras.saving.load_model(checkpoint_dir)
-            loaded_weights = loaded_model.get_weights()
+            # Create fresh model and load weights
+            fresh_model = self._create_test_model()
+            keras.saving.load_weights(fresh_model, checkpoint_dir)
+            loaded_weights = fresh_model.get_weights()
 
             # Verify loaded weights match original
             for orig, loaded in zip(original_weights, loaded_weights):
                 self.assertAllClose(orig, loaded)
 
             # Verify loaded model produces same predictions
-            loaded_predictions = loaded_model.predict(x[:5], verbose=0)
+            loaded_predictions = fresh_model.predict(x[:5], verbose=0)
             self.assertAllClose(original_predictions, loaded_predictions)
 
             print("Distributed checkpoint functionality verified")

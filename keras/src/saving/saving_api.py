@@ -1,20 +1,16 @@
 import os
 import zipfile
 
-import h5py
 from absl import logging
 
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
-from keras.src.saving import orbax_util
 from keras.src.saving import saving_lib
+from keras.src.saving.orbax_util import find_latest_orbax_checkpoint
+from keras.src.saving.orbax_util import is_orbax_checkpoint
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
-
-# Import Orbax functions
-_load_model_from_orbax_checkpoint = orbax_util._load_model_from_orbax_checkpoint
-_is_orbax_checkpoint = orbax_util._is_orbax_checkpoint
-_find_latest_orbax_checkpoint = orbax_util._find_latest_orbax_checkpoint
+from keras.src.utils.module_utils import h5py
 
 
 @keras_export(["keras.saving.save_model", "keras.models.save_model"])
@@ -125,11 +121,10 @@ def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
 
 @keras_export(["keras.saving.load_model", "keras.models.load_model"])
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
-    """Loads a model saved via `model.save()` or an Orbax checkpoint.
+    """Loads a model saved via `model.save()`.
 
     Args:
-        filepath: `str` or `pathlib.Path` object, path to the saved model file
-            or Orbax checkpoint directory.
+        filepath: `str` or `pathlib.Path` object, path to the saved model file.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -147,17 +142,11 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     Example:
 
     ```python
-    # Load a .keras file
     model = keras.Sequential([
         keras.layers.Dense(5, input_shape=(3,)),
         keras.layers.Softmax()])
     model.save("model.keras")
     loaded_model = keras.saving.load_model("model.keras")
-
-    # Load an Orbax checkpoint
-    checkpoint = keras.callbacks.OrbaxCheckpoint(directory="/tmp/checkpoints")
-    model.fit(x, y, callbacks=[checkpoint])
-    loaded_model = keras.saving.load_model("/tmp/checkpoints")
     ```
 
     Note that the model variables may have different name values
@@ -172,7 +161,6 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         file_utils.join(filepath, "config.json")
     )
     is_hf = str(filepath).startswith("hf://")
-    is_orbax = _is_orbax_checkpoint(filepath)
 
     # Support for remote zip files
     if (
@@ -180,7 +168,6 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         and not file_utils.isdir(filepath)
         and not is_keras_zip
         and not is_hf
-        and not is_orbax
     ):
         local_path = file_utils.join(
             saving_lib.get_temp_dir(), os.path.basename(filepath)
@@ -203,13 +190,6 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         )
     if str(filepath).endswith((".h5", ".hdf5")):
         return legacy_h5_format.load_model_from_hdf5(
-            filepath,
-            custom_objects=custom_objects,
-            compile=compile,
-            safe_mode=safe_mode,
-        )
-    if is_orbax:
-        return _load_model_from_orbax_checkpoint(
             filepath,
             custom_objects=custom_objects,
             compile=compile,
@@ -310,6 +290,11 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 "`objects_to_skip` only supports loading '.weights.h5' files."
                 f"Received: {filepath}"
             )
+        if not h5py.available:
+            raise ImportError(
+                "Loading HDF5 files requires the h5py package. "
+                "You can install it via `pip install h5py`"
+            )
         with h5py.File(filepath, "r") as f:
             if "layer_names" not in f.attrs and "model_weights" in f:
                 f = f["model_weights"]
@@ -321,7 +306,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 legacy_h5_format.load_weights_from_hdf5_group(
                     f, model, skip_mismatch
                 )
-    elif _is_orbax_checkpoint(filepath):
+    elif is_orbax_checkpoint(filepath):
         # Load weights from Orbax checkpoint
         from keras.src.utils.module_utils import ocp
 
@@ -336,7 +321,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
         if has_step_subdirs:
             # It's a root directory, find the latest checkpoint
-            checkpoint_path = _find_latest_orbax_checkpoint(filepath)
+            checkpoint_path = find_latest_orbax_checkpoint(filepath)
         else:
             # It's a step directory, use it directly
             checkpoint_path = filepath
