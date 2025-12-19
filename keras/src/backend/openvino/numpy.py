@@ -2551,7 +2551,6 @@ def divide_no_nan(x1, x2):
     )
 
 
-
 def true_divide(x1, x2):
     return divide(x1, x2)
 
@@ -2676,8 +2675,8 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
             x_type = OPENVINO_DTYPES[config.floatx()]
             x = ov_opset.convert(x, x_type).output(0)
 
-        x1,x2 = _helper_trapezoid(x,axis) 
-        x_final = ov_opset.subtract(x2,x1).output(0)
+        x1, x2 = _helper_trapezoid(x, axis)
+        x_final = ov_opset.subtract(x2, x1).output(0)
 
     else:
         x_final = ov_opset.constant(dx, dtype=y_type).output(0)
@@ -2699,24 +2698,15 @@ def vander(x, N=None, increasing=False):
     const_zero = ov_opset.constant(0, dtype=Type.i64).output(0)
     const_one = ov_opset.constant(1, dtype=Type.i64).output(0)
     const_mone = ov_opset.constant(-1, dtype=Type.i64).output(0)
-    
+
     if N is None:
-        const_N = ov_opset.squeeze(shape_x,const_zero_1D).output(0)
+        const_N = ov_opset.squeeze(shape_x, const_zero_1D).output(0)
         const_N_1D = shape_x
     else:
         const_N = ov_opset.constant(N, Type.i64).output(0)
         const_N_1D = ov_opset.constant([N], Type.i64).output(0)
 
     const_N_minus_one = ov_opset.subtract(const_N, const_one).output(0)
-    
-    if increasing:
-        powers = ov_opset.range(const_zero, const_N, const_one, x_type).output(0)
-    else:
-        const_N = ov_opset.constant(N, Type.i64).output(0)
-        const_N_1D = ov_opset.constant([N], Type.i64).output(0)
-
-    const_N_minus_one = ov_opset.subtract(const_N, const_one).output(0)
-
     if increasing:
         powers = ov_opset.range(const_zero, const_N, const_one, x_type).output(
             0
@@ -2904,47 +2894,6 @@ def correlate(x1, x2, mode="valid"):
     return OpenVINOKerasTensor(result)
 
 
-
-    shape_filter = ov_opset.shape_of(x2, Type.i64).output(0)
-    const_two = ov_opset.constant(2, Type.f64).output(0)
-    const_one = ov_opset.constant(1, Type.i64).output(0)
-    const_zero = ov_opset.constant(0, result_type).output(0)
-    shape_filter_minus_one = ov_opset.subtract(shape_filter, const_one).output(0)
-    
-
-    # padding x1 
-    if mode == "valid":
-        pass
-
-    elif mode == "same":
-        shape_minus_one_float = ov_opset.convert(shape_filter_minus_one, Type.f64).output(0)
-
-        right = ov_opset.divide(shape_minus_one_float, const_two).output(0)
-        left = ov_opset.ceil(right).output(0)
-        right = ov_opset.floor(right).output(0)
-        left = ov_opset.convert(left, Type.i64).output(0)
-        right = ov_opset.convert(right, Type.i64).output(0)
-        x1 = ov_opset.pad(x1, left, right, "constant", const_zero).output(0)
-    
-    elif mode == "full":
-        pad = shape_filter_minus_one
-        x1 = ov_opset.pad(x1, pad, pad, "constant", const_zero).output(0)
-    
-    else:
-        raise ValueError(f"mode: {mode} not available chose from valid, same, full.")
-    
-
-
-    axes = ov_opset.constant([0,1], dtype = Type.i64).output(0)
-    x2 = ov_opset.unsqueeze(x2,axes).output(0)
-    x1 = ov_opset.unsqueeze(x1,axes).output(0)
-
-    result = ov_opset.convolution(x1, x2, [1], [0], [0], [1]).output(0)
-
-    result = ov_opset.squeeze(result,axes).output(0)
-
-    return OpenVINOKerasTensor(result)
-  
 def select(condlist, choicelist, default=0):
     raise NotImplementedError("`select` is not supported with openvino backend")
 
