@@ -707,12 +707,16 @@ def _save_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
-    if not isinstance(assets_store, (DiskIOStore, type(None))) and not hasattr(
-        assets_store, "make"
-    ):
+    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+        raise ValueError(
+            "Expected `weights_store` to be an instance of "
+            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            f"Received: {weights_store} of type {type(weights_store)}"
+        )
+    if not isinstance(assets_store, (DiskIOStore, type(None))):
         raise ValueError(
             "Expected `assets_store` to be an instance of "
-            "`DiskIOStore` or an object with a `make` method, or `None`. "
+            "`DiskIOStore` or `None`. "
             f"Received: {assets_store} of type {type(assets_store)}"
         )
 
@@ -769,6 +773,12 @@ def _load_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
+    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+        raise ValueError(
+            "Expected `weights_store` to be an instance of "
+            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            f"Received: {weights_store} of type {type(weights_store)}"
+        )
     if not isinstance(assets_store, (DiskIOStore, type(None))):
         raise ValueError(
             "Expected `assets_store` to be an instance of "

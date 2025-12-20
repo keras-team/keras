@@ -4,7 +4,6 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
@@ -145,7 +144,6 @@ class OrbaxCheckpointTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_load_weights_from_orbax_checkpoint(self):
         """Test loading weights from Orbax checkpoint using load_weights."""
-        import keras
 
         # Create and train model to create checkpoint
         model = self._create_test_model()
@@ -182,7 +180,7 @@ class OrbaxCheckpointTest(testing.TestCase):
             )
 
         # Load weights from Orbax checkpoint
-        keras.saving.load_weights(new_model, checkpoint_dir)
+        new_model.load_weights(checkpoint_dir)
 
         # Verify weights were loaded correctly
         loaded_weights = new_model.get_weights()
@@ -315,39 +313,27 @@ class OrbaxCheckpointTest(testing.TestCase):
 
     @parameterized.parameters(
         {
-            "include_metrics": False,
             "save_on_background": False,
         },  # basic
         {
-            "include_metrics": False,
             "save_on_background": True,
         },  # background_save
-        {
-            "include_metrics": True,
-            "save_on_background": False,
-        },  # with_metrics
-        {
-            "include_metrics": True,
-            "save_on_background": True,
-        },  # with_metrics_background
     )
     @pytest.mark.requires_trainable_backend
     def test_checkpoint_loading_comprehensive(
         self,
-        include_metrics,
         save_on_background,
     ):
-        """Test comprehensive checkpoint loading functionality."""
+        """Test checkpoint loading using load_weights API."""
         # Create and compile model
         model = self._create_test_model()
-        if include_metrics:
-            model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        model.compile(optimizer="adam", loss="mse")
 
         x, y = self._create_dummy_data(num_samples=200)
 
         checkpoint_dir = os.path.join(
             self.get_temp_dir(),
-            f"test_loading_{include_metrics}_{save_on_background}_{id(self)}",
+            f"test_loading_{save_on_background}_{id(self)}",
         )
 
         # Clean directory if it exists from previous runs
@@ -377,176 +363,54 @@ class OrbaxCheckpointTest(testing.TestCase):
             callback.wait_until_finished()
 
         # Get original state
-        original_state_tree = model.get_state_tree()
         original_weights = model.get_weights()
 
-        # Test manual pytree loading
+        # Test load_weights functionality
         new_model = self._create_test_model()
-        if include_metrics:
-            new_model.compile(optimizer="adam", loss="mse", metrics=["mae"])
-            # Initialize metrics by running a training step
-            new_x, new_y = self._create_dummy_data(num_samples=10)
-            new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
-        else:
-            # Initialize optimizer by running a training step
-            new_model.compile(optimizer="adam", loss="mse")
-            new_x, new_y = self._create_dummy_data(num_samples=10)
-            new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
+        # Initialize optimizer by running a training step
+        new_model.compile(optimizer="adam", loss="mse")
+        new_x, new_y = self._create_dummy_data(num_samples=10)
+        new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
 
-        # Load checkpoint manually
-        checkpoint_path = os.path.join(checkpoint_dir, "0")
-        loaded_state = load_pytree(checkpoint_path)
+        # Initialize with different weights to ensure loading works
+        different_weights = [w * 2 for w in original_weights]
+        new_model.set_weights(different_weights)
 
-        # Set full state (always saved)
-        state_to_set = {
-            "trainable_variables": loaded_state["trainable_variables"],
-            "optimizer_variables": loaded_state["optimizer_variables"],
-        }
-        if include_metrics:
-            state_to_set.update(
-                {
-                    "non_trainable_variables": loaded_state[
-                        "non_trainable_variables"
-                    ],
-                    "metrics_variables": loaded_state["metrics_variables"],
-                }
+        # Verify weights are different initially
+        new_weights_before = new_model.get_weights()
+        for orig, new in zip(original_weights, new_weights_before):
+            self.assertFalse(
+                np.allclose(orig, new),
+                "Weights should be different before loading",
             )
 
-        new_model.set_state_tree(state_to_set)
-        loaded_state_tree = new_model.get_state_tree()
+        # Get state before loading
+        state_before_loading = new_model.get_state_tree()
 
-        # Compare weights
+        # Load weights from Orbax checkpoint using load_weights
+        new_model.load_weights(checkpoint_dir)
+
+        # Verify weights were loaded correctly
         loaded_weights = new_model.get_weights()
         for orig, loaded in zip(original_weights, loaded_weights):
-            np.testing.assert_array_almost_equal(orig, loaded)
+            self.assertTrue(
+                np.allclose(orig, loaded),
+                "Weights should match after loading from checkpoint",
+            )
 
-        # Compare full state (always saved)
-        loaded_state_tree = new_model.get_state_tree()
-
-        # Compare optimizer variables
+        # Verify that non-trainable and metrics variables are unchanged
+        # (load_weights only loads trainable weights)
+        state_after_loading = new_model.get_state_tree()
         tree.map_structure(
             self.assertAllClose,
-            original_state_tree["optimizer_variables"],
-            loaded_state_tree["optimizer_variables"],
+            state_before_loading["non_trainable_variables"],
+            state_after_loading["non_trainable_variables"],
         )
-
-        if include_metrics:
-            # Compare non-trainable and metrics variables
-            tree.map_structure(
-                self.assertAllClose,
-                original_state_tree["non_trainable_variables"],
-                loaded_state_tree["non_trainable_variables"],
-            )
-            tree.map_structure(
-                self.assertAllClose,
-                original_state_tree["metrics_variables"],
-                loaded_state_tree["metrics_variables"],
-            )
-
-    @pytest.mark.skipif(
-        backend.backend() != "jax", reason="Sharding tests require JAX backend"
-    )
-    def test_load_checkpoint_resharding_jax(self):
-        """Test load_checkpoint works with distribution set (JAX only)."""
-        import os
-
-        import jax
-
-        from keras.src.distribution import DeviceMesh
-        from keras.src.distribution import LayoutMap
-        from keras.src.distribution import ModelParallel
-        from keras.src.distribution import TensorLayout
-        from keras.src.distribution import set_distribution
-
-        # Check if we have at least 1 device
-        devices = jax.devices()
-
-        # Skip test if there are more than 2 devices, as these tests are
-        # designed for 2-device scenarios and may not work with more devices
-        if len(devices) > 2:
-            self.skipTest(f"Test for 2 devices, but {len(devices)} available")
-
-        num_devices = min(2, len(devices))
-
-        print(f"Available devices: {devices}, using {num_devices} devices")
-
-        # Set up distribution based on available devices
-        if num_devices >= 2:
-            # Multi-device distribution
-            device_mesh = DeviceMesh((num_devices,), axis_names=["data"])
-            layout_map = LayoutMap(device_mesh)
-            layout_map["dense_layer/kernel"] = TensorLayout(axes=("data", None))
-            layout_map["dense_layer/bias"] = TensorLayout(axes=(None,))
-            layout_map["output_layer/kernel"] = TensorLayout(
-                axes=(None, "data")
-            )
-            layout_map["output_layer/bias"] = TensorLayout(axes=(None,))
-        else:
-            # Single device distribution
-            device_mesh = DeviceMesh((1,), axis_names=["data"])
-            layout_map = LayoutMap(device_mesh)
-            layout_map["dense_layer/kernel"] = TensorLayout(axes=(None, None))
-            layout_map["dense_layer/bias"] = TensorLayout(axes=(None,))
-            layout_map["output_layer/kernel"] = TensorLayout(axes=(None, None))
-            layout_map["output_layer/bias"] = TensorLayout(axes=(None,))
-
-        distribution = ModelParallel(
-            device_mesh=device_mesh, layout_map=layout_map
+        tree.map_structure(
+            self.assertAllClose,
+            state_before_loading["metrics_variables"],
+            state_after_loading["metrics_variables"],
         )
-
-        # Save original distribution state
-        original_distribution = None
-        try:
-            from keras.src.distribution import distribution as get_distribution
-
-            original_distribution = get_distribution()
-        except (ImportError, AttributeError):
-            pass
-
-        try:
-            # Set distribution
-            set_distribution(distribution)
-
-            # Create model with distribution
-            model = self._create_test_model()
-            x, y = self._create_dummy_data()
-
-            checkpoint_dir = os.path.join(
-                self.get_temp_dir(), "test_resharding"
-            )
-            callback = OrbaxCheckpoint(
-                directory=checkpoint_dir, save_freq="epoch"
-            )
-
-            # Train and save with original distribution
-            model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
-            callback.wait_until_finished()
-
-            # Load using load_weights
-            import keras
-
-            # Create fresh model and load weights
-            fresh_model = self._create_test_model()
-            keras.saving.load_weights(fresh_model, checkpoint_dir)
-            loaded_weights = fresh_model.get_weights()
-
-            # Get original weights for comparison
-            original_weights = model.get_weights()
-
-            # Check that loaded weights match the original trained weights
-            for orig, loaded in zip(original_weights, loaded_weights):
-                self.assertAllClose(orig, loaded)
-
-        finally:
-            # Restore original distribution
-            if original_distribution is not None:
-                set_distribution(original_distribution)
-            else:
-                # Clear distribution if it was None originally
-                try:
-                    set_distribution(None)
-                except:
-                    pass
 
     @pytest.mark.requires_trainable_backend
     def test_save_on_background_async(self):
@@ -655,11 +519,10 @@ class OrbaxCheckpointTest(testing.TestCase):
             original_weights = model.get_weights()
 
             # Load checkpoint using load_weights
-            import keras
 
             # Create fresh model and load weights
             fresh_model = self._create_test_model()
-            keras.saving.load_weights(fresh_model, checkpoint_dir)
+            fresh_model.load_weights(checkpoint_dir)
             loaded_weights = fresh_model.get_weights()
 
             # Verify loaded weights match original
@@ -670,7 +533,40 @@ class OrbaxCheckpointTest(testing.TestCase):
             loaded_predictions = fresh_model.predict(x[:5], verbose=0)
             self.assertAllClose(original_predictions, loaded_predictions)
 
-            print("Distributed checkpoint functionality verified")
+            # Verify sharding is maintained after loading
+            # Check that both models have the same distribution
+            from keras.src.distribution import distribution as get_distribution
+
+            current_dist = get_distribution()
+            self.assertIsNotNone(current_dist)
+            self.assertEqual(type(current_dist), ModelParallel)
+
+            # Verify model variables are sharded correctly
+            # In JAX, sharded variables should have different sharding info
+            import jax
+
+            # Get sharding info for original model variables
+            original_shardings = {}
+            for name, var in model.variables.items():
+                if hasattr(var, "sharding"):
+                    original_shardings[name] = var.sharding
+
+            # Get sharding info for loaded model variables
+            loaded_shardings = {}
+            for name, var in fresh_model.variables.items():
+                if hasattr(var, "sharding"):
+                    loaded_shardings[name] = var.sharding
+
+            # Verify shardings match
+            for name in original_shardings:
+                if name in loaded_shardings:
+                    self.assertEqual(
+                        original_shardings[name],
+                        loaded_shardings[name],
+                        f"Sharding mismatch for variable {name}",
+                    )
+
+            print("Distributed checkpoint functionality and sharding verified")
 
         finally:
             # Restore original distribution

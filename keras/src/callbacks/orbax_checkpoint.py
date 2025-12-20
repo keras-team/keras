@@ -246,10 +246,7 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Save the nested state structures directly (preserving layer
         # names and structure)
-        composite_state = {
-            "model_config": self.model.get_config(),
-            **state_tree,
-        }
+        composite_state = state_tree
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.

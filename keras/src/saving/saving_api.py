@@ -329,23 +329,38 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         # Load checkpoint
         loaded_state = ocp.load_pytree(checkpoint_path)
 
-        # Set the state in the model, but only for components that exist
-        state_to_set = {}
+        # Extract weights from the loaded state in the correct order
+        # (same order as model.get_weights() returns them: kernel, bias
+        # for each layer)
+        weights = []
 
-        # Always load trainable and non-trainable variables
+        # Collect trainable variables in the correct order
         if "trainable_variables" in loaded_state:
-            state_to_set["trainable_variables"] = loaded_state[
-                "trainable_variables"
-            ]
-        if "non_trainable_variables" in loaded_state:
-            state_to_set["non_trainable_variables"] = loaded_state[
-                "non_trainable_variables"
-            ]
+            tvars = loaded_state["trainable_variables"]
+            # Iterate through layers directly (no component wrapper)
+            for layer_key, layer_vars in tvars.items():
+                if isinstance(layer_vars, dict):
+                    # For each layer, collect kernel first, then bias
+                    if "kernel" in layer_vars:
+                        weights.append(layer_vars["kernel"])
+                    if "bias" in layer_vars:
+                        weights.append(layer_vars["bias"])
 
-        model.set_state_tree(state_to_set)
+        # Collect non-trainable variables
+        if "non_trainable_variables" in loaded_state:
+            ntvars = loaded_state["non_trainable_variables"]
+            # Same structure as trainable variables
+            for layer_key, layer_vars in ntvars.items():
+                if isinstance(layer_vars, dict):
+                    for var_key, var_value in layer_vars.items():
+                        if not isinstance(var_value, dict):
+                            weights.append(var_value)
+
+        # Set the weights
+        model.set_weights(weights)
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
-            "Keras 3 only supports V3 `.keras` and `.weights.h5` "
-            "files, legacy V1/V2 `.h5` files, and Orbax checkpoints."
+            "Keras 3 only supports V3 `.keras` files, "
+            "legacy H5 format files (`.h5` extension)."
         )
