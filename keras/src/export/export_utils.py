@@ -102,7 +102,7 @@ def make_input_spec(x):
     return input_spec
 
 
-def make_tf_tensor_spec(x, dynamic_batch=True):
+def make_tf_tensor_spec(x, dynamic_batch=False):
     """Create a TensorSpec from various input types.
 
     Args:
