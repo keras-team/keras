@@ -401,7 +401,7 @@ class GRUTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
-    def test_stateful_layer_symbolic_batch_size_does_not_use_tensor_as_bool(
+    def test_stateful_with_symbolic_batch_size(
         self,
     ):
         from keras.src import backend
