@@ -400,3 +400,33 @@ class GRUTest(testing.TestCase):
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
+
+    def test_stateful_layer_symbolic_batch_size_does_not_use_tensor_as_bool(
+        self,
+    ):
+        from keras.src import backend
+
+        if backend.backend() != "tensorflow":
+            self.skipTest(
+                "Test only applicable to fixing a bug for TensorFlow backend."
+            )
+
+        layer = layers.GRU(
+            5,
+            stateful=True,
+        )
+
+        x_concrete = np.ones((2, 10, 10), dtype=np.float32)
+        _ = layer(x_concrete, training=True)
+        import tensorflow as tf
+
+        @tf.function(
+            input_signature=[
+                tf.TensorSpec(shape=(None, 10, 10), dtype=tf.float32)
+            ]
+        )
+        def f(x):
+            return layer(x, training=True)
+
+        y = f(x_concrete)
+        self.assertEqual(y.shape, (2, 5))

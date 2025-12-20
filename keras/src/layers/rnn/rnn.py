@@ -387,7 +387,7 @@ class RNN(Layer):
                     batch_size=ops.shape(sequences)[0]
                 )
         if self.stateful:
-            actual_batch_size = ops.shape(sequences)[0]
+            actual_batch_size = sequences.shape[0]
             if (
                 self._expected_batch_size is not None
                 and actual_batch_size is not None
