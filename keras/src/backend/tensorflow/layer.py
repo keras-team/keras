@@ -94,22 +94,18 @@ class TFLayer(KerasAutoTrackable):
             A TensorSpec, list or dict mirroring the model inputs, or
             `None` when specs cannot be inferred.
         """
-        # Prefer the base implementation if available
-        try:
-            return super()._get_save_spec(dynamic_batch)
-        except AttributeError:
-            # Lazy import to avoid circular dependency
-            from keras.src.export.export_utils import make_tf_tensor_spec
+        # Lazy import to avoid circular dependency
+        from keras.src.export.export_utils import make_tf_tensor_spec
 
-            # Fall back to building specs from `self.inputs`
-            inputs = getattr(self, "inputs", None)
-            if inputs is None:
-                return None
+        # Fall back to building specs from `self.inputs`
+        inputs = getattr(self, "inputs", None)
+        if inputs is None:
+            return None
 
-            return tree.map_structure(
-                lambda x: make_tf_tensor_spec(x, dynamic_batch=dynamic_batch),
-                inputs,
-            )
+        return tree.map_structure(
+            lambda x: make_tf_tensor_spec(x, dynamic_batch=dynamic_batch),
+            inputs,
+        )
 
     @property
     def _default_save_signature(self):
