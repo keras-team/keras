@@ -77,7 +77,6 @@ def multiply(x1, x2):
 
 def mean(x, axis=None, keepdims=False):
     x_ov = get_ov_output(x)
-    x_shape = x_ov.get_partial_shape().to_shape()
     x_type = x_ov.get_element_type()
 
     was_axis_none = axis is None
@@ -93,7 +92,8 @@ def mean(x, axis=None, keepdims=False):
     result = ov_opset.reduce_mean(x_resolved, axis_resolved, keepdims).output(0)
 
     if keepdims and was_axis_none:
-        result_shape = [1] * len(x_shape)
+        rank = x.get_partial_shape().rank.get_length()
+        result_shape = [1] * rank
         result = ov_opset.reshape(
             result,
             ov_opset.constant(result_shape, Type.i32).output(0),
