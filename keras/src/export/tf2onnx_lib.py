@@ -5,9 +5,6 @@ import traceback
 
 import numpy as np
 
-if not hasattr(np, "object"):
-    np.object = object
-
 
 @functools.lru_cache()
 def patch_tf2onnx():
@@ -19,6 +16,9 @@ def patch_tf2onnx():
     from keras.src.utils.module_utils import tf2onnx
 
     logger = logging.getLogger(tf2onnx.__name__)
+
+    if not hasattr(np, "object"):
+        np.object = object
 
     def patched_rewrite_constant_fold(g, ops):
         """
