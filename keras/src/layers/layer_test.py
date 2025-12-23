@@ -811,7 +811,7 @@ class LayerTest(testing.TestCase):
         backend.backend() == "numpy", reason="masking not supported with numpy"
     )
     def test_keras_mask_with_autocast(self):
-        assertEqual = self.assertEqual
+        assertAllEqual = self.assertAllEqual
         assertDType = self.assertDType
 
         class CustomLayer(layers.Layer):
@@ -828,7 +828,7 @@ class LayerTest(testing.TestCase):
         mask = ops.array([True, False])
         backend.set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
-        assertEqual(
+        assertAllEqual(
             mask,
             backend.get_keras_mask(y),
             "Masking is not propagated by Autocast",
