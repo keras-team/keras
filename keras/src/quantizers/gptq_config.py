@@ -1,8 +1,9 @@
 from keras.src.api_export import keras_export
+from keras.src.quantizers.quantization_config import QuantizationConfig
 
 
 @keras_export("keras.quantizers.GPTQConfig")
-class GPTQConfig:
+class GPTQConfig(QuantizationConfig):
     """Configuration class for the GPTQ (Gradient-based Post-Training
     Quantization) algorithm.
 
@@ -154,6 +155,7 @@ class GPTQConfig:
         activation_order: bool = False,
         quantization_layer_structure: dict = None,
     ):
+        super().__init__()
         if weight_bits not in [2, 3, 4, 8]:
             raise ValueError(
                 f"Unsupported weight_bits {weight_bits}. "
@@ -182,6 +184,31 @@ class GPTQConfig:
         self.symmetric = symmetric
         self.activation_order = activation_order
         self.quantization_layer_structure = quantization_layer_structure
+
+    def get_config(self):
+        return {
+            # Dataset and Tokenizer are only required for a one-time
+            # calibration and are not saved in the config.
+            "dataset": None,
+            "tokenizer": None,
+            "weight_bits": self.weight_bits,
+            "num_samples": self.num_samples,
+            "per_channel": self.per_channel,
+            "sequence_length": self.sequence_length,
+            "hessian_damping": self.hessian_damping,
+            "group_size": self.group_size,
+            "symmetric": self.symmetric,
+            "activation_order": self.activation_order,
+            "quantization_layer_structure": self.quantization_layer_structure,
+        }
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(**config)
+
+    @property
+    def mode(self):
+        return "gptq"
 
     def dtype_policy_string(self):
         """Returns the dtype policy string for this configuration.

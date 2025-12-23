@@ -1154,6 +1154,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.trapezoid(x, axis=1).shape, (None, 3))
 
+    def test_vander(self):
+        x = KerasTensor((None,))
+        self.assertEqual(knp.vander(x).shape, (None, None))
+
     def test_var(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.var(x).shape, ())
@@ -1836,6 +1840,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.tile(x, [1, 2]).shape, (None, 6))
         self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, None, 6))
 
+        # Test with multi-dimensional input
+        x = KerasTensor((None, 3, 2, 2))
+        self.assertEqual(knp.tile(x, [1, 2, 1, 1]).shape, (None, 6, 2, 2))
+
     def test_trace(self):
         x = KerasTensor((None, 3, None, 5))
         self.assertEqual(knp.trace(x).shape, (None, 5))
@@ -1913,6 +1921,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_trapezoid(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.trapezoid(x).shape, (2,))
+
+    def test_vander(self):
+        x = KerasTensor((2,))
+        self.assertEqual(knp.vander(x).shape, (2, 2))
 
     def test_var(self):
         x = KerasTensor((2, 3))
@@ -3753,6 +3765,28 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.trapezoid(y, x=x, axis=1),
             np.trapezoid(y, x=x, axis=1),
+        )
+
+    def test_vander(self):
+        x = np.random.random((3,))
+        N = 6
+
+        self.assertAllClose(knp.vander(x), np.vander(x))
+        self.assertAllClose(knp.vander(x, N=N), np.vander(x, N=N))
+        self.assertAllClose(
+            knp.vander(x, N=N, increasing=True),
+            np.vander(x, N=N, increasing=True),
+        )
+
+        self.assertAllClose(knp.Vander().call(x), np.vander(x))
+        self.assertAllClose(knp.Vander(N=N).call(x), np.vander(x, N=N))
+        self.assertAllClose(
+            knp.Vander(N=N, increasing=True).call(x),
+            np.vander(x, N=N, increasing=True),
+        )
+        self.assertAllClose(
+            knp.Vander(N=N, increasing=False).call(x),
+            np.vander(x, N=N, increasing=False),
         )
 
     def test_var(self):
@@ -7380,8 +7414,11 @@ class NumpyDtypeTest(testing.TestCase):
     def test_empty_like(self, dtype):
         import jax.numpy as jnp
 
-        x = jnp.empty([2, 3, 4], dtype=dtype)
-        expected_dtype = standardize_dtype(jnp.empty_like(x, dtype=dtype).dtype)
+        x_jax = jnp.empty([2, 3, 4], dtype=dtype)
+        x = knp.ones([2, 3, 4], dtype=dtype)
+        expected_dtype = standardize_dtype(
+            jnp.empty_like(x_jax, dtype=dtype).dtype
+        )
 
         self.assertEqual(
             standardize_dtype(knp.empty_like(x, dtype=dtype).dtype),
@@ -9222,6 +9259,24 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_vander(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2,), dtype=dtype)
+        x_jax = jnp.ones((2,), dtype=dtype)
+
+        if dtype == "bool":
+            self.skipTest("vander does not support bool")
+
+        expected_dtype = standardize_dtype(jnp.vander(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.vander(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Vander().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_var(self, dtype):
         import jax.numpy as jnp
 
@@ -9566,3 +9621,20 @@ class HistogramTest(testing.TestCase):
         model.compile(jit_compile=jit_compile)
 
         model.predict(np.random.randn(1, 8))
+
+
+class TileTest(testing.TestCase):
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="`tile` is not supported with openvino backend",
+    )
+    def test_tile_shape_inference_in_layer(self):
+        class TileLayer(keras.layers.Layer):
+            def call(self, x):
+                repeats = [1, 2, 1, 1]
+                return knp.tile(x, repeats)
+
+        inputs = keras.Input(shape=(3, 2, 2))
+        output = TileLayer()(inputs)
+
+        self.assertEqual(output.shape, (None, 6, 2, 2))

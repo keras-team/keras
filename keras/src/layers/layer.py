@@ -45,6 +45,7 @@ from keras.src.layers import input_spec
 from keras.src.metrics.metric import Metric
 from keras.src.ops.node import Node
 from keras.src.ops.operation import Operation
+from keras.src.quantizers.quantization_config import validate_and_resolve_config
 from keras.src.utils import python_utils
 from keras.src.utils import summary_utils
 from keras.src.utils import traceback_utils
@@ -244,11 +245,13 @@ class Layer(BackendLayer, Operation):
         original_quantize_method = obj.quantize
 
         @wraps(original_quantize_method)
-        def quantize_wrapper(mode, **kwargs):
+        def quantize_wrapper(mode=None, config=None, **kwargs):
+            config = validate_and_resolve_config(mode, config)
+            mode = config.mode
             obj._check_quantize_args(mode, obj.compute_dtype)
             obj._tracker.unlock()
             try:
-                original_quantize_method(mode, **kwargs)
+                original_quantize_method(mode=mode, config=config, **kwargs)
             except Exception:
                 raise
             finally:
@@ -1277,7 +1280,7 @@ class Layer(BackendLayer, Operation):
     def quantized_build(self, input_shape, mode):
         raise self._not_implemented_error(self.quantized_build)
 
-    def quantize(self, mode, type_check=True, config=None):
+    def quantize(self, mode=None, type_check=True, config=None):
         raise self._not_implemented_error(self.quantize)
 
     def _check_quantize_args(self, mode, compute_dtype):

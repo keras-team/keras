@@ -17,9 +17,66 @@ from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantizers import AbsMaxQuantizer
 
 
 class DenseTest(testing.TestCase):
+    @parameterized.named_parameters(
+        ("int8", "int8", {"axis": 0}, {}),
+        (
+            "int4",
+            "int4",
+            {"axis": 0, "value_range": (-8, 7), "output_dtype": "int8"},
+            {"axis": -1},
+        ),
+        ("int8_weight_only", "int8", {"axis": 0}, None),
+    )
+    def test_dense_quantize_config(
+        self, mode, weight_quantizer_args, activation_quantizer_args
+    ):
+        """Test Dense quantization with QuantizationConfig."""
+        layer = layers.Dense(units=32)
+        layer.build((None, 8))
+
+        weight_quantizer = AbsMaxQuantizer(**weight_quantizer_args)
+        if activation_quantizer_args is not None:
+            activation_quantizer = AbsMaxQuantizer(**activation_quantizer_args)
+        else:
+            activation_quantizer = None
+
+        if mode == "int8":
+            config = Int8QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+        elif mode == "int4":
+            config = Int4QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+
+        layer.quantize(mode, config=config)
+
+        if activation_quantizer_args is not None:
+            # Verify inputs_quantizer is set correctly
+            self.assertIsInstance(layer.inputs_quantizer, AbsMaxQuantizer)
+        else:
+            # Verify inputs_quantizer is None
+            self.assertIsNone(layer.inputs_quantizer)
+
+        # Verify call works
+        x = np.random.random((2, 8)).astype("float32")
+        y = layer(x)
+        self.assertEqual(y.shape, (2, 32))
+
+        if mode == "int4":
+            # Verify kernel is int8 (packed int4)
+            self.assertEqual(
+                backend.standardize_dtype(layer._kernel.dtype), "int8"
+            )
+
     @pytest.mark.requires_trainable_backend
     def test_dense_basics(self):
         # 2D case, no bias.
@@ -57,6 +114,17 @@ class DenseTest(testing.TestCase):
             expected_num_losses=2,  # we have 2 regularizers.
             supports_masking=True,
         )
+
+    @parameterized.named_parameters(
+        ("zero", 0),
+        ("negative", -3),
+        ("float", 2.5),
+        ("none", None),
+        ("string", "64"),
+    )
+    def test_dense_invalid_units_raises(self, units):
+        with self.assertRaisesRegex(ValueError, "positive integer"):
+            layers.Dense(units)
 
     def test_dense_correctness(self):
         # With bias and activation.
@@ -956,3 +1024,123 @@ class DenseTest(testing.TestCase):
 
         quantized_kernel_params = ops.prod(layer.quantized_kernel.shape)
         self.assertEqual(quantized_kernel_params, original_kernel_params // 2)
+
+    def _check_quantizer_config(
+        self, quantizer, valid_class, axis, value_range
+    ):
+        self.assertIsInstance(quantizer, valid_class)
+        self.assertEqual(quantizer.axis, axis)
+
+        # Normalize value_range to list
+        if value_range is not None:
+            self.assertAllEqual(quantizer.value_range, value_range)
+
+    def test_dense_int8_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for dense layer.
+        """
+        # Setup
+        weight_range = (-127, 127)
+        act_range = (-5, 5)
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0, value_range=weight_range),
+            activation_quantizer=AbsMaxQuantizer(
+                axis=-1, value_range=act_range
+            ),
+        )
+
+        # Build & Quantize
+        layer = layers.Dense(10)
+        layer.build((None, 5))
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Dense.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.weight_quantizer,
+            AbsMaxQuantizer,
+            axis=(0,),
+            value_range=weight_range,
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.activation_quantizer,
+            AbsMaxQuantizer,
+            axis=(-1,),
+            value_range=act_range,
+        )
+
+    def test_dense_int8_weight_only_quantizer(self):
+        """
+        Test custom quantizer serialization for dense layer with
+        weight-only quantization.
+        """
+        # Setup
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0),
+            activation_quantizer=None,
+        )
+
+        # Build & Quantize
+        layer = layers.Dense(10)
+        layer.build((None, 5))
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Dense.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        self.assertIsInstance(
+            new_layer.quantization_config.weight_quantizer, AbsMaxQuantizer
+        )
+        self.assertIsNone(new_layer.quantization_config.activation_quantizer)
+
+    def test_dense_int4_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for dense layer with
+        int4 quantization.
+        """
+        # Setup
+        weight_range = (-8, 7)
+        act_range = (-2, 2)
+        config = Int4QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=0, value_range=weight_range),
+            activation_quantizer=AbsMaxQuantizer(
+                axis=-1, value_range=act_range
+            ),
+        )
+
+        # Build & Quantize
+        layer = layers.Dense(10)
+        layer.build((None, 5))
+        layer.quantize("int4", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Dense.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int4QuantizationConfig
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.weight_quantizer,
+            AbsMaxQuantizer,
+            axis=(0,),
+            value_range=weight_range,
+        )
+        self._check_quantizer_config(
+            new_layer.quantization_config.activation_quantizer,
+            AbsMaxQuantizer,
+            axis=(-1,),
+            value_range=act_range,
+        )

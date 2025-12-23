@@ -1372,6 +1372,14 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     return np.trapezoid(y, x, dx=dx, axis=axis).astype(result_dtype)
 
 
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, config.floatx())
+    x = x.astype(compute_dtype)
+    return np.vander(x, N=N, increasing=increasing).astype(result_dtype)
+
+
 def var(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
