@@ -807,6 +807,9 @@ class LayerTest(testing.TestCase):
         x = [np.zeros(1, dtype="float64"), np.zeros(1, dtype="int32")]
         CustomLayer()(x)
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
     def test_keras_mask_with_autocast(self):
         assertEqual = self.assertEqual
         assertDType = self.assertDType
