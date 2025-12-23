@@ -1,0 +1,25 @@
+name: Labeler for TPU Tests
+
+on:
+  pull_request_review:
+
+jobs:
+  add_run_tpu_tests_label:
+    permissions:
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+
+    # Only run on "approved" reviews for the "pull_request_review" event.
+    if: github.event.review.state == 'approved'
+
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: ['run_tpu_tests']
+            })
