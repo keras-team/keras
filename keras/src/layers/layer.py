@@ -844,6 +844,7 @@ class Layer(BackendLayer, Operation):
             if mask is not None:
                 backend.set_keras_mask(y, mask)
             return y
+
         # Used to avoid expensive `tree` operations in the most common case.
         if (
             kwargs
