@@ -205,8 +205,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
             "Keras 3 only supports V3 `.keras` files, "
-            "legacy H5 format files (`.h5` extension), and "
-            "Orbax checkpoints. "
+            "legacy H5 format files (`.h5` extension). "
             "Note that the legacy SavedModel format is not "
             "supported by `load_model()` in Keras 3. In "
             "order to reload a TensorFlow SavedModel as an "
@@ -329,35 +328,8 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         # Load checkpoint
         loaded_state = ocp.load_pytree(checkpoint_path)
 
-        # Extract weights from the loaded state in the correct order
-        # (same order as model.get_weights() returns them: kernel, bias
-        # for each layer)
-        weights = []
-
-        # Collect trainable variables in the correct order
-        if "trainable_variables" in loaded_state:
-            tvars = loaded_state["trainable_variables"]
-            # Iterate through layers directly (no component wrapper)
-            for layer_key, layer_vars in tvars.items():
-                if isinstance(layer_vars, dict):
-                    # For each layer, collect kernel first, then bias
-                    if "kernel" in layer_vars:
-                        weights.append(layer_vars["kernel"])
-                    if "bias" in layer_vars:
-                        weights.append(layer_vars["bias"])
-
-        # Collect non-trainable variables
-        if "non_trainable_variables" in loaded_state:
-            ntvars = loaded_state["non_trainable_variables"]
-            # Same structure as trainable variables
-            for layer_key, layer_vars in ntvars.items():
-                if isinstance(layer_vars, dict):
-                    for var_key, var_value in layer_vars.items():
-                        if not isinstance(var_value, dict):
-                            weights.append(var_value)
-
-        # Set the weights
-        model.set_weights(weights)
+        # Set the model state directly from the loaded state
+        model.set_state_tree(loaded_state)
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
