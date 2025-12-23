@@ -16,8 +16,8 @@ torch-xla==2.6.0;sys_platform != 'darwin'
 # Jax.
 # Pinned to 0.8.0 on CPU for CI compatibility with older backends.
 # Note that we test against the latest JAX on GPU.
-jax[cpu]==0.8.1
-flax==0.12.1
+jax[cpu]==0.8.2
+flax==0.12.2
 
 # Common deps.
 -r requirements-common.txt
