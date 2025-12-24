@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
@@ -401,9 +402,12 @@ class GRUTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
-    def test_stateful_with_symbolic_batch_size(
-        self,
-    ):
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Test only applicable to fixing a bug with symbolic batch size "
+        "for TensorFlow backend.",
+    )
+    def test_stateful_with_symbolic_batch_size(self):
         from keras.src import backend
 
         if backend.backend() != "tensorflow":
