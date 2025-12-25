@@ -810,6 +810,33 @@ class LayerTest(testing.TestCase):
     @pytest.mark.skipif(
         backend.backend() == "numpy", reason="masking not supported with numpy"
     )
+    def test_keras_mask_with_autocast(self):
+        assertAllEqual = self.assertAllEqual
+        assertDType = self.assertDType
+
+        class CustomLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.supports_masking = True
+
+            def call(self, x, mask=None):
+                assert mask is not None
+                assertDType(x, "float16")
+                return x
+
+        x = ops.zeros((1, 2), dtype="float32")
+        mask = ops.array([True, False])
+        backend.set_keras_mask(x, mask)
+        y = CustomLayer(dtype="float16")(x)
+        assertAllEqual(
+            mask,
+            backend.get_keras_mask(y),
+            "Masking is not propagated by Autocast",
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
     def test_end_to_end_masking(self):
         # Check that masking survives compilation
         model = models.Sequential(
