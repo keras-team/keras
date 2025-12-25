@@ -836,9 +836,14 @@ class Layer(BackendLayer, Operation):
         #############################################################
         # 1. Convert any array arguments to tensors of correct dtype.
         def maybe_convert(x):
-            return self.dtype_policy.convert_input(
+            # Prevent _keras_mask from disappearing
+            mask = backend.get_keras_mask(x)
+            y = self.dtype_policy.convert_input(
                 x, self.autocast, self.input_dtype
             )
+            if mask is not None:
+                backend.set_keras_mask(y, mask)
+            return y
 
         # Used to avoid expensive `tree` operations in the most common case.
         if (
