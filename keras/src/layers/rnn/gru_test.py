@@ -408,17 +408,7 @@ class GRUTest(testing.TestCase):
         "for TensorFlow backend.",
     )
     def test_stateful_with_symbolic_batch_size(self):
-        from keras.src import backend
-
-        if backend.backend() != "tensorflow":
-            self.skipTest(
-                "Test only applicable to fixing a bug for TensorFlow backend."
-            )
-
-        layer = layers.GRU(
-            5,
-            stateful=True,
-        )
+        layer = layers.GRU(5, stateful=True)
 
         x_concrete = np.ones((2, 10, 10), dtype=np.float32)
         _ = layer(x_concrete, training=True)
