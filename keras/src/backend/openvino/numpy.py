@@ -893,9 +893,29 @@ def diag(x, k=0):
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError(
-        "`diagonal` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    shape = x.get_partial_shape()
+    if not shape.rank.is_static:
+        raise ValueError(
+            f"diagonal requires static rank, got shape {shape}"
+        )
+    rank = shape.rank.get_length()
+    if rank < 2:
+        raise ValueError(
+            f"diagonal requires rank >= 2, got shape {shape}"
+        )
+    axis1 = axis1 % rank
+    axis2 = axis2 % rank
+    if axis1 == axis2:
+        raise ValueError("axis1 and axis2 must be different")
+    perm = [i for i in range(rank) if i not in (axis1, axis2)] + [axis1, axis2]
+    perm_node = get_ov_output(perm, Type.i32)
+    x = ov_opset.transpose(x, perm_node).output(0)
+
+    diag = ov_opset.diagonal(x, offset=offset).output(0)
+
+    return OpenVINOKerasTensor(diag)
+
 
 
 def diff(a, n=1, axis=-1):
