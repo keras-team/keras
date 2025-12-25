@@ -115,9 +115,7 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
         reduction_op = ov_opset.reduce_max
         elementwise_op = ov_opset.maximum
     else:
-        raise ValueError(
-            f"Operation must be 'min' or 'max', received {operation}"
-        )
+        raise ValueError(f"Operation must be 'min' or 'max', received {operation}")
 
     x = get_ov_output(x)
     x_type = x.get_element_type()
@@ -198,9 +196,7 @@ def all(x, axis=None, keepdims=False):
     if axis is None:
         return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
-    return OpenVINOKerasTensor(
-        ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
-    )
+    return OpenVINOKerasTensor(ov_opset.reduce_logical_and(x, axis, keepdims).output(0))
 
 
 def angle(x):
@@ -213,9 +209,7 @@ def any(x, axis=None, keepdims=False):
     if axis is None:
         return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
-    return OpenVINOKerasTensor(
-        ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
-    )
+    return OpenVINOKerasTensor(ov_opset.reduce_logical_or(x, axis, keepdims).output(0))
 
 
 def amax(x, axis=None, keepdims=False):
@@ -412,9 +406,7 @@ def argmax(x, axis=None, keepdims=False):
     if rank == 0:
         return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
     if axis is None:
-        flatten_shape = ov_opset.constant(
-            [-1] + [1] * (rank - 1), Type.i32
-        ).output(0)
+        flatten_shape = ov_opset.constant([-1] + [1] * (rank - 1), Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -444,9 +436,7 @@ def argmin(x, axis=None, keepdims=False):
     if rank == 0:
         return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
     if axis is None:
-        flatten_shape = ov_opset.constant(
-            [-1] + [1] * (rank - 1), Type.i32
-        ).output(0)
+        flatten_shape = ov_opset.constant([-1] + [1] * (rank - 1), Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -563,18 +553,14 @@ def bartlett(x):
     )
     second_half = ov_opset.subtract(two_const_f64, first_half)
     window = ov_opset.select(condition, first_half, second_half)
-    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
-        0
-    )
+    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(0)
     return OpenVINOKerasTensor(window)
 
 
 def hamming(x):
     m = get_ov_output(x)
 
-    m_i64 = (
-        m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
-    )
+    m_i64 = m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
 
     start = ov_opset.constant(0, Type.i64)
     step = ov_opset.constant(1, Type.i64)
@@ -594,9 +580,7 @@ def hamming(x):
     a = ov_opset.constant(0.54, Type.f64)
     b = ov_opset.constant(0.46, Type.f64)
     hamming_window = ov_opset.subtract(a, ov_opset.multiply(b, c))
-    hamming_window = ov_opset.convert(
-        hamming_window, OPENVINO_DTYPES[config.floatx()]
-    )
+    hamming_window = ov_opset.convert(hamming_window, OPENVINO_DTYPES[config.floatx()])
 
     return OpenVINOKerasTensor(hamming_window.output(0))
 
@@ -644,12 +628,10 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
     depth = ov_opset.add(max_element, const_one).output(0)
     depth = ov_opset.maximum(depth, minlength).output(0)
-    depth_scalar = ov_opset.reduce_max(
-        depth, const_zero, keep_dims=False
-    ).output(0)
-    one_hot = ov_opset.one_hot(
-        x, depth_scalar, const_one, const_zero, axis=-1
-    ).output(0)
+    depth_scalar = ov_opset.reduce_max(depth, const_zero, keep_dims=False).output(0)
+    one_hot = ov_opset.one_hot(x, depth_scalar, const_one, const_zero, axis=-1).output(
+        0
+    )
     if weights is not None:
         weights = get_ov_output(weights)
         weights_type = weights.get_element_type()
@@ -689,16 +671,14 @@ def blackman(x):
     term_2_final = ov_opset.multiply(term_2, cos_2pi)
     term_3_final = ov_opset.multiply(term_3, cos_4pi)
     window = ov_opset.add(ov_opset.subtract(term_1, term_2_final), term_3_final)
-    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
-        0
-    )
+    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(0)
     return OpenVINOKerasTensor(window)
 
 
 def broadcast_to(x, shape):
-    assert isinstance(shape, (tuple, list)), (
-        "`broadcast_to` is supported only for tuple and list `shape`"
-    )
+    assert isinstance(
+        shape, (tuple, list)
+    ), "`broadcast_to` is supported only for tuple and list `shape`"
     target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
@@ -740,9 +720,7 @@ def concatenate(xs, axis=0):
 
 
 def conjugate(x):
-    raise NotImplementedError(
-        "`conjugate` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`conjugate` is not supported with openvino backend")
 
 
 def conj(x):
@@ -788,9 +766,7 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    raise NotImplementedError(
-        "`cumprod` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`cumprod` is not supported with openvino backend")
 
 
 def cumsum(x, axis=None, dtype=None):
@@ -833,9 +809,7 @@ def diag(x, k=0):
     if rank == 1:
         N_dim = x_shape[0]
         if not N_dim.is_static:
-            raise ValueError(
-                "diag requires input with static shape for 1D input."
-            )
+            raise ValueError("diag requires input with static shape for 1D input.")
         N = N_dim.get_length()
         output_size = N + np.abs(k)
         out_shape = ov_opset.constant(
@@ -861,9 +835,7 @@ def diag(x, k=0):
         M_dim = x_shape[0]
         N_dim = x_shape[1]
         if not M_dim.is_static or not N_dim.is_static:
-            raise ValueError(
-                "diag requires input with static shape for 2D input."
-            )
+            raise ValueError("diag requires input with static shape for 2D input.")
         M = M_dim.get_length()
         N = N_dim.get_length()
 
@@ -878,9 +850,7 @@ def diag(x, k=0):
             keras_dtype = ov_to_keras_type(x.get_element_type())
             np_dtype = np.dtype(keras_dtype)
             empty_np = np.empty((0,), dtype=np_dtype)
-            empty_const = ov_opset.constant(
-                empty_np, x.get_element_type()
-            ).output(0)
+            empty_const = ov_opset.constant(empty_np, x.get_element_type()).output(0)
             return OpenVINOKerasTensor(empty_const)
 
         indices = np.array(indices, dtype=np.int32)
@@ -894,28 +864,105 @@ def diag(x, k=0):
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = get_ov_output(x)
-    shape = x.get_partial_shape()
-    if not shape.rank.is_static:
-        raise ValueError(
-            f"diagonal requires static rank, got shape {shape}"
-        )
-    rank = shape.rank.get_length()
+    partial_shape = x.get_partial_shape()
+    if not partial_shape.rank.is_static:
+        raise ValueError(f"diagonal requires static rank, got shape {partial_shape}")
+    rank = partial_shape.rank.get_length()
     if rank < 2:
+        raise ValueError(f"diagonal requires rank >= 2, got shape {partial_shape}")
+    if not (-rank <= axis1 < rank):
         raise ValueError(
-            f"diagonal requires rank >= 2, got shape {shape}"
+            f"axis1 {axis1} is out of bounds for array of dimension {rank}"
         )
-    axis1 = axis1 % rank
-    axis2 = axis2 % rank
+    if axis1 < 0:
+        axis1 += rank
+
+    if not (-rank <= axis2 < rank):
+        raise ValueError(
+            f"axis2 {axis2} is out of bounds for array of dimension {rank}"
+        )
+    if axis2 < 0:
+        axis2 += rank
     if axis1 == axis2:
         raise ValueError("axis1 and axis2 must be different")
-    perm = [i for i in range(rank) if i not in (axis1, axis2)] + [axis1, axis2]
-    perm_node = get_ov_output(perm, Type.i32)
-    x = ov_opset.transpose(x, perm_node).output(0)
+    batch_axes = [i for i in range(rank) if i not in (axis1, axis2)]
+    perm = batch_axes + [axis1, axis2]
+    x = ov_opset.transpose(x, get_ov_output(perm, Type.i64)).output(0)
+    dyn_shape = ov_opset.shape_of(x, Type.i64).output(0)
+    dim1 = ov_opset.gather(dyn_shape, get_ov_output(-2, Type.i64), axis=0).output(0)
+    dim2 = ov_opset.gather(dyn_shape, get_ov_output(-1, Type.i64), axis=0).output(0)
+    if offset >= 0:
+        max_len = ov_opset.subtract(dim2, get_ov_output(offset, Type.i64))
+    else:
+        max_len = ov_opset.subtract(dim1, get_ov_output(-offset, Type.i64))
 
-    diag = ov_opset.diagonal(x, offset=offset).output(0)
+    diag_len = ov_opset.maximum(
+        get_ov_output(0, Type.i64),
+        ov_opset.minimum(dim1, max_len).output(0),
+    ).output(0)
+    reshape_shape = ov_opset.concat(
+        [
+            get_ov_output([-1], Type.i64),
+            ov_opset.unsqueeze(dim1, get_ov_output(0, Type.i64)).output(0),
+            ov_opset.unsqueeze(dim2, get_ov_output(0, Type.i64)).output(0),
+        ],
+        axis=0,
+    ).output(0)
+    reshaped = ov_opset.reshape(
+        x,
+        reshape_shape,
+        special_zero=True,
+    ).output(0)
+    idx = ov_opset.range(
+        get_ov_output(0, Type.i64),
+        diag_len,
+        get_ov_output(1, Type.i64),
+    ).output(0)
+    if offset >= 0:
+        coords = ov_opset.concat(
+            [
+                ov_opset.unsqueeze(idx, get_ov_output(1, Type.i64)).output(0),
+                ov_opset.unsqueeze(
+                    ov_opset.add(idx, get_ov_output(offset, Type.i64)).output(0),
+                    get_ov_output(1, Type.i64),
+                ).output(0),
+            ],
+            axis=1,
+        ).output(0)
+    else:
+        coords = ov_opset.concat(
+            [
+                ov_opset.unsqueeze(
+                    ov_opset.subtract(idx, get_ov_output(offset, Type.i64)).output(0),
+                    get_ov_output(1, Type.i64),
+                ).output(0),
+                ov_opset.unsqueeze(idx, get_ov_output(1, Type.i64)).output(0),
+            ],
+            axis=1,
+        ).output(0)
+    batch = ov_opset.shape_of(reshaped, Type.i64)
+    batch = ov_opset.gather(batch, get_ov_output(0, Type.i64), axis=0).output(0)
+
+    coords = ov_opset.unsqueeze(coords, get_ov_output(0, Type.i64)).output(0)
+    coords = ov_opset.broadcast(
+        coords,
+        ov_opset.concat([batch, diag_len, get_ov_output(2, Type.i64)], axis=0).output(
+            0
+        ),
+        mode="NUMPY",
+    ).output(0)
+    diag = ov_opset.gather_nd(reshaped, coords, batch_dims=1).output(0)
+    if batch_axes:
+        batch_shape = ov_opset.gather(
+            dyn_shape, get_ov_output(batch_axes, Type.i64), axis=0
+        ).output(0)
+        final_shape = ov_opset.concat([batch_shape, diag_len], axis=0).output(0)
+    else:
+        final_shape = diag_len
+
+    diag = ov_opset.reshape(diag, final_shape, special_zero=False).output(0)
 
     return OpenVINOKerasTensor(diag)
-
 
 
 def diff(a, n=1, axis=-1):
@@ -1109,9 +1156,7 @@ def full(shape, fill_value, dtype=None):
     if isinstance(shape, tuple):
         shape = list(shape)
     target_shape = ov_opset.constant(shape, Type.i32)
-    return OpenVINOKerasTensor(
-        ov_opset.broadcast(fill_value, target_shape).output(0)
-    )
+    return OpenVINOKerasTensor(ov_opset.broadcast(fill_value, target_shape).output(0))
 
 
 def full_like(x, fill_value, dtype=None):
@@ -1163,9 +1208,7 @@ def hstack(xs):
     is_1d = elems and len(elems[0].get_partial_shape().to_shape()) == 1
     axis = 0 if is_1d else 1
     for i in range(1, len(elems)):
-        elems[0], elems[i] = _align_operand_types(
-            elems[0], elems[i], "hstack()"
-        )
+        elems[0], elems[i] = _align_operand_types(elems[0], elems[i], "hstack()")
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
@@ -1216,9 +1259,7 @@ def isfinite(x):
     # that ever changes, we could simplify this to just call that operation.
     inf_values = get_ov_output(isinf(x))
     nan_values = get_ov_output(isnan(x))
-    all_non_finite_values = ov_opset.logical_or(inf_values, nan_values).output(
-        0
-    )
+    all_non_finite_values = ov_opset.logical_or(inf_values, nan_values).output(0)
     is_finite = ov_opset.logical_not(all_non_finite_values).output(0)
     return OpenVINOKerasTensor(is_finite)
 
@@ -1281,9 +1322,7 @@ def _is_inf(x, pos=True):
     if x_type.is_integral() or x_type == Type.boolean:
         shape = ov_opset.shape_of(x, "i32").output(0)
         false_const = ov_opset.constant(False, Type.boolean).output(0)
-        return OpenVINOKerasTensor(
-            ov_opset.broadcast(false_const, shape).output(0)
-        )
+        return OpenVINOKerasTensor(ov_opset.broadcast(false_const, shape).output(0))
 
     if x_type == Type.bf16:
         x_f32 = ov_opset.convert(x, Type.f32).output(0)
@@ -1342,9 +1381,7 @@ def less_equal(x1, x2):
     return OpenVINOKerasTensor(ov_opset.less_equal(x1, x2).output(0))
 
 
-def linspace(
-    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
-):
+def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
     """Return evenly spaced numbers over a specified interval.
 
     Supports axis=0 (prepend) and axis=-1 (append). Intermediate axis values are
@@ -1364,13 +1401,9 @@ def linspace(
                 num_value = num_tensor.get_node().get_vector()[0]
                 num = int(num_value)
             else:
-                raise NotImplementedError(
-                    "Dynamic num values not fully supported"
-                )
+                raise NotImplementedError("Dynamic num values not fully supported")
         except Exception as e:
-            raise NotImplementedError(
-                "Could not extract num value from tensor"
-            ) from e
+            raise NotImplementedError("Could not extract num value from tensor") from e
     else:
         num = int(num)
 
@@ -1418,9 +1451,7 @@ def linspace(
     else:
         divisor = num_const
 
-    step = ov_opset.divide(
-        ov_opset.subtract(stop, start).output(0), divisor
-    ).output(0)
+    step = ov_opset.divide(ov_opset.subtract(stop, start).output(0), divisor).output(0)
 
     indices = ov_opset.range(
         zero_i32,
@@ -1429,9 +1460,9 @@ def linspace(
         output_type,
     ).output(0)
 
-    start_shape = ov_opset.convert(
-        ov_opset.shape_of(start).output(0), Type.i32
-    ).output(0)
+    start_shape = ov_opset.convert(ov_opset.shape_of(start).output(0), Type.i32).output(
+        0
+    )
     indices_shape = ov_opset.convert(
         ov_opset.shape_of(indices).output(0), Type.i32
     ).output(0)
@@ -1443,28 +1474,18 @@ def linspace(
         indices_target_shape = ov_opset.concat(
             [indices_shape, ones_for_start], 0
         ).output(0)
-        start_target_shape = ov_opset.concat(
-            [one_i32_array, start_shape], 0
-        ).output(0)
+        start_target_shape = ov_opset.concat([one_i32_array, start_shape], 0).output(0)
     else:
         indices_target_shape = ov_opset.concat(
             [ones_for_start, indices_shape], 0
         ).output(0)
-        start_target_shape = ov_opset.concat(
-            [start_shape, one_i32_array], 0
-        ).output(0)
+        start_target_shape = ov_opset.concat([start_shape, one_i32_array], 0).output(0)
 
-    indices_reshaped = ov_opset.reshape(
-        indices, indices_target_shape, False
-    ).output(0)
-    start_reshaped = ov_opset.reshape(start, start_target_shape, False).output(
-        0
-    )
+    indices_reshaped = ov_opset.reshape(indices, indices_target_shape, False).output(0)
+    start_reshaped = ov_opset.reshape(start, start_target_shape, False).output(0)
     step_reshaped = ov_opset.reshape(step, start_target_shape, False).output(0)
 
-    scaled_indices = ov_opset.multiply(indices_reshaped, step_reshaped).output(
-        0
-    )
+    scaled_indices = ov_opset.multiply(indices_reshaped, step_reshaped).output(0)
     result = ov_opset.add(start_reshaped, scaled_indices).output(0)
 
     if retstep:
@@ -1572,9 +1593,7 @@ def logaddexp(x1, x2):
 
 
 def logaddexp2(x1, x2):
-    raise NotImplementedError(
-        "`logaddexp2` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`logaddexp2` is not supported with openvino backend")
 
 
 def logical_and(x1, x2):
@@ -1700,12 +1719,8 @@ def median(x, axis=None, keepdims=False):
     ).output(0)
 
     # Check if k is odd
-    k_mod_2 = ov_opset.mod(
-        k_scalar, ov_opset.constant(2, Type.i32).output(0)
-    ).output(0)
-    is_odd = ov_opset.equal(
-        k_mod_2, ov_opset.constant(1, Type.i32).output(0)
-    ).output(0)
+    k_mod_2 = ov_opset.mod(k_scalar, ov_opset.constant(2, Type.i32).output(0)).output(0)
+    is_odd = ov_opset.equal(k_mod_2, ov_opset.constant(1, Type.i32).output(0)).output(0)
 
     # For odd case: take the middle element
     odd_idx = k_minus_1_div_2
@@ -1755,12 +1770,8 @@ def median(x, axis=None, keepdims=False):
     if keepdims:
         if flattened_all:
             # When axis=None, keepdims should restore all dimensions as 1
-            ones_shape = ov_opset.constant(
-                [1] * original_rank, Type.i32
-            ).output(0)
-            median_result = ov_opset.reshape(
-                median_result, ones_shape, False
-            ).output(0)
+            ones_shape = ov_opset.constant([1] * original_rank, Type.i32).output(0)
+            median_result = ov_opset.reshape(median_result, ones_shape, False).output(0)
         else:
             median_result = ov_opset.unsqueeze(median_result, [axis]).output(0)
 
@@ -1779,9 +1790,7 @@ def meshgrid(*x, indexing="xy"):
     tensors = [get_ov_output(xi) for xi in x]
     n = len(tensors)
 
-    shapes = [
-        ov_opset.shape_of(t, Type.i64).output(0) for t in tensors
-    ]  # each is [Ni]
+    shapes = [ov_opset.shape_of(t, Type.i64).output(0) for t in tensors]  # each is [Ni]
     one = ov_opset.constant([1], Type.i64).output(0)
 
     if indexing == "xy":
@@ -1855,7 +1864,9 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     if dtype.is_integral():
         return OpenVINOKerasTensor(x)
     isfloat64 = True if dtype == Type.f64 else False
-    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+    if (
+        isfloat64
+    ):  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
         x = ov_opset.convert(x, Type.f32).output(0)
         dtype = Type.f32
     nan_val = ov_opset.constant(nan, dtype).output(0)
@@ -1963,9 +1974,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             "`pad` operation supports only scalar pad value "
             "in constant mode by openvino backend"
         )
-        pad_value = ov_opset.constant(
-            constant_values, x.get_element_type()
-        ).output(0)
+        pad_value = ov_opset.constant(constant_values, x.get_element_type()).output(0)
 
     # split pad_width into two tensors pads_begin and pads_end
     pads_begin = []
@@ -2000,9 +2009,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    raise NotImplementedError(
-        "`quantile` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`quantile` is not supported with openvino backend")
 
 
 def ravel(x):
@@ -2038,14 +2045,10 @@ def repeat(x, repeats, axis=None):
         axis = 0
 
     if isinstance(repeats, (int, np.integer)) or (
-        isinstance(repeats, np.ndarray)
-        and repeats.ndim == 1
-        and repeats.size == 1
+        isinstance(repeats, np.ndarray) and repeats.ndim == 1 and repeats.size == 1
     ):
         repeats_val = (
-            int(repeats)
-            if isinstance(repeats, (np.integer, np.ndarray))
-            else repeats
+            int(repeats) if isinstance(repeats, (np.integer, np.ndarray)) else repeats
         )
         dim_len = ov_opset.gather(
             ov_opset.shape_of(x, Type.i32),
@@ -2053,13 +2056,9 @@ def repeat(x, repeats, axis=None):
             const_0,
         )
         dim_len = ov_opset.squeeze(dim_len, ov_opset.constant([0], Type.i32))
-        idx_range = ov_opset.range(
-            const_0, dim_len, const_1, output_type=Type.i32
-        )
+        idx_range = ov_opset.range(const_0, dim_len, const_1, output_type=Type.i32)
         idx_range = ov_opset.unsqueeze(idx_range, const_1)
-        tiled = ov_opset.tile(
-            idx_range, ov_opset.constant([1, repeats_val], Type.i32)
-        )
+        tiled = ov_opset.tile(idx_range, ov_opset.constant([1, repeats_val], Type.i32))
         idx = ov_opset.reshape(tiled, const_neg_1, special_zero=False)
         result = ov_opset.gather(x, idx, ov_opset.constant(axis, Type.i32))
         return OpenVINOKerasTensor(result.output(0))
@@ -2077,9 +2076,7 @@ def repeat(x, repeats, axis=None):
     gather_indices = ov_opset.reduce_sum(
         ov_opset.convert(mask, Type.i32), ov_opset.constant([1], Type.i32)
     )
-    result = ov_opset.gather(
-        x, gather_indices, ov_opset.constant(axis, Type.i32)
-    )
+    result = ov_opset.gather(x, gather_indices, ov_opset.constant(axis, Type.i32))
     return OpenVINOKerasTensor(result.output(0))
 
 
@@ -2111,9 +2108,7 @@ def sign(x):
 
 
 def signbit(x):
-    raise NotImplementedError(
-        "`signbit` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`signbit` is not supported with openvino backend")
 
 
 def sin(x):
@@ -2148,9 +2143,7 @@ def sort(x, axis=-1):
 
     # Handle axis=None by flattening the input
     if axis is None:
-        x = ov_opset.reshape(
-            x, ov_opset.constant([-1], Type.i32), False
-        ).output(0)
+        x = ov_opset.reshape(x, ov_opset.constant([-1], Type.i32), False).output(0)
         axis = 0
     # Handle negative axis
     elif axis < 0:
@@ -2242,9 +2235,7 @@ def array_split(x, indices_or_sections, axis=0):
     split_lengths = [base_size + 1] * remainder + [base_size] * (
         num_splits_val - remainder
     )
-    split_lengths_tensor = ov_opset.constant(
-        split_lengths, dtype=Type.i64
-    ).output(0)
+    split_lengths_tensor = ov_opset.constant(split_lengths, dtype=Type.i64).output(0)
 
     axis_tensor = ov_opset.constant(axis, dtype=Type.i32).output(0)
     splits = ov_opset.variadic_split(x, axis_tensor, split_lengths_tensor)
@@ -2277,9 +2268,7 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
-    raise NotImplementedError(
-        "`swapaxes` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`swapaxes` is not supported with openvino backend")
 
 
 def take(x, indices, axis=None):
@@ -2321,9 +2310,7 @@ def take_along_axis(x, indices, axis=None):
     ).output(0)
     zero_scalar = ov_opset.constant(0, indices.get_element_type()).output(0)
     is_neg = ov_opset.less(indices, zero_scalar).output(0)
-    dim_size_cast = ov_opset.convert(
-        dim_size, indices.get_element_type()
-    ).output(0)
+    dim_size_cast = ov_opset.convert(dim_size, indices.get_element_type()).output(0)
     indices = ov_opset.select(
         is_neg, ov_opset.add(indices, dim_size_cast).output(0), indices
     ).output(0)
@@ -2334,9 +2321,7 @@ def take_along_axis(x, indices, axis=None):
     for i in range(x_rank):
         dim_idx = ov_opset.constant([i], dtype=Type.i32).output(0)
         x_dim = ov_opset.gather(x_shape, dim_idx, zero_const).output(0)
-        indices_dim = ov_opset.gather(
-            indices_shape, dim_idx, zero_const
-        ).output(0)
+        indices_dim = ov_opset.gather(indices_shape, dim_idx, zero_const).output(0)
 
         if i == axis:
             # For axis dimension: keep original dimensions
@@ -2349,18 +2334,14 @@ def take_along_axis(x, indices, axis=None):
             indices_target_parts.append(max_dim)
 
     x_target_shape = ov_opset.concat(x_target_parts, axis=0).output(0)
-    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(
-        0
-    )
+    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(0)
 
     # Broadcast to target shapes and gather elements
     x_broadcasted = ov_opset.broadcast(x, x_target_shape).output(0)
-    indices_broadcasted = ov_opset.broadcast(
-        indices, indices_target_shape
-    ).output(0)
-    result = ov_opset.gather_elements(
-        x_broadcasted, indices_broadcasted, axis
-    ).output(0)
+    indices_broadcasted = ov_opset.broadcast(indices, indices_target_shape).output(0)
+    result = ov_opset.gather_elements(x_broadcasted, indices_broadcasted, axis).output(
+        0
+    )
 
     return OpenVINOKerasTensor(result)
 
@@ -2384,9 +2365,7 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    raise NotImplementedError(
-        "`tensordot` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`tensordot` is not supported with openvino backend")
 
 
 def round(x, decimals=0):
@@ -2514,9 +2493,7 @@ def vstack(xs):
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
-    raise NotImplementedError(
-        "`vectorize` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`vectorize` is not supported with openvino backend")
 
 
 def where(condition, x1=None, x2=None):
@@ -2566,9 +2543,7 @@ def divide(x1, x2):
 
 
 def divide_no_nan(x1, x2):
-    raise NotImplementedError(
-        "`divide_no_nan` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`divide_no_nan` is not supported with openvino backend")
 
 
 def true_divide(x1, x2):
@@ -2676,36 +2651,7 @@ def _helper_trapezoid(y, axis):
 
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
-    y = get_ov_output(y)
-    y_type = y.get_element_type()
-
-    if y_type.is_integral():
-        y_type = OPENVINO_DTYPES[config.floatx()]
-        y = ov_opset.convert(y, y_type).output(0)
-
-    y1, y2 = _helper_trapezoid(y, axis)
-    y_final = ov_opset.add(y1, y2).output(0)
-    const_two = ov_opset.constant(2, dtype=y_type).output(0)
-    y_final = ov_opset.divide(y_final, const_two).output(0)
-
-    if x is not None:
-        x = get_ov_output(x)
-        x_type = x.get_element_type()
-        if x_type.is_integral():
-            x_type = OPENVINO_DTYPES[config.floatx()]
-            x = ov_opset.convert(x, x_type).output(0)
-
-        x1, x2 = _helper_trapezoid(x, axis)
-        x_final = ov_opset.subtract(x2, x1).output(0)
-
-    else:
-        x_final = ov_opset.constant(dx, dtype=y_type).output(0)
-
-    result = ov_opset.multiply(y_final, x_final).output(0)
-    const_axis = ov_opset.constant([axis], Type.i64).output(0)
-    result = ov_opset.reduce_sum(result, const_axis, False).output(0)
-
-    return OpenVINOKerasTensor(result)
+    raise NotImplementedError("`trapezoid` is not supported with openvino backend")
 
 
 def vander(x, N=None, increasing=False):
@@ -2831,87 +2777,11 @@ def logical_xor(x1, x2):
 
 
 def corrcoef(x):
-    x_ov = get_ov_output(x)
-    x_type = x_ov.get_element_type()
-    ov_type = x_type
-
-    if x_type.is_integral():
-        ov_type = OPENVINO_DTYPES[config.floatx()]
-        x_ov = ov_opset.convert(x_ov, ov_type).output(0)
-
-    const_one = ov_opset.constant(1, dtype=Type.i64).output(0)
-    const_two = ov_opset.constant(2, dtype=ov_type).output(0)
-
-    mean = ov_opset.reduce_mean(x_ov, const_one, True).output(0)
-    x_ov = ov_opset.subtract(x_ov, mean).output(0)
-
-    cov = ov_opset.matmul(x_ov, x_ov, False, True).output(0)
-    xsqr = ov_opset.power(x_ov, const_two).output(0)
-    xvar = ov_opset.reduce_sum(xsqr, const_one, True).output(0)
-    xstd = ov_opset.sqrt(xvar).output(0)
-
-    den = ov_opset.matmul(xstd, xstd, False, True).output(0)
-
-    result = ov_opset.divide(cov, den).output(0)
-
-    return OpenVINOKerasTensor(result)
+    raise NotImplementedError("`corrcoef` is not supported with openvino backend")
 
 
 def correlate(x1, x2, mode="valid"):
-    x1 = get_ov_output(x1)
-    x2 = get_ov_output(x2)
-    x1_type = x1.get_element_type()
-    x2_type = x2.get_element_type()
-    x1_type = ov_to_keras_type(x1_type)
-    x2_type = ov_to_keras_type(x2_type)
-    result_type = dtypes.result_type(x1_type, x2_type, float)
-
-    result_type = OPENVINO_DTYPES[result_type]
-    x1 = ov_opset.convert(x1, result_type).output(0)
-    x2 = ov_opset.convert(x2, result_type).output(0)
-
-    shape_filter = ov_opset.shape_of(x2, Type.i64).output(0)
-    const_two = ov_opset.constant(2, Type.f64).output(0)
-    const_one = ov_opset.constant(1, Type.i64).output(0)
-    const_zero = ov_opset.constant(0, result_type).output(0)
-    shape_filter_minus_one = ov_opset.subtract(shape_filter, const_one).output(
-        0
-    )
-
-    # padding x1
-    if mode == "valid":
-        pass
-
-    elif mode == "same":
-        shape_minus_one_float = ov_opset.convert(
-            shape_filter_minus_one, Type.f64
-        ).output(0)
-
-        right = ov_opset.divide(shape_minus_one_float, const_two).output(0)
-        left = ov_opset.ceil(right).output(0)
-        right = ov_opset.floor(right).output(0)
-        left = ov_opset.convert(left, Type.i64).output(0)
-        right = ov_opset.convert(right, Type.i64).output(0)
-        x1 = ov_opset.pad(x1, left, right, "constant", const_zero).output(0)
-
-    elif mode == "full":
-        pad = shape_filter_minus_one
-        x1 = ov_opset.pad(x1, pad, pad, "constant", const_zero).output(0)
-
-    else:
-        raise ValueError(
-            f"mode: {mode} not available chose from valid, same, full."
-        )
-
-    axes = ov_opset.constant([0, 1], dtype=Type.i64).output(0)
-    x2 = ov_opset.unsqueeze(x2, axes).output(0)
-    x1 = ov_opset.unsqueeze(x1, axes).output(0)
-
-    result = ov_opset.convolution(x1, x2, [1], [0], [0], [1]).output(0)
-
-    result = ov_opset.squeeze(result, axes).output(0)
-
-    return OpenVINOKerasTensor(result)
+    raise NotImplementedError("`correlate` is not supported with openvino backend")
 
 
 def select(condlist, choicelist, default=0):
@@ -2919,12 +2789,8 @@ def select(condlist, choicelist, default=0):
 
 
 def slogdet(x):
-    raise NotImplementedError(
-        "`slogdet` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`slogdet` is not supported with openvino backend")
 
 
 def argpartition(x, kth, axis=-1):
-    raise NotImplementedError(
-        "`argpartition` is not supported with openvino backend"
-    )
+    raise NotImplementedError("`argpartition` is not supported with openvino backend")
