@@ -42,12 +42,8 @@ jobs:
       - name: Set Keras Backend
         run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
 
-      - name: Run Verification and Tests
-        run: |
-          echo "Successfully running inside the public python container!"
-          echo "Verifying JAX installation..."
-          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices : {jax.devices()}')"
+      - name: Verify JAX Installation
+        run: python3 -c "import jax; print('JAX devices:', jax.devices()); assert jax.default_backend() == 'tpu'"
 
-          pytest keras --ignore keras/src/applications \
-                      --cov=keras \
-                      --cov-config=pyproject.toml
+      - name: Run Tests
+        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
