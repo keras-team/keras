@@ -1471,25 +1471,42 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
         # Only support at least Ampere
         if not check_compute_capability("8.0"):
             raise RuntimeError("Require at least Ampere arch to run")
-        # Check inputs layout
+
+        # Inspect inputs of `check_layout`
         check_layout_params = list(
             inspect.signature(check_layout).parameters.keys()
         )
         for known_param in ("query", "key", "value", "bias", "layout"):
             check_layout_params.remove(known_param)
         # Defaults to `None` when not specified.
-        kwargs = {key: None for key in check_layout_params}
+        check_layout_kwargs = {key: None for key in check_layout_params}
         check_layout(
-            query, key, value, bias, layout=_normalize_layout("BTNH"), **kwargs
-        )
-        check_is_flash_attention(
             query,
             key,
-            _normalize_layout("BTNH"),
-            cudnn_version,
-            bias is not None,
-            is_training=False,
+            value,
+            bias,
+            layout=_normalize_layout("BTNH"),
+            **check_layout_kwargs,
         )
+
+        # Inspect inputs of `check_is_flash_attention`
+        check_is_flash_attention_params = inspect.signature(
+            check_is_flash_attention
+        ).parameters
+        check_is_flash_attention_kwargs = {
+            "query": query,
+            "key": key,
+            "value": value,
+            "layout": _normalize_layout("BTNH"),
+            "cudnn_version": cudnn_version,
+            "has_bias": bias is not None,
+            "is_training": False,
+        }
+        # Remove unsupported arguments
+        for param in list(check_is_flash_attention_kwargs.keys()):
+            if param not in check_is_flash_attention_params:
+                check_is_flash_attention_kwargs.pop(param)
+        check_is_flash_attention(**check_is_flash_attention_kwargs)
         return True
     except:
         if raise_error:
