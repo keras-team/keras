@@ -1796,7 +1796,11 @@ def negative(x):
 def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return torch.nextafter(x1, x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, config.floatx())
+    x2 = cast(x2, config.floatx())
+    return cast(torch.nextafter(x1, x2), dtype)
 
 
 def square(x):

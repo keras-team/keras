@@ -320,6 +320,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.mod(x, y).shape, (2, 3))
 
+    def test_nextafter(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (None, 3))
+
     def test_not_equal(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -961,6 +966,15 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.mod(x, y)
+
+    def test_nextafter(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
 
     def test_not_equal(self):
         x = KerasTensor((2, 3))
@@ -3336,6 +3350,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Mod()(x, y), np.mod(x, y))
         self.assertAllClose(knp.Mod()(x, 1), np.mod(x, 1))
         self.assertAllClose(knp.Mod()(1, x), np.mod(1, x))
+
+    def test_nextafter(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
+        self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
 
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])

@@ -3020,7 +3020,11 @@ def negative(x):
 def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return tf.math.nextafter(x1, x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, config.floatx())
+    x2 = tf.cast(x2, config.floatx())
+    return tf.cast(tf.math.nextafter(x1, x2), dtype)
 
 
 @sparse.elementwise_unary
