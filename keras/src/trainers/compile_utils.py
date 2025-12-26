@@ -212,6 +212,38 @@ class CompileMetrics(metrics_module.Metric):
                 return True
         return False
 
+    def _resolve_leaf_tensors(self, current_path, y_true, y_pred):
+        """Resolve y_true and y_pred at the given path for leaf nodes.
+
+        Args:
+            current_path: Tuple tracking current position in structure
+            y_true: Ground truth (can be nested)
+            y_pred: Predictions (can be nested)
+
+        Returns:
+            Tuple of (resolved_y_true, resolved_y_pred)
+        """
+        if current_path:
+            yt = resolve_path(current_path, y_true)
+            yp = resolve_path(current_path, y_pred)
+        else:
+            if tree.is_nested(y_true):
+                yt = tree.flatten(y_true)[0]
+            else:
+                yt = y_true
+            if tree.is_nested(y_pred):
+                yp = tree.flatten(y_pred)[0]
+            else:
+                yp = y_pred
+
+        # Flatten if still nested (shouldn't happen at leaf)
+        if tree.is_nested(yt):
+            yt = tree.flatten(yt)[0]
+        if tree.is_nested(yp):
+            yp = tree.flatten(yp)[0]
+
+        return yt, yp
+
     def _build_nested_metrics(
         self, metrics, y_true, y_pred, flat_list, current_path, argument_name
     ):
@@ -233,25 +265,7 @@ class CompileMetrics(metrics_module.Metric):
         if isinstance(metrics, list) and all(
             is_function_like(m) for m in metrics
         ):
-            # Get y_true and y_pred at this path
-            if current_path:
-                yt = resolve_path(current_path, y_true)
-                yp = resolve_path(current_path, y_pred)
-            else:
-                if tree.is_nested(y_true):
-                    yt = tree.flatten(y_true)[0]
-                else:
-                    yt = y_true
-                if tree.is_nested(y_pred):
-                    yp = tree.flatten(y_pred)[0]
-                else:
-                    yp = y_pred
-
-            # Flatten if still nested (shouldn't happen at leaf)
-            if tree.is_nested(yt):
-                yt = tree.flatten(yt)[0]
-            if tree.is_nested(yp):
-                yp = tree.flatten(yp)[0]
+            yt, yp = self._resolve_leaf_tensors(current_path, y_true, y_pred)
 
             metric_objs = [
                 get_metric(m, yt, yp) for m in metrics if m is not None
@@ -264,23 +278,7 @@ class CompileMetrics(metrics_module.Metric):
 
         # Base case: single metric spec (string, function, or Metric object)
         if is_function_like(metrics):
-            if current_path:
-                yt = resolve_path(current_path, y_true)
-                yp = resolve_path(current_path, y_pred)
-            else:
-                if tree.is_nested(y_true):
-                    yt = tree.flatten(y_true)[0]
-                else:
-                    yt = y_true
-                if tree.is_nested(y_pred):
-                    yp = tree.flatten(y_pred)[0]
-                else:
-                    yp = y_pred
-
-            if tree.is_nested(yt):
-                yt = tree.flatten(yt)[0]
-            if tree.is_nested(yp):
-                yp = tree.flatten(yp)[0]
+            yt, yp = self._resolve_leaf_tensors(current_path, y_true, y_pred)
 
             metric_obj = get_metric(metrics, yt, yp)
             if metric_obj is not None:

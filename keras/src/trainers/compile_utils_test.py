@@ -421,6 +421,9 @@ class TestCompileMetrics(testing.TestCase):
 
         self.assertIn("a_mse", result)
         self.assertIn("b_c_mae", result)
+        # Verify values are correct (MSE and MAE of zeros vs ones = 1.0)
+        self.assertAllClose(result["a_mse"], 1.0)
+        self.assertAllClose(result["b_c_mae"], 1.0)
 
     def test_flat_metrics_backward_compat(self):
         """Ensure existing flat metrics continue working after changes."""
