@@ -3,11 +3,11 @@ tensorflow[and-cuda]~=2.20.0
 tf2onnx
 # This is the only version which works with TF 2.20.0.
 # TODO(#21914): Update this version when TF is updated.
-ai-edge-litert==1.3.0
+ai-edge-litert==2.0.3
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.9.0+cpu
+torch==2.9.1+cpu
 
 # Jax cpu-only version (needed for testing).
 jax[cpu]
