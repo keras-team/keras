@@ -924,6 +924,11 @@ def arctanh(x):
 
     Returns:
         Output tensor of same shape as `x`.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor([0, -0.5])
+    >>> keras.ops.arctanh(x)
+    array([ 0.        , -0.54930615], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Arctanh().symbolic_call(x)
