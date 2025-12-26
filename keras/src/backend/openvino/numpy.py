@@ -924,6 +924,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         get_ov_output(0, Type.i64),
         diag_len,
         get_ov_output(1, Type.i64),
+        Type.i64,
     ).output(0)
 
     if offset >= 0:
