@@ -1336,7 +1336,11 @@ def negative(x):
 
 
 def nextafter(x1, x2):
-    return np.nextafter(x1, x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2)), float
+    )
+
+    return np.nextafter(x1, x2).astype(dtype)
 
 
 def square(x):
