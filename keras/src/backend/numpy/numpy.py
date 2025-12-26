@@ -1335,6 +1335,10 @@ def negative(x):
     return np.negative(x)
 
 
+def nextafter(x1, x2):
+    return np.nextafter(x1, x2)
+
+
 def square(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "bool":

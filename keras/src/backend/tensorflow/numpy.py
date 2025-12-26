@@ -3017,6 +3017,12 @@ def negative(x):
     return tf.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return tf.math.nextafter(x1, x2)
+
+
 @sparse.elementwise_unary
 def square(x):
     x = convert_to_tensor(x)
