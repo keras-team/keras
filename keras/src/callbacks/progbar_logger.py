@@ -52,6 +52,7 @@ class ProgbarLogger(Callback):
         self._maybe_init_progbar()
         if self.verbose and self.epochs > 1:
             if self.pinned:
+                # \033[H: move cursor to home, \033[K: clear line
                 io_utils.print_msg(
                     f"\033[H\033[KEpoch {epoch + 1}/{self.epochs}"
                 )
