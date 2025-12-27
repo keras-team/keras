@@ -1,8 +1,8 @@
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src.utils import io_utils
-from keras.src.utils.progbar import _ANSI_CLEAR_LINE
-from keras.src.utils.progbar import _ANSI_MOVE_CURSOR_HOME
+from keras.src.utils.progbar import ANSI_CLEAR_LINE
+from keras.src.utils.progbar import ANSI_MOVE_CURSOR_HOME
 from keras.src.utils.progbar import Progbar
 
 
@@ -62,7 +62,7 @@ class ProgbarLogger(Callback):
         if self.verbose and self.epochs > 1:
             if self.pinned:
                 io_utils.print_msg(
-                    f"{_ANSI_MOVE_CURSOR_HOME}{_ANSI_CLEAR_LINE}"
+                    f"{ANSI_MOVE_CURSOR_HOME}{ANSI_CLEAR_LINE}"
                     f"Epoch {epoch + 1}/{self.epochs}"
                 )
             else:

@@ -8,11 +8,11 @@ import numpy as np
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
-_ANSI_SAVE_CURSOR = "\033[s"
-_ANSI_MOVE_TO_LINE_2 = "\033[2;1H"
-_ANSI_CLEAR_LINE = "\033[K"
-_ANSI_RESTORE_CURSOR = "\033[u"
-_ANSI_MOVE_CURSOR_HOME = "\033[H"
+ANSI_SAVE_CURSOR = "\033[s"
+ANSI_MOVE_TO_LINE_2 = "\033[2;1H"
+ANSI_CLEAR_LINE = "\033[K"
+ANSI_RESTORE_CURSOR = "\033[u"
+ANSI_MOVE_CURSOR_HOME = "\033[H"
 
 
 @keras_export("keras.utils.Progbar")
@@ -126,9 +126,9 @@ class Progbar:
             if self._dynamic_display:
                 if self.pinned:
                     message += (
-                        f"{_ANSI_SAVE_CURSOR}"
-                        f"{_ANSI_MOVE_TO_LINE_2}"
-                        f"{_ANSI_CLEAR_LINE}"
+                        f"{ANSI_SAVE_CURSOR}"
+                        f"{ANSI_MOVE_TO_LINE_2}"
+                        f"{ANSI_CLEAR_LINE}"
                     )
                 else:
                     message += "\b" * self._prev_total_width
@@ -197,7 +197,7 @@ class Progbar:
                 message += " " * (self._prev_total_width - total_width)
 
             if self.pinned and self._dynamic_display:
-                message += _ANSI_RESTORE_CURSOR
+                message += ANSI_RESTORE_CURSOR
             elif finalize:
                 message += "\n"
 
