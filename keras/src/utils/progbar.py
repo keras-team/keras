@@ -8,6 +8,11 @@ import numpy as np
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
+_ANSI_SAVE_CURSOR = "\033[s"
+_ANSI_MOVE_TO_LINE_2 = "\033[2;1H"
+_ANSI_CLEAR_LINE = "\033[K"
+_ANSI_RESTORE_CURSOR = "\033[u"
+
 
 @keras_export("keras.utils.Progbar")
 class Progbar:
@@ -121,7 +126,8 @@ class Progbar:
                 if self.pinned:
                     # \033[s: save cursor,
                     #  \033[2;1H: move to line 2, \033[K: clear line
-                    message += "\033[s\033[2;1H\033[K"
+                    message += f"{_ANSI_SAVE_CURSOR}{_ANSI_MOVE_TO_LINE_2}"
+                    f"{_ANSI_CLEAR_LINE}"
                 else:
                     message += "\b" * self._prev_total_width
                     message += "\r"
@@ -189,7 +195,7 @@ class Progbar:
                 message += " " * (self._prev_total_width - total_width)
 
             if self.pinned and self._dynamic_display:
-                message += "\033[u"  # Restore cursor position
+                message += _ANSI_RESTORE_CURSOR
             elif finalize:
                 message += "\n"
 

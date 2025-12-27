@@ -3,6 +3,9 @@ from keras.src.callbacks.callback import Callback
 from keras.src.utils import io_utils
 from keras.src.utils.progbar import Progbar
 
+_ANSI_MOVE_CURSOR_HOME = "\033[H"
+_ANSI_CLEAR_LINE = "\033[K"
+
 
 @keras_export("keras.callbacks.ProgbarLogger")
 class ProgbarLogger(Callback):
@@ -52,9 +55,9 @@ class ProgbarLogger(Callback):
         self._maybe_init_progbar()
         if self.verbose and self.epochs > 1:
             if self.pinned:
-                # \033[H: move cursor to home, \033[K: clear line
                 io_utils.print_msg(
-                    f"\033[H\033[KEpoch {epoch + 1}/{self.epochs}"
+                    f"{_ANSI_MOVE_CURSOR_HOME}{_ANSI_CLEAR_LINE}"
+                    f"Epoch {epoch + 1}/{self.epochs}"
                 )
             else:
                 io_utils.print_msg(f"Epoch {epoch + 1}/{self.epochs}")
