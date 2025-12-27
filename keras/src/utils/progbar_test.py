@@ -30,17 +30,13 @@ class ProgbarTest(testing.TestCase):
         pb.update(1, values=[("values", values)], finalize=True)
 
     def test_progbar_pinned_output(self):
-        """Verify that the actual ANSI codes are printed when pinned=True."""
         with patch("sys.stdout", new=io.StringIO()) as fake_out:
-            target = 5
-            pb = progbar.Progbar(target=target, pinned=True, interval=-1)
-            for i in range(target):
-                pb.update(i + 1)
-
+            pb = progbar.Progbar(target=5, pinned=True, interval=-1)
+            pb.update(1)
             output = fake_out.getvalue()
 
             self.assertIn("\033[s", output)
-            self.assertTrue("\033[1;1H" in output or "\033[2;1H" in output)
+            self.assertIn("\033[2;1H", output)
             self.assertIn("\033[K", output)
             self.assertIn("\033[u", output)
 

@@ -15,6 +15,13 @@ class ProgbarLogger(Callback):
             the terminal. When `True`, the progress bar will remain fixed
             at the top, which is useful for long training sessions with
             lots of logging output. Defaults to `False`.
+
+    Example:
+
+    >>> cb = keras.callbacks.ProgbarLogger(pinned=True)
+    >>> model.compile(..., callbacks=[cb])
+    >>> model.fit(...)
+
     """
 
     def __init__(self, pinned=False):
