@@ -60,7 +60,7 @@ class ProgbarLogger(Callback):
         self._reset_progbar()
         self._maybe_init_progbar()
         if self.verbose and self.epochs > 1:
-            if self.pinned:
+            if self.pinned and self.progbar._dynamic_display:
                 io_utils.print_msg(
                     f"{ANSI_MOVE_CURSOR_HOME}{ANSI_CLEAR_LINE}"
                     f"Epoch {epoch + 1}/{self.epochs}"
