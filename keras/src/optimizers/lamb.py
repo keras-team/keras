@@ -143,6 +143,7 @@ class Lamb(optimizer.Optimizer):
         return config
 
 
-Lamb.__doc__ = Lamb.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Lamb.__doc__ is not None:
+    Lamb.__doc__ = Lamb.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )
