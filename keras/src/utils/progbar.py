@@ -12,6 +12,7 @@ _ANSI_SAVE_CURSOR = "\033[s"
 _ANSI_MOVE_TO_LINE_2 = "\033[2;1H"
 _ANSI_CLEAR_LINE = "\033[K"
 _ANSI_RESTORE_CURSOR = "\033[u"
+_ANSI_MOVE_CURSOR_HOME = "\033[H"
 
 
 @keras_export("keras.utils.Progbar")
@@ -124,10 +125,11 @@ class Progbar:
 
             if self._dynamic_display:
                 if self.pinned:
-                    # \033[s: save cursor,
-                    #  \033[2;1H: move to line 2, \033[K: clear line
-                    message += f"{_ANSI_SAVE_CURSOR}{_ANSI_MOVE_TO_LINE_2}"
-                    f"{_ANSI_CLEAR_LINE}"
+                    message += (
+                        f"{_ANSI_SAVE_CURSOR}"
+                        f"{_ANSI_MOVE_TO_LINE_2}"
+                        f"{_ANSI_CLEAR_LINE}"
+                    )
                 else:
                     message += "\b" * self._prev_total_width
                     message += "\r"

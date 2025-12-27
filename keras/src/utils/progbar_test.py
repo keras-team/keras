@@ -1,3 +1,6 @@
+import io
+from unittest.mock import patch
+
 import numpy as np
 from absl.testing import parameterized
 
@@ -26,11 +29,22 @@ class ProgbarTest(testing.TestCase):
 
         pb.update(1, values=[("values", values)], finalize=True)
 
-    def test_progbar_pinned(self):
-        target = 10
-        pb = progbar.Progbar(target=target, pinned=True)
-        for i in range(target):
-            pb.update(i + 1)
+    def test_progbar_pinned_output(self):
+        """Verify that the actual ANSI codes are printed when pinned=True."""
+        with patch("sys.stdout", new=io.StringIO()) as fake_out:
+            target = 5
+            pb = progbar.Progbar(target=target, pinned=True, interval=-1)
+            for i in range(target):
+                pb.update(i + 1)
 
-        self.assertEqual(pb.pinned, True)
-        self.assertEqual(pb._seen_so_far, target)
+            output = fake_out.getvalue()
+
+            self.assertIn("\033[s", output)
+            self.assertTrue("\033[1;1H" in output or "\033[2;1H" in output)
+            self.assertIn("\033[K", output)
+            self.assertIn("\033[u", output)
+
+    def test_progbar_pinned_attribute(self):
+        """Simple check for attribute assignment."""
+        pb = progbar.Progbar(target=10, pinned=True)
+        self.assertTrue(pb.pinned)

@@ -1,10 +1,9 @@
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src.utils import io_utils
+from keras.src.utils.progbar import _ANSI_CLEAR_LINE
+from keras.src.utils.progbar import _ANSI_MOVE_CURSOR_HOME
 from keras.src.utils.progbar import Progbar
-
-_ANSI_MOVE_CURSOR_HOME = "\033[H"
-_ANSI_CLEAR_LINE = "\033[K"
 
 
 @keras_export("keras.callbacks.ProgbarLogger")
