@@ -119,7 +119,8 @@ class Progbar:
 
             if self._dynamic_display:
                 if self.pinned:
-                    # \033[s: save cursor, \033[2;1H: move to line 2, \033[K: clear line
+                    # \033[s: save cursor,
+                    #  \033[2;1H: move to line 2, \033[K: clear line
                     message += "\033[s\033[2;1H\033[K"
                 else:
                     message += "\b" * self._prev_total_width
