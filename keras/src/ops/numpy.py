@@ -7124,8 +7124,8 @@ def nextafter(x1, x2):
     """
     Return the next representable floating-point value after `x1` towards `x2`.
 
-    This function computes the next floating-point value following `x1`
-    in the direction of `x2`, element-wise.
+    This function computes the next floating-point value
+    following `x1` in the direction of `x2`, element-wise.
 
     Args:
         x1: Input tensor whose values will be moved to the next
