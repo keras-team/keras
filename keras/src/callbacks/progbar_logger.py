@@ -9,15 +9,13 @@ class ProgbarLogger(Callback):
     """Callback that prints metrics to stdout.
 
     Args:
-        count_mode: One of `"steps"` or `"samples"`.
-            Whether the progress bar should
-            count samples seen or steps (batches) seen.
-
-    Raises:
-        ValueError: In case of invalid `count_mode`.
+        pinned: Boolean, whether to pin the progress bar at the top of
+            the terminal. When `True`, the progress bar will remain fixed
+            at the top, which is useful for long training sessions with
+            lots of logging output. Defaults to `False`.
     """
 
-    def __init__(self, count_mode="steps", pinned=False):
+    def __init__(self, pinned=False):
         super().__init__()
         self.seen = 0
         self.progbar = None
@@ -26,7 +24,6 @@ class ProgbarLogger(Callback):
         self.epochs = 1
 
         self._called_in_fit = False
-        self.count_mode = count_mode
         self.pinned = pinned
 
     def set_params(self, params):

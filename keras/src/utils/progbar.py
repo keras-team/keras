@@ -22,6 +22,8 @@ class Progbar:
             All others will be averaged by the progbar before display.
         interval: Minimum visual progress update interval (in seconds).
         unit_name: Display name for step counts (usually "step" or "sample").
+        pinned: Boolean, whether to pin the progress bar at the top of
+            the terminal. Defaults to `False`.
     """
 
     def __init__(
