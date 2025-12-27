@@ -188,7 +188,7 @@ class Progbar:
                 message += " " * (self._prev_total_width - total_width)
 
             if self.pinned and self._dynamic_display:
-                message += "\033[u"
+                message += "\033[u"  # Restore cursor position
             elif finalize:
                 message += "\n"
 
