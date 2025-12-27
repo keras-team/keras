@@ -565,6 +565,8 @@ class ExtractPatches(Operation):
         if isinstance(size, int):
             size = (size, size)
         self.size = size
+        if strides is None:
+            strides = size
         self.strides = strides
         self.dilation_rate = dilation_rate
         self.padding = padding
@@ -583,8 +585,6 @@ class ExtractPatches(Operation):
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
         original_ndim = len(images_shape)
-        if not self.strides:
-            strides = (self.size[0], self.size[1])
         if self.data_format == "channels_last":
             channels_in = images_shape[-1]
         else:
@@ -597,7 +597,7 @@ class ExtractPatches(Operation):
             images_shape,
             filters,
             kernel_size,
-            strides=strides,
+            strides=self.strides,
             padding=self.padding,
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
