@@ -32,12 +32,14 @@ class Progbar:
         interval=0.05,
         stateful_metrics=None,
         unit_name="step",
+        pinned=False,
     ):
         self.target = target
         self.width = width
         self.verbose = verbose
         self.interval = interval
         self.unit_name = unit_name
+        self.pinned = pinned
         if stateful_metrics:
             self.stateful_metrics = set(stateful_metrics)
         else:
@@ -113,7 +115,9 @@ class Progbar:
             if now - self._last_update < self.interval and not finalize:
                 return
 
-            if self._dynamic_display:
+            if self.pinned and self._dynamic_display:
+                message += "\033[s\033[2;1H\033[K"
+            elif self._dynamic_display:
                 message += "\b" * self._prev_total_width
                 message += "\r"
             else:
@@ -178,7 +182,10 @@ class Progbar:
             total_width = len(bar) + len(info) - special_char_len
             if self._prev_total_width > total_width:
                 message += " " * (self._prev_total_width - total_width)
-            if finalize:
+            
+            if self.pinned and self._dynamic_display:
+                message += "\033[u"
+            elif finalize:
                 message += "\n"
 
             io_utils.print_msg(message, line_break=False)

@@ -17,7 +17,7 @@ class ProgbarLogger(Callback):
         ValueError: In case of invalid `count_mode`.
     """
 
-    def __init__(self):
+    def __init__(self, count_mode="steps", pinned=False):
         super().__init__()
         self.seen = 0
         self.progbar = None
@@ -26,6 +26,8 @@ class ProgbarLogger(Callback):
         self.epochs = 1
 
         self._called_in_fit = False
+        self.count_mode = count_mode
+        self.pinned = pinned
 
     def set_params(self, params):
         verbose = params["verbose"]
@@ -52,7 +54,10 @@ class ProgbarLogger(Callback):
         self._reset_progbar()
         self._maybe_init_progbar()
         if self.verbose and self.epochs > 1:
-            io_utils.print_msg(f"Epoch {epoch + 1}/{self.epochs}")
+            if self.pinned:
+                io_utils.print_msg(f"\033[H\033[KEpoch {epoch + 1}/{self.epochs}")
+            else:
+                io_utils.print_msg(f"Epoch {epoch + 1}/{self.epochs}")
 
     def on_train_batch_end(self, batch, logs=None):
         self._update_progbar(batch, logs)
@@ -82,7 +87,10 @@ class ProgbarLogger(Callback):
     def _maybe_init_progbar(self):
         if self.progbar is None:
             self.progbar = Progbar(
-                target=self.target, verbose=self.verbose, unit_name="step"
+            target=self.target, 
+            verbose=self.verbose, 
+            unit_name="step",
+            pinned=self.pinned
             )
 
     def _update_progbar(self, batch, logs=None):
