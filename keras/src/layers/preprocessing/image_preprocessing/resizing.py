@@ -101,6 +101,21 @@ class Resizing(BaseImagePreprocessingLayer):
             self.width_axis = -2
 
     def transform_images(self, images, transformation=None, training=True):
+        # Compute effective crop flag:
+        # only crop if aspect ratios differ and flag is True
+        input_height, input_width = transformation
+        epsilon = self.backend.epsilon()
+        source_aspect_ratio = input_width / (input_height + epsilon)
+        target_aspect_ratio = self.width / (self.height + epsilon)
+
+        # Use a small epsilon for floating-point comparison
+        aspect_ratios_match = (
+            abs(source_aspect_ratio - target_aspect_ratio) < 1e-6
+        )
+        effective_crop_to_aspect_ratio = (
+            self.crop_to_aspect_ratio and not aspect_ratios_match
+        )
+
         size = (self.height, self.width)
         resized = self.backend.image.resize(
             images,
@@ -108,7 +123,7 @@ class Resizing(BaseImagePreprocessingLayer):
             interpolation=self.interpolation,
             antialias=self.antialias,
             data_format=self.data_format,
-            crop_to_aspect_ratio=self.crop_to_aspect_ratio,
+            crop_to_aspect_ratio=effective_crop_to_aspect_ratio,
             pad_to_aspect_ratio=self.pad_to_aspect_ratio,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
@@ -233,17 +248,21 @@ class Resizing(BaseImagePreprocessingLayer):
     ):
         """Transforms bounding boxes for cropping to aspect ratio."""
         ops = self.backend
-        source_aspect_ratio = input_width / input_height
-        target_aspect_ratio = self.width / self.height
+        # Add epsilon to prevent division by zero
+        epsilon = ops.cast(ops.epsilon(), dtype=boxes.dtype)
+        source_aspect_ratio = input_width / (input_height + epsilon)
+        target_aspect_ratio = ops.cast(
+            self.width / (self.height + epsilon), dtype=boxes.dtype
+        )
         new_width = ops.numpy.where(
             source_aspect_ratio > target_aspect_ratio,
-            self.height * source_aspect_ratio,
-            self.width,
+            ops.cast(self.height, dtype=boxes.dtype) * source_aspect_ratio,
+            ops.cast(self.width, dtype=boxes.dtype),
         )
         new_height = ops.numpy.where(
             source_aspect_ratio > target_aspect_ratio,
-            self.height,
-            self.width / source_aspect_ratio,
+            ops.cast(self.height, dtype=boxes.dtype),
+            ops.cast(self.width, dtype=boxes.dtype) / source_aspect_ratio,
         )
         scale_x = new_width / input_width
         scale_y = new_height / input_height
