@@ -55,7 +55,9 @@ class ProgbarLogger(Callback):
         self._maybe_init_progbar()
         if self.verbose and self.epochs > 1:
             if self.pinned:
-                io_utils.print_msg(f"\033[H\033[KEpoch {epoch + 1}/{self.epochs}")
+                io_utils.print_msg(
+                    f"\033[H\033[KEpoch {epoch + 1}/{self.epochs}"
+                )
             else:
                 io_utils.print_msg(f"Epoch {epoch + 1}/{self.epochs}")
 
@@ -87,10 +89,10 @@ class ProgbarLogger(Callback):
     def _maybe_init_progbar(self):
         if self.progbar is None:
             self.progbar = Progbar(
-            target=self.target, 
-            verbose=self.verbose, 
-            unit_name="step",
-            pinned=self.pinned
+                target=self.target,
+                verbose=self.verbose,
+                unit_name="step",
+                pinned=self.pinned,
             )
 
     def _update_progbar(self, batch, logs=None):

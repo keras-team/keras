@@ -182,7 +182,7 @@ class Progbar:
             total_width = len(bar) + len(info) - special_char_len
             if self._prev_total_width > total_width:
                 message += " " * (self._prev_total_width - total_width)
-            
+
             if self.pinned and self._dynamic_display:
                 message += "\033[u"
             elif finalize:
