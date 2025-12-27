@@ -7104,6 +7104,49 @@ def negative(x):
     return backend.numpy.negative(x)
 
 
+class Nextafter(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.nextafter(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nextafter", "keras.ops.numpy.nextafter"])
+def nextafter(x1, x2):
+    """
+    Return the next representable floating-point value after `x1` towards `x2`.
+
+    This function computes the next floating-point value
+    following `x1` in the direction of `x2`, element-wise.
+
+    Args:
+        x1: Input tensor whose values will be moved to the next
+            representable floating-point value.
+        x2: Input tensor indicating the direction toward which
+            `x1` is moved.
+
+    Returns:
+        Output tensor
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([1.0, 1.0])
+    >>> x2 = keras.ops.convert_to_tensor([2.0, 0.0])
+    >>> keras.ops.nextafter(x1, x2)
+    array([1.0000001, 0.99999994], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Nextafter().symbolic_call(x1, x2)
+    return backend.numpy.nextafter(x1, x2)
+
+
 class Square(Operation):
     def call(self, x):
         return backend.numpy.square(x)

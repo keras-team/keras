@@ -131,6 +131,7 @@ from keras.src.ops.numpy import multiply as multiply
 from keras.src.ops.numpy import nan_to_num as nan_to_num
 from keras.src.ops.numpy import ndim as ndim
 from keras.src.ops.numpy import negative as negative
+from keras.src.ops.numpy import nextafter as nextafter
 from keras.src.ops.numpy import nonzero as nonzero
 from keras.src.ops.numpy import not_equal as not_equal
 from keras.src.ops.numpy import ones as ones

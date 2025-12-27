@@ -2572,6 +2572,12 @@ def negative(x):
     return OpenVINOKerasTensor(ov_opset.negative(x).output(0))
 
 
+def nextafter(x1, x2):
+    raise NotImplementedError(
+        "`nextafter` is not supported with openvino backend"
+    )
+
+
 def square(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()

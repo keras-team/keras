@@ -1793,6 +1793,16 @@ def negative(x):
     return torch.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, torch.float64)
+    x2 = cast(x2, torch.float64)
+    return cast(torch.nextafter(x1, x2), dtype)
+
+
 def square(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "bool":
