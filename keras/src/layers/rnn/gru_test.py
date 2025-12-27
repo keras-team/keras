@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
@@ -400,3 +401,26 @@ class GRUTest(testing.TestCase):
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Test only applicable to fixing a bug with symbolic batch size "
+        "for TensorFlow backend.",
+    )
+    def test_stateful_with_symbolic_batch_size(self):
+        layer = layers.GRU(5, stateful=True)
+
+        x_concrete = np.ones((2, 10, 10), dtype=np.float32)
+        _ = layer(x_concrete, training=True)
+        import tensorflow as tf
+
+        @tf.function(
+            input_signature=[
+                tf.TensorSpec(shape=(None, 10, 10), dtype=tf.float32)
+            ]
+        )
+        def f(x):
+            return layer(x, training=True)
+
+        y = f(x_concrete)
+        self.assertEqual(y.shape, (2, 5))
