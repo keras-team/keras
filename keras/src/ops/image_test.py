@@ -106,6 +106,10 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 4, 4, 75))
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (None, 4, 4, 75))
+        out = kimage.extract_patches(x, 5, strides=1)
+        self.assertEqual(out.shape, (None, 16, 16, 75))
+        out = kimage.extract_patches(x, 5, strides=(2, 3))
+        self.assertEqual(out.shape, (None, 8, 6, 75))
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -115,6 +119,10 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 75, 4, 4))
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (None, 75, 4, 4))
+        out = kimage.extract_patches(x, 5, strides=1)
+        self.assertEqual(out.shape, (None, 75, 16, 16))
+        out = kimage.extract_patches(x, 5, strides=(2, 3))
+        self.assertEqual(out.shape, (None, 75, 8, 6))
 
     def test_extract_patches_3d(self):
         # Test channels_last
