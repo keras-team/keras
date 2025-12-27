@@ -198,7 +198,7 @@ class Progbar:
 
             if self.pinned and self._dynamic_display:
                 message += ANSI_RESTORE_CURSOR
-            elif finalize:
+            if finalize:
                 message += "\n"
 
             io_utils.print_msg(message, line_break=False)
