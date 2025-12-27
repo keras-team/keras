@@ -117,11 +117,13 @@ class Progbar:
             if now - self._last_update < self.interval and not finalize:
                 return
 
-            if self.pinned and self._dynamic_display:
-                message += "\033[s\033[2;1H\033[K"
-            elif self._dynamic_display:
-                message += "\b" * self._prev_total_width
-                message += "\r"
+            if self._dynamic_display:
+                if self.pinned:
+                    # \033[s: save cursor, \033[2;1H: move to line 2, \033[K: clear line
+                    message += "\033[s\033[2;1H\033[K"
+                else:
+                    message += "\b" * self._prev_total_width
+                    message += "\r"
             else:
                 message += "\n"
 
