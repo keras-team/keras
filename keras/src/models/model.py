@@ -992,13 +992,18 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     self.non_trainable_variables, path_value_dict
                 )
             elif k == "optimizer_variables":
-                self._assign_variable_values(
-                    self.optimizer.variables, path_value_dict
-                )
+                if hasattr(self, "optimizer") and self.optimizer is not None:
+                    self._assign_variable_values(
+                        self.optimizer.variables, path_value_dict
+                    )
             elif k == "metrics_variables":
-                self._assign_variable_values(
-                    self.metrics_variables, path_value_dict
-                )
+                if (
+                    hasattr(self, "metrics_variables")
+                    and self.metrics_variables
+                ):
+                    self._assign_variable_values(
+                        self.metrics_variables, path_value_dict
+                    )
             else:
                 raise ValueError(f"Unknown variable name: {k}")
 
