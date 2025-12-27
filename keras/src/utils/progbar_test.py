@@ -25,3 +25,12 @@ class ProgbarTest(testing.TestCase):
         pb = progbar.Progbar(target=1, verbose=1)
 
         pb.update(1, values=[("values", values)], finalize=True)
+
+    def test_progbar_pinned(self):
+        target = 10
+        pb = progbar.Progbar(target=target, pinned=True)
+        for i in range(target):
+            pb.update(i + 1)
+
+        self.assertEqual(pb.pinned, True)
+        self.assertEqual(pb._seen_so_far, target)
