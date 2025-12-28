@@ -4,6 +4,7 @@ from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import ops
 from keras.src import quantizers
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.quantizers.quantization_config import QuantizationConfig
@@ -134,9 +135,9 @@ class ReversibleEmbedding(layers.Embedding):
                     ops.tanh(ops.divide(logits, soft_cap)), soft_cap
                 )
             return logits
-    
+
     def compute_mask(self, inputs, mask=None):
-        if len(inputs.shape) == 3:
+        if backend.is_float_dtype(inputs.dtype):
             return None
         return super().compute_mask(inputs, mask)
 
