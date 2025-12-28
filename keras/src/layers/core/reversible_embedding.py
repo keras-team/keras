@@ -134,6 +134,11 @@ class ReversibleEmbedding(layers.Embedding):
                     ops.tanh(ops.divide(logits, soft_cap)), soft_cap
                 )
             return logits
+    
+    def compute_mask(self, inputs, mask=None):
+        if len(inputs.shape) == 3:
+            return None
+        return super().compute_mask(inputs, mask)
 
     def compute_output_shape(self, input_shape, reverse=False):
         output_shape = list(input_shape)
