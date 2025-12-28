@@ -518,42 +518,30 @@ class KerasFileEditor:
             # ------------------------------------------------------
             # Validate SHAPE (avoid malformed / malicious metadata)
             # ------------------------------------------------------
-            try:
-                # No negative dims
-                if any(dim < 0 for dim in shape):
-                    raise ValueError(
-                        "Negative dimension in HDF5 dataset shape."
-                    )
 
-                # Prevent absurdly high-rank tensors
-                if len(shape) > 64:
-                    raise ValueError("HDF5 dataset rank too large (>64).")
-
-                # Ensure product does not overflow
-                num_elems = int(np.prod(shape))
-                if num_elems < 0:
-                    raise ValueError(
-                        "Overflow in dataset shape multiplication."
-                    )
-
-            except Exception as e:
+            # No negative dimensions
+            if any(dim < 0 for dim in shape):
                 raise ValueError(
                     "Malformed HDF5 dataset shape encountered in .keras file; "
-                    "refusing to load."
-                ) from e
+                    "negative dimension detected."
+                )
+
+            # Prevent absurdly high-rank tensors
+            if len(shape) > 64:
+                raise ValueError(
+                    "Malformed HDF5 dataset shape encountered in .keras file; "
+                    "tensor rank exceeds safety limit."
+                )
+
+            # Safe product computation (Python int is unbounded)
+            num_elems = int(np.prod(shape))
 
             # ------------------------------------------------------
             # Validate TOTAL memory size
             # ------------------------------------------------------
-            MAX_BYTES = 1 << 30  # 1 GiB
+            MAX_BYTES = 1 << 32  # 4 GiB
 
-            try:
-                size_bytes = num_elems * dtype.itemsize
-            except Exception as e:
-                raise ValueError(
-                    "Malformed HDF5 dtype encountered in .keras file; "
-                    "refusing to load."
-                ) from e
+            size_bytes = num_elems * dtype.itemsize
 
             if size_bytes > MAX_BYTES:
                 raise ValueError(
@@ -562,7 +550,7 @@ class KerasFileEditor:
                 )
 
             # ------------------------------------------------------
-            # SAFE — load dataset (guaranteed ≤ 1 GiB)
+            # SAFE — load dataset (guaranteed ≤ 4 GiB)
             # ------------------------------------------------------
             result[key] = value[()]
 
