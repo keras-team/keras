@@ -455,6 +455,9 @@ class KerasFileEditor:
     def _extract_weights_from_store(self, data, metadata=None, inner_path=""):
         metadata = metadata or {}
 
+        # ------------------------------------------------------
+        # Collect metadata for this HDF5 group
+        # ------------------------------------------------------
         object_metadata = {}
         for k, v in data.attrs.items():
             object_metadata[k] = v
@@ -462,26 +465,98 @@ class KerasFileEditor:
             metadata[inner_path] = object_metadata
 
         result = collections.OrderedDict()
+
+        # ------------------------------------------------------
+        # Iterate over all keys in this HDF5 group
+        # ------------------------------------------------------
         for key in data.keys():
-            inner_path = f"{inner_path}/{key}"
+            # IMPORTANT:
+            # Never mutate inner_path; use local variable.
+            current_inner_path = f"{inner_path}/{key}"
             value = data[key]
+
+            # ------------------------------------------------------
+            # CASE 1 — HDF5 GROUP → RECURSE
+            # ------------------------------------------------------
             if isinstance(value, h5py.Group):
+                # Skip empty groups
                 if len(value) == 0:
                     continue
+
+                # Skip empty "vars" groups
                 if "vars" in value.keys() and len(value["vars"]) == 0:
                     continue
 
-            if hasattr(value, "keys"):
+                # Recurse into "vars" subgroup when present
                 if "vars" in value.keys():
                     result[key], metadata = self._extract_weights_from_store(
-                        value["vars"], metadata=metadata, inner_path=inner_path
+                        value["vars"],
+                        metadata=metadata,
+                        inner_path=current_inner_path,
                     )
                 else:
+                    # Recurse normally
                     result[key], metadata = self._extract_weights_from_store(
-                        value, metadata=metadata, inner_path=inner_path
+                        value,
+                        metadata=metadata,
+                        inner_path=current_inner_path,
                     )
-            else:
-                result[key] = value[()]
+
+                continue  # finished processing this key
+
+            # ------------------------------------------------------
+            # CASE 2 — HDF5 DATASET → SAFE LOADING
+            # ------------------------------------------------------
+
+            # Skip any objects that are not proper datasets
+            if not hasattr(value, "shape") or not hasattr(value, "dtype"):
+                continue
+
+            shape = value.shape
+            dtype = value.dtype
+
+            # ------------------------------------------------------
+            # Validate SHAPE (avoid malformed / malicious metadata)
+            # ------------------------------------------------------
+
+            # No negative dimensions
+            if any(dim < 0 for dim in shape):
+                raise ValueError(
+                    "Malformed HDF5 dataset shape encountered in .keras file; "
+                    "negative dimension detected."
+                )
+
+            # Prevent absurdly high-rank tensors
+            if len(shape) > 64:
+                raise ValueError(
+                    "Malformed HDF5 dataset shape encountered in .keras file; "
+                    "tensor rank exceeds safety limit."
+                )
+
+            # Safe product computation (Python int is unbounded)
+            num_elems = int(np.prod(shape))
+
+            # ------------------------------------------------------
+            # Validate TOTAL memory size
+            # ------------------------------------------------------
+            MAX_BYTES = 1 << 32  # 4 GiB
+
+            size_bytes = num_elems * dtype.itemsize
+
+            if size_bytes > MAX_BYTES:
+                raise ValueError(
+                    f"HDF5 dataset too large to load safely "
+                    f"({size_bytes} bytes; limit is {MAX_BYTES})."
+                )
+
+            # ------------------------------------------------------
+            # SAFE — load dataset (guaranteed ≤ 4 GiB)
+            # ------------------------------------------------------
+            result[key] = value[()]
+
+        # ------------------------------------------------------
+        # Return final tree and metadata
+        # ------------------------------------------------------
         return result, metadata
 
     def _generate_filepath_info(self, rich_style=False):
