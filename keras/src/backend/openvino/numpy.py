@@ -1072,7 +1072,9 @@ def expm1(x):
 
 def flip(x, axis=None):
     x_node = get_ov_output(x)
-    ndim = len(x.shape)
+    ndim = x.ndim
+    if ndim is None:
+        raise ValueError("The `flip` operation does not support tensors with dynamic rank for the OpenVINO backend.")
     if axis is None:
         axis = list(range(ndim))
     elif isinstance(axis, int):
