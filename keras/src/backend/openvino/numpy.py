@@ -1074,6 +1074,49 @@ def flip(x, axis=None):
     raise NotImplementedError("`flip` is not supported with openvino backend")
 
 
+def rot90(m, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the plane specified by axes."""
+    m = get_ov_output(m)
+
+    if len(axes) != 2:
+        raise ValueError("axes must be a tuple of length 2")
+
+    rank = len(m.get_partial_shape())
+    axis1, axis2 = axes
+
+    # Normalize negative axes
+    if axis1 < 0:
+        axis1 += rank
+    if axis2 < 0:
+        axis2 += rank
+
+    if axis1 == axis2:
+        raise ValueError("axes must be different")
+
+    k = k % 4
+    if k == 0:
+        return OpenVINOKerasTensor(m)
+
+    result = m
+    for _ in range(k):
+        perm = list(range(rank))
+        perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+
+        # Transpose
+        result = ov_opset.transpose(
+            result,
+            ov_opset.constant(perm, Type.i32).output(0),
+        ).output(0)
+
+        # Reverse along axis2 (after transpose)
+        result = ov_opset.reverse(
+            result,
+            ov_opset.constant([axis2], Type.i32).output(0),
+        ).output(0)
+
+    return OpenVINOKerasTensor(result)
+
+
 def floor(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
