@@ -1580,15 +1580,20 @@ def logical_or(x1, x2):
 
 
 def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
-    linear_samples = linspace(
-        start=start,
-        stop=stop,
-        num=num,
-        endpoint=endpoint,
-        retstep=False,
-        dtype=dtype,
-        axis=axis,
-    )
+    if axis not in (0, -1):
+        raise NotImplementedError(
+            "OpenVINO logspace supports axis=0 or axis=-1 only"
+        )
+
+        linear_samples = linspace(
+            start=start,
+            stop=stop,
+            num=num,
+            endpoint=endpoint,
+            retstep=False,
+            dtype=dtype,
+            axis=axis,
+        )
 
     if dtype is None:
         output_type = OPENVINO_DTYPES[config.floatx()]
