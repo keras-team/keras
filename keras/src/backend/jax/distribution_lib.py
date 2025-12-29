@@ -254,7 +254,10 @@ def all_gather(x, axis, axis_name="model"):
         jax.Array: The full, gathered JAX array, which is identical across
         all devices participating in the gather.
     """
-    return lax.all_gather(x, axis_name=axis_name, axis=axis, tiled=True)
+    def _gather_fn(y):
+        return lax.all_gather(y, axis_name=axis_name, axis=axis, tiled=False)
+
+    return jax.pmap(_gather_fn, axis_name=axis_name)(x)
 
 
 def _to_backend_device(device_name):

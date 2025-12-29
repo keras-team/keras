@@ -53,11 +53,7 @@ class CoordinatedOptimizer:
         self._state_variable_to_parameter = {}
         self._variable_to_slot_name = {}
 
-        model_vars_by_path = {v.path: v for v in self._variables}
-
-        sorted_model_paths = sorted(
-            model_vars_by_path.keys(), key=len, reverse=True
-        )
+        model_vars_by_id = {id(v): v for v in self._variables}
 
         for state_var in self.base_optimizer.variables:
             if state_var is self.base_optimizer.iterations:
@@ -66,22 +62,17 @@ class CoordinatedOptimizer:
             found_param = None
             slot_name = None
 
-            for model_path in sorted_model_paths:
-                model_var = model_vars_by_path[model_path]
+            for model_var_id, model_var in model_vars_by_id.items():
+                var_id_str = str(model_var_id)
+                if var_id_str in state_var.path:
+                    if "_slot_" in state_var.path:
+                        slot_name = state_var.path.split("_slot_")[-1].split("/")[0]
+                    else:
+                        parts = state_var.path.split(var_id_str)
+                        if len(parts) > 1:
+                            slot_name = parts[-1].lstrip("_/").split("/")[0]
 
-                if model_path in state_var.path:
-                    suffix = state_var.path.split(model_path)[-1]
-                    if suffix.startswith("/"):
-                        slot_name = suffix.strip("/")
-                        found_param = model_var
-                        break
-
-                sanitized_path = model_path.replace("/", "_")
-                if sanitized_path in state_var.path:
-                    suffix = state_var.path.split(sanitized_path)[-1]
-                    clean_suffix = suffix.lstrip("/_")
-                    if clean_suffix:
-                        slot_name = clean_suffix
+                    if slot_name:
                         found_param = model_var
                         break
 
@@ -92,7 +83,7 @@ class CoordinatedOptimizer:
                 sharding_dim = 0
                 if self.tensor_parallel_config:
                     rule = self.tensor_parallel_config.state_rules.get(
-                        found_param.path
+                        id(found_param)
                     )
                     if rule:
                         if hasattr(rule, "keywords") and "dim" in rule.keywords:

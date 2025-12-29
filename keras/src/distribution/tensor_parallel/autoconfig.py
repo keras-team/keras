@@ -129,44 +129,39 @@ def _apply_layer_sharding_rules(layer, device_count, state_rules, output_rules):
         mlp_type = analyze_dense_layer(layer)
 
         if mlp_type == "up_projection":
-            state_rules[layer.kernel.path] = split_rule(dim=1)
+            state_rules[id(layer.kernel)] = split_rule(dim=1)
             if layer.use_bias:
-                state_rules[layer.bias.path] = split_rule(dim=0)
-            output_rules[layer_path] = {0: gather_rule(axis=-1)}
+                state_rules[id(layer.bias)] = split_rule(dim=0)
+            output_rules[layer_path] = gather_rule(axis=-1)
 
         elif mlp_type == "down_projection":
-            state_rules[layer.kernel.path] = split_rule(dim=0)
-            output_rules[layer_path] = {0: _reduce_sum}
+            state_rules[id(layer.kernel)] = split_rule(dim=0)
+            output_rules[layer_path] = _reduce_sum
 
         else:
-            state_rules[layer.kernel.path] = split_rule(dim=1)
+            state_rules[id(layer.kernel)] = split_rule(dim=1)
             if layer.use_bias:
-                state_rules[layer.bias.path] = split_rule(dim=0)
-            output_rules[layer_path] = {0: gather_rule(axis=-1)}
+                state_rules[id(layer.bias)] = split_rule(dim=0)
+            output_rules[layer_path] = gather_rule(axis=-1)
 
     elif isinstance(layer, layers.EinsumDense):
-        if "attention_output" in layer.name:  # Use name check as heuristic
-            state_rules[layer.kernel.path] = split_rule(dim=0)
-            output_rules[layer_path] = {0: _reduce_sum}
+        if "attention_output" in layer.name:
+            state_rules[id(layer.kernel)] = split_rule(dim=0)
+            output_rules[layer_path] = _reduce_sum
         else:
-            state_rules[layer.kernel.path] = split_rule(dim=1)
+            state_rules[id(layer.kernel)] = split_rule(dim=1)
             if hasattr(layer, "bias") and layer.bias is not None:
-                state_rules[layer.bias.path] = split_rule(dim=0)
-            output_rules[layer_path] = {0: gather_rule(axis=-1)}
+                state_rules[id(layer.bias)] = split_rule(dim=0)
+            output_rules[layer_path] = gather_rule(axis=-1)
 
     elif (
         isinstance(layer, (layers.Embedding,))
         or "Embedding" in layer.__class__.__name__
     ):
-        if hasattr(layer, "weights"):
-            found_embedding = False
-            for weight in layer.weights:
-                if "embedding" in weight.name or "weight" in weight.name:
-                    state_rules[weight.path] = split_rule(dim=1)
-                    found_embedding = True
-
-            if found_embedding:
-                output_rules[layer_path] = {0: lambda x: x}
+        embeddings_var = getattr(layer, "embeddings", None)
+        if embeddings_var is not None:
+            state_rules[id(embeddings_var)] = split_rule(dim=1)
+        output_rules[layer_path] = lambda x: x
 
 
 def get_default_config(model, device_ids):

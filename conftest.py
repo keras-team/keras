@@ -7,8 +7,18 @@ except ImportError:
     torch = None
 
 import pytest  # noqa: E402
+import os
 
-from keras.src.backend import backend  # noqa: E402
+
+def backend():
+    """Lightweight backend detector for pytest configuration.
+
+    Avoid importing `keras.src.backend` here to prevent triggering the
+    full Keras import graph (which may import TensorFlow lazily and
+    cause circular import errors during test collection). Use the
+    `KERAS_BACKEND` environment variable as the source of truth.
+    """
+    return os.environ.get("KERAS_BACKEND", "tensorflow")
 
 
 def pytest_configure(config):

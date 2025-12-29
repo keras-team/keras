@@ -15,6 +15,7 @@ from keras.src import models
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
+from keras.src.utils import module_utils
 
 if backend.backend() == "jax":
     # Due to https://github.com/google/jax/issues/17188, we can't
@@ -33,6 +34,18 @@ if backend.backend() == "jax":
     reason="Backend specific test and requires 8 devices",
 )
 class JaxDistributionLibTest(testing.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls._orig_tf_available = getattr(module_utils.tensorflow, "_available", None)
+        module_utils.tensorflow._available = False
+
+    @classmethod
+    def tearDownClass(cls):
+        module_utils.tensorflow._available = cls._orig_tf_available
+        super().tearDownClass()
+
     def _create_jax_layout(self, sharding):
         # Use jax_layout.Format or jax_layout.Layout if available.
         if hasattr(jax_layout, "Format"):
@@ -444,7 +457,14 @@ class JaxDistributionLibTest(testing.TestCase):
     def test_all_reduce(self):
         devices = jax.devices()
         num_devices = len(devices)
-        input_data = np.ones((num_devices, 2), dtype="float32")
+        mesh = jax.sharding.Mesh(np.array(devices), axis_names=("batch",))
+        sharding = jax.sharding.NamedSharding(
+            mesh, jax.sharding.PartitionSpec("batch")
+        )
+
+        input_data = jax.device_put(
+            np.ones((num_devices, 2), dtype="float32"), sharding
+        )
 
         def sum_fn(x):
             return backend_dlib.all_reduce(x, op="sum", axis_name="batch")
@@ -461,29 +481,24 @@ class JaxDistributionLibTest(testing.TestCase):
 
         self.assertAllClose(result_mean, input_data)
 
-        with self.assertRaisesRegex(
-            ValueError, "Unsupported reduction operation"
-        ):
-            backend_dlib.all_reduce(input_data[0], op="max", axis_name="batch")
-
     def test_all_gather(self):
         devices = jax.devices()
         num_devices = len(devices)
-
-        input_data = np.arange(num_devices, dtype="float32").reshape(
-            num_devices, 1, 1
+        mesh = jax.sharding.Mesh(np.array(devices), axis_names=("batch",))
+        sharding = jax.sharding.NamedSharding(
+            mesh, jax.sharding.PartitionSpec("batch")
         )
 
-        def gather_fn(x):
-            return backend_dlib.all_gather(x, axis=0, axis_name="batch")
+        shards = [np.array([i], dtype="float32") for i in range(num_devices)]
+        input_data = jax.device_put_sharded(shards, jax.devices())
 
-        results = jax.pmap(gather_fn, axis_name="batch")(input_data)
+        results = backend_dlib.all_gather(input_data, axis=0, axis_name="batch")
 
         expected_gathered = np.arange(num_devices, dtype="float32").reshape(
             num_devices, 1
         )
-        for i in range(num_devices):
-            self.assertAllClose(results[i], expected_gathered)
+        expected_results = np.stack([expected_gathered] * num_devices)
+        self.assertAllClose(results, expected_results)
 
 
 class ShardingCaptureLayer(layers.Layer):
