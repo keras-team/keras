@@ -34,11 +34,12 @@ if backend.backend() == "jax":
     reason="Backend specific test and requires 8 devices",
 )
 class JaxDistributionLibTest(testing.TestCase):
-
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls._orig_tf_available = getattr(module_utils.tensorflow, "_available", None)
+        cls._orig_tf_available = getattr(
+            module_utils.tensorflow, "_available", None
+        )
         module_utils.tensorflow._available = False
 
     @classmethod
@@ -484,10 +485,6 @@ class JaxDistributionLibTest(testing.TestCase):
     def test_all_gather(self):
         devices = jax.devices()
         num_devices = len(devices)
-        mesh = jax.sharding.Mesh(np.array(devices), axis_names=("batch",))
-        sharding = jax.sharding.NamedSharding(
-            mesh, jax.sharding.PartitionSpec("batch")
-        )
 
         shards = [np.array([i], dtype="float32") for i in range(num_devices)]
         input_data = jax.device_put_sharded(shards, jax.devices())

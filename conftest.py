@@ -6,8 +6,9 @@ try:
 except ImportError:
     torch = None
 
-import pytest  # noqa: E402
 import os
+
+import pytest  # noqa: E402
 
 
 def backend():

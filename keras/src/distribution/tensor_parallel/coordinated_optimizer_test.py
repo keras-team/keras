@@ -1,11 +1,12 @@
 import functools
+
 import numpy as np
 import pytest
 
-from keras.src import layers
 from keras.src import Model
-from keras.src import ops
 from keras.src import backend
+from keras.src import layers
+from keras.src import ops
 from keras.src import optimizers
 from keras.src import testing
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
@@ -18,6 +19,7 @@ from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
 from keras.src.distribution.tensor_parallel.tensor_layout import (
     split_tensor_for_parallelism,
 )
+
 
 @pytest.mark.skipif(
     backend.backend() != "jax",
@@ -141,14 +143,16 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
         dense_1_layer = model.get_layer("dense_1")
         dense_2_layer = model.get_layer("dense_2")
-        
+
         state_rules = {
             id(dense_1_layer.kernel): split_rule(dim=1),
             id(dense_1_layer.bias): split_rule(dim=0),
             id(dense_2_layer.kernel): split_rule(dim=1),
             id(dense_2_layer.bias): split_rule(dim=0),
         }
-        tensor_parallel_config = LayoutMap(state_rules=state_rules, output_rules={})
+        tensor_parallel_config = LayoutMap(
+            state_rules=state_rules, output_rules={}
+        )
 
         optimizer = TensorParallelOptimizer(
             optimizers.Adam(),
@@ -194,14 +198,16 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
         dense_layer = model.get_layer("dense")
         dense_output_layer = model.get_layer("dense_output")
-        
+
         state_rules = {
             id(dense_layer.kernel): split_rule(dim=1),
             id(dense_layer.bias): split_rule(dim=0),
             id(dense_output_layer.kernel): split_rule(dim=1),
             id(dense_output_layer.bias): split_rule(dim=0),
         }
-        tensor_parallel_config = LayoutMap(state_rules=state_rules, output_rules={})
+        tensor_parallel_config = LayoutMap(
+            state_rules=state_rules, output_rules={}
+        )
 
         optimizer = TensorParallelOptimizer(
             optimizers.Adam(),

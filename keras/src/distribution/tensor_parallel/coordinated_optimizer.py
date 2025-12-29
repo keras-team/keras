@@ -66,7 +66,9 @@ class CoordinatedOptimizer:
                 var_id_str = str(model_var_id)
                 if var_id_str in state_var.path:
                     if "_slot_" in state_var.path:
-                        slot_name = state_var.path.split("_slot_")[-1].split("/")[0]
+                        slot_name = state_var.path.split("_slot_")[-1].split(
+                            "/"
+                        )[0]
                     else:
                         parts = state_var.path.split(var_id_str)
                         if len(parts) > 1:

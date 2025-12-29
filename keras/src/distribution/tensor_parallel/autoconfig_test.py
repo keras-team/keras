@@ -3,8 +3,6 @@ import functools
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
-from keras.src.models import Model, Sequential
-from keras.src.layers import Input
 from keras.src.distribution.tensor_parallel.autoconfig import _gather
 from keras.src.distribution.tensor_parallel.autoconfig import _reduce_sum
 from keras.src.distribution.tensor_parallel.autoconfig import (
@@ -14,6 +12,9 @@ from keras.src.distribution.tensor_parallel.autoconfig import get_default_config
 from keras.src.distribution.tensor_parallel.tensor_layout import (
     split_tensor_for_parallelism,
 )
+from keras.src.layers import Input
+from keras.src.models import Model
+from keras.src.models import Sequential
 
 
 class AutoConfigTest(testing.TestCase):
@@ -29,15 +30,17 @@ class AutoConfigTest(testing.TestCase):
         up_proj_layer = layers.Dense(64, name="up")
         up_proj_layer.build(input_shape=(None, 16))
         self.assertEqual(analyze_dense_layer(up_proj_layer), "up_projection")
-        
+
         down_proj_layer = layers.Dense(16, name="down")
         down_proj_layer.build(input_shape=(None, 64))
-        self.assertEqual(analyze_dense_layer(down_proj_layer), "down_projection")
-        
+        self.assertEqual(
+            analyze_dense_layer(down_proj_layer), "down_projection"
+        )
+
         generic_layer = layers.Dense(32, name="generic")
         generic_layer.build(input_shape=(None, 28))
         self.assertEqual(analyze_dense_layer(generic_layer), "dense")
-        
+
         non_dense_layer = layers.LayerNormalization()
         self.assertEqual(analyze_dense_layer(non_dense_layer), "dense")
 
@@ -46,11 +49,13 @@ class AutoConfigTest(testing.TestCase):
         device_count = 2
         devices = [f"gpu:{i}" for i in range(device_count)]
 
+        up_layer = layers.Dense(128, name="mlp_up")
+        down_layer = layers.Dense(32, name="mlp_down")
         model = Sequential(
             [
                 Input(shape=(32,)),
-                layers.Dense(128, name="mlp_up"),
-                layers.Dense(32, name="mlp_down"),
+                up_layer,
+                down_layer,
             ],
             name="mlp_block",
         )
@@ -59,15 +64,12 @@ class AutoConfigTest(testing.TestCase):
         state_rules = layout_map.state_rules
         output_rules = layout_map.output_rules
 
-        up_kernel_key = "mlp_block/mlp_up/kernel"
-        self.assertIn(up_kernel_key, state_rules)
-        self.check_rule(state_rules[up_kernel_key], device_count, 1)
+        self.assertIn(id(up_layer.kernel), state_rules)
+        self.check_rule(state_rules[id(up_layer.kernel)], device_count, 1)
 
-        down_kernel_key = "mlp_block/mlp_down/kernel"
-        self.assertIn(down_kernel_key, state_rules)
-        self.check_rule(state_rules[down_kernel_key], device_count, 0)
+        self.assertIn(id(down_layer.kernel), state_rules)
+        self.check_rule(state_rules[id(down_layer.kernel)], device_count, 0)
 
-        # Access rule directly (fixed structure)
         self.assertIn("mlp_block/mlp_up", output_rules)
         up_output_rule = output_rules["mlp_block/mlp_up"]
         self.assertIsInstance(up_output_rule, functools.partial)
@@ -82,7 +84,7 @@ class AutoConfigTest(testing.TestCase):
         device_count = 4
         devices = [f"gpu:{i}" for i in range(device_count)]
 
-        class SimpleTransformer(layers.Layer):
+        class SimpleTransformer(Model):
             def __init__(self, **kwargs):
                 super().__init__(**kwargs)
                 self.embedding = layers.Embedding(
@@ -113,26 +115,25 @@ class AutoConfigTest(testing.TestCase):
         layout_map = get_default_config(model, devices)
         state_rules = layout_map.state_rules
 
-        emb_key = "transformer/embedding/embeddings"
-        self.assertIn(emb_key, state_rules)
-        self.check_rule(state_rules[emb_key], device_count, 1)
+        emb_weight = model.embedding.embeddings
+        self.assertIn(id(emb_weight), state_rules)
+        self.check_rule(state_rules[id(emb_weight)], device_count, 1)
 
-        qkv_key = "transformer/qkv_proj/kernel"
-        self.assertIn(qkv_key, state_rules)
-        self.check_rule(state_rules[qkv_key], device_count, 1)
+        qkv_kernel = model.qkv_proj.kernel
+        self.assertIn(id(qkv_kernel), state_rules)
+        self.check_rule(state_rules[id(qkv_kernel)], device_count, 1)
 
-        attn_key = "transformer/attention_output/kernel"
-        self.assertIn(attn_key, state_rules)
-        self.check_rule(state_rules[attn_key], device_count, 0)
+        attn_kernel = model.attention_output.kernel
+        self.assertIn(id(attn_kernel), state_rules)
+        self.check_rule(state_rules[id(attn_kernel)], device_count, 0)
 
     def test_nested_model(self):
         """Tests that recursive traversal finds layers in nested models."""
         device_count = 2
         devices = [f"gpu:{i}" for i in range(device_count)]
-        
-        inner_model = Sequential(
-            [layers.Dense(64, name="inner_dense")], name="inner_block"
-        )
+
+        inner_dense = layers.Dense(64, name="inner_dense")
+        inner_model = Sequential([inner_dense], name="inner_block")
         outer_model = Sequential(
             [
                 Input(shape=(32,)),
@@ -144,6 +145,5 @@ class AutoConfigTest(testing.TestCase):
         layout_map = get_default_config(outer_model, devices)
         state_rules = layout_map.state_rules
 
-        inner_key = "outer_block/inner_block/inner_dense/kernel"
-        self.assertIn(inner_key, state_rules)
-        self.check_rule(state_rules[inner_key], device_count, 1)
+        self.assertIn(id(inner_dense.kernel), state_rules)
+        self.check_rule(state_rules[id(inner_dense.kernel)], device_count, 1)
