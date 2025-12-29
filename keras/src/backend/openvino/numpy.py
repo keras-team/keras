@@ -1579,32 +1579,52 @@ def logical_or(x1, x2):
     return OpenVINOKerasTensor(ov_opset.logical_or(x1, x2).output(0))
 
 
-def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
+def logspace(
+    start,
+    stop,
+    num=50,
+    endpoint=True,
+    base=10,
+    dtype=None,
+    axis=0,
+):
+    """Return numbers spaced evenly on a log scale.
+
+    OpenVINO backend currently supports only axis=0 and axis=-1.
+    """
+
+    # Validate axis early
     if axis not in (0, -1):
         raise NotImplementedError(
             "OpenVINO logspace supports axis=0 or axis=-1 only"
         )
 
-        linear_samples = linspace(
-            start=start,
-            stop=stop,
-            num=num,
-            endpoint=endpoint,
-            retstep=False,
-            dtype=dtype,
-            axis=axis,
-        )
+    # Validate base
+    if base <= 0:
+        raise ValueError("logspace base must be positive")
 
+    # Generate linear samples using linspace
+    linear_samples = linspace(
+        start=start,
+        stop=stop,
+        num=num,
+        endpoint=endpoint,
+        retstep=False,
+        dtype=dtype,
+        axis=axis,
+    )
+
+    # Resolve output dtype
     if dtype is None:
         output_type = OPENVINO_DTYPES[config.floatx()]
     else:
         output_type = OPENVINO_DTYPES[dtype]
 
+    # Convert base to OpenVINO tensor
+    base_tensor = ov_opset.constant(base, output_type).output(0)
+
+    # Compute base ** linear_samples
     linear_output = get_ov_output(linear_samples)
-    base_tensor = get_ov_output(base)
-
-    base_tensor = ov_opset.convert(base_tensor, output_type).output(0)
-
     result = ov_opset.power(base_tensor, linear_output).output(0)
 
     return OpenVINOKerasTensor(result)
