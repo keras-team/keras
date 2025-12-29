@@ -17,7 +17,6 @@ NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_diagonal
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
-NumpyDtypeTest::test_flip
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_kron
@@ -57,7 +56,6 @@ NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diagflat
 NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
-NumpyOneInputOpsCorrectnessTest::test_flip
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_logaddexp2
