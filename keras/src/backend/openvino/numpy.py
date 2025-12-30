@@ -1074,49 +1074,6 @@ def flip(x, axis=None):
     raise NotImplementedError("`flip` is not supported with openvino backend")
 
 
-def rot90(m, k=1, axes=(0, 1)):
-    """Rotate an array by 90 degrees in the plane specified by axes."""
-    m = get_ov_output(m)
-
-    if len(axes) != 2:
-        raise ValueError("axes must be a tuple of length 2")
-
-    rank = len(m.get_partial_shape())
-    axis1, axis2 = axes
-
-    # Normalize negative axes
-    if axis1 < 0:
-        axis1 += rank
-    if axis2 < 0:
-        axis2 += rank
-
-    if axis1 == axis2:
-        raise ValueError("axes must be different")
-
-    k = k % 4
-    if k == 0:
-        return OpenVINOKerasTensor(m)
-
-    result = m
-    for _ in range(k):
-        perm = list(range(rank))
-        perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
-
-        # Transpose
-        result = ov_opset.transpose(
-            result,
-            ov_opset.constant(perm, Type.i32).output(0),
-        ).output(0)
-
-        # Reverse along axis2 (after transpose)
-        result = ov_opset.reverse(
-            result,
-            ov_opset.constant([axis2], Type.i32).output(0),
-        ).output(0)
-
-    return OpenVINOKerasTensor(result)
-
-
 def floor(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
@@ -1620,57 +1577,6 @@ def logical_or(x1, x2):
     x1 = ov_opset.convert(x1, Type.boolean).output(0)
     x2 = ov_opset.convert(x2, Type.boolean).output(0)
     return OpenVINOKerasTensor(ov_opset.logical_or(x1, x2).output(0))
-
-
-def logspace(
-    start,
-    stop,
-    num=50,
-    endpoint=True,
-    base=10,
-    dtype=None,
-    axis=0,
-):
-    """Return numbers spaced evenly on a log scale.
-
-    OpenVINO backend currently supports only axis=0 and axis=-1.
-    """
-
-    # Validate axis early
-    if axis not in (0, -1):
-        raise NotImplementedError(
-            "OpenVINO logspace supports axis=0 or axis=-1 only"
-        )
-
-    # Validate base
-    if base <= 0:
-        raise ValueError("logspace base must be positive")
-
-    # Generate linear samples using linspace
-    linear_samples = linspace(
-        start=start,
-        stop=stop,
-        num=num,
-        endpoint=endpoint,
-        retstep=False,
-        dtype=dtype,
-        axis=axis,
-    )
-
-    # Resolve output dtype
-    if dtype is None:
-        output_type = OPENVINO_DTYPES[config.floatx()]
-    else:
-        output_type = OPENVINO_DTYPES[dtype]
-
-    # Convert base to OpenVINO tensor
-    base_tensor = ov_opset.constant(base, output_type).output(0)
-
-    # Compute base ** linear_samples
-    linear_output = get_ov_output(linear_samples)
-    result = ov_opset.power(base_tensor, linear_output).output(0)
-
-    return OpenVINOKerasTensor(result)
 
 
 def maximum(x1, x2):
