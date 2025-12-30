@@ -2607,16 +2607,29 @@ def sqrt(x):
     return OpenVINOKerasTensor(ov_opset.sqrt(x).output(0))
 
 
-def logspace(
-    start,
-    stop,
-    num=50,
-    endpoint=True,
-    base=10,
-    dtype=None,
-    axis=0,
-):
-    raise NotImplementedError("logspace is not supported with OpenVINO backend")
+def logspace(start, stop, num=50, endpoint=True, base=10.0, dtype=None, axis=0):
+    # Delegate to linspace (already supported)
+    lin = linspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        dtype=dtype,
+        axis=axis,
+    )
+
+    # Convert base to OpenVINO tensor
+    output_type = (
+        OPENVINO_DTYPES[dtype]
+        if dtype is not None
+        else OPENVINO_DTYPES[config.floatx()]
+    )
+    base_const = ov_opset.constant(base, output_type).output(0)
+
+    # Compute base ** linspace
+    powered = ov_opset.power(base_const, lin.output).output(0)
+
+    return OpenVINOKerasTensor(powered)
 
 
 def squeeze(x, axis=None):
