@@ -14,7 +14,6 @@ NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_cross
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_diagflat
-NumpyDtypeTest::test_diagonal
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_inner
@@ -55,7 +54,6 @@ NumpyOneInputOpsCorrectnessTest::test_cbrt
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diagflat
-NumpyOneInputOpsCorrectnessTest::test_diagonal
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal

@@ -893,9 +893,48 @@ def diag(x, k=0):
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError(
-        "`diagonal` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    shape = x.get_partial_shape()
+    rank = x.get_partial_shape().rank.get_length() 
+    if rank is None:
+        raise ValueError("`diagonal` requires input tensor with static rank.")
+    if rank < 2:
+        raise ValueError(f"diagonal requires input tensor with rank >= 2." 
+                         f"Given rank: {rank}")
+    axis1 = axis1 % rank
+    axis2 = axis2 % rank
+    if axis1 == axis2:
+        raise ValueError("`axis1` and `axis2` cannot be the same.")
+    
+    perm_order = [axis1, axis2] + [i
+                        for i in range(rank) if i != axis1 and i != axis2
+                                   ]
+    perm_const = ov_opset.constant(np.array(perm_order, dtype=np.int32))
+    x_transposed = ov_opset.transpose(x, perm_const)
+    
+    N = shape[axis1].get_length()
+    M = shape[axis2].get_length()
+    if offset >= 0:
+        L = np.minimum(N, M - offset) if (M - offset) > 0 else 0
+        indices = [[i, i + offset] for i in range(L)]
+    else:
+        L = np.minimum(N + offset, M) if (N + offset) > 0 else 0
+        indices = [[i - offset, i] for i in range(L)]
+    
+    if L <= 0:
+        return OpenVINOKerasTensor([])
+    
+    indices = np.array(indices, dtype=np.int32)
+    indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
+    
+    diag_gathered = ov_opset.gather_nd(x_transposed, indices_const)
+    
+    out_rank = rank - 1
+    out_perm_order = list(range(1, out_rank)) + [0]
+    out_perm_const = ov_opset.constant(np.array(out_perm_order, dtype=np.int32))
+    
+    final_output = ov_opset.transpose(diag_gathered, out_perm_const)
+    return OpenVINOKerasTensor(final_output.output(0))
 
 
 def diff(a, n=1, axis=-1):
