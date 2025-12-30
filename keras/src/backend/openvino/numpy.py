@@ -912,18 +912,22 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     perm_const = ov_opset.constant(np.array(perm_order, dtype=np.int32))
     x_transposed = ov_opset.transpose(x, perm_const)
     
-    N = shape[axis1].get_length()
-    M = shape[axis2].get_length()
+    N_dim = shape[axis1]
+    M_dim = shape[axis2]
+    if not N_dim.is_static or not M_dim.is_static:
+        raise ValueError(
+            "`diagonal` requires input tensor with static shape for axes "
+            f"`axis1` ({axis1}) and `axis2` ({axis2})."
+        )
+    N = N_dim.get_length()
+    M = M_dim.get_length()
     if offset >= 0:
         L = np.minimum(N, M - offset) if (M - offset) > 0 else 0
         indices = [[i, i + offset] for i in range(L)]
     else:
         L = np.minimum(N + offset, M) if (N + offset) > 0 else 0
         indices = [[i - offset, i] for i in range(L)]
-    
-    if L <= 0:
-        return OpenVINOKerasTensor([])
-    
+        
     indices = np.array(indices, dtype=np.int32)
     indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
     
