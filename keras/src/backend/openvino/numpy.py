@@ -1081,37 +1081,58 @@ def rot90(array, k=1, axes=(0, 1)):
     if not isinstance(axes, (tuple, list)) or len(axes) != 2:
         raise ValueError("axes must be a tuple of length 2")
 
-    axis1, axis2 = axes
+    axis0, axis1 = axes
     ndim = len(x.get_partial_shape())
 
+    if axis0 < 0:
+        axis0 += ndim
     if axis1 < 0:
         axis1 += ndim
-    if axis2 < 0:
-        axis2 += ndim
 
     if (
-        axis1 == axis2
+        axis0 == axis1
+        or axis0 < 0
         or axis1 < 0
-        or axis2 < 0
+        or axis0 >= ndim
         or axis1 >= ndim
-        or axis2 >= ndim
     ):
         raise ValueError("Invalid rotation axes")
 
+    # Normalize k
     k = k % 4
     if k == 0:
         return OpenVINOKerasTensor(x)
 
-    perm = list(range(ndim))
-    perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
-    perm_const = ov_opset.constant(perm, Type.i32).output(0)
-
     result = x
+
     for _ in range(k):
+        # --- Transpose ---
+        perm = list(range(ndim))
+        perm[axis0], perm[axis1] = perm[axis1], perm[axis0]
+        perm_const = ov_opset.constant(perm, Type.i32).output(0)
+
         result = ov_opset.transpose(result, perm_const).output(0)
-        result = ov_opset.reverse(
+
+        # --- Reverse using reverse_sequence (OpenVINO-safe) ---
+        shape = ov_opset.shape_of(result).output(0)
+
+        axis_len = ov_opset.gather(
+            shape,
+            ov_opset.constant(axis0, Type.i32).output(0),
+            ov_opset.constant(0, Type.i32).output(0),
+        ).output(0)
+
+        seq_len = ov_opset.reshape(
+            axis_len,
+            ov_opset.constant([1], Type.i32).output(0),
+            False,
+        ).output(0)
+
+        result = ov_opset.reverse_sequence(
             result,
-            ov_opset.constant([axis1], Type.i32).output(0),
+            seq_len,
+            axis0,
+            0,
         ).output(0)
 
     return OpenVINOKerasTensor(result)
