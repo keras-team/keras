@@ -1,5 +1,6 @@
 import numpy as np
 import openvino.opset14 as ov_opset
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from openvino import Type
 
 from keras.src.backend import config
@@ -1072,6 +1073,41 @@ def expm1(x):
 
 def flip(x, axis=None):
     raise NotImplementedError("`flip` is not supported with openvino backend")
+def rot90(x, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the plane specified by axes."""
+    x = get_ov_output(x)
+
+    if not isinstance(axes, (tuple, list)) or len(axes) != 2:
+        raise ValueError("axes must be a tuple of length 2")
+
+    ndim = len(x.get_partial_shape())
+    axis1 = canonicalize_axis(axes[0], ndim)
+    axis2 = canonicalize_axis(axes[1], ndim)
+
+    if axis1 == axis2:
+        raise ValueError("axes must be different")
+
+    k = k % 4
+    if k == 0:
+        return OpenVINOKerasTensor(x)
+
+    perm = list(range(ndim))
+    perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+    perm_const = ov_opset.constant(perm, Type.i32).output(0)
+
+    result = x
+    for _ in range(k):
+        result = ov_opset.transpose(result, perm_const).output(0)
+
+        shape = ov_opset.shape_of(result).output(0)
+        result = ov_opset.reverse_sequence(
+            result,
+            shape,
+            axis=axis1,
+            batch_axis=axis2,
+        ).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def floor(x):
