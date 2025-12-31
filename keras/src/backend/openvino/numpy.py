@@ -4,6 +4,7 @@ from openvino import Type
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.openvino.core import DTYPES_MAX
 from keras.src.backend.openvino.core import DTYPES_MIN
@@ -1074,65 +1075,45 @@ def flip(x, axis=None):
     raise NotImplementedError("`flip` is not supported with openvino backend")
 
 
-def rot90(array, k=1, axes=(0, 1)):
-    """Rotate an array by 90 degrees in the plane specified by axes."""
-    x = get_ov_output(array)
+def rot90(x, k=1, axes=(0, 1)):
+    """Rotate array by 90 degrees in the plane specified by axes."""
+    x = get_ov_output(x)
 
     if not isinstance(axes, (tuple, list)) or len(axes) != 2:
         raise ValueError("axes must be a tuple of length 2")
 
-    axis0, axis1 = axes
     ndim = len(x.get_partial_shape())
+    axis1 = canonicalize_axis(axes[0], ndim)
+    axis2 = canonicalize_axis(axes[1], ndim)
 
-    if axis0 < 0:
-        axis0 += ndim
-    if axis1 < 0:
-        axis1 += ndim
-
-    if (
-        axis0 == axis1
-        or axis0 < 0
-        or axis1 < 0
-        or axis0 >= ndim
-        or axis1 >= ndim
-    ):
+    if axis1 == axis2:
         raise ValueError("Invalid rotation axes")
 
-    # Normalize k
     k = k % 4
     if k == 0:
         return OpenVINOKerasTensor(x)
 
+    # Build permutation for transpose
+    perm = list(range(ndim))
+    perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+    perm_const = ov_opset.constant(perm, Type.i32).output(0)
+
     result = x
-
     for _ in range(k):
-        # --- Transpose ---
-        perm = list(range(ndim))
-        perm[axis0], perm[axis1] = perm[axis1], perm[axis0]
-        perm_const = ov_opset.constant(perm, Type.i32).output(0)
-
+        # Transpose
         result = ov_opset.transpose(result, perm_const).output(0)
 
-        # --- Reverse using reverse_sequence (OpenVINO-safe) ---
-        shape = ov_opset.shape_of(result).output(0)
-
-        axis_len = ov_opset.gather(
-            shape,
-            ov_opset.constant(axis0, Type.i32).output(0),
-            ov_opset.constant(0, Type.i32).output(0),
-        ).output(0)
-
-        seq_len = ov_opset.reshape(
-            axis_len,
-            ov_opset.constant([1], Type.i32).output(0),
-            False,
+        # Reverse along axis1 using reverse_sequence
+        seq_len = ov_opset.constant(
+            [result.get_partial_shape()[axis1]],
+            Type.i32,
         ).output(0)
 
         result = ov_opset.reverse_sequence(
             result,
             seq_len,
-            axis0,
-            0,
+            axis=axis1,
+            batch_axis=axis2,
         ).output(0)
 
     return OpenVINOKerasTensor(result)

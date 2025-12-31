@@ -1,4 +1,3 @@
-NumPyTestLogspace
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_argpartition
