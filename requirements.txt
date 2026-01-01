@@ -6,18 +6,18 @@ tensorflow~=2.20.0;sys_platform == 'darwin'
 tf2onnx
 # This is the only version which works with TF 2.20.0.
 # TODO(#21914): Update this version when TF is updated.
-ai-edge-litert==1.3.0
+ai-edge-litert==2.1.0
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.6.0
-torch-xla==2.6.0;sys_platform != 'darwin'
+torch==2.9.1+cpu
+torch-xla==2.9.0;sys_platform != 'darwin'
 
 # Jax.
 # Pinned to 0.8.0 on CPU for CI compatibility with older backends.
 # Note that we test against the latest JAX on GPU.
 jax[cpu]==0.8.1
-flax==0.12.1
+flax==0.12.2
 
 # Common deps.
 -r requirements-common.txt
