@@ -467,19 +467,16 @@ class JaxDistributionLibTest(testing.TestCase):
             np.ones((num_devices, 2), dtype="float32"), sharding
         )
 
-        def sum_fn(x):
-            return backend_dlib.all_reduce(x, op="sum", axis_name="batch")
-
-        result_sum = jax.pmap(sum_fn, axis_name="batch")(input_data)
+        result_sum = backend_dlib.all_reduce(
+            input_data, op="sum", axis_name="batch"
+        )
 
         expected_sum = np.full((num_devices, 2), num_devices, dtype="float32")
         self.assertAllClose(result_sum, expected_sum)
 
-        def mean_fn(x):
-            return backend_dlib.all_reduce(x, op="mean", axis_name="batch")
-
-        result_mean = jax.pmap(mean_fn, axis_name="batch")(input_data)
-
+        result_mean = backend_dlib.all_reduce(
+            input_data, op="mean", axis_name="batch"
+        )
         self.assertAllClose(result_mean, input_data)
 
     def test_all_gather(self):

@@ -224,15 +224,19 @@ def all_reduce(x, op="sum", axis_name="model"):
     Returns:
         The reduced tensor.
     """
-    if op == "sum":
-        return lax.psum(x, axis_name=axis_name)
-    elif op == "mean":
-        return lax.pmean(x, axis_name=axis_name)
-    else:
-        raise ValueError(
-            f"Unsupported reduction operation: {op}. "
-            "Supported options are 'sum' and 'mean'."
-        )
+
+    def _reduce_fn(y):
+        if op == "sum":
+            return lax.psum(y, axis_name=axis_name)
+        elif op == "mean":
+            return lax.pmean(y, axis_name=axis_name)
+        else:
+            raise ValueError(
+                f"Unsupported reduction operation: {op}. "
+                "Supported options are 'sum' and 'mean'."
+            )
+
+    return jax.pmap(_reduce_fn, axis_name=axis_name)(x)
 
 
 def all_gather(x, axis, axis_name="model"):
