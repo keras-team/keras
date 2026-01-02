@@ -30,9 +30,7 @@ class JaxVariable(KerasVariable):
         self._layout = layout
         super().__init__(*args, **kwargs)
 
-    def _initialize(self, value):
-        # Note that variable.shape is needed by distribution_lib
-        self._shape = self._validate_shape(value.shape)
+    def _initialize_layout(self):
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
@@ -44,7 +42,27 @@ class JaxVariable(KerasVariable):
                 self._layout = tensor_layout.backend_layout
             else:
                 self._layout = tensor_layout
+
+    def _initialize(self, value):
+        # Note that variable.shape is needed by distribution_lib
+        self._shape = self._validate_shape(value.shape)
+        self._initialize_layout()
         self._direct_assign(value)
+
+    def _initialize_with_initializer(self, initializer):
+        self._initialize_layout()
+        layout = self._layout
+        shape = self._shape
+        if should_shard_at_init(layout, shape):
+            jitted_initializer = jax.jit(
+                initializer.__call__,
+                out_shardings=layout,
+                static_argnames=["shape", "dtype"],
+            )
+            value = jitted_initializer(shape=self._shape, dtype=self._dtype)
+            self._value = value
+        else:
+            super()._initialize_with_initializer(initializer)
 
     def _direct_assign(self, value):
         if self._layout is not None:
@@ -111,6 +129,12 @@ if config.is_nnx_enabled():
 
             # The real value is now set in self._value, sync it to raw_value
             object.__setattr__(self, "raw_value", self._value)
+
+        def _initialize_with_initializer(self, initializer):
+            value = self._convert_to_tensor(
+                initializer(self._shape, dtype=self._dtype)
+            )
+            self._initialize(value)
 
         @property
         def _value(self):
@@ -233,6 +257,71 @@ if config.is_nnx_enabled():
             return self._maybe_autocast(current_value)
 
     Variable = NnxVariable
+
+    def _flatten_nnx_variable(variable):
+        children = (variable.raw_value,)
+        # We copy __dict__ to avoid side effects
+        keras_state = variable.__dict__.copy()
+        # Remove elements that might be problematic or redundant if
+        # nnx.Variable's __getstate__
+        keras_state.pop("raw_value", None)
+        aux_data = (
+            variable._var_metadata,
+            getattr(variable, "_trace_state", None),
+            keras_state,
+        )
+        return children, aux_data
+
+    def _unflatten_nnx_variable(aux_data, children):
+        var_metadata, trace_state, keras_state = aux_data
+        raw_value = children[0]
+
+        # Create uninitialized instance
+        variable = NnxVariable.__new__(NnxVariable)
+
+        # Restore state
+        variable._var_metadata = var_metadata
+        if trace_state is not None:
+            variable._trace_state = trace_state
+        variable.__dict__.update(keras_state)
+        variable.raw_value = raw_value
+
+        return variable
+
+    try:
+        jax.tree_util.register_pytree_node(
+            NnxVariable,
+            _flatten_nnx_variable,
+            _unflatten_nnx_variable,
+        )
+    except ValueError:
+        pass
+
+    def __setattr__(self, name, value):
+        # Mirror Keras attributes to _var_metadata to ensure persistence
+        # if the Pytree registration is not respected by NNX.
+        if (
+            name != "_var_metadata"
+            and name not in ("_raw_value", "_trace_state")
+            and hasattr(self, "_var_metadata")
+        ):
+            self._var_metadata[name] = value
+
+        object.__setattr__(self, name, value)
+
+    NnxVariable.__setattr__ = __setattr__
+
+
+def should_shard_at_init(init_layout, shape):
+    if not isinstance(init_layout, jax.sharding.NamedSharding):
+        return False
+
+    if all(dim is None for dim in init_layout.spec):
+        return False
+
+    size_threshold = 250 * 1024 * 1024
+    array_size = np.prod(shape) * 4
+    return array_size >= size_threshold
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):

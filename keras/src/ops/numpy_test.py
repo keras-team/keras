@@ -254,6 +254,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.lcm(x, y).shape, (2, 3))
 
+    def test_ldexp(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.ldexp(x, y).shape, (None, 3))
+
     def test_less(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -314,6 +319,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
         self.assertEqual(knp.mod(x, y).shape, (2, 3))
+
+    def test_nextafter(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (None, 3))
 
     def test_not_equal(self):
         x = KerasTensor((None, 3))
@@ -837,6 +847,15 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         y = KerasTensor((2, 3))
         self.assertEqual(knp.lcm(x, y).shape, (2, 3))
 
+    def test_ldexp(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.ldexp(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.ldexp(x, y).shape, (2, 3))
+
     def test_less(self):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
@@ -947,6 +966,15 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.mod(x, y)
+
+    def test_nextafter(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
 
     def test_not_equal(self):
         x = KerasTensor((2, 3))
@@ -1140,6 +1168,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.trapezoid(x, axis=1).shape, (None, 3))
 
+    def test_vander(self):
+        x = KerasTensor((None,))
+        self.assertEqual(knp.vander(x).shape, (None, None))
+
     def test_var(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.var(x).shape, ())
@@ -1245,7 +1277,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3, 3))
 
     @pytest.mark.skipif(
-        keras.config.backend() == "openvino",
+        keras.config.backend() == "openvino" or testing.uses_tpu(),
         reason="OpenVINO doesn't support this change",
     )
     def test_argmax_negative_zero(self):
@@ -1256,7 +1288,8 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
     @pytest.mark.skipif(
         keras.config.backend() == "openvino"
-        or keras.config.backend() == "tensorflow",
+        or keras.config.backend() == "tensorflow"
+        or testing.uses_tpu(),
         reason="""
         OpenVINO and TensorFlow don't support this 
         change, TensorFlow behavior for this case is under
@@ -1494,6 +1527,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None,))
         y = KerasTensor((5,))
         self.assertEqual(knp.dot(x, y).shape, ())
+
+    def test_empty_like(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.empty_like(x).shape, (None, 3))
+        self.assertEqual(knp.empty_like(x).dtype, x.dtype)
 
     def test_exp(self):
         x = KerasTensor((None, 3))
@@ -1816,6 +1854,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.tile(x, [1, 2]).shape, (None, 6))
         self.assertEqual(knp.tile(x, [2, 1, 2]).shape, (2, None, 6))
 
+        # Test with multi-dimensional input
+        x = KerasTensor((None, 3, 2, 2))
+        self.assertEqual(knp.tile(x, [1, 2, 1, 1]).shape, (None, 6, 2, 2))
+
     def test_trace(self):
         x = KerasTensor((None, 3, None, 5))
         self.assertEqual(knp.trace(x).shape, (None, 5))
@@ -1893,6 +1935,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_trapezoid(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.trapezoid(x).shape, (2,))
+
+    def test_vander(self):
+        x = KerasTensor((2,))
+        self.assertEqual(knp.vander(x).shape, (2, 2))
 
     def test_var(self):
         x = KerasTensor((2, 3))
@@ -2138,6 +2184,11 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3))
             knp.dot(x, y)
+
+    def test_empty_like(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.empty_like(x).shape, (2, 3))
+        self.assertEqual(knp.empty_like(x).dtype, x.dtype)
 
     def test_exp(self):
         x = KerasTensor((2, 3))
@@ -2623,7 +2674,14 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             y = dense_to_sparse(y_np)
 
         atol = 0.1 if dtype == "float16" else 1e-4
-        self.assertAllClose(knp.matmul(x, y), np.matmul(x_np, y_np), atol=atol)
+        tpu_atol = 1 if dtype == "float16" else 1e-1
+        self.assertAllClose(
+            knp.matmul(x, y),
+            np.matmul(x_np, y_np),
+            atol=atol,
+            tpu_atol=tpu_atol,
+            tpu_rtol=tpu_atol,
+        )
         self.assertSparse(knp.matmul(x, y), x_sparse and y_sparse)
 
     def test_power(self):
@@ -3104,6 +3162,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.lcm(x, y), np.lcm(x, y))
         self.assertAllClose(knp.Lcm()(x, y), np.lcm(x, y))
 
+    def test_ldexp(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.ldexp(x, y), np.ldexp(x, y))
+        self.assertAllClose(knp.Ldexp()(x, y), np.ldexp(x, y))
+
     def test_less(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -3212,12 +3276,22 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.LogicalOr()(True, x), np.logical_or(True, x))
 
     def test_logspace(self):
-        self.assertAllClose(knp.logspace(0, 10, 5), np.logspace(0, 10, 5))
+        self.assertAllClose(
+            knp.logspace(0, 10, 5),
+            np.logspace(0, 10, 5),
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
+        )
         self.assertAllClose(
             knp.logspace(0, 10, 5, endpoint=False),
             np.logspace(0, 10, 5, endpoint=False),
         )
-        self.assertAllClose(knp.Logspace(num=5)(0, 10), np.logspace(0, 10, 5))
+        self.assertAllClose(
+            knp.Logspace(num=5)(0, 10),
+            np.logspace(0, 10, 5),
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
+        )
         self.assertAllClose(
             knp.Logspace(num=5, endpoint=False)(0, 10),
             np.logspace(0, 10, 5, endpoint=False),
@@ -3276,6 +3350,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Mod()(x, y), np.mod(x, y))
         self.assertAllClose(knp.Mod()(x, 1), np.mod(x, 1))
         self.assertAllClose(knp.Mod()(1, x), np.mod(1, x))
+
+    def test_nextafter(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
+        self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
 
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
@@ -3705,6 +3785,28 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.trapezoid(y, x=x, axis=1),
             np.trapezoid(y, x=x, axis=1),
+        )
+
+    def test_vander(self):
+        x = np.random.random((3,))
+        N = 6
+
+        self.assertAllClose(knp.vander(x), np.vander(x))
+        self.assertAllClose(knp.vander(x, N=N), np.vander(x, N=N))
+        self.assertAllClose(
+            knp.vander(x, N=N, increasing=True),
+            np.vander(x, N=N, increasing=True),
+        )
+
+        self.assertAllClose(knp.Vander().call(x), np.vander(x))
+        self.assertAllClose(knp.Vander(N=N).call(x), np.vander(x, N=N))
+        self.assertAllClose(
+            knp.Vander(N=N, increasing=True).call(x),
+            np.vander(x, N=N, increasing=True),
+        )
+        self.assertAllClose(
+            knp.Vander(N=N, increasing=False).call(x),
+            np.vander(x, N=N, increasing=False),
         )
 
     def test_var(self):
@@ -7328,6 +7430,25 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_empty_like(self, dtype):
+        import jax.numpy as jnp
+
+        x_jax = jnp.empty([2, 3, 4], dtype=dtype)
+        x = knp.ones([2, 3, 4], dtype=dtype)
+        expected_dtype = standardize_dtype(
+            jnp.empty_like(x_jax, dtype=dtype).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.empty_like(x, dtype=dtype).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.EmptyLike().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
@@ -7859,6 +7980,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
+        named_product(dtypes=list(itertools.product(ALL_DTYPES, INT_DTYPES)))
+    )
+    def test_ldexp(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.ldexp(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.ldexp(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Ldexp().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_less(self, dtypes):
@@ -8357,6 +8499,27 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.NanToNum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
+        named_product(dtypes=list(itertools.product(ALL_DTYPES, ALL_DTYPES)))
+    )
+    def test_nextafter(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.nextafter(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.nextafter(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Nextafter().symbolic_call(x1, x2).dtype),
             expected_dtype,
         )
 
@@ -9137,6 +9300,24 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_vander(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2,), dtype=dtype)
+        x_jax = jnp.ones((2,), dtype=dtype)
+
+        if dtype == "bool":
+            self.skipTest("vander does not support bool")
+
+        expected_dtype = standardize_dtype(jnp.vander(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.vander(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Vander().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_var(self, dtype):
         import jax.numpy as jnp
 
@@ -9481,3 +9662,20 @@ class HistogramTest(testing.TestCase):
         model.compile(jit_compile=jit_compile)
 
         model.predict(np.random.randn(1, 8))
+
+
+class TileTest(testing.TestCase):
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="`tile` is not supported with openvino backend",
+    )
+    def test_tile_shape_inference_in_layer(self):
+        class TileLayer(keras.layers.Layer):
+            def call(self, x):
+                repeats = [1, 2, 1, 1]
+                return knp.tile(x, repeats)
+
+        inputs = keras.Input(shape=(3, 2, 2))
+        output = TileLayer()(inputs)
+
+        self.assertEqual(output.shape, (None, 6, 2, 2))

@@ -76,7 +76,14 @@ class RandomGaussianBlurTest(testing.TestCase):
         }
         output = layer.transform_images(inputs, transformation)
 
-        self.assertAllClose(expected_output, output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(
+            expected_output,
+            output,
+            atol=1e-4,
+            rtol=1e-4,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()

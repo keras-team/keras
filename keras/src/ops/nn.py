@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend import config
 from keras.src.backend import standardize_data_format
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
@@ -1162,6 +1163,87 @@ def max_pool(
     return backend.nn.max_pool(inputs, pool_size, strides, padding, data_format)
 
 
+class AdaptiveMaxPool(Operation):
+    """Adaptive max pooling operation."""
+
+    def __init__(self, output_size, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.output_size = output_size
+        self.data_format = data_format
+
+    def call(self, inputs):
+        return backend.nn.adaptive_max_pool(
+            inputs, output_size=self.output_size, data_format=self.data_format
+        )
+
+    def compute_output_spec(self, inputs):
+        if self.data_format == "channels_last":
+            spatial_dims = self.output_size
+            output_shape = (
+                inputs.shape[: -len(self.output_size)]
+                + spatial_dims
+                + (inputs.shape[-1],)
+            )
+        else:
+            spatial_dims = self.output_size
+            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+
+
+@keras_export(["keras.ops.adaptive_max_pool", "keras.ops.nn.adaptive_max_pool"])
+def adaptive_max_pool(
+    inputs,
+    output_size,
+    data_format=None,
+):
+    """Adaptive max pooling operation.
+
+    Applies an adaptive max pooling operation that automatically computes the
+    kernel size and stride to pool the input to the specified `output_size`.
+    This operation is useful when you want a fixed output size regardless of
+    input size, commonly used in models like ResNet for global feature
+    extraction.
+    Args:
+        inputs: Tensor of rank 4. Input tensor of shape:
+            - If `data_format="channels_last"`:
+                `(batch_size, height, width, channels)`.
+            - If `data_format="channels_first"`:
+                `(batch_size, channels, height, width)`.
+        output_size: Integer or tuple/list of 2 integers, specifying the target
+            output spatial dimensions `(output_height, output_width)`. If a
+            single
+            integer is provided, the same value is used for both dimensions.
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            Defaults to the value found in your Keras config file at
+            `~/.keras/keras.json`. If never set, defaults to `"channels_last"`.
+
+    Returns:
+        A tensor of rank 4 representing the adaptive max pooled result.
+
+    Example:
+
+    >>> x = np.random.rand(2, 64, 64, 3)
+    >>> y = keras.ops.adaptive_max_pool(x, output_size=(32, 32))
+    >>> y.shape
+    (2, 32, 32, 3)
+
+    >>> # Works with any input size
+    >>> x = np.random.rand(2, 100, 80, 3)
+    >>> y = keras.ops.adaptive_max_pool(x, output_size=7)
+    >>> y.shape
+    (2, 7, 7, 3)
+    """
+    if data_format is None:
+        data_format = config.image_data_format()
+
+    if any_symbolic_tensors((inputs,)):
+        return AdaptiveMaxPool(output_size, data_format).symbolic_call(inputs)
+
+    return backend.nn.adaptive_max_pool(
+        inputs, output_size=output_size, data_format=data_format
+    )
+
+
 class AveragePool(Operation):
     def __init__(
         self,
@@ -1254,6 +1336,92 @@ def average_pool(
         ).symbolic_call(inputs)
     return backend.nn.average_pool(
         inputs, pool_size, strides, padding, data_format
+    )
+
+
+class AdaptiveAveragePool(Operation):
+    """Adaptive average pooling operation."""
+
+    def __init__(self, output_size, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.output_size = output_size
+        self.data_format = data_format
+
+    def call(self, inputs):
+        return backend.nn.adaptive_average_pool(
+            inputs, output_size=self.output_size, data_format=self.data_format
+        )
+
+    def compute_output_spec(self, inputs):
+        if self.data_format == "channels_last":
+            spatial_dims = self.output_size
+            output_shape = (
+                inputs.shape[: -len(self.output_size)]
+                + spatial_dims
+                + (inputs.shape[-1],)
+            )
+        else:
+            spatial_dims = self.output_size
+            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+
+
+@keras_export(
+    ["keras.ops.adaptive_average_pool", "keras.ops.nn.adaptive_average_pool"]
+)
+def adaptive_average_pool(
+    inputs,
+    output_size,
+    data_format=None,
+):
+    """Adaptive average pooling operation.
+
+    Applies an adaptive average pooling operation that automatically
+    computes the kernel size and stride to pool the input to the
+    specified `output_size`. This operation is useful when you want a
+    fixed output size regardless of input size, commonly used in models
+    like ResNet for global feature extraction.
+
+    Args:
+        inputs: Tensor of rank 4. Input tensor of shape:
+            - If `data_format="channels_last"`:
+                `(batch_size, height, width, channels)`.
+            - If `data_format="channels_first"`:
+                `(batch_size, channels, height, width)`.
+        output_size: Integer or tuple/list of 2 integers, specifying the target
+            output spatial dimensions `(output_height, output_width)`. If a
+            single
+            integer is provided, the same value is used for both dimensions.
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            Defaults to the value found in your Keras config file at
+            `~/.keras/keras.json`. If never set, defaults to `"channels_last"`.
+
+    Returns:
+        A tensor of rank 4 representing the adaptive average pooled result.
+
+    Example:
+
+    >>> x = np.random.rand(2, 64, 64, 3)
+    >>> y = keras.ops.adaptive_average_pool(x, output_size=(32, 32))
+    >>> y.shape
+    (2, 32, 32, 3)
+
+    >>> # Works with any input size
+    >>> x = np.random.rand(2, 100, 80, 3)
+    >>> y = keras.ops.adaptive_average_pool(x, output_size=7)
+    >>> y.shape
+    (2, 7, 7, 3)
+    """
+    if data_format is None:
+        data_format = config.image_data_format()
+
+    if any_symbolic_tensors((inputs,)):
+        return AdaptiveAveragePool(output_size, data_format).symbolic_call(
+            inputs
+        )
+
+    return backend.nn.adaptive_average_pool(
+        inputs, output_size=output_size, data_format=data_format
     )
 
 

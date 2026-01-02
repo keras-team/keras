@@ -15,6 +15,7 @@ from keras.src.backend.openvino.core import compute_output_spec
 from keras.src.backend.openvino.core import cond
 from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.backend.openvino.core import convert_to_tensor
+from keras.src.backend.openvino.core import device_scope
 from keras.src.backend.openvino.core import is_tensor
 from keras.src.backend.openvino.core import random_seed_dtype
 from keras.src.backend.openvino.core import shape

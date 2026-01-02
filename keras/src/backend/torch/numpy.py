@@ -770,6 +770,12 @@ def empty(shape, dtype=None):
     return torch.empty(size=shape, dtype=dtype, device=get_device())
 
 
+def empty_like(x, dtype=None):
+    x = convert_to_tensor(x)
+    dtype = to_torch_dtype(dtype or x.dtype)
+    return torch.empty_like(x, dtype=dtype, device=get_device())
+
+
 def equal(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.eq(x1, x2)
@@ -967,6 +973,20 @@ def lcm(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return torch.lcm(x1, x2)
+
+
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            f"ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+
+    return cast(torch.ldexp(x1, x2), dtype)
 
 
 def less(x1, x2):
@@ -1773,6 +1793,16 @@ def negative(x):
     return torch.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, torch.float64)
+    x2 = cast(x2, torch.float64)
+    return cast(torch.nextafter(x1, x2), dtype)
+
+
 def square(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "bool":
@@ -1811,6 +1841,12 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     else:
         dx = convert_to_tensor(dx)
         return torch.trapz(y, dx=dx, dim=axis)
+
+
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype)
+    return cast(torch.vander(x, N=N, increasing=increasing), result_dtype)
 
 
 def var(x, axis=None, keepdims=False):

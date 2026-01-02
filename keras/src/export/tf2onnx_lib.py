@@ -17,6 +17,9 @@ def patch_tf2onnx():
 
     logger = logging.getLogger(tf2onnx.__name__)
 
+    if not hasattr(np, "object"):
+        np.object = object
+
     def patched_rewrite_constant_fold(g, ops):
         """
         We call tensorflow transform with constant folding but in some cases

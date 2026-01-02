@@ -54,6 +54,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         layer = layers.SimpleRNN(
             4,
@@ -71,6 +73,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.SimpleRNN(
@@ -89,6 +93,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         layer = layers.SimpleRNN(
             4,
@@ -107,6 +113,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_statefulness(self):
@@ -128,6 +136,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         layer.reset_state()
         layer(sequence)
@@ -140,6 +150,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_pass_initial_state(self):
@@ -160,6 +172,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.SimpleRNN(
@@ -178,6 +192,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_masking(self):
@@ -199,6 +215,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.SimpleRNN(
@@ -219,6 +237,8 @@ class SimpleRNNTest(testing.TestCase):
                 ],
             ),
             output[0],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array(
@@ -230,6 +250,8 @@ class SimpleRNNTest(testing.TestCase):
                 ],
             ),
             output[1],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.SimpleRNN(
@@ -251,6 +273,8 @@ class SimpleRNNTest(testing.TestCase):
                 ],
             ),
             output[0],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array(
@@ -262,6 +286,8 @@ class SimpleRNNTest(testing.TestCase):
                 ],
             ),
             output[1],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.SimpleRNN(
@@ -280,4 +306,6 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )

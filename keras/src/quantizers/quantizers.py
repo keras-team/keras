@@ -73,6 +73,23 @@ def abs_max_quantize(
     epsilon=backend.epsilon(),
     to_numpy=False,
 ):
+    """
+    Quantizes the input tensor using the absolute maximum quantization scheme.
+
+    Args:
+        inputs: Input tensor to quantize.
+        axis: Axis along which to compute the quantization range.
+        value_range: Tuple of the minimum and maximum values of the quantization
+            range.
+        dtype: Data type of the quantized output.
+        epsilon: Small value to avoid division by zero.
+        to_numpy: Whether to perform the quantization in numpy. This performs
+            the computation on the host CPU and can be useful for saving memory
+            on the device. If False, the computation is performed on the device.
+
+    Returns:
+        A tuple of the quantized tensor and the scale.
+    """
     if to_numpy:
         # Save memory on the device using numpy
         original_dtype = backend.standardize_dtype(inputs.dtype)
@@ -105,31 +122,69 @@ def abs_max_quantize(
 class AbsMaxQuantizer(Quantizer):
     def __init__(
         self,
-        axis,
+        axis=None,  # Deprecated, provide axis in __call__ instead.
         value_range=(-127, 127),
         epsilon=backend.epsilon(),
         output_dtype="int8",
     ):
         Quantizer.__init__(self, output_dtype=output_dtype)
-        if isinstance(axis, int):
-            axis = (axis,)
-        self.axis = tuple(axis)
+        if axis is not None:
+            if isinstance(axis, int):
+                axis = (axis,)
+            self.axis = tuple(axis)
+        else:
+            self.axis = None
         self.value_range = value_range
         self.epsilon = epsilon
+        if output_dtype == "int8":
+            if value_range[0] < -128 or value_range[1] > 127:
+                raise ValueError(
+                    f"Quantizer with output_dtype='int8' requires value_range "
+                    f"to be within the interval [-128, 127]. Received: "
+                    f"value_range={value_range}"
+                )
 
-    def __call__(self, x):
+    def __call__(self, x, axis=None, to_numpy=False):
+        """
+        Quantizes the input tensor.
+
+        Args:
+            x: Input tensor to quantize.
+            axis: Axis along which to compute the quantization range. If None,
+                uses the axis specified in the constructor. If None and no axis
+                was specified in the constructor, defaults to -1.
+            to_numpy: Whether to perform the quantization in numpy. This
+                performs the computation on the host CPU and can be useful for
+                saving memory on the device. If False, the computation is
+                performed on the device.
+
+        Returns:
+            A tuple of the quantized tensor and the scale.
+        """
+        if axis is None:
+            axis = self.axis
+        if axis is None:
+            # Default to -1 if no axis is specified
+            axis = -1
         quantized_x, scale = abs_max_quantize(
-            x, self.axis, self.value_range, self.output_dtype, self.epsilon
+            x,
+            axis,
+            self.value_range,
+            self.output_dtype,
+            self.epsilon,
+            to_numpy,
         )
         return quantized_x, scale
 
     def get_config(self):
-        return {
-            "axis": self.axis,
+        config = {
             "value_range": self.value_range,
             "epsilon": self.epsilon,
             "output_dtype": self.output_dtype,
         }
+        if self.axis is not None:
+            config["axis"] = self.axis
+        return config
 
 
 def adjust_and_nudge(min_range, max_range, num_bits, narrow_range):
@@ -281,7 +336,7 @@ def fake_quant_with_min_max_vars(
             ops.add(ops.multiply(-nudged_min, inv_scale), 0.5)
         )
         x_clamped = ops.clip(
-            x, ops.cast(nudged_min, x.dtype), ops.cast(nudged_max, x.dtype)
+            ops.cast(x, nudged_min.dtype), nudged_min, nudged_max
         )
         x_clamped_shifted = ops.subtract(x_clamped, nudged_min)
         result = ops.multiply(
@@ -318,6 +373,7 @@ def fake_quant_with_min_max_vars(
                 grad_min = ops.sum(grad_min, axis=axes)
             else:
                 grad_min = ops.sum(grad_min)
+            grad_min = ops.reshape(grad_min, ops.shape(min_val))
 
             # Gradient for max_val
             # When x is clipped to max, the gradient flows to max_val
@@ -327,6 +383,7 @@ def fake_quant_with_min_max_vars(
                 grad_max = ops.sum(grad_max, axis=axes)
             else:
                 grad_max = ops.sum(grad_max)
+            grad_max = ops.reshape(grad_max, ops.shape(max_val))
 
             return dx, grad_min, grad_max
 

@@ -27,11 +27,11 @@ class ConvLSTMCellTest(testing.TestCase):
         )
         output = layer(x, [s1, s2])
         checksum_0 = np.sum(backend.convert_to_numpy(output[0]))
-        self.assertAllClose(checksum_0, 188.89502)
+        self.assertAllClose(checksum_0, 188.89502, tpu_atol=1e-4, tpu_rtol=1e-4)
         checksum_1 = np.sum(backend.convert_to_numpy(output[1][0]))
-        self.assertAllClose(checksum_1, 188.89502)
+        self.assertAllClose(checksum_1, 188.89502, tpu_atol=1e-4, tpu_rtol=1e-4)
         checksum_2 = np.sum(backend.convert_to_numpy(output[1][1]))
-        self.assertAllClose(checksum_2, 2170.444)
+        self.assertAllClose(checksum_2, 2170.444, tpu_atol=1e-4, tpu_rtol=1e-4)
 
 
 class ConvLSTMTest(testing.TestCase):
@@ -54,4 +54,6 @@ class ConvLSTMTest(testing.TestCase):
         )
         output = layer(x, initial_state=[s1, s2])
         output = backend.convert_to_numpy(output)
-        self.assertAllClose(np.sum(output), 119.812454)
+        self.assertAllClose(
+            np.sum(output), 119.812454, tpu_atol=1e-3, tpu_rtol=1e-3
+        )
