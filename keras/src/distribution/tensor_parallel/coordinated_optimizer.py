@@ -53,8 +53,6 @@ class CoordinatedOptimizer:
         self._state_variable_to_parameter = {}
         self._variable_to_slot_name = {}
 
-        model_vars_by_id = {id(v): v for v in self._variables}
-
         for state_var in self.base_optimizer.variables:
             if state_var is self.base_optimizer.iterations:
                 continue
@@ -62,23 +60,14 @@ class CoordinatedOptimizer:
             found_param = None
             slot_name = None
 
-            for model_var_id, model_var in model_vars_by_id.items():
-                var_id_str = str(model_var_id)
-                if var_id_str in state_var.path:
-                    if "_slot_" in state_var.path:
-                        slot_name = state_var.path.split("_slot_")[-1].split(
-                            "/"
-                        )[0]
-                    else:
-                        parts = state_var.path.split(var_id_str)
-                        if len(parts) > 1:
-                            slot_name = parts[-1].lstrip("_/").split("/")[0]
+            for model_var in self._variables:
+                if model_var.path in state_var.path:
+                    found_param = model_var
+                    suffix = state_var.path.split(model_var.path)[-1]
+                    slot_name = suffix.strip("/")
+                    break
 
-                    if slot_name:
-                        found_param = model_var
-                        break
-
-            if found_param is not None and slot_name is not None:
+            if found_param is not None and slot_name:
                 self._state_variable_to_parameter[state_var.path] = found_param
                 self._variable_to_slot_name[state_var.path] = slot_name
 
@@ -243,7 +232,8 @@ class CoordinatedOptimizer:
         for var in optimizer.variables:
             if var is optimizer.iterations:
                 if "iterations" in local_states:
-                    var.assign(local_states["iterations"])
+                    val = ops.cast(local_states["iterations"], dtype=var.dtype)
+                    var.assign(val)
                 continue
 
             param = self._state_variable_to_parameter.get(var.path, None)
@@ -257,7 +247,8 @@ class CoordinatedOptimizer:
             ):
                 local_param_state = local_states[slot_name][param.path]
                 if var.shape == local_param_state.shape:
-                    var.assign(local_param_state)
+                    val = ops.cast(local_param_state, dtype=var.dtype)
+                    var.assign(val)
 
     def _update_global_sharded_states(self, optimizer, shard_idx):
         """Updates the main sharded_states dictionary after a gradient step.
