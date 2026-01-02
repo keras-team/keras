@@ -468,9 +468,15 @@ class JaxDistributionLibTest(testing.TestCase):
     def test_all_gather(self):
         devices = jax.devices()
         num_devices = len(devices)
+        mesh = jax.sharding.Mesh(np.array(devices), axis_names=("batch",))
+        sharding = jax.sharding.NamedSharding(
+            mesh, jax.sharding.PartitionSpec("batch")
+        )
 
-        shards = [np.array([i], dtype="float32") for i in range(num_devices)]
-        input_data = jax.device_put_sharded(shards, jax.devices())
+        input_data = jax.device_put(
+            np.arange(num_devices, dtype="float32").reshape((num_devices, 1)),
+            sharding,
+        )
 
         results = backend_dlib.all_gather(input_data, axis=0, axis_name="batch")
 
