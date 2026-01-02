@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import ops
 from keras.src import optimizers
 from keras.src import saving
@@ -230,9 +231,11 @@ class CoordinatedOptimizer:
             return
 
         for var in optimizer.variables:
+            var_dtype = backend.standardize_dtype(var.dtype)
+
             if var is optimizer.iterations:
                 if "iterations" in local_states:
-                    val = ops.cast(local_states["iterations"], dtype=var.dtype)
+                    val = ops.cast(local_states["iterations"], dtype=var_dtype)
                     var.assign(val)
                 continue
 
@@ -247,7 +250,7 @@ class CoordinatedOptimizer:
             ):
                 local_param_state = local_states[slot_name][param.path]
                 if var.shape == local_param_state.shape:
-                    val = ops.cast(local_param_state, dtype=var.dtype)
+                    val = ops.cast(local_param_state, dtype=var_dtype)
                     var.assign(val)
 
     def _update_global_sharded_states(self, optimizer, shard_idx):
