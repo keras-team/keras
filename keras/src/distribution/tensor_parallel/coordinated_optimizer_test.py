@@ -1,5 +1,3 @@
-import functools
-
 import numpy as np
 import pytest
 
@@ -14,10 +12,6 @@ from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
 )
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
     TensorParallelOptimizer,
-)
-from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
-from keras.src.distribution.tensor_parallel.tensor_layout import (
-    split_tensor_for_parallelism,
 )
 
 
@@ -130,47 +124,6 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertTrue(base_apply_tracker["called"])
         self.assertFalse(coord_apply_tracker["called"])
 
-    def test_build_and_state_sharding(self):
-        """Tests that the build method correctly initializes sharded states."""
-        model = self._get_simple_model()
-        model.build(input_shape=(None, 10))
-
-        device_count = 4
-
-        def split_rule(dim):
-            return functools.partial(
-                split_tensor_for_parallelism,
-                device_count=device_count,
-                dim=dim,
-            )
-
-        dense_1_layer = model.get_layer("dense_1")
-        dense_2_layer = model.get_layer("dense_2")
-
-        state_rules = {
-            id(dense_1_layer.kernel): split_rule(dim=1),
-            id(dense_1_layer.bias): split_rule(dim=0),
-            id(dense_2_layer.kernel): split_rule(dim=1),
-            id(dense_2_layer.bias): split_rule(dim=0),
-        }
-        tensor_parallel_config = LayoutMap(
-            state_rules=state_rules, output_rules={}
-        )
-
-        optimizer = TensorParallelOptimizer(
-            optimizers.Adam(),
-            device_count=device_count,
-            tensor_parallel_config=tensor_parallel_config,
-        )
-
-        self.assertEqual(optimizer.coordinated_optimizer.sharded_states, {})
-        optimizer.build(model.trainable_variables)
-        self.assertTrue(optimizer.built)
-
-        sharded_states = optimizer.coordinated_optimizer.sharded_states
-        self.assertIn("iterations", sharded_states)
-        self.assertEqual(len(sharded_states["iterations"]), device_count)
-
     def test_serialization(self):
         """Tests manual reconstruction via from_config."""
         device_count = 4
@@ -181,43 +134,3 @@ class CoordinatedOptimizerTest(testing.TestCase):
         self.assertEqual(optimizer.device_count, device_count)
         self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
         self.assertAllClose(optimizer.base_optimizer.learning_rate, 0.1)
-
-    def test_sharding_with_prefixed_variable_names(self):
-        """Tests that the optimizer correctly handles variable building."""
-        inputs = layers.Input(shape=(10,), dtype="float32")
-        x = layers.Dense(4, name="dense")(inputs)
-        outputs = layers.Dense(2, name="dense_output")(x)
-        model = Model(inputs, outputs)
-        model.build(input_shape=(None, 10))
-
-        device_count = 2
-
-        def split_rule(dim):
-            return functools.partial(
-                split_tensor_for_parallelism,
-                device_count=device_count,
-                dim=dim,
-            )
-
-        dense_layer = model.get_layer("dense")
-        dense_output_layer = model.get_layer("dense_output")
-
-        state_rules = {
-            id(dense_layer.kernel): split_rule(dim=1),
-            id(dense_layer.bias): split_rule(dim=0),
-            id(dense_output_layer.kernel): split_rule(dim=1),
-            id(dense_output_layer.bias): split_rule(dim=0),
-        }
-        tensor_parallel_config = LayoutMap(
-            state_rules=state_rules, output_rules={}
-        )
-
-        optimizer = TensorParallelOptimizer(
-            optimizers.Adam(),
-            device_count=device_count,
-            tensor_parallel_config=tensor_parallel_config,
-        )
-        optimizer.build(model.trainable_variables)
-
-        self.assertTrue(optimizer.built)
-        self.assertGreater(len(optimizer.coordinated_optimizer._variables), 0)

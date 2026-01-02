@@ -469,11 +469,6 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         return super().update_step(gradient, variable, *args, **kwargs)
 
     def build(self, variables):
-        """Builds the optimizer and initializes sharded states.
-
-        Args:
-            variables: The list of variables to optimize.
-        """
         if self.built:
             return
 
@@ -484,7 +479,11 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             if iterations is not None:
                 original_iterations_val = ops.convert_to_numpy(iterations.value)
 
-            zero_grads = [ops.zeros_like(v) for v in variables]
+            # FIX: Use explicit dtype standardization during warm-up
+            zero_grads = [
+                ops.zeros(v.shape, dtype=backend.standardize_dtype(v.dtype))
+                for v in variables
+            ]
             self.base_optimizer.apply_gradients(zip(zero_grads, variables))
 
             if iterations is not None and original_iterations_val is not None:
