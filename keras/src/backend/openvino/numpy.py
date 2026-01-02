@@ -929,7 +929,7 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
         L = np.minimum(N + offset, M) if (N + offset) > 0 else 0
         indices = [[i - offset, i] for i in range(L)]
 
-    indices = np.array(indices, dtype=np.int32)
+    indices = np.array(indices, dtype=np.int32).reshape(L, 2)
     indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
 
     diag_gathered = ov_opset.gather_nd(x_transposed, indices_const)
