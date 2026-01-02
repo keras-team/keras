@@ -29,7 +29,7 @@ class SeedGenerator:
     a local `StateGenerator` with either a deterministic or random initial
     state.
 
-    Remark concerning the JAX backen: Note that the use of a local
+    Remark concerning the JAX backend: Note that the use of a local
     `StateGenerator` as seed argument is required for JIT compilation of
     RNG with the JAX backend, because the use of global state is not
     supported.
@@ -111,7 +111,7 @@ class SeedGenerator:
         return new_seed_value
 
     def get_config(self):
-        return {"seed": self._initial_seed}
+        return {"seed": self._initial_seed, "name": self.name}
 
     @classmethod
     def from_config(cls, config):
