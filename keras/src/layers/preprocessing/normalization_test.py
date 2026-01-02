@@ -6,6 +6,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 
 
 class NormalizationTest(testing.TestCase):
@@ -169,3 +170,35 @@ class NormalizationTest(testing.TestCase):
         input_data = np.array([[1, 2, 3]], dtype="float32")
         layer = layers.Normalization(mean=3.0, variance=2.0)
         layer(input_data)
+
+    @parameterized.parameters([("x",), ("x_and_y",), ("x_y_and_weights",)])
+    def test_adapt_pydataset_compat(self, pydataset_type):
+        import keras
+
+        class CustomDataset(PyDataset):
+            def __len__(self):
+                return 100
+
+            def __getitem__(self, idx):
+                x = np.random.rand(32, 32, 3)
+                y = np.random.randint(0, 10, size=(1,))
+                weights = np.random.randint(0, 10, size=(1,))
+                if pydataset_type == "x":
+                    return x
+                elif pydataset_type == "x_and_y":
+                    return x, y
+                elif pydataset_type == "x_y_and_weights":
+                    return x, y, weights
+                else:
+                    raise NotImplementedError(pydataset_type)
+
+        normalizer = keras.layers.Normalization()
+        normalizer.adapt(CustomDataset())
+        self.assertTrue(normalizer.built)
+        self.assertIsNotNone(normalizer.mean)
+        self.assertIsNotNone(normalizer.variance)
+        self.assertEqual(normalizer.mean.shape[-1], 3)
+        self.assertEqual(normalizer.variance.shape[-1], 3)
+        sample_input = np.random.rand(1, 32, 32, 3)
+        output = normalizer(sample_input)
+        self.assertEqual(output.shape, (1, 32, 32, 3))

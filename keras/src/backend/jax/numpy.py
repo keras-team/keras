@@ -678,6 +678,10 @@ def empty(shape, dtype=None):
     return jnp.empty(shape, dtype=dtype)
 
 
+def empty_like(x, dtype=None):
+    return jnp.empty_like(x, dtype=dtype)
+
+
 def equal(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -839,6 +843,19 @@ def lcm(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.lcm(x1, x2)
+
+
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            f"ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+
+    return jnp.ldexp(x1, x2)
 
 
 def less(x1, x2):
@@ -1334,6 +1351,12 @@ def negative(x):
     return jnp.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.nextafter(x1, x2)
+
+
 @sparse.elementwise_unary(linear=False)
 def square(x):
     x = convert_to_tensor(x)
@@ -1379,6 +1402,11 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         x = convert_to_tensor(x)
     dx = convert_to_tensor(dx)
     return jnp.trapezoid(y, x, dx=dx, axis=axis)
+
+
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    return jnp.vander(x, N=N, increasing=increasing)
 
 
 def var(x, axis=None, keepdims=False):

@@ -116,3 +116,31 @@ class RematTest(testing.TestCase):
             batch_size=batch_size,
             verbose=0,
         )
+
+    def test_remat_with_kwargs(self):
+        if backend.backend() in ("openvino", "numpy"):
+            self.skipTest(
+                "remat is not supported in openvino and numpy backends."
+            )
+
+        # Define a function that uses keyword arguments
+        def fn_with_kwargs(x, scale=1.0, offset=0.0):
+            return x * scale + offset
+
+        x = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+
+        # Test with keyword arguments
+        remat_fn = backend.core.remat(fn_with_kwargs)
+        result_with_kwargs = remat_fn(x, scale=2.0, offset=1.0)
+        expected = fn_with_kwargs(x, scale=2.0, offset=1.0)
+        self.assertAllClose(result_with_kwargs, expected)
+
+        # Test with default keyword arguments
+        result_with_defaults = remat_fn(x)
+        expected_defaults = fn_with_kwargs(x)
+        self.assertAllClose(result_with_defaults, expected_defaults)
+
+        # Test with partial keyword arguments
+        result_partial = remat_fn(x, scale=3.0)
+        expected_partial = fn_with_kwargs(x, scale=3.0)
+        self.assertAllClose(result_partial, expected_partial)

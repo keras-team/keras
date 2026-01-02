@@ -55,6 +55,8 @@ class RegularizersTest(testing.TestCase):
                 np.abs(np.dot(inputs, np.transpose(inputs)) * (1.0 - np.eye(4)))
             )
             / (4.0 * (4.0 - 1.0) / 2.0),
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
         )
 
     def test_get_method(self):

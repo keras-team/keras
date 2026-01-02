@@ -12,10 +12,50 @@ from keras.src import models
 from keras.src import ops
 from keras.src import quantizers
 from keras.src import saving
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_case
 
 
 class EmbeddingTest(test_case.TestCase):
+    @parameterized.named_parameters(
+        ("int8", "int8", {"axis": -1}),
+        (
+            "int4",
+            "int4",
+            {"axis": -1, "value_range": (-8, 7), "output_dtype": "int8"},
+        ),
+        ("int8_custom", "int8", {"axis": -1}),
+    )
+    def test_embedding_quantize_config(self, mode, weight_quantizer_args):
+        """Test Embedding quantization with QuantizationConfig."""
+        layer = layers.Embedding(input_dim=10, output_dim=6)
+        layer.build((None,))
+
+        weight_quantizer = AbsMaxQuantizer(**weight_quantizer_args)
+        if mode == "int8":
+            config = Int8QuantizationConfig(
+                weight_quantizer=weight_quantizer, activation_quantizer=None
+            )
+        elif mode == "int4":
+            config = Int4QuantizationConfig(
+                weight_quantizer=weight_quantizer, activation_quantizer=None
+            )
+
+        layer.quantize(mode, config=config)
+
+        # Verify weights are quantized
+        self.assertEqual(
+            backend.standardize_dtype(layer._embeddings.dtype), "int8"
+        )
+        self.assertTrue(hasattr(layer, "embeddings_scale"))
+
+        # Verify call works
+        x = np.random.randint(0, 10, size=(2, 3))
+        y = layer(x)
+        self.assertEqual(y.shape, (2, 3, 6))
+
     @pytest.mark.requires_trainable_backend
     def test_embedding_basics(self):
         self.run_layer_test(
@@ -239,7 +279,9 @@ class EmbeddingTest(test_case.TestCase):
 
         # Verify that the effective embeddings match expectation.
         actual_embeddings = ops.convert_to_numpy(layer.embeddings)
-        self.assertAllClose(actual_embeddings, expected_embeddings)
+        self.assertAllClose(
+            actual_embeddings, expected_embeddings, tpu_atol=1e-3, tpu_rtol=1e-3
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
@@ -583,3 +625,32 @@ class EmbeddingTest(test_case.TestCase):
         layer.load_own_variables(int4_store)
         self.assertAllClose(layer._embeddings, int4_store["0"])
         self.assertAllClose(layer.embeddings_scale, int4_store["1"])
+
+    def test_embedding_int8_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for embedding layer with
+        int8 quantization.
+        """
+        # Setup
+        weight_range = (-50, 50)
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=-1, value_range=weight_range),
+        )
+
+        # Build & Quantize
+        layer = layers.Embedding(input_dim=100, output_dim=16)
+        layer.build(None)
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Embedding.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        quantizer = new_layer.quantization_config.weight_quantizer
+        self.assertIsInstance(quantizer, AbsMaxQuantizer)
+        self.assertEqual(quantizer.axis, (-1,))
+        self.assertAllEqual(quantizer.value_range, weight_range)

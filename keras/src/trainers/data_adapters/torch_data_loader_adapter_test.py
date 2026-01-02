@@ -26,10 +26,7 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
@@ -38,6 +35,9 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)
@@ -94,10 +94,7 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
             self.assertIsNone(adapter.has_partial_batch)
             self.assertIsNone(adapter.partial_batch_size)
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-            expected_class = np.ndarray
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
             expected_class = tf.Tensor
         elif backend.backend() == "jax":
@@ -106,6 +103,9 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        else:
+            it = adapter.get_numpy_iterator()
+            expected_class = np.ndarray
 
         batch_count = 0
         for i, batch in enumerate(it):
@@ -148,14 +148,14 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         self.assertEqual(adapter.has_partial_batch, True)
         self.assertEqual(adapter.partial_batch_size, 2)
 
-        if backend.backend() == "numpy":
-            it = adapter.get_numpy_iterator()
-        elif backend.backend() == "tensorflow":
+        if backend.backend() == "tensorflow":
             it = adapter.get_tf_dataset()
         elif backend.backend() == "jax":
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        else:
+            it = adapter.get_numpy_iterator()
 
         for i, batch in enumerate(it):
             self.assertEqual(len(batch), 2)

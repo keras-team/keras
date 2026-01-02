@@ -173,7 +173,12 @@ class RandomPerspectiveTest(testing.TestCase):
         )
 
         self.assertAllClose(
-            output["boxes"], expected_boxes, atol=1e-3, rtol=1e-3
+            output["boxes"],
+            expected_boxes,
+            atol=1e-3,
+            rtol=1e-3,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     @parameterized.named_parameters(

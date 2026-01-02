@@ -818,6 +818,31 @@ class ModelTest(testing.TestCase):
                 self.assertLen(list(model.named_parameters()), 16)
 
     @parameterized.named_parameters(
+        ("regex_string", "dense_1", ["dense_1"]),
+        ("list_of_regex", ["dense_1", "output"], ["dense_1", "output"]),
+        ("callable", lambda l: "dense" in l.name, ["dense_1", "dense_2"]),
+    )
+    def test_quantize_with_filters(self, filters, expected_quantized_layers):
+        mode = "int8"
+        inputs = layers.Input([3])
+        x = layers.Dense(32, name="dense_1")(inputs)
+        x = layers.Dense(32, name="dense_2")(x)
+        outputs = layers.Dense(32, name="output")(x)
+        model = Model(inputs, outputs)
+
+        model.quantize(mode, filters=filters)
+
+        for layer in model._flatten_layers():
+            if layer.name in expected_quantized_layers:
+                self.assertEqual(
+                    layer.dtype_policy.name, f"{mode}_from_float32"
+                )
+            elif isinstance(layer, layers.Dense):
+                self.assertNotEqual(
+                    layer.dtype_policy.name, f"{mode}_from_float32"
+                )
+
+    @parameterized.named_parameters(
         ("int8", "int8"),
         ("float8", "float8"),
     )

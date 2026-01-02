@@ -612,6 +612,10 @@ def empty(shape, dtype=None):
     return np.empty(shape, dtype=dtype)
 
 
+def empty_like(x, dtype=None):
+    return np.empty_like(x, dtype=dtype)
+
+
 def equal(x1, x2):
     return np.equal(x1, x2)
 
@@ -767,6 +771,19 @@ def lcm(x1, x2):
     x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     return np.lcm(x1, x2).astype(dtype)
+
+
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            f"ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+    return np.ldexp(x1, x2).astype(dtype)
 
 
 def less(x1, x2):
@@ -1318,6 +1335,14 @@ def negative(x):
     return np.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    return np.nextafter(x1, x2).astype(dtype)
+
+
 def square(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "bool":
@@ -1353,6 +1378,14 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         x = convert_to_tensor(x)
     dx = convert_to_tensor(dx)
     return np.trapezoid(y, x, dx=dx, axis=axis).astype(result_dtype)
+
+
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, config.floatx())
+    x = x.astype(compute_dtype)
+    return np.vander(x, N=N, increasing=increasing).astype(result_dtype)
 
 
 def var(x, axis=None, keepdims=False):

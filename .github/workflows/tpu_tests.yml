@@ -1,0 +1,53 @@
+name: Keras TPU Tests
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    types: [labeled]
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+
+  test-in-container:
+    name: Run tests on TPU
+    runs-on: linux-x86-ct6e-44-1tpu
+    # Only run on pushes to master, releases or "run_tpu_tests" labels
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'run_tpu_tests')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [jax]
+
+    container:
+      image: python:3.11-slim
+      options: --privileged --network host
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      - name: Install Dependencies
+        run: |
+          pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt \
+      
+      - name: Set Keras Backend
+        run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
+
+      - name: Run Verification and Tests
+        run: |
+          echo "Successfully running inside the public python container!"
+          echo "Verifying JAX installation..."
+          python3 -c "import jax; print(f'JAX backend: {jax.default_backend()}'); print(f'JAX devices : {jax.devices()}')"
+
+          pytest keras --ignore keras/src/applications \
+                      --cov=keras \
+                      --cov-config=pyproject.toml

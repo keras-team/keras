@@ -1359,11 +1359,7 @@ def deg2rad(x):
 def diag(x, k=0):
     x = convert_to_tensor(x)
     if len(x.shape) == 1:
-        return tf.cond(
-            tf.equal(tf.size(x), 0),
-            lambda: tf.zeros([builtins.abs(k), builtins.abs(k)], dtype=x.dtype),
-            lambda: tf.linalg.diag(x, k=k),
-        )
+        return tf.linalg.diag(x, k=k)
     elif len(x.shape) == 2:
         return diagonal(x, offset=k)
     else:
@@ -1487,6 +1483,10 @@ def dot(x1, x2):
 def empty(shape, dtype=None):
     dtype = dtype or config.floatx()
     return tf.zeros(shape, dtype=dtype)
+
+
+def empty_like(x, dtype=None):
+    return tf.zeros_like(x, dtype=dtype)
 
 
 def equal(x1, x2):
@@ -1838,6 +1838,23 @@ def lcm(x1, x2):
     result = tf.where(divisor == 0, tf.zeros_like(result), result)
 
     return result
+
+
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            f"ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, x1.dtype)
+    result = x1 * tf.pow(tf.constant(2.0, dtype=x1.dtype), x2)
+    return tf.cast(tf.where(tf.math.is_inf(x1) | (x1 == 0), x1, result), dtype)
 
 
 def less(x1, x2):
@@ -2738,19 +2755,33 @@ def round(x, decimals=0):
 
 def tile(x, repeats):
     x = convert_to_tensor(x)
-    repeats = tf.reshape(convert_to_tensor(repeats, dtype="int32"), [-1])
-    repeats_size = tf.size(repeats)
-    repeats = tf.pad(
-        repeats,
-        [[tf.maximum(x.shape.rank - repeats_size, 0), 0]],
-        constant_values=1,
-    )
-    x_shape = tf.pad(
-        tf.shape(x),
-        [[tf.maximum(repeats_size - x.shape.rank, 0), 0]],
-        constant_values=1,
-    )
-    x = tf.reshape(x, x_shape)
+
+    # Convert repeats to a list (works for both sequences and 1D tensors)
+    if isinstance(repeats, int):
+        repeats = [repeats]
+    else:
+        repeats = [v for v in repeats]
+
+    # Process list elements: convert concrete scalar tensors to Python ints
+    processed_repeats = []
+    for r in repeats:
+        if hasattr(r, "numpy") and r.shape == ():
+            processed_repeats.append(int(r.numpy()))
+        else:
+            processed_repeats.append(r)
+    repeats = processed_repeats
+
+    # Get x rank
+    x_rank = x.shape.rank
+
+    # Pad repeats if needed
+    if len(repeats) < x_rank:
+        repeats = [1] * (x_rank - len(repeats)) + repeats
+
+    # Add dimensions to x if needed using tf.expand_dims
+    while len(repeats) > x.shape.rank:
+        x = tf.expand_dims(x, 0)
+
     return tf.tile(x, repeats)
 
 
@@ -2986,6 +3017,16 @@ def negative(x):
     return tf.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, tf.float64)
+    x2 = tf.cast(x2, tf.float64)
+    return tf.cast(tf.math.nextafter(x1, x2), dtype)
+
+
 @sparse.elementwise_unary
 def square(x):
     x = convert_to_tensor(x)
@@ -3074,6 +3115,27 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     result = tf.reduce_sum(avg_heights * dx_array, axis=-1)
 
     return result
+
+
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype)
+
+    if N is None:
+        N = shape_op(x)[0]
+
+    if increasing:
+        powers = tf.range(N)
+    else:
+        powers = tf.range(N - 1, -1, -1)
+
+    x_exp = tf.expand_dims(x, axis=-1)
+
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    vander = tf.math.pow(
+        tf.cast(x_exp, compute_dtype), tf.cast(powers, compute_dtype)
+    )
+    return tf.cast(vander, result_dtype)
 
 
 def var(x, axis=None, keepdims=False):
