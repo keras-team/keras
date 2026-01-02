@@ -15,7 +15,6 @@ from keras.src import models
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
-from keras.src.utils import module_utils
 
 if backend.backend() == "jax":
     # Due to https://github.com/google/jax/issues/17188, we can't
@@ -34,19 +33,6 @@ if backend.backend() == "jax":
     reason="Backend specific test and requires 8 devices",
 )
 class JaxDistributionLibTest(testing.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls._orig_tf_available = getattr(
-            module_utils.tensorflow, "_available", None
-        )
-        module_utils.tensorflow._available = False
-
-    @classmethod
-    def tearDownClass(cls):
-        module_utils.tensorflow._available = cls._orig_tf_available
-        super().tearDownClass()
-
     def _create_jax_layout(self, sharding):
         # Use jax_layout.Format or jax_layout.Layout if available.
         if hasattr(jax_layout, "Format"):
