@@ -28,7 +28,7 @@ from keras.src.distribution.tensor_parallel.tensor_layout import (
 class CoordinatedOptimizerTest(testing.TestCase):
     def _get_simple_model(self):
         """Creates a simple, uncompiled Keras model."""
-        inputs = layers.Input(shape=(10,))
+        inputs = layers.Input(shape=(10,), dtype="float32")
         x = layers.Dense(20, name="dense_1")(inputs)
         outputs = layers.Dense(5, name="dense_2")(x)
         return Model(inputs, outputs)
@@ -40,12 +40,15 @@ class CoordinatedOptimizerTest(testing.TestCase):
         grads_and_vars_per_shard = []
         for i in range(device_count):
             multiplier = float(i + 1)
-            gradients = [
-                ops.convert_to_tensor(
-                    np.ones_like(v.numpy()) * multiplier, dtype="float32"
+            gradients = []
+            for v in variables:
+                v_dtype = backend.standardize_dtype(v.dtype)
+
+                grad = ops.convert_to_tensor(
+                    np.ones_like(v.numpy()) * multiplier, dtype=v_dtype
                 )
-                for v in variables
-            ]
+                gradients.append(grad)
+
             grads_and_vars_per_shard.append(list(zip(gradients, variables)))
         return grads_and_vars_per_shard
 
@@ -181,7 +184,7 @@ class CoordinatedOptimizerTest(testing.TestCase):
 
     def test_sharding_with_prefixed_variable_names(self):
         """Tests that the optimizer correctly handles variable building."""
-        inputs = layers.Input(shape=(10,))
+        inputs = layers.Input(shape=(10,), dtype="float32")
         x = layers.Dense(4, name="dense")(inputs)
         outputs = layers.Dense(2, name="dense_output")(x)
         model = Model(inputs, outputs)
