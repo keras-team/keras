@@ -4,6 +4,7 @@ from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import ops
 from keras.src import testing
 
 
@@ -75,3 +76,157 @@ class RandomRotationTest(testing.TestCase):
         ).reshape(input_shape[1:])
         output = next(iter(ds)).numpy()
         self.assertAllClose(expected_output, output)
+
+    def test_random_rotation_fill_mode_crop(self):
+        """Test that `fill_mode="crop"` is accepted by the layer."""
+        layer = layers.RandomRotation(factor=0.2, fill_mode="crop")
+        self.assertEqual(layer.fill_mode, "crop")
+
+    def test_random_rotation_crop_output_shape(self):
+        """Test that crop mode preserves the input shape for batched inputs."""
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 32, 48, 3)
+        else:
+            input_shape = (2, 3, 32, 48)
+
+        layer = layers.RandomRotation(factor=0.2, fill_mode="crop", seed=42)
+        images = np.random.randint(0, 256, input_shape, dtype="uint8")
+
+        output = layer(images, training=True)
+        self.assertEqual(output.shape, images.shape)
+
+    def test_random_rotation_crop_dict_input(self):
+        """Test crop mode with dict inputs (images + segmentation masks)."""
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (2, 32, 32, 3)
+            mask_shape = (2, 32, 32, 1)
+        else:
+            image_shape = (2, 3, 32, 32)
+            mask_shape = (2, 1, 32, 32)
+
+        layer = layers.RandomRotation(factor=0.2, fill_mode="crop", seed=42)
+        masks = np.random.randint(0, 5, mask_shape, dtype="uint8")
+        data = {
+            "images": np.random.randint(0, 256, image_shape, dtype="uint8"),
+            "segmentation_masks": masks,
+        }
+
+        result = layer(data, training=True)
+        self.assertIsInstance(result, dict)
+        self.assertIn("images", result)
+        self.assertIn("segmentation_masks", result)
+        self.assertEqual(result["images"].shape, image_shape)
+        self.assertEqual(result["segmentation_masks"].shape, mask_shape)
+
+        out_masks = ops.convert_to_numpy(result["segmentation_masks"])
+        in_unique = set(np.unique(masks.astype("float32")))
+        out_unique = set(np.unique(out_masks))
+
+        # Output can only have: input values + padding (0)
+        max_allowed = in_unique | {0}
+        unexpected = out_unique - max_allowed
+
+        self.assertEqual(
+            len(unexpected),
+            0,
+            msg=f"Output has unexpected values: {unexpected}",
+        )
+
+    def test_random_rotation_invalid_fill_mode(self):
+        """Test that an invalid `fill_mode` raises `NotImplementedError`."""
+        with self.assertRaisesRegex(NotImplementedError, "Unknown `fill_mode`"):
+            layers.RandomRotation(factor=0.2, fill_mode="invalid_mode")
+
+    def test_random_rotation_crop_removes_constant_fill(self):
+        """Test that crop mode avoids introducing `fill_value` pixels."""
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (1, 32, 48, 1)
+        else:
+            image_shape = (1, 1, 32, 48)
+
+        images = np.ones(image_shape, dtype="float32")
+
+        angle_factor = (0.25, 0.25)
+        fill_value = 123.0
+
+        layer_constant = layers.RandomRotation(
+            factor=angle_factor,
+            fill_mode="constant",
+            fill_value=fill_value,
+            interpolation="nearest",
+            seed=1337,
+        )
+        layer_crop = layers.RandomRotation(
+            factor=angle_factor,
+            fill_mode="crop",
+            interpolation="nearest",
+            seed=1337,
+        )
+
+        out_constant = ops.convert_to_numpy(
+            layer_constant(images, training=True)
+        )
+        out_crop = ops.convert_to_numpy(layer_crop(images, training=True))
+
+        constant_fill_count = np.sum(np.isclose(out_constant, fill_value))
+        crop_fill_count = np.sum(np.isclose(out_crop, fill_value))
+
+        self.assertGreater(
+            constant_fill_count,
+            0,
+            msg="Constant fill should introduce fill_value pixels",
+        )
+        self.assertEqual(
+            crop_fill_count,
+            0,
+            msg="Crop mode should not have fill_value pixels after center-crop",
+        )
+
+    def test_random_rotation_crop_unbatched_preserves_shape(self):
+        """Test that crop mode preserves shape for unbatched (rank-3) inputs."""
+        if backend.config.image_data_format() == "channels_last":
+            x = np.ones((32, 48, 1), dtype="float32")  # HWC
+        else:
+            x = np.ones((1, 32, 48), dtype="float32")  # CHW
+
+        layer = layers.RandomRotation(
+            factor=(0.25, 0.25), fill_mode="crop", seed=7
+        )
+        y = layer(x, training=True)
+        self.assertEqual(y.shape, x.shape)
+
+    def test_random_rotation_crop_with_bounding_boxes(self):
+        """Test crop mode works with bounding boxes."""
+        if backend.config.image_data_format() == "channels_last":
+            image_shape = (2, 224, 224, 3)
+        else:
+            image_shape = (2, 3, 224, 224)
+
+        layer = layers.RandomRotation(
+            factor=0.2, fill_mode="crop", bounding_box_format="xyxy", seed=42
+        )
+
+        boxes = {
+            "boxes": np.array(
+                [
+                    [[10, 10, 50, 50], [60, 60, 100, 100]],
+                    [[20, 20, 80, 80], [120, 120, 180, 180]],
+                ],
+                dtype="float32",
+            ),
+            "labels": np.array([[1, 2], [3, 4]], dtype="int32"),
+        }
+
+        data = {
+            "images": np.random.randint(0, 256, image_shape, dtype="uint8"),
+            "bounding_boxes": boxes,
+        }
+
+        result = layer(data, training=True)
+
+        self.assertIsInstance(result, dict)
+        self.assertIn("images", result)
+        self.assertIn("bounding_boxes", result)
+        self.assertEqual(result["images"].shape, image_shape)
+        self.assertEqual(result["bounding_boxes"]["boxes"].shape, (2, 2, 4))
+        self.assertEqual(result["bounding_boxes"]["labels"].shape, (2, 2))
