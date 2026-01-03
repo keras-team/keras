@@ -236,14 +236,11 @@ class Normalization(DataLayer):
                 # handling (x, y) or (x, y, sample_weight)
                 data = data[0]
             input_shape = data.shape
-        elif isinstance(data, (list, tuple)):
-            data = np.array(data)
-            input_shape = data.shape
         else:
             raise TypeError(
                 f"Unsupported data type: {type(data)}. `adapt` supports "
                 f"`np.ndarray`, backend tensors, `tf.data.Dataset`, "
-                f"`keras.utils.PyDataset`, `list`, and `tuple`."
+                f"`keras.utils.PyDataset`"
             )
 
         if not self.built:
