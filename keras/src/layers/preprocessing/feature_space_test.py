@@ -638,3 +638,28 @@ class FeatureSpaceTest(testing.TestCase):
                 }
             )
             fs.get_encoded_features()
+
+    def test_adapt_with_dict(self):
+        fs = feature_space.FeatureSpace(
+            features={
+                "float_1": "float",
+                "float_2": "float_normalized",
+                "float_3": "float_discretized",
+                "string_1": "string_categorical",
+                "string_2": "string_hashed",
+                "int_1": "integer_categorical",
+                "int_2": "integer_hashed",
+                "int_3": "integer_categorical",
+            },
+            crosses=[("float_3", "string_1"), ("string_2", "int_2")],
+            output_mode="concat",
+        )
+        # Adapt with dict
+        train_data = self._get_train_data_dict(as_dataset=False)
+        fs.adapt(train_data)
+
+        # Build checks
+        data = {key: value[0] for key, value in train_data.items()}
+        out = fs(data)
+        out_dim = 195
+        self.assertEqual(out.shape, (out_dim,))
