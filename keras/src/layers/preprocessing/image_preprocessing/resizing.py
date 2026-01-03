@@ -66,6 +66,16 @@ class Resizing(BaseImagePreprocessingLayer):
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+
+    Example:
+
+    ```python
+    (x_train, y_train), _ = keras.datasets.cifar10.load_data()
+    image = x_train[0]
+    resizer = keras.layers.Resizing(128, 128)
+    resized_image = resizer(image)
+    print("original:", image.shape, "resized:", resized_image.shape)
+    ```
     """
 
     _USE_BASE_FACTOR = False
