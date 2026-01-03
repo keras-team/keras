@@ -2,7 +2,7 @@ name: Keras TPU Tests
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
     types: [labeled]
   release:
@@ -16,11 +16,11 @@ jobs:
   test-in-container:
     name: Run tests on TPU
     runs-on: linux-x86-ct6e-44-1tpu
-    # Only run on pushes to master, releases or "run_tpu_tests" labels
+    # Only run on pushes to master, releases or "kokoro:force-run" label
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'run_tpu_tests')
+      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'kokoro:force-run')
 
     strategy:
       fail-fast: false
