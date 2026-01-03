@@ -259,3 +259,15 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         quantizer = new_layer.quantization_config.weight_quantizer
         self.assertIsInstance(quantizer, AbsMaxQuantizer)
         self.assertAllEqual(quantizer.value_range, weight_range)
+
+    def test_masking(self):
+        layer = layers.ReversibleEmbedding(3, 2, mask_zero=True)
+        layer.build()
+
+        out = layer(np.array(([2, 1, 0])))
+        mask = backend.get_keras_mask(out)
+        self.assertAllClose(mask, np.array([True, True, False]))
+
+        out = layer(np.array(([[1.0, 2.0], [0.0, 0.0]])), reverse=True)
+        mask = backend.get_keras_mask(out)
+        self.assertIsNone(mask)
