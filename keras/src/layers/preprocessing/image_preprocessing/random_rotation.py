@@ -315,15 +315,11 @@ class RandomRotation(BaseImagePreprocessingLayer):
             center_x=0.5,
             center_y=0.5,
             angle=transformation["angle"],
-            translate_x=self.backend.numpy.zeros(
-                [transformation["batch_size"]]
-            ),
-            translate_y=self.backend.numpy.zeros(
-                [transformation["batch_size"]]
-            ),
-            scale=self.backend.numpy.ones([transformation["batch_size"]]),
-            shear_x=self.backend.numpy.zeros([transformation["batch_size"]]),
-            shear_y=self.backend.numpy.zeros([transformation["batch_size"]]),
+            translate_x=ops.numpy.zeros([transformation["batch_size"]]),
+            translate_y=ops.numpy.zeros([transformation["batch_size"]]),
+            scale=ops.numpy.ones([transformation["batch_size"]]),
+            shear_x=ops.numpy.zeros([transformation["batch_size"]]),
+            shear_y=ops.numpy.zeros([transformation["batch_size"]]),
             height=padded_h,
             width=padded_w,
         )
@@ -368,13 +364,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
         if not training:
             return bounding_boxes
 
-        ops_backend = self.backend
+        ops = self.backend
         height = transformation["image_height"]
         width = transformation["image_width"]
-        batch_size = transformation["batch_size"]
 
-        # Keras preprocessing bbox dict: {"boxes": ..., "labels": ...}
-        # Convert to xyxy for rotation, then clip and convert back.
         bounding_boxes = converters.convert_format(
             bounding_boxes,
             source=self.bounding_box_format,
@@ -383,15 +376,19 @@ class RandomRotation(BaseImagePreprocessingLayer):
             width=width,
         )
 
+        angle = transformation["angle"]
+        zeros = ops.numpy.zeros_like(angle)
+        ones = ops.numpy.ones_like(angle)
+
         boxes = bounding_boxes["boxes"]
         boxes = converters.affine_transform(
             boxes=boxes,
-            angle=transformation["angle"],
-            translate_x=ops_backend.numpy.zeros([batch_size]),
-            translate_y=ops_backend.numpy.zeros([batch_size]),
-            scale=ops_backend.numpy.ones([batch_size]),
-            shear_x=ops_backend.numpy.zeros([batch_size]),
-            shear_y=ops_backend.numpy.zeros([batch_size]),
+            angle=angle,
+            translate_x=zeros,
+            translate_y=zeros,
+            scale=ones,
+            shear_x=zeros,
+            shear_y=zeros,
             height=height,
             width=width,
         )
@@ -444,12 +441,12 @@ class RandomRotation(BaseImagePreprocessingLayer):
         return self._maybe_unbatch(out, was_unbatched)
 
     def get_random_transformation(self, data, training=True, seed=None):
-        ops_backend = self.backend
+        ops = self.backend
         if not training:
             return None
 
         images = data["images"] if isinstance(data, dict) else data
-        shape = ops.shape(images)
+        shape = ops.core.shape(images)
         ndim = len(shape)
 
         if ndim == 4:
@@ -470,37 +467,37 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 image_width = shape[2]
 
         if seed is None:
-            seed = self._get_seed_generator(ops_backend._backend)
+            seed = self._get_seed_generator(ops._backend)
 
-        lower = self.factor[0] * 360.0
-        upper = self.factor[1] * 360.0
-        angle = ops_backend.random.uniform(
+        angle = ops.random.uniform(
             shape=(batch_size,),
-            minval=lower,
-            maxval=upper,
+            minval=self.factor[0] * 360.0,
+            maxval=self.factor[1] * 360.0,
             seed=seed,
         )
 
-        center_x, center_y = 0.5, 0.5
         rotation_matrix = self._compute_affine_matrix(
-            center_x=center_x,
-            center_y=center_y,
+            center_x=0.5,
+            center_y=0.5,
             angle=angle,
-            translate_x=ops_backend.numpy.zeros([batch_size]),
-            translate_y=ops_backend.numpy.zeros([batch_size]),
-            scale=ops_backend.numpy.ones([batch_size]),
-            shear_x=ops_backend.numpy.zeros([batch_size]),
-            shear_y=ops_backend.numpy.zeros([batch_size]),
+            translate_x=ops.numpy.zeros([batch_size]),
+            translate_y=ops.numpy.zeros([batch_size]),
+            scale=ops.numpy.ones([batch_size]),
+            shear_x=ops.numpy.zeros([batch_size]),
+            shear_y=ops.numpy.zeros([batch_size]),
             height=image_height,
             width=image_width,
         )
 
+        if ndim == 3:
+            rotation_matrix = ops.numpy.squeeze(rotation_matrix, axis=0)
+
         return {
             "angle": angle,
             "rotation_matrix": rotation_matrix,
-            "image_height": image_height,
-            "image_width": image_width,
-            "batch_size": batch_size,
+            "image_height": ops.core.cast(image_height, "int32"),
+            "image_width": ops.core.cast(image_width, "int32"),
+            "batch_size": ops.core.cast(batch_size, "int32"),
         }
 
     def compute_output_shape(self, input_shape):
