@@ -239,8 +239,8 @@ class Normalization(DataLayer):
         else:
             raise TypeError(
                 f"Unsupported data type: {type(data)}. `adapt` supports "
-                f"`np.ndarray`, backend tensors, `tf.data.Dataset`, "
-                f"`keras.utils.PyDataset`"
+                f"`np.ndarray`, backend tensors, `tf.data.Dataset`, and "
+                f"`keras.utils.PyDataset`."
             )
 
         if not self.built:
