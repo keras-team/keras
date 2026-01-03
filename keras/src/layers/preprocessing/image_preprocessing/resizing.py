@@ -70,17 +70,11 @@ class Resizing(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    import keras
-
     (x_train, y_train), _ = keras.datasets.cifar10.load_data()
-
     image = x_train[0]
-
     resizer = keras.layers.Resizing(128, 128)
     resized_image = resizer(image)
-
-    print("Original:", image.shape)
-    print("Resized:", resized_image.shape)
+    print("original:", image.shape, "resized:", resized_image.shape)
     ```
     """
 
