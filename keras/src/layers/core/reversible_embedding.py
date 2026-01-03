@@ -1,14 +1,13 @@
 import copy
 
-from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import ops
 from keras.src import quantizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
-from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.backend import set_keras_mask
+from keras.src.quantizers.quantization_config import QuantizationConfig
 
 
 @keras_export("keras.layers.ReversibleEmbedding")
