@@ -62,6 +62,30 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
+    Example:
+
+    ```python
+    # Create a RandomElasticTransform layer
+    # This creates wave-like distortions in the image
+    elastic_transform = keras.layers.RandomElasticTransform(
+        factor=1.0,
+        scale=(50, 100)  # Control the magnitude of distortion
+    )
+
+    image = np.random.randint(0, 255, (224, 224, 3), dtype='uint8')
+
+    # Apply elastic deformation
+    # The image will appear warped/stretched like elastic material
+    output = elastic_transform(image, training=True)
+
+    # For more subtle distortions
+    subtle_elastic = keras.layers.RandomElasticTransform(
+        factor=0.5,
+        scale=(10, 30),
+        fill_mode="reflect"
+    )
+    subtle_output = subtle_elastic(image, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False

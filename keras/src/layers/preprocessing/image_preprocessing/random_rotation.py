@@ -75,6 +75,32 @@ class RandomRotation(BaseImagePreprocessingLayer):
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
+
+    Example:
+
+    ```python
+    import keras
+    import numpy as np
+
+    # Create a RandomRotation layer
+    # rotation happens between -20% and 20% of 360 degrees
+    rotation_layer = keras.layers.RandomRotation(factor=0.2)
+
+    # sample images
+    images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
+
+    rotated_images = rotation_layer(images, training=True)
+
+    # At inference time, no rotation is applied
+    output = rotation_layer(images, training=False)
+
+    # Rotate with custom fill mode
+    rotation_layer = keras.layers.RandomRotation(
+        factor=0.3,
+        fill_mode="constant",
+        fill_value=127
+    )
+    ```
     """
 
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")

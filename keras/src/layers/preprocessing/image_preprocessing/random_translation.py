@@ -87,6 +87,19 @@ class RandomTranslation(BaseImagePreprocessingLayer):
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+
+    Example:
+
+    ```python
+    translation_layer = keras.layers.RandomTranslation(
+        height_factor=0.2, width_factor=0.2
+    )
+
+    images = [...]  # your input image
+
+    # Apply random translation
+    output = translation_layer(images, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False

@@ -22,6 +22,26 @@ class RandomPosterization(BaseImagePreprocessingLayer):
             values within `value_range`. Defaults to `(0, 255)`.
         factor: integer, the number of bits to keep for each channel. Must be a
             value between 1-8.
+
+    Example:
+
+    ```python
+    # Create a RandomPosterization layer with 4 bits
+    random_posterization = keras.layers.RandomPosterization(factor=4)
+
+    # Your input image
+    image = [...]  # your input image
+
+    # Apply posterization
+    output = random_posterization(image)
+
+    # For more extreme posterization with 2 bits
+    extreme_posterization = keras.layers.RandomPosterization(
+        factor=2,
+        value_range=[0.0, 1.0]
+    )
+    output_extreme = extreme_posterization(image)
+    ```
     """
 
     _USE_BASE_FACTOR = False

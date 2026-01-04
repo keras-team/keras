@@ -30,6 +30,26 @@ class RandomInvert(BaseImagePreprocessingLayer):
             represents the upper bound. Images passed to the layer should have
             values within `value_range`. Defaults to `(0, 255)`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create a RandomInvert layer with default factor
+    random_invert = keras.layers.RandomInvert(factor=0.5)
+
+    # Your input image
+    image = [...]  # your input image
+
+    # Apply random color inversion
+    output = random_invert(image, training=True)
+
+    # For always inverting colors with custom value range
+    invert_always = keras.layers.RandomInvert(
+        factor=1.0,
+        value_range=[0.0, 1.0]
+    )
+    output_inverted = invert_always(image, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False

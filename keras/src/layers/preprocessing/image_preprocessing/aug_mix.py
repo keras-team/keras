@@ -71,6 +71,28 @@ class AugMix(BaseImagePreprocessingLayer):
         interpolation: The interpolation method to use for resizing operations.
             Options include `"nearest"`, `"bilinear"`. Default is `"bilinear"`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create an AugMix layer
+    augmix = keras.layers.AugMix(
+        value_range=(0, 255),
+        num_chains=3,  # Creates 3 different augmentation chains
+        chain_depth=3, # Each chain applies up to 3 random augmentations
+        factor=0.3,    # Controls the strength of augmentations
+        all_ops=True
+    )
+
+    # Sample images
+    images = np.random.randint(0, 255, (8, 224, 224, 3), dtype='uint8')
+
+    # Each image is augmented in 3 different ways (chains) and then mixed
+    augmented_images = augmix(images, training=True)
+
+    # At inference, no augmentation is applied
+    output = augmix(images, training=False)
+    ```
     """
 
     _USE_BASE_FACTOR = False

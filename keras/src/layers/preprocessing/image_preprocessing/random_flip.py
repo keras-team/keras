@@ -46,6 +46,16 @@ class RandomFlip(BaseImagePreprocessingLayer):
         seed: Integer. Used to create a random seed.
         **kwargs: Base layer keyword arguments, such as
             `name` and `dtype`.
+
+    Example:
+
+    ```python
+    flip_layer = keras.layers.RandomFlip(mode="horizontal_and_vertical")
+
+    images = np.random.randint(0, 255, (4, 224, 224, 3), dtype='uint8')
+    # Random horizontal and vertical flip during training
+    output = flip_layer(images, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False

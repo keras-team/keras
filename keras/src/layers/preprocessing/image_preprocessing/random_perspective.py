@@ -43,6 +43,23 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             boundaries when `fill_mode="constant"`.
         seed: Integer. Used to create a random seed.
 
+    Example:
+
+    ```python
+    # Create a RandomPerspective layer with scale factor
+    # This simulates a 3D-like viewing angle shift
+    perspective_layer = keras.layers.RandomPerspective(
+        factor=1.0,
+        scale=0.3  # Control how extreme the perspective shift is
+    )
+
+    # Sample image
+    image = np.random.randint(0, 255, (224, 224, 3), dtype='uint8')
+
+    # Apply perspective transformation
+    # Different corners of the image will be shifted randomly
+    output = perspective_layer(image, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False

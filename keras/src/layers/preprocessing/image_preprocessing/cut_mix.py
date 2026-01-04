@@ -29,6 +29,33 @@ class CutMix(BaseImagePreprocessingLayer):
             in patch sizes, leading to more diverse and larger mixed patches.
             Defaults to 1.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create a CutMix layer in which factor controls the patch size variability
+    cutmix = keras.layers.CutMix(factor=0.8)
+
+    # Generate sample images and one-hot encoded labels
+    images = np.random.randint(0, 255, (8, 224, 224, 3), dtype='uint8')
+    labels = keras.ops.one_hot(
+        np.array([0, 1, 2, 3, 0, 1, 2, 3]),
+        num_classes=4
+    )
+
+    # Random rectangular patches are cut from one image and pasted into another
+    # Labels are also mixed proportionally to the patch area
+    output = cutmix(
+        {"images": images, "labels": labels},
+        training=True
+    )
+
+    # At inference, no augmentation is applied
+    output_inference = cutmix(
+        {"images": images, "labels": labels},
+        training=False
+    )
+    ```
     """
 
     _USE_BASE_FACTOR = False
