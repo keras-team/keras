@@ -2359,14 +2359,12 @@ class ImageOpsBehaviorTests(testing.TestCase):
     def test_extract_patches_invalid_size(self):
         size = "5"  # Invalid size type
         image = np.random.uniform(size=(2, 20, 20, 3))
-        with self.assertRaisesRegex(
-            TypeError, "Expected an int or a tuple of length 2"
-        ):
+        with self.assertRaisesRegex(TypeError, "Expected an int or a tuple"):
             kimage.extract_patches(image, size)
 
         size = (3, 3, 3, 3)  # Invalid size, too many dimensions
         with self.assertRaisesRegex(
-            TypeError, "Expected an int or a tuple of length 2"
+            ValueError, "Expected a tuple of length 2 or 3"
         ):
             kimage.extract_patches(image, size)
 

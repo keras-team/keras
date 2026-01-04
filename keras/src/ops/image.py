@@ -674,6 +674,19 @@ def extract_patches(
     >>> patches.shape
     (3, 3, 3, 81)
     """
+    # Validate size argument
+    if not isinstance(size, int):
+        if not isinstance(size, (tuple, list)):
+            raise TypeError(
+                "Invalid `size` argument. Expected an int or a tuple. "
+                f"Received: size={size} of type {type(size).__name__}"
+            )
+        if len(size) not in (2, 3):
+            raise ValueError(
+                "Invalid `size` argument. Expected a tuple of length 2 or 3. "
+                f"Received: size={size} with length {len(size)}"
+            )
+
     # Determine 2D vs 3D based on size argument
     if not isinstance(size, int) and len(size) == 3:
         # 3D patch extraction
