@@ -45,6 +45,23 @@ class RandomContrast(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create a RandomContrast layer
+    contrast_layer = keras.layers.RandomContrast(
+        factor=0.3,
+        value_range=(0, 255)
+    )
+
+    images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
+
+    contrasted_images = contrast_layer(images, training=True)
+
+    # At inference time, no adjustment is applied
+    output = contrast_layer(images, training=False)
+    ```
     """
 
     _FACTOR_BOUNDS = (0, 1)

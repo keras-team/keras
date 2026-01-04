@@ -15,6 +15,29 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
         max_number: Desired output number of bounding boxes.
         padding_value: The padding value of the `boxes` and `labels` in
             `bounding_boxes`. Defaults to `-1`.
+
+    Example:
+
+    ```python
+    # Create a MaxNumBoundingBoxes layer to ensure max 10 boxes
+    max_boxes_layer = keras.layers.MaxNumBoundingBoxes(
+        max_number=10,
+        fill_value=-1
+    )
+
+    # Sample bounding boxes dict
+    bounding_boxes = {
+        "boxes": np.array([
+            [[10, 20, 100, 150], [50, 60, 200, 250], [0, 0, 50, 50]],
+        ]),
+        "labels": np.array([[1, 2, 3]])
+    }
+
+    # Ensure max 10 boxes per image
+    # If fewer than 10 boxes, pad with fill_value (-1)
+    # If more than 10 boxes, truncate to 10
+    result = max_boxes_layer({"bounding_boxes": bounding_boxes})
+    ```
     """
 
     def __init__(self, max_number, fill_value=-1, **kwargs):

@@ -32,6 +32,23 @@ class RandomSharpness(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create a RandomSharpness layer
+    # factor can be sampled between 0.0 (full blur) and 0.5 (no change)
+    sharpness_layer = keras.layers.RandomSharpness(
+        factor=0.5,
+        value_range=(0, 255)
+    )
+
+    # Sample image
+    image = np.array([[[100, 150, 200], [50, 75, 100]]])
+
+    # Apply sharpness adjustment
+    output = sharpness_layer(image)
+    ```
     """
 
     _USE_BASE_FACTOR = False

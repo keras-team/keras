@@ -29,6 +29,24 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
             passed float is sampled. In order to ensure the value is always the
             same, please pass a tuple with two identical floats: `(0.5, 0.5)`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create a RandomColorDegeneration layer
+    color_degeneration = keras.layers.RandomColorDegeneration(
+        factor=0.4,
+        value_range=(0, 255)
+    )
+
+    images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
+
+    # Apply color degeneration during training
+    degraded_images = color_degeneration(images, training=True)
+
+    # At inference time, no degradation is applied
+    output = color_degeneration(images, training=False)
+    ```
     """
 
     _VALUE_RANGE_VALIDATION_ERROR = (

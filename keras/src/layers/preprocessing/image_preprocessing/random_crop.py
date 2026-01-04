@@ -47,6 +47,23 @@ class RandomCrop(BaseImagePreprocessingLayer):
         seed: Integer. Used to create a random seed.
         **kwargs: Base layer keyword arguments, such as
             `name` and `dtype`.
+
+    Example:
+
+    ```python
+    # Create a RandomCrop layer that outputs 192x192 images
+    crop_layer = keras.layers.RandomCrop(height=192, width=192)
+
+    # Generate sample images (batch_size=2, height=224, width=224, channels=3)
+    images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
+
+    # Apply random cropping during training
+    cropped_images = crop_layer(images, training=True)
+    # Output shape: (2, 192, 192, 3)
+
+    # At inference time, performs center crop
+    center_cropped = crop_layer(images, training=False)
+    ```
     """
 
     def __init__(

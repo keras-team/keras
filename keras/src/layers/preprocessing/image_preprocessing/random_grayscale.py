@@ -43,6 +43,23 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         Same as input shape. The output maintains the same number of channels
         as the input, even for grayscale-converted images where all channels
         will have the same value.
+
+    Example:
+
+    ```python
+    # Create a RandomGrayscale layer
+    random_grayscale = keras.layers.RandomGrayscale(factor=0.5)
+
+    # Your input image
+    image = [...]  # your input image
+
+    # Apply random grayscale conversion
+    output = random_grayscale(image, training=True)
+
+    # For always converting to grayscale
+    grayscale_always = keras.layers.RandomGrayscale(factor=1.0)
+    output_grayscale = grayscale_always(image, training=True)
+    ```
     """
 
     def __init__(self, factor=0.5, data_format=None, seed=None, **kwargs):

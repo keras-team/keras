@@ -41,6 +41,27 @@ class RandomErasing(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create a RandomErasing layer with default factor
+    random_erasing = keras.layers.RandomErasing(factor=1.0)
+
+    # Your input image
+    image = [...]  # your input image
+
+    # Apply random erasing
+    output = random_erasing(image, training=True)
+
+    # For custom scale and fill value
+    random_erasing_custom = keras.layers.RandomErasing(
+        factor=0.5,
+        scale=(0.05, 0.2),
+        fill_value=128
+    )
+    output_custom = random_erasing_custom(image, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False

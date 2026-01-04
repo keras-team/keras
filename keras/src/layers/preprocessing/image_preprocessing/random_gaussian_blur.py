@@ -35,6 +35,31 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    # Create a RandomGaussianBlur layer
+    random_blur = keras.layers.RandomGaussianBlur(
+        factor=1.0,
+        kernel_size=3,
+        sigma=1.0
+    )
+
+    # Your input image
+    image = [...]  # your input image
+
+    # Apply random Gaussian blur
+    output = random_blur(image, training=True)
+
+    # For stronger blur with custom sigma range
+    strong_blur = keras.layers.RandomGaussianBlur(
+        factor=1.0,
+        kernel_size=5,
+        sigma=(1.0, 3.0)
+    )
+    output_blurred = strong_blur(image, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False

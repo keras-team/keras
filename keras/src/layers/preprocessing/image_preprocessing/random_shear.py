@@ -61,6 +61,17 @@ class RandomShear(BaseImagePreprocessingLayer):
         fill_value: A float representing the value to be filled outside the
             boundaries when `fill_mode="constant"`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    ```python
+    shear_layer = keras.layers.RandomShear(x_factor=0.2, y_factor=0.2)
+
+    images = [...]  # your input image
+
+    # Apply random shear transformation
+    output = shear_layer(images, training=True)
+    ```
     """
 
     _USE_BASE_FACTOR = False
