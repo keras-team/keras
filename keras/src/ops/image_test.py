@@ -2357,18 +2357,30 @@ class ImageOpsBehaviorTests(testing.TestCase):
             kimage.affine_transform(images, invalid_transform)
 
     def test_extract_patches_invalid_size(self):
-        size = (3, 3, 3)  # Invalid size, too many dimensions
+        size = "5"  # Invalid size type
         image = np.random.uniform(size=(2, 20, 20, 3))
         with self.assertRaisesRegex(
             TypeError, "Expected an int or a tuple of length 2"
         ):
             kimage.extract_patches(image, size)
 
-        size = "5"  # Invalid size type
+        size = (3, 3, 3, 3)  # Invalid size, too many dimensions
         with self.assertRaisesRegex(
             TypeError, "Expected an int or a tuple of length 2"
         ):
             kimage.extract_patches(image, size)
+
+    def test_extract_patches_unified_3d(self):
+        # Test that extract_patches handles 3D volumes when size has 3 elements
+        # channels_last
+        volume = np.random.uniform(size=(2, 20, 20, 20, 3)).astype("float32")
+        patches = kimage.extract_patches(volume, (5, 5, 5))
+        self.assertEqual(patches.shape, (2, 4, 4, 4, 375))
+
+        # unbatched
+        volume = np.random.uniform(size=(20, 20, 20, 3)).astype("float32")
+        patches = kimage.extract_patches(volume, (5, 5, 5))
+        self.assertEqual(patches.shape, (4, 4, 4, 375))
 
     def test_map_coordinates_invalid_coordinates_rank(self):
         # Test mismatched dim of coordinates
