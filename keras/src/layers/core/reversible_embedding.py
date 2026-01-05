@@ -6,6 +6,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend import set_keras_mask
 from keras.src.quantizers.quantization_config import QuantizationConfig
 
 
@@ -117,7 +118,11 @@ class ReversibleEmbedding(layers.Embedding):
 
     def call(self, inputs, reverse=False):
         if not reverse:
-            return super().call(inputs)
+            result = super().call(inputs)
+            mask = super().compute_mask(inputs)
+            if mask is not None:
+                set_keras_mask(result, mask)
+            return result
         else:
             if self.tie_weights:
                 kernel = ops.transpose(ops.convert_to_tensor(self.embeddings))
@@ -134,6 +139,10 @@ class ReversibleEmbedding(layers.Embedding):
                     ops.tanh(ops.divide(logits, soft_cap)), soft_cap
                 )
             return logits
+
+    def compute_mask(self, inputs, mask=None):
+        # Disable masking from super class, masking is done directly in call.
+        return None
 
     def compute_output_shape(self, input_shape, reverse=False):
         output_shape = list(input_shape)
