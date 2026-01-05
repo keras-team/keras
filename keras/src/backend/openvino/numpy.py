@@ -1071,7 +1071,33 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    raise NotImplementedError("`flip` is not supported with openvino backend")
+    x_node = get_ov_output(x)
+    ndim = x.ndim
+    if ndim is None:
+        raise ValueError(
+            "The `flip` operation does not support tensors with dynamic rank"
+            "for the OpenVINO backend."
+        )
+    if axis is None:
+        axis = list(range(ndim))
+    elif isinstance(axis, int):
+        axis = [axis]
+    axis = [a + ndim if a < 0 else a for a in axis]
+    begin = [0] * ndim
+    end = [0] * ndim
+    strides = [1] * ndim
+    for a in axis:
+        strides[a] = -1
+    all_ones_mask = [1] * ndim
+    result = ov_opset.strided_slice(
+        data=x_node,
+        begin=begin,
+        end=end,
+        strides=strides,
+        begin_mask=all_ones_mask,
+        end_mask=all_ones_mask,
+    )
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def floor(x):
@@ -2570,6 +2596,12 @@ def power(x1, x2):
 def negative(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.negative(x).output(0))
+
+
+def nextafter(x1, x2):
+    raise NotImplementedError(
+        "`nextafter` is not supported with openvino backend"
+    )
 
 
 def square(x):

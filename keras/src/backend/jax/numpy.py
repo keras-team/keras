@@ -1351,6 +1351,12 @@ def negative(x):
     return jnp.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.nextafter(x1, x2)
+
+
 @sparse.elementwise_unary(linear=False)
 def square(x):
     x = convert_to_tensor(x)

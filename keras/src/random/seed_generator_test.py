@@ -91,5 +91,5 @@ class SeedGeneratorTest(testing.TestCase):
             traced_function()
 
     def test_seed_generator_serialization(self):
-        random_generator = seed_generator.SeedGenerator(seed=42)
+        random_generator = seed_generator.SeedGenerator(seed=42, name="sg")
         self.run_class_serialization_test(random_generator)
