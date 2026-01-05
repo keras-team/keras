@@ -35,7 +35,7 @@ class Tracker:
     objects into user provided tracking collections.
 
     Also passively tracks certain mutable collections
-    (e.g. dict and list) ensuring that items addded after
+    (e.g. dict and list) ensuring that items added after
     initialization are still tracked. This is done by wrapping
     these collections in tracking-aware proxy objects.
 
