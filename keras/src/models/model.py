@@ -568,6 +568,25 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 )
             gptq_quantize(config, structure, filters=filters)
 
+        if mode == "awq":
+            from keras.src.quantizers.awq_core import awq_quantize
+
+            # Resolve model structure.
+            structure = config.quantization_layer_structure
+            if structure is None:
+                structure = self.get_quantization_layer_structure(mode)
+
+            if structure is None:
+                raise ValueError(
+                    "For 'awq' mode, a valid quantization structure must be "
+                    "provided either via `config.quantization_layer_structure` "
+                    "or by overriding "
+                    "`model.get_quantization_layer_structure(mode)`. The "
+                    "structure should be a dictionary with keys "
+                    "'pre_block_layers' and 'sequential_blocks'."
+                )
+            awq_quantize(config, structure, filters=filters)
+
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:
             self.train_function = None
