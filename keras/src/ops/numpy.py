@@ -5501,26 +5501,26 @@ def ptp(x, axis=None, keepdims=False):
         given axis or axes.
 
     Examples:
-        >>> x = keras.ops.array([[1., 3., 2.],
-        ...                      [4., 0., 5.]])
+    >>> x = keras.ops.array([[1., 3., 2.],
+    ...                      [4., 0., 5.]])
 
-        # Peak-to-peak over all elements
-        >>> keras.ops.ptp(x)
-        5.0
+    >>> # Peak-to-peak over all elements
+    >>> keras.ops.ptp(x)
+    5.0
 
-        # Peak-to-peak along axis 1
-        >>> keras.ops.ptp(x, axis=1)
-        array([2., 5.], dtype=float32)
+    >>> # Peak-to-peak along axis 1
+    >>> keras.ops.ptp(x, axis=1)
+    array([2., 5.], dtype=float32)
 
-        # Peak-to-peak over multiple axes
-        >>> x = keras.ops.reshape(x, (1, 2, 3))
-        >>> keras.ops.ptp(x, axis=(1, 2))
-        array([5.], dtype=float32)
+    >>> # Peak-to-peak over multiple axes
+    >>> x = keras.ops.reshape(x, (1, 2, 3))
+    >>> keras.ops.ptp(x, axis=(1, 2))
+    array([5.], dtype=float32)
 
-        # Keep reduced dimensions
-        >>> keras.ops.ptp(x, axis=2, keepdims=True)
-        array([[[2.],
-                [5.]]], dtype=float32)
+    >>> # Keep reduced dimensions
+    >>> keras.ops.ptp(x, axis=2, keepdims=True)
+    array([[[2.],
+            [5.]]], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Ptp(axis=axis, keepdims=keepdims).symbolic_call(x)
