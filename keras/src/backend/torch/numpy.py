@@ -1382,6 +1382,16 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return x
 
 
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if axis is None:
+        return x.max() - x.min()
+    else:
+        return torch.amax(x, dim=axis, keepdim=keepdims) - torch.amin(
+            x, dim=axis, keepdim=keepdims
+        )
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)

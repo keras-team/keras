@@ -1063,6 +1063,11 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return jnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.ptp(x, axis=axis, keepdims=keepdims)
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
