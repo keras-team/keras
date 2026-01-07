@@ -122,8 +122,8 @@ class MeanAbsoluteError(LossFunctionWrapper):
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
-        
-            
+
+
     Examples:
         >>> import keras
         >>> y_true = keras.ops.array([1.0, 0.3, 1.0])
