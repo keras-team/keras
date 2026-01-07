@@ -12,8 +12,77 @@ from keras.src import ops
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.quantizers.quantizers import compute_quantization_parameters
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
+from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import quantize_with_zero_point
+
+
+def _compute_grouped_quantization_params(weights, group_size, bits=4):
+    """Compute per-row grouped quantization parameters.
+
+    For grouped quantization, we need scale/zero with shape
+    [out_features, n_groups] where n_groups = in_features / group_size.
+
+    Args:
+        weights: Weight tensor [out_features, in_features].
+        group_size: Size of each group along in_features dimension.
+        bits: Number of bits for quantization.
+
+    Returns:
+        scale: Scale tensor [out_features, n_groups].
+        zero: Zero-point tensor [out_features, n_groups].
+        maxq: Maximum quantization value (scalar).
+        g_idx: Group indices [in_features].
+    """
+    out_features = ops.shape(weights)[0]
+    in_features = ops.shape(weights)[1]
+
+    # Number of groups per row
+    n_groups = (in_features + group_size - 1) // group_size
+
+    # Pad weights if in_features is not divisible by group_size
+    remainder = in_features % group_size
+    if remainder != 0:
+        pad_size = group_size - remainder
+        weights = ops.pad(weights, [[0, 0], [0, pad_size]], constant_values=0.0)
+        padded_in_features = in_features + pad_size
+    else:
+        padded_in_features = in_features
+
+    # Reshape to [out_features, n_groups, group_size]
+    weights_grouped = ops.reshape(
+        weights, [out_features, n_groups, group_size]
+    )
+
+    # Compute min/max per group: [out_features, n_groups]
+    min_vals = ops.min(weights_grouped, axis=2)
+    max_vals = ops.max(weights_grouped, axis=2)
+
+    # Ensure range is not zero
+    zero_range = ops.equal(min_vals, max_vals)
+    min_vals = ops.where(zero_range, ops.subtract(min_vals, 1.0), min_vals)
+    max_vals = ops.where(zero_range, ops.add(max_vals, 1.0), max_vals)
+
+    # Compute scale and zero
+    maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), "float32")
+    scale = ops.divide(ops.subtract(max_vals, min_vals), maxq)
+    scale = ops.where(ops.less_equal(scale, 0), 1e-8, scale)
+    zero = ops.round(ops.divide(ops.negative(min_vals), scale))
+    zero = ops.cast(zero, "uint8")
+
+    # Build group indices
+    g_idx = ops.cast(
+        ops.floor(
+            ops.divide(
+                ops.cast(ops.arange(0, in_features), "float32"),
+                ops.cast(group_size, "float32"),
+            )
+        ),
+        "int32",
+    )
+
+    return scale, zero, maxq, g_idx
 
 
 def awq_search_optimal_scales(
@@ -77,23 +146,36 @@ def awq_search_optimal_scales(
         # weights_scaled: [out_features, in_features]
         weights_scaled = ops.multiply(weights, scales)
 
-        # Compute quantization parameters for scaled weights
-        # Quantize per output channel (axis 0 of [out_features, in_features])
-        scale_q, zero_q, maxq = compute_quantization_parameters(
-            weights_scaled,
-            bits=4,
-            symmetric=False,
-            per_channel=True,
-            group_size=group_size,
-            weight=True,
-            compute_dtype="float32",
-        )
+        if group_size == -1:
+            # Per-channel quantization (no grouping)
+            scale_q, zero_q, maxq = compute_quantization_parameters(
+                weights_scaled,
+                bits=4,
+                symmetric=False,
+                per_channel=True,
+                group_size=-1,
+                weight=True,
+                compute_dtype="float32",
+            )
 
-        # Quantize and dequantize
-        quantized = quantize_with_zero_point(
-            weights_scaled, scale_q, zero_q, maxq
-        )
-        dequantized = dequantize_with_zero_point(quantized, scale_q, zero_q)
+            # Quantize and dequantize
+            quantized = quantize_with_zero_point(
+                weights_scaled, scale_q, zero_q, maxq
+            )
+            dequantized = dequantize_with_zero_point(quantized, scale_q, zero_q)
+        else:
+            # Grouped quantization - use proper per-row grouping
+            scale_q, zero_q, maxq, g_idx = _compute_grouped_quantization_params(
+                weights_scaled, group_size, bits=4
+            )
+
+            # Quantize and dequantize using group index mapping
+            quantized = quantize_with_sz_map(
+                weights_scaled, scale_q, zero_q, g_idx, maxq
+            )
+            dequantized = dequantize_with_sz_map(
+                quantized, scale_q, zero_q, g_idx
+            )
 
         # Scale back down by DIVIDING to restore original magnitude
         reconstructed = ops.divide(dequantized, scales)
@@ -161,33 +243,38 @@ def awq_quantize_matrix(
     # weights_scaled: [out_features, in_features]
     weights_scaled = ops.multiply(weights_transpose, awq_scales)
 
-    # Step 3: Compute quantization parameters
-    # Quantize per output channel (axis 0 of [out_features, in_features])
-    scale_q, zero_q, maxq = compute_quantization_parameters(
-        weights_scaled,
-        bits=4,
-        symmetric=False,
-        per_channel=True,
-        group_size=group_size,
-        weight=True,
-        compute_dtype="float32",
-    )
+    if group_size == -1:
+        # Per-channel quantization (no grouping)
+        scale_q, zero_q, maxq = compute_quantization_parameters(
+            weights_scaled,
+            bits=4,
+            symmetric=False,
+            per_channel=True,
+            group_size=-1,
+            weight=True,
+            compute_dtype="float32",
+        )
 
-    # Step 4: Quantize
-    # Result: [out_features, in_features]
-    quantized = quantize_with_zero_point(weights_scaled, scale_q, zero_q, maxq)
+        # Quantize
+        quantized = quantize_with_zero_point(
+            weights_scaled, scale_q, zero_q, maxq
+        )
 
-    # Build group indices for input features
-    effective_group = in_features if group_size == -1 else group_size
-    g_idx = ops.cast(
-        ops.floor(
-            ops.divide(
-                ops.cast(ops.arange(0, in_features), "float32"),
-                ops.cast(effective_group, "float32"),
-            )
-        ),
-        "float32",
-    )
+        # Build group indices (all 0s for per-channel)
+        g_idx = ops.zeros((in_features,), dtype="float32")
+    else:
+        # Grouped quantization - use proper per-row grouping
+        scale_q, zero_q, maxq, g_idx = _compute_grouped_quantization_params(
+            weights_scaled, group_size, bits=4
+        )
+
+        # Quantize using group index mapping
+        quantized = quantize_with_sz_map(
+            weights_scaled, scale_q, zero_q, g_idx, maxq
+        )
+
+        # Convert g_idx to float for storage
+        g_idx = ops.cast(g_idx, "float32")
 
     return quantized, scale_q, zero_q, awq_scales, g_idx
 

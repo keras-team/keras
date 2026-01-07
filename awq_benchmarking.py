@@ -932,24 +932,24 @@ if __name__ == "__main__":
     print(stats)
     del gpt2
 
-    # OPT-125M
-    opt125, stats = run_quantization_test(
-        model_class=keras_hub.models.OPTCausalLM, model_preset="opt_125m_en"
-    )
-    print(stats)
-    del opt125
+    # # OPT-125M
+    # opt125, stats = run_quantization_test(
+    #     model_class=keras_hub.models.OPTCausalLM, model_preset="opt_125m_en"
+    # )
+    # print(stats)
+    # del opt125
 
-    # BLOOM
-    bloom, stats = run_quantization_test(
-        model_class=keras_hub.models.BloomCausalLM,
-        model_preset="bloom_1.1b_multi",
-    )
-    print(stats)
-    del bloom
+    # # BLOOM
+    # bloom, stats = run_quantization_test(
+    #     model_class=keras_hub.models.BloomCausalLM,
+    #     model_preset="bloom_1.1b_multi",
+    # )
+    # print(stats)
+    # del bloom
 
-    # Gemma3
-    gemma3, stats = run_quantization_test(
-        model_class=keras_hub.models.Gemma3CausalLM, model_preset="gemma3_1b"
-    )
-    print(stats)
-    del gemma3
+    # # Gemma3
+    # gemma3, stats = run_quantization_test(
+    #     model_class=keras_hub.models.Gemma3CausalLM, model_preset="gemma3_1b"
+    # )
+    # print(stats)
+    # del gemma3
