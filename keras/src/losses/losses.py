@@ -75,6 +75,7 @@ class MeanSquaredError(LossFunctionWrapper):
             provided, then the `compute_dtype` will be utilized.
 
     Examples:
+    
         >>> y_true = keras.ops.array([1.0, 0.0, 1.0])
         >>> y_pred = keras.ops.array([0.9, 0.1, 0.8])
         >>> loss = keras.losses.MeanSquaredError()
@@ -124,6 +125,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
 
 
     Examples:
+    
         >>> y_true = keras.ops.array([1.0, 0.3, 1.0])
         >>> y_pred = keras.ops.array([1.9, 0.3, 1.8])
         >>> loss = keras.losses.MeanAbsoluteError()
