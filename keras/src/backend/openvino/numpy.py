@@ -1234,8 +1234,19 @@ def hypot(x1, x2):
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x1 = ov_opset.convert(x1, ov_type)
         x2 = ov_opset.convert(x2, ov_type)
-    result = ov_opset.sqrt(
-        ov_opset.add(ov_opset.multiply(x1, x1), ov_opset.multiply(x2, x2))
+    x1_abs = ov_opset.absolute(x1)
+    x2_abs = ov_opset.absolute(x2)
+    max_val = ov_opset.maximum(x1_abs, x2_abs)
+    min_val = ov_opset.minimum(x1_abs, x2_abs)
+    one = ov_opset.constant(1, max_val.get_element_type())
+    is_zero_mask = ov_opset.equal(
+        max_val, ov_opset.constant(0, max_val.get_element_type())
+    )
+    safe_divisor = ov_opset.select(is_zero_mask, one, max_val)
+    ratio = ov_opset.divide(min_val, safe_divisor)
+    result = ov_opset.multiply(
+        max_val,
+        ov_opset.sqrt(ov_opset.add(one, ov_opset.multiply(ratio, ratio))),
     )
     return OpenVINOKerasTensor(result.output(0))
 
