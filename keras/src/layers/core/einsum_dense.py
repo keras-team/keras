@@ -1263,7 +1263,7 @@ class EinsumDense(Layer):
                     This is `None` if the layer is not quantized.
         """
         # If not a quantized layer, return the full-precision kernel directly.
-        if self.dtype_policy.quantization_mode in (None, "gptq"):
+        if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
             return self.kernel, None
 
         # If quantized but LoRA is not enabled, return the original quantized

@@ -996,7 +996,7 @@ class Dense(Layer):
                 `kernel_scale`: The quantization scale for the merged kernel.
                     This is `None` if the layer is not quantized.
         """
-        if self.dtype_policy.quantization_mode in (None, "gptq"):
+        if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
             return self.kernel, None
 
         kernel_value = self._kernel
