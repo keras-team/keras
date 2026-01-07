@@ -2,11 +2,13 @@
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
+from keras.src.quantizers.awq import _compute_grouped_quantization_params
 from keras.src.quantizers.awq import AWQ
 from keras.src.quantizers.awq import awq_quantize_matrix
 from keras.src.quantizers.awq import awq_search_optimal_scales
@@ -233,6 +235,181 @@ class AWQAlgorithmTest(testing.TestCase):
         g_idx_np = np.array(g_idx)
         self.assertEqual(np.max(g_idx_np), 0)
         self.assertEqual(awq_scales.shape, (32,))
+
+    def test_compute_grouped_quantization_params_shapes(self):
+        """Test _compute_grouped_quantization_params returns correct shapes."""
+        out_features = 64
+        in_features = 128
+        group_size = 32
+        n_groups = in_features // group_size  # 4 groups
+
+        weights = ops.convert_to_tensor(
+            np.random.randn(out_features, in_features).astype("float32")
+        )
+
+        scale, zero, maxq, g_idx = _compute_grouped_quantization_params(
+            weights, group_size, bits=4
+        )
+
+        # Scale should be [out_features, n_groups]
+        self.assertEqual(scale.shape, (out_features, n_groups))
+        # Zero should be [out_features, n_groups]
+        self.assertEqual(zero.shape, (out_features, n_groups))
+        # maxq should be 15 for 4-bit
+        self.assertEqual(float(maxq), 15.0)
+        # g_idx should be [in_features]
+        self.assertEqual(g_idx.shape, (in_features,))
+
+        # Verify g_idx values are correct group assignments
+        g_idx_np = np.array(g_idx)
+        expected_g_idx = np.arange(in_features) // group_size
+        np.testing.assert_array_equal(g_idx_np, expected_g_idx)
+
+    def test_compute_grouped_quantization_params_non_divisible(self):
+        """Test grouped params with in_features not divisible by group_size."""
+        out_features = 32
+        in_features = 100  # Not divisible by 32
+        group_size = 32
+        n_groups = (in_features + group_size - 1) // group_size  # 4 groups
+
+        weights = ops.convert_to_tensor(
+            np.random.randn(out_features, in_features).astype("float32")
+        )
+
+        scale, zero, maxq, g_idx = _compute_grouped_quantization_params(
+            weights, group_size, bits=4
+        )
+
+        # Scale should be [out_features, n_groups]
+        self.assertEqual(scale.shape, (out_features, n_groups))
+        # Zero should be [out_features, n_groups]
+        self.assertEqual(zero.shape, (out_features, n_groups))
+        # g_idx should be [in_features] (not padded)
+        self.assertEqual(g_idx.shape, (in_features,))
+
+    def test_quantize_matrix_grouped_shapes(self):
+        """Test awq_quantize_matrix with positive group_size.
+
+        This is a regression test for the InvalidArgumentError that occurred
+        when group_size != -1 due to shape mismatch in broadcasting.
+        """
+        out_features = 768
+        in_features = 768
+        group_size = 128
+        n_groups = in_features // group_size  # 6 groups
+
+        weights = ops.convert_to_tensor(
+            np.random.randn(out_features, in_features).astype("float32")
+        )
+        activations = ops.convert_to_tensor(
+            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+        )
+
+        quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
+            weights, activations, n_grid=5, group_size=group_size
+        )
+
+        # Quantized should match input shape
+        self.assertEqual(quantized.shape, (out_features, in_features))
+        # Scale should be [out_features, n_groups]
+        self.assertEqual(scale.shape, (out_features, n_groups))
+        # Zero should be [out_features, n_groups]
+        self.assertEqual(zero.shape, (out_features, n_groups))
+        # AWQ scales should be per-input-channel
+        self.assertEqual(awq_scales.shape, (in_features,))
+        # g_idx should be [in_features]
+        self.assertEqual(g_idx.shape, (in_features,))
+
+        # Verify g_idx values
+        g_idx_np = np.array(g_idx)
+        expected_g_idx = np.arange(in_features) // group_size
+        np.testing.assert_array_equal(g_idx_np, expected_g_idx)
+
+    def test_quantize_matrix_grouped_no_nan_inf(self):
+        """Test grouped quantization produces no NaN or Inf values."""
+        out_features = 256
+        in_features = 512
+        group_size = 64
+
+        weights = ops.convert_to_tensor(
+            np.random.randn(out_features, in_features).astype("float32")
+        )
+        activations = ops.convert_to_tensor(
+            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+        )
+
+        quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
+            weights, activations, n_grid=5, group_size=group_size
+        )
+
+        # Check for NaN/Inf in all outputs
+        self.assertFalse(np.any(np.isnan(np.array(quantized))))
+        self.assertFalse(np.any(np.isinf(np.array(quantized))))
+        self.assertFalse(np.any(np.isnan(np.array(scale))))
+        self.assertFalse(np.any(np.isinf(np.array(scale))))
+        self.assertFalse(np.any(np.isnan(np.array(awq_scales))))
+        self.assertFalse(np.any(np.isinf(np.array(awq_scales))))
+
+    def test_scale_search_grouped_quantization(self):
+        """Test awq_search_optimal_scales with grouped quantization."""
+        out_features = 128
+        in_features = 256
+        group_size = 32
+
+        weights = ops.convert_to_tensor(
+            np.random.randn(out_features, in_features).astype("float32")
+        )
+        activations = ops.convert_to_tensor(
+            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+        )
+
+        # This should not raise any errors
+        scales = awq_search_optimal_scales(
+            weights, activations, n_grid=5, group_size=group_size
+        )
+
+        # Scales should be [in_features]
+        self.assertEqual(scales.shape, (in_features,))
+        # All scales should be positive
+        self.assertTrue(np.all(np.array(scales) > 0))
+        # No NaN or Inf
+        self.assertFalse(np.any(np.isnan(np.array(scales))))
+        self.assertFalse(np.any(np.isinf(np.array(scales))))
+
+    @parameterized.named_parameters(
+        ("group_8", 8),
+        ("group_16", 16),
+        ("group_32", 32),
+        ("group_64", 64),
+        ("group_128", 128),
+    )
+    def test_quantize_matrix_various_group_sizes(self, group_size):
+        """Test awq_quantize_matrix with various group sizes."""
+        out_features = 64
+        in_features = 128
+        n_groups = in_features // group_size
+
+        weights = ops.convert_to_tensor(
+            np.random.randn(out_features, in_features).astype("float32")
+        )
+        activations = ops.convert_to_tensor(
+            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+        )
+
+        _, scale, zero, _, _ = awq_quantize_matrix(
+            weights, activations, n_grid=3, group_size=group_size
+        )
+
+        self.assertEqual(
+            scale.shape,
+            (out_features, n_groups),
+            f"Failed for group_size={group_size}",
+        )
+        self.assertEqual(
+            zero.shape,
+            (out_features, n_groups),
+            f"Failed for group_size={group_size}",
+        )
 
 
 @pytest.mark.requires_trainable_backend
@@ -708,6 +885,230 @@ class AWQAccuracyTest(testing.TestCase):
         self.assertEqual(output1.shape, (8, 32))
 
         awq_obj.free()
+
+    def test_awq_single_layer_grouped_quantization_accuracy(self):
+        """Test AWQ accuracy with grouped quantization (group_size > 0).
+
+        This is a regression test to ensure grouped quantization maintains
+        reasonable accuracy after fixing the shape mismatch issue.
+        """
+        import keras
+
+        keras.utils.set_random_seed(42)
+
+        # Create a Dense layer - use dimensions divisible by common group sizes
+        in_features = 128
+        out_features = 64
+        layer = layers.Dense(out_features)
+        layer.build(input_shape=(None, in_features))
+
+        # Create calibration and test data
+        calibration_data = np.random.randn(128, in_features).astype("float32")
+        test_data = np.random.randn(32, in_features).astype("float32")
+
+        # Get original layer output on test data
+        original_output = np.array(layer(test_data))
+
+        # Test with group_size=32 (common value)
+        group_size = 32
+        config = AWQConfig(
+            dataset=None,
+            tokenizer=None,
+            group_size=group_size,
+            n_grid=10,
+        )
+        layer.quantize("awq", config=config)
+
+        # Create AWQ quantizer and run calibration
+        awq_obj = AWQ(layer, config)
+        awq_obj.update_activation_magnitudes(calibration_data)
+
+        # Perform quantization
+        awq_obj.quantize_layer()
+
+        # Verify layer variables have correct shapes for grouped quantization
+        n_groups = in_features // group_size
+        self.assertEqual(
+            layer.kernel_scale.shape,
+            (out_features, n_groups),
+            f"kernel_scale shape mismatch for group_size={group_size}",
+        )
+        self.assertEqual(
+            layer.kernel_zero.shape,
+            (out_features, n_groups),
+            f"kernel_zero shape mismatch for group_size={group_size}",
+        )
+
+        # Get quantized layer output
+        quantized_output = np.array(layer(test_data))
+
+        # Calculate reconstruction error
+        mse = np.mean((original_output - quantized_output) ** 2)
+        original_var = np.var(original_output)
+        relative_mse = mse / (original_var + 1e-8)
+
+        # Grouped quantization may have slightly higher error than per-channel
+        # but should still be reasonable (< 30% relative MSE)
+        self.assertLess(
+            relative_mse,
+            0.30,
+            f"Relative output MSE too high for group_size={group_size}: "
+            f"{relative_mse:.4f}",
+        )
+
+        # Verify no NaN or Inf values
+        self.assertFalse(np.any(np.isnan(quantized_output)))
+        self.assertFalse(np.any(np.isinf(quantized_output)))
+
+        awq_obj.free()
+
+    @parameterized.named_parameters(
+        ("per_channel", -1),
+        ("group_16", 16),
+        ("group_32", 32),
+        ("group_64", 64),
+        ("group_128", 128),
+    )
+    def test_awq_accuracy_various_group_sizes(self, group_size):
+        """Test AWQ accuracy across various group sizes.
+
+        Ensures the grouped quantization fix works for common group sizes.
+        """
+        import keras
+
+        in_features = 128
+        out_features = 64
+
+        keras.utils.set_random_seed(42)
+
+        # Create fresh layer for each test
+        layer = layers.Dense(out_features)
+        layer.build(input_shape=(None, in_features))
+
+        # Create data
+        calibration_data = np.random.randn(64, in_features).astype("float32")
+        test_data = np.random.randn(16, in_features).astype("float32")
+
+        # Get original output
+        original_output = np.array(layer(test_data))
+
+        # Configure and quantize
+        config = AWQConfig(
+            dataset=None,
+            tokenizer=None,
+            group_size=group_size,
+            n_grid=5,
+        )
+        layer.quantize("awq", config=config)
+
+        awq_obj = AWQ(layer, config)
+        awq_obj.update_activation_magnitudes(calibration_data)
+        awq_obj.quantize_layer()
+
+        # Verify output
+        quantized_output = np.array(layer(test_data))
+
+        # Should have no NaN/Inf
+        self.assertFalse(
+            np.any(np.isnan(quantized_output)),
+            f"NaN in output for group_size={group_size}",
+        )
+        self.assertFalse(
+            np.any(np.isinf(quantized_output)),
+            f"Inf in output for group_size={group_size}",
+        )
+
+        # Should maintain reasonable accuracy
+        mse = np.mean((original_output - quantized_output) ** 2)
+        original_var = np.var(original_output)
+        relative_mse = mse / (original_var + 1e-8)
+
+        self.assertLess(
+            relative_mse,
+            0.35,
+            f"Accuracy too low for group_size={group_size}: "
+            f"relative_mse={relative_mse:.4f}",
+        )
+
+        awq_obj.free()
+
+    def test_awq_transformer_grouped_quantization(self):
+        """Test AWQ with grouped quantization on transformer model.
+
+        This is an end-to-end test similar to
+        test_awq_preserves_accuracy_on_transformer but with group_size=16
+        instead of per-channel.
+        """
+        import keras
+
+        rng = np.random.default_rng(seed=321)
+        keras.utils.set_random_seed(123)
+
+        # Build calibration dataset
+        calibration_set = list(_string_dataset(CALIBRATION_TEXT, NUM_SAMPLES))
+
+        # Build model and tokenizer
+        model = _get_sequence_classifier()
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        # Build eval batch
+        batch_size = min(8, len(calibration_set))
+        eval_samples = [
+            calibration_set[rng.integers(0, len(calibration_set))]
+            for _ in range(batch_size)
+        ]
+        x_eval = ops.concatenate([tokenizer(s) for s in eval_samples], axis=0)
+
+        # Get baseline predictions
+        y_ref = model.predict(x_eval)
+
+        # Define layer structure for AWQ
+        embedding_layer = model.layers[1]
+        transformer_block = model.layers[2]
+
+        layer_structure = {
+            "pre_block_layers": [embedding_layer],
+            "sequential_blocks": [transformer_block],
+        }
+
+        # Configure AWQ with grouped quantization (group_size=16)
+        # Using 16 since embed_dim=32, ensuring divisibility
+        awq_config = AWQConfig(
+            dataset=calibration_set,
+            tokenizer=tokenizer,
+            num_samples=NUM_SAMPLES,
+            sequence_length=SEQ_LEN,
+            group_size=16,  # Grouped quantization
+            n_grid=10,
+            quantization_layer_structure=layer_structure,
+        )
+
+        # Quantize model with AWQ
+        model.quantize("awq", config=awq_config)
+
+        # Get post-quantization predictions
+        y_q = model.predict(x_eval)
+
+        # Calculate accuracy metrics
+        top1_match = _top1_match_rate(y_ref, y_q)
+
+        p_ref = ops.softmax(y_ref)
+        p_q = ops.softmax(y_q)
+        kl = _mean_kl(p_ref, p_q)
+
+        # Grouped quantization may have slightly relaxed bounds
+        # compared to per-channel
+        self.assertGreaterEqual(
+            float(top1_match),
+            0.4,
+            f"Top-1 agreement too low with group_size=16: "
+            f"{float(top1_match):.3f}",
+        )
+        self.assertLessEqual(
+            float(kl),
+            0.40,
+            f"KL divergence too high with group_size=16: {float(kl):.3f}",
+        )
 
 
 @pytest.mark.requires_trainable_backend
