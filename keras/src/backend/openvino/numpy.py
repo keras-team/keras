@@ -1221,7 +1221,23 @@ def hstack(xs):
 
 
 def hypot(x1, x2):
-    raise NotImplementedError("`hypot` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "hypot()")
+    x_type = x1.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x1 = ov_opset.convert(x1, ov_type)
+        x2 = ov_opset.convert(x2, ov_type)
+    result = ov_opset.sqrt(
+        ov_opset.add(ov_opset.multiply(x1, x1), ov_opset.multiply(x2, x2))
+    )
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def identity(n, dtype=None):
@@ -2449,7 +2465,8 @@ def tile(x, repeats):
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError("`trace` is not supported with openvino backend")
+    x = diagonal(x, offset=offset, axis1=axis1, axis2=axis2)
+    return sum(x, axis=-1)
 
 
 def tri(N, M=None, k=0, dtype=None):
