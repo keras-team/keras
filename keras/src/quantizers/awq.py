@@ -46,14 +46,9 @@ def _compute_grouped_quantization_params(weights, group_size, bits=4):
     if remainder != 0:
         pad_size = group_size - remainder
         weights = ops.pad(weights, [[0, 0], [0, pad_size]], constant_values=0.0)
-        padded_in_features = in_features + pad_size
-    else:
-        padded_in_features = in_features
 
     # Reshape to [out_features, n_groups, group_size]
-    weights_grouped = ops.reshape(
-        weights, [out_features, n_groups, group_size]
-    )
+    weights_grouped = ops.reshape(weights, [out_features, n_groups, group_size])
 
     # Compute min/max per group: [out_features, n_groups]
     min_vals = ops.min(weights_grouped, axis=2)

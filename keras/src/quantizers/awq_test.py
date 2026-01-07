@@ -8,8 +8,8 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import testing
-from keras.src.quantizers.awq import _compute_grouped_quantization_params
 from keras.src.quantizers.awq import AWQ
+from keras.src.quantizers.awq import _compute_grouped_quantization_params
 from keras.src.quantizers.awq import awq_quantize_matrix
 from keras.src.quantizers.awq import awq_search_optimal_scales
 from keras.src.quantizers.awq_config import AWQConfig
