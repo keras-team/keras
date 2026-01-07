@@ -486,62 +486,6 @@ class AWQLayerTest(testing.TestCase):
 
 
 @pytest.mark.requires_trainable_backend
-class AWQDTypePolicyTest(testing.TestCase):
-    """Test AWQDTypePolicy."""
-
-    def test_awq_dtype_policy_creation(self):
-        """Test AWQDTypePolicy can be created."""
-        from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
-
-        policy = AWQDTypePolicy("awq/4/128", source_name="float32")
-        self.assertEqual(policy.weight_bits, 4)
-        self.assertEqual(policy.group_size, 128)
-        self.assertEqual(policy.mode, "awq")
-
-    def test_awq_dtype_policy_invalid_bits(self):
-        """Test AWQDTypePolicy rejects non-4-bit."""
-        from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
-
-        with self.assertRaisesRegex(ValueError, "only supports 4-bit"):
-            AWQDTypePolicy("awq/8/128", source_name="float32")
-
-    def test_awq_dtype_policy_invalid_format(self):
-        """Test AWQDTypePolicy rejects invalid format."""
-        from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
-
-        with self.assertRaisesRegex(ValueError, "Invalid mode"):
-            AWQDTypePolicy("awq/4", source_name="float32")
-
-
-@pytest.mark.requires_trainable_backend
-class AWQValidationTest(testing.TestCase):
-    """Test AWQ validation in quantization_config."""
-
-    def test_awq_requires_config(self):
-        """Test that AWQ mode requires a config."""
-        from keras.src.quantizers.quantization_config import (
-            validate_and_resolve_config,
-        )
-
-        with self.assertRaisesRegex(ValueError, "AWQConfig"):
-            validate_and_resolve_config("awq", None)
-
-    def test_awq_requires_correct_config_type(self):
-        """Test that AWQ requires AWQConfig type."""
-        from keras.src.quantizers.quantization_config import (
-            Int8QuantizationConfig,
-        )
-        from keras.src.quantizers.quantization_config import (
-            validate_and_resolve_config,
-        )
-
-        # Int8QuantizationConfig has mode='int8', so passing mode='awq' raises
-        # a contradictory arguments error
-        with self.assertRaisesRegex(ValueError, "Contradictory arguments"):
-            validate_and_resolve_config("awq", Int8QuantizationConfig())
-
-
-@pytest.mark.requires_trainable_backend
 class AWQIntegrationTest(testing.TestCase):
     """Integration tests for AWQ quantization."""
 

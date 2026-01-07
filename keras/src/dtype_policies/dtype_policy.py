@@ -388,7 +388,7 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
             `"awq/<weight_bits>/<group_size>"`.
             -   `"awq"`: The identifier for the quantization algorithm.
             -   `<weight_bits>`: Number of bits to quantize weights to.
-                AWQ only supports 4-bit quantization.
+                AWQ presently only supports 4-bit quantization.
             -   `<group_size>`: The group size for quantization. Supported
                 values are -1 (for per-channel quantization) or any
                 positive integer.
@@ -404,14 +404,14 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
         parts = mode.split("/")
         expected_format = "'awq/<weight_bits>/<group_size>'"
 
-        # Validate format
+        # Validate format.
         if len(parts) != 3 or parts[0] != "awq":
             raise ValueError(
                 "Invalid mode for AWQDTypePolicy. Expected format "
                 f"{expected_format}, but got '{mode}'."
             )
 
-        # Validate and cast weight_bits and group_size
+        # Validate and cast weight_bits and group_size.
         try:
             weight_bits = int(parts[1])
             group_size = int(parts[2])
@@ -422,7 +422,7 @@ class AWQDTypePolicy(QuantizedDTypePolicy):
                 f"{expected_format}, but got '{mode}'."
             )
 
-        # AWQ only supports 4-bit quantization
+        # AWQ presently only supports 4-bit quantization.
         if weight_bits != 4:
             raise ValueError(
                 "Invalid weight_bits in mode. AWQ only supports 4-bit "
