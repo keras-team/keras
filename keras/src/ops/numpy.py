@@ -5459,10 +5459,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 class Ptp(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
+        self.axis = axis
         self.keepdims = keepdims
 
     def call(self, x):
