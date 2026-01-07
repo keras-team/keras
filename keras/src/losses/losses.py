@@ -73,6 +73,14 @@ class MeanSquaredError(LossFunctionWrapper):
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
+
+    Examples:
+        >>> import keras
+        >>> y_true = keras.ops.array([1.0, 0.0, 1.0])
+        >>> y_pred = keras.ops.array([0.9, 0.1, 0.8])
+        >>> loss = keras.losses.MeanSquaredError()
+        >>> loss(y_true, y_pred)
+
     """
 
     def __init__(
@@ -114,6 +122,16 @@ class MeanAbsoluteError(LossFunctionWrapper):
             `"float32"` unless set to different value
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
+        
+            
+    Examples:
+        >>> import keras
+        >>> y_true = keras.ops.array([1.0, 0.3, 1.0])
+        >>> y_pred = keras.ops.array([1.9, 0.3, 1.8])
+        >>> loss = keras.losses.MeanAbsoluteError()
+        >>> loss(y_true, y_pred)
+
+
     """
 
     def __init__(
