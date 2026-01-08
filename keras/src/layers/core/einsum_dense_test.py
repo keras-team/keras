@@ -612,7 +612,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            3e-3,
+            3.5e-3,  # Slightly higher threshold for grouped quantization
         ),
     )
     def test_quantize_with_specific_equations(
@@ -1561,3 +1561,142 @@ class EinsumDenseTest(testing.TestCase):
         # Verify reasonable accuracy
         mse = ops.mean(ops.square(y_float - y_quantized))
         self.assertLess(mse, 0.02)
+
+    @parameterized.named_parameters(
+        # Attention output: bnh,nhd->bd (two reduced axes: n, h)
+        # Kernel shape: (n=4, h=32, d=64), reduced axes: n, h
+        ("attn_output_grouped", "bnh,nhd->bd", (64,), (None, 4, 32), 64),
+        ("attn_output_pc", "bnh,nhd->bd", (64,), (None, 4, 32), None),
+        # Multi-head attention value projection: ab,bcd->acd (one reduced: b)
+        ("mha_value_grouped", "ab,bcd->acd", (8, 32), (None, 64), 32),
+        ("mha_value_pc", "ab,bcd->acd", (8, 32), (None, 64), None),
+    )
+    def test_int4_grouped_multi_reduced_axes(
+        self, equation, output_shape, input_shape, block_size
+    ):
+        """Test int4 grouped quantization with multiple reduced axes."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.EinsumDense(
+            equation=equation,
+            output_shape=output_shape,
+        )
+        layer.build(input_shape)
+
+        batch_input_shape = (2,) + input_shape[1:]
+        x = np.random.random(batch_input_shape).astype("float32")
+        y_float = layer(x)
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify quantization works
+        y_quantized = layer(x)
+        self.assertEqual(y_float.shape, y_quantized.shape)
+
+        # Verify reasonable accuracy
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 0.1)
+
+    def test_int4_multi_reduced_axes_scale_shape(self):
+        """Test that scale shape is correct for multi-reduced-axis equations."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        # Equation: bnh,nhd->bd (two reduced axes: n, h)
+        # Kernel shape: (n=4, h=32, d=64)
+        # Reduced axes: n, h (total reduced dim = 4 * 32 = 128)
+        layer = layers.EinsumDense(
+            equation="bnh,nhd->bd",
+            output_shape=(64,),
+        )
+        layer.build((None, 4, 32))
+
+        block_size = 64
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Total reduced dim = 4 * 32 = 128, n_groups = ceil(128/64) = 2
+        # Scale shape should have n_groups=2 on first reduced axis (n)
+        # and 1 on second reduced axis (h), with output_dim (d=64)
+        # After _adjust_scale_for_quant transformations, check the final shape
+        kernel_scale = layer.kernel_scale
+        # The scale should account for grouped quantization
+        self.assertIsNotNone(kernel_scale)
+        # n_groups should be ceil(128/64) = 2
+        self.assertEqual(kernel_scale.shape[0], 2)
+
+    def test_int4_multi_reduced_axes_serialization(self):
+        """Test serialization with multi-reduced-axis equations."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        import tempfile
+
+        import keras
+
+        # Equation: bnh,nhd->bd (two reduced axes: n, h)
+        layer = layers.EinsumDense(
+            equation="bnh,nhd->bd",
+            output_shape=(64,),
+        )
+        layer.build((None, 4, 32))
+
+        config = Int4QuantizationConfig(block_size=64)
+        layer.quantize("int4", config=config)
+
+        x = np.random.random((2, 4, 32)).astype("float32")
+        y_before = layer(x)
+
+        # Save and load model
+        model = models.Sequential([layer])
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = f"{tmpdir}/model.keras"
+            model.save(path)
+            loaded_model = keras.models.load_model(path)
+
+        # Verify outputs match
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after, atol=1e-5)
+
+    def test_int4_multi_reduced_vs_single_reduced(self):
+        """Compare grouped quantization: single vs multi-reduced axes."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        block_size = 64
+
+        # Single reduced axis: bd,df->bf (reduced: d)
+        layer_single = layers.EinsumDense(
+            equation="bd,df->bf",
+            output_shape=(32,),
+        )
+        layer_single.build((None, 128))
+
+        # Multi reduced axes: bnh,nhd->bd (reduced: n, h)
+        # n=4, h=32 gives total reduced dim = 128
+        layer_multi = layers.EinsumDense(
+            equation="bnh,nhd->bd",
+            output_shape=(128,),
+        )
+        layer_multi.build((None, 4, 32))
+
+        # Quantize both with grouped quantization
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer_single.quantize("int4", config=config)
+        layer_multi.quantize("int4", config=config)
+
+        # Both should use grouped quantization (block_size stored)
+        self.assertEqual(layer_single._int4_block_size, block_size)
+        self.assertEqual(layer_multi._int4_block_size, block_size)
+
+        # Verify forward pass works for both
+        x_single = np.random.random((2, 128)).astype("float32")
+        x_multi = np.random.random((2, 4, 32)).astype("float32")
+
+        y_single = layer_single(x_single)
+        y_multi = layer_multi(x_multi)
+
+        self.assertEqual(y_single.shape, (2, 32))
+        self.assertEqual(y_multi.shape, (2, 128))

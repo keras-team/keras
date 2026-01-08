@@ -810,16 +810,10 @@ class EinsumDense(Layer):
         # Determine block_size from config or dtype_policy
         block_size = get_block_size_for_layer(self, config)
 
-        # For EinsumDense with multiple reduced axes, grouped quantization
-        # is complex. Fall back to per-channel in that case.
-        use_grouped = (
-            block_size is not None
-            and block_size != -1
-            and len(self._kernel_reduced_axes) == 1
-        )
+        # Grouped quantization is enabled when block_size is specified
+        use_grouped = block_size is not None and block_size != -1
 
-        # Store block_size for runtime dequantization (None if not using
-        # grouped)
+        # Store block_size for runtime dequantization
         self._int4_block_size = block_size if use_grouped else None
 
         # Kernel scale shape depends on whether we use grouped quantization
@@ -1011,30 +1005,39 @@ class EinsumDense(Layer):
                         _scale,
                     )
                 else:
-                    # Grouped: use grouped dequantization along pack_axis
-                    # First transpose to bring pack_axis to front
-                    kernel_shape = ops.shape(unpacked)
+                    # Grouped: use grouped dequantization
+                    # Handle both single and multiple reduced axes by flattening
+                    # all reduced axes into one dimension.
                     ndims = len(unpacked.shape)
-                    perm = [pack_axis] + [
-                        i for i in range(ndims) if i != pack_axis
+                    reduced_axes = self._kernel_reduced_axes
+
+                    # Create permutation to bring all reduced axes to the front
+                    non_reduced = [
+                        i for i in range(ndims) if i not in reduced_axes
                     ]
+                    perm = list(reduced_axes) + non_reduced
                     inv_perm = [perm.index(i) for i in range(ndims)]
 
                     transposed = ops.transpose(unpacked, perm)
-                    # Flatten all dims except the first (pack_axis)
-                    flat_shape = (
-                        transposed.shape[0],
-                        -1,
-                    )
-                    flat_kernel = ops.reshape(transposed, flat_shape)
 
-                    # Flatten scale similarly (scale has n_groups along axis 0
-                    # after _adjust_scale_for_dequant would be applied)
-                    scale_adjusted = self._adjust_scale_for_dequant(scale)
-                    scale_transposed = ops.transpose(scale_adjusted, perm)
-                    flat_scale = ops.reshape(
-                        scale_transposed, (scale_transposed.shape[0], -1)
+                    # Flatten reduced axes into single dimension
+                    reduced_dims = [unpacked.shape[ax] for ax in reduced_axes]
+                    total_reduced = 1
+                    for d in reduced_dims:
+                        total_reduced *= d
+                    non_reduced_shape = [unpacked.shape[i] for i in non_reduced]
+                    total_non_reduced = 1
+                    for d in non_reduced_shape:
+                        total_non_reduced *= d
+
+                    flat_kernel = ops.reshape(
+                        transposed, (total_reduced, total_non_reduced)
                     )
+
+                    # Flatten scale to (n_groups, total_non_reduced)
+                    # Scale is already in the correct shape from quantization
+                    n_groups = scale.shape[0]
+                    flat_scale = ops.reshape(scale, (n_groups, -1))
 
                     # Dequantize using grouped function
                     dequant_flat = quantizers.dequantize_grouped(
@@ -1042,9 +1045,9 @@ class EinsumDense(Layer):
                     )
                     dequant_flat = ops.cast(dequant_flat, self.compute_dtype)
 
-                    # Reshape back
-                    orig_shape = [kernel_shape[i] for i in perm]
-                    dequant = ops.reshape(dequant_flat, orig_shape)
+                    # Reshape back to transposed shape, then inverse transpose
+                    transposed_shape = list(reduced_dims) + non_reduced_shape
+                    dequant = ops.reshape(dequant_flat, transposed_shape)
                     return ops.transpose(dequant, inv_perm)
 
             def grad_fn(*args, upstream=None):
@@ -1233,16 +1236,11 @@ class EinsumDense(Layer):
             # Pack along the first kernel-reduced axis.
             pack_axis = self._kernel_reduced_axes[0]
 
-            # For EinsumDense with multiple reduced axes, grouped quantization
-            # is complex. Fall back to per-channel in that case.
-            use_grouped = (
-                block_size is not None
-                and block_size != -1
-                and len(self._kernel_reduced_axes) == 1
-            )
+            # Grouped quantization is enabled when block_size is specified
+            use_grouped = block_size is not None and block_size != -1
 
             if not use_grouped:
-                # Per-channel quantization (legacy behavior or multi-reduced)
+                # Per-channel quantization (legacy behavior)
                 weight_quantizer = (
                     QuantizationConfig.weight_quantizer_or_default(
                         self.quantization_config,
@@ -1260,15 +1258,33 @@ class EinsumDense(Layer):
                     kernel_scale, "kernel"
                 )
             else:
-                # Grouped (sub-channel) quantization for single reduced axis
+                # Grouped (sub-channel) quantization
+                # For multiple reduced axes, flatten them all together
                 kernel_np = ops.convert_to_numpy(self._kernel)
                 ndims = len(kernel_np.shape)
-                perm = [pack_axis] + [i for i in range(ndims) if i != pack_axis]
+                reduced_axes = self._kernel_reduced_axes
+
+                # Create permutation to bring all reduced axes to the front
+                non_reduced = [i for i in range(ndims) if i not in reduced_axes]
+                perm = list(reduced_axes) + non_reduced
                 inv_perm = [perm.index(i) for i in range(ndims)]
 
                 transposed = np.transpose(kernel_np, perm)
-                orig_shape = transposed.shape
-                flat_kernel = transposed.reshape(orig_shape[0], -1)
+
+                # Compute shapes for flattening
+                reduced_dims = [kernel_np.shape[ax] for ax in reduced_axes]
+                total_reduced = 1
+                for d in reduced_dims:
+                    total_reduced *= d
+                non_reduced_shape = [kernel_np.shape[i] for i in non_reduced]
+                total_non_reduced = 1
+                for d in non_reduced_shape:
+                    total_non_reduced *= d
+
+                # Flatten to 2D for grouped quantization
+                flat_kernel = transposed.reshape(
+                    total_reduced, total_non_reduced
+                )
 
                 # Apply grouped quantization
                 kernel_value_int4_flat, kernel_scale_flat = (
@@ -1281,25 +1297,26 @@ class EinsumDense(Layer):
                     )
                 )
 
-                # Reshape back
+                # Reshape quantized kernel back to original transposed shape
                 kernel_value_int4_flat = ops.convert_to_numpy(
                     kernel_value_int4_flat
                 )
-                kernel_value_int4 = kernel_value_int4_flat.reshape(orig_shape)
+                transposed_shape = list(reduced_dims) + non_reduced_shape
+                kernel_value_int4 = kernel_value_int4_flat.reshape(
+                    transposed_shape
+                )
                 kernel_value_int4 = np.transpose(kernel_value_int4, inv_perm)
                 kernel_value_int4 = ops.convert_to_tensor(kernel_value_int4)
 
-                # Reshape scale: (n_groups, flat_other_dims) -> proper shape
+                # Reshape scale: (n_groups, flat_non_reduced) -> proper shape
+                # Use _get_kernel_scale_shape which handles all transformations
+                # Note: use original kernel_shape, not packed shape
                 kernel_scale_flat = ops.convert_to_numpy(kernel_scale_flat)
-                n_groups = kernel_scale_flat.shape[0]
-                scale_shape = list(orig_shape)
-                scale_shape[0] = n_groups
-                kernel_scale = kernel_scale_flat.reshape(scale_shape)
-                kernel_scale = np.transpose(kernel_scale, inv_perm)
-                kernel_scale = ops.convert_to_tensor(kernel_scale)
-                kernel_scale = self._adjust_scale_for_quant(
-                    kernel_scale, "kernel"
+                expected_scale_shape = self._get_kernel_scale_shape(
+                    kernel_shape, block_size
                 )
+                kernel_scale = kernel_scale_flat.reshape(expected_scale_shape)
+                kernel_scale = ops.convert_to_tensor(kernel_scale)
 
             packed_kernel_value, _, _ = quantizers.pack_int4(
                 kernel_value_int4, axis=pack_axis
@@ -1349,38 +1366,37 @@ class EinsumDense(Layer):
         Args:
             kernel_shape: The shape of the kernel tensor.
             block_size: If provided and positive, use grouped quantization
-                along the first reduced axis with the specified block size.
+                along the reduced axes with the specified block size.
 
         Returns:
             The shape of the kernel scale tensor.
         """
-        kernel_scale_shape = np.array(kernel_shape)
-
         if block_size is not None and block_size > 0:
-            # Grouped quantization: set n_groups along the pack axis
-            pack_axis = (
-                self._kernel_reduced_axes[0] if self._kernel_reduced_axes else 0
-            )
-            input_dim = kernel_shape[pack_axis]
-            n_groups = math.ceil(input_dim / block_size)
-
-            # Set reduced axes to 1, except the pack axis which gets n_groups
+            # Grouped quantization: use simple 2D scale shape
+            # (n_groups, non_reduced) - matches dequantize_grouped format
+            total_reduced_dim = 1
             for ax in self._kernel_reduced_axes:
-                if ax == pack_axis:
-                    kernel_scale_shape[ax] = n_groups
-                else:
-                    kernel_scale_shape[ax] = 1
+                total_reduced_dim *= kernel_shape[ax]
+            n_groups = math.ceil(total_reduced_dim / block_size)
+
+            total_non_reduced = 1
+            for i, dim in enumerate(kernel_shape):
+                if i not in self._kernel_reduced_axes:
+                    total_non_reduced *= dim
+
+            return (n_groups, total_non_reduced)
         else:
-            # Per-channel quantization: set all reduced axes to 1
+            # Per-channel quantization: use the original transformation logic
+            kernel_scale_shape = np.array(kernel_shape)
             kernel_scale_shape[self._kernel_reduced_axes] = 1
 
-        kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
-        kernel_scale_shape = kernel_scale_shape.tolist()
-        for a in sorted(self._kernel_expand_axes):
-            kernel_scale_shape.insert(a, 1)
-        for a in sorted(self._kernel_squeeze_axes, reverse=True):
-            kernel_scale_shape.pop(a)
-        return kernel_scale_shape
+            kernel_scale_shape = kernel_scale_shape[self._kernel_transpose_axes]
+            kernel_scale_shape = kernel_scale_shape.tolist()
+            for a in sorted(self._kernel_expand_axes):
+                kernel_scale_shape.insert(a, 1)
+            for a in sorted(self._kernel_squeeze_axes, reverse=True):
+                kernel_scale_shape.pop(a)
+            return kernel_scale_shape
 
     def _get_kernel_with_merged_lora(self):
         """Returns the kernel with LoRA matrices merged, for serialization.
@@ -1433,9 +1449,47 @@ class EinsumDense(Layer):
                 self._orig_length_along_pack_axis,
                 axis=self._int4_pack_axis,
             )
-            # Adjust scale for dequantization (reverse the transformations).
-            adjusted_scale = self._adjust_scale_for_dequant(self.kernel_scale)
-            kernel_fp = ops.divide(unpacked_kernel, adjusted_scale)
+            block_size = getattr(self, "_int4_block_size", None)
+            if block_size is not None and block_size != -1:
+                # Grouped dequantization
+                ndims = len(unpacked_kernel.shape)
+                reduced_axes = self._kernel_reduced_axes
+                non_reduced = [i for i in range(ndims) if i not in reduced_axes]
+                perm = list(reduced_axes) + non_reduced
+                inv_perm = [perm.index(i) for i in range(ndims)]
+
+                transposed = ops.transpose(unpacked_kernel, perm)
+                reduced_dims = [
+                    unpacked_kernel.shape[ax] for ax in reduced_axes
+                ]
+                total_reduced = 1
+                for d in reduced_dims:
+                    total_reduced *= d
+                non_reduced_shape = [
+                    unpacked_kernel.shape[i] for i in non_reduced
+                ]
+                total_non_reduced = 1
+                for d in non_reduced_shape:
+                    total_non_reduced *= d
+
+                flat_kernel = ops.reshape(
+                    transposed, (total_reduced, total_non_reduced)
+                )
+                n_groups = self.kernel_scale.shape[0]
+                flat_scale = ops.reshape(self.kernel_scale, (n_groups, -1))
+
+                dequant_flat = quantizers.dequantize_grouped(
+                    flat_kernel, flat_scale, block_size
+                )
+                transposed_shape = list(reduced_dims) + non_reduced_shape
+                dequant = ops.reshape(dequant_flat, transposed_shape)
+                kernel_fp = ops.transpose(dequant, inv_perm)
+            else:
+                # Per-channel dequantization
+                adjusted_scale = self._adjust_scale_for_dequant(
+                    self.kernel_scale
+                )
+                kernel_fp = ops.divide(unpacked_kernel, adjusted_scale)
         elif self.quantization_mode == "int8":
             adjusted_scale = self._adjust_scale_for_dequant(self.kernel_scale)
             kernel_fp = ops.divide(self._kernel, adjusted_scale)
@@ -1452,13 +1506,63 @@ class EinsumDense(Layer):
 
         # 3. Re-quantize the merged float kernel back to the target format
         if self.quantization_mode == "int4":
-            kernel_quant, new_scale = quantizers.abs_max_quantize(
-                merged_kernel_fp,
-                axis=self._kernel_reduced_axes,
-                value_range=(-8, 7),
-                dtype="int8",
-                to_numpy=True,
-            )
+            block_size = getattr(self, "_int4_block_size", None)
+            if block_size is not None and block_size != -1:
+                # Grouped re-quantization
+                kernel_np = ops.convert_to_numpy(merged_kernel_fp)
+                ndims = len(kernel_np.shape)
+                reduced_axes = self._kernel_reduced_axes
+                non_reduced = [i for i in range(ndims) if i not in reduced_axes]
+                perm = list(reduced_axes) + non_reduced
+                inv_perm = [perm.index(i) for i in range(ndims)]
+
+                transposed = np.transpose(kernel_np, perm)
+                reduced_dims = [kernel_np.shape[ax] for ax in reduced_axes]
+                total_reduced = 1
+                for d in reduced_dims:
+                    total_reduced *= d
+                non_reduced_shape = [kernel_np.shape[i] for i in non_reduced]
+                total_non_reduced = 1
+                for d in non_reduced_shape:
+                    total_non_reduced *= d
+
+                flat_kernel = transposed.reshape(
+                    total_reduced, total_non_reduced
+                )
+                kernel_quant_flat, new_scale = (
+                    quantizers.abs_max_quantize_grouped(
+                        flat_kernel,
+                        block_size=block_size,
+                        value_range=(-8, 7),
+                        dtype="int8",
+                        to_numpy=True,
+                    )
+                )
+
+                # Reshape quantized kernel back to original shape
+                kernel_quant_flat = ops.convert_to_numpy(kernel_quant_flat)
+                transposed_shape = list(reduced_dims) + non_reduced_shape
+                kernel_quant = kernel_quant_flat.reshape(transposed_shape)
+                kernel_quant = np.transpose(kernel_quant, inv_perm)
+                kernel_quant = ops.convert_to_tensor(kernel_quant)
+
+                # Reshape scale to expected shape
+                new_scale = ops.convert_to_numpy(new_scale)
+                expected_scale_shape = self._get_kernel_scale_shape(
+                    merged_kernel_fp.shape, block_size
+                )
+                new_scale = new_scale.reshape(expected_scale_shape)
+            else:
+                # Per-channel re-quantization
+                kernel_quant, new_scale = quantizers.abs_max_quantize(
+                    merged_kernel_fp,
+                    axis=self._kernel_reduced_axes,
+                    value_range=(-8, 7),
+                    dtype="int8",
+                    to_numpy=True,
+                )
+                new_scale = self._adjust_scale_for_quant(new_scale, "kernel")
+
             # Pack back to int4
             new_kernel, _, _ = quantizers.pack_int4(
                 kernel_quant, axis=self._int4_pack_axis
@@ -1469,9 +1573,7 @@ class EinsumDense(Layer):
                 axis=self._kernel_reduced_axes,
                 to_numpy=True,
             )
-
-        # Adjust the new scale tensor to the required layout.
-        new_scale = self._adjust_scale_for_quant(new_scale, "kernel")
+            new_scale = self._adjust_scale_for_quant(new_scale, "kernel")
 
         return new_kernel, new_scale
 
