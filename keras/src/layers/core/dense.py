@@ -12,6 +12,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import get_block_size_for_layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
@@ -635,10 +636,6 @@ class Dense(Layer):
         `ceil(input_dim/2)` because two int4 values are packed into a single
         int8 byte.
         """
-        from keras.src.quantizers.quantization_config import (
-            Int4QuantizationConfig,
-        )
-
         # Per-channel int8 quantizer for the last axis (features).
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
@@ -657,10 +654,8 @@ class Dense(Layer):
             trainable=False,
         )
 
-        # Determine block_size from config
-        block_size = None
-        if isinstance(config, Int4QuantizationConfig):
-            block_size = config.block_size
+        # Determine block_size from config or dtype_policy
+        block_size = get_block_size_for_layer(self, config)
 
         # Store block_size for runtime dequantization
         self._int4_block_size = block_size
@@ -1021,12 +1016,21 @@ class Dense(Layer):
         # Set new dtype policy only for modes that already have a policy.
         if self.dtype_policy.quantization_mode is None:
             from keras.src import dtype_policies  # local import to avoid cycle
+            from keras.src.quantizers.quantization_config import (
+                Int4QuantizationConfig,
+            )
 
             policy_name = mode
             if mode == "gptq":
                 policy_name = self.quantization_config.dtype_policy_string()
             elif mode == "awq":
                 policy_name = self.quantization_config.dtype_policy_string()
+            elif mode == "int4":
+                # Include block_size in policy name for sub-channel quantization
+                block_size = get_block_size_for_layer(self, config)
+                # Use -1 for per-channel, otherwise use block_size
+                block_size_value = -1 if block_size is None else block_size
+                policy_name = f"int4/{block_size_value}"
             policy = dtype_policies.get(
                 f"{policy_name}_from_{self.dtype_policy.name}"
             )
