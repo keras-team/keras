@@ -25,10 +25,16 @@ from keras.src.quantizers.quantizers import AbsMaxQuantizer as AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer as Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize as abs_max_quantize
 from keras.src.quantizers.quantizers import (
+    abs_max_quantize_grouped as abs_max_quantize_grouped,
+)
+from keras.src.quantizers.quantizers import (
     compute_float8_amax_history as compute_float8_amax_history,
 )
 from keras.src.quantizers.quantizers import (
     compute_float8_scale as compute_float8_scale,
+)
+from keras.src.quantizers.quantizers import (
+    dequantize_grouped as dequantize_grouped,
 )
 from keras.src.quantizers.quantizers import (
     fake_quant_with_min_max_vars as fake_quant_with_min_max_vars,

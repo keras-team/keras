@@ -1370,3 +1370,194 @@ class EinsumDenseTest(testing.TestCase):
         self.assertIsInstance(quantizer, AbsMaxQuantizer)
         self.assertEqual(quantizer.axis, (0,))
         self.assertAllEqual(quantizer.value_range, weight_range)
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+        ("per_channel_none", None),
+        ("per_channel_neg1", -1),
+    )
+    def test_int4_quantization_block_size(self, block_size):
+        """Test int4 quantization with different block_size configurations."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        # Use simple 2D equation: ab,bc->ac (like Dense)
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(64,),
+            bias_axes="c",
+        )
+        layer.build((None, 256))
+
+        x = np.random.random((2, 256)).astype("float32")
+        y_float = layer(x)
+
+        # Create config with specified block_size
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # For EinsumDense, when per-channel mode is used (block_size None
+        # or -1), the stored _int4_block_size is None (not the original value)
+        if block_size is None or block_size == -1:
+            self.assertIsNone(layer._int4_block_size)
+        else:
+            self.assertEqual(layer._int4_block_size, block_size)
+
+        # Verify kernel_scale shape
+        # EinsumDense uses _get_kernel_scale_shape which includes reduced axes
+        if block_size is None or block_size == -1:
+            # Per-channel: reduced axis set to 1, shape is (1, output_dim)
+            expected_scale_shape = (1, 64)
+        else:
+            # Sub-channel: n_groups scales per output unit
+            import math
+
+            n_groups = math.ceil(256 / block_size)
+            expected_scale_shape = (n_groups, 64)
+
+        self.assertEqual(layer.kernel_scale.shape, expected_scale_shape)
+
+        # Verify outputs are reasonable
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 0.01)  # Reasonable accuracy
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+        ("per_channel_none", None),
+    )
+    def test_int4_block_size_serialization(self, block_size):
+        """Test that block_size is preserved through serialization."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(32,),
+            bias_axes="c",
+        )
+        layer.build((None, 128))
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Get output before serialization
+        x = np.random.random((2, 128)).astype("float32")
+        y_before = layer(x)
+
+        # Save and load model to test full serialization roundtrip
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "int4_block_size_einsum_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify block_size is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertIsInstance(
+            loaded_layer.quantization_config, Int4QuantizationConfig
+        )
+        self.assertEqual(
+            loaded_layer.quantization_config.block_size, block_size
+        )
+
+        # Verify outputs match after deserialization
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("per_channel", None),
+    )
+    def test_int4_block_size_with_lora(self, block_size):
+        """Test int4 quantization with LoRA and different block_size."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(64,),
+            bias_axes="c",
+        )
+        layer.build((None, 128))
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+        layer.enable_lora(rank=4)
+
+        x = np.random.random((2, 128)).astype("float32")
+
+        # Should run without error
+        y = layer(x)
+        self.assertEqual(y.shape, (2, 64))
+
+    def test_int4_grouped_vs_perchannel_scale_shapes(self):
+        """Test that grouped and per-channel have different scale shapes."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 256, 64
+        block_size = 64
+
+        # Per-channel layer
+        layer_pc = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(output_dim,),
+        )
+        layer_pc.build((None, input_dim))
+        config_pc = Int4QuantizationConfig(block_size=None)
+        layer_pc.quantize("int4", config=config_pc)
+
+        # Grouped layer
+        layer_grouped = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(output_dim,),
+        )
+        layer_grouped.build((None, input_dim))
+        config_grouped = Int4QuantizationConfig(block_size=block_size)
+        layer_grouped.quantize("int4", config=config_grouped)
+
+        # EinsumDense uses _get_kernel_scale_shape which includes reduced axes
+        # Per-channel: (1, output_dim), Grouped: (n_groups, output_dim)
+        self.assertEqual(layer_pc.kernel_scale.shape, (1, output_dim))
+        self.assertEqual(
+            layer_grouped.kernel_scale.shape,
+            (input_dim // block_size, output_dim),
+        )
+
+    @parameterized.named_parameters(
+        ("btd_df_btf_grouped", "btd,df->btf", (8, 32), (None, 8, 256), 64),
+        ("btd_df_btf_pc", "btd,df->btf", (8, 32), (None, 8, 256), None),
+        ("ab_bcd_acd_grouped", "ab,bcd->acd", (8, 32), (None, 64), 32),
+        ("ab_bcd_acd_pc", "ab,bcd->acd", (8, 32), (None, 64), None),
+    )
+    def test_int4_block_size_various_equations(
+        self, equation, output_shape, input_shape, block_size
+    ):
+        """Test int4 quantization with different equations and block_size."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.EinsumDense(
+            equation=equation,
+            output_shape=output_shape,
+        )
+        layer.build(input_shape)
+
+        batch_input_shape = (2,) + input_shape[1:]
+        x = np.random.random(batch_input_shape).astype("float32")
+        y_float = layer(x)
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify quantization works
+        y_quantized = layer(x)
+        self.assertEqual(y_float.shape, y_quantized.shape)
+
+        # Verify reasonable accuracy
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 0.02)

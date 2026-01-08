@@ -635,6 +635,10 @@ class Dense(Layer):
         `ceil(input_dim/2)` because two int4 values are packed into a single
         int8 byte.
         """
+        from keras.src.quantizers.quantization_config import (
+            Int4QuantizationConfig,
+        )
+
         # Per-channel int8 quantizer for the last axis (features).
         self.inputs_quantizer = (
             QuantizationConfig.activation_quantizer_or_default(
@@ -652,10 +656,26 @@ class Dense(Layer):
             dtype="int8",
             trainable=False,
         )
-        # One scale per output unit (per-channel).
+
+        # Determine block_size from config
+        block_size = None
+        if isinstance(config, Int4QuantizationConfig):
+            block_size = config.block_size
+
+        # Store block_size for runtime dequantization
+        self._int4_block_size = block_size
+
+        if block_size is None or block_size == -1:
+            # Per-channel: one scale per output unit
+            scale_shape = (self.units,)
+        else:
+            # Sub-channel: n_groups scales per output unit
+            n_groups = math.ceil(input_dim / block_size)
+            scale_shape = (n_groups, self.units)
+
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
-            shape=(self.units,),
+            shape=scale_shape,
             initializer="ones",
             trainable=False,
         )
@@ -757,6 +777,8 @@ class Dense(Layer):
     def _int4_call(self, inputs, training=None):
         """Forward pass for int4 quantized Dense layer."""
 
+        block_size = getattr(self, "_int4_block_size", None)
+
         @ops.custom_gradient
         def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
             """Custom gradient function for int4 quantized weights.
@@ -776,22 +798,40 @@ class Dense(Layer):
             def grad_fn(*args, upstream=None):
                 if upstream is None:
                     (upstream,) = args
-                float_kernel = ops.divide(
-                    ops.cast(unpacked_kernel, dtype=self.compute_dtype),
-                    kernel_scale,
-                )
+                # Dequantize kernel for gradient computation
+                if block_size is None or block_size == -1:
+                    float_kernel = ops.divide(
+                        ops.cast(unpacked_kernel, dtype=self.compute_dtype),
+                        kernel_scale,
+                    )
+                else:
+                    float_kernel = quantizers.dequantize_grouped(
+                        unpacked_kernel, kernel_scale, block_size
+                    )
+                    float_kernel = ops.cast(float_kernel, self.compute_dtype)
                 inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
                 return (inputs_grad, None, None)
 
-            output_scale = kernel_scale
+            # Forward pass dequantization
+            if block_size is None or block_size == -1:
+                # Per-channel: simple broadcast
+                output_scale = kernel_scale
+                if self.inputs_quantizer:
+                    inputs, inputs_scale = self.inputs_quantizer(
+                        inputs, axis=-1
+                    )
+                    output_scale = ops.multiply(output_scale, inputs_scale)
 
-            if self.inputs_quantizer:
-                inputs, inputs_scale = self.inputs_quantizer(inputs, axis=-1)
-                output_scale = ops.multiply(output_scale, inputs_scale)
-
-            x = ops.matmul(inputs, unpacked_kernel)
-            x = ops.cast(x, self.compute_dtype)
-            x = ops.divide(x, output_scale)
+                x = ops.matmul(inputs, unpacked_kernel)
+                x = ops.cast(x, self.compute_dtype)
+                x = ops.divide(x, output_scale)
+            else:
+                # Sub-channel: need to dequantize before matmul
+                float_kernel = quantizers.dequantize_grouped(
+                    unpacked_kernel, kernel_scale, block_size
+                )
+                float_kernel = ops.cast(float_kernel, self.compute_dtype)
+                x = ops.matmul(inputs, float_kernel)
             return x, grad_fn
 
         x = matmul_with_inputs_gradient(
@@ -925,18 +965,42 @@ class Dense(Layer):
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
         elif mode == "int4":
-            # 1. Quantize to int4 values (still int8 dtype, range [-8,7])
-            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                self.quantization_config,
-                quantizers.AbsMaxQuantizer(
-                    axis=0, value_range=(-8, 7), output_dtype="int8"
-                ),
+            from keras.src.quantizers.quantization_config import (
+                Int4QuantizationConfig,
             )
-            kernel_value_int4, kernel_scale = weight_quantizer(
-                self._kernel, to_numpy=True
-            )
-            kernel_scale = ops.squeeze(kernel_scale, axis=0)
-            # 2. Pack two int4 values into a single int8 byte.
+
+            # Determine block_size from config
+            block_size = None
+            if isinstance(self.quantization_config, Int4QuantizationConfig):
+                block_size = self.quantization_config.block_size
+
+            if block_size is None or block_size == -1:
+                # Per-channel quantization (legacy behavior)
+                weight_quantizer = (
+                    QuantizationConfig.weight_quantizer_or_default(
+                        self.quantization_config,
+                        quantizers.AbsMaxQuantizer(
+                            axis=0, value_range=(-8, 7), output_dtype="int8"
+                        ),
+                    )
+                )
+                kernel_value_int4, kernel_scale = weight_quantizer(
+                    self._kernel, to_numpy=True
+                )
+                kernel_scale = ops.squeeze(kernel_scale, axis=0)
+            else:
+                # Sub-channel (grouped) quantization
+                kernel_value_int4, kernel_scale = (
+                    quantizers.abs_max_quantize_grouped(
+                        self._kernel,
+                        block_size=block_size,
+                        value_range=(-8, 7),
+                        dtype="int8",
+                        to_numpy=True,
+                    )
+                )
+
+            # Pack two int4 values into a single int8 byte.
             packed_kernel_value, _, _ = quantizers.pack_int4(kernel_value_int4)
             del self._kernel
             # Build variables using the original kernel shape; _int4_build will
@@ -1007,16 +1071,23 @@ class Dense(Layer):
             return kernel_value, kernel_scale
 
         # Dequantize, Merge, and Re-quantize
+        block_size = getattr(self, "_int4_block_size", None)
 
         # Dequantize kernel to float
         if self.quantization_mode == "int4":
             unpacked_kernel = quantizers.unpack_int4(
                 kernel_value, self._orig_input_dim
             )
-            float_kernel = ops.divide(
-                ops.cast(unpacked_kernel, self.compute_dtype),
-                kernel_scale,
-            )
+            if block_size is None or block_size == -1:
+                float_kernel = ops.divide(
+                    ops.cast(unpacked_kernel, self.compute_dtype),
+                    kernel_scale,
+                )
+            else:
+                float_kernel = quantizers.dequantize_grouped(
+                    unpacked_kernel, kernel_scale, block_size
+                )
+                float_kernel = ops.cast(float_kernel, self.compute_dtype)
             quant_range = (-8, 7)
         elif self.quantization_mode == "int8":
             float_kernel = ops.divide(
@@ -1035,14 +1106,31 @@ class Dense(Layer):
         merged_float_kernel = ops.add(float_kernel, lora_delta)
 
         # Requantize
-        requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
-            merged_float_kernel,
-            axis=0,
-            value_range=quant_range,
-            dtype="int8",
-            to_numpy=True,
-        )
-        kernel_scale = ops.squeeze(kernel_scale, axis=0)
+        if (
+            self.quantization_mode == "int4"
+            and block_size is not None
+            and block_size != -1
+        ):
+            # Use grouped quantization for int4 with block_size
+            requantized_kernel, kernel_scale = (
+                quantizers.abs_max_quantize_grouped(
+                    merged_float_kernel,
+                    block_size=block_size,
+                    value_range=quant_range,
+                    dtype="int8",
+                    to_numpy=True,
+                )
+            )
+        else:
+            # Use per-channel quantization
+            requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
+                merged_float_kernel,
+                axis=0,
+                value_range=quant_range,
+                dtype="int8",
+                to_numpy=True,
+            )
+            kernel_scale = ops.squeeze(kernel_scale, axis=0)
 
         # Pack if int4
         if self.quantization_mode == "int4":

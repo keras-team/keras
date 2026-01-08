@@ -9,8 +9,10 @@ from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize
+from keras.src.quantizers.quantizers import abs_max_quantize_grouped
 from keras.src.quantizers.quantizers import compute_float8_amax_history
 from keras.src.quantizers.quantizers import compute_float8_scale
+from keras.src.quantizers.quantizers import dequantize_grouped
 from keras.src.quantizers.quantizers import fake_quant_with_min_max_vars
 from keras.src.quantizers.quantizers import pack_int4
 from keras.src.quantizers.quantizers import quantize_and_dequantize
