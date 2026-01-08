@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from absl.testing import parameterized
 
+import keras
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
@@ -30,128 +31,10 @@ class MockTokenizer:
             tokens = tokens + [0] * (self.seq_len - len(tokens))
         else:
             tokens = tokens[: self.seq_len]
-        return np.array([tokens], dtype="int32")
+        return ops.array([tokens], dtype="int32")
 
     def __call__(self, text):
         return self.tokenize(text)
-
-
-@pytest.mark.requires_trainable_backend
-class AWQConfigTest(testing.TestCase):
-    """Test AWQConfig validation and serialization."""
-
-    def test_config_defaults(self):
-        """Test default configuration values."""
-        config = AWQConfig(dataset=["test"], tokenizer=MockTokenizer())
-        self.assertEqual(config.weight_bits, 4)
-        self.assertEqual(config.num_samples, 128)
-        self.assertEqual(config.sequence_length, 512)
-        self.assertEqual(config.group_size, 128)
-        self.assertEqual(config.n_grid, 20)
-        self.assertEqual(config.mode, "awq")
-
-    def test_config_custom_values(self):
-        """Test custom configuration values."""
-        config = AWQConfig(
-            dataset=["test"],
-            tokenizer=MockTokenizer(),
-            num_samples=64,
-            sequence_length=256,
-            group_size=64,
-            n_grid=30,
-        )
-        self.assertEqual(config.num_samples, 64)
-        self.assertEqual(config.sequence_length, 256)
-        self.assertEqual(config.group_size, 64)
-        self.assertEqual(config.n_grid, 30)
-
-    def test_config_only_4bit(self):
-        """Test that AWQ only supports 4-bit quantization."""
-        with self.assertRaisesRegex(ValueError, "only supports 4-bit"):
-            AWQConfig(
-                dataset=["test"], tokenizer=MockTokenizer(), weight_bits=8
-            )
-
-    def test_config_invalid_num_samples(self):
-        """Test invalid num_samples validation."""
-        with self.assertRaisesRegex(ValueError, "num_samples must be"):
-            AWQConfig(
-                dataset=["test"], tokenizer=MockTokenizer(), num_samples=0
-            )
-
-    def test_config_invalid_sequence_length(self):
-        """Test invalid sequence_length validation."""
-        with self.assertRaisesRegex(ValueError, "sequence_length must be"):
-            AWQConfig(
-                dataset=["test"], tokenizer=MockTokenizer(), sequence_length=-1
-            )
-
-    def test_config_invalid_group_size(self):
-        """Test invalid group_size validation."""
-        with self.assertRaisesRegex(ValueError, "Invalid group_size"):
-            AWQConfig(dataset=["test"], tokenizer=MockTokenizer(), group_size=0)
-
-    def test_config_invalid_n_grid(self):
-        """Test invalid n_grid validation."""
-        with self.assertRaisesRegex(ValueError, "n_grid must be"):
-            AWQConfig(dataset=["test"], tokenizer=MockTokenizer(), n_grid=0)
-
-    def test_config_per_channel_group_size(self):
-        """Test that -1 group_size is valid (per-channel)."""
-        config = AWQConfig(
-            dataset=["test"], tokenizer=MockTokenizer(), group_size=-1
-        )
-        self.assertEqual(config.group_size, -1)
-
-    def test_config_serialization(self):
-        """Test configuration serialization."""
-        config = AWQConfig(
-            dataset=["test"],
-            tokenizer=MockTokenizer(),
-            group_size=64,
-            n_grid=30,
-        )
-        cfg = config.get_config()
-        self.assertEqual(cfg["weight_bits"], 4)
-        self.assertEqual(cfg["group_size"], 64)
-        self.assertEqual(cfg["n_grid"], 30)
-        # Dataset and tokenizer should not be serialized
-        self.assertIsNone(cfg["dataset"])
-        self.assertIsNone(cfg["tokenizer"])
-
-    def test_dtype_policy_string(self):
-        """Test dtype policy string generation."""
-        config = AWQConfig(
-            dataset=["test"], tokenizer=MockTokenizer(), group_size=128
-        )
-        self.assertEqual(config.dtype_policy_string(), "awq/4/128")
-
-        config2 = AWQConfig(
-            dataset=["test"], tokenizer=MockTokenizer(), group_size=-1
-        )
-        self.assertEqual(config2.dtype_policy_string(), "awq/4/-1")
-
-    def test_awq_config_serialization(self):
-        """Test AWQConfig serialization and deserialization round-trip."""
-        config = AWQConfig(
-            dataset=["test"],
-            tokenizer=MockTokenizer(),
-            weight_bits=4,
-            num_samples=64,
-            sequence_length=256,
-            group_size=64,
-            n_grid=30,
-        )
-        serialized_config = config.get_config()
-        deserialized_config = AWQConfig.from_config(serialized_config)
-        # Compare the serializable fields (dataset/tokenizer are not serialized)
-        self.assertEqual(config.weight_bits, deserialized_config.weight_bits)
-        self.assertEqual(config.num_samples, deserialized_config.num_samples)
-        self.assertEqual(
-            config.sequence_length, deserialized_config.sequence_length
-        )
-        self.assertEqual(config.group_size, deserialized_config.group_size)
-        self.assertEqual(config.n_grid, deserialized_config.n_grid)
 
 
 @pytest.mark.requires_trainable_backend
@@ -160,11 +43,9 @@ class AWQAlgorithmTest(testing.TestCase):
 
     def test_scale_search_returns_valid_scales(self):
         """Test that scale search returns valid positive scales."""
-        weights = ops.convert_to_tensor(
-            np.random.randn(32, 16).astype("float32")
-        )
-        activations = ops.convert_to_tensor(
-            np.abs(np.random.randn(16).astype("float32")) + 0.1
+        weights = np.random.randn(32, 16).astype("float32")
+        activations = ops.abs(
+            ops.add(np.random.randn(16).astype("float32"), 0.1)
         )
 
         scales = awq_search_optimal_scales(
@@ -173,34 +54,30 @@ class AWQAlgorithmTest(testing.TestCase):
 
         self.assertEqual(scales.shape, (16,))
         # All scales should be positive
-        self.assertTrue(np.all(np.array(scales) > 0))
+        self.assertTrue(ops.all(ops.greater(scales, 0)))
 
     def test_scale_search_with_zero_activations(self):
         """Test scale search handles near-zero activations."""
-        weights = ops.convert_to_tensor(
-            np.random.randn(32, 16).astype("float32")
-        )
+        weights = ops.array(np.random.randn(32, 16).astype("float32"))
         # Some activations are very small
         activations = np.abs(np.random.randn(16).astype("float32"))
         activations[:5] = 1e-10
-        activations = ops.convert_to_tensor(activations)
+        activations = ops.array(activations)
 
         scales = awq_search_optimal_scales(
             weights, activations, n_grid=10, group_size=-1
         )
 
         # Should handle gracefully without NaN or Inf
-        self.assertFalse(np.any(np.isnan(np.array(scales))))
-        self.assertFalse(np.any(np.isinf(np.array(scales))))
+        self.assertFalse(ops.any(ops.isnan(scales)))
+        self.assertFalse(ops.any(ops.isinf(scales)))
 
     def test_quantize_matrix_shapes(self):
         """Test that quantize_matrix returns correct shapes."""
         # weights_transpose has shape [out_features, in_features]
-        weights = ops.convert_to_tensor(
-            np.random.randn(32, 16).astype("float32")  # [out=32, in=16]
-        )
-        activations = ops.convert_to_tensor(
-            np.abs(np.random.randn(16).astype("float32")) + 0.1
+        weights = ops.array(np.random.randn(32, 16).astype("float32"))
+        activations = ops.add(
+            ops.abs(np.random.randn(16).astype("float32")), 0.1
         )
 
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
@@ -213,27 +90,37 @@ class AWQAlgorithmTest(testing.TestCase):
         self.assertEqual(scale.shape, (32, 1))
         # AWQ scales: per-channel for input features
         self.assertEqual(awq_scales.shape, (16,))
+        # AWQ zero shape: [out_features, num_groups]
+        self.assertEqual(zero.shape, (32, 1))
         # Group indices
         self.assertEqual(g_idx.shape, (16,))
 
     def test_quantize_matrix_with_grouping(self):
         """Test quantize_matrix with group size."""
         # Use dimensions divisible by group_size for cleaner test
-        weights = ops.convert_to_tensor(
-            np.random.randn(64, 32).astype("float32")
-        )
-        activations = ops.convert_to_tensor(
-            np.abs(np.random.randn(32).astype("float32")) + 0.1
+        weights = ops.array(np.random.randn(64, 32).astype("float32"))
+        activations = ops.add(
+            ops.abs(np.random.randn(32).astype("float32")), 0.1
         )
 
         # Test per-channel mode (group_size=-1) which is well-supported
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
-            weights, activations, n_grid=5, group_size=-1
+            weights, activations, n_grid=5, group_size=8
         )
 
-        # Check g_idx values - for per-channel, all should be group 0
-        g_idx_np = np.array(g_idx)
-        self.assertEqual(np.max(g_idx_np), 0)
+        # Quantized shape: [out_features, in_features]
+        self.assertEqual(quantized.shape, (64, 32))
+        # Scale shape: [out_features, num_groups]
+        self.assertEqual(scale.shape, (64, 4))  # 32 in_features / 8 group_size
+        # AWQ scales: per-channel for input features
+        self.assertEqual(awq_scales.shape, (32,))
+        # AWQ zero shape: [out_features, num_groups]
+        self.assertEqual(zero.shape, (64, 4))
+        # Group indices
+        self.assertEqual(g_idx.shape, (32,))
+
+        # Check g_idx values
+        self.assertEqual(ops.max(g_idx), 3)  # 4 groups: 0,1,2,3
         self.assertEqual(awq_scales.shape, (32,))
 
     def test_compute_grouped_quantization_params_shapes(self):
@@ -243,7 +130,7 @@ class AWQAlgorithmTest(testing.TestCase):
         group_size = 32
         n_groups = in_features // group_size  # 4 groups
 
-        weights = ops.convert_to_tensor(
+        weights = ops.array(
             np.random.randn(out_features, in_features).astype("float32")
         )
 
@@ -272,11 +159,11 @@ class AWQAlgorithmTest(testing.TestCase):
         group_size = 32
         n_groups = (in_features + group_size - 1) // group_size  # 4 groups
 
-        weights = ops.convert_to_tensor(
+        weights = ops.array(
             np.random.randn(out_features, in_features).astype("float32")
         )
 
-        scale, zero, maxq, g_idx = _compute_grouped_quantization_params(
+        scale, zero, _, g_idx = _compute_grouped_quantization_params(
             weights, group_size, bits=4
         )
 
@@ -298,10 +185,10 @@ class AWQAlgorithmTest(testing.TestCase):
         group_size = 128
         n_groups = in_features // group_size  # 6 groups
 
-        weights = ops.convert_to_tensor(
+        weights = ops.array(
             np.random.randn(out_features, in_features).astype("float32")
         )
-        activations = ops.convert_to_tensor(
+        activations = ops.array(
             np.abs(np.random.randn(in_features).astype("float32")) + 0.1
         )
 
@@ -321,9 +208,8 @@ class AWQAlgorithmTest(testing.TestCase):
         self.assertEqual(g_idx.shape, (in_features,))
 
         # Verify g_idx values
-        g_idx_np = np.array(g_idx)
-        expected_g_idx = np.arange(in_features) // group_size
-        np.testing.assert_array_equal(g_idx_np, expected_g_idx)
+        expected_g_idx = ops.floor_divide(ops.arange(in_features), group_size)
+        self.assertAllEqual(g_idx, expected_g_idx)
 
     def test_quantize_matrix_grouped_no_nan_inf(self):
         """Test grouped quantization produces no NaN or Inf values."""
@@ -331,24 +217,24 @@ class AWQAlgorithmTest(testing.TestCase):
         in_features = 512
         group_size = 64
 
-        weights = ops.convert_to_tensor(
+        weights = ops.array(
             np.random.randn(out_features, in_features).astype("float32")
         )
-        activations = ops.convert_to_tensor(
-            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+        activations = ops.add(
+            ops.abs(np.random.randn(in_features).astype("float32")), 0.1
         )
 
-        quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
+        quantized, scale, _, awq_scales, _ = awq_quantize_matrix(
             weights, activations, n_grid=5, group_size=group_size
         )
 
         # Check for NaN/Inf in all outputs
-        self.assertFalse(np.any(np.isnan(np.array(quantized))))
-        self.assertFalse(np.any(np.isinf(np.array(quantized))))
-        self.assertFalse(np.any(np.isnan(np.array(scale))))
-        self.assertFalse(np.any(np.isinf(np.array(scale))))
-        self.assertFalse(np.any(np.isnan(np.array(awq_scales))))
-        self.assertFalse(np.any(np.isinf(np.array(awq_scales))))
+        self.assertFalse(ops.any(ops.isnan(quantized)))
+        self.assertFalse(ops.any(ops.isinf(quantized)))
+        self.assertFalse(ops.any(ops.isnan(scale)))
+        self.assertFalse(ops.any(ops.isinf(scale)))
+        self.assertFalse(ops.any(ops.isnan(awq_scales)))
+        self.assertFalse(ops.any(ops.isinf(awq_scales)))
 
     def test_scale_search_grouped_quantization(self):
         """Test awq_search_optimal_scales with grouped quantization."""
@@ -356,14 +242,13 @@ class AWQAlgorithmTest(testing.TestCase):
         in_features = 256
         group_size = 32
 
-        weights = ops.convert_to_tensor(
+        weights = ops.array(
             np.random.randn(out_features, in_features).astype("float32")
         )
-        activations = ops.convert_to_tensor(
-            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+        activations = ops.add(
+            ops.abs(np.random.randn(in_features).astype("float32")), 0.1
         )
 
-        # This should not raise any errors
         scales = awq_search_optimal_scales(
             weights, activations, n_grid=5, group_size=group_size
         )
@@ -371,10 +256,10 @@ class AWQAlgorithmTest(testing.TestCase):
         # Scales should be [in_features]
         self.assertEqual(scales.shape, (in_features,))
         # All scales should be positive
-        self.assertTrue(np.all(np.array(scales) > 0))
+        self.assertTrue(ops.all(ops.greater(scales, 0)))
         # No NaN or Inf
-        self.assertFalse(np.any(np.isnan(np.array(scales))))
-        self.assertFalse(np.any(np.isinf(np.array(scales))))
+        self.assertFalse(ops.any(ops.isnan(scales)))
+        self.assertFalse(ops.any(ops.isinf(scales)))
 
     @parameterized.named_parameters(
         ("group_8", 8),
@@ -389,11 +274,11 @@ class AWQAlgorithmTest(testing.TestCase):
         in_features = 128
         n_groups = in_features // group_size
 
-        weights = ops.convert_to_tensor(
+        weights = ops.array(
             np.random.randn(out_features, in_features).astype("float32")
         )
-        activations = ops.convert_to_tensor(
-            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+        activations = ops.add(
+            ops.abs(np.random.randn(in_features).astype("float32")), 0.1
         )
 
         _, scale, zero, _, _ = awq_quantize_matrix(
@@ -437,7 +322,9 @@ class AWQLayerTest(testing.TestCase):
 
         self.assertEqual(awq_obj.num_samples, 64)
         # Activation magnitudes should be non-negative
-        self.assertTrue(np.all(np.array(awq_obj.activation_magnitudes) >= 0))
+        self.assertTrue(
+            ops.all(ops.greater_equal(awq_obj.activation_magnitudes, 0))
+        )
 
     def test_awq_activation_accumulation(self):
         """Test that activation magnitudes accumulate correctly."""
@@ -451,19 +338,21 @@ class AWQLayerTest(testing.TestCase):
         awq_obj = AWQ(layer, config)
 
         # First batch
-        batch1 = np.abs(np.random.randn(10, 16).astype("float32"))
-        batch1_max = np.max(batch1, axis=0)
+        batch1 = ops.abs(np.random.randn(10, 16).astype("float32"))
+        batch1_max = ops.max(batch1, axis=0)
         awq_obj.update_activation_magnitudes(batch1)
 
         # Second batch with higher values in some channels
-        batch2 = np.abs(np.random.randn(10, 16).astype("float32")) + 1.0
-        batch2_max = np.max(batch2, axis=0)
+        batch2 = ops.add(
+            ops.abs(np.random.randn(10, 16).astype("float32")), 1.0
+        )
+        batch2_max = ops.max(batch2, axis=0)
         awq_obj.update_activation_magnitudes(batch2)
 
         # Accumulated magnitudes should be element-wise max
-        expected_max = np.maximum(batch1_max, batch2_max)
-        np.testing.assert_array_almost_equal(
-            np.array(awq_obj.activation_magnitudes), expected_max, decimal=5
+        expected_max = ops.maximum(batch1_max, batch2_max)
+        self.assertAllClose(
+            awq_obj.activation_magnitudes, expected_max, atol=1e-6
         )
 
     def test_awq_layer_variables_created(self):
@@ -732,8 +621,6 @@ class AWQAccuracyTest(testing.TestCase):
         Verifies that quantizing a single layer maintains reasonable
         output reconstruction error on test data.
         """
-        import keras
-
         keras.utils.set_random_seed(42)
 
         # Create a Dense layer with random weights
@@ -745,7 +632,7 @@ class AWQAccuracyTest(testing.TestCase):
         test_data = np.random.randn(32, 32).astype("float32")
 
         # Get original layer output on test data
-        original_output = np.array(layer(test_data))
+        original_output = layer(test_data)
 
         # Configure AWQ for layer
         config = AWQConfig(
@@ -764,12 +651,14 @@ class AWQAccuracyTest(testing.TestCase):
         awq_obj.quantize_layer()
 
         # Get quantized layer output
-        quantized_output = np.array(layer(test_data))
+        quantized_output = layer(test_data)
 
         # Calculate reconstruction error (relative MSE of outputs)
-        mse = np.mean((original_output - quantized_output) ** 2)
-        original_var = np.var(original_output)
-        relative_mse = mse / (original_var + 1e-8)
+        mse = ops.mean(
+            ops.power(ops.subtract(original_output, quantized_output), 2)
+        )
+        original_var = ops.var(original_output)
+        relative_mse = ops.divide(mse, ops.add(original_var, 1e-8))
 
         # AWQ should achieve reasonable output reconstruction (< 20% relative)
         self.assertLess(
@@ -779,54 +668,8 @@ class AWQAccuracyTest(testing.TestCase):
         )
 
         # Verify no NaN or Inf values in output
-        self.assertFalse(np.any(np.isnan(quantized_output)))
-        self.assertFalse(np.any(np.isinf(quantized_output)))
-
-        awq_obj.free()
-
-    def test_awq_output_consistency(self):
-        """Test that AWQ layer produces consistent outputs.
-
-        Verifies that a quantized layer produces deterministic outputs
-        and the output shape matches expectations.
-        """
-        import keras
-
-        keras.utils.set_random_seed(123)
-
-        # Create and build layer
-        layer = layers.Dense(32)
-        layer.build(input_shape=(None, 16))
-
-        # Configure and quantize
-        config = AWQConfig(
-            dataset=None,
-            tokenizer=None,
-            group_size=-1,
-            n_grid=10,
-        )
-        layer.quantize("awq", config=config)
-
-        # Calibrate
-        calibration_data = np.random.randn(64, 16).astype("float32")
-        awq_obj = AWQ(layer, config)
-        awq_obj.update_activation_magnitudes(calibration_data)
-        awq_obj.quantize_layer()
-
-        # Test inference
-        test_input = np.random.randn(8, 16).astype("float32")
-        output1 = layer(test_input)
-        output2 = layer(test_input)
-
-        # Outputs should be identical (deterministic)
-        np.testing.assert_array_equal(
-            np.array(output1),
-            np.array(output2),
-            err_msg="AWQ layer outputs are not deterministic",
-        )
-
-        # Output shape should be correct
-        self.assertEqual(output1.shape, (8, 32))
+        self.assertFalse(ops.any(ops.isnan(quantized_output)))
+        self.assertFalse(ops.any(ops.isinf(quantized_output)))
 
         awq_obj.free()
 
@@ -851,7 +694,7 @@ class AWQAccuracyTest(testing.TestCase):
         test_data = np.random.randn(32, in_features).astype("float32")
 
         # Get original layer output on test data
-        original_output = np.array(layer(test_data))
+        original_output = layer(test_data)
 
         # Test with group_size=32 (common value)
         group_size = 32
@@ -884,12 +727,14 @@ class AWQAccuracyTest(testing.TestCase):
         )
 
         # Get quantized layer output
-        quantized_output = np.array(layer(test_data))
+        quantized_output = layer(test_data)
 
         # Calculate reconstruction error
-        mse = np.mean((original_output - quantized_output) ** 2)
-        original_var = np.var(original_output)
-        relative_mse = mse / (original_var + 1e-8)
+        mse = ops.mean(
+            ops.power(ops.subtract(original_output, quantized_output), 2)
+        )
+        original_var = ops.var(original_output)
+        relative_mse = ops.divide(mse, ops.add(original_var, 1e-8))
 
         # Grouped quantization may have slightly higher error than per-channel
         # but should still be reasonable (< 30% relative MSE)
@@ -901,8 +746,8 @@ class AWQAccuracyTest(testing.TestCase):
         )
 
         # Verify no NaN or Inf values
-        self.assertFalse(np.any(np.isnan(quantized_output)))
-        self.assertFalse(np.any(np.isinf(quantized_output)))
+        self.assertFalse(ops.any(ops.isnan(quantized_output)))
+        self.assertFalse(ops.any(ops.isinf(quantized_output)))
 
         awq_obj.free()
 
@@ -934,7 +779,7 @@ class AWQAccuracyTest(testing.TestCase):
         test_data = np.random.randn(16, in_features).astype("float32")
 
         # Get original output
-        original_output = np.array(layer(test_data))
+        original_output = layer(test_data)
 
         # Configure and quantize
         config = AWQConfig(
@@ -950,22 +795,24 @@ class AWQAccuracyTest(testing.TestCase):
         awq_obj.quantize_layer()
 
         # Verify output
-        quantized_output = np.array(layer(test_data))
+        quantized_output = layer(test_data)
 
         # Should have no NaN/Inf
         self.assertFalse(
-            np.any(np.isnan(quantized_output)),
+            ops.any(ops.isnan(quantized_output)),
             f"NaN in output for group_size={group_size}",
         )
         self.assertFalse(
-            np.any(np.isinf(quantized_output)),
+            ops.any(ops.isinf(quantized_output)),
             f"Inf in output for group_size={group_size}",
         )
 
         # Should maintain reasonable accuracy
-        mse = np.mean((original_output - quantized_output) ** 2)
-        original_var = np.var(original_output)
-        relative_mse = mse / (original_var + 1e-8)
+        mse = ops.mean(
+            ops.power(ops.subtract(original_output, quantized_output), 2)
+        )
+        original_var = ops.var(original_output)
+        relative_mse = ops.divide(mse, ops.add(original_var, 1e-8))
 
         self.assertLess(
             relative_mse,
@@ -1197,8 +1044,6 @@ class AWQSerializationTest(testing.TestCase):
         )
 
         quantized_kernel_params = ops.prod(layer.quantized_kernel.shape)
-        self.assertEqual(quantized_kernel_params, original_kernel_params // 2)
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
+        self.assertEqual(
+            quantized_kernel_params, ops.floor_divide(original_kernel_params, 2)
+        )

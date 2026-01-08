@@ -673,7 +673,7 @@ class EinsumDense(Layer):
                 raise ValueError("Could not determine row/column split.")
 
         group_size = awq_core.get_group_size_for_layer(self, config)
-        n_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
+        num_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
 
         self.awq_unpacked_column_size = columns
 
@@ -692,19 +692,19 @@ class EinsumDense(Layer):
 
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
-            shape=(columns, n_groups),
+            shape=(columns, num_groups),
             initializer="ones",
             trainable=False,
         )
         self.kernel_zero = self.add_weight(
             name="zero_point",
-            shape=(columns, n_groups),
+            shape=(columns, num_groups),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
         )
 
-        # AWQ-specific: per-channel scales from activation magnitudes
+        # Per-channel AWQ scales from activation magnitudes
         self.awq_scales = self.add_weight(
             name="awq_scales",
             shape=(rows,),
@@ -741,10 +741,10 @@ class EinsumDense(Layer):
             )
             W = ops.transpose(W)
 
-            # Apply AWQ scales by DIVIDING to restore original magnitude
+            # Apply AWQ scales by dividing to restore original magnitude
             # (We multiplied by scales before quantization, so divide to undo)
             # awq_scales has shape [input_dim], W has shape [input_dim, out_dim]
-            # Expand dims for proper broadcasting
+            # Expand dims for proper broadcasting.
             W = ops.divide(W, ops.expand_dims(self.awq_scales, -1))
 
             W = ops.reshape(W, self.original_kernel_shape)

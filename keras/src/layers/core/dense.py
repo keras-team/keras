@@ -561,23 +561,24 @@ class Dense(Layer):
         )
 
         group_size = awq_core.get_group_size_for_layer(self, config)
-        n_groups = (
+        num_groups = (
             1 if group_size == -1 else math.ceil(kernel_shape[0] / group_size)
         )
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
-            shape=(self.units, n_groups),
+            shape=(self.units, num_groups),
             initializer="ones",
             trainable=False,
         )
         self.kernel_zero = self.add_weight(
             name="kernel_zero",
-            shape=(self.units, n_groups),
+            shape=(self.units, num_groups),
             initializer="zeros",
             dtype="uint8",
             trainable=False,
         )
-        # AWQ-specific: per-channel scales from activation magnitudes
+
+        # Per-channel AWQ scales from activation magnitudes
         self.awq_scales = self.add_weight(
             name="awq_scales",
             shape=(kernel_shape[0],),
@@ -613,10 +614,10 @@ class Dense(Layer):
                     self.g_idx,
                 )
             )
-            # Apply AWQ scales by DIVIDING to restore original magnitude
+            # Apply AWQ scales by dividing to restore original magnitude
             # (We multiplied by scales before quantization, so divide to undo)
             # awq_scales has shape [input_dim], W has shape [input_dim, units]
-            # Expand dims for proper broadcasting
+            # Expand dims for proper broadcasting.
             W = ops.divide(W, ops.expand_dims(self.awq_scales, -1))
 
         y = ops.matmul(inputs, W)
