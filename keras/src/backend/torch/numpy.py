@@ -1386,6 +1386,8 @@ def ptp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:
         return x.max() - x.min()
+    elif axis == ():
+        return torch.zeros_like(x)
     else:
         return torch.amax(x, dim=axis, keepdim=keepdims) - torch.amin(
             x, dim=axis, keepdim=keepdims
