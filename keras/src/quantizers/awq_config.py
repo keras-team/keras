@@ -10,36 +10,13 @@ class AWQConfig(QuantizationConfig):
     salient weights based on activation magnitudes. It applies per-channel
     scaling before quantization to minimize accuracy loss.
 
-    **How it works:**
+    Methodology:
     1. Collects activation statistics from calibration data
     2. Identifies salient weight channels based on activation magnitudes
     3. Searches for optimal per-channel scaling factors via grid search
     4. Applies scaling before quantization to protect important weights
 
-    **Key differences from GPTQ:**
-    - Uses activation-based scaling (not Hessian-based error correction)
-    - Performs grid search to find optimal scaling ratios
-    - Simpler algorithm but requires calibration data
-
-    **Example usage:**
-    ```python
-    from keras.quantizers import AWQConfig
-
-    # Create configuration for 4-bit AWQ quantization
-    config = AWQConfig(
-        dataset=calibration_data,          # Your calibration dataset
-        tokenizer=your_tokenizer,          # Tokenizer for text data
-        num_samples=128,                   # Number of calibration samples
-        sequence_length=512,               # Sequence length for each sample
-        group_size=128,                    # Weight grouping for quantization
-        n_grid=20,                         # Grid search points for scale search
-    )
-
-    # Apply quantization to your model
-    model.quantize("awq", config=config)
-    ```
-
-    **References:**
+    References:
     - Original AWQ paper: "AWQ: Activation-aware Weight Quantization for
       LLM Compression and Acceleration" (https://arxiv.org/abs/2306.00978)
     - Reference implementation: https://github.com/mit-han-lab/llm-awq
@@ -50,9 +27,9 @@ class AWQConfig(QuantizationConfig):
             strings, a generator, or a NumPy array). This data is used to
             analyze activation patterns.
         tokenizer: A tokenizer instance (or a similar callable) that is used
-            to process the `dataset` if it contains strings.
-        weight_bits: The number of bits for weight quantization. AWQ only
-            supports 4-bit quantization. Defaults to 4.
+            to process the `dataset`.
+        weight_bits: The number of bits for weight quantization. AWQ presently
+            only supports 4-bit quantization. Defaults to 4.
         num_samples: The number of calibration data samples to use from the
             dataset. Defaults to 128.
         sequence_length: The sequence length to use for each calibration
@@ -71,6 +48,25 @@ class AWQConfig(QuantizationConfig):
               sequentially.
             If not provided, the model must implement
             `get_quantization_layer_structure`.
+
+    Example:
+    ```python
+    from keras.quantizers import AWQConfig
+
+    # Create configuration for 4-bit AWQ quantization
+    config = AWQConfig(
+        dataset=calibration_data,          # Your calibration dataset
+        tokenizer=your_tokenizer,          # Tokenizer for text data
+        num_samples=128,                   # Number of calibration samples
+        sequence_length=512,               # Sequence length for each sample
+        group_size=128,                    # Weight grouping for quantization
+        n_grid=20,                         # Grid search points for scale search
+    )
+
+    # Apply quantization to your model
+    model.quantize("awq", config=config)
+    ```
+
     """
 
     def __init__(
