@@ -1,3 +1,4 @@
+import math
 import warnings
 
 from keras.src import backend
@@ -11,6 +12,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import get_block_size_for_layer
 from keras.src.saving import serialization_lib
 
 
@@ -376,9 +378,24 @@ class Embedding(Layer):
             dtype="int8",
             trainable=False,
         )
+
+        # Determine block_size from config or dtype_policy
+        block_size = get_block_size_for_layer(self, config)
+
+        # Store block_size for runtime dequantization
+        self._int4_block_size = block_size
+
+        if block_size is None or block_size == -1:
+            # Per-channel: one scale per vocabulary item
+            scale_shape = (self.input_dim,)
+        else:
+            # Grouped (sub-channel): scale per group along output_dim
+            n_groups = math.ceil(output_dim / block_size)
+            scale_shape = (self.input_dim, n_groups)
+
         self.embeddings_scale = self.add_weight(
             name="embeddings_scale",
-            shape=(self.input_dim,),
+            shape=scale_shape,
             initializer="ones",
             trainable=False,
         )
@@ -410,16 +427,47 @@ class Embedding(Layer):
         # not needed
         if backend.standardize_dtype(inputs.dtype) not in ("int32", "int64"):
             inputs = ops.cast(inputs, "int32")
-        embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
+
         unpacked_embeddings = quantizers.unpack_int4(
             self._embeddings, self._orig_output_dim, axis=-1
         )
         outputs = ops.take(unpacked_embeddings, inputs, axis=0)
-        # De-scale outputs
-        outputs = ops.divide(
-            ops.cast(outputs, dtype=self.compute_dtype),
-            ops.expand_dims(embeddings_scale, axis=-1),
-        )
+
+        block_size = getattr(self, "_int4_block_size", None)
+        if block_size is None or block_size == -1:
+            # Per-channel dequantization
+            embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
+            outputs = ops.divide(
+                ops.cast(outputs, dtype=self.compute_dtype),
+                ops.expand_dims(embeddings_scale, axis=-1),
+            )
+        else:
+            # Grouped dequantization
+            # outputs shape: (batch..., output_dim)
+            # scale shape after take: (batch..., n_groups)
+            embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
+
+            # For grouped dequantization, we need to expand each group's scale
+            # to cover block_size elements along the output_dim axis
+            output_dim = self._orig_output_dim
+            n_groups = embeddings_scale.shape[-1]
+
+            # Repeat scale for each element in the group
+            # scale: (..., n_groups) -> (..., n_groups, block_size)
+            scale_expanded = ops.expand_dims(embeddings_scale, axis=-1)
+            scale_expanded = ops.repeat(scale_expanded, block_size, axis=-1)
+            # Flatten last two dims: (..., n_groups * block_size)
+            original_shape = ops.shape(scale_expanded)
+            new_shape = list(original_shape[:-2]) + [n_groups * block_size]
+            scale_flat = ops.reshape(scale_expanded, new_shape)
+            # Trim to output_dim (in case output_dim is not divisible)
+            scale_flat = scale_flat[..., :output_dim]
+
+            outputs = ops.divide(
+                ops.cast(outputs, dtype=self.compute_dtype),
+                scale_flat,
+            )
+
         if self.lora_enabled:
             lora_outputs = ops.take(self.lora_embeddings_a, inputs, axis=0)
             lora_outputs = ops.matmul(lora_outputs, self.lora_embeddings_b)
@@ -454,20 +502,62 @@ class Embedding(Layer):
             self._embeddings.assign(embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
         elif mode == "int4":
-            # Quantize to int4 values (stored in int8 dtype, range [-8, 7]).
-            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                self.quantization_config,
-                quantizers.AbsMaxQuantizer(
-                    axis=-1,
-                    value_range=(-8, 7),
-                    output_dtype="int8",
-                ),
+            from keras.src.quantizers.quantization_config import (
+                Int4QuantizationConfig,
             )
-            embeddings_value, embeddings_scale = weight_quantizer(
-                self._embeddings, to_numpy=True
-            )
-            embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
-            # 2. Pack two int4 values into a single int8 byte.
+
+            # Determine block_size from config
+            block_size = None
+            if isinstance(self.quantization_config, Int4QuantizationConfig):
+                block_size = self.quantization_config.block_size
+
+            use_grouped = block_size is not None and block_size != -1
+
+            if not use_grouped:
+                # Per-channel quantization (legacy behavior)
+                weight_quantizer = (
+                    QuantizationConfig.weight_quantizer_or_default(
+                        self.quantization_config,
+                        quantizers.AbsMaxQuantizer(
+                            axis=-1,
+                            value_range=(-8, 7),
+                            output_dtype="int8",
+                        ),
+                    )
+                )
+                embeddings_value, embeddings_scale = weight_quantizer(
+                    self._embeddings, to_numpy=True
+                )
+                embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
+            else:
+                # Grouped (sub-channel) quantization along output_dim (axis=-1)
+                input_dim, output_dim = ops.shape(self._embeddings)
+
+                # For grouped quantization along axis=-1, transpose to put
+                # output_dim first, then use abs_max_quantize_grouped
+                embeddings_t = ops.transpose(
+                    self._embeddings
+                )  # (output_dim, input)
+
+                embeddings_value_t, scale_t = (
+                    quantizers.abs_max_quantize_grouped(
+                        embeddings_t,
+                        block_size=block_size,
+                        value_range=(-8, 7),
+                        dtype="int8",
+                        to_numpy=True,
+                    )
+                )
+                # scale_t shape: (n_groups, input_dim)
+                # Transpose back: embeddings (input, output),
+                # scale (input, n_grp)
+                embeddings_value = ops.transpose(embeddings_value_t)
+
+                embeddings_scale = ops.transpose(scale_t)
+                embeddings_value = embeddings_value
+                embeddings_scale = embeddings_scale
+
+            # Pack two int4 values into a single int8 byte.
             packed_embeddings_value, _, _ = quantizers.pack_int4(
                 embeddings_value, axis=-1
             )
@@ -482,7 +572,15 @@ class Embedding(Layer):
 
         # Set new dtype policy.
         if self.dtype_policy.quantization_mode is None:
-            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            policy_name = mode
+            if mode == "int4":
+                # Include block_size in policy name for sub-channel quantization
+                block_size = get_block_size_for_layer(self, config)
+                block_size_value = -1 if block_size is None else block_size
+                policy_name = f"int4/{block_size_value}"
+            policy = dtype_policies.get(
+                f"{policy_name}_from_{self.dtype_policy.name}"
+            )
             self.dtype_policy = policy
 
     def _get_embeddings_with_merged_lora(self):
@@ -522,15 +620,37 @@ class Embedding(Layer):
         if not self.lora_enabled:
             return embeddings_value, embeddings_scale
 
+        block_size = getattr(self, "_int4_block_size", None)
+
         # Dequantize embeddings to float.
         if self.quantization_mode == "int4":
             unpacked_embeddings = quantizers.unpack_int4(
                 embeddings_value, self._orig_output_dim, axis=-1
             )
-            float_embeddings = ops.divide(
-                ops.cast(unpacked_embeddings, self.compute_dtype),
-                ops.expand_dims(embeddings_scale, axis=-1),
-            )
+            if block_size is None or block_size == -1:
+                # Per-channel dequantization
+                float_embeddings = ops.divide(
+                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                    ops.expand_dims(embeddings_scale, axis=-1),
+                )
+            else:
+                # Grouped dequantization
+                output_dim = self._orig_output_dim
+                n_groups = embeddings_scale.shape[-1]
+
+                # Expand scale to match output_dim
+                scale_expanded = ops.expand_dims(embeddings_scale, axis=-1)
+                scale_expanded = ops.repeat(scale_expanded, block_size, axis=-1)
+                scale_flat = ops.reshape(
+                    scale_expanded,
+                    (self.input_dim, n_groups * block_size),
+                )
+                scale_flat = scale_flat[:, :output_dim]
+
+                float_embeddings = ops.divide(
+                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                    scale_flat,
+                )
             quant_range = (-8, 7)
         elif self.quantization_mode == "int8":
             float_embeddings = ops.divide(
@@ -550,20 +670,52 @@ class Embedding(Layer):
         merged_float_embeddings = ops.add(float_embeddings, lora_delta)
 
         # Requantize.
-        requantized_embeddings, embeddings_scale = quantizers.abs_max_quantize(
-            merged_float_embeddings,
-            axis=-1,
-            value_range=quant_range,
-            dtype="int8",
-            to_numpy=True,
-        )
-        embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
-
-        # Pack if int4.
         if self.quantization_mode == "int4":
+            if block_size is None or block_size == -1:
+                # Per-channel re-quantization
+                requantized_embeddings, new_scale = quantizers.abs_max_quantize(
+                    merged_float_embeddings,
+                    axis=-1,
+                    value_range=quant_range,
+                    dtype="int8",
+                    to_numpy=True,
+                )
+                new_scale = ops.squeeze(new_scale, axis=-1)
+            else:
+                # Grouped re-quantization
+                merged_np = merged_float_embeddings
+                # Transpose to (output_dim, input_dim) for grouped quantization
+                merged_t = ops.transpose(merged_np)
+
+                requantized_t, scale_t = quantizers.abs_max_quantize_grouped(
+                    merged_t,
+                    block_size=block_size,
+                    value_range=quant_range,
+                    dtype="int8",
+                    to_numpy=True,
+                )
+                # Transpose back
+                requantized_embeddings = ops.transpose(requantized_t)
+                new_scale = ops.transpose(scale_t)
+                requantized_embeddings = requantized_embeddings
+                new_scale = new_scale
+
+            # Pack for int4
             embeddings_value, _, _ = quantizers.pack_int4(
                 requantized_embeddings, axis=-1
             )
+            embeddings_scale = new_scale
         else:
+            # int8 re-quantization
+            requantized_embeddings, embeddings_scale = (
+                quantizers.abs_max_quantize(
+                    merged_float_embeddings,
+                    axis=-1,
+                    value_range=quant_range,
+                    dtype="int8",
+                    to_numpy=True,
+                )
+            )
+            embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             embeddings_value = requantized_embeddings
         return embeddings_value, embeddings_scale
