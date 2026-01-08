@@ -653,11 +653,14 @@ def unpack_int4(packed, orig_len, axis=0, dtype="int8"):
         )
 
     def to_signed(x):
-        """Converts unpacked nibbles [0, 15] to signed int4 [-8, 7]."""
+        """Converts unpacked nibbles [0, 15] to signed int4 [-8, 7].
+
+        Uses a branchless XOR approach: (x ^ 8) - 8
+        This maps: 0->0, 1->1, ..., 7->7, 8->-8, 9->-7, ..., 15->-1
+        """
         dtype_x = backend.standardize_dtype(x.dtype)
         eight = ops.cast(8, dtype_x)
-        sixteen = ops.cast(16, dtype_x)
-        return ops.where(x < eight, x, x - sixteen)
+        return ops.subtract(ops.bitwise_xor(x, eight), eight)
 
     rank = getattr(packed.shape, "rank", None) or len(packed.shape)
     if axis < 0:
