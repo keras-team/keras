@@ -536,7 +536,13 @@ def _string_dataset(
 class AWQAccuracyTest(testing.TestCase):
     """End-to-end accuracy preservation tests for AWQ quantization."""
 
-    def test_awq_preserves_accuracy_on_transformer(self):
+    @parameterized.named_parameters(
+        ("per_channel", -1, 20, 0.5, 0.30),
+        ("group_16", 16, 10, 0.4, 0.40),
+    )
+    def test_awq_transformer_accuracy(
+        self, group_size, n_grid, min_top1, max_kl
+    ):
         """Test that AWQ quantization preserves model accuracy.
 
         This test:
@@ -546,8 +552,6 @@ class AWQAccuracyTest(testing.TestCase):
         4. Compares quantized predictions against baseline
         5. Validates top-1 match rate and KL divergence bounds
         """
-        import keras
-
         rng = np.random.default_rng(seed=321)
         keras.utils.set_random_seed(123)
 
@@ -585,8 +589,8 @@ class AWQAccuracyTest(testing.TestCase):
             tokenizer=tokenizer,
             num_samples=NUM_SAMPLES,
             sequence_length=SEQ_LEN,
-            group_size=-1,  # per-channel quantization
-            n_grid=20,
+            group_size=group_size,
+            n_grid=n_grid,
             quantization_layer_structure=layer_structure,
         )
 
@@ -604,167 +608,34 @@ class AWQAccuracyTest(testing.TestCase):
         kl = _mean_kl(p_ref, p_q)
 
         # Validate accuracy preservation
-        # AWQ should maintain at least 50% top-1 agreement
         self.assertGreaterEqual(
             float(top1_match),
-            0.5,
-            f"Top-1 agreement too low: {float(top1_match):.3f}",
+            min_top1,
+            f"Top-1 agreement too low for group_size={group_size}: "
+            f"{float(top1_match):.3f}",
         )
-        # KL divergence should be reasonably bounded
         self.assertLessEqual(
-            float(kl), 0.30, f"KL divergence too high: {float(kl):.3f}"
+            float(kl),
+            max_kl,
+            f"KL divergence too high for group_size={group_size}: "
+            f"{float(kl):.3f}",
         )
-
-    def test_awq_single_layer_quantization_accuracy(self):
-        """Test AWQ accuracy on a single Dense layer.
-
-        Verifies that quantizing a single layer maintains reasonable
-        output reconstruction error on test data.
-        """
-        keras.utils.set_random_seed(42)
-
-        # Create a Dense layer with random weights
-        layer = layers.Dense(64)
-        layer.build(input_shape=(None, 32))
-
-        # Create calibration and test data
-        calibration_data = np.random.randn(128, 32).astype("float32")
-        test_data = np.random.randn(32, 32).astype("float32")
-
-        # Get original layer output on test data
-        original_output = layer(test_data)
-
-        # Configure AWQ for layer
-        config = AWQConfig(
-            dataset=None,
-            tokenizer=None,
-            group_size=-1,
-            n_grid=20,
-        )
-        layer.quantize("awq", config=config)
-
-        # Create AWQ quantizer and run calibration
-        awq_obj = AWQ(layer, config)
-        awq_obj.update_activation_magnitudes(calibration_data)
-
-        # Perform quantization
-        awq_obj.quantize_layer()
-
-        # Get quantized layer output
-        quantized_output = layer(test_data)
-
-        # Calculate reconstruction error (relative MSE of outputs)
-        mse = ops.mean(
-            ops.power(ops.subtract(original_output, quantized_output), 2)
-        )
-        original_var = ops.var(original_output)
-        relative_mse = ops.divide(mse, ops.add(original_var, 1e-8))
-
-        # AWQ should achieve reasonable output reconstruction (< 20% relative)
-        self.assertLess(
-            relative_mse,
-            0.20,
-            f"Relative output MSE too high: {relative_mse:.4f}",
-        )
-
-        # Verify no NaN or Inf values in output
-        self.assertFalse(ops.any(ops.isnan(quantized_output)))
-        self.assertFalse(ops.any(ops.isinf(quantized_output)))
-
-        awq_obj.free()
-
-    def test_awq_single_layer_grouped_quantization_accuracy(self):
-        """Test AWQ accuracy with grouped quantization (group_size > 0).
-
-        This is a regression test to ensure grouped quantization maintains
-        reasonable accuracy after fixing the shape mismatch issue.
-        """
-        import keras
-
-        keras.utils.set_random_seed(42)
-
-        # Create a Dense layer - use dimensions divisible by common group sizes
-        in_features = 128
-        out_features = 64
-        layer = layers.Dense(out_features)
-        layer.build(input_shape=(None, in_features))
-
-        # Create calibration and test data
-        calibration_data = np.random.randn(128, in_features).astype("float32")
-        test_data = np.random.randn(32, in_features).astype("float32")
-
-        # Get original layer output on test data
-        original_output = layer(test_data)
-
-        # Test with group_size=32 (common value)
-        group_size = 32
-        config = AWQConfig(
-            dataset=None,
-            tokenizer=None,
-            group_size=group_size,
-            n_grid=10,
-        )
-        layer.quantize("awq", config=config)
-
-        # Create AWQ quantizer and run calibration
-        awq_obj = AWQ(layer, config)
-        awq_obj.update_activation_magnitudes(calibration_data)
-
-        # Perform quantization
-        awq_obj.quantize_layer()
-
-        # Verify layer variables have correct shapes for grouped quantization
-        n_groups = in_features // group_size
-        self.assertEqual(
-            layer.kernel_scale.shape,
-            (out_features, n_groups),
-            f"kernel_scale shape mismatch for group_size={group_size}",
-        )
-        self.assertEqual(
-            layer.kernel_zero.shape,
-            (out_features, n_groups),
-            f"kernel_zero shape mismatch for group_size={group_size}",
-        )
-
-        # Get quantized layer output
-        quantized_output = layer(test_data)
-
-        # Calculate reconstruction error
-        mse = ops.mean(
-            ops.power(ops.subtract(original_output, quantized_output), 2)
-        )
-        original_var = ops.var(original_output)
-        relative_mse = ops.divide(mse, ops.add(original_var, 1e-8))
-
-        # Grouped quantization may have slightly higher error than per-channel
-        # but should still be reasonable (< 30% relative MSE)
-        self.assertLess(
-            relative_mse,
-            0.30,
-            f"Relative output MSE too high for group_size={group_size}: "
-            f"{relative_mse:.4f}",
-        )
-
-        # Verify no NaN or Inf values
-        self.assertFalse(ops.any(ops.isnan(quantized_output)))
-        self.assertFalse(ops.any(ops.isinf(quantized_output)))
-
-        awq_obj.free()
 
     @parameterized.named_parameters(
-        ("per_channel", -1),
-        ("group_16", 16),
-        ("group_32", 32),
-        ("group_64", 64),
-        ("group_128", 128),
+        ("per_channel", -1, 0.35),
+        ("group_16", 16, 0.35),
+        ("group_32", 32, 0.35),
+        ("group_64", 64, 0.35),
+        ("group_128", 128, 0.35),
     )
-    def test_awq_accuracy_various_group_sizes(self, group_size):
+    def test_awq_accuracy_various_group_sizes(
+        self, group_size, max_relative_mse
+    ):
         """Test AWQ accuracy across various group sizes.
 
-        Ensures the grouped quantization fix works for common group sizes.
+        Verifies that quantizing a single layer maintains reasonable
+        output reconstruction error and correct variable shapes.
         """
-        import keras
-
         in_features = 128
         out_features = 64
 
@@ -794,6 +665,20 @@ class AWQAccuracyTest(testing.TestCase):
         awq_obj.update_activation_magnitudes(calibration_data)
         awq_obj.quantize_layer()
 
+        # Verify layer variables have correct shapes for grouped quantization
+        if group_size > 0:
+            n_groups = in_features // group_size
+            self.assertEqual(
+                layer.kernel_scale.shape,
+                (out_features, n_groups),
+                f"kernel_scale shape mismatch for group_size={group_size}",
+            )
+            self.assertEqual(
+                layer.kernel_zero.shape,
+                (out_features, n_groups),
+                f"kernel_zero shape mismatch for group_size={group_size}",
+            )
+
         # Verify output
         quantized_output = layer(test_data)
 
@@ -816,101 +701,45 @@ class AWQAccuracyTest(testing.TestCase):
 
         self.assertLess(
             relative_mse,
-            0.35,
+            max_relative_mse,
             f"Accuracy too low for group_size={group_size}: "
             f"relative_mse={relative_mse:.4f}",
         )
 
         awq_obj.free()
 
-    def test_awq_transformer_grouped_quantization(self):
-        """Test AWQ with grouped quantization on transformer model.
 
-        This is an end-to-end test similar to
-        test_awq_preserves_accuracy_on_transformer but with group_size=16
-        instead of per-channel.
-        """
-        import keras
+def _create_dense_layer():
+    """Helper to create a Dense layer for testing."""
+    input_shape = (None, 8)
+    layer = layers.Dense(units=16)
+    layer.build(input_shape)
+    return layer, layers.Dense, input_shape
 
-        rng = np.random.default_rng(seed=321)
-        keras.utils.set_random_seed(123)
 
-        # Build calibration dataset
-        calibration_set = list(_string_dataset(CALIBRATION_TEXT, NUM_SAMPLES))
-
-        # Build model and tokenizer
-        model = _get_sequence_classifier()
-        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
-
-        # Build eval batch
-        batch_size = min(8, len(calibration_set))
-        eval_samples = [
-            calibration_set[rng.integers(0, len(calibration_set))]
-            for _ in range(batch_size)
-        ]
-        x_eval = ops.concatenate([tokenizer(s) for s in eval_samples], axis=0)
-
-        # Get baseline predictions
-        y_ref = model.predict(x_eval)
-
-        # Define layer structure for AWQ
-        embedding_layer = model.layers[1]
-        transformer_block = model.layers[2]
-
-        layer_structure = {
-            "pre_block_layers": [embedding_layer],
-            "sequential_blocks": [transformer_block],
-        }
-
-        # Configure AWQ with grouped quantization (group_size=16)
-        # Using 16 since embed_dim=32, ensuring divisibility
-        awq_config = AWQConfig(
-            dataset=calibration_set,
-            tokenizer=tokenizer,
-            num_samples=NUM_SAMPLES,
-            sequence_length=SEQ_LEN,
-            group_size=16,  # Grouped quantization
-            n_grid=10,
-            quantization_layer_structure=layer_structure,
-        )
-
-        # Quantize model with AWQ
-        model.quantize("awq", config=awq_config)
-
-        # Get post-quantization predictions
-        y_q = model.predict(x_eval)
-
-        # Calculate accuracy metrics
-        top1_match = _top1_match_rate(y_ref, y_q)
-
-        p_ref = ops.softmax(y_ref)
-        p_q = ops.softmax(y_q)
-        kl = _mean_kl(p_ref, p_q)
-
-        # Grouped quantization may have slightly relaxed bounds
-        # compared to per-channel
-        self.assertGreaterEqual(
-            float(top1_match),
-            0.4,
-            f"Top-1 agreement too low with group_size=16: "
-            f"{float(top1_match):.3f}",
-        )
-        self.assertLessEqual(
-            float(kl),
-            0.40,
-            f"KL divergence too high with group_size=16: {float(kl):.3f}",
-        )
+def _create_einsum_dense_layer():
+    """Helper to create an EinsumDense layer for testing."""
+    input_shape = (None, 3)
+    layer = layers.EinsumDense(
+        equation="ab,bcd->acd", output_shape=(8, 32), bias_axes="d"
+    )
+    layer.build(input_shape)
+    return layer, layers.EinsumDense, input_shape
 
 
 @pytest.mark.requires_trainable_backend
 class AWQSerializationTest(testing.TestCase):
     """Tests for AWQ layer serialization and deserialization."""
 
-    def test_awq_dense_serialization(self):
-        """Test that an AWQ-quantized Dense layer can be serialized and
+    @parameterized.named_parameters(
+        ("dense", _create_dense_layer),
+        ("einsum_dense", _create_einsum_dense_layer),
+    )
+    def test_awq_layer_serialization(self, layer_factory):
+        """Test that an AWQ-quantized layer can be serialized and
         deserialized correctly."""
-        layer = layers.Dense(units=16)
-        layer.build((None, 8))
+        layer, layer_class, input_shape = layer_factory()
+
         layer.quantize(
             "awq",
             config=AWQConfig(
@@ -918,97 +747,56 @@ class AWQSerializationTest(testing.TestCase):
             ),
         )
         config = layer.get_config()
-        new_layer = layers.Dense.from_config(config)
-        new_layer.build((None, 8))
+        new_layer = layer_class.from_config(config)
+        new_layer.build(input_shape)
         self.assertEqual(new_layer.quantization_mode, "awq")
 
-    def test_awq_einsum_dense_serialization(self):
-        """Test that an AWQ-quantized EinsumDense layer can be serialized and
-        deserialized correctly."""
-        config = dict(
-            equation="ab,bcd->acd",
-            output_shape=(8, 32),
-            bias_axes="d",
-        )
-        layer = layers.EinsumDense(**config)
-        layer.build((None, 3))
-        layer.quantize(
-            "awq",
-            config=AWQConfig(
-                dataset=None, tokenizer=None, group_size=8, n_grid=10
-            ),
-        )
-        layer_config = layer.get_config()
-        new_layer = layers.EinsumDense.from_config(layer_config)
-        new_layer.build((None, 3))
-        self.assertEqual(new_layer.quantization_mode, "awq")
+    def _assert_awq_variables_loaded(self, layer, awq_store):
+        """Helper to verify AWQ variables are loaded correctly."""
+        self.assertTrue(layer.is_awq_calibrated)
+        self.assertAllClose(layer.bias, awq_store["0"])
+        self.assertAllClose(layer.quantized_kernel, awq_store["1"])
+        self.assertAllClose(layer.kernel_scale, awq_store["2"])
+        self.assertAllClose(layer.kernel_zero, awq_store["3"])
+        self.assertAllClose(layer.awq_scales, awq_store["4"])
+        self.assertAllClose(layer.g_idx, awq_store["5"])
 
     def test_awq_dense_legacy_load_own_variables(self):
         """Test loading AWQ variables from a legacy store format."""
         awq_store = {
-            # bias
-            "0": np.random.random((16,)).astype("float32"),
-            # quantized_kernel
-            "1": np.random.randint(0, 16, size=(8, 8), dtype="uint8"),
-            # kernel_scale
-            "2": np.random.random((16, 1)).astype("float32"),
-            # kernel_zero
-            "3": np.random.random((16, 1)).astype("uint8"),
-            # awq_scales
-            "4": np.random.random((8,)).astype("float32"),
-            # g_idx
-            "5": np.random.random((8,)).astype("float32"),
+            "0": np.random.random((16,)).astype("float32"),  # bias
+            "1": np.random.randint(0, 16, size=(8, 8), dtype="uint8"),  # kernel
+            "2": np.random.random((16, 1)).astype("float32"),  # scale
+            "3": np.random.random((16, 1)).astype("uint8"),  # zero
+            "4": np.random.random((8,)).astype("float32"),  # awq_scales
+            "5": np.random.random((8,)).astype("float32"),  # g_idx
         }
-
-        # Test awq-quantized layer
         layer = layers.Dense(units=16, dtype="awq/4/8_from_float32")
         layer.build((None, 8))
         layer.load_own_variables(awq_store)
-        self.assertTrue(layer.is_awq_calibrated)
-        self.assertAllClose(layer.bias, awq_store["0"])
-        self.assertAllClose(layer.quantized_kernel, awq_store["1"])
-        self.assertAllClose(layer.kernel_scale, awq_store["2"])
-        self.assertAllClose(layer.kernel_zero, awq_store["3"])
-        self.assertAllClose(layer.awq_scales, awq_store["4"])
-        self.assertAllClose(layer.g_idx, awq_store["5"])
+        self._assert_awq_variables_loaded(layer, awq_store)
 
     def test_awq_einsum_dense_legacy_load_own_variables(self):
         """Test loading AWQ variables from a legacy store format for
         EinsumDense."""
-        # For EinsumDense with equation "ab,bcd->acd" and output_shape (8, 32)
-        # with input shape (None, 3): kernel shape is (3, 8, 32)
-        # Packed kernel shape: (16, 24) for 4-bit (3*8=24 columns, 32/2=16 rows)
+        # kernel shape (3, 8, 32), packed: (16, 24) for 4-bit
         awq_store = {
-            # bias
-            "0": np.random.random((32,)).astype("float32"),
-            # quantized_kernel
+            "0": np.random.random((32,)).astype("float32"),  # bias
             "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
-            # kernel_scale
-            "2": np.random.random((32, 3)).astype("float32"),
-            # kernel_zero
-            "3": np.random.random((32, 3)).astype("uint8"),
-            # awq_scales
-            "4": np.random.random((24,)).astype("float32"),
-            # g_idx
-            "5": np.random.random((24,)).astype("float32"),
+            "2": np.random.random((32, 3)).astype("float32"),  # scale
+            "3": np.random.random((32, 3)).astype("uint8"),  # zero
+            "4": np.random.random((24,)).astype("float32"),  # awq_scales
+            "5": np.random.random((24,)).astype("float32"),  # g_idx
         }
-        config = dict(
+        layer = layers.EinsumDense(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
             bias_axes="d",
+            dtype="awq/4/8_from_float32",
         )
-
-        # Test awq-quantized layer
-        layer = layers.EinsumDense(**config, dtype="awq/4/8_from_float32")
         layer.build((None, 3))
         layer.load_own_variables(awq_store)
-        self.assertTrue(layer.is_awq_calibrated)
-        self.assertAllClose(layer.bias, awq_store["0"])
-        self.assertAllClose(layer.quantized_kernel, awq_store["1"])
-        self.assertAllClose(layer.kernel_scale, awq_store["2"])
-        self.assertAllClose(layer.kernel_zero, awq_store["3"])
-        self.assertAllClose(layer.awq_scales, awq_store["4"])
-        self.assertAllClose(layer.g_idx, awq_store["5"])
+        self._assert_awq_variables_loaded(layer, awq_store)
 
     def test_int4_awq_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 AWQ
