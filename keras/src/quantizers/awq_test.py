@@ -49,7 +49,7 @@ class AWQAlgorithmTest(testing.TestCase):
         )
 
         scales = awq_search_optimal_scales(
-            weights, activations, n_grid=10, group_size=-1
+            weights, activations, num_grid_points=10, group_size=-1
         )
 
         self.assertEqual(scales.shape, (16,))
@@ -65,7 +65,7 @@ class AWQAlgorithmTest(testing.TestCase):
         activations = ops.array(activations)
 
         scales = awq_search_optimal_scales(
-            weights, activations, n_grid=10, group_size=-1
+            weights, activations, num_grid_points=10, group_size=-1
         )
 
         # Should handle gracefully without NaN or Inf
@@ -81,7 +81,7 @@ class AWQAlgorithmTest(testing.TestCase):
         )
 
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
-            weights, activations, n_grid=10, group_size=-1
+            weights, activations, num_grid_points=10, group_size=-1
         )
 
         # Quantized shape: [out_features, in_features]
@@ -105,7 +105,7 @@ class AWQAlgorithmTest(testing.TestCase):
 
         # Test per-channel mode (group_size=-1) which is well-supported
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
-            weights, activations, n_grid=5, group_size=8
+            weights, activations, num_grid_points=5, group_size=8
         )
 
         # Quantized shape: [out_features, in_features]
@@ -193,7 +193,7 @@ class AWQAlgorithmTest(testing.TestCase):
         )
 
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
-            weights, activations, n_grid=5, group_size=group_size
+            weights, activations, num_grid_points=5, group_size=group_size
         )
 
         # Quantized should match input shape
@@ -225,7 +225,7 @@ class AWQAlgorithmTest(testing.TestCase):
         )
 
         quantized, scale, _, awq_scales, _ = awq_quantize_matrix(
-            weights, activations, n_grid=5, group_size=group_size
+            weights, activations, num_grid_points=5, group_size=group_size
         )
 
         # Check for NaN/Inf in all outputs
@@ -250,7 +250,7 @@ class AWQAlgorithmTest(testing.TestCase):
         )
 
         scales = awq_search_optimal_scales(
-            weights, activations, n_grid=5, group_size=group_size
+            weights, activations, num_grid_points=5, group_size=group_size
         )
 
         # Scales should be [in_features]
@@ -282,7 +282,7 @@ class AWQAlgorithmTest(testing.TestCase):
         )
 
         _, scale, zero, _, _ = awq_quantize_matrix(
-            weights, activations, n_grid=3, group_size=group_size
+            weights, activations, num_grid_points=3, group_size=group_size
         )
 
         self.assertEqual(
@@ -310,7 +310,7 @@ class AWQLayerTest(testing.TestCase):
             dataset=None,
             tokenizer=None,
             group_size=-1,
-            n_grid=10,
+            num_grid_points=10,
         )
 
         layer.quantize("awq", config=config)
@@ -332,7 +332,7 @@ class AWQLayerTest(testing.TestCase):
         layer.build(input_shape=(None, 16))
 
         config = AWQConfig(
-            dataset=None, tokenizer=None, group_size=-1, n_grid=10
+            dataset=None, tokenizer=None, group_size=-1, num_grid_points=10
         )
         layer.quantize("awq", config=config)
         awq_obj = AWQ(layer, config)
@@ -361,7 +361,7 @@ class AWQLayerTest(testing.TestCase):
         layer.build(input_shape=(None, 16))
 
         config = AWQConfig(
-            dataset=None, tokenizer=None, group_size=-1, n_grid=10
+            dataset=None, tokenizer=None, group_size=-1, num_grid_points=10
         )
         layer.quantize("awq", config=config)
 
@@ -384,7 +384,7 @@ class AWQIntegrationTest(testing.TestCase):
         layer.build(input_shape=(None, 32))
 
         config = AWQConfig(
-            dataset=None, tokenizer=None, group_size=16, n_grid=5
+            dataset=None, tokenizer=None, group_size=16, num_grid_points=5
         )
         layer.quantize("awq", config=config)
 
@@ -398,7 +398,7 @@ class AWQIntegrationTest(testing.TestCase):
         layer.build(input_shape=(None, 32))
 
         config = AWQConfig(
-            dataset=None, tokenizer=None, group_size=-1, n_grid=5
+            dataset=None, tokenizer=None, group_size=-1, num_grid_points=5
         )
         layer.quantize("awq", config=config)
 
@@ -541,7 +541,7 @@ class AWQAccuracyTest(testing.TestCase):
         ("group_16", 16, 10, 0.4, 0.40),
     )
     def test_awq_transformer_accuracy(
-        self, group_size, n_grid, min_top1, max_kl
+        self, group_size, num_grid_points, min_top1, max_kl
     ):
         """Test that AWQ quantization preserves model accuracy.
 
@@ -590,7 +590,7 @@ class AWQAccuracyTest(testing.TestCase):
             num_samples=NUM_SAMPLES,
             sequence_length=SEQ_LEN,
             group_size=group_size,
-            n_grid=n_grid,
+            num_grid_points=num_grid_points,
             quantization_layer_structure=layer_structure,
         )
 
@@ -657,7 +657,7 @@ class AWQAccuracyTest(testing.TestCase):
             dataset=None,
             tokenizer=None,
             group_size=group_size,
-            n_grid=5,
+            num_grid_points=5,
         )
         layer.quantize("awq", config=config)
 

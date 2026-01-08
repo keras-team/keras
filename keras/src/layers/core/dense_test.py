@@ -897,7 +897,7 @@ class DenseTest(testing.TestCase):
         layer.quantize(
             "awq",
             config=AWQConfig(
-                dataset=None, tokenizer=None, group_size=8, n_grid=10
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
         config = layer.get_config()
@@ -1070,7 +1070,7 @@ class DenseTest(testing.TestCase):
         layer.quantize(
             "awq",
             config=AWQConfig(
-                dataset=None, tokenizer=None, group_size=8, n_grid=10
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
         layer.is_awq_calibrated = True  # Bypass calibration check
@@ -1089,7 +1089,7 @@ class DenseTest(testing.TestCase):
         layer.quantize(
             "awq",
             config=AWQConfig(
-                dataset=None, tokenizer=None, group_size=8, n_grid=10
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
 

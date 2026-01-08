@@ -37,7 +37,7 @@ class AWQConfig(QuantizationConfig):
         group_size: The size of weight groups to quantize together. A
             `group_size` of -1 indicates per-channel quantization.
             Defaults to 128.
-        n_grid: The number of grid search points for finding optimal
+        num_grid_points: The number of grid search points for finding optimal
             per-channel scales. Higher values may find better scales but
             take longer. Defaults to 20.
         quantization_layer_structure: A dictionary defining the model's
@@ -60,7 +60,7 @@ class AWQConfig(QuantizationConfig):
         num_samples=128,                   # Number of calibration samples
         sequence_length=512,               # Sequence length for each sample
         group_size=128,                    # Weight grouping for quantization
-        n_grid=20,                         # Grid search points for scale search
+        num_grid_points=20,                # Grid search points for scale search
     )
 
     # Apply quantization to your model
@@ -78,7 +78,7 @@ class AWQConfig(QuantizationConfig):
         num_samples: int = 128,
         sequence_length: int = 512,
         group_size: int = 128,
-        n_grid: int = 20,
+        num_grid_points: int = 20,
         quantization_layer_structure: dict = None,
     ):
         super().__init__()
@@ -97,8 +97,8 @@ class AWQConfig(QuantizationConfig):
                 "Invalid group_size. Supported values are -1 (per-channel) "
                 f"or a positive integer, but got {group_size}."
             )
-        if n_grid <= 0:
-            raise ValueError("n_grid must be a positive integer.")
+        if num_grid_points <= 0:
+            raise ValueError("num_grid_points must be a positive integer.")
 
         self.dataset = dataset
         self.tokenizer = tokenizer
@@ -106,7 +106,7 @@ class AWQConfig(QuantizationConfig):
         self.num_samples = num_samples
         self.sequence_length = sequence_length
         self.group_size = group_size
-        self.n_grid = n_grid
+        self.num_grid_points = num_grid_points
         self.quantization_layer_structure = quantization_layer_structure
 
     @property
@@ -131,7 +131,7 @@ class AWQConfig(QuantizationConfig):
             "num_samples": self.num_samples,
             "sequence_length": self.sequence_length,
             "group_size": self.group_size,
-            "n_grid": self.n_grid,
+            "num_grid_points": self.num_grid_points,
             "quantization_layer_structure": self.quantization_layer_structure,
         }
 

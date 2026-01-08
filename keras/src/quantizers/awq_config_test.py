@@ -21,7 +21,7 @@ class AWQConfigTest(testing.TestCase):
         self.assertEqual(config.num_samples, 128)
         self.assertEqual(config.sequence_length, 512)
         self.assertEqual(config.group_size, 128)
-        self.assertEqual(config.n_grid, 20)
+        self.assertEqual(config.num_grid_points, 20)
         self.assertEqual(config.mode, "awq")
 
     def test_config_custom_values(self):
@@ -32,12 +32,12 @@ class AWQConfigTest(testing.TestCase):
             num_samples=64,
             sequence_length=256,
             group_size=64,
-            n_grid=30,
+            num_grid_points=30,
         )
         self.assertEqual(config.num_samples, 64)
         self.assertEqual(config.sequence_length, 256)
         self.assertEqual(config.group_size, 64)
-        self.assertEqual(config.n_grid, 30)
+        self.assertEqual(config.num_grid_points, 30)
 
     def test_config_only_4bit(self):
         """Test that AWQ only supports 4-bit quantization."""
@@ -69,11 +69,13 @@ class AWQConfigTest(testing.TestCase):
                 dataset=["test"], tokenizer=self.MockTokenizer(), group_size=0
             )
 
-    def test_config_invalid_n_grid(self):
-        """Test invalid n_grid validation."""
-        with self.assertRaisesRegex(ValueError, "n_grid must be"):
+    def test_config_invalid_num_grid_points(self):
+        """Test invalid num_grid_points validation."""
+        with self.assertRaisesRegex(ValueError, "num_grid_points must be"):
             AWQConfig(
-                dataset=["test"], tokenizer=self.MockTokenizer(), n_grid=0
+                dataset=["test"],
+                tokenizer=self.MockTokenizer(),
+                num_grid_points=0,
             )
 
     def test_config_per_channel_group_size(self):
@@ -89,12 +91,12 @@ class AWQConfigTest(testing.TestCase):
             dataset=["test"],
             tokenizer=self.MockTokenizer(),
             group_size=64,
-            n_grid=30,
+            num_grid_points=30,
         )
         cfg = config.get_config()
         self.assertEqual(cfg["weight_bits"], 4)
         self.assertEqual(cfg["group_size"], 64)
-        self.assertEqual(cfg["n_grid"], 30)
+        self.assertEqual(cfg["num_grid_points"], 30)
         # Dataset and tokenizer should not be serialized
         self.assertIsNone(cfg["dataset"])
         self.assertIsNone(cfg["tokenizer"])
@@ -120,7 +122,7 @@ class AWQConfigTest(testing.TestCase):
             num_samples=64,
             sequence_length=256,
             group_size=64,
-            n_grid=30,
+            num_grid_points=30,
         )
         serialized_config = config.get_config()
         deserialized_config = AWQConfig.from_config(serialized_config)
@@ -131,4 +133,6 @@ class AWQConfigTest(testing.TestCase):
             config.sequence_length, deserialized_config.sequence_length
         )
         self.assertEqual(config.group_size, deserialized_config.group_size)
-        self.assertEqual(config.n_grid, deserialized_config.n_grid)
+        self.assertEqual(
+            config.num_grid_points, deserialized_config.num_grid_points
+        )

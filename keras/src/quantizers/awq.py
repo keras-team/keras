@@ -84,7 +84,7 @@ def awq_search_optimal_scales(
     weights,
     activation_magnitudes,
     *,
-    n_grid=20,
+    num_grid_points=20,
     group_size=-1,
 ):
     """Search for optimal AWQ scales using grid search.
@@ -104,7 +104,7 @@ def awq_search_optimal_scales(
     Args:
         weights: Weight tensor [out_features, in_features] (transposed kernel).
         activation_magnitudes: Per-channel activation magnitudes [in_features].
-        n_grid: Number of grid search points. Defaults to 20.
+        num_grid_points: Number of grid search points. Defaults to 20.
         group_size: Group size for quantization (-1 for per-channel).
 
     Returns:
@@ -122,8 +122,8 @@ def awq_search_optimal_scales(
     best_scales = ops.ones((in_features,), dtype="float32")
 
     # Grid search over ratio values from 0 to 1
-    for i in range(n_grid + 1):
-        ratio = i / n_grid
+    for i in range(num_grid_points + 1):
+        ratio = i / num_grid_points
 
         # Compute scales: x_max^ratio (clipped to avoid numerical issues)
         if ratio == 0:
@@ -200,7 +200,7 @@ def awq_quantize_matrix(
     weights_transpose,
     activation_magnitudes,
     *,
-    n_grid=20,
+    num_grid_points=20,
     group_size=-1,
 ):
     """Quantize a weight matrix using AWQ.
@@ -214,7 +214,7 @@ def awq_quantize_matrix(
     Args:
         weights_transpose: Weight matrix [out_features, in_features].
         activation_magnitudes: Per-channel activation magnitudes [in_features].
-        n_grid: Number of grid search points.
+        num_grid_points: Number of grid search points.
         group_size: Group size for quantization.
 
     Returns:
@@ -230,7 +230,7 @@ def awq_quantize_matrix(
     awq_scales = awq_search_optimal_scales(
         weights_transpose,
         activation_magnitudes,
-        n_grid=n_grid,
+        num_grid_points=num_grid_points,
         group_size=group_size,
     )
 
@@ -381,7 +381,7 @@ class AWQ:
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
             weights_matrix,
             self.activation_magnitudes,
-            n_grid=self.config.n_grid,
+            num_grid_points=self.config.num_grid_points,
             group_size=self.config.group_size,
         )
 
