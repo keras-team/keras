@@ -638,9 +638,7 @@ class Dense(Layer):
         """
         # Per-channel int8 quantizer for the last axis (features).
         self.inputs_quantizer = (
-            QuantizationConfig.activation_quantizer_or_default(
-                config, quantizers.AbsMaxQuantizer()
-            )
+            QuantizationConfig.activation_quantizer_or_default(config, None)
         )
         input_dim, output_dim = kernel_shape
         packed_rows = (input_dim + 1) // 2  # ceil for odd dims

@@ -112,10 +112,9 @@ class Int4QuantizationConfig(QuantizationConfig):
         activation_quantizer="default",
         block_size=128,
     ):
-        from keras.src.quantizers.quantizers import AbsMaxQuantizer
-
         if activation_quantizer == "default":
-            activation_quantizer = AbsMaxQuantizer()
+            # Use weight-only quantization by default for int4
+            activation_quantizer = None
         super().__init__(weight_quantizer, activation_quantizer)
 
         # Validate block_size

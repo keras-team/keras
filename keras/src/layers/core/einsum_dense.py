@@ -772,10 +772,7 @@ class EinsumDense(Layer):
 
         # Quantizer for the inputs (per the reduced axes)
         self.inputs_quantizer = (
-            QuantizationConfig.activation_quantizer_or_default(
-                config,
-                quantizers.AbsMaxQuantizer(),
-            )
+            QuantizationConfig.activation_quantizer_or_default(config, None)
         )
         # If the config provided a default AbsMaxQuantizer, we need to
         # override the axis to match the equation's reduction axes.
