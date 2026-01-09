@@ -264,7 +264,7 @@ class AWQLayerTest(testing.TestCase):
             num_grid_points=10,
         )
 
-        layer.quantize("awq", config=config)
+        layer.quantize(config=config)
         awq_obj = AWQ(layer, config)
 
         # Simulate activation capture
@@ -285,7 +285,7 @@ class AWQLayerTest(testing.TestCase):
         config = AWQConfig(
             dataset=None, tokenizer=None, group_size=-1, num_grid_points=10
         )
-        layer.quantize("awq", config=config)
+        layer.quantize(config=config)
         awq_obj = AWQ(layer, config)
 
         # First batch
@@ -314,7 +314,7 @@ class AWQLayerTest(testing.TestCase):
         config = AWQConfig(
             dataset=None, tokenizer=None, group_size=-1, num_grid_points=10
         )
-        layer.quantize("awq", config=config)
+        layer.quantize(config=config)
 
         # Check that AWQ-specific variables exist
         self.assertTrue(hasattr(layer, "quantized_kernel"))
@@ -337,7 +337,7 @@ class AWQIntegrationTest(testing.TestCase):
         config = AWQConfig(
             dataset=None, tokenizer=None, group_size=16, num_grid_points=5
         )
-        layer.quantize("awq", config=config)
+        layer.quantize(config=config)
 
         # Check layer is properly configured
         self.assertEqual(layer.quantization_mode, "awq")
@@ -351,7 +351,7 @@ class AWQIntegrationTest(testing.TestCase):
         config = AWQConfig(
             dataset=None, tokenizer=None, group_size=-1, num_grid_points=5
         )
-        layer.quantize("awq", config=config)
+        layer.quantize(config=config)
 
         # Check layer is properly configured
         self.assertEqual(layer.quantization_mode, "awq")
@@ -368,7 +368,7 @@ class AWQIntegrationTest(testing.TestCase):
         )
 
         with self.assertRaisesRegex(ValueError, "quantization structure"):
-            model.quantize("awq", config=config)
+            model.quantize(config=config)
 
 
 # Constants for end-to-end tests
@@ -544,7 +544,7 @@ class AWQAccuracyTest(testing.TestCase):
         )
 
         # Quantize model with AWQ
-        model.quantize("awq", config=awq_config)
+        model.quantize(config=awq_config)
 
         # Get post-quantization predictions
         y_q = model.predict(x_eval)
@@ -610,7 +610,7 @@ class AWQAccuracyTest(testing.TestCase):
             group_size=group_size,
             num_grid_points=5,
         )
-        layer.quantize("awq", config=config)
+        layer.quantize(config=config)
 
         awq_obj = AWQ(layer, config)
         awq_obj.update_activation_magnitudes(calibration_data)
