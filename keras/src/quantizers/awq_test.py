@@ -10,7 +10,6 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers.awq import AWQ
-from keras.src.quantizers.awq import _compute_grouped_quantization_params
 from keras.src.quantizers.awq import awq_quantize_matrix
 from keras.src.quantizers.awq import awq_search_optimal_scales
 from keras.src.quantizers.awq_config import AWQConfig
@@ -122,57 +121,6 @@ class AWQAlgorithmTest(testing.TestCase):
         # Check g_idx values
         self.assertEqual(ops.max(g_idx), 3)  # 4 groups: 0,1,2,3
         self.assertEqual(awq_scales.shape, (32,))
-
-    def test_compute_grouped_quantization_params_shapes(self):
-        """Test _compute_grouped_quantization_params returns correct shapes."""
-        out_features = 64
-        in_features = 128
-        group_size = 32
-        n_groups = in_features // group_size  # 4 groups
-
-        weights = ops.array(
-            np.random.randn(out_features, in_features).astype("float32")
-        )
-
-        scale, zero, maxq, g_idx = _compute_grouped_quantization_params(
-            weights, group_size, bits=4
-        )
-
-        # Scale should be [out_features, n_groups]
-        self.assertEqual(scale.shape, (out_features, n_groups))
-        # Zero should be [out_features, n_groups]
-        self.assertEqual(zero.shape, (out_features, n_groups))
-        # maxq should be 15 for 4-bit
-        self.assertEqual(float(maxq), 15.0)
-        # g_idx should be [in_features]
-        self.assertEqual(g_idx.shape, (in_features,))
-
-        # Verify g_idx values are correct group assignments
-        g_idx_np = np.array(g_idx)
-        expected_g_idx = np.arange(in_features) // group_size
-        np.testing.assert_array_equal(g_idx_np, expected_g_idx)
-
-    def test_compute_grouped_quantization_params_non_divisible(self):
-        """Test grouped params with in_features not divisible by group_size."""
-        out_features = 32
-        in_features = 100  # Not divisible by 32
-        group_size = 32
-        n_groups = (in_features + group_size - 1) // group_size  # 4 groups
-
-        weights = ops.array(
-            np.random.randn(out_features, in_features).astype("float32")
-        )
-
-        scale, zero, _, g_idx = _compute_grouped_quantization_params(
-            weights, group_size, bits=4
-        )
-
-        # Scale should be [out_features, n_groups]
-        self.assertEqual(scale.shape, (out_features, n_groups))
-        # Zero should be [out_features, n_groups]
-        self.assertEqual(zero.shape, (out_features, n_groups))
-        # g_idx should be [in_features] (not padded)
-        self.assertEqual(g_idx.shape, (in_features,))
 
     def test_quantize_matrix_grouped_shapes(self):
         """Test awq_quantize_matrix with positive group_size.
