@@ -422,7 +422,7 @@ class EmbeddingTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 2),
-        ("int4", "int4_from_float32", 2),
+        ("int4", "int4_from_float32", 3),  # embeddings + scale + zero
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
@@ -466,7 +466,12 @@ class EmbeddingTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_mixed_bfloat16", 0, 2),
-        ("int4", "int4_from_mixed_bfloat16", 0, 2),
+        (
+            "int4",
+            "int4_from_mixed_bfloat16",
+            0,
+            2,
+        ),  # per-channel (no zero point)
     )
     @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(
@@ -504,7 +509,7 @@ class EmbeddingTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8", 2, 2, 4),
-        ("int4", "int4", 2, 2, 4),
+        ("int4", "int4", 2, 3, 5),  # +1 non-trainable for embeddings_zero
     )
     @pytest.mark.requires_trainable_backend
     def test_quantize_lora_integration(

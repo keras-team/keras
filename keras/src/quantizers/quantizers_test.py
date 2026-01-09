@@ -638,15 +638,17 @@ class QuantizersTest(testing.TestCase):
             (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
         )
 
-        quantized, scale = quantizers.abs_max_quantize_grouped(
-            kernel,
-            block_size=block_size,
-            value_range=(-8, 7),
-            dtype="int8",
+        quantized, scale, zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel,
+                block_size=block_size,
+                value_range=(-8, 7),
+                dtype="int8",
+            )
         )
 
-        dequantized = quantizers.dequantize_grouped(
-            quantized, scale, block_size
+        dequantized = quantizers.dequantize_grouped_with_zero_point(
+            quantized, scale, zero, block_size
         )
 
         rmse = ops.sqrt(ops.mean(ops.square(kernel - dequantized)))
@@ -663,11 +665,13 @@ class QuantizersTest(testing.TestCase):
             (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
         )
 
-        quantized, scale = quantizers.abs_max_quantize_grouped(
-            kernel,
-            block_size=block_size,
-            value_range=(-8, 7),
-            dtype="int8",
+        quantized, scale, zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel,
+                block_size=block_size,
+                value_range=(-8, 7),
+                dtype="int8",
+            )
         )
 
         n_groups = math.ceil(input_dim / block_size)  # 4 groups
@@ -675,8 +679,8 @@ class QuantizersTest(testing.TestCase):
         self.assertEqual(scale.shape, (n_groups, output_dim))
 
         # Verify roundtrip
-        dequantized = quantizers.dequantize_grouped(
-            quantized, scale, block_size
+        dequantized = quantizers.dequantize_grouped_with_zero_point(
+            quantized, scale, zero, block_size
         )
         self.assertEqual(dequantized.shape, (input_dim, output_dim))
 
@@ -721,12 +725,14 @@ class QuantizersTest(testing.TestCase):
         pc_dequantized = ops.cast(pc_quantized, "float32") / pc_scale
         pc_rmse = ops.sqrt(ops.mean(ops.square(kernel - pc_dequantized)))
 
-        # Grouped (sub-channel) quantization
-        grouped_quantized, grouped_scale = quantizers.abs_max_quantize_grouped(
-            kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+        # Grouped (sub-channel) quantization with zero point
+        grouped_quantized, grouped_scale, grouped_zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+            )
         )
-        grouped_dequantized = quantizers.dequantize_grouped(
-            grouped_quantized, grouped_scale, block_size
+        grouped_dequantized = quantizers.dequantize_grouped_with_zero_point(
+            grouped_quantized, grouped_scale, grouped_zero, block_size
         )
         grouped_rmse = ops.sqrt(
             ops.mean(ops.square(kernel - grouped_dequantized))
@@ -767,8 +773,13 @@ class QuantizersTest(testing.TestCase):
         )
 
         for block_size in [32, 64, 128, 256]:
-            quantized, scale = quantizers.abs_max_quantize_grouped(
-                kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+            quantized, scale, zero = (
+                quantizers.abs_max_quantize_grouped_with_zero_point(
+                    kernel,
+                    block_size=block_size,
+                    value_range=(-8, 7),
+                    dtype="int8",
+                )
             )
 
             n_groups = math.ceil(input_dim / block_size)
@@ -776,8 +787,8 @@ class QuantizersTest(testing.TestCase):
             self.assertEqual(scale.shape, (n_groups, output_dim))
 
             # Verify roundtrip
-            dequantized = quantizers.dequantize_grouped(
-                quantized, scale, block_size
+            dequantized = quantizers.dequantize_grouped_with_zero_point(
+                quantized, scale, zero, block_size
             )
             self.assertEqual(dequantized.shape, (input_dim, output_dim))
 
@@ -803,18 +814,20 @@ class QuantizersTest(testing.TestCase):
         )
         self.assertDType(scale_f16, "float16")
 
-    def test_dequantize_grouped_edge_cases(self):
-        """Test dequantize_grouped with edge cases."""
+    def test_dequantize_grouped_with_zero_point_edge_cases(self):
+        """Test dequantize_grouped_with_zero_point with edge cases."""
         # Test with exact divisible input_dim
         input_dim, output_dim, block_size = 256, 128, 64
         kernel = random.uniform(
             (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
         )
-        quantized, scale = quantizers.abs_max_quantize_grouped(
-            kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+        quantized, scale, zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+            )
         )
-        dequantized = quantizers.dequantize_grouped(
-            quantized, scale, block_size
+        dequantized = quantizers.dequantize_grouped_with_zero_point(
+            quantized, scale, zero, block_size
         )
         self.assertEqual(dequantized.shape, (input_dim, output_dim))
 
@@ -823,11 +836,13 @@ class QuantizersTest(testing.TestCase):
         kernel = random.uniform(
             (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
         )
-        quantized, scale = quantizers.abs_max_quantize_grouped(
-            kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+        quantized, scale, zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+            )
         )
-        dequantized = quantizers.dequantize_grouped(
-            quantized, scale, block_size
+        dequantized = quantizers.dequantize_grouped_with_zero_point(
+            quantized, scale, zero, block_size
         )
         self.assertEqual(dequantized.shape, (input_dim, output_dim))
 

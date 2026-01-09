@@ -532,7 +532,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
-        ("int4", "int4_from_float32", 3),  # bias + packed kernel + scale
+        ("int4", "int4_from_float32", 4),  # bias + packed kernel + scale + zero
         ("float8", "float8_from_float32", 8),
     )
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
@@ -600,7 +600,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8", 3, 2, 5),
-        ("int4", "int4", 3, 2, 5),
+        ("int4", "int4", 3, 3, 6),  # +1 non-trainable for kernel_zero
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")

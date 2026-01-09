@@ -240,6 +240,11 @@ class Embedding(Layer):
         for name in self.variable_serialization_spec[mode]:
             if name == "embeddings":
                 store[str(idx)] = embeddings_value
+            elif name == "embeddings_zero" and not hasattr(
+                self, "embeddings_zero"
+            ):
+                # embeddings_zero only exists for sub-channel int4 quantization
+                continue
             elif name == "embeddings_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_embeddings_with_merged_lora()`
@@ -262,6 +267,11 @@ class Embedding(Layer):
         for name in self.variable_serialization_spec[mode]:
             if name == "embeddings":
                 self._embeddings.assign(store[str(idx)])
+            elif name == "embeddings_zero" and not hasattr(
+                self, "embeddings_zero"
+            ):
+                # embeddings_zero only exists for sub-channel int4 quantization
+                continue
             else:
                 getattr(self, name).assign(store[str(idx)])
             idx += 1
@@ -335,6 +345,7 @@ class Embedding(Layer):
             "int4": [
                 "embeddings",
                 "embeddings_scale",
+                "embeddings_zero",
             ],
         }
 
@@ -399,6 +410,17 @@ class Embedding(Layer):
             initializer="ones",
             trainable=False,
         )
+
+        # Add embeddings_zero for sub-channel quantization (asymmetric)
+        if block_size is not None and block_size > 0:
+            self.embeddings_zero = self.add_weight(
+                name="embeddings_zero",
+                shape=scale_shape,
+                initializer="zeros",
+                dtype="int8",
+                trainable=False,
+            )
+
         # Record original output_dim for unpacking at runtime.
         self._orig_output_dim = output_dim
 
@@ -434,6 +456,8 @@ class Embedding(Layer):
         outputs = ops.take(unpacked_embeddings, inputs, axis=0)
 
         block_size = getattr(self, "_int4_block_size", None)
+        has_zero_point = hasattr(self, "embeddings_zero")
+
         if block_size is None or block_size == -1:
             # Per-channel dequantization
             embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
@@ -442,7 +466,7 @@ class Embedding(Layer):
                 ops.expand_dims(embeddings_scale, axis=-1),
             )
         else:
-            # Grouped dequantization
+            # Grouped dequantization with zero point
             # outputs shape: (batch..., output_dim)
             # scale shape after take: (batch..., n_groups)
             embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
@@ -463,10 +487,29 @@ class Embedding(Layer):
             # Trim to output_dim (in case output_dim is not divisible)
             scale_flat = scale_flat[..., :output_dim]
 
-            outputs = ops.divide(
-                ops.cast(outputs, dtype=self.compute_dtype),
-                scale_flat,
-            )
+            if has_zero_point:
+                # Get zero point for each input token
+                embeddings_zero = ops.take(self.embeddings_zero, inputs, axis=0)
+                # Expand zero point the same way as scale
+                zero_expanded = ops.expand_dims(embeddings_zero, axis=-1)
+                zero_expanded = ops.repeat(zero_expanded, block_size, axis=-1)
+                zero_flat = ops.reshape(zero_expanded, new_shape)
+                zero_flat = zero_flat[..., :output_dim]
+
+                # Dequantize: output = scale * (quantized - zero_point)
+                outputs = ops.multiply(
+                    scale_flat,
+                    ops.subtract(
+                        ops.cast(outputs, dtype=self.compute_dtype),
+                        ops.cast(zero_flat, dtype=self.compute_dtype),
+                    ),
+                )
+            else:
+                # Backward compatibility: no zero point
+                outputs = ops.divide(
+                    ops.cast(outputs, dtype=self.compute_dtype),
+                    scale_flat,
+                )
 
         if self.lora_enabled:
             lora_outputs = ops.take(self.lora_embeddings_a, inputs, axis=0)
@@ -539,8 +582,8 @@ class Embedding(Layer):
                     self._embeddings
                 )  # (output_dim, input)
 
-                embeddings_value_t, scale_t = (
-                    quantizers.abs_max_quantize_grouped(
+                embeddings_value_t, scale_t, zero_t = (
+                    quantizers.abs_max_quantize_grouped_with_zero_point(
                         embeddings_t,
                         block_size=block_size,
                         value_range=(-8, 7),
@@ -552,10 +595,8 @@ class Embedding(Layer):
                 # Transpose back: embeddings (input, output),
                 # scale (input, n_grp)
                 embeddings_value = ops.transpose(embeddings_value_t)
-
                 embeddings_scale = ops.transpose(scale_t)
-                embeddings_value = embeddings_value
-                embeddings_scale = embeddings_scale
+                embeddings_zero = ops.transpose(zero_t)
 
             # Pack two int4 values into a single int8 byte.
             packed_embeddings_value, _, _ = quantizers.pack_int4(
@@ -567,6 +608,9 @@ class Embedding(Layer):
             )
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
+            # Assign zero point for sub-channel quantization
+            if use_grouped:
+                self.embeddings_zero.assign(embeddings_zero)
         else:
             raise self._quantization_mode_error(mode)
 

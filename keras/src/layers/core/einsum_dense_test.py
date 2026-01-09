@@ -704,7 +704,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
         ("float8", "float8_from_float32", 8),
-        ("int4", "int4_from_float32", 3),
+        ("int4", "int4_from_float32", 4),  # kernel + bias + scale + zero
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
@@ -782,26 +782,37 @@ class EinsumDenseTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
-        ("int8_ab,bcd->acd", "int8", "ab,bcd->acd", (64, 3), (64, 8, 32)),
+        ("int8_ab,bcd->acd", "int8", "ab,bcd->acd", (64, 3), (64, 8, 32), 2, 4),
         (
             "int8_btd,ndh->btnh",
             "int8",
             "btd,ndh->btnh",
             (1, 4, 32),
             (1, 4, 8, 16),
+            2,
+            4,
         ),
-        ("int4_ab,bcd->acd", "int4", "ab,bcd->acd", (64, 3), (64, 8, 32)),
+        # int4 has +1 for kernel_zero
+        ("int4_ab,bcd->acd", "int4", "ab,bcd->acd", (64, 3), (64, 8, 32), 3, 5),
         (
             "int4_btd,ndh->btnh",
             "int4",
             "btd,ndh->btnh",
             (1, 4, 32),
             (1, 4, 8, 16),
+            3,
+            5,
         ),
     )
     @pytest.mark.requires_trainable_backend
     def test_quantize_lora_integration(
-        self, quantization_mode, equation, input_shape, output_shape
+        self,
+        quantization_mode,
+        equation,
+        input_shape,
+        output_shape,
+        expected_non_trainable,
+        expected_torch_params,
     ):
         config = dict(
             equation=equation, output_shape=output_shape[1:], bias_axes=None
@@ -811,9 +822,9 @@ class EinsumDenseTest(testing.TestCase):
         layer.enable_lora(2)
         layer.quantize(quantization_mode)
         self.assertLen(layer.trainable_weights, 2)
-        self.assertLen(layer.non_trainable_weights, 2)
+        self.assertLen(layer.non_trainable_weights, expected_non_trainable)
         if backend.backend() == "torch":
-            self.assertLen(layer.torch_params, 4)
+            self.assertLen(layer.torch_params, expected_torch_params)
 
         # Try calling fit()
         init_lora_a_kernel_value = layer.lora_kernel_a.numpy()

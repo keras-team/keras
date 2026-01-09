@@ -263,16 +263,194 @@ def _abs_max_quantize_grouped_tensor(
     return outputs, scale
 
 
-@keras_export("keras.quantizers.dequantize_grouped")
-def dequantize_grouped(quantized_inputs, scale, block_size):
-    """Dequantize a grouped-quantized tensor.
+@keras_export("keras.quantizers.abs_max_quantize_grouped_with_zero_point")
+def abs_max_quantize_grouped_with_zero_point(
+    inputs,
+    block_size,
+    value_range=(-8, 7),
+    dtype="int8",
+    epsilon=backend.epsilon(),
+    to_numpy=False,
+):
+    """Quantizes a 2D tensor using grouped asymmetric quantization with
+    zero point.
+
+    Groups are formed along axis 0 (the input/contracting dimension).
+    Each group of `block_size` rows gets its own scale factor and zero point
+    per column. This is useful for weight distributions that are not centered
+    around zero.
+
+    Args:
+        inputs: Input tensor to quantize. Shape: `(input_dim, output_dim)`.
+        block_size: Number of elements per group along axis 0.
+        value_range: Tuple of `(min, max)` quantization range.
+        dtype: Data type of quantized output.
+        epsilon: Small value to avoid division by zero.
+        to_numpy: Whether to perform computation in numpy for memory
+            efficiency.
+
+    Returns:
+        A tuple `(quantized_tensor, scale, zero_point)` where:
+            - `quantized_tensor`: Same shape as inputs, dtype=`dtype`.
+            - `scale`: Shape `(n_groups, output_dim)` where
+              `n_groups = ceil(input_dim / block_size)`.
+            - `zero_point`: Shape `(n_groups, output_dim)`, dtype=`uint8`.
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import abs_max_quantize_grouped_with_zero_point
+    >>> kernel = np.random.randn(512, 256).astype("float32")
+    >>> quantized, scale, zero_point = abs_max_quantize_grouped_with_zero_point(
+    ...     kernel, block_size=128, value_range=(-8, 7)
+    ... )
+    >>> quantized.shape
+    (512, 256)
+    >>> scale.shape  # 512 / 128 = 4 groups
+    (4, 256)
+    >>> zero_point.shape
+    (4, 256)
+    ```
+    """
+    if to_numpy:
+        return _abs_max_quantize_grouped_with_zero_point_numpy(
+            inputs, block_size, value_range, dtype, epsilon
+        )
+    return _abs_max_quantize_grouped_with_zero_point_tensor(
+        inputs, block_size, value_range, dtype, epsilon
+    )
+
+
+def _abs_max_quantize_grouped_with_zero_point_numpy(
+    inputs, block_size, value_range, dtype, epsilon
+):
+    """NumPy implementation for memory efficiency during quantization."""
+    original_dtype = backend.standardize_dtype(inputs.dtype)
+    inputs = ops.convert_to_numpy(inputs)
+
+    input_dim, output_dim = inputs.shape
+    n_groups = math.ceil(input_dim / block_size)
+    qmin, qmax = value_range
+
+    # Pad input_dim to be divisible by block_size
+    padded_input_dim = n_groups * block_size
+    if padded_input_dim > input_dim:
+        padding = np.zeros(
+            (padded_input_dim - input_dim, output_dim), dtype=inputs.dtype
+        )
+        inputs_padded = np.concatenate([inputs, padding], axis=0)
+    else:
+        inputs_padded = inputs
+
+    # Reshape to (n_groups, block_size, output_dim)
+    inputs_reshaped = inputs_padded.reshape(n_groups, block_size, output_dim)
+
+    # Compute min and max per group: shape (n_groups, 1, output_dim)
+    min_val = np.min(inputs_reshaped, axis=1, keepdims=True)
+    max_val = np.max(inputs_reshaped, axis=1, keepdims=True)
+
+    # Compute scale: (max - min) / (qmax - qmin)
+    scale = np.divide(np.subtract(max_val, min_val) + epsilon, qmax - qmin)
+
+    # Compute zero point: round(-min / scale) + qmin
+    # For int4 [-8, 7]: zero_point = round(-min / scale) - 8
+    zero_point = np.round(np.divide(-min_val, scale)) + qmin
+    zero_point = np.clip(zero_point, qmin, qmax)
+
+    # Quantize: q = round(input / scale) + zero_point
+    outputs = np.round(np.divide(inputs_reshaped, scale)) + zero_point
+    outputs = np.clip(outputs, qmin, qmax)
+    outputs = outputs.astype(dtype)
+
+    # Reshape back and remove padding
+    outputs = outputs.reshape(padded_input_dim, output_dim)[:input_dim, :]
+
+    # Scale and zero_point shape: (n_groups, output_dim)
+    scale = np.squeeze(scale, axis=1)
+    zero_point = np.squeeze(zero_point, axis=1).astype("int8")
+
+    return (
+        ops.convert_to_tensor(outputs),
+        ops.convert_to_tensor(scale, dtype=original_dtype),
+        ops.convert_to_tensor(zero_point),
+    )
+
+
+def _abs_max_quantize_grouped_with_zero_point_tensor(
+    inputs, block_size, value_range, dtype, epsilon
+):
+    """Tensor implementation for grouped quantization with zero point."""
+    original_dtype = backend.standardize_dtype(inputs.dtype)
+    inputs = ops.convert_to_tensor(inputs)
+
+    input_shape = ops.shape(inputs)
+    input_dim = input_shape[0]
+    output_dim = input_shape[1]
+    qmin, qmax = value_range
+
+    n_groups = int(math.ceil(int(input_dim) / block_size))
+    padded_input_dim = n_groups * block_size
+
+    # Pad if necessary
+    pad_size = padded_input_dim - int(input_dim)
+    if pad_size > 0:
+        padding = ops.zeros((pad_size, output_dim), dtype=inputs.dtype)
+        inputs_padded = ops.concatenate([inputs, padding], axis=0)
+    else:
+        inputs_padded = inputs
+
+    # Reshape to (n_groups, block_size, output_dim)
+    inputs_reshaped = ops.reshape(
+        inputs_padded, (n_groups, block_size, output_dim)
+    )
+
+    # Compute min and max per group
+    min_val = ops.min(inputs_reshaped, axis=1, keepdims=True)
+    max_val = ops.max(inputs_reshaped, axis=1, keepdims=True)
+
+    # Compute scale: (max - min) / (qmax - qmin)
+    scale = ops.divide(
+        ops.add(ops.subtract(max_val, min_val), epsilon), qmax - qmin
+    )
+    scale = ops.cast(scale, original_dtype)
+
+    # Compute zero point: round(-min / scale) + qmin
+    zero_point = ops.add(
+        ops.round(ops.divide(ops.negative(min_val), scale)), qmin
+    )
+    zero_point = ops.clip(zero_point, qmin, qmax)
+    zero_point = ops.cast(zero_point, "int8")
+
+    # Quantize: q = round(input / scale) + zero_point
+    outputs = ops.add(ops.round(ops.divide(inputs_reshaped, scale)), zero_point)
+    outputs = ops.clip(outputs, qmin, qmax)
+    outputs = ops.cast(outputs, dtype)
+
+    # Reshape back and remove padding
+    outputs = ops.reshape(outputs, (padded_input_dim, output_dim))
+    outputs = outputs[:input_dim, :]
+
+    # Scale and zero_point shape: (n_groups, output_dim)
+    scale = ops.squeeze(scale, axis=1)
+    zero_point = ops.squeeze(zero_point, axis=1)
+
+    return outputs, scale, zero_point
+
+
+@keras_export("keras.quantizers.dequantize_grouped_with_zero_point")
+def dequantize_grouped_with_zero_point(
+    quantized_inputs, scale, zero_point, block_size
+):
+    """Dequantize a grouped-quantized tensor with zero point.
 
     This function reverses the quantization performed by
-    `abs_max_quantize_grouped`.
+    `abs_max_quantize_grouped_with_zero_point`.
 
     Args:
         quantized_inputs: Quantized tensor of shape `(input_dim, output_dim)`.
         scale: Scale tensor of shape `(n_groups, output_dim)`.
+        zero_point: Zero point tensor of shape `(n_groups, output_dim)`.
         block_size: Number of elements per group (same as used in
             quantization).
 
@@ -283,12 +461,17 @@ def dequantize_grouped(quantized_inputs, scale, block_size):
 
     ```python
     import numpy as np
-    from keras.quantizers import abs_max_quantize_grouped, dequantize_grouped
+    from keras.quantizers import (
+        abs_max_quantize_grouped_with_zero_point,
+        dequantize_grouped_with_zero_point,
+    )
     kernel = np.random.randn(512, 256).astype("float32")
-    quantized, scale = abs_max_quantize_grouped(
+    quantized, scale, zero_point = abs_max_quantize_grouped_with_zero_point(
         kernel, block_size=128, value_range=(-8, 7)
     )
-    dequantized = dequantize_grouped(quantized, scale, block_size=128)
+    dequantized = dequantize_grouped_with_zero_point(
+        quantized, scale, zero_point, block_size=128
+    )
     ```
     """
     input_shape = ops.shape(quantized_inputs)
@@ -313,13 +496,17 @@ def dequantize_grouped(quantized_inputs, scale, block_size):
         inputs_padded, (n_groups, block_size, output_dim)
     )
 
-    # Expand scale for broadcasting: (n_groups, 1, output_dim)
+    # Expand scale and zero_point for broadcasting: (n_groups, 1, output_dim)
     scale_expanded = ops.expand_dims(scale, axis=1)
+    zero_point_expanded = ops.expand_dims(zero_point, axis=1)
 
-    # Dequantize
-    outputs = ops.divide(
-        ops.cast(inputs_reshaped, scale.dtype),
+    # Dequantize: output = scale * (quantized - zero_point)
+    outputs = ops.multiply(
         scale_expanded,
+        ops.subtract(
+            ops.cast(inputs_reshaped, scale.dtype),
+            ops.cast(zero_point_expanded, scale.dtype),
+        ),
     )
 
     # Reshape back and remove padding
