@@ -389,10 +389,35 @@ def _abs_max_quantize_grouped_with_zero_point_tensor(
     output_dim = input_shape[1]
     qmin, qmax = value_range
 
+    # Compute bits from value_range: for [-8, 7], bits = 4
+    num_levels = qmax - qmin + 1
+    bits = int(math.log2(num_levels))
+
     n_groups = int(math.ceil(int(input_dim) / block_size))
     padded_input_dim = n_groups * block_size
 
-    # Pad if necessary
+    # Transpose to match compute_quantization_parameters layout [out, in]
+    # Our input: (input_dim, output_dim) -> transposed: (output_dim, input_dim)
+    inputs_t = ops.transpose(inputs)
+
+    # Compute scale and zero using unified function with signed=True
+    # Returns scale: (output_dim, n_groups), zero: (output_dim, n_groups)
+    scale_t, zero_point_t, _ = compute_quantization_parameters(
+        inputs_t,
+        bits=bits,
+        symmetric=False,
+        per_channel=True,
+        group_size=block_size,
+        compute_dtype=original_dtype,
+        epsilon=epsilon,
+        signed=True,
+    )
+
+    # Transpose back to (n_groups, output_dim)
+    scale = ops.transpose(scale_t)
+    zero_point = ops.transpose(zero_point_t)
+
+    # Pad input if necessary for quantization step
     pad_size = padded_input_dim - int(input_dim)
     if pad_size > 0:
         padding = ops.zeros((pad_size, output_dim), dtype=inputs.dtype)
@@ -400,40 +425,26 @@ def _abs_max_quantize_grouped_with_zero_point_tensor(
     else:
         inputs_padded = inputs
 
-    # Reshape to (n_groups, block_size, output_dim)
+    # Reshape to (n_groups, block_size, output_dim) for quantization
     inputs_reshaped = ops.reshape(
         inputs_padded, (n_groups, block_size, output_dim)
     )
 
-    # Compute min and max per group
-    min_val = ops.min(inputs_reshaped, axis=1, keepdims=True)
-    max_val = ops.max(inputs_reshaped, axis=1, keepdims=True)
-
-    # Compute scale: (max - min) / (qmax - qmin)
-    scale = ops.divide(
-        ops.add(ops.subtract(max_val, min_val), epsilon), qmax - qmin
-    )
-    scale = ops.cast(scale, original_dtype)
-
-    # Compute zero point: round(-min / scale) + qmin
-    zero_point = ops.add(
-        ops.round(ops.divide(ops.negative(min_val), scale)), qmin
-    )
-    zero_point = ops.clip(zero_point, qmin, qmax)
-    zero_point = ops.cast(zero_point, "int8")
+    # Expand scale and zero_point for broadcasting: (n_groups, 1, output_dim)
+    scale_expanded = ops.expand_dims(scale, axis=1)
+    zero_point_expanded = ops.expand_dims(zero_point, axis=1)
 
     # Quantize: q = round(input / scale) + zero_point
-    outputs = ops.add(ops.round(ops.divide(inputs_reshaped, scale)), zero_point)
+    outputs = ops.add(
+        ops.round(ops.divide(inputs_reshaped, scale_expanded)),
+        zero_point_expanded,
+    )
     outputs = ops.clip(outputs, qmin, qmax)
     outputs = ops.cast(outputs, dtype)
 
     # Reshape back and remove padding
     outputs = ops.reshape(outputs, (padded_input_dim, output_dim))
     outputs = outputs[:input_dim, :]
-
-    # Scale and zero_point shape: (n_groups, output_dim)
-    scale = ops.squeeze(scale, axis=1)
-    zero_point = ops.squeeze(zero_point, axis=1)
 
     return outputs, scale, zero_point
 
@@ -1194,6 +1205,8 @@ def compute_quantization_parameters(
     per_channel=False,
     group_size=-1,
     compute_dtype="float32",
+    epsilon=0.0,
+    signed=False,
 ):
     """
     Computes the scale and zero-point for quantizing weight tensors.
@@ -1214,10 +1227,17 @@ def compute_quantization_parameters(
         per_channel: bool. Whether to quantize per channel.
         group_size: int. The group size for quantization. -1 means no grouping.
         compute_dtype: str. The dtype for computation. Defaults to "float32".
+        epsilon: float. Small value added to (max - min) before computing
+            scale to avoid division by zero. Defaults to 0.0.
+        signed: bool. Whether to use signed quantization range. If True, uses
+            range [-2^(bits-1), 2^(bits-1)-1] (e.g., [-8, 7] for 4-bit).
+            If False, uses range [0, 2^bits-1] (e.g., [0, 15] for 4-bit).
+            Defaults to False.
 
     Returns:
         scale: KerasTensor. The scale tensor for quantization.
-        zero: KerasTensor. The zero tensor for quantization.
+        zero: KerasTensor. The zero tensor for quantization (int8 if signed,
+            uint8 if unsigned).
         maxq: scalar. The maximum quantization value.
     """
     # Input validation
@@ -1272,13 +1292,31 @@ def compute_quantization_parameters(
 
     # Compute scale and zero-point
     maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), compute_dtype)
-    scale = ops.divide(ops.subtract(max_values, min_values), maxq)
+    range_values = ops.subtract(max_values, min_values)
+    if epsilon > 0:
+        range_values = ops.add(range_values, epsilon)
+    scale = ops.divide(range_values, maxq)
     scale = ops.where(ops.less_equal(scale, 0), 1e-8, scale)
 
-    if symmetric:
-        zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
+    # Compute zero-point based on signed/unsigned mode
+    if signed:
+        # For signed range [-2^(bits-1), 2^(bits-1)-1], e.g., [-8, 7] for 4-bit
+        qmin = -(2 ** (bits - 1))  # e.g., -8 for 4-bit
+        qmax_signed = 2 ** (bits - 1) - 1  # e.g., 7 for 4-bit
+        if symmetric:
+            zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2) + qmin)
+        else:
+            # zero_signed = round(-min / scale) + qmin
+            zero = ops.add(
+                ops.round(ops.divide(ops.negative(min_values), scale)), qmin
+            )
+        zero = ops.clip(zero, qmin, qmax_signed)
     else:
-        zero = ops.round(ops.divide(ops.negative(min_values), scale))
+        # For unsigned range [0, 2^bits-1], e.g., [0, 15] for 4-bit
+        if symmetric:
+            zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
+        else:
+            zero = ops.round(ops.divide(ops.negative(min_values), scale))
 
     # Reshape output to [out_features, n_groups] or [out_features, 1]
     if n_groups > 1:
@@ -1291,7 +1329,8 @@ def compute_quantization_parameters(
         scale = ops.tile(ops.reshape(scale, (1, 1)), (out_features, 1))
         zero = ops.tile(ops.reshape(zero, (1, 1)), (out_features, 1))
 
-    return scale, ops.cast(zero, "uint8"), maxq
+    zero_dtype = "int8" if signed else "uint8"
+    return scale, ops.cast(zero, zero_dtype), maxq
 
 
 def quantize_with_zero_point(input_tensor, scale, zero, maxq):
