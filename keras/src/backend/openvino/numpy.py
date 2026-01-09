@@ -706,7 +706,16 @@ def broadcast_to(x, shape):
 
 
 def cbrt(x):
-    raise NotImplementedError("`cbrt` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
+    sign_x = ov_opset.sign(x)
+    abs_x = ov_opset.absolute(x)
+    one_third = ov_opset.constant(1.0 / 3.0, x.get_element_type())
+    root_abs = ov_opset.power(abs_x, one_third)
+    res = ov_opset.multiply(sign_x, root_abs)
+    return OpenVINOKerasTensor(res.output(0))
 
 
 def ceil(x):
