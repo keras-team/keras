@@ -5456,6 +5456,74 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+class Ptp(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.ptp(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.ptp", "keras.ops.numpy.ptp"])
+def ptp(x, axis=None, keepdims=False):
+    """Return the peak-to-peak (max - min) value of tensor elements
+    over a given axis.
+
+    The peak-to-peak value is defined as the difference between the
+    maximum and minimum values along the specified axis.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the peak-to-peak value is computed.
+            The default, `axis=None`, will compute the peak-to-peak value
+            over all elements in the input tensor.
+        keepdims: If this is set to `True`, the axes which are reduced
+            are left in the result as dimensions with size one.
+
+    Returns:
+        A tensor containing the peak-to-peak values of `x` over the
+        given axis or axes.
+
+    Examples:
+    >>> x = keras.ops.array([[1., 3., 2.],
+    ...                      [4., 0., 5.]])
+
+    >>> # Peak-to-peak over all elements
+    >>> keras.ops.ptp(x)
+    5.0
+
+    >>> # Peak-to-peak along axis 1
+    >>> keras.ops.ptp(x, axis=1)
+    array([2., 5.], dtype=float32)
+
+    >>> # Peak-to-peak over multiple axes
+    >>> x = keras.ops.reshape(x, (1, 2, 3))
+    >>> keras.ops.ptp(x, axis=(1, 2))
+    array([5.], dtype=float32)
+
+    >>> # Keep reduced dimensions
+    >>> keras.ops.ptp(x, axis=2, keepdims=True)
+    array([[[2.],
+            [5.]]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Ptp(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.ptp(x, axis=axis, keepdims=keepdims)
+
+
 class Quantile(Operation):
     def __init__(
         self, axis=None, method="linear", keepdims=False, *, name=None

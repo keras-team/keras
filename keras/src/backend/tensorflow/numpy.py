@@ -2215,6 +2215,13 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return tf.reduce_prod(x, axis=axis, keepdims=keepdims)
 
 
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return tf.reduce_max(x, axis=axis, keepdims=keepdims) - tf.reduce_min(
+        x, axis=axis, keepdims=keepdims
+    )
+
+
 def _quantile(x, q, axis=None, method="linear", keepdims=False):
     # ref: tfp.stats.percentile
     # float64 is needed here and below, else we get the wrong index if the array

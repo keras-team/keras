@@ -26,6 +26,7 @@ NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_nextafter
 NumpyDtypeTest::test_power
+NumpyDtypeTest::test_ptp
 NumpyDtypeTest::test_quantile
 NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
@@ -57,6 +58,7 @@ NumpyOneInputOpsCorrectnessTest::test_logaddexp2
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_round
+NumpyOneInputOpsCorrectnessTest::test_ptp
 NumpyOneInputOpsCorrectnessTest::test_searchsorted
 NumpyOneInputOpsCorrectnessTest::test_select
 NumpyOneInputOpsCorrectnessTest::test_signbit

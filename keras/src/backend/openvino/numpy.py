@@ -2086,6 +2086,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return OpenVINOKerasTensor(result)
 
 
+def ptp(x, axis=None, keepdims=False):
+    raise NotImplementedError("`ptp` is not supported with openvino backend")
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     raise NotImplementedError(
         "`quantile` is not supported with openvino backend"

@@ -1018,6 +1018,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return np.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def ptp(x, axis=None, keepdims=False):
+    return np.ptp(x, axis=axis, keepdims=keepdims)
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
