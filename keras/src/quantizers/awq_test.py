@@ -14,6 +14,9 @@ from keras.src.quantizers.awq import awq_quantize_matrix
 from keras.src.quantizers.awq import awq_search_optimal_scales
 from keras.src.quantizers.awq_config import AWQConfig
 
+# Shared RNG instance for reproducible tests
+RNG = np.random.default_rng(seed=42)
+
 
 class MockTokenizer:
     """Simple tokenizer for testing."""
@@ -42,9 +45,9 @@ class AWQAlgorithmTest(testing.TestCase):
 
     def test_scale_search_returns_valid_scales(self):
         """Test that scale search returns valid positive scales."""
-        weights = np.random.randn(32, 16).astype("float32")
+        weights = RNG.standard_normal((32, 16)).astype("float32")
         activations = ops.abs(
-            ops.add(np.random.randn(16).astype("float32"), 0.1)
+            ops.add(RNG.standard_normal((16,)).astype("float32"), 0.1)
         )
 
         scales = awq_search_optimal_scales(
@@ -57,9 +60,9 @@ class AWQAlgorithmTest(testing.TestCase):
 
     def test_scale_search_with_zero_activations(self):
         """Test scale search handles near-zero activations."""
-        weights = ops.array(np.random.randn(32, 16).astype("float32"))
+        weights = ops.array(RNG.standard_normal((32, 16)).astype("float32"))
         # Some activations are very small
-        activations = np.abs(np.random.randn(16).astype("float32"))
+        activations = np.abs(RNG.standard_normal((16,)).astype("float32"))
         activations[:5] = 1e-10
         activations = ops.array(activations)
 
@@ -74,9 +77,9 @@ class AWQAlgorithmTest(testing.TestCase):
     def test_quantize_matrix_shapes(self):
         """Test that quantize_matrix returns correct shapes."""
         # weights_transpose has shape [out_features, in_features]
-        weights = ops.array(np.random.randn(32, 16).astype("float32"))
+        weights = ops.array(RNG.standard_normal((32, 16)).astype("float32"))
         activations = ops.add(
-            ops.abs(np.random.randn(16).astype("float32")), 0.1
+            ops.abs(RNG.standard_normal((16,)).astype("float32")), 0.1
         )
 
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
@@ -97,9 +100,9 @@ class AWQAlgorithmTest(testing.TestCase):
     def test_quantize_matrix_with_grouping(self):
         """Test quantize_matrix with group size."""
         # Use dimensions divisible by group_size for cleaner test
-        weights = ops.array(np.random.randn(64, 32).astype("float32"))
+        weights = ops.array(RNG.standard_normal((64, 32)).astype("float32"))
         activations = ops.add(
-            ops.abs(np.random.randn(32).astype("float32")), 0.1
+            ops.abs(RNG.standard_normal((32,)).astype("float32")), 0.1
         )
 
         # Test per-channel mode (group_size=-1) which is well-supported
@@ -134,10 +137,10 @@ class AWQAlgorithmTest(testing.TestCase):
         n_groups = in_features // group_size  # 6 groups
 
         weights = ops.array(
-            np.random.randn(out_features, in_features).astype("float32")
+            RNG.standard_normal((out_features, in_features)).astype("float32")
         )
         activations = ops.array(
-            np.abs(np.random.randn(in_features).astype("float32")) + 0.1
+            np.abs(RNG.standard_normal((in_features,)).astype("float32")) + 0.1
         )
 
         quantized, scale, zero, awq_scales, g_idx = awq_quantize_matrix(
@@ -166,10 +169,10 @@ class AWQAlgorithmTest(testing.TestCase):
         group_size = 64
 
         weights = ops.array(
-            np.random.randn(out_features, in_features).astype("float32")
+            RNG.standard_normal((out_features, in_features)).astype("float32")
         )
         activations = ops.add(
-            ops.abs(np.random.randn(in_features).astype("float32")), 0.1
+            ops.abs(RNG.standard_normal((in_features,)).astype("float32")), 0.1
         )
 
         quantized, scale, _, awq_scales, _ = awq_quantize_matrix(
@@ -191,10 +194,10 @@ class AWQAlgorithmTest(testing.TestCase):
         group_size = 32
 
         weights = ops.array(
-            np.random.randn(out_features, in_features).astype("float32")
+            RNG.standard_normal((out_features, in_features)).astype("float32")
         )
         activations = ops.add(
-            ops.abs(np.random.randn(in_features).astype("float32")), 0.1
+            ops.abs(RNG.standard_normal((in_features,)).astype("float32")), 0.1
         )
 
         scales = awq_search_optimal_scales(
@@ -223,10 +226,10 @@ class AWQAlgorithmTest(testing.TestCase):
         n_groups = in_features // group_size
 
         weights = ops.array(
-            np.random.randn(out_features, in_features).astype("float32")
+            RNG.standard_normal((out_features, in_features)).astype("float32")
         )
         activations = ops.add(
-            ops.abs(np.random.randn(in_features).astype("float32")), 0.1
+            ops.abs(RNG.standard_normal((in_features,)).astype("float32")), 0.1
         )
 
         _, scale, zero, _, _ = awq_quantize_matrix(
@@ -265,7 +268,7 @@ class AWQLayerTest(testing.TestCase):
         awq_obj = AWQ(layer, config)
 
         # Simulate activation capture
-        calibration_data = np.random.randn(64, 16).astype("float32")
+        calibration_data = RNG.standard_normal((64, 16)).astype("float32")
         awq_obj.update_activation_magnitudes(calibration_data)
 
         self.assertEqual(awq_obj.num_samples, 64)
@@ -286,13 +289,13 @@ class AWQLayerTest(testing.TestCase):
         awq_obj = AWQ(layer, config)
 
         # First batch
-        batch1 = ops.abs(np.random.randn(10, 16).astype("float32"))
+        batch1 = ops.abs(RNG.standard_normal((10, 16)).astype("float32"))
         batch1_max = ops.max(batch1, axis=0)
         awq_obj.update_activation_magnitudes(batch1)
 
         # Second batch with higher values in some channels
         batch2 = ops.add(
-            ops.abs(np.random.randn(10, 16).astype("float32")), 1.0
+            ops.abs(RNG.standard_normal((10, 16)).astype("float32")), 1.0
         )
         batch2_max = ops.max(batch2, axis=0)
         awq_obj.update_activation_magnitudes(batch2)
@@ -473,10 +476,9 @@ def _string_dataset(
     long_text, num_samples=NUM_SAMPLES, sequence_length=SEQ_LEN
 ):
     """Yield string slices for calibration."""
-    rng = np.random.default_rng(seed=0)
     length = max(1, len(long_text) - sequence_length)
     for _ in range(num_samples):
-        start = rng.integers(0, length) if length > 1 else 0
+        start = RNG.integers(0, length) if length > 1 else 0
         yield long_text[start : start + sequence_length]
 
 
@@ -500,7 +502,6 @@ class AWQAccuracyTest(testing.TestCase):
         4. Compares quantized predictions against baseline
         5. Validates top-1 match rate and KL divergence bounds
         """
-        rng = np.random.default_rng(seed=321)
         keras.utils.set_random_seed(123)
 
         # Build calibration dataset
@@ -514,7 +515,7 @@ class AWQAccuracyTest(testing.TestCase):
         # Build eval batch from same distribution as calibration
         batch_size = min(8, len(calibration_set))
         eval_samples = [
-            calibration_set[rng.integers(0, len(calibration_set))]
+            calibration_set[RNG.integers(0, len(calibration_set))]
             for _ in range(batch_size)
         ]
         x_eval = ops.concatenate([tokenizer(s) for s in eval_samples], axis=0)
@@ -594,8 +595,10 @@ class AWQAccuracyTest(testing.TestCase):
         layer.build(input_shape=(None, in_features))
 
         # Create data
-        calibration_data = np.random.randn(64, in_features).astype("float32")
-        test_data = np.random.randn(16, in_features).astype("float32")
+        calibration_data = RNG.standard_normal((64, in_features)).astype(
+            "float32"
+        )
+        test_data = RNG.standard_normal((16, in_features)).astype("float32")
 
         # Get original output
         original_output = layer(test_data)
