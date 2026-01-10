@@ -1143,14 +1143,16 @@ def flip(x, axis=None):
         end_mask=all_ones_mask,
     )
     return OpenVINOKerasTensor(result.output(0))
-def rot90(x, k=1, axes=(0, 1)):
+
+
+def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the plane specified by axes."""
-    x = get_ov_output(x)
+    array = get_ov_output(array)
 
     if not isinstance(axes, (tuple, list)) or len(axes) != 2:
         raise ValueError("axes must be a tuple of length 2")
 
-    ndim = len(x.get_partial_shape())
+    ndim = len(array.get_partial_shape())
     axis1 = canonicalize_axis(axes[0], ndim)
     axis2 = canonicalize_axis(axes[1], ndim)
 
@@ -1159,13 +1161,13 @@ def rot90(x, k=1, axes=(0, 1)):
 
     k = k % 4
     if k == 0:
-        return OpenVINOKerasTensor(x)
+        return OpenVINOKerasTensor(array)
 
     perm = list(range(ndim))
     perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
     perm_const = ov_opset.constant(perm, Type.i32).output(0)
 
-    result = x
+    result = array
     for _ in range(k):
         result = ov_opset.transpose(result, perm_const).output(0)
 
@@ -1178,7 +1180,6 @@ def rot90(x, k=1, axes=(0, 1)):
         ).output(0)
 
     return OpenVINOKerasTensor(result)
-
 
 
 def floor(x):
@@ -2734,6 +2735,26 @@ def transpose(x, axes=None):
             axes = list(axes)
         axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
+
+
+def flip(x, axis=None):
+    from openvino.runtime import opset13 as ops
+
+    from keras.src.backend.openvino.core import convert_to_tensor
+
+    x = convert_to_tensor(x)
+    shape = x.get_partial_shape()
+    rank = len(shape)
+
+    if axis is None:
+        axes = list(range(rank))
+    else:
+        if isinstance(axis, int):
+            axis = [axis]
+        axes = [(a + rank) % rank for a in axis]
+
+    axes = ops.constant(axes, dtype="int64")
+    return ops.reverse(x, axes)
 
 
 def _helper_trapezoid(y, axis):
