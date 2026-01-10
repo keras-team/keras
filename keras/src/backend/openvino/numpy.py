@@ -1117,22 +1117,28 @@ def expm1(x):
 
 def flip(x, axis=None):
     x_node = get_ov_output(x)
-    ndim = x.ndim
+
+    # Using OpenVINO tensor shape
+    ndim = len(x_node.get_partial_shape())
     if ndim is None:
         raise ValueError(
-            "The `flip` operation does not support tensors with dynamic rank"
+            "The `flip` operation does not support tensors with dynamic rank "
             "for the OpenVINO backend."
         )
+
     if axis is None:
         axis = list(range(ndim))
     elif isinstance(axis, int):
         axis = [axis]
+
     axis = [a + ndim if a < 0 else a for a in axis]
+
     begin = [0] * ndim
     end = [0] * ndim
     strides = [1] * ndim
     for a in axis:
         strides[a] = -1
+
     all_ones_mask = [1] * ndim
     result = ov_opset.strided_slice(
         data=x_node,
@@ -2735,26 +2741,6 @@ def transpose(x, axes=None):
             axes = list(axes)
         axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
-
-
-def flip(x, axis=None):
-    from openvino.runtime import opset13 as ops
-
-    from keras.src.backend.openvino.core import convert_to_tensor
-
-    x = convert_to_tensor(x)
-    shape = x.get_partial_shape()
-    rank = len(shape)
-
-    if axis is None:
-        axes = list(range(rank))
-    else:
-        if isinstance(axis, int):
-            axis = [axis]
-        axes = [(a + rank) % rank for a in axis]
-
-    axes = ops.constant(axes, dtype="int64")
-    return ops.reverse(x, axes)
 
 
 def _helper_trapezoid(y, axis):
