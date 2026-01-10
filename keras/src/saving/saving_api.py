@@ -334,5 +334,6 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
             "Keras 3 only supports V3 `.keras` files, "
-            "legacy H5 format files (`.h5` extension)."
+            "`.weights.h5` files, legacy H5 format files "
+            "(`.h5` extension), or Orbax checkpoints."
         )

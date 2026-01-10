@@ -370,9 +370,6 @@ class OrbaxCheckpointTest(testing.TestCase):
                 orig, new, msg="Weights should be different before loading"
             )
 
-        # Get state before loading
-        state_before_loading = new_model.get_state_tree()
-
         # Load weights from Orbax checkpoint using load_weights
         new_model.load_weights(checkpoint_dir)
 
@@ -387,17 +384,6 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # For Orbax checkpoints, the complete state is loaded including
         # optimizer and metrics state from the checkpoint
-        state_after_loading = new_model.get_state_tree()
-
-        # Verify that optimizer variables were loaded (if present in checkpoint)
-        if (
-            "optimizer_variables" in state_before_loading
-            and "optimizer_variables" in state_after_loading
-        ):
-            # Optimizer variables should differ after loading from checkpoint
-            # (they contain the optimizer state from the trained model)
-            pass  # We don't assert equality here since they should be different
-
         # Note: metrics_variables are not saved in Orbax checkpoints
 
     @pytest.mark.requires_trainable_backend
@@ -430,14 +416,13 @@ class OrbaxCheckpointTest(testing.TestCase):
     )
     def test_distributed_checkpoint_functionality(self):
         """Test OrbaxCheckpoint with distributed training."""
-        import os
-
         import jax
 
         from keras.src.distribution import DeviceMesh
         from keras.src.distribution import LayoutMap
         from keras.src.distribution import ModelParallel
         from keras.src.distribution import TensorLayout
+        from keras.src.distribution import distribution as get_distribution
         from keras.src.distribution import set_distribution
 
         # Check if we have at least 1 device
@@ -471,8 +456,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
         # Save original distribution state
-        from keras.src.distribution import distribution as get_distribution
-
         original_distribution = get_distribution()
 
         try:
@@ -516,15 +499,12 @@ class OrbaxCheckpointTest(testing.TestCase):
 
             # Verify sharding is maintained after loading
             # Check that both models have the same distribution
-            from keras.src.distribution import distribution as get_distribution
-
             current_dist = get_distribution()
             self.assertIsNotNone(current_dist)
             self.assertEqual(type(current_dist), ModelParallel)
 
             # Verify model variables are sharded correctly
             # In JAX, sharded variables should have different sharding info
-            import jax
 
             # Get sharding info for original model variables
             original_shardings = {}
