@@ -706,7 +706,16 @@ def broadcast_to(x, shape):
 
 
 def cbrt(x):
-    raise NotImplementedError("`cbrt` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
+    sign_x = ov_opset.sign(x)
+    abs_x = ov_opset.absolute(x)
+    one_third = ov_opset.constant(1.0 / 3.0, x.get_element_type())
+    root_abs = ov_opset.power(abs_x, one_third)
+    res = ov_opset.multiply(sign_x, root_abs)
+    return OpenVINOKerasTensor(res.output(0))
 
 
 def ceil(x):
@@ -1221,7 +1230,34 @@ def hstack(xs):
 
 
 def hypot(x1, x2):
-    raise NotImplementedError("`hypot` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "hypot()")
+    x_type = x1.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x1 = ov_opset.convert(x1, ov_type)
+        x2 = ov_opset.convert(x2, ov_type)
+    x1_abs = ov_opset.absolute(x1)
+    x2_abs = ov_opset.absolute(x2)
+    max_val = ov_opset.maximum(x1_abs, x2_abs)
+    min_val = ov_opset.minimum(x1_abs, x2_abs)
+    one = ov_opset.constant(1, max_val.get_element_type())
+    is_zero_mask = ov_opset.equal(
+        max_val, ov_opset.constant(0, max_val.get_element_type())
+    )
+    safe_divisor = ov_opset.select(is_zero_mask, one, max_val)
+    ratio = ov_opset.divide(min_val, safe_divisor)
+    result = ov_opset.multiply(
+        max_val,
+        ov_opset.sqrt(ov_opset.add(one, ov_opset.multiply(ratio, ratio))),
+    )
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def identity(n, dtype=None):
@@ -2050,6 +2086,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return OpenVINOKerasTensor(result)
 
 
+def ptp(x, axis=None, keepdims=False):
+    raise NotImplementedError("`ptp` is not supported with openvino backend")
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     raise NotImplementedError(
         "`quantile` is not supported with openvino backend"
@@ -2467,7 +2507,8 @@ def tile(x, repeats):
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError("`trace` is not supported with openvino backend")
+    x = diagonal(x, offset=offset, axis1=axis1, axis2=axis2)
+    return sum(x, axis=-1)
 
 
 def tri(N, M=None, k=0, dtype=None):
