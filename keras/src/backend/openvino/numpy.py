@@ -2337,6 +2337,11 @@ def std(x, axis=None, keepdims=False):
 def swapaxes(x, axis1, axis2):
     x = get_ov_output(x)
     x_shape = x.get_partial_shape()
+    if x_shape.rank.is_dynamic:
+        raise ValueError(
+            "`swapaxes` does not support tensors with dynamic rank for the "
+            "OpenVINO backend."
+        )
     rank = x_shape.rank.get_length()
     axis1 = canonicalize_axis(axis1, rank)
     axis2 = canonicalize_axis(axis2, rank)
