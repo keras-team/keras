@@ -34,7 +34,6 @@ NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
-NumpyDtypeTest::test_swapaxes
 NumpyDtypeTest::test_tensordot_
 NumpyDtypeTest::test_tile
 NumpyDtypeTest::test_trace
@@ -64,9 +63,7 @@ NumpyOneInputOpsCorrectnessTest::test_round
 NumpyOneInputOpsCorrectnessTest::test_searchsorted
 NumpyOneInputOpsCorrectnessTest::test_select
 NumpyOneInputOpsCorrectnessTest::test_signbit
-NumpyOneInputOpsCorrectnessTest::test_size
 NumpyOneInputOpsCorrectnessTest::test_slogdet
-NumpyOneInputOpsCorrectnessTest::test_swapaxes
 NumpyOneInputOpsCorrectnessTest::test_tile
 NumpyOneInputOpsCorrectnessTest::test_trace
 NumpyOneInputOpsCorrectnessTest::test_trunc
