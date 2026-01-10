@@ -1272,6 +1272,11 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
+def nansum(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return torch.nansum(x, dim=axis, keepdim=keepdims)
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
     return torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)

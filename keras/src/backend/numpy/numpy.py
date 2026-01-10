@@ -960,6 +960,10 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
+def nansum(x, axis=None, keepdims=False):
+    return np.nansum(x, axis=axis, keepdims=keepdims)
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     return np.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
