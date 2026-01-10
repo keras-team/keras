@@ -8524,6 +8524,23 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nansum(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.nansum(x_jax).dtype)
+
+        if backend.backend() == "torch" and expected_dtype == "uint32":
+            expected_dtype = "int32"
+
+        self.assertEqual(standardize_dtype(knp.nansum(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Nansum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nan_to_num(self, dtype):
         import jax.numpy as jnp
 
