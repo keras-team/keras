@@ -81,8 +81,6 @@ class MeanSquaredError(LossFunctionWrapper):
     >>> loss = keras.losses.MeanSquaredError()
     >>> loss(y_true, y_pred)
     0.02
-
-
     """
 
     def __init__(
@@ -125,7 +123,6 @@ class MeanAbsoluteError(LossFunctionWrapper):
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
-
     Examples:
 
     >>> y_true = keras.ops.array([1.0, 0.3, 1.0])
@@ -133,9 +130,6 @@ class MeanAbsoluteError(LossFunctionWrapper):
     >>> loss = keras.losses.MeanAbsoluteError()
     >>> loss(y_true, y_pred)
     0.5666667
-
-
-
     """
 
     def __init__(
@@ -178,7 +172,6 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
             (via `keras.backend.set_floatx()`). If a `keras.DTypePolicy` is
             provided, then the `compute_dtype` will be utilized.
 
-
     Examples:
 
     >>> y_true = keras.ops.array([100.0, 200.0, 300.0])
@@ -186,8 +179,6 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
     >>> loss = keras.losses.MeanAbsolutePercentageError()
     >>> loss(y_true, y_pred)
     6.111111
-
-
     """
 
     def __init__(
