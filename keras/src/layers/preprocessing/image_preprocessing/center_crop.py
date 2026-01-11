@@ -183,45 +183,35 @@ class CenterCrop(BaseImagePreprocessingLayer):
         )
 
     def transform_images(self, images, transformation=None, training=True):
-        # Keep dtype consistency
         inputs = self.backend.cast(images, self.compute_dtype)
 
-        # Get runtime shape to handle dynamic spatial dimensions
+        # Always use runtime shape supports dynamic spatial dims
         shape = ops.shape(inputs)
 
         if self.data_format == "channels_first":
-            init_height = shape[-2]
-            init_width = shape[-1]
-            channels = shape[-3] if inputs.ndim == 3 else shape[-3]
+            # inputs is always 4D here (B, C, H, W)
+            batch = shape[0]
+            channels = shape[1]
+            init_height = shape[2]
+            init_width = shape[3]
         else:
-            init_height = shape[-3]
-            init_width = shape[-2]
-            channels = shape[-1]
+            # (B, H, W, C)
+            batch = shape[0]
+            init_height = shape[1]
+            init_width = shape[2]
+            channels = shape[3]
 
-        # Define crop operation runtime compatible
         def crop_fn():
             h_start = (init_height - self.height) // 2
             w_start = (init_width - self.width) // 2
-
-            if inputs.ndim == 3:
-                if self.data_format == "channels_first":
-                    start = (0, h_start, w_start)  # (C, H, W)
-                    size = (channels, self.height, self.width)
-                else:
-                    start = (h_start, w_start, 0)  # (H, W, C)
-                    size = (self.height, self.width, channels)
+            if self.data_format == "channels_first":
+                start = (0, 0, h_start, w_start)
+                size = (batch, channels, self.height, self.width)
             else:
-                batch = shape[0]
-                if self.data_format == "channels_first":
-                    start = (0, 0, h_start, w_start)  # (B, C, H, W)
-                    size = (batch, channels, self.height, self.width)
-                else:
-                    start = (0, h_start, w_start, 0)  # (B, H, W, C)
-                    size = (batch, self.height, self.width, channels)
-
+                start = (0, h_start, w_start, 0)
+                size = (batch, self.height, self.width, channels)
             return ops.slice(inputs, start, size)
 
-        # Define resize operation used if input smaller than target
         def resize_fn():
             return self.backend.image.resize(
                 inputs,
@@ -230,13 +220,10 @@ class CenterCrop(BaseImagePreprocessingLayer):
                 crop_to_aspect_ratio=True,
             )
 
-        # Condition if either dimension < target resize else crop
         need_resize = ops.logical_or(
             init_height < self.height, init_width < self.width
         )
-        outputs = ops.cond(need_resize, resize_fn, crop_fn)
-
-        return outputs
+        return ops.cond(need_resize, resize_fn, crop_fn)
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
