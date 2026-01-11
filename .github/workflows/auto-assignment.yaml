@@ -13,7 +13,7 @@ jobs:
   welcome:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6.0.1
       - uses: actions/github-script@v8
         with:
           script: |

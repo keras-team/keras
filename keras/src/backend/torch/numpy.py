@@ -1382,6 +1382,18 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return x
 
 
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if axis is None:
+        return x.max() - x.min()
+    elif axis == ():
+        return torch.zeros_like(x)
+    else:
+        return torch.amax(x, dim=axis, keepdim=keepdims) - torch.amin(
+            x, dim=axis, keepdim=keepdims
+        )
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
@@ -1791,6 +1803,16 @@ def power(x1, x2):
 def negative(x):
     x = convert_to_tensor(x)
     return torch.negative(x)
+
+
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = cast(x1, torch.float64)
+    x2 = cast(x2, torch.float64)
+    return cast(torch.nextafter(x1, x2), dtype)
 
 
 def square(x):

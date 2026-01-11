@@ -320,6 +320,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.mod(x, y).shape, (2, 3))
 
+    def test_nextafter(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (None, 3))
+
     def test_not_equal(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -961,6 +966,15 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.mod(x, y)
+
+    def test_nextafter(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((1, 3))
+        self.assertEqual(knp.nextafter(x, y).shape, (2, 3))
 
     def test_not_equal(self):
         x = KerasTensor((2, 3))
@@ -1714,6 +1728,12 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.prod(x, axis=0).shape, (3,))
         self.assertEqual(knp.prod(x, axis=1, keepdims=True).shape, (None, 1))
 
+    def test_ptp(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.ptp(x).shape, ())
+        self.assertEqual(knp.ptp(x, axis=0).shape, (3,))
+        self.assertEqual(knp.ptp(x, axis=1, keepdims=True).shape, (None, 1))
+
     def test_ravel(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ravel(x).shape, (None,))
@@ -2344,6 +2364,12 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.prod(x).shape, ())
         self.assertEqual(knp.prod(x, axis=0).shape, (3,))
         self.assertEqual(knp.prod(x, axis=1).shape, (2,))
+
+    def test_ptp(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.ptp(x).shape, ())
+        self.assertEqual(knp.ptp(x, axis=0).shape, (3,))
+        self.assertEqual(knp.ptp(x, axis=1).shape, (2,))
 
     def test_ravel(self):
         x = KerasTensor((2, 3))
@@ -3336,6 +3362,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Mod()(x, y), np.mod(x, y))
         self.assertAllClose(knp.Mod()(x, 1), np.mod(x, 1))
         self.assertAllClose(knp.Mod()(1, x), np.mod(1, x))
+
+    def test_nextafter(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [3, 2, 1]])
+        self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
+        self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
 
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
@@ -4885,6 +4917,31 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.Prod(axis=1, keepdims=True)(x),
             np.prod(x, axis=1, keepdims=True),
+        )
+
+    def test_ptp(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+
+        self.assertAllClose(knp.ptp(x), np.ptp(x))
+        self.assertAllClose(knp.ptp(x, axis=None), np.ptp(x, axis=None))
+
+        self.assertAllClose(knp.ptp(x, axis=0), np.ptp(x, axis=0))
+        self.assertAllClose(knp.ptp(x, axis=1), np.ptp(x, axis=1))
+        self.assertAllClose(knp.ptp(x, axis=(1,)), np.ptp(x, axis=(1,)))
+
+        self.assertAllClose(knp.ptp(x, axis=()), np.ptp(x, axis=()))
+
+        self.assertAllClose(
+            knp.ptp(x, axis=1, keepdims=True),
+            np.ptp(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(knp.Ptp()(x), np.ptp(x))
+        self.assertAllClose(knp.Ptp(axis=1)(x), np.ptp(x, axis=1))
+        self.assertAllClose(knp.Ptp(axis=(0, 1))(x), np.ptp(x, axis=(0, 1)))
+        self.assertAllClose(
+            knp.Ptp(axis=1, keepdims=True)(x),
+            np.ptp(x, axis=1, keepdims=True),
         )
 
     def test_ravel(self):
@@ -8482,6 +8539,27 @@ class NumpyDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(
+        named_product(dtypes=list(itertools.product(ALL_DTYPES, ALL_DTYPES)))
+    )
+    def test_nextafter(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.nextafter(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.nextafter(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Nextafter().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
+
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nonzero(self, dtype):
         import jax.numpy as jnp
@@ -8638,6 +8716,26 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Prod().symbolic_call(x).dtype), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_ptp(self, dtype):
+        import jax.numpy as jnp
+
+        if dtype == "bool":
+            self.skipTest("ptp doesn't support bool dtype")
+
+        x = knp.ones((1, 1, 1), dtype=dtype)
+        x_jax = jnp.ones((1, 1, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.ptp(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.ptp(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Ptp().symbolic_call(x).dtype),
+            expected_dtype,
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))

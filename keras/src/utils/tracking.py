@@ -31,13 +31,13 @@ def no_automatic_dependency_tracking(fn):
 class Tracker:
     """Attribute tracker, used for e.g. Variable tracking.
 
-    Monitors certain attribute types
-    and put them in appropriate lists in case of a match.
+    Monitors certain attribute types and places matching
+    objects into user provided tracking collections.
 
     Also passively tracks certain mutable collections
-    (dict, list) so that items added to them later
-    still get tracked. This is done by wrapping these
-    collections into an equivalent, tracking-aware object.
+    (e.g. dict and list) ensuring that items added after
+    initialization are still tracked. This is done by wrapping
+    these collections in tracking-aware proxy objects.
 
     Example:
 

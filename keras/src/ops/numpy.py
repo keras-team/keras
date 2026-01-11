@@ -924,6 +924,11 @@ def arctanh(x):
 
     Returns:
         Output tensor of same shape as `x`.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor([0, -0.5])
+    >>> keras.ops.arctanh(x)
+    array([ 0.        , -0.54930615], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Arctanh().symbolic_call(x)
@@ -5451,6 +5456,74 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+class Ptp(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.ptp(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.ptp", "keras.ops.numpy.ptp"])
+def ptp(x, axis=None, keepdims=False):
+    """Return the peak-to-peak (max - min) value of tensor elements
+    over a given axis.
+
+    The peak-to-peak value is defined as the difference between the
+    maximum and minimum values along the specified axis.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the peak-to-peak value is computed.
+            The default, `axis=None`, will compute the peak-to-peak value
+            over all elements in the input tensor.
+        keepdims: If this is set to `True`, the axes which are reduced
+            are left in the result as dimensions with size one.
+
+    Returns:
+        A tensor containing the peak-to-peak values of `x` over the
+        given axis or axes.
+
+    Examples:
+    >>> x = keras.ops.array([[1., 3., 2.],
+    ...                      [4., 0., 5.]])
+
+    >>> # Peak-to-peak over all elements
+    >>> keras.ops.ptp(x)
+    5.0
+
+    >>> # Peak-to-peak along axis 1
+    >>> keras.ops.ptp(x, axis=1)
+    array([2., 5.], dtype=float32)
+
+    >>> # Peak-to-peak over multiple axes
+    >>> x = keras.ops.reshape(x, (1, 2, 3))
+    >>> keras.ops.ptp(x, axis=(1, 2))
+    array([5.], dtype=float32)
+
+    >>> # Keep reduced dimensions
+    >>> keras.ops.ptp(x, axis=2, keepdims=True)
+    array([[[2.],
+            [5.]]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Ptp(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.ptp(x, axis=axis, keepdims=keepdims)
+
+
 class Quantile(Operation):
     def __init__(
         self, axis=None, method="linear", keepdims=False, *, name=None
@@ -7097,6 +7170,49 @@ def negative(x):
     if any_symbolic_tensors((x,)):
         return Negative().symbolic_call(x)
     return backend.numpy.negative(x)
+
+
+class Nextafter(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.nextafter(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nextafter", "keras.ops.numpy.nextafter"])
+def nextafter(x1, x2):
+    """
+    Return the next representable floating-point value after `x1` towards `x2`.
+
+    This function computes the next floating-point value
+    following `x1` in the direction of `x2`, element-wise.
+
+    Args:
+        x1: Input tensor whose values will be moved to the next
+            representable floating-point value.
+        x2: Input tensor indicating the direction toward which
+            `x1` is moved.
+
+    Returns:
+        Output tensor
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([1.0, 1.0])
+    >>> x2 = keras.ops.convert_to_tensor([2.0, 0.0])
+    >>> keras.ops.nextafter(x1, x2)
+    array([1.0000001, 0.99999994], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Nextafter().symbolic_call(x1, x2)
+    return backend.numpy.nextafter(x1, x2)
 
 
 class Square(Operation):

@@ -4,6 +4,7 @@ from openvino import Type
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.backend.openvino.core import DTYPES_MAX
 from keras.src.backend.openvino.core import DTYPES_MIN
@@ -705,7 +706,16 @@ def broadcast_to(x, shape):
 
 
 def cbrt(x):
-    raise NotImplementedError("`cbrt` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
+    sign_x = ov_opset.sign(x)
+    abs_x = ov_opset.absolute(x)
+    one_third = ov_opset.constant(1.0 / 3.0, x.get_element_type())
+    root_abs = ov_opset.power(abs_x, one_third)
+    res = ov_opset.multiply(sign_x, root_abs)
+    return OpenVINOKerasTensor(res.output(0))
 
 
 def ceil(x):
@@ -893,9 +903,53 @@ def diag(x, k=0):
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError(
-        "`diagonal` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    shape = x.get_partial_shape()
+    rank = x.get_partial_shape().rank.get_length()
+    if rank is None:
+        raise ValueError("`diagonal` requires input tensor with static rank.")
+    if rank < 2:
+        raise ValueError(
+            f"diagonal requires input tensor with rank >= 2.Given rank: {rank}"
+        )
+    axis1 = canonicalize_axis(axis1, rank)
+    axis2 = canonicalize_axis(axis2, rank)
+    if axis1 == axis2:
+        raise ValueError("`axis1` and `axis2` cannot be the same.")
+
+    perm_order = [axis1, axis2] + [
+        i for i in range(rank) if i != axis1 and i != axis2
+    ]
+    perm_const = ov_opset.constant(perm_order, dtype=Type.i32).output(0)
+    x_transposed = ov_opset.transpose(x, perm_const)
+
+    N_dim = shape[axis1]
+    M_dim = shape[axis2]
+    if not N_dim.is_static or not M_dim.is_static:
+        raise ValueError(
+            "`diagonal` requires input tensor with static shape for axes "
+            f"`axis1` ({axis1}) and `axis2` ({axis2})."
+        )
+    N = N_dim.get_length()
+    M = M_dim.get_length()
+    if offset >= 0:
+        L = np.minimum(N, M - offset) if (M - offset) > 0 else 0
+        indices = [[i, i + offset] for i in range(L)]
+    else:
+        L = np.minimum(N + offset, M) if (N + offset) > 0 else 0
+        indices = [[i - offset, i] for i in range(L)]
+
+    indices = np.array(indices, dtype=np.int32).reshape(L, 2)
+    indices_const = ov_opset.constant(indices, dtype=Type.i32).output(0)
+
+    diag_gathered = ov_opset.gather_nd(x_transposed, indices_const)
+
+    out_rank = rank - 1
+    out_perm_order = list(range(1, out_rank)) + [0]
+    out_perm_const = ov_opset.constant(out_perm_order, dtype=Type.i32).output(0)
+
+    final_output = ov_opset.transpose(diag_gathered, out_perm_const)
+    return OpenVINOKerasTensor(final_output.output(0))
 
 
 def diff(a, n=1, axis=-1):
@@ -1071,7 +1125,33 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    raise NotImplementedError("`flip` is not supported with openvino backend")
+    x_node = get_ov_output(x)
+    ndim = x.ndim
+    if ndim is None:
+        raise ValueError(
+            "The `flip` operation does not support tensors with dynamic rank"
+            "for the OpenVINO backend."
+        )
+    if axis is None:
+        axis = list(range(ndim))
+    elif isinstance(axis, int):
+        axis = [axis]
+    axis = [a + ndim if a < 0 else a for a in axis]
+    begin = [0] * ndim
+    end = [0] * ndim
+    strides = [1] * ndim
+    for a in axis:
+        strides[a] = -1
+    all_ones_mask = [1] * ndim
+    result = ov_opset.strided_slice(
+        data=x_node,
+        begin=begin,
+        end=end,
+        strides=strides,
+        begin_mask=all_ones_mask,
+        end_mask=all_ones_mask,
+    )
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def floor(x):
@@ -1150,7 +1230,34 @@ def hstack(xs):
 
 
 def hypot(x1, x2):
-    raise NotImplementedError("`hypot` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "hypot()")
+    x_type = x1.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x1 = ov_opset.convert(x1, ov_type)
+        x2 = ov_opset.convert(x2, ov_type)
+    x1_abs = ov_opset.absolute(x1)
+    x2_abs = ov_opset.absolute(x2)
+    max_val = ov_opset.maximum(x1_abs, x2_abs)
+    min_val = ov_opset.minimum(x1_abs, x2_abs)
+    one = ov_opset.constant(1, max_val.get_element_type())
+    is_zero_mask = ov_opset.equal(
+        max_val, ov_opset.constant(0, max_val.get_element_type())
+    )
+    safe_divisor = ov_opset.select(is_zero_mask, one, max_val)
+    ratio = ov_opset.divide(min_val, safe_divisor)
+    result = ov_opset.multiply(
+        max_val,
+        ov_opset.sqrt(ov_opset.add(one, ov_opset.multiply(ratio, ratio))),
+    )
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def identity(n, dtype=None):
@@ -1979,6 +2086,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return OpenVINOKerasTensor(result)
 
 
+def ptp(x, axis=None, keepdims=False):
+    raise NotImplementedError("`ptp` is not supported with openvino backend")
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     raise NotImplementedError(
         "`quantile` is not supported with openvino backend"
@@ -2378,7 +2489,8 @@ def tile(x, repeats):
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    raise NotImplementedError("`trace` is not supported with openvino backend")
+    x = diagonal(x, offset=offset, axis1=axis1, axis2=axis2)
+    return sum(x, axis=-1)
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -2570,6 +2682,12 @@ def power(x1, x2):
 def negative(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.negative(x).output(0))
+
+
+def nextafter(x1, x2):
+    raise NotImplementedError(
+        "`nextafter` is not supported with openvino backend"
+    )
 
 
 def square(x):

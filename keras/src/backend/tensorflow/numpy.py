@@ -2215,6 +2215,13 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return tf.reduce_prod(x, axis=axis, keepdims=keepdims)
 
 
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return tf.reduce_max(x, axis=axis, keepdims=keepdims) - tf.reduce_min(
+        x, axis=axis, keepdims=keepdims
+    )
+
+
 def _quantile(x, q, axis=None, method="linear", keepdims=False):
     # ref: tfp.stats.percentile
     # float64 is needed here and below, else we get the wrong index if the array
@@ -3015,6 +3022,16 @@ def power(x1, x2):
 @sparse.elementwise_unary
 def negative(x):
     return tf.negative(x)
+
+
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    x1 = tf.cast(x1, tf.float64)
+    x2 = tf.cast(x2, tf.float64)
+    return tf.cast(tf.math.nextafter(x1, x2), dtype)
 
 
 @sparse.elementwise_unary
