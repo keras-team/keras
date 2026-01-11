@@ -5,8 +5,8 @@ from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
-from keras.src import testing
 from keras.src import models
+from keras.src import testing
 
 
 class CenterCropTest(testing.TestCase):
