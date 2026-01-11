@@ -1083,6 +1083,16 @@ def empty_like(x, dtype=None):
     return zeros_like(x, dtype=dtype)
 
 
+def uninitialized(shape, dtype=None):
+    """Return a tensor of given shape and type filled with zeros.
+
+    In OpenVINO, uninitialized data is not supported, so we create a tensor
+    filled with zeros with the given shape and type. This implements support
+    for prim::Uninitialized operation.
+    """
+    return empty(shape, dtype=dtype)
+
+
 def equal(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
