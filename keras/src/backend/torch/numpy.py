@@ -1277,11 +1277,12 @@ def nansum(x, axis=None, keepdims=False):
         x = stack(x)
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if axis == () or axis == []:
-        return cast(torch.nan_to_num(x, nan=0), dtype)
 
     if dtype in ("bool", "uint8", "int8", "int16"):
         dtype = "int32"
+
+    if axis == () or axis == []:
+        return cast(torch.nan_to_num(x, nan=0), dtype)
     return cast(torch.nansum(x, dim=axis, keepdim=keepdims), dtype)
 
 
