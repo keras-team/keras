@@ -1,4 +1,3 @@
-from keras.src.utils import image_utils
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -9,6 +8,7 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     convert_format,
 )
+from keras.src.utils import image_utils
 
 
 @keras_export("keras.layers.CenterCrop")
