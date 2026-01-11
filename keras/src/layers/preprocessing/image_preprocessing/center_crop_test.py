@@ -6,6 +6,7 @@ from tensorflow import data as tf_data
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src import models
 
 
 class CenterCropTest(testing.TestCase):
@@ -294,3 +295,20 @@ class CenterCropTest(testing.TestCase):
         output = next(iter(ds))
         expected_boxes = np.array(expected_boxes)
         self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
+
+    def test_dynamic_spatial_dims(self):
+        # Build model with dynamic (None, None) spatial dimensions
+        layer = layers.CenterCrop(10, 12)
+        inputs = layers.Input(shape=(None, None, 3))
+        outputs = layer(inputs)
+        model = models.Model(inputs, outputs)
+
+        # Case 1: Larger image → should crop
+        x = np.random.random((2, 25, 30, 3)).astype("float32")
+        y = model(x)
+        self.assertEqual(y.shape, (2, 10, 12, 3))
+
+        # Case 2: Smaller image → should resize
+        x = np.random.random((2, 6, 7, 3)).astype("float32")
+        y = model(x)
+        self.assertEqual(y.shape, (2, 10, 12, 3))
