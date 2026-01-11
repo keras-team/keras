@@ -627,7 +627,7 @@ def extract_patches(
             For 2D patches: 3D `(H, W, C)` or 4D `(N, H, W, C)`.
             For 3D patches: 4D `(D, H, W, C)` or 5D `(N, D, H, W, C)`.
         size: Patch size as int or tuple.
-            Length 2 tuple `(patch_height, patch_width)` for 2D patches.
+            Length 2 tuple `(patch_height, patch_width)` or int for 2D patches.
             Length 3 tuple `(patch_depth, patch_height, patch_width)` for
             3D patches.
         strides: Strides for patch extraction. If not specified, defaults
