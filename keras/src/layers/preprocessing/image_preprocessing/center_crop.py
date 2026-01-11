@@ -1,4 +1,4 @@
-from keras.src import ops
+from keras.src.utils import image_utils
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -184,45 +184,63 @@ class CenterCrop(BaseImagePreprocessingLayer):
     def transform_images(self, images, transformation=None, training=True):
         inputs = self.backend.cast(images, self.compute_dtype)
 
-        # Always use runtime shape supports dynamic spatial dims
-        shape = ops.shape(inputs)
-
+        # Get static shape
         if self.data_format == "channels_first":
-            # inputs is always 4D here (B, C, H, W)
-            batch = shape[0]
-            channels = shape[1]
-            init_height = shape[2]
-            init_width = shape[3]
+            init_height = inputs.shape[-2]
+            init_width = inputs.shape[-1]
         else:
-            # (B, H, W, C)
-            batch = shape[0]
-            init_height = shape[1]
-            init_width = shape[2]
-            channels = shape[3]
+            init_height = inputs.shape[-3]
+            init_width = inputs.shape[-2]
 
-        def crop_fn():
-            h_start = (init_height - self.height) // 2
-            w_start = (init_width - self.width) // 2
-            if self.data_format == "channels_first":
-                start = (0, 0, h_start, w_start)
-                size = (batch, channels, self.height, self.width)
-            else:
-                start = (0, h_start, w_start, 0)
-                size = (batch, self.height, self.width, channels)
-            return ops.slice(inputs, start, size)
-
-        def resize_fn():
-            return self.backend.image.resize(
+        # Dynamic shape case - use resize (safe fallback)
+        if init_height is None or init_width is None:
+            return image_utils.smart_resize(
                 inputs,
-                size=(self.height, self.width),
+                [self.height, self.width],
                 data_format=self.data_format,
-                crop_to_aspect_ratio=True,
+                backend_module=self.backend,
             )
 
-        need_resize = ops.logical_or(
-            init_height < self.height, init_width < self.width
+        # Static shape case - use original logic
+        h_diff = init_height - self.height
+        w_diff = init_width - self.width
+
+        h_start = int(h_diff / 2)
+        w_start = int(w_diff / 2)
+
+        if h_diff >= 0 and w_diff >= 0:
+            if len(inputs.shape) == 4:
+                if self.data_format == "channels_first":
+                    return inputs[
+                        :,
+                        :,
+                        h_start : h_start + self.height,
+                        w_start : w_start + self.width,
+                    ]
+                return inputs[
+                    :,
+                    h_start : h_start + self.height,
+                    w_start : w_start + self.width,
+                    :,
+                ]
+            elif len(inputs.shape) == 3:
+                if self.data_format == "channels_first":
+                    return inputs[
+                        :,
+                        h_start : h_start + self.height,
+                        w_start : w_start + self.width,
+                    ]
+                return inputs[
+                    h_start : h_start + self.height,
+                    w_start : w_start + self.width,
+                    :,
+                ]
+        return image_utils.smart_resize(
+            inputs,
+            [self.height, self.width],
+            data_format=self.data_format,
+            backend_module=self.backend,
         )
-        return ops.cond(need_resize, resize_fn, crop_fn)
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
