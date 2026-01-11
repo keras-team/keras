@@ -5093,18 +5093,32 @@ class Nansum(Operation):
 
 @keras_export(["keras.ops.nansum", "keras.ops.numpy.nansum"])
 def nansum(x, axis=None, keepdims=False):
-    """Sum of array elements over a given axis, treating NaNs as zero.
+    """Sum of a tensor over the given axes, ignoring NaNs.
 
     Args:
-        x: Input data.
-        axis: Optional int or tuple of ints.
-            Axis or axes along which the sum is computed.
-        keepdims: Boolean.
-            If True, reduced axes are left in the result
-            as dimensions with size one.
+        x: Input tensor.
+        axis: Axis or axes along which the sum is computed. The default is to
+            compute the sum of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
 
     Returns:
-        The sum of `x`, ignoring NaN values.
+        Output tensor containing the sum, with NaN values ignored.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nansum(x)
+    7.0
+
+    >>> ops.nansum(x, axis=1)
+    array([4., 3.])
+
+    >>> ops.nansum(x, axis=1, keepdims=True)
+    array([[4.],
+           [3.]])
     """
     if any_symbolic_tensors((x,)):
         return Nansum(axis=axis, keepdims=keepdims).symbolic_call(x)
