@@ -1273,8 +1273,16 @@ def moveaxis(x, source, destination):
 
 
 def nansum(x, axis=None, keepdims=False):
+    if isinstance(x, (list, tuple)):
+        x = stack(x)
     x = convert_to_tensor(x)
-    return torch.nansum(x, dim=axis, keepdim=keepdims)
+    dtype = standardize_dtype(x.dtype)
+    if axis == () or axis == []:
+        return cast(torch.nan_to_num(x, nan=0), dtype)
+
+    if dtype in ("bool", "uint8", "int8", "int16"):
+        dtype = "int32"
+    return cast(torch.nansum(x, dim=axis, keepdim=keepdims), dtype)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):

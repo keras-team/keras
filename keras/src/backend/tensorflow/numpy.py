@@ -2127,7 +2127,21 @@ def moveaxis(x, source, destination):
 
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    x_clean = tf.where(tf.math.is_nan(x), tf.zeros((), dtype=x.dtype), x)
+    dtype = standardize_dtype(x.dtype)
+    x_clean = tf.where(
+        tf.math.is_nan(cast(x, config.floatx())), tf.zeros((), dtype=dtype), x
+    )
+
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    x_clean = cast(x_clean, dtype)
+
+    if isinstance(x, tf.SparseTensor):
+        return tf.sparse.reduce_sum(
+            x_clean, axis=axis, keepdims=keepdims, output_is_sparse=True
+        )
     return tf.reduce_sum(x_clean, axis=axis, keepdims=keepdims)
 
 
