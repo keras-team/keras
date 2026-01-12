@@ -4823,11 +4823,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_ndim_tf_ragged(self):
         import tensorflow as tf
 
-        ragged = tf.ragged.constant([[1, 2, 3], [4]])
-        expected_rank = 2
-
-        self.assertEqual(knp.ndim(ragged), expected_rank)
-        self.assertEqual(knp.Ndim()(ragged), expected_rank)
+        # Rank 2
+        ragged_2d = tf.ragged.constant([[1, 2, 3], [4]])
+        self.assertEqual(knp.ndim(ragged_2d), 2)
+        self.assertEqual(knp.Ndim()(ragged_2d), 2)
+        # Rank 0
+        ragged_scalar = tf.ragged.constant(1)
+        self.assertEqual(knp.ndim(ragged_scalar), 0)
+        self.assertEqual(knp.Ndim()(ragged_scalar), 0)
+        # Rank 3
+        ragged_3d = tf.ragged.constant([[[1], [2, 3]], [[4, 5, 6]]])
+        self.assertEqual(knp.ndim(ragged_3d), 3)
+        self.assertEqual(knp.Ndim()(ragged_3d), 3)
 
     def test_nonzero(self):
         x = np.array([[0, 0, 3], [3, 0, 0]])
