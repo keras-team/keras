@@ -2151,7 +2151,7 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 
 def ndim(x):
     x = convert_to_tensor(x)
-    return x.ndim
+    return x.shape.rank
 
 
 def nonzero(x):

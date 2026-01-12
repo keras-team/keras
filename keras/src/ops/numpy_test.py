@@ -4816,6 +4816,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(knp.ndim(x), np.ndim(x))
         self.assertEqual(knp.Ndim()(x), np.ndim(x))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_ndim_tf_ragged(self):
+        import tensorflow as tf
+
+        ragged = tf.ragged.constant([[1, 2, 3], [4]])
+        expected_rank = 2
+
+        self.assertEqual(knp.ndim(ragged), expected_rank)
+        self.assertEqual(knp.Ndim()(ragged), expected_rank)
+
     def test_nonzero(self):
         x = np.array([[0, 0, 3], [3, 0, 0]])
         self.assertAllClose(knp.nonzero(x), np.nonzero(x))
