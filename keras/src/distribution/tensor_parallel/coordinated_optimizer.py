@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import ops
 from keras.src import optimizers
 from keras.src.saving import serialization_lib
@@ -73,7 +74,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
     def build(self, variables):
         """Creates optimizer variables and initializes the sharded state cache.
 
-        This method initializes the base optimizer and performs a "dummy"
+        This method initializes the base optimizer and performs a dummy
         application of gradients to force the creation of all optimizer slots
         (momentum, etc.) before partitioning them.
 
@@ -87,8 +88,8 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         self.base_optimizer.build(variables)
 
         if variables:
-            dummy_grads = [ops.zeros_like(v) for v in variables]
-            self.base_optimizer.apply_gradients(zip(dummy_grads, variables))
+            grads = [ops.zeros_like(v) for v in variables]
+            self.base_optimizer.apply_gradients(zip(grads, variables))
 
         if self.shard_optimizer_states:
             self._initialize_sharded_states()
@@ -303,14 +304,12 @@ class TensorParallelOptimizer(optimizers.Optimizer):
                 or 'to_global' (local -> global).
         """
         for var in local_opt.variables:
+            target_dtype = backend.standardize_dtype(var.dtype)
+
             if var is local_opt.iterations:
                 if direction == "to_local":
-                    var.assign(
-                        ops.cast(
-                            self._sharded_states["iterations"][shard_idx],
-                            var.dtype,
-                        )
-                    )
+                    val = self._sharded_states["iterations"][shard_idx]
+                    var.assign(ops.cast(val, target_dtype))
                 else:
                     self._sharded_states["iterations"][shard_idx] = (
                         ops.convert_to_numpy(var)
@@ -319,6 +318,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
 
             param = self._state_var_to_param.get(var.path)
             slot = self._var_to_slot_name.get(var.path)
+
             if (
                 param
                 and slot in self._sharded_states
@@ -327,7 +327,7 @@ class TensorParallelOptimizer(optimizers.Optimizer):
                 if direction == "to_local":
                     val = self._sharded_states[slot][param.path][shard_idx]
                     if var.shape == val.shape:
-                        var.assign(ops.cast(val, var.dtype))
+                        var.assign(ops.cast(val, target_dtype))
                 else:
                     self._sharded_states[slot][param.path][shard_idx] = (
                         ops.convert_to_numpy(var)
