@@ -2226,7 +2226,14 @@ def sinh(x):
 
 
 def size(x):
-    raise NotImplementedError("`size` is not supported with openvino backend")
+    x = get_ov_output(x)
+    shape_tensor = ov_opset.shape_of(x, output_type=Type.i64)
+    final_size = ov_opset.reduce_prod(
+        shape_tensor,
+        ov_opset.constant([0], Type.i64),
+        keep_dims=False,
+    )
+    return OpenVINOKerasTensor(final_size.output(0))
 
 
 def sort(x, axis=-1):
@@ -2368,9 +2375,20 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
-    raise NotImplementedError(
-        "`swapaxes` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    if x_shape.rank.is_dynamic:
+        raise ValueError(
+            "`swapaxes` does not support tensors with dynamic rank for the "
+            "OpenVINO backend."
+        )
+    rank = x_shape.rank.get_length()
+    axis1 = canonicalize_axis(axis1, rank)
+    axis2 = canonicalize_axis(axis2, rank)
+    axes = list(range(rank))
+    axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
+    result = ov_opset.transpose(x, ov_opset.constant(axes, Type.i32))
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def take(x, indices, axis=None):
