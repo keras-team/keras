@@ -297,18 +297,29 @@ class CenterCropTest(testing.TestCase):
         self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
 
     def test_dynamic_spatial_dims(self):
-        # Build model with dynamic (None, None) spatial dimensions
+        # Build model with dynamic spatial dimensions
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (None, None, 3)
+            large_input = (2, 25, 30, 3)
+            small_input = (2, 6, 7, 3)
+            expected_shape = (2, 10, 12, 3)
+        else:
+            input_shape = (3, None, None)
+            large_input = (2, 3, 25, 30)
+            small_input = (2, 3, 6, 7)
+            expected_shape = (2, 3, 10, 12)
+
         layer = layers.CenterCrop(10, 12)
-        inputs = layers.Input(shape=(None, None, 3))
+        inputs = layers.Input(shape=input_shape)
         outputs = layer(inputs)
         model = models.Model(inputs, outputs)
 
-        # Case 1: Larger image → should crop
-        x = np.random.random((2, 25, 30, 3)).astype("float32")
+        # Case 1 Larger image, should crop
+        x = np.random.random(large_input).astype("float32")
         y = model(x)
-        self.assertEqual(y.shape, (2, 10, 12, 3))
+        self.assertEqual(tuple(y.shape), expected_shape)
 
-        # Case 2: Smaller image → should resize
-        x = np.random.random((2, 6, 7, 3)).astype("float32")
+        # Case 2 Smaller image, should resize
+        x = np.random.random(small_input).astype("float32")
         y = model(x)
-        self.assertEqual(y.shape, (2, 10, 12, 3))
+        self.assertEqual(tuple(y.shape), expected_shape)

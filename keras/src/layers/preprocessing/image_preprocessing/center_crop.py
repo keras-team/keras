@@ -1,3 +1,4 @@
+from keras.src.utils import image_utils
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -8,7 +9,6 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     convert_format,
 )
-from keras.src.utils import image_utils
 
 
 @keras_export("keras.layers.CenterCrop")
@@ -192,7 +192,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
             init_height = inputs.shape[-3]
             init_width = inputs.shape[-2]
 
-        # Dynamic shape case - use resize (safe fallback)
+        # Dynamic shape case use resize safe fallback
         if init_height is None or init_width is None:
             return image_utils.smart_resize(
                 inputs,
@@ -201,7 +201,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
                 backend_module=self.backend,
             )
 
-        # Static shape case - use original logic
+        # Static shape case use original logic
         h_diff = init_height - self.height
         w_diff = init_width - self.width
 
