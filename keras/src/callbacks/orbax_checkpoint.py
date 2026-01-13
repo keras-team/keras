@@ -203,6 +203,18 @@ class OrbaxCheckpoint(MonitorCallback):
                 ]
         else:
             composite_state = state_tree
+            # Include model configuration for full model restoration
+            composite_state["model_config"] = self.model.get_config()
+            # Include compile config if compiled
+            if self.model.compiled:
+                composite_state["compile_config"] = (
+                    self.model.get_compile_config()
+                )
+                from keras.src import optimizers
+
+                composite_state["optimizer_config"] = optimizers.serialize(
+                    self.model.optimizer
+                )
 
         # --- Save Logic (V1 API) ---
         # All processes participate in distributed checkpointing
@@ -276,7 +288,9 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        # Close the Checkpointer to ensure all pending saves complete
+        # Wait for any pending async saves to complete before closing
+        self.wait_until_finished()
+        # Close the Checkpointer
         try:
             self.checkpointer.close()
         except Exception:

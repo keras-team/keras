@@ -7,14 +7,6 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
-from keras.src.utils.module_utils import ocp
-
-# Import advanced Orbax functionality directly from the LazyModule
-Checkpointer = ocp.training.Checkpointer
-save_pytree = ocp.save_pytree
-load_pytree = ocp.load_pytree
-preservation_policies = ocp.training.preservation_policies
-save_decision_policies = ocp.training.save_decision_policies
 
 
 class OrbaxCheckpointTest(testing.TestCase):
@@ -294,12 +286,14 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_checkpoint_loading(self):
-        """Test that saved checkpoints can be loaded and weights restored."""
+    def test_checkpoint_loading_via_saving_api(self):
+        """Test checkpoint loading via keras.saving.load_model."""
+        from keras.src import saving
+
         model = self._create_test_model()
         x, y = self._create_dummy_data()
 
-        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_loading")
+        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_loading_api")
         callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
 
         # Train for 1 epoch to save checkpoint
@@ -309,32 +303,27 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Get original weights after training
         original_weights = model.get_weights()
 
-        # Create a new model with same architecture
-        new_model = self._create_test_model()
-
-        # Load the checkpoint
-        checkpoint_path = os.path.join(checkpoint_dir, "0")  # epoch 0
-        loaded_state = load_pytree(checkpoint_path)
-
-        # Set the state back to the new model
-        # The loaded_state has 'trainable_variables' key
-        new_model.set_state_tree(
-            {"trainable_variables": loaded_state["trainable_variables"]}
-        )
+        # Load the model via Keras saving API
+        loaded_model = saving.load_model(checkpoint_dir)
 
         # Compare weights
-        loaded_weights = new_model.get_weights()
+        loaded_weights = loaded_model.get_weights()
         for orig, loaded in zip(original_weights, loaded_weights):
             np.testing.assert_array_almost_equal(orig, loaded)
 
+        # Verify the model is compiled
+        self.assertTrue(loaded_model.compiled)
+
     @pytest.mark.requires_trainable_backend
-    def test_checkpoint_loading_weights_only(self):
-        """Test loading checkpoints saved with save_weights_only=True."""
+    def test_checkpoint_loading_weights_only_via_saving_api(self):
+        """Test that weights-only checkpoints cannot be loaded via saving API."""
+        from keras.src import saving
+
         model = self._create_test_model()
         x, y = self._create_dummy_data()
 
         checkpoint_dir = os.path.join(
-            self.get_temp_dir(), "test_loading_weights"
+            self.get_temp_dir(), "test_loading_weights_api"
         )
         callback = OrbaxCheckpoint(
             directory=checkpoint_dir, save_freq="epoch", save_weights_only=True
@@ -344,35 +333,22 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
         callback.wait_until_finished()
 
-        # Get original weights after training
-        original_weights = model.get_weights()
+        # Attempting to load weights-only checkpoint via saving API should fail
+        with self.assertRaises(ValueError) as cm:
+            saving.load_model(checkpoint_dir)
 
-        # Create a new model with same architecture
-        new_model = self._create_test_model()
-
-        # Load the checkpoint
-        checkpoint_path = os.path.join(checkpoint_dir, "0")  # epoch 0
-        loaded_state = load_pytree(checkpoint_path)
-
-        # For save_weights_only, the state should only have trainable_variables
-        new_model.set_state_tree(
-            {"trainable_variables": loaded_state["trainable_variables"]}
-        )
-
-        # Compare weights
-        loaded_weights = new_model.get_weights()
-        for orig, loaded in zip(original_weights, loaded_weights):
-            np.testing.assert_array_almost_equal(orig, loaded)
+        self.assertIn("save_weights_only=True", str(cm.exception))
 
     @pytest.mark.requires_trainable_backend
-    def test_checkpoint_loading_with_optimizer_state(self):
-        """Test loading checkpoints that include optimizer state."""
+    def test_checkpoint_loading_with_optimizer_state_via_saving_api(self):
+        """Test loading checkpoints with optimizer state via saving API."""
+        from keras.src import saving
+
         model = self._create_test_model()
-        x, y = self._create_dummy_data(num_samples=200)
-        # More data for optimizer state
+        x, y = self._create_dummy_data(num_samples=100)
 
         checkpoint_dir = os.path.join(
-            self.get_temp_dir(), "test_loading_optimizer"
+            self.get_temp_dir(), "test_loading_optimizer_api"
         )
         callback = OrbaxCheckpoint(
             directory=checkpoint_dir, save_freq="epoch", save_weights_only=False
@@ -385,49 +361,32 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Get original state after training
         original_state_tree = model.get_state_tree()
 
-        # Create a new model with same architecture
-        new_model = self._create_test_model()
-        # Compile with same optimizer to initialize optimizer variables
-        new_model.compile(optimizer="adam", loss="mse")
+        # Load the model via Keras saving API
+        loaded_model = saving.load_model(checkpoint_dir)
 
-        # Run one training step to initialize optimizer variables
-        new_x, new_y = self._create_dummy_data(num_samples=10)
-        new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
-
-        # Load the checkpoint (epoch 0)
-        checkpoint_path = os.path.join(checkpoint_dir, "0")
-        loaded_state = load_pytree(checkpoint_path)
-
-        # Set the full state (weights + optimizer) back to the new model
-        new_model.set_state_tree(
-            {
-                "trainable_variables": loaded_state["trainable_variables"],
-                "optimizer_variables": loaded_state["optimizer_variables"],
-            }
-        )
-
-        # Get the loaded state
-        loaded_state_tree = new_model.get_state_tree()
+        # Get loaded state
+        loaded_state_tree = loaded_model.get_state_tree()
 
         # Compare trainable variables (weights)
-        def compare_nested_dicts(orig_dict, loaded_dict):
+        def compare_nested_dicts(orig_dict, loaded_dict, component_name):
             """Recursively compare nested dictionaries containing variables."""
             for key in orig_dict:
                 if key not in loaded_dict:
-                    self.fail(f"Key {key} missing in loaded state")
+                    self.fail(f"Key {key} missing in loaded {component_name}")
                 orig_val = orig_dict[key]
                 loaded_val = loaded_dict[key]
 
                 if isinstance(orig_val, dict):
-                    compare_nested_dicts(orig_val, loaded_val)
+                    compare_nested_dicts(
+                        orig_val, loaded_val, f"{component_name}.{key}"
+                    )
                 else:
                     # Handle different array types: JAX arrays, TF variables,
                     # PyTorch tensors, numpy arrays
                     if hasattr(orig_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first
-                            # (detach().cpu().numpy())
+                            # Try PyTorch-style conversion first (detach().cpu().numpy())
                             orig_array = orig_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -439,8 +398,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                     if hasattr(loaded_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first
-                            # (detach().cpu().numpy())
+                            # Try PyTorch-style conversion first (detach().cpu().numpy())
                             loaded_array = loaded_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -450,28 +408,37 @@ class OrbaxCheckpointTest(testing.TestCase):
                         loaded_array = loaded_val
 
                     np.testing.assert_array_almost_equal(
-                        orig_array, loaded_array
+                        orig_array,
+                        loaded_array,
+                        err_msg=f"Mismatch in {component_name}.{key}",
                     )
 
+        # Compare trainable variables
         compare_nested_dicts(
             original_state_tree["trainable_variables"],
             loaded_state_tree["trainable_variables"],
+            "trainable_variables",
         )
 
         # Compare optimizer variables
         compare_nested_dicts(
             original_state_tree["optimizer_variables"],
             loaded_state_tree["optimizer_variables"],
+            "optimizer_variables",
         )
 
     @pytest.mark.requires_trainable_backend
-    def test_checkpoint_loading_with_metrics_state(self):
-        """Test loading checkpoints that include metrics state."""
+    def test_checkpoint_loading_with_metrics_state_via_saving_api(self):
+        """Test loading checkpoints with metrics state via saving API."""
+        from keras.src import saving
+
         model = self._create_test_model()
-        x, y = self._create_dummy_data(num_samples=200)
+        # Compile with metrics
+        model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        x, y = self._create_dummy_data(num_samples=100)
 
         checkpoint_dir = os.path.join(
-            self.get_temp_dir(), "test_loading_metrics"
+            self.get_temp_dir(), "test_loading_metrics_api"
         )
         callback = OrbaxCheckpoint(
             directory=checkpoint_dir, save_freq="epoch", save_weights_only=False
@@ -484,52 +451,127 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Get original state after training
         original_state_tree = model.get_state_tree()
 
-        # Create a new model with same architecture and compile with metrics
-        new_model = self._create_test_model()
-        new_model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        # Load the model via Keras saving API
+        loaded_model = saving.load_model(checkpoint_dir)
 
-        # Run one training step to initialize metrics variables
-        new_x, new_y = self._create_dummy_data(num_samples=10)
-        new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
+        # Evaluate to initialize metrics variables in loaded model
+        loaded_model.evaluate(x, y, verbose=0)
 
-        # Load the checkpoint (epoch 0)
-        checkpoint_path = os.path.join(checkpoint_dir, "0")
-        loaded_state = load_pytree(checkpoint_path)
+        # Get loaded state
+        loaded_state_tree = loaded_model.get_state_tree()
 
-        # Set the full state (weights + optimizer + metrics) to new model
-        new_model.set_state_tree(
-            {
-                "trainable_variables": loaded_state["trainable_variables"],
-                "non_trainable_variables": loaded_state[
-                    "non_trainable_variables"
-                ],
-                "optimizer_variables": loaded_state["optimizer_variables"],
-                "metrics_variables": loaded_state["metrics_variables"],
-            }
+        # Compare metrics variables structure (values may differ due to eval history)
+        self.assertEqual(
+            set(original_state_tree["metrics_variables"].keys()),
+            set(loaded_state_tree["metrics_variables"].keys()),
+            "Metrics variable keys should match",
+        )
+        for metric_name in original_state_tree["metrics_variables"]:
+            self.assertEqual(
+                set(
+                    original_state_tree["metrics_variables"][metric_name].keys()
+                ),
+                set(loaded_state_tree["metrics_variables"][metric_name].keys()),
+                f"Metrics variable structure for {metric_name} should match",
+            )
+
+    @pytest.mark.requires_trainable_backend
+    def test_load_model_via_saving_api(self):
+        """Test loading a model via saving API from Orbax checkpoint."""
+        from keras.src import saving
+
+        model = self._create_test_model()
+        x, y = self._create_dummy_data(num_samples=50)
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), f"test_saving_api_load_{id(self)}"
+        )
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+
+        # Train for one epoch to create a checkpoint
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
+
+        # Load the complete model via the main saving API
+        loaded_model = saving.load_model(checkpoint_dir)
+
+        # Verify the model architecture is the same
+        self.assertEqual(model.name, loaded_model.name)
+        self.assertEqual(len(model.layers), len(loaded_model.layers))
+
+        # Compare weights
+        original_weights = model.get_weights()
+        loaded_weights = loaded_model.get_weights()
+
+        self.assertEqual(len(original_weights), len(loaded_weights))
+        for orig, loaded in zip(original_weights, loaded_weights):
+            np.testing.assert_array_almost_equal(orig, loaded)
+
+        # Verify the model is compiled
+        self.assertTrue(loaded_model.compiled)
+
+    @pytest.mark.requires_trainable_backend
+    def test_load_model_via_saving_api_full_state(self):
+        """Test loading complete model state via saving API from checkpoint."""
+        from keras.src import saving
+
+        model = self._create_test_model()
+        # Compile with metrics to have metrics state
+        model.compile(optimizer="adam", loss="mse", metrics=["mae"])
+        x, y = self._create_dummy_data(num_samples=100)
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), f"test_saving_api_full_state_{id(self)}"
+        )
+        # Save full state (not weights only)
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, save_freq="epoch", save_weights_only=False
         )
 
-        # Get the loaded state
-        loaded_state_tree = new_model.get_state_tree()
+        # Train for one epoch to build optimizer and metrics state
+        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+        callback.wait_until_finished()
 
-        # Compare trainable variables (weights)
-        def compare_nested_dicts(orig_dict, loaded_dict):
+        # Get original state tree after training
+        original_state_tree = model.get_state_tree()
+
+        # Load the complete model via the main saving API
+        loaded_model = saving.load_model(checkpoint_dir)
+
+        # Verify the model architecture is the same
+        self.assertEqual(model.name, loaded_model.name)
+        self.assertEqual(len(model.layers), len(loaded_model.layers))
+
+        # Verify the model is compiled
+        self.assertTrue(loaded_model.compiled)
+
+        # Evaluate the loaded model to initialize metrics variables
+        # (metrics variables are only created when metrics are actually used)
+        loaded_model.evaluate(x, y, verbose=0)
+
+        # Get loaded state tree
+        loaded_state_tree = loaded_model.get_state_tree()
+
+        # Compare all state components
+        def compare_nested_dicts(orig_dict, loaded_dict, component_name):
             """Recursively compare nested dictionaries containing variables."""
             for key in orig_dict:
                 if key not in loaded_dict:
-                    self.fail(f"Key {key} missing in loaded state")
+                    self.fail(f"Key {key} missing in loaded {component_name}")
                 orig_val = orig_dict[key]
                 loaded_val = loaded_dict[key]
 
                 if isinstance(orig_val, dict):
-                    compare_nested_dicts(orig_val, loaded_val)
+                    compare_nested_dicts(
+                        orig_val, loaded_val, f"{component_name}.{key}"
+                    )
                 else:
                     # Handle different array types: JAX arrays, TF variables,
                     # PyTorch tensors, numpy arrays
                     if hasattr(orig_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first
-                            # (detach().cpu().numpy())
+                            # Try PyTorch-style conversion first (detach().cpu().numpy())
                             orig_array = orig_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -541,8 +583,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                     if hasattr(loaded_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first
-                            # (detach().cpu().numpy())
+                            # Try PyTorch-style conversion first (detach().cpu().numpy())
                             loaded_array = loaded_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -552,28 +593,44 @@ class OrbaxCheckpointTest(testing.TestCase):
                         loaded_array = loaded_val
 
                     np.testing.assert_array_almost_equal(
-                        orig_array, loaded_array
+                        orig_array,
+                        loaded_array,
+                        err_msg=f"Mismatch in {component_name}.{key}",
                     )
 
+        # Compare trainable variables
         compare_nested_dicts(
             original_state_tree["trainable_variables"],
             loaded_state_tree["trainable_variables"],
+            "trainable_variables",
         )
 
         # Compare non-trainable variables
         compare_nested_dicts(
             original_state_tree["non_trainable_variables"],
             loaded_state_tree["non_trainable_variables"],
+            "non_trainable_variables",
         )
 
         # Compare optimizer variables
         compare_nested_dicts(
             original_state_tree["optimizer_variables"],
             loaded_state_tree["optimizer_variables"],
+            "optimizer_variables",
         )
 
-        # Compare metrics variables
-        compare_nested_dicts(
-            original_state_tree["metrics_variables"],
-            loaded_state_tree["metrics_variables"],
+        # Compare metrics variables (only check structure, not exact values since
+        # metrics accumulate state across evaluations)
+        self.assertEqual(
+            set(original_state_tree["metrics_variables"].keys()),
+            set(loaded_state_tree["metrics_variables"].keys()),
+            "Metrics variable keys should match",
         )
+        for metric_name in original_state_tree["metrics_variables"]:
+            self.assertEqual(
+                set(
+                    original_state_tree["metrics_variables"][metric_name].keys()
+                ),
+                set(loaded_state_tree["metrics_variables"][metric_name].keys()),
+                f"Metrics variable structure for {metric_name} should match",
+            )

@@ -1,6 +1,7 @@
 import os
 import zipfile
 
+import numpy as np
 from absl import logging
 
 from keras.src.api_export import keras_export
@@ -123,10 +124,11 @@ def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
 
 @keras_export(["keras.saving.load_model", "keras.models.load_model"])
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
-    """Loads a model saved via `model.save()`.
+    """Loads a model saved via `model.save()` or from an Orbax checkpoint.
 
     Args:
-        filepath: `str` or `pathlib.Path` object, path to the saved model file.
+        filepath: `str` or `pathlib.Path` object, path to the saved model file
+            or Orbax checkpoint directory.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -199,6 +201,27 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             compile=compile,
             safe_mode=safe_mode,
         )
+
+    # Check for Orbax checkpoint directory
+    is_orbax_checkpoint = False
+    if file_utils.isdir(filepath):
+        try:
+            subdirs = file_utils.listdir(filepath)
+            # Check if any subdirs are numeric (checkpoint steps)
+            for d in subdirs:
+                if d.isdigit():
+                    is_orbax_checkpoint = True
+                    break
+        except (OSError, ValueError):
+            pass
+
+    if is_orbax_checkpoint:
+        return _load_model_from_orbax_checkpoint(
+            filepath,
+            custom_objects=custom_objects,
+            compile=compile,
+        )
+
     elif str(filepath).endswith(".keras"):
         raise ValueError(
             f"File not found: filepath={filepath}. "
@@ -314,3 +337,98 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             "Keras 3 only supports V3 `.keras` and `.weights.h5` "
             "files, or legacy V1/V2 `.h5` files."
         )
+
+
+def _load_model_from_orbax_checkpoint(
+    filepath, custom_objects=None, compile=True
+):
+    """Load a model from an Orbax checkpoint directory."""
+    from keras.src import backend
+    from keras.src import models
+    from keras.src import optimizers
+    from keras.src import tree
+    from keras.src.utils.module_utils import ocp
+
+    # Ensure orbax is available
+    ocp.initialize()
+
+    # Create a checkpointer for loading
+    checkpointer = ocp.training.Checkpointer(directory=filepath)
+
+    # Determine the step to load
+    available_steps = []
+    if os.path.exists(filepath):
+        subdirs = os.listdir(filepath)
+        for d in subdirs:
+            if os.path.isdir(os.path.join(filepath, d)):
+                try:
+                    available_steps.append(int(d))
+                except ValueError:
+                    pass
+
+    if not available_steps:
+        raise ValueError(f"No checkpoints found in {filepath}")
+
+    step = max(available_steps)
+
+    # Load the composite state
+    with ocp.Context():
+        composite_state = checkpointer.load_pytree(step)
+
+    # Reconstruct the model from config
+    if "model_config" not in composite_state:
+        raise ValueError(
+            "Checkpoint does not contain model configuration. "
+            "This checkpoint may have been saved with save_weights_only=True."
+        )
+
+    model_config = composite_state["model_config"]
+    model = models.Model.from_config(
+        model_config, custom_objects=custom_objects
+    )
+
+    # Build the model - try to infer input shape from the config
+    if not model.built:
+        # Try to find input shape from the first layer
+        if model.layers and hasattr(model.layers[0], "batch_shape"):
+            input_shape = model.layers[0].batch_shape
+            if (
+                input_shape and input_shape[0] is None
+            ):  # Replace None with batch size
+                input_shape = (None,) + input_shape[1:]
+            if input_shape:
+                model.build(input_shape)
+
+    # Compile if requested and compile config exists
+    if compile and "compile_config" in composite_state:
+        model.compile_from_config(composite_state["compile_config"])
+    elif compile and "optimizer_config" in composite_state:
+        # Fallback for backwards compatibility
+        optimizer = optimizers.deserialize(
+            composite_state["optimizer_config"], custom_objects=custom_objects
+        )
+        model.compile(optimizer=optimizer)
+
+    # Set the state tree
+    state_tree = {
+        "trainable_variables": composite_state.get("trainable_variables", {}),
+        "non_trainable_variables": composite_state.get(
+            "non_trainable_variables", {}
+        ),
+        "optimizer_variables": composite_state.get("optimizer_variables", {}),
+        "metrics_variables": composite_state.get("metrics_variables", {}),
+    }
+
+    # Convert back to numpy if needed for non-JAX backends
+    if backend.backend() != "jax":
+
+        def convert_to_numpy(obj):
+            if hasattr(obj, "__array__"):
+                return np.asarray(obj)
+            return obj
+
+        state_tree = tree.map_structure(convert_to_numpy, state_tree)
+
+    model.set_state_tree(state_tree)
+
+    return model
