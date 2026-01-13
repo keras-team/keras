@@ -86,7 +86,7 @@ class TensorParallelOptimizerTest(testing.TestCase):
         model = self._get_simple_model()
         model.build((None, 10))
 
-        grads = [ops.zeros_like(v) for v in model.trainable_variables]
+        grads = [ops.zeros_like(ops.convert_to_tensor(v)) for v in model.trainable_variables]
         grads_and_vars = list(zip(grads, model.trainable_variables))
 
         optimizer.apply_gradients(grads_and_vars)
