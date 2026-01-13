@@ -45,17 +45,23 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             **kwargs: Additional arguments passed to the base optimizer.
         """
         if isinstance(base_optimizer, str):
-            self.base_optimizer = optimizers.get(base_optimizer)
+            base_optimizer = optimizers.get(base_optimizer)
         elif isinstance(base_optimizer, dict):
-            self.base_optimizer = serialization_lib.deserialize_keras_object(
+            base_optimizer = serialization_lib.deserialize_keras_object(
                 base_optimizer
             )
-        else:
-            self.base_optimizer = base_optimizer
 
-        kwargs["learning_rate"] = self.base_optimizer.learning_rate
+        lr = getattr(
+            base_optimizer, "_learning_rate", base_optimizer.learning_rate
+        )
+        if hasattr(lr, "numpy") and not callable(lr):
+            kwargs["learning_rate"] = float(ops.convert_to_numpy(lr))
+        else:
+            kwargs["learning_rate"] = lr
+
         super().__init__(name=name, **kwargs)
 
+        self.base_optimizer = base_optimizer
         self.device_count = device_count
         self.shard_optimizer_states = shard_optimizer_states
         self.tensor_parallel_config = tensor_parallel_config
