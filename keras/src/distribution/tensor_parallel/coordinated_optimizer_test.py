@@ -1,15 +1,11 @@
 import numpy as np
 import pytest
 
-from keras.src import Model
+import keras
+from keras import ops
+from keras import optimizers
 from keras.src import backend
-from keras.src import layers
-from keras.src import ops
-from keras.src import optimizers
 from keras.src import testing
-from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
-    CoordinatedOptimizer,
-)
 from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
     TensorParallelOptimizer,
 )
@@ -19,13 +15,15 @@ from keras.src.distribution.tensor_parallel.coordinated_optimizer import (
     backend.backend() != "jax",
     reason="This test is for the JAX backend only.",
 )
-class CoordinatedOptimizerTest(testing.TestCase):
+class TensorParallelOptimizerTest(testing.TestCase):
+    """Tests for the TensorParallelOptimizer class."""
+
     def _get_simple_model(self):
-        """Creates a simple, uncompiled Keras model."""
-        inputs = layers.Input(shape=(10,), dtype="float32")
-        x = layers.Dense(20, name="dense_1")(inputs)
-        outputs = layers.Dense(5, name="dense_2")(x)
-        return Model(inputs, outputs)
+        """Creates a simple, uncompiled Keras model for testing."""
+        inputs = keras.Input(shape=(10,))
+        x = keras.layers.Dense(20, name="dense_1")(inputs)
+        outputs = keras.layers.Dense(5, name="dense_2")(x)
+        return keras.Model(inputs, outputs)
 
     def _get_mock_gradients_and_vars(self, model, device_count):
         """Generates mock gradients and variables for N shards."""
@@ -34,103 +32,93 @@ class CoordinatedOptimizerTest(testing.TestCase):
         grads_and_vars_per_shard = []
         for i in range(device_count):
             multiplier = float(i + 1)
-            gradients = []
-            for v in variables:
-                v_dtype = backend.standardize_dtype(v.dtype)
-
-                grad = ops.convert_to_tensor(
-                    np.ones_like(v.numpy()) * multiplier, dtype=v_dtype
+            gradients = [
+                ops.convert_to_tensor(
+                    np.ones_like(v.numpy()) * multiplier, dtype="float32"
                 )
-                gradients.append(grad)
-
+                for v in variables
+            ]
             grads_and_vars_per_shard.append(list(zip(gradients, variables)))
         return grads_and_vars_per_shard
 
     def test_initialization(self):
-        """Tests that the optimizer initializes with the correct defaults."""
+        """Verifies optimizer initializes with correct base optimizer."""
         base_optimizer = optimizers.Adam()
-        coord = CoordinatedOptimizer(base_optimizer, device_count=4)
-        self.assertEqual(coord.base_optimizer, base_optimizer)
-        self.assertTrue(coord.shard_optimizer_states)
-        self.assertEqual(coord.sharded_states, {})
-
-    def test_apply_gradients_with_replicated_states(self):
-        """Tests that replicated gradients are averaged and applied once."""
-
-        class AdamWithCallCounter(optimizers.Adam):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.apply_gradients_call_count = 0
-                self.received_grads = []
-
-            def apply_gradients(self, grads_and_vars, *args, **kwargs):
-                self.apply_gradients_call_count += 1
-                self.received_grads = [g for g, v in grads_and_vars]
-                super().apply_gradients(grads_and_vars, *args, **kwargs)
-
-        device_count = 4
-        model = self._get_simple_model()
-        optimizer = AdamWithCallCounter()
-        model.build((None, 10))
-        mock_grads = self._get_mock_gradients_and_vars(model, device_count)
-
-        coord = CoordinatedOptimizer(
-            optimizer,
-            device_count,
-            shard_optimizer_states=False,
-        )
-        coord.apply_gradients(mock_grads, [])
-
-        self.assertEqual(optimizer.apply_gradients_call_count, 1)
-        grad_numpy = ops.convert_to_numpy(optimizer.received_grads[0])
-        self.assertAllClose(
-            grad_numpy,
-            np.ones_like(grad_numpy) * 2.5,
-        )
+        optimizer = TensorParallelOptimizer(base_optimizer, device_count=4)
+        self.assertEqual(optimizer.base_optimizer, base_optimizer)
+        self.assertTrue(optimizer.shard_optimizer_states)
+        self.assertEqual(optimizer._sharded_states, {})
 
     def test_init_from_string(self):
+        """Verifies optimizer correctly fetches base optimizer."""
         optimizer = TensorParallelOptimizer("adam", device_count=4)
         self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
 
-    def test_apply_gradients_delegation(self):
-        """Tests that apply_gradients correctly delegates."""
+    def test_build_and_state_sharding(self):
+        """Verifies building optimizer partitions state variables correctly."""
         device_count = 4
-        base_opt = optimizers.Adam()
-        optimizer = TensorParallelOptimizer(base_opt, device_count)
+        optimizer = TensorParallelOptimizer(
+            optimizers.Adam(), device_count=device_count
+        )
         model = self._get_simple_model()
+        model.build(input_shape=(None, 10))
+
+        optimizer.build(model.trainable_variables)
+        self.assertTrue(optimizer.built)
+
+        sharded_states = optimizer._sharded_states
+        self.assertIn("iterations", sharded_states)
+
+        self.assertIn("momentum", sharded_states)
+        self.assertIn("velocity", sharded_states)
+
+        dense_1_kernel_path = model.get_layer("dense_1").kernel.path
+        self.assertIn(dense_1_kernel_path, sharded_states["momentum"])
+        self.assertEqual(
+            len(sharded_states["momentum"][dense_1_kernel_path]), device_count
+        )
+
+    def test_apply_gradients_fallback(self):
+        """Checks fallback logic when grads are not sharded."""
+        device_count = 2
+        base_opt = optimizers.Adam()
+        optimizer = TensorParallelOptimizer(base_opt, device_count=device_count)
+        model = self._get_simple_model()
+        model.build((None, 10))
+
+        grads = [ops.zeros_like(v) for v in model.trainable_variables]
+        grads_and_vars = list(zip(grads, model.trainable_variables))
+
+        optimizer.apply_gradients(grads_and_vars)
+        self.assertEqual(int(optimizer.iterations), 1)
+
+    def test_synchronize_gradients_logic(self):
+        """Verifies that non-sharded variables undergo gradient averaging."""
+        device_count = 2
+        model = self._get_simple_model()
+        optimizer = TensorParallelOptimizer(
+            optimizers.SGD(), device_count=device_count
+        )
+
         mock_grads = self._get_mock_gradients_and_vars(model, device_count)
+        synced = optimizer._synchronize_gradients(mock_grads)
 
-        coord_apply_tracker = {"called": False}
-
-        def coord_apply_mock(*args, **kwargs):
-            coord_apply_tracker["called"] = True
-
-        optimizer.coordinated_optimizer.apply_gradients = coord_apply_mock
-
-        base_apply_tracker = {"called": False}
-
-        def base_apply_mock(*args, **kwargs):
-            base_apply_tracker["called"] = True
-
-        optimizer.base_optimizer.apply_gradients = base_apply_mock
-
-        optimizer.apply_gradients(mock_grads, shard_models=[])
-        self.assertTrue(coord_apply_tracker["called"])
-        self.assertFalse(base_apply_tracker["called"])
-
-        coord_apply_tracker["called"] = False
-        unsharded_grads = mock_grads[0]
-        optimizer.apply_gradients(unsharded_grads)
-        self.assertTrue(base_apply_tracker["called"])
-        self.assertFalse(coord_apply_tracker["called"])
+        for shard_idx in range(device_count):
+            grad_val = ops.convert_to_numpy(synced[shard_idx][0][0])
+            self.assertAllClose(grad_val, np.ones_like(grad_val) * 1.5)
 
     def test_serialization(self):
-        """Tests manual reconstruction via from_config."""
-        device_count = 4
-        base_opt = optimizers.Adam(learning_rate=0.1)
+        """Verifies optimizer config serialization and reconstruction."""
+        device_count = 8
+        base_opt = optimizers.Adam(learning_rate=0.01)
+        optimizer = TensorParallelOptimizer(
+            base_opt, device_count=device_count, shard_optimizer_states=False
+        )
 
-        optimizer = TensorParallelOptimizer(base_opt, device_count)
+        config = optimizer.get_config()
+        recreated = TensorParallelOptimizer.from_config(config)
 
-        self.assertEqual(optimizer.device_count, device_count)
-        self.assertIsInstance(optimizer.base_optimizer, optimizers.Adam)
-        self.assertAllClose(optimizer.base_optimizer.learning_rate, 0.1)
+        self.assertEqual(recreated.device_count, device_count)
+        self.assertFalse(recreated.shard_optimizer_states)
+        self.assertIsInstance(recreated.base_optimizer, optimizers.Adam)
+        self.assertAllClose(recreated.base_optimizer.learning_rate, 0.01)
