@@ -671,6 +671,8 @@ class EinsumDense(Layer):
                 )
             else:
                 raise ValueError("Could not determine row/column split.")
+        else:
+            raise ValueError("AWQ quantization only supports 2D or 3D kernels.")
 
         group_size = awq_core.get_group_size_for_layer(self, config)
         num_groups = 1 if group_size == -1 else math.ceil(rows / group_size)
