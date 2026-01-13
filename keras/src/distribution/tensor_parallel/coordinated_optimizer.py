@@ -88,7 +88,9 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         self.base_optimizer.build(variables)
 
         if variables:
-            grads = [ops.zeros_like(ops.convert_to_tensor(v)) for v in variables]
+            grads = [
+                ops.zeros_like(ops.convert_to_tensor(v)) for v in variables
+            ]
             self.base_optimizer.apply_gradients(zip(grads, variables))
 
         if self.shard_optimizer_states:
