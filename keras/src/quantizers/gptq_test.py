@@ -14,6 +14,7 @@ from keras.src.quantizers.gptq import GPTQ
 from keras.src.quantizers.gptq import _stable_permutation
 from keras.src.quantizers.gptq import gptq_quantize_matrix
 from keras.src.quantizers.gptq_config import GPTQConfig
+from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import dequantize_with_zero_point
 from keras.src.quantizers.quantizers import quantize_with_zero_point
@@ -582,6 +583,14 @@ class TestModelQuantization(testing.TestCase):
         # Baseline logits
         y_ref = model.predict(x_eval)
 
+        embedding_layer = model.layers[1]
+        transformer_block = model.layers[2]
+
+        layer_structure = {
+            "pre_block_layers": [embedding_layer],
+            "sequential_blocks": [transformer_block],
+        }
+
         base_cfg = dict(
             dataset=calibration_set,
             tokenizer=tokenizer,
@@ -591,6 +600,7 @@ class TestModelQuantization(testing.TestCase):
             group_size=32,
             symmetric=False,
             activation_order=False,
+            quantization_layer_structure=layer_structure,
         )
         gptq_cfg = GPTQConfig(**{**base_cfg, **config})
 
@@ -612,18 +622,34 @@ class TestModelQuantization(testing.TestCase):
 
     @parameterized.named_parameters(
         {
-            "testcase_name": "gptq_with_invalid_config",
+            "testcase_name": "gptq_with_invalid_config_type",
             "mode": "gptq",
             "config": {"weight_bits": 4},
             "expected_exception": ValueError,
-            "error_msg": "Mode 'gptq' requires a valid `config`",
+            "error_msg": "Argument `config` must be an instance of "
+            "`QuantizationConfig`",
         },
         {
-            "testcase_name": "non_gptq_with_unsupported_config",
-            "mode": "int8",
+            "testcase_name": "gptq_with_none_config",
+            "mode": "gptq",
+            "config": None,
+            "expected_exception": ValueError,
+            "error_msg": "For GPTQ, you must pass a `GPTQConfig` object "
+            "in the `config` argument.",
+        },
+        {
+            "testcase_name": "gptq_with_base_quantization_config",
+            "mode": "gptq",
+            "config": QuantizationConfig(),
+            "expected_exception": NotImplementedError,
+            "error_msg": "Do not instantiate QuantizationConfig directly.",
+        },
+        {
+            "testcase_name": "gptq_missing_structure",
+            "mode": "gptq",
             "config": GPTQConfig(dataset=["a"], tokenizer=lambda x: x),
             "expected_exception": ValueError,
-            "error_msg": "only supported for 'gptq'",
+            "error_msg": "For 'gptq' mode, a valid quantization structure",
         },
     )
     def test_quantize_scenarios(
@@ -632,3 +658,78 @@ class TestModelQuantization(testing.TestCase):
         model = _get_simple_model()
         with self.assertRaisesRegex(expected_exception, error_msg):
             model.quantize(mode, config=config)
+
+    def test_gptq_filtering(self):
+        """Tests that filters argument works for GPTQ."""
+        model = _get_sequence_classifier()
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        # Structure
+        embedding_layer = model.layers[1]
+        transformer_block = model.layers[2]
+        layer_structure = {
+            "pre_block_layers": [embedding_layer],
+            "sequential_blocks": [transformer_block],
+        }
+
+        config = GPTQConfig(
+            dataset=[np.zeros((1, SEQ_LEN), dtype="int32")],
+            tokenizer=tokenizer,
+            quantization_layer_structure=layer_structure,
+            weight_bits=4,
+            group_size=32,
+        )
+
+        target_layer = transformer_block.ffn.layers[0]
+
+        def filter_fn(layer):
+            return layer.name != target_layer.name
+
+        model.quantize("gptq", config=config, filters=filter_fn)
+
+        # Check that target_layer is NOT quantized.
+        self.assertIsNone(getattr(target_layer, "quantization_mode", None))
+        self.assertFalse(hasattr(target_layer, "quantized_kernel"))
+
+        # Check that other dense layers ARE quantized.
+        other_dense = transformer_block.ffn.layers[1]
+        self.assertEqual(
+            getattr(other_dense, "quantization_mode", None), "gptq"
+        )
+        self.assertTrue(hasattr(other_dense, "quantized_kernel"))
+
+    def test_gptq_multi_filtering(self):
+        """Tests that list of regex filters works for GPTQ."""
+        model = _get_sequence_classifier()
+        tokenizer = _char_tokenizer(vocab_size=VOCAB_SIZE, seq_len=SEQ_LEN)
+
+        embedding_layer = model.layers[1]
+        transformer_block = model.layers[2]
+        layer_structure = {
+            "pre_block_layers": [embedding_layer],
+            "sequential_blocks": [transformer_block],
+        }
+
+        config = GPTQConfig(
+            dataset=[np.zeros((1, SEQ_LEN), dtype="int32")],
+            tokenizer=tokenizer,
+            quantization_layer_structure=layer_structure,
+            weight_bits=4,
+            group_size=32,
+        )
+
+        layer0 = transformer_block.ffn.layers[0]
+        layer1 = transformer_block.ffn.layers[1]
+
+        # We want to quantize only layer0.
+        filters = [f"^{layer0.name}$"]
+
+        model.quantize("gptq", config=config, filters=filters)
+
+        # Check that layer0 is quantized.
+        self.assertEqual(getattr(layer0, "quantization_mode", None), "gptq")
+        self.assertTrue(hasattr(layer0, "quantized_kernel"))
+
+        # Check that layer1 is not quantized.
+        self.assertIsNone(getattr(layer1, "quantization_mode", None))
+        self.assertFalse(hasattr(layer1, "quantized_kernel"))

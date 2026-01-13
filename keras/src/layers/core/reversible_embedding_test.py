@@ -9,11 +9,64 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
 
 
 class ReversibleEmbeddingTest(test_case.TestCase):
+    @parameterized.named_parameters(
+        ("int8", "int8", {"axis": -1}, {"axis": -1}),
+        (
+            "int4",
+            "int4",
+            {"axis": -1, "value_range": (-8, 7), "output_dtype": "int8"},
+            {"axis": -1},
+        ),
+        ("int8_weight_only", "int8", {"axis": -1}, None),
+    )
+    def test_reversible_embedding_quantize(
+        self, mode, weight_quantizer_args, activation_quantizer_args
+    ):
+        """Test ReversibleEmbedding quantization with QuantizationConfig."""
+        layer = layers.ReversibleEmbedding(
+            input_dim=10, output_dim=6, tie_weights=True
+        )
+        layer.build((None,))
+
+        weight_quantizer = AbsMaxQuantizer(**weight_quantizer_args)
+        if activation_quantizer_args is not None:
+            activation_quantizer = AbsMaxQuantizer(**activation_quantizer_args)
+        else:
+            activation_quantizer = None
+
+        if mode == "int8":
+            config = Int8QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+        elif mode == "int4":
+            config = Int4QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=activation_quantizer,
+            )
+
+        layer.quantize(mode, config=config)
+
+        if activation_quantizer_args is not None:
+            # Verify inputs_quantizer is set correctly
+            self.assertIsInstance(layer.inputs_quantizer, AbsMaxQuantizer)
+        else:
+            # Verify inputs_quantizer is None
+            self.assertIsNone(layer.inputs_quantizer)
+
+        # Verify reverse call works
+        x = np.random.random((2, 6)).astype("float32")
+        y = layer(x, reverse=True)
+        self.assertEqual(y.shape, (2, 10))
+
     @parameterized.named_parameters(
         ("tie_weights", True),
         ("untie_weights", False),
@@ -178,3 +231,43 @@ class ReversibleEmbeddingTest(test_case.TestCase):
             expected_num_non_trainable_weights=num_non_trainable_weights,
             expected_num_non_trainable_variables=num_non_trainable_weights,
         )
+
+    def test_reversible_embedding_int8_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for reversible embedding layer with
+        int8 quantization.
+        """
+        # Setup
+        weight_range = (-20, 20)
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=-1, value_range=weight_range),
+        )
+
+        # Build & Quantize
+        layer = layers.ReversibleEmbedding(input_dim=100, output_dim=16)
+        layer.build(None)
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.ReversibleEmbedding.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        quantizer = new_layer.quantization_config.weight_quantizer
+        self.assertIsInstance(quantizer, AbsMaxQuantizer)
+        self.assertAllEqual(quantizer.value_range, weight_range)
+
+    def test_masking(self):
+        layer = layers.ReversibleEmbedding(3, 2, mask_zero=True)
+        layer.build()
+
+        out = layer(np.array(([2, 1, 0])))
+        mask = backend.get_keras_mask(out)
+        self.assertAllClose(mask, np.array([True, True, False]))
+
+        out = layer(np.array(([[1.0, 2.0], [0.0, 0.0]])), reverse=True)
+        mask = backend.get_keras_mask(out)
+        self.assertIsNone(mask)

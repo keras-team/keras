@@ -17,6 +17,9 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    compute_adaptive_pooling_window_sizes,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
 from keras.src.backend.jax.core import cast
@@ -289,6 +292,403 @@ def average_pool(
         return pooled / window_counts
 
 
+def _compute_adaptive_pooling_gather_indices(
+    input_dim, output_size, big_window
+):
+    """Compute gather indices for Two-Pool Gather method."""
+    window_starts = jnp.floor(
+        (jnp.arange(output_size) * input_dim) / output_size
+    ).astype(jnp.int32)
+
+    window_ends = jnp.ceil(
+        (jnp.arange(1, output_size + 1) * input_dim) / output_size
+    ).astype(jnp.int32)
+
+    window_sizes = window_ends - window_starts
+    is_big = window_sizes == big_window
+
+    small_window = big_window - 1
+    small_len = input_dim - small_window + 1
+
+    small_indices = window_starts
+    big_indices = window_starts + small_len
+
+    gather = jnp.where(is_big, big_indices, small_indices)
+    return gather.astype(jnp.int32)
+
+
+def _adaptive_average_pool1d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 1))  # NCL → NLC
+
+    n, l, c = inputs.shape
+    out_l = output_size[0]
+
+    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
+    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
+
+    small_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, small, 1), (1, 1, 1), "valid"
+        )
+        / small
+    )
+
+    big_pool = (
+        lax.reduce_window(inputs, 0.0, lax.add, (1, big, 1), (1, 1, 1), "valid")
+        / big
+    )
+
+    combined = jnp.concatenate([small_pool, big_pool], axis=1)
+    out = jnp.take(combined, gather, axis=1)
+
+    if data_format == "channels_first":
+        out = jnp.transpose(out, (0, 2, 1))
+
+    return out
+
+
+def _adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 1))
+
+    n, l, c = inputs.shape
+    out_l = output_size[0]
+
+    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
+    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
+
+    small_pool = lax.reduce_window(
+        inputs, -jnp.inf, lax.max, (1, small, 1), (1, 1, 1), "valid"
+    )
+
+    big_pool = lax.reduce_window(
+        inputs, -jnp.inf, lax.max, (1, big, 1), (1, 1, 1), "valid"
+    )
+
+    combined = jnp.concatenate([small_pool, big_pool], axis=1)
+    out = jnp.take(combined, gather, axis=1)
+
+    if data_format == "channels_first":
+        out = jnp.transpose(out, (0, 2, 1))
+
+    return out
+
+
+def _adaptive_average_pool2d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 3, 1))
+
+    n, h, w, c = inputs.shape
+    out_h, out_w = output_size
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    small_h_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, small_h, 1, 1), (1, 1, 1, 1), "valid"
+        )
+        / small_h
+    )
+
+    big_h_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, big_h, 1, 1), (1, 1, 1, 1), "valid"
+        )
+        / big_h
+    )
+
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=1)
+    pooled_h = jnp.take(combined_h, gather_h, axis=1)
+
+    small_w_pool = (
+        lax.reduce_window(
+            pooled_h, 0.0, lax.add, (1, 1, small_w, 1), (1, 1, 1, 1), "valid"
+        )
+        / small_w
+    )
+
+    big_w_pool = (
+        lax.reduce_window(
+            pooled_h, 0.0, lax.add, (1, 1, big_w, 1), (1, 1, 1, 1), "valid"
+        )
+        / big_w
+    )
+
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=2)
+    out = jnp.take(combined_w, gather_w, axis=2)
+
+    if data_format == "channels_first":
+        out = jnp.transpose(out, (0, 3, 1, 2))
+
+    return out
+
+
+def _adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 3, 1))
+
+    n, h, w, c = inputs.shape
+    out_h, out_w = output_size
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    small_h_pool = lax.reduce_window(
+        inputs, -jnp.inf, lax.max, (1, small_h, 1, 1), (1, 1, 1, 1), "valid"
+    )
+
+    big_h_pool = lax.reduce_window(
+        inputs, -jnp.inf, lax.max, (1, big_h, 1, 1), (1, 1, 1, 1), "valid"
+    )
+
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=1)
+    pooled_h = jnp.take(combined_h, gather_h, axis=1)
+
+    small_w_pool = lax.reduce_window(
+        pooled_h, -jnp.inf, lax.max, (1, 1, small_w, 1), (1, 1, 1, 1), "valid"
+    )
+
+    big_w_pool = lax.reduce_window(
+        pooled_h, -jnp.inf, lax.max, (1, 1, big_w, 1), (1, 1, 1, 1), "valid"
+    )
+
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=2)
+    out = jnp.take(combined_w, gather_w, axis=2)
+
+    if data_format == "channels_first":
+        out = jnp.transpose(out, (0, 3, 1, 2))
+
+    return out
+
+
+def _adaptive_average_pool3d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))
+
+    n, d, h, w, c = inputs.shape
+    out_d, out_h, out_w = output_size
+
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
+    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    small_d_pool = (
+        lax.reduce_window(
+            inputs,
+            0.0,
+            lax.add,
+            (1, small_d, 1, 1, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / small_d
+    )
+
+    big_d_pool = (
+        lax.reduce_window(
+            inputs, 0.0, lax.add, (1, big_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
+        )
+        / big_d
+    )
+
+    combined_d = jnp.concatenate([small_d_pool, big_d_pool], axis=1)
+    pooled_d = jnp.take(combined_d, gather_d, axis=1)
+
+    small_h_pool = (
+        lax.reduce_window(
+            pooled_d,
+            0.0,
+            lax.add,
+            (1, 1, small_h, 1, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / small_h
+    )
+
+    big_h_pool = (
+        lax.reduce_window(
+            pooled_d,
+            0.0,
+            lax.add,
+            (1, 1, big_h, 1, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / big_h
+    )
+
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=2)
+    pooled_h = jnp.take(combined_h, gather_h, axis=2)
+
+    small_w_pool = (
+        lax.reduce_window(
+            pooled_h,
+            0.0,
+            lax.add,
+            (1, 1, 1, small_w, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / small_w
+    )
+
+    big_w_pool = (
+        lax.reduce_window(
+            pooled_h,
+            0.0,
+            lax.add,
+            (1, 1, 1, big_w, 1),
+            (1, 1, 1, 1, 1),
+            "valid",
+        )
+        / big_w
+    )
+
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=3)
+    out = jnp.take(combined_w, gather_w, axis=3)
+
+    if data_format == "channels_first":
+        out = jnp.transpose(out, (0, 4, 1, 2, 3))
+
+    return out
+
+
+def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = jnp.transpose(inputs, (0, 2, 3, 4, 1))
+
+    n, d, h, w, c = inputs.shape
+    out_d, out_h, out_w = output_size
+
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
+    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    small_d_pool = lax.reduce_window(
+        inputs,
+        -jnp.inf,
+        lax.max,
+        (1, small_d, 1, 1, 1),
+        (1, 1, 1, 1, 1),
+        "valid",
+    )
+
+    big_d_pool = lax.reduce_window(
+        inputs, -jnp.inf, lax.max, (1, big_d, 1, 1, 1), (1, 1, 1, 1, 1), "valid"
+    )
+
+    combined_d = jnp.concatenate([small_d_pool, big_d_pool], axis=1)
+    pooled_d = jnp.take(combined_d, gather_d, axis=1)
+
+    small_h_pool = lax.reduce_window(
+        pooled_d,
+        -jnp.inf,
+        lax.max,
+        (1, 1, small_h, 1, 1),
+        (1, 1, 1, 1, 1),
+        "valid",
+    )
+
+    big_h_pool = lax.reduce_window(
+        pooled_d,
+        -jnp.inf,
+        lax.max,
+        (1, 1, big_h, 1, 1),
+        (1, 1, 1, 1, 1),
+        "valid",
+    )
+
+    combined_h = jnp.concatenate([small_h_pool, big_h_pool], axis=2)
+    pooled_h = jnp.take(combined_h, gather_h, axis=2)
+
+    small_w_pool = lax.reduce_window(
+        pooled_h,
+        -jnp.inf,
+        lax.max,
+        (1, 1, 1, small_w, 1),
+        (1, 1, 1, 1, 1),
+        "valid",
+    )
+
+    big_w_pool = lax.reduce_window(
+        pooled_h,
+        -jnp.inf,
+        lax.max,
+        (1, 1, 1, big_w, 1),
+        (1, 1, 1, 1, 1),
+        "valid",
+    )
+
+    combined_w = jnp.concatenate([small_w_pool, big_w_pool], axis=3)
+    out = jnp.take(combined_w, gather_w, axis=3)
+
+    if data_format == "channels_first":
+        out = jnp.transpose(out, (0, 4, 1, 2, 3))
+
+    return out
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_average_pool1d(inputs, output_size, data_format)
+    if dims == 2:
+        return _adaptive_average_pool2d(inputs, output_size, data_format)
+    if dims == 3:
+        return _adaptive_average_pool3d(inputs, output_size, data_format)
+    raise ValueError("adaptive_average_pool supports only 1D/2D/3D inputs")
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_max_pool1d(inputs, output_size, data_format)
+    if dims == 2:
+        return _adaptive_max_pool2d(inputs, output_size, data_format)
+    if dims == 3:
+        return _adaptive_max_pool3d(inputs, output_size, data_format)
+    raise ValueError("adaptive_max_pool supports only 1D/2D/3D inputs")
+
+
 def _convert_to_lax_conv_dimension_numbers(
     num_spatial_dims,
     data_format="channels_last",
@@ -509,7 +909,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
         values = jnp.greater_equal(jnp.ravel(x), 0).astype(dtype)
         values_count = values.shape[0]
         indices = [jnp.arange(dim) for dim in x.shape]
-        indices = jnp.meshgrid(*indices, indexing="ij")
+        indices = list(jnp.meshgrid(*indices, indexing="ij"))
         indices.insert(axis, jnp.maximum(x, 0))  # Deal with negative indices
         indices = [a.reshape(values_count, 1).astype("int32") for a in indices]
         indices = jnp.concatenate(indices, axis=1)
@@ -1071,25 +1471,42 @@ def _can_use_flash_attention(query, key, value, bias, raise_error=False):
         # Only support at least Ampere
         if not check_compute_capability("8.0"):
             raise RuntimeError("Require at least Ampere arch to run")
-        # Check inputs layout
+
+        # Inspect inputs of `check_layout`
         check_layout_params = list(
             inspect.signature(check_layout).parameters.keys()
         )
         for known_param in ("query", "key", "value", "bias", "layout"):
             check_layout_params.remove(known_param)
         # Defaults to `None` when not specified.
-        kwargs = {key: None for key in check_layout_params}
+        check_layout_kwargs = {key: None for key in check_layout_params}
         check_layout(
-            query, key, value, bias, layout=_normalize_layout("BTNH"), **kwargs
-        )
-        check_is_flash_attention(
             query,
             key,
-            _normalize_layout("BTNH"),
-            cudnn_version,
-            bias is not None,
-            is_training=False,
+            value,
+            bias,
+            layout=_normalize_layout("BTNH"),
+            **check_layout_kwargs,
         )
+
+        # Inspect inputs of `check_is_flash_attention`
+        check_is_flash_attention_params = inspect.signature(
+            check_is_flash_attention
+        ).parameters
+        check_is_flash_attention_kwargs = {
+            "query": query,
+            "key": key,
+            "value": value,
+            "layout": _normalize_layout("BTNH"),
+            "cudnn_version": cudnn_version,
+            "has_bias": bias is not None,
+            "is_training": False,
+        }
+        # Remove unsupported arguments
+        for param in list(check_is_flash_attention_kwargs.keys()):
+            if param not in check_is_flash_attention_params:
+                check_is_flash_attention_kwargs.pop(param)
+        check_is_flash_attention(**check_is_flash_attention_kwargs)
         return True
     except:
         if raise_error:
@@ -1340,25 +1757,32 @@ def dot_product_attention(
         if custom_mask is None and is_causal:
             custom_mask = jnp.tril(jnp.ones((q_len, q_len), dtype=jnp.bool_))
 
-        try:
-            output = wrap_flash_attention(
-                query_tpu_layout,
-                key_tpu_layout,
-                value_tpu_layout,
-                decoder_segment_ids=decoder_segment_ids,
-                custom_mask=custom_mask,
-                attn_logits_soft_cap=attn_logits_soft_cap,
-                head_shards=head_shards,
-                q_seq_shards=q_seq_shards,
-            )
-            # Transpose output back to Keras layout
-            return jnp.transpose(output, axes=(0, 2, 1, 3))
-        except Exception:
-            logging.exception(
-                "Failed to apply Splash kernel for flash attention. "
-                "Falling back to JAX native dot_product_attention."
-            )
+        # Splash attention kernel requires concrete mask values for hashing.
+        # If the mask is a tracer (e.g. inside a scan/loop), we must fall back.
+        if isinstance(mask, jax.core.Tracer) or isinstance(
+            custom_mask, jax.core.Tracer
+        ):
             flash_attention = False
+        else:
+            try:
+                output = wrap_flash_attention(
+                    query_tpu_layout,
+                    key_tpu_layout,
+                    value_tpu_layout,
+                    decoder_segment_ids=decoder_segment_ids,
+                    custom_mask=custom_mask,
+                    attn_logits_soft_cap=attn_logits_soft_cap,
+                    head_shards=head_shards,
+                    q_seq_shards=q_seq_shards,
+                )
+                # Transpose output back to Keras layout
+                return jnp.transpose(output, axes=(0, 2, 1, 3))
+            except Exception:
+                logging.exception(
+                    "Failed to apply Splash kernel for flash attention. "
+                    "Falling back to JAX native dot_product_attention."
+                )
+                flash_attention = False
 
     # JAX native dot_product_attention for GPU or fallback for TPU
     if hasattr(jax.nn, "dot_product_attention"):
@@ -1404,6 +1828,11 @@ def dot_product_attention(
 
     def _reshape_to_grouped(t):
         if t is not None:
+            while t.ndim < 4:
+                if t.ndim == 3 and t.shape[1] == N:
+                    t = jnp.expand_dims(t, axis=2)
+                else:
+                    t = jnp.expand_dims(t, axis=1)
             tB, tN, tT, tS = t.shape
             if tN == 1:
                 t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))

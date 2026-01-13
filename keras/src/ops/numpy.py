@@ -301,33 +301,6 @@ def all(x, axis=None, keepdims=False):
     return backend.numpy.all(x, axis=axis, keepdims=keepdims)
 
 
-class Any(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
-        super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
-        self.keepdims = keepdims
-
-    def call(self, x):
-        return backend.numpy.any(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
-        )
-
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(
-                x.shape,
-                axis=self.axis,
-                keepdims=self.keepdims,
-            ),
-            dtype="bool",
-        )
-
-
 class Angle(Operation):
     def call(self, x):
         return backend.numpy.angle(x)
@@ -361,6 +334,33 @@ def angle(x):
     if any_symbolic_tensors((x,)):
         return Angle().symbolic_call(x)
     return backend.numpy.angle(x)
+
+
+class Any(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.any(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(
+                x.shape,
+                axis=self.axis,
+                keepdims=self.keepdims,
+            ),
+            dtype="bool",
+        )
 
 
 @keras_export(["keras.ops.any", "keras.ops.numpy.any"])
@@ -924,6 +924,11 @@ def arctanh(x):
 
     Returns:
         Output tensor of same shape as `x`.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor([0, -0.5])
+    >>> keras.ops.arctanh(x)
+    array([ 0.        , -0.54930615], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Arctanh().symbolic_call(x)
@@ -5451,6 +5456,74 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+class Ptp(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.ptp(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.ptp", "keras.ops.numpy.ptp"])
+def ptp(x, axis=None, keepdims=False):
+    """Return the peak-to-peak (max - min) value of tensor elements
+    over a given axis.
+
+    The peak-to-peak value is defined as the difference between the
+    maximum and minimum values along the specified axis.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the peak-to-peak value is computed.
+            The default, `axis=None`, will compute the peak-to-peak value
+            over all elements in the input tensor.
+        keepdims: If this is set to `True`, the axes which are reduced
+            are left in the result as dimensions with size one.
+
+    Returns:
+        A tensor containing the peak-to-peak values of `x` over the
+        given axis or axes.
+
+    Examples:
+    >>> x = keras.ops.array([[1., 3., 2.],
+    ...                      [4., 0., 5.]])
+
+    >>> # Peak-to-peak over all elements
+    >>> keras.ops.ptp(x)
+    5.0
+
+    >>> # Peak-to-peak along axis 1
+    >>> keras.ops.ptp(x, axis=1)
+    array([2., 5.], dtype=float32)
+
+    >>> # Peak-to-peak over multiple axes
+    >>> x = keras.ops.reshape(x, (1, 2, 3))
+    >>> keras.ops.ptp(x, axis=(1, 2))
+    array([5.], dtype=float32)
+
+    >>> # Keep reduced dimensions
+    >>> keras.ops.ptp(x, axis=2, keepdims=True)
+    array([[[2.],
+            [5.]]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Ptp(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.ptp(x, axis=axis, keepdims=keepdims)
+
+
 class Quantile(Operation):
     def __init__(
         self, axis=None, method="linear", keepdims=False, *, name=None
@@ -6451,6 +6524,9 @@ class Tile(Operation):
         repeats = self.repeats
         if isinstance(repeats, int):
             repeats = [repeats]
+        else:
+            repeats = list(repeats)
+
         if len(x_shape) > len(repeats):
             repeats = [1] * (len(x_shape) - len(repeats)) + repeats
         else:
@@ -6458,10 +6534,10 @@ class Tile(Operation):
 
         output_shape = []
         for x_size, repeat in zip(x_shape, repeats):
-            if x_size is None:
-                output_shape.append(None)
-            else:
+            if isinstance(x_size, int):
                 output_shape.append(x_size * repeat)
+            else:
+                output_shape.append(None)
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
@@ -7096,6 +7172,49 @@ def negative(x):
     return backend.numpy.negative(x)
 
 
+class Nextafter(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.nextafter(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nextafter", "keras.ops.numpy.nextafter"])
+def nextafter(x1, x2):
+    """
+    Return the next representable floating-point value after `x1` towards `x2`.
+
+    This function computes the next floating-point value
+    following `x1` in the direction of `x2`, element-wise.
+
+    Args:
+        x1: Input tensor whose values will be moved to the next
+            representable floating-point value.
+        x2: Input tensor indicating the direction toward which
+            `x1` is moved.
+
+    Returns:
+        Output tensor
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([1.0, 1.0])
+    >>> x2 = keras.ops.convert_to_tensor([2.0, 0.0])
+    >>> keras.ops.nextafter(x1, x2)
+    array([1.0000001, 0.99999994], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Nextafter().symbolic_call(x1, x2)
+    return backend.numpy.nextafter(x1, x2)
+
+
 class Square(Operation):
     def call(self, x):
         return backend.numpy.square(x)
@@ -7317,6 +7436,77 @@ def mean(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Mean(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.mean(x, axis=axis, keepdims=keepdims)
+
+
+class Vander(Operation):
+    def __init__(self, N=None, increasing=False, *, name=None):
+        super().__init__(name=name)
+        self.N = N
+        self.increasing = increasing
+
+    def call(self, x):
+        return backend.numpy.vander(x, self.N, self.increasing)
+
+    def compute_output_spec(self, x):
+        if self.N is None:
+            N = x.shape[0]
+        else:
+            N = self.N
+
+        out_shape = x.shape + (N,)
+        return KerasTensor(tuple(out_shape), dtype=x.dtype)
+
+
+@keras_export(["keras.ops.vander", "keras.ops.numpy.vander"])
+def vander(x, N=None, increasing=False):
+    """Generate a Vandermonde matrix.
+
+    Args:
+        x: 1D input tensor.
+        N: Number of columns. If `None`, `N` = `len(x)`.
+        increasing: Order of powers. If True, powers increase left to right.
+
+    Returns:
+        Output tensor, Vandermonde matrix of shape `(len(x), N)`.
+
+    Example:
+    >>> import numpy as np
+    >>> import keras
+    >>> x = np.array([1, 2, 3, 5])
+    >>> keras.ops.vander(x)
+    array([[  1,   1,   1,   1],
+           [  8,   4,   2,   1],
+           [ 27,   9,   3,   1],
+           [125,  25,   5,   1]])
+    """
+
+    if len(x.shape) != 1:
+        raise ValueError(
+            "Input tensor must be 1-dimensional. "
+            f"Received: input.shape={x.shape}"
+        )
+
+    if N is not None:
+        if not isinstance(N, int):
+            raise TypeError(
+                f"Argument `N` must be of type `int`. "
+                f"Received: N={N} of type {type(N)}"
+            )
+
+        if N < 0:
+            raise ValueError(
+                f"Argument 'N' must be nonnegative. Received: N={N}"
+            )
+
+    if not isinstance(increasing, bool):
+        raise TypeError(
+            f"Argument `increasing` must be of type `bool`. "
+            f"Received: increasing={increasing} of type {type(increasing)}"
+        )
+
+    if any_symbolic_tensors((x,)):
+        return Vander(N=N, increasing=increasing).symbolic_call(x)
+    return backend.numpy.vander(x, N=N, increasing=increasing)
 
 
 class Var(Operation):

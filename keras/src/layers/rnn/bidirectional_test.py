@@ -52,6 +52,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.Bidirectional(layer=forward_layer, merge_mode="ave")
@@ -59,6 +61,8 @@ class SimpleRNNTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.24845785, 0.24845785], [0.6288199, 0.6288199]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.Bidirectional(layer=forward_layer, merge_mode=None)
@@ -66,10 +70,14 @@ class SimpleRNNTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.39687276, 0.39687276], [0.7237238, 0.7237238]]),
             output1,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array([[0.10004295, 0.10004295], [0.53391594, 0.53391594]]),
             output2,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         backward_layer = layers.SimpleRNN(
@@ -86,6 +94,8 @@ class SimpleRNNTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.08374989, 0.08374989], [0.6740834, 0.6740834]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         forward_layer = layers.GRU(
@@ -113,6 +123,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_statefulness(self):
@@ -135,6 +147,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         layer.reset_state()
         layer(sequence)
@@ -147,6 +161,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_pass_initial_state(self):
@@ -175,6 +191,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_masking(self):
@@ -196,6 +214,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_return_state(self):
@@ -217,22 +237,32 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array([[0.1990008, 0.1990008], [0.52335435, 0.52335435]]),
             h1,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array([[0.35567185, 0.35567185], [1.0492687, 1.0492687]]),
             c1,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array([[0.12659755, 0.12659755], [0.44717982, 0.44717982]]),
             h2,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array([[0.2501858, 0.2501858], [0.941473, 0.941473]]),
             c2,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     @pytest.mark.requires_trainable_backend

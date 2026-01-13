@@ -13,7 +13,6 @@ from openvino import compile_model
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
-from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
@@ -530,31 +529,11 @@ def ov_to_keras_type(ov_type):
 
 @contextlib.contextmanager
 def device_scope(device_name):
-    current_device = _parse_device_input(device_name)
-    global_state.set_global_attribute("openvino_device", current_device)
+    yield
 
 
 def get_device():
-    device = global_state.get_global_attribute("openvino_device", None)
-    if device is None:
-        return "CPU"
-    return device
-
-
-def _parse_device_input(device_name):
-    if isinstance(device_name, str):
-        # We support string value like "cpu:0", "gpu:1", and need to convert
-        # "gpu" to "cuda"
-        device_name = device_name.upper()
-        device_type, _ = device_name.split(":")
-        return device_type
-    else:
-        raise ValueError(
-            "Invalid value for argument `device_name`. "
-            "Expected a string like 'gpu:0' or 'cpu'. "
-            f"Received: device_name='{device_name}'"
-        )
-    return device_name
+    return "CPU"
 
 
 class Variable(KerasVariable):

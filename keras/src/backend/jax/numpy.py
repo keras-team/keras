@@ -1063,6 +1063,11 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return jnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.ptp(x, axis=axis, keepdims=keepdims)
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
@@ -1351,6 +1356,12 @@ def negative(x):
     return jnp.negative(x)
 
 
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.nextafter(x1, x2)
+
+
 @sparse.elementwise_unary(linear=False)
 def square(x):
     x = convert_to_tensor(x)
@@ -1396,6 +1407,11 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         x = convert_to_tensor(x)
     dx = convert_to_tensor(dx)
     return jnp.trapezoid(y, x, dx=dx, axis=axis)
+
+
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    return jnp.vander(x, N=N, increasing=increasing)
 
 
 def var(x, axis=None, keepdims=False):

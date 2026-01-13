@@ -40,7 +40,20 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
-    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
+    def assertAllClose(
+        self,
+        x1,
+        x2,
+        atol=1e-6,
+        rtol=1e-6,
+        tpu_atol=None,
+        tpu_rtol=None,
+        msg=None,
+    ):
+        if tpu_atol is not None and uses_tpu():
+            atol = tpu_atol
+        if tpu_rtol is not None and uses_tpu():
+            rtol = tpu_rtol
         if not isinstance(x1, np.ndarray):
             x1 = backend.convert_to_numpy(x1)
         if not isinstance(x2, np.ndarray):
@@ -57,7 +70,9 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             f"The two values are close at all elements. \n{msg}.\nValues: {x1}"
         )
 
-    def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
+    def assertAlmostEqual(self, x1, x2, decimal=3, tpu_decimal=None, msg=None):
+        if tpu_decimal is not None and uses_tpu():
+            decimal = tpu_decimal
         msg = msg or ""
         if not isinstance(x1, np.ndarray):
             x1 = backend.convert_to_numpy(x1)
@@ -195,6 +210,8 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         run_training_check=True,
         run_mixed_precision_check=True,
         assert_built_after_instantiation=False,
+        tpu_atol=None,
+        tpu_rtol=None,
     ):
         """Run basic checks on a layer.
 
@@ -376,7 +393,9 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                     msg="Unexpected number of torch_params",
                 )
 
-        def run_output_asserts(layer, output, eager=False):
+        def run_output_asserts(
+            layer, output, eager=False, tpu_atol=None, tpu_rtol=None
+        ):
             if expected_output_shape is not None:
 
                 def verify_shape(expected_shape, x):
@@ -422,7 +441,11 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                         tree.flatten(expected_output), tree.flatten(output)
                     ):
                         self.assertAllClose(
-                            ref_v, v, msg="Unexpected output value"
+                            ref_v,
+                            v,
+                            msg="Unexpected output value",
+                            tpu_atol=tpu_atol,
+                            tpu_rtol=tpu_rtol,
                         )
                 if expected_num_losses is not None:
                     self.assertLen(layer.losses, expected_num_losses)
@@ -551,7 +574,13 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 output_data = layer(**input_data, **call_kwargs)
             else:
                 output_data = layer(input_data, **call_kwargs)
-            run_output_asserts(layer, output_data, eager=True)
+            run_output_asserts(
+                layer,
+                output_data,
+                eager=True,
+                tpu_atol=tpu_atol,
+                tpu_rtol=tpu_rtol,
+            )
 
             if run_training_check:
                 run_training_step(layer, input_data, output_data)
@@ -618,6 +647,17 @@ def uses_gpu():
     devices = distribution.list_devices()
     if any(d.startswith("gpu") for d in devices):
         return True
+    return False
+
+
+def uses_tpu():
+    # Condition used to skip tests when using the TPU
+    try:
+        devices = distribution.list_devices()
+        if any(d.startswith("tpu") for d in devices):
+            return True
+    except AttributeError:
+        return False
     return False
 
 

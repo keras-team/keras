@@ -316,8 +316,8 @@ class AugMix(BaseImagePreprocessingLayer):
     def get_config(self):
         config = {
             "value_range": self.value_range,
-            "num_chains": self.chain_depth,
-            "chain_depth": self.num_chains,
+            "num_chains": self.num_chains,
+            "chain_depth": self.chain_depth,
             "factor": self.factor,
             "alpha": self.alpha,
             "all_ops": self.all_ops,
