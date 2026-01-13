@@ -1,6 +1,7 @@
 import collections
 
 from keras.src import ops
+from keras.src.backend.common.backend_utils import canonicalize_axis
 
 
 def split_tensor_for_parallelism(tensor, index, device_count, dim):
@@ -20,10 +21,7 @@ def split_tensor_for_parallelism(tensor, index, device_count, dim):
     Returns:
         A tensor slice corresponding to the given `index`.
     """
-    if dim < 0:
-        split_dim = ops.ndim(tensor) + dim
-    else:
-        split_dim = dim
+    split_dim = canonicalize_axis(dim, ops.ndim(tensor))
 
     splits = ops.array_split(
         tensor, indices_or_sections=device_count, axis=split_dim

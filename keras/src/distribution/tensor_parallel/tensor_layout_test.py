@@ -161,3 +161,10 @@ class LayoutTest(testing.TestCase):
             layout_map.state_rules = {}
 
         self.assertTrue(callable(layout_map.state_rules["kernel"]))
+
+    def test_split_tensor_with_negative_dim(self):
+        tensor = ops.ones((4, 8))
+        shard = split_tensor_for_parallelism(
+            tensor, index=0, device_count=2, dim=-1
+        )
+        self.assertEqual(shard.shape, (4, 4))

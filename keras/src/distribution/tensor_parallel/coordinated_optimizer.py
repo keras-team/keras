@@ -461,12 +461,9 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             *args: Additional arguments for the update.
             **kwargs: Additional keyword arguments for the update.
         """
-        if hasattr(self.base_optimizer, "update_step"):
-            return self.base_optimizer.update_step(
-                gradient, variable, *args, **kwargs
-            )
-
-        return super().update_step(gradient, variable, *args, **kwargs)
+        return self.base_optimizer.update_step(
+            gradient, variable, *args, **kwargs
+        )
 
     def build(self, variables):
         if self.built:

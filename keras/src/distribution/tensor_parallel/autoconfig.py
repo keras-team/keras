@@ -82,22 +82,6 @@ def _gather(x, axis):
     return distribution_lib.all_gather(x, axis=axis, axis_name="model")
 
 
-def _get_layer_path(layer):
-    """Retrieves the unique hierarchical path of a layer.
-
-    This utilizes `layer.path` (available in Keras 3+) which provides a
-    globally unique identifier based on the model structure (e.g.,
-    'model/dense_1'). Falls back to `layer.name` if the path is unavailable.
-
-    Args:
-        layer: The Keras layer instance.
-
-    Returns:
-        str: The unique path string for the layer.
-    """
-    return getattr(layer, "path", layer.name)
-
-
 def _apply_layer_sharding_rules(layer, device_count, state_rules, output_rules):
     """Applies sharding rules to a single layer based on its type.
 
@@ -123,7 +107,7 @@ def _apply_layer_sharding_rules(layer, device_count, state_rules, output_rules):
     def gather_rule(axis):
         return functools.partial(_gather, axis=axis)
 
-    layer_path = _get_layer_path(layer)
+    layer_path = layer.path
 
     if isinstance(layer, layers.Dense):
         mlp_type = analyze_dense_layer(layer)
