@@ -44,9 +44,6 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             name: String, name of the optimizer instance.
             **kwargs: Additional arguments passed to the base optimizer.
         """
-        kwargs.pop("learning_rate", None)
-        super().__init__(learning_rate=0.0, name=name, **kwargs)
-
         if isinstance(base_optimizer, str):
             self.base_optimizer = optimizers.get(base_optimizer)
         elif isinstance(base_optimizer, dict):
@@ -56,11 +53,8 @@ class TensorParallelOptimizer(optimizers.Optimizer):
         else:
             self.base_optimizer = base_optimizer
 
-        lr = self.base_optimizer.learning_rate
-        if callable(lr):
-            self.learning_rate = float(ops.convert_to_numpy(lr(0)))
-        else:
-            self.learning_rate = float(ops.convert_to_numpy(lr))
+        kwargs["learning_rate"] = self.base_optimizer.learning_rate
+        super().__init__(name=name, **kwargs)
 
         self.device_count = device_count
         self.shard_optimizer_states = shard_optimizer_states
