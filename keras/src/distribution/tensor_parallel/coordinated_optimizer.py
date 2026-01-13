@@ -476,7 +476,6 @@ class TensorParallelOptimizer(optimizers.Optimizer):
             if iterations is not None:
                 original_iterations_val = ops.convert_to_numpy(iterations.value)
 
-            # FIX: Use explicit dtype standardization during warm-up
             zero_grads = [
                 ops.zeros(v.shape, dtype=backend.standardize_dtype(v.dtype))
                 for v in variables
