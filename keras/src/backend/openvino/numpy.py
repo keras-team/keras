@@ -1406,12 +1406,22 @@ def kron(x1, x2):
         )
     ndim1 = x1_shape.rank.get_length()
     ndim2 = x2_shape.rank.get_length()
-    while ndim1 < ndim2:
-        x1 = ov_opset.unsqueeze(x1, ov_opset.constant(0, Type.i32))
-        ndim1 += 1
-    while ndim2 < ndim1:
-        x2 = ov_opset.unsqueeze(x2, ov_opset.constant(0, Type.i32))
-        ndim2 += 1
+    if ndim1 < ndim2:
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            ov_opset.constant(ndim2 - ndim1, Type.i32),
+            ov_opset.constant(1, Type.i32),
+        )
+        x1 = ov_opset.unsqueeze(x1, axes)
+        ndim1 = ndim2
+    elif ndim2 < ndim1:
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            ov_opset.constant(ndim1 - ndim2, Type.i32),
+            ov_opset.constant(1, Type.i32),
+        )
+        x2 = ov_opset.unsqueeze(x2, axes)
+        ndim2 = ndim1
     shape1 = ov_opset.shape_of(x1, Type.i32)
     shape2 = ov_opset.shape_of(x2, Type.i32)
     ones = ov_opset.broadcast(
@@ -1419,9 +1429,10 @@ def kron(x1, x2):
     )
     axis = ov_opset.constant(1, Type.i32)
     flatten = ov_opset.constant([-1], Type.i32)
+    unsqueezed_ones = ov_opset.unsqueeze(ones, axis)
     x1_new_shape = ov_opset.reshape(
         ov_opset.concat(
-            [ov_opset.unsqueeze(shape1, axis), ov_opset.unsqueeze(ones, axis)],
+            [ov_opset.unsqueeze(shape1, axis), unsqueezed_ones],
             axis=1,
         ),
         flatten,
@@ -1429,7 +1440,7 @@ def kron(x1, x2):
     )
     x2_new_shape = ov_opset.reshape(
         ov_opset.concat(
-            [ov_opset.unsqueeze(ones, axis), ov_opset.unsqueeze(shape2, axis)],
+            [unsqueezed_ones, ov_opset.unsqueeze(shape2, axis)],
             axis=1,
         ),
         flatten,
