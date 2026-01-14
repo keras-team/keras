@@ -7802,6 +7802,15 @@ def correlate(x1, x2, mode="valid"):
 
     Returns:
         Output tensor, cross-correlation of `x1` and `x2`.
+
+    Notes:
+        Complex-valued inputs are currently not fully supported on the
+        TensorFlow and PyTorch backends. When complex tensors are passed,
+        they are cast to floating-point types and the imaginary component
+        is discarded.
+
+        This behavior is documented for clarity and may change in the
+        future. See discussion in issue #21617.
     """
     if any_symbolic_tensors((x1, x2)):
         return Correlate(mode=mode).symbolic_call(x1, x2)
