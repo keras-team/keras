@@ -362,6 +362,11 @@ class EinsumDense(Layer):
                     # kernel_zero only exists for sub-channel int4 quantization
                     continue
                 store[str(idx)] = merged_kernel_zero
+            elif name == "g_idx":
+                if not hasattr(self, "g_idx"):
+                    # g_idx only exists for sub-channel int4 quantization
+                    continue
+                store[str(idx)] = self.g_idx
             elif name == "kernel_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_kernel_with_merged_lora()`
@@ -392,6 +397,9 @@ class EinsumDense(Layer):
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
                 # kernel_zero only exists for sub-channel int4 quantization
+                continue
+            elif name == "g_idx" and not hasattr(self, "g_idx"):
+                # g_idx only exists for sub-channel int4 quantization
                 continue
             else:
                 getattr(self, name).assign(store[str(idx)])
@@ -464,6 +472,7 @@ class EinsumDense(Layer):
                 "bias",
                 "kernel_scale",
                 "kernel_zero",
+                "g_idx",
             ],
             "float8": [
                 "kernel",
@@ -835,13 +844,27 @@ class EinsumDense(Layer):
             trainable=False,
         )
 
-        # Add kernel_zero for sub-channel quantization (asymmetric quantization)
+        # Add kernel_zero and g_idx for sub-channel quantization
+        # (asymmetric quantization)
         if use_grouped:
             self.kernel_zero = self.add_weight(
                 name="kernel_zero",
                 shape=kernel_scale_shape,
                 initializer="zeros",
                 dtype="int8",
+                trainable=False,
+            )
+            # Compute total reduced dimension for g_idx size
+            total_reduced_dim = 1
+            for ax in self._kernel_reduced_axes:
+                total_reduced_dim *= kernel_shape[ax]
+            # g_idx maps each row to its group index for efficient
+            # dequantization
+            self.g_idx = self.add_weight(
+                name="g_idx",
+                shape=(total_reduced_dim,),
+                initializer="zeros",
+                dtype="float32",
                 trainable=False,
             )
 
@@ -984,10 +1007,11 @@ class EinsumDense(Layer):
         orig_len = getattr(self, "_orig_length_along_pack_axis", None)
         block_size = getattr(self, "_int4_block_size", None)
         has_zero_point = hasattr(self, "kernel_zero")
+        has_g_idx = hasattr(self, "g_idx")
 
         @ops.custom_gradient
         def einsum_with_inputs_gradient(
-            inputs, packed_kernel, kernel_scale, kernel_zero
+            inputs, packed_kernel, kernel_scale, kernel_zero, g_idx
         ):
             """Performs int4 quantized einsum with a custom gradient.
 
@@ -1002,6 +1026,7 @@ class EinsumDense(Layer):
                 packed_kernel: The int4-packed kernel tensor.
                 kernel_scale: The float32 scale factor for the kernel.
                 kernel_zero: The zero point tensor for asymmetric quantization.
+                g_idx: Group index tensor for efficient grouped dequantization.
 
             Returns:
                 A tuple `(output, grad_fn)`:
@@ -1017,7 +1042,7 @@ class EinsumDense(Layer):
                 packed_kernel, orig_len, axis=pack_axis
             )
 
-            def _dequantize_kernel(unpacked, scale, zero=None):
+            def _dequantize_kernel(unpacked, scale, zero=None, g_idx_t=None):
                 """Helper to dequantize kernel with per-channel or grouped."""
                 if block_size is None or block_size == -1:
                     # Per-channel: align scale and divide
@@ -1060,14 +1085,20 @@ class EinsumDense(Layer):
                     # Scale is already in the correct shape from quantization
                     n_groups = scale.shape[0]
                     flat_scale = ops.reshape(scale, (n_groups, -1))
-
-                    # Dequantize using grouped function with zero point
                     flat_zero = ops.reshape(zero, (n_groups, -1))
-                    dequant_flat = (
-                        quantizers.dequantize_grouped_with_zero_point(
-                            flat_kernel, flat_scale, flat_zero, block_size
+
+                    # Use g_idx if available, else fall back to block_size
+                    if has_g_idx and g_idx_t is not None:
+                        dequant_flat = quantizers.dequantize_with_g_idx(
+                            flat_kernel, flat_scale, flat_zero, g_idx_t
                         )
-                    )
+                    else:
+                        # Backwards compatibility fallback
+                        dequant_flat = (
+                            quantizers.dequantize_grouped_with_zero_point(
+                                flat_kernel, flat_scale, flat_zero, block_size
+                            )
+                        )
                     dequant_flat = ops.cast(dequant_flat, self.compute_dtype)
 
                     # Reshape back to transposed shape, then inverse transpose
@@ -1079,17 +1110,17 @@ class EinsumDense(Layer):
                 if upstream is None:
                     (upstream,) = args
                 float_kernel = _dequantize_kernel(
-                    unpacked_kernel, kernel_scale, kernel_zero
+                    unpacked_kernel, kernel_scale, kernel_zero, g_idx
                 )
                 inputs_grad = ops.einsum(
                     self._custom_gradient_equation, upstream, float_kernel
                 )
-                return (inputs_grad, None, None, None)
+                return (inputs_grad, None, None, None, None)
 
             # For grouped quantization, always dequantize kernel first
             if block_size is not None and block_size != -1:
                 float_kernel = _dequantize_kernel(
-                    unpacked_kernel, kernel_scale, kernel_zero
+                    unpacked_kernel, kernel_scale, kernel_zero, g_idx
                 )
                 x = ops.einsum(self.equation, inputs, float_kernel)
             elif self.inputs_quantizer:
@@ -1110,7 +1141,7 @@ class EinsumDense(Layer):
                 # Weight-only per-channel quantization
                 if backend.backend() == "torch":
                     float_kernel = _dequantize_kernel(
-                        unpacked_kernel, kernel_scale, kernel_zero
+                        unpacked_kernel, kernel_scale, kernel_zero, g_idx
                     )
                     x = ops.einsum(self.equation, inputs, float_kernel)
                 else:
@@ -1119,18 +1150,24 @@ class EinsumDense(Layer):
                     x = ops.divide(x, kernel_scale)
             return x, grad_fn
 
-        # Use actual kernel_zero if available, otherwise use dummy zeros tensor
+        # Use actual tensors if available, otherwise use dummy tensors
         # (TensorFlow's custom_gradient requires all args to be tensors)
         kernel_zero_tensor = (
             ops.convert_to_tensor(self.kernel_zero)
             if has_zero_point
             else ops.zeros((1,), dtype="int8")
         )
+        g_idx_tensor = (
+            ops.convert_to_tensor(self.g_idx)
+            if has_g_idx
+            else ops.zeros((1,), dtype="float32")
+        )
         x = einsum_with_inputs_gradient(
             inputs,
             ops.convert_to_tensor(self._kernel),
             ops.convert_to_tensor(self.kernel_scale),
             kernel_zero_tensor,
+            g_idx_tensor,
         )
 
         # Add LoRA contribution if enabled
@@ -1371,9 +1408,14 @@ class EinsumDense(Layer):
         if mode in ("int8", "int4"):
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
-            # Assign zero point for sub-channel int4 quantization
+            # Assign zero point and g_idx for sub-channel int4 quantization
             if mode == "int4" and use_grouped:
                 self.kernel_zero.assign(kernel_zero)
+                # Compute g_idx: maps each row to its group index
+                g_idx = ops.floor_divide(
+                    ops.arange(total_reduced, dtype="int32"), block_size
+                )
+                self.g_idx.assign(ops.cast(g_idx, "float32"))
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:
@@ -1528,9 +1570,18 @@ class EinsumDense(Layer):
                 flat_scale = ops.reshape(self.kernel_scale, (n_groups, -1))
                 flat_zero = ops.reshape(self.kernel_zero, (n_groups, -1))
 
-                dequant_flat = quantizers.dequantize_grouped_with_zero_point(
-                    flat_kernel, flat_scale, flat_zero, block_size
-                )
+                # Use g_idx if available, else fall back to block_size
+                if hasattr(self, "g_idx"):
+                    dequant_flat = quantizers.dequantize_with_g_idx(
+                        flat_kernel, flat_scale, flat_zero, self.g_idx
+                    )
+                else:
+                    # Backwards compatibility fallback
+                    dequant_flat = (
+                        quantizers.dequantize_grouped_with_zero_point(
+                            flat_kernel, flat_scale, flat_zero, block_size
+                        )
+                    )
                 transposed_shape = list(reduced_dims) + non_reduced_shape
                 dequant = ops.reshape(dequant_flat, transposed_shape)
                 kernel_fp = ops.transpose(dequant, inv_perm)

@@ -9,6 +9,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
+from keras.src import testing
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
@@ -413,3 +414,82 @@ class ReversibleEmbeddingTest(test_case.TestCase):
                 layer.reverse_embeddings_scale.shape,
                 expected_reverse_scale_shape,
             )
+
+    @parameterized.named_parameters(
+        ("grouped_block_4", 4),
+        ("grouped_block_8", 8),
+    )
+    def test_int4_subchannel_g_idx_created(self, block_size):
+        """Test that g_idx is created for sub-channel int4 quantization."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 10, 16
+        layer = layers.ReversibleEmbedding(
+            input_dim=input_dim, output_dim=output_dim
+        )
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is created
+        self.assertTrue(hasattr(layer, "g_idx"))
+
+        # Verify g_idx shape (output_dim for embedding)
+        self.assertEqual(layer.g_idx.shape, (output_dim,))
+
+        # Verify g_idx values (should map each column to its group)
+        expected_g_idx = np.arange(output_dim) // block_size
+        self.assertAllClose(layer.g_idx, expected_g_idx)
+
+    def test_int4_perchannel_no_g_idx(self):
+        """Test that per-channel int4 does NOT create g_idx."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.ReversibleEmbedding(input_dim=10, output_dim=16)
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=None)  # Per-channel
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is NOT created for per-channel
+        self.assertFalse(hasattr(layer, "g_idx"))
+
+    def test_int4_subchannel_g_idx_serialization(self):
+        """Test that g_idx is properly serialized and deserialized."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 10, 16
+        block_size = 8
+
+        layer = layers.ReversibleEmbedding(
+            input_dim=input_dim, output_dim=output_dim
+        )
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+        y_before = layer(x)
+        g_idx_before = ops.convert_to_numpy(layer.g_idx)
+
+        # Save and load
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "rev_embedding_int4_g_idx_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify g_idx is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertAllClose(loaded_layer.g_idx, g_idx_before)
+
+        # Verify outputs match
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)

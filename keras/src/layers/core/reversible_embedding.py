@@ -287,6 +287,8 @@ class ReversibleEmbedding(layers.Embedding):
             return super()._int4_call(inputs)
         else:
             block_size = getattr(self, "_int4_block_size", None)
+            has_g_idx = hasattr(self, "g_idx")
+            has_zero_point = hasattr(self, "embeddings_zero")
 
             if self.tie_weights:
                 embeddings = ops.transpose(self._embeddings)
@@ -312,16 +314,49 @@ class ReversibleEmbedding(layers.Embedding):
             else:
                 inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
 
-            logits = ops.matmul(inputs, unpacked_embeddings)
-            logits = ops.cast(logits, self.compute_dtype)
-
             if block_size is None or block_size == -1:
-                # Per-channel dequantization
+                # Per-channel: do matmul then dequantize
+                logits = ops.matmul(inputs, unpacked_embeddings)
+                logits = ops.cast(logits, self.compute_dtype)
                 logits = ops.divide(logits, ops.multiply(inputs_scale, scale))
+            elif self.tie_weights and has_g_idx and has_zero_point:
+                # Grouped with asymmetric quantization (tied weights)
+                # Must dequantize embeddings before matmul for correctness
+                # unpacked_embeddings shape: (output_dim, input_dim)
+                # scale shape: (input_dim, n_groups)
+                # embeddings_zero shape: (input_dim, n_groups)
+                # g_idx shape: (output_dim,)
+
+                # Dequantize using g_idx
+                g_idx_int = ops.cast(self.g_idx, "int32")
+                # Map each output position to its group's scale/zero
+                # scale[i, g_idx[o]] for each (i, o) position
+                # Transpose to get: scale_t shape (n_groups, input_dim)
+                scale_t = ops.transpose(scale)
+                zero_t = ops.transpose(self.embeddings_zero)
+                # Take along axis=0 gives (output_dim, input_dim)
+                scale_mapped = ops.take(scale_t, g_idx_int, axis=0)
+                zero_mapped = ops.take(zero_t, g_idx_int, axis=0)
+
+                # Dequantize: float_emb = scale * (quantized - zero)
+                float_embeddings = ops.multiply(
+                    scale_mapped,
+                    ops.subtract(
+                        ops.cast(unpacked_embeddings, self.compute_dtype),
+                        ops.cast(zero_mapped, self.compute_dtype),
+                    ),
+                )
+
+                # inputs shape: (batch, output_dim)
+                # float_embeddings shape: (output_dim, input_dim)
+                logits = ops.matmul(inputs, float_embeddings)
+                logits = ops.divide(logits, inputs_scale)
             else:
-                # Grouped dequantization for reverse path
+                # Fallback: Grouped dequantization for reverse path
                 # For the matmul, we sum over output_dim, so we can't
                 # directly apply grouped scale. We use average scale.
+                logits = ops.matmul(inputs, unpacked_embeddings)
+                logits = ops.cast(logits, self.compute_dtype)
                 if self.tie_weights:
                     # For tied weights, scale is (input_dim, n_groups)
                     # Average scale across groups
@@ -414,12 +449,13 @@ class ReversibleEmbedding(layers.Embedding):
                 )
                 embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             else:
-                # Grouped quantization along output_dim (axis=-1)
+                # Grouped (sub-channel) quantization along output_dim (axis=-1)
+                # Use asymmetric quantization with zero point to match Embedding
                 embeddings_np = self._embeddings
                 embeddings_t = ops.transpose(embeddings_np)
 
-                embeddings_value_t, scale_t = (
-                    quantizers.abs_max_quantize_grouped(
+                embeddings_value_t, scale_t, zero_t = (
+                    quantizers.abs_max_quantize_grouped_with_zero_point(
                         embeddings_t,
                         block_size=block_size,
                         value_range=(-8, 7),
@@ -427,10 +463,12 @@ class ReversibleEmbedding(layers.Embedding):
                         to_numpy=True,
                     )
                 )
+                # scale_t shape: (n_groups, input_dim)
+                # Transpose back: embeddings (input, output),
+                # scale (input, n_grp)
                 embeddings_value = ops.transpose(embeddings_value_t)
                 embeddings_scale = ops.transpose(scale_t)
-                embeddings_value = embeddings_value
-                embeddings_scale = embeddings_scale
+                embeddings_zero = ops.transpose(zero_t)
 
             # Pack forward embeddings
             packed_embeddings_value, _, _ = quantizers.pack_int4(
@@ -488,6 +526,15 @@ class ReversibleEmbedding(layers.Embedding):
             )
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
+            # Assign zero point and g_idx for sub-channel quantization
+            if use_grouped:
+                self.embeddings_zero.assign(embeddings_zero)
+            if use_grouped and hasattr(self, "g_idx"):
+                output_dim = embeddings_shape[1]
+                g_idx = ops.floor_divide(
+                    ops.arange(output_dim, dtype="int32"), block_size
+                )
+                self.g_idx.assign(ops.cast(g_idx, "float32"))
             if not self.tie_weights:
                 self.reverse_embeddings.assign(packed_reverse_embeddings_value)
                 self.reverse_embeddings_scale.assign(reverse_embeddings_scale)

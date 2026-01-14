@@ -304,6 +304,11 @@ class Dense(Layer):
                     # kernel_zero only exists for sub-channel int4 quantization
                     continue
                 store[str(idx)] = merged_kernel_zero
+            elif name == "g_idx":
+                if not hasattr(self, "g_idx"):
+                    # g_idx only exists for sub-channel int4 quantization
+                    continue
+                store[str(idx)] = self.g_idx
             elif name == "kernel_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_kernel_with_merged_lora()`
@@ -334,6 +339,9 @@ class Dense(Layer):
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
                 # kernel_zero only exists for sub-channel int4 quantization
+                continue
+            elif name == "g_idx" and not hasattr(self, "g_idx"):
+                # g_idx only exists for sub-channel int4 quantization
                 continue
             else:
                 getattr(self, name).assign(store[str(idx)])
@@ -400,6 +408,7 @@ class Dense(Layer):
                 "bias",
                 "kernel_scale",
                 "kernel_zero",
+                "g_idx",
             ],
             "float8": [
                 "kernel",
@@ -684,13 +693,23 @@ class Dense(Layer):
             trainable=False,
         )
 
-        # Add kernel_zero for sub-channel quantization (asymmetric quantization)
+        # Add kernel_zero and g_idx for sub-channel quantization
+        # (asymmetric quantization)
         if block_size is not None and block_size > 0:
             self.kernel_zero = self.add_weight(
                 name="kernel_zero",
                 shape=scale_shape,
                 initializer="zeros",
                 dtype="int8",
+                trainable=False,
+            )
+            # g_idx maps each row to its group index for efficient
+            # dequantization
+            self.g_idx = self.add_weight(
+                name="g_idx",
+                shape=(input_dim,),
+                initializer="zeros",
+                dtype="float32",
                 trainable=False,
             )
 
@@ -794,10 +813,11 @@ class Dense(Layer):
 
         block_size = getattr(self, "_int4_block_size", None)
         has_zero_point = hasattr(self, "kernel_zero")
+        has_g_idx = hasattr(self, "g_idx")
 
         @ops.custom_gradient
         def matmul_with_inputs_gradient(
-            inputs, kernel, kernel_scale, kernel_zero
+            inputs, kernel, kernel_scale, kernel_zero, g_idx
         ):
             """Custom gradient function for int4 quantized weights.
 
@@ -822,8 +842,18 @@ class Dense(Layer):
                         ops.cast(unpacked_kernel, dtype=self.compute_dtype),
                         kernel_scale,
                     )
+                elif has_g_idx:
+                    # Sub-channel with g_idx: use efficient dequantization
+                    float_kernel = quantizers.dequantize_with_g_idx(
+                        unpacked_kernel,
+                        kernel_scale,
+                        kernel_zero,
+                        g_idx,
+                    )
+                    float_kernel = ops.cast(float_kernel, self.compute_dtype)
                 else:
-                    # Sub-channel: use zero point dequantization
+                    # Sub-channel fallback: use block_size-based dequantization
+                    # (for backwards compatibility with old models)
                     float_kernel = (
                         quantizers.dequantize_grouped_with_zero_point(
                             unpacked_kernel,
@@ -834,7 +864,7 @@ class Dense(Layer):
                     )
                     float_kernel = ops.cast(float_kernel, self.compute_dtype)
                 inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
-                return (inputs_grad, None, None, None)
+                return (inputs_grad, None, None, None, None)
 
             # Forward pass dequantization
             if block_size is None or block_size == -1:
@@ -849,8 +879,16 @@ class Dense(Layer):
                 x = ops.matmul(inputs, unpacked_kernel)
                 x = ops.cast(x, self.compute_dtype)
                 x = ops.divide(x, output_scale)
+            elif has_g_idx:
+                # Sub-channel with g_idx: use efficient dequantization
+                float_kernel = quantizers.dequantize_with_g_idx(
+                    unpacked_kernel, kernel_scale, kernel_zero, g_idx
+                )
+                float_kernel = ops.cast(float_kernel, self.compute_dtype)
+                x = ops.matmul(inputs, float_kernel)
             else:
-                # Sub-channel: dequantize with zero point before matmul
+                # Sub-channel fallback: use block_size-based dequantization
+                # (for backwards compatibility with old models)
                 float_kernel = quantizers.dequantize_grouped_with_zero_point(
                     unpacked_kernel, kernel_scale, kernel_zero, block_size
                 )
@@ -858,18 +896,24 @@ class Dense(Layer):
                 x = ops.matmul(inputs, float_kernel)
             return x, grad_fn
 
-        # Use actual kernel_zero if available, otherwise use dummy zeros tensor
+        # Use actual tensors if available, otherwise use dummy tensors
         # (TensorFlow's custom_gradient requires all args to be tensors)
         kernel_zero_tensor = (
             ops.convert_to_tensor(self.kernel_zero)
             if has_zero_point
             else ops.zeros((1,), dtype="int8")
         )
+        g_idx_tensor = (
+            ops.convert_to_tensor(self.g_idx)
+            if has_g_idx
+            else ops.zeros((1,), dtype="float32")
+        )
         x = matmul_with_inputs_gradient(
             inputs,
             ops.convert_to_tensor(self._kernel),
             ops.convert_to_tensor(self.kernel_scale),
             kernel_zero_tensor,
+            g_idx_tensor,
         )
 
         if self.lora_enabled:
@@ -1041,9 +1085,15 @@ class Dense(Layer):
             # Assign packed values.
             self._kernel.assign(packed_kernel_value)
             self.kernel_scale.assign(kernel_scale)
-            # Assign zero point for sub-channel quantization
+            # Assign zero point and g_idx for sub-channel quantization
             if block_size is not None and block_size > 0:
                 self.kernel_zero.assign(kernel_zero)
+                # Compute g_idx: maps each row to its group index
+                input_dim = kernel_shape[0]
+                g_idx = ops.floor_divide(
+                    ops.arange(input_dim, dtype="int32"), block_size
+                )
+                self.g_idx.assign(ops.cast(g_idx, "float32"))
         elif mode == "gptq":
             self.quantized_build(kernel_shape, mode, self.quantization_config)
         elif mode == "awq":
@@ -1130,8 +1180,14 @@ class Dense(Layer):
                     ops.cast(unpacked_kernel, self.compute_dtype),
                     kernel_scale,
                 )
+            elif hasattr(self, "g_idx"):
+                # Sub-channel with g_idx: use efficient dequantization
+                float_kernel = quantizers.dequantize_with_g_idx(
+                    unpacked_kernel, kernel_scale, self.kernel_zero, self.g_idx
+                )
+                float_kernel = ops.cast(float_kernel, self.compute_dtype)
             else:
-                # Sub-channel: use zero point dequantization
+                # Sub-channel fallback: use block_size-based dequantization
                 float_kernel = quantizers.dequantize_grouped_with_zero_point(
                     unpacked_kernel, kernel_scale, self.kernel_zero, block_size
                 )

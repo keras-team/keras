@@ -704,7 +704,7 @@ class EinsumDenseTest(testing.TestCase):
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
         ("float8", "float8_from_float32", 8),
-        ("int4", "int4_from_float32", 4),  # kernel + bias + scale + zero
+        ("int4", "int4_from_float32", 5),  # kernel + bias + scale + zero + gidx
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
@@ -792,15 +792,15 @@ class EinsumDenseTest(testing.TestCase):
             2,
             4,
         ),
-        # int4 has +1 for kernel_zero
-        ("int4_ab,bcd->acd", "int4", "ab,bcd->acd", (64, 3), (64, 8, 32), 3, 5),
+        # int4 has +1 for kernel_zero and +1 for g_idx
+        ("int4_ab,bcd->acd", "int4", "ab,bcd->acd", (64, 3), (64, 8, 32), 4, 6),
         (
             "int4_btd,ndh->btnh",
             "int4",
             "btd,ndh->btnh",
             (1, 4, 32),
             (1, 4, 8, 16),
-            3,
+            4,
             5,
         ),
     )
@@ -1711,3 +1711,87 @@ class EinsumDenseTest(testing.TestCase):
 
         self.assertEqual(y_single.shape, (2, 32))
         self.assertEqual(y_multi.shape, (2, 128))
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+    )
+    def test_int4_subchannel_g_idx_created(self, block_size):
+        """Test that g_idx is created for sub-channel int4 quantization."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(32,),
+            bias_axes="c",
+        )
+        layer.build((None, 128))
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is created
+        self.assertTrue(hasattr(layer, "g_idx"))
+
+        # Verify g_idx shape (128 = input_dim = reduced dimension)
+        self.assertEqual(layer.g_idx.shape, (128,))
+
+        # Verify g_idx values (should map each row to its group)
+        expected_g_idx = np.arange(128) // block_size
+        self.assertAllClose(layer.g_idx, expected_g_idx)
+
+    def test_int4_perchannel_no_g_idx(self):
+        """Test that per-channel int4 does NOT create g_idx."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(32,),
+            bias_axes="c",
+        )
+        layer.build((None, 64))
+
+        config = Int4QuantizationConfig(block_size=None)  # Per-channel
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is NOT created for per-channel
+        self.assertFalse(hasattr(layer, "g_idx"))
+
+    def test_int4_subchannel_g_idx_serialization(self):
+        """Test that g_idx is properly serialized and deserialized."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(32,),
+            bias_axes="c",
+        )
+        layer.build((None, 128))
+        block_size = 64
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        x = np.random.random((2, 128)).astype("float32")
+        y_before = layer(x)
+        g_idx_before = ops.convert_to_numpy(layer.g_idx)
+
+        # Save and load
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "einsum_int4_g_idx_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify g_idx is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertAllClose(loaded_layer.g_idx, g_idx_before)
+
+        # Verify outputs match
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)
