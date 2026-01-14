@@ -527,61 +527,6 @@ def dequantize_grouped_with_zero_point(
     return outputs
 
 
-@keras_export("keras.quantizers.dequantize_with_g_idx")
-def dequantize_with_g_idx(quantized_inputs, scale, zero_point, g_idx):
-    """Dequantize a grouped-quantized tensor using pre-computed g_idx.
-
-    This function is similar to `dequantize_grouped_with_zero_point` but uses
-    a pre-computed g_idx tensor instead of computing group indices from
-    block_size. This matches the GPTQ/AWQ pattern for group-wise dequantization
-    and avoids repeated index computation during inference.
-
-    Internally, this function reuses `dequantize_with_sz_map` with the
-    necessary tensor transposes to handle the INT4 scale layout.
-
-    Args:
-        quantized_inputs: Quantized tensor of shape `(input_dim, output_dim)`.
-        scale: Scale tensor of shape `(n_groups, output_dim)`.
-        zero_point: Zero point tensor of shape `(n_groups, output_dim)`.
-        g_idx: Group index tensor of shape `(input_dim,)` mapping each row
-            to its group index.
-
-    Returns:
-        Dequantized tensor of same shape as `quantized_inputs`.
-
-    Example:
-
-    ```python
-    import numpy as np
-    from keras.quantizers import (
-        abs_max_quantize_grouped_with_zero_point,
-        dequantize_with_g_idx,
-    )
-    input_dim, output_dim, block_size = 512, 256, 128
-    kernel = np.random.randn(input_dim, output_dim).astype("float32")
-    quantized, scale, zero_point = abs_max_quantize_grouped_with_zero_point(
-        kernel, block_size=block_size, value_range=(-8, 7)
-    )
-    # Compute g_idx: maps each row to its group
-    g_idx = np.arange(input_dim) // block_size
-    dequantized = dequantize_with_g_idx(quantized, scale, zero_point, g_idx)
-    ```
-    """
-    # Transpose to match dequantize_with_sz_map expected layout:
-    # quantized: (input_dim, output_dim) -> (output_dim, input_dim)
-    # scale: (n_groups, output_dim) -> (output_dim, n_groups)
-    # zero_point: (n_groups, output_dim) -> (output_dim, n_groups)
-    quantized_t = ops.transpose(quantized_inputs)
-    scale_t = ops.transpose(scale)
-    zero_point_t = ops.transpose(zero_point)
-
-    # Use existing utility for dequantization
-    result_t = dequantize_with_sz_map(quantized_t, scale_t, zero_point_t, g_idx)
-
-    # Transpose back: (output_dim, input_dim) -> (input_dim, output_dim)
-    return ops.transpose(result_t)
-
-
 @keras_export("keras.quantizers.AbsMaxQuantizer")
 class AbsMaxQuantizer(Quantizer):
     def __init__(

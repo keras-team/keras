@@ -911,9 +911,14 @@ class DenseTest(testing.TestCase):
         layer.build((None, 2))
         layer.quantize("int4")
         packed_kernel = layer._kernel
-        self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        # GPTQ layout: unpack [ceil(out/2), in] -> [out, in], then transpose
+        # to [in, out] for the kernel property
+        expected = ops.transpose(
+            quantizers.unpack_int4(
+                packed_kernel, layer._orig_output_dim, axis=0
+            )
         )
+        self.assertAllClose(layer.kernel, expected)
 
     def test_legacy_load_own_variables(self):
         # In previous versions, `load_own_variables` accepted a store with
@@ -928,7 +933,8 @@ class DenseTest(testing.TestCase):
             "2": np.random.random((16,)).astype("float32"),  # kernel_scale.
         }
         int4_store = {
-            "0": np.random.randint(-128, 127, size=(4, 16), dtype="int8"),
+            # GPTQ layout: kernel is [ceil(out/2), in] = [8, 8]
+            "0": np.random.randint(-128, 127, size=(8, 8), dtype="int8"),
             "1": np.random.random((16,)).astype("float32"),
             "2": np.random.random((16,)).astype("float32"),  # kernel_scale.
         }
@@ -1246,11 +1252,11 @@ class DenseTest(testing.TestCase):
             # Per-channel: one scale per output unit
             expected_scale_shape = (output_dim,)
         else:
-            # Sub-channel: n_groups scales per output unit
+            # Sub-channel: GPTQ layout (out_features, n_groups)
             import math
 
             n_groups = math.ceil(input_dim / block_size)
-            expected_scale_shape = (n_groups, output_dim)
+            expected_scale_shape = (output_dim, n_groups)
 
         self.assertEqual(layer.kernel_scale.shape, expected_scale_shape)
 
@@ -1345,9 +1351,10 @@ class DenseTest(testing.TestCase):
 
         # Verify different scale shapes
         self.assertEqual(layer_pc.kernel_scale.shape, (output_dim,))
+        # GPTQ layout: scale shape is (out_features, n_groups)
         self.assertEqual(
             layer_grouped.kernel_scale.shape,
-            (input_dim // block_size, output_dim),
+            (output_dim, input_dim // block_size),
         )
 
     @parameterized.named_parameters(

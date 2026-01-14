@@ -1138,9 +1138,15 @@ class EinsumDenseTest(testing.TestCase):
         layer.build((None, 2))
         layer.quantize("int4")
         packed_kernel = layer._kernel
-        self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        # GPTQ layout: unpack [ceil(columns/2), rows] -> [columns, rows],
+        # then transpose to [rows, columns] and reshape to original shape
+        unpacked = quantizers.unpack_int4(
+            packed_kernel, layer._int4_unpacked_column_size, axis=0
         )
+        expected = ops.reshape(
+            ops.transpose(unpacked), layer.original_kernel_shape
+        )
+        self.assertAllClose(layer.kernel, expected)
 
     def test_legacy_load_own_variables(self):
         # In previous versions, `load_own_variables` accepted a store with
@@ -1155,9 +1161,11 @@ class EinsumDenseTest(testing.TestCase):
             "2": np.random.random((1, 8, 32)).astype("float32"),
         }
         int4_store = {
-            "0": np.random.randint(-128, 127, size=(2, 8, 32), dtype="int8"),
+            # GPTQ layout: kernel is [ceil(columns/2), rows] = [128, 3]
+            # where rows=3, columns=8*32=256
+            "0": np.random.randint(-128, 127, size=(128, 3), dtype="int8"),
             "1": np.random.random((32,)).astype("float32"),
-            "2": np.random.random((1, 8, 32)).astype("float32"),
+            "2": np.random.random((256,)).astype("float32"),  # per-channel
         }
         float8_store = {
             "0": np.random.random((3, 8, 32)).astype("float32"),
@@ -1415,17 +1423,16 @@ class EinsumDenseTest(testing.TestCase):
         else:
             self.assertEqual(layer._int4_block_size, block_size)
 
-        # Verify kernel_scale shape
-        # EinsumDense uses _get_kernel_scale_shape which includes reduced axes
+        # Verify kernel_scale shape (GPTQ layout)
         if block_size is None or block_size == -1:
-            # Per-channel: reduced axis set to 1, shape is (1, output_dim)
-            expected_scale_shape = (1, 64)
+            # Per-channel: one scale per output unit
+            expected_scale_shape = (64,)
         else:
-            # Sub-channel: n_groups scales per output unit
+            # Sub-channel (GPTQ layout): (columns, n_groups) = (out, n_groups)
             import math
 
             n_groups = math.ceil(256 / block_size)
-            expected_scale_shape = (n_groups, 64)
+            expected_scale_shape = (64, n_groups)
 
         self.assertEqual(layer.kernel_scale.shape, expected_scale_shape)
 
@@ -1531,12 +1538,11 @@ class EinsumDenseTest(testing.TestCase):
         config_grouped = Int4QuantizationConfig(block_size=block_size)
         layer_grouped.quantize("int4", config=config_grouped)
 
-        # EinsumDense uses _get_kernel_scale_shape which includes reduced axes
-        # Per-channel: (1, output_dim), Grouped: (n_groups, output_dim)
-        self.assertEqual(layer_pc.kernel_scale.shape, (1, output_dim))
+        # GPTQ layout: Per-channel: (output_dim,), Grouped: (output_dim, n_groups)
+        self.assertEqual(layer_pc.kernel_scale.shape, (output_dim,))
         self.assertEqual(
             layer_grouped.kernel_scale.shape,
-            (input_dim // block_size, output_dim),
+            (output_dim, input_dim // block_size),
         )
 
     @parameterized.named_parameters(
@@ -1629,14 +1635,12 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Total reduced dim = 4 * 32 = 128, n_groups = ceil(128/64) = 2
-        # Scale shape should have n_groups=2 on first reduced axis (n)
-        # and 1 on second reduced axis (h), with output_dim (d=64)
-        # After _adjust_scale_for_quant transformations, check the final shape
+        # GPTQ layout: scale shape is (columns, n_groups) = (output_dim, n_groups)
+        # For this equation, output_dim=64, n_groups=ceil(128/64)=2
         kernel_scale = layer.kernel_scale
-        # The scale should account for grouped quantization
         self.assertIsNotNone(kernel_scale)
-        # n_groups should be ceil(128/64) = 2
-        self.assertEqual(kernel_scale.shape[0], 2)
+        # GPTQ layout: (columns, n_groups) where n_groups is at index 1
+        self.assertEqual(kernel_scale.shape[1], 2)
 
     def test_int4_multi_reduced_axes_serialization(self):
         """Test serialization with multi-reduced-axis equations."""
