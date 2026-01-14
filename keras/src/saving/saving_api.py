@@ -199,20 +199,8 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             safe_mode=safe_mode,
         )
 
-    # Check for Orbax checkpoint directory
-    is_orbax_checkpoint = False
-    if file_utils.isdir(filepath):
-        try:
-            subdirs = file_utils.listdir(filepath)
-            # Check if any subdirs are numeric (checkpoint steps)
-            for d in subdirs:
-                if d.isdigit():
-                    is_orbax_checkpoint = True
-                    break
-        except (OSError, ValueError):
-            pass
-
-    if is_orbax_checkpoint:
+    # Check for Orbax checkpoint directory using utility function
+    if is_orbax_checkpoint(filepath):
         return _load_model_from_orbax_checkpoint(
             filepath,
             custom_objects=custom_objects,
