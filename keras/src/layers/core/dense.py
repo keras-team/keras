@@ -820,55 +820,34 @@ class Dense(Layer):
         """Forward pass for int4 quantized Dense layer."""
 
         block_size = getattr(self, "_int4_block_size", None)
-        has_g_idx = hasattr(self, "g_idx")
 
-        @ops.custom_gradient
-        def matmul_with_inputs_gradient(
-            inputs, kernel, kernel_scale, kernel_zero, g_idx
-        ):
-            """Custom gradient function for int4 quantized weights.
+        if block_size is None or block_size == -1:
+            # Per-channel: symmetric quantization (no zero point needed)
+            @ops.custom_gradient
+            def matmul_per_channel_with_inputs_gradient(
+                inputs, kernel, kernel_scale
+            ):
+                """Custom gradient for per-channel int4 quantized weights."""
+                # Unpack: stored as [ceil(out/2), in], unpack along axis 0
+                unpacked_kernel = quantizers.unpack_int4(
+                    kernel, self._orig_output_dim, axis=0
+                )
 
-            Automatic differentiation will not know how to handle the
-            int4 quantized weights. So a custom gradient function is needed
-            to handle the int4 quantized weights.
-
-            The custom gradient function will use the dequantized kernel to
-            compute the gradient.
-            """
-
-            # Unpack: stored as [ceil(out/2), in], unpack along axis 0
-            unpacked_kernel = quantizers.unpack_int4(
-                kernel, self._orig_output_dim, axis=0
-            )
-
-            def grad_fn(*args, upstream=None):
-                if upstream is None:
-                    (upstream,) = args
-                # Dequantize kernel for gradient computation
-                if block_size is None or block_size == -1:
+                def grad_fn(*args, upstream=None):
+                    if upstream is None:
+                        (upstream,) = args
                     # Per-channel: unpacked is [out, in], transpose to [in, out]
                     float_kernel = ops.divide(
                         ops.cast(unpacked_kernel, dtype=self.compute_dtype),
                         ops.expand_dims(kernel_scale, axis=-1),
                     )
                     float_kernel = ops.transpose(float_kernel)
-                else:
-                    # Sub-channel: use dequantize_with_sz_map directly (GPTQ)
-                    float_kernel = dequantize_with_sz_map(
-                        unpacked_kernel,
-                        kernel_scale,
-                        kernel_zero,
-                        g_idx,
+                    inputs_grad = ops.matmul(
+                        upstream, ops.transpose(float_kernel)
                     )
-                    float_kernel = ops.cast(float_kernel, self.compute_dtype)
-                    # Transpose: [out, in] -> [in, out]
-                    float_kernel = ops.transpose(float_kernel)
-                inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
-                return (inputs_grad, None, None, None, None)
+                    return (inputs_grad, None, None)
 
-            # Forward pass dequantization
-            if block_size is None or block_size == -1:
-                # Per-channel: unpacked is [out, in]
+                # Forward pass: per-channel dequantization
                 output_scale = kernel_scale
                 if self.inputs_quantizer:
                     inputs, inputs_scale = self.inputs_quantizer(
@@ -880,36 +859,59 @@ class Dense(Layer):
                 x = ops.matmul(inputs, ops.transpose(unpacked_kernel))
                 x = ops.cast(x, self.compute_dtype)
                 x = ops.divide(x, output_scale)
-            else:
-                # Sub-channel: use dequantize_with_sz_map directly (like GPTQ)
+                return x, grad_fn
+
+            x = matmul_per_channel_with_inputs_gradient(
+                inputs,
+                ops.convert_to_tensor(self._kernel),
+                ops.convert_to_tensor(self.kernel_scale),
+            )
+        else:
+            # Sub-channel: asymmetric quantization (with zero point)
+            @ops.custom_gradient
+            def matmul_sub_channel_with_inputs_gradient(
+                inputs, kernel, kernel_scale, kernel_zero, g_idx
+            ):
+                """Custom gradient for sub-channel int4 quantized weights."""
+                # Unpack: stored as [ceil(out/2), in], unpack along axis 0
+                unpacked_kernel = quantizers.unpack_int4(
+                    kernel, self._orig_output_dim, axis=0
+                )
+
+                def grad_fn(*args, upstream=None):
+                    if upstream is None:
+                        (upstream,) = args
+                    # Sub-channel: use dequantize_with_sz_map directly (GPTQ)
+                    float_kernel = dequantize_with_sz_map(
+                        unpacked_kernel,
+                        kernel_scale,
+                        kernel_zero,
+                        g_idx,
+                    )
+                    float_kernel = ops.cast(float_kernel, self.compute_dtype)
+                    # Transpose: [out, in] -> [in, out]
+                    float_kernel = ops.transpose(float_kernel)
+                    inputs_grad = ops.matmul(
+                        upstream, ops.transpose(float_kernel)
+                    )
+                    return (inputs_grad, None, None, None, None)
+
+                # Forward pass: sub-channel dequantization (like GPTQ)
                 float_kernel = dequantize_with_sz_map(
                     unpacked_kernel, kernel_scale, kernel_zero, g_idx
                 )
                 float_kernel = ops.cast(float_kernel, self.compute_dtype)
                 # Transpose: [out, in] -> [in, out]
                 x = ops.matmul(inputs, ops.transpose(float_kernel))
-            return x, grad_fn
+                return x, grad_fn
 
-        # Use actual tensors if available, otherwise use dummy tensors
-        # (TensorFlow's custom_gradient requires all args to be tensors).
-        # kernel_zero and g_idx are always created together for sub-channel.
-        kernel_zero_tensor = (
-            ops.convert_to_tensor(self.kernel_zero)
-            if has_g_idx
-            else ops.zeros((1,), dtype="int8")
-        )
-        g_idx_tensor = (
-            ops.convert_to_tensor(self.g_idx)
-            if has_g_idx
-            else ops.zeros((1,), dtype="float32")
-        )
-        x = matmul_with_inputs_gradient(
-            inputs,
-            ops.convert_to_tensor(self._kernel),
-            ops.convert_to_tensor(self.kernel_scale),
-            kernel_zero_tensor,
-            g_idx_tensor,
-        )
+            x = matmul_sub_channel_with_inputs_gradient(
+                inputs,
+                ops.convert_to_tensor(self._kernel),
+                ops.convert_to_tensor(self.kernel_scale),
+                ops.convert_to_tensor(self.kernel_zero),
+                ops.convert_to_tensor(self.g_idx),
+            )
 
         if self.lora_enabled:
             lora_x = ops.matmul(inputs, self.lora_kernel_a)

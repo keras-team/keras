@@ -997,103 +997,124 @@ class EinsumDense(Layer):
         """Forward pass for int4 quantized `EinsumDense`."""
 
         block_size = getattr(self, "_int4_block_size", None)
-        has_g_idx = hasattr(self, "g_idx")
 
-        @ops.custom_gradient
-        def einsum_with_inputs_gradient(
-            inputs, packed_kernel, kernel_scale, kernel_zero, g_idx
-        ):
-            """Performs int4 quantized einsum with a custom gradient.
+        if block_size is None or block_size == -1:
+            # Per-channel: symmetric quantization (no zero point needed)
+            @ops.custom_gradient
+            def einsum_per_channel_with_inputs_gradient(
+                inputs, packed_kernel, kernel_scale
+            ):
+                """Performs per-channel int4 quantized einsum."""
+                # Unpack: stored as [ceil(columns/2), rows], unpack along axis 0
+                unpacked_kernel = quantizers.unpack_int4(
+                    packed_kernel,
+                    self._int4_unpacked_column_size,
+                    axis=0,
+                    dtype="int8",
+                )
 
-            Uses GPTQ-style dequantization: unpack, dequantize_with_sz_map,
-            transpose, and reshape to original kernel shape.
-            """
-            # Unpack: stored as [ceil(columns/2), rows], unpack along axis 0
-            unpacked_kernel = quantizers.unpack_int4(
-                packed_kernel,
-                self._int4_unpacked_column_size,
-                axis=0,
-                dtype="int8",
-            )
-
-            def _dequantize_kernel(unpacked, scale, zero=None, g_idx_t=None):
-                """Helper to dequantize kernel (GPTQ-style)."""
-                if block_size is None or block_size == -1:
+                def _dequantize_kernel(unpacked, scale):
+                    """Helper to dequantize kernel (per-channel)."""
                     # Per-channel: unpacked is [columns, rows]
                     float_kernel = ops.divide(
                         ops.cast(unpacked, dtype=self.compute_dtype),
                         ops.expand_dims(scale, axis=-1),
                     )
+                    # Transpose: [columns, rows] -> [rows, columns]
+                    float_kernel = ops.transpose(float_kernel)
+                    # Reshape to original kernel shape
+                    return ops.reshape(float_kernel, self.original_kernel_shape)
+
+                def grad_fn(*args, upstream=None):
+                    if upstream is None:
+                        (upstream,) = args
+                    float_kernel = _dequantize_kernel(
+                        unpacked_kernel, kernel_scale
+                    )
+                    inputs_grad = ops.einsum(
+                        self._custom_gradient_equation, upstream, float_kernel
+                    )
+                    return (inputs_grad, None, None)
+
+                if self.inputs_quantizer:
+                    # Per-channel with input quantization
+                    float_kernel = _dequantize_kernel(
+                        unpacked_kernel, kernel_scale
+                    )
+                    inputs_q, inputs_scale = self.inputs_quantizer(
+                        inputs, axis=self.quantization_axis
+                    )
+                    inputs_scale = self._adjust_scale_for_quant(
+                        inputs_scale, "input"
+                    )
+                    x = ops.einsum(self.equation, inputs_q, float_kernel)
+                    x = ops.cast(x, self.compute_dtype)
+                    x = ops.divide(x, inputs_scale)
                 else:
+                    # Weight-only per-channel quantization
+                    float_kernel = _dequantize_kernel(
+                        unpacked_kernel, kernel_scale
+                    )
+                    x = ops.einsum(self.equation, inputs, float_kernel)
+                return x, grad_fn
+
+            x = einsum_per_channel_with_inputs_gradient(
+                inputs,
+                ops.convert_to_tensor(self._kernel),
+                ops.convert_to_tensor(self.kernel_scale),
+            )
+        else:
+            # Sub-channel: asymmetric quantization (with zero point)
+            @ops.custom_gradient
+            def einsum_sub_channel_with_inputs_gradient(
+                inputs, packed_kernel, kernel_scale, kernel_zero, g_idx
+            ):
+                """Performs sub-channel int4 quantized einsum."""
+                # Unpack: stored as [ceil(columns/2), rows], unpack along axis 0
+                unpacked_kernel = quantizers.unpack_int4(
+                    packed_kernel,
+                    self._int4_unpacked_column_size,
+                    axis=0,
+                    dtype="int8",
+                )
+
+                def _dequantize_kernel(unpacked, scale, zero, g_idx_t):
+                    """Helper to dequantize kernel (sub-channel)."""
                     # Sub-channel: use dequantize_with_sz_map directly
                     float_kernel = dequantize_with_sz_map(
                         unpacked, scale, zero, g_idx_t
                     )
                     float_kernel = ops.cast(float_kernel, self.compute_dtype)
-                # Transpose: [columns, rows] -> [rows, columns]
-                float_kernel = ops.transpose(float_kernel)
-                # Reshape to original kernel shape
-                return ops.reshape(float_kernel, self.original_kernel_shape)
+                    # Transpose: [columns, rows] -> [rows, columns]
+                    float_kernel = ops.transpose(float_kernel)
+                    # Reshape to original kernel shape
+                    return ops.reshape(float_kernel, self.original_kernel_shape)
 
-            def grad_fn(*args, upstream=None):
-                if upstream is None:
-                    (upstream,) = args
-                float_kernel = _dequantize_kernel(
-                    unpacked_kernel, kernel_scale, kernel_zero, g_idx
-                )
-                inputs_grad = ops.einsum(
-                    self._custom_gradient_equation, upstream, float_kernel
-                )
-                return (inputs_grad, None, None, None, None)
+                def grad_fn(*args, upstream=None):
+                    if upstream is None:
+                        (upstream,) = args
+                    float_kernel = _dequantize_kernel(
+                        unpacked_kernel, kernel_scale, kernel_zero, g_idx
+                    )
+                    inputs_grad = ops.einsum(
+                        self._custom_gradient_equation, upstream, float_kernel
+                    )
+                    return (inputs_grad, None, None, None, None)
 
-            # For grouped quantization, always dequantize kernel first
-            if block_size is not None and block_size != -1:
+                # Sub-channel: always dequantize kernel first
                 float_kernel = _dequantize_kernel(
                     unpacked_kernel, kernel_scale, kernel_zero, g_idx
                 )
                 x = ops.einsum(self.equation, inputs, float_kernel)
-            elif self.inputs_quantizer:
-                # Per-channel with input quantization
-                float_kernel = _dequantize_kernel(
-                    unpacked_kernel, kernel_scale, kernel_zero, g_idx
-                )
-                inputs_q, inputs_scale = self.inputs_quantizer(
-                    inputs, axis=self.quantization_axis
-                )
-                inputs_scale = self._adjust_scale_for_quant(
-                    inputs_scale, "input"
-                )
-                x = ops.einsum(self.equation, inputs_q, float_kernel)
-                x = ops.cast(x, self.compute_dtype)
-                x = ops.divide(x, inputs_scale)
-            else:
-                # Weight-only per-channel quantization
-                float_kernel = _dequantize_kernel(
-                    unpacked_kernel, kernel_scale, kernel_zero, g_idx
-                )
-                x = ops.einsum(self.equation, inputs, float_kernel)
-            return x, grad_fn
+                return x, grad_fn
 
-        # Use actual tensors if available, otherwise use dummy tensors
-        # (TensorFlow's custom_gradient requires all args to be tensors).
-        # kernel_zero and g_idx are always created together for sub-channel.
-        kernel_zero_tensor = (
-            ops.convert_to_tensor(self.kernel_zero)
-            if has_g_idx
-            else ops.zeros((1,), dtype="int8")
-        )
-        g_idx_tensor = (
-            ops.convert_to_tensor(self.g_idx)
-            if has_g_idx
-            else ops.zeros((1,), dtype="float32")
-        )
-        x = einsum_with_inputs_gradient(
-            inputs,
-            ops.convert_to_tensor(self._kernel),
-            ops.convert_to_tensor(self.kernel_scale),
-            kernel_zero_tensor,
-            g_idx_tensor,
-        )
+            x = einsum_sub_channel_with_inputs_gradient(
+                inputs,
+                ops.convert_to_tensor(self._kernel),
+                ops.convert_to_tensor(self.kernel_scale),
+                ops.convert_to_tensor(self.kernel_zero),
+                ops.convert_to_tensor(self.g_idx),
+            )
 
         # Add LoRA contribution if enabled
         if self.lora_enabled:
