@@ -1179,13 +1179,13 @@ def rot90(array, k=1, axes=(0, 1)):
     result = array
 
     for _ in range(k):
-        # 1️⃣ Transpose axis1 <-> axis2
+        # 1️ Transpose axis1 <-> axis2
         perm = list(range(ndim))
         perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
         perm_const = ov_opset.constant(perm, Type.i32).output(0)
         result = ov_opset.transpose(result, perm_const).output(0)
 
-        # 2️⃣ Reverse along axis1 using StridedSlice
+        # 2️ Reverse along axis1 using StridedSlice
         begin = [0] * ndim
         end = [0] * ndim
         strides = [1] * ndim
