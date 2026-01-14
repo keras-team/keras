@@ -1337,6 +1337,8 @@ class Layer(BackendLayer, Operation):
             return self._int4_call(*args, **kwargs)
         elif self.quantization_mode == "gptq":
             return self._gptq_call(*args, **kwargs)
+        elif self.quantization_mode == "awq":
+            return self._awq_call(*args, **kwargs)
         else:
             raise self._quantization_mode_error(self.quantization_mode)
 
@@ -1351,6 +1353,9 @@ class Layer(BackendLayer, Operation):
 
     def _gptq_call(self, *args, **kwargs):
         raise self._not_implemented_error(self._gptq_call)
+
+    def _awq_call(self, *args, **kwargs):
+        raise self._not_implemented_error(self._awq_call)
 
     def _not_implemented_error(self, attr, msg=None):
         if callable(attr):

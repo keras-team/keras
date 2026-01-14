@@ -131,7 +131,7 @@ def get_dataloader(
     pieces = []
     if isinstance(dataset_list[0], str):
         for i, s in enumerate(dataset_list):
-            toks = np.asarray(tokenizer.tokenize(s)).reshape(-1)
+            toks = ops.convert_to_numpy(tokenizer.tokenize(s)).reshape(-1)
             pieces.append(toks)
             # avoid windows that span document boundaries
             if eos_id is not None and i < len(dataset_list) - 1:

@@ -1394,7 +1394,66 @@ def isreal(x):
 
 
 def kron(x1, x2):
-    raise NotImplementedError("`kron` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "kron()")
+    x1_shape = x1.get_partial_shape()
+    x2_shape = x2.get_partial_shape()
+    if x1_shape.rank.is_dynamic or x2_shape.rank.is_dynamic:
+        raise ValueError(
+            "`kron` does not support tensors with dynamic rank for "
+            "the OpenVINO backend."
+        )
+    ndim1 = x1_shape.rank.get_length()
+    ndim2 = x2_shape.rank.get_length()
+    if ndim1 < ndim2:
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            ov_opset.constant(ndim2 - ndim1, Type.i32),
+            ov_opset.constant(1, Type.i32),
+        )
+        x1 = ov_opset.unsqueeze(x1, axes)
+        ndim1 = ndim2
+    elif ndim2 < ndim1:
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            ov_opset.constant(ndim1 - ndim2, Type.i32),
+            ov_opset.constant(1, Type.i32),
+        )
+        x2 = ov_opset.unsqueeze(x2, axes)
+        ndim2 = ndim1
+    shape1 = ov_opset.shape_of(x1, Type.i32)
+    shape2 = ov_opset.shape_of(x2, Type.i32)
+    ones = ov_opset.broadcast(
+        ov_opset.constant(1, Type.i32), ov_opset.constant([ndim1], Type.i32)
+    )
+    axis = ov_opset.constant(1, Type.i32)
+    flatten = ov_opset.constant([-1], Type.i32)
+    unsqueezed_ones = ov_opset.unsqueeze(ones, axis)
+    x1_new_shape = ov_opset.reshape(
+        ov_opset.concat(
+            [ov_opset.unsqueeze(shape1, axis), unsqueezed_ones],
+            axis=1,
+        ),
+        flatten,
+        False,
+    )
+    x2_new_shape = ov_opset.reshape(
+        ov_opset.concat(
+            [unsqueezed_ones, ov_opset.unsqueeze(shape2, axis)],
+            axis=1,
+        ),
+        flatten,
+        False,
+    )
+    result = ov_opset.multiply(
+        ov_opset.reshape(x1, x1_new_shape, False),
+        ov_opset.reshape(x2, x2_new_shape, False),
+    )
+    result = ov_opset.reshape(
+        result, ov_opset.multiply(shape1, shape2), False
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def lcm(x1, x2):

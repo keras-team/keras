@@ -9,6 +9,7 @@ from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
 from keras.src.models.variable_mapping import map_saveable_variables
+from keras.src.quantizers.awq_core import awq_quantize
 from keras.src.quantizers.gptq_core import gptq_quantize
 from keras.src.quantizers.utils import should_quantize_layer
 from keras.src.saving import saving_api
@@ -547,7 +548,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 except AttributeError:
                     pass
 
-        if mode == "gptq":
+        if mode in ["gptq", "awq"]:
             # Resolve model structure.
             # 1. If quantization_layer_structure is provided inside the config,
             # use that.
@@ -559,14 +560,17 @@ class Model(Trainer, base_trainer.Trainer, Layer):
 
             if structure is None:
                 raise ValueError(
-                    "For 'gptq' mode, a valid quantization structure must be "
+                    f"For {mode=}, a valid quantization structure must be "
                     "provided either via `config.quantization_layer_structure` "
                     "or by overriding "
                     "`model.get_quantization_layer_structure(mode)`. The "
                     "structure should be a dictionary with keys "
                     "'pre_block_layers' and 'sequential_blocks'."
                 )
-            gptq_quantize(config, structure, filters=filters)
+            if mode == "gptq":
+                gptq_quantize(config, structure, filters=filters)
+            elif mode == "awq":
+                awq_quantize(config, structure, filters=filters)
 
         # If any layer was changed, we must rebuild the execution functions.
         if graph_modified:

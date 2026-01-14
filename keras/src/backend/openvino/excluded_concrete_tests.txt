@@ -16,7 +16,6 @@ NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
-NumpyDtypeTest::test_kron
 NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_ldexp
 NumpyDtypeTest::test_logaddexp2
@@ -78,7 +77,6 @@ NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_gcd
 NumpyTwoInputOpsCorrectnessTest::test_inner
-NumpyTwoInputOpsCorrectnessTest::test_kron
 NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_ldexp
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
@@ -93,12 +91,10 @@ NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_isreal
 NumpyOneInputOpsStaticShapeTest::test_view
 NumpyTwoInputOpsDynamicShapeTest::test_gcd
-NumpyTwoInputOpsDynamicShapeTest::test_kron
 NumpyTwoInputOpsDynamicShapeTest::test_lcm
 NumpyTwoInputOpsDynamicShapeTest::test_ldexp
 NumpyTwoInputOpsDynamicShapeTest::test_nextafter
 NumpyTwoInputOpsStaticShapeTest::test_gcd
-NumpyTwoInputOpsStaticShapeTest::test_kron
 NumpyTwoInputOpsStaticShapeTest::test_lcm
 NumpyTwoInputOpsStaticShapeTest::test_ldexp
 NumpyTwoInputOpsStaticShapeTest::test_nextafter
