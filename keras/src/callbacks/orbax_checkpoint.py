@@ -276,55 +276,24 @@ class OrbaxCheckpoint(MonitorCallback):
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
-            # For exact weight matching, we need to capture the state exactly
-            # as it will be serialized to disk
-            import keras
+            # Create exact state copy for weight matching
+            # For JAX backend, preserve native arrays for performance
+            # For other backends, convert to numpy for exact matching
+            if backend.backend() == "jax":
+                # Use original state for JAX backend to preserve performance
+                state_for_exact_matching = composite_state
+            else:
+                # Convert to numpy for non-JAX backends for exact matching
+                def _convert_to_numpy(obj):
+                    """Convert arrays to numpy format for exact matching."""
+                    if hasattr(obj, "shape"):  # Array-like objects
+                        return np.asarray(obj)
+                    return obj
 
-            backend = keras.backend.backend()
-
-            # Create a state copy using the same process as orbax serialization
-            state_for_exact_matching = {}
-            for key, value in composite_state.items():
-                if isinstance(value, dict):
-                    # Handle nested dictionaries (trainable/non-trainable)
-                    state_for_exact_matching[key] = {}
-                    for layer_name, layer_vars in value.items():
-                        if isinstance(layer_vars, dict):
-                            state_for_exact_matching[key][layer_name] = {}
-                            for var_name, var_value in layer_vars.items():
-                                # Convert to numpy arrays (orbax format)
-                                if backend == "jax":
-                                    import numpy as np
-
-                                    exact_state = state_for_exact_matching[key]
-                                    exact_state[layer_name][var_name] = (
-                                        np.asarray(var_value)
-                                    )
-                                else:
-                                    # For other backends, convert to numpy
-                                    import numpy as np
-
-                                    exact_state = state_for_exact_matching[key]
-                                    exact_state[layer_name][var_name] = (
-                                        np.asarray(var_value)
-                                    )
-                        else:
-                            # Handle non-dict values
-                            if backend == "jax":
-                                import numpy as np
-
-                                state_for_exact_matching[key][layer_name] = (
-                                    np.asarray(layer_vars)
-                                )
-                            else:
-                                import numpy as np
-
-                                state_for_exact_matching[key][layer_name] = (
-                                    np.asarray(layer_vars)
-                                )
-                else:
-                    # Handle non-weight values (configs, etc.)
-                    state_for_exact_matching[key] = value
+                # Use tree.map_structure for efficient deep conversion
+                state_for_exact_matching = tree.map_structure(
+                    _convert_to_numpy, composite_state
+                )
 
             # Use force_sync if explicitly specified, otherwise use the
             # save_on_background setting
