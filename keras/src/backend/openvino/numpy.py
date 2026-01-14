@@ -1126,22 +1126,28 @@ def expm1(x):
 
 def flip(x, axis=None):
     x_node = get_ov_output(x)
-    ndim = x.ndim
+
+    # Using OpenVINO tensor shape
+    ndim = len(x_node.get_partial_shape())
     if ndim is None:
         raise ValueError(
-            "The `flip` operation does not support tensors with dynamic rank"
+            "The `flip` operation does not support tensors with dynamic rank "
             "for the OpenVINO backend."
         )
+
     if axis is None:
         axis = list(range(ndim))
     elif isinstance(axis, int):
         axis = [axis]
+
     axis = [a + ndim if a < 0 else a for a in axis]
+
     begin = [0] * ndim
     end = [0] * ndim
     strides = [1] * ndim
     for a in axis:
         strides[a] = -1
+
     all_ones_mask = [1] * ndim
     result = ov_opset.strided_slice(
         data=x_node,
@@ -1152,6 +1158,61 @@ def flip(x, axis=None):
         end_mask=all_ones_mask,
     )
     return OpenVINOKerasTensor(result.output(0))
+
+
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the plane specified by axes."""
+    array = get_ov_output(array)
+
+    if not isinstance(axes, (tuple, list)) or len(axes) != 2:
+        raise ValueError("axes must be a tuple of length 2")
+
+    shape = array.get_partial_shape()
+    ndim = shape.rank.get_length()
+    if ndim is None:
+        raise ValueError(
+            "`rot90` does not support tensors with dynamic rank "
+            "for the OpenVINO backend."
+        )
+
+    axis1 = canonicalize_axis(axes[0], ndim)
+    axis2 = canonicalize_axis(axes[1], ndim)
+
+    if axis1 == axis2:
+        raise ValueError("axes must be different")
+
+    k = k % 4
+    if k == 0:
+        return OpenVINOKerasTensor(array)
+
+    result = array
+
+    for _ in range(k):
+        # 1️ Transpose axis1 <-> axis2
+        perm = list(range(ndim))
+        perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+        perm_const = ov_opset.constant(perm, Type.i32).output(0)
+        result = ov_opset.transpose(result, perm_const).output(0)
+
+        # 2️ Reverse along axis1 using StridedSlice
+        begin = [0] * ndim
+        end = [0] * ndim
+        strides = [1] * ndim
+        strides[axis1] = -1
+
+        begin_mask = [1] * ndim
+        end_mask = [1] * ndim
+
+        result = ov_opset.strided_slice(
+            data=result,
+            begin=begin,
+            end=end,
+            strides=strides,
+            begin_mask=begin_mask,
+            end_mask=end_mask,
+        ).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def floor(x):
