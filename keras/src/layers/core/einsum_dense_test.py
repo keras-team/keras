@@ -1538,7 +1538,8 @@ class EinsumDenseTest(testing.TestCase):
         config_grouped = Int4QuantizationConfig(block_size=block_size)
         layer_grouped.quantize("int4", config=config_grouped)
 
-        # GPTQ layout: Per-channel: (output_dim,), Grouped: (output_dim, n_groups)
+        # GPTQ layout: Per-channel: (output_dim,),
+        # Grouped: (output_dim, n_groups)
         self.assertEqual(layer_pc.kernel_scale.shape, (output_dim,))
         self.assertEqual(
             layer_grouped.kernel_scale.shape,
@@ -1635,7 +1636,8 @@ class EinsumDenseTest(testing.TestCase):
         layer.quantize("int4", config=config)
 
         # Total reduced dim = 4 * 32 = 128, n_groups = ceil(128/64) = 2
-        # GPTQ layout: scale shape is (columns, n_groups) = (output_dim, n_groups)
+        # GPTQ layout: scale shape is (columns, n_groups) =
+        # (output_dim, n_groups)
         # For this equation, output_dim=64, n_groups=ceil(128/64)=2
         kernel_scale = layer.kernel_scale
         self.assertIsNotNone(kernel_scale)

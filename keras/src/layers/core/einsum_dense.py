@@ -434,13 +434,6 @@ class EinsumDense(Layer):
             config["lora_alpha"] = self.lora_alpha
         if self.gptq_unpacked_column_size:
             config["gptq_unpacked_column_size"] = self.gptq_unpacked_column_size
-        # Save INT4 quantization attributes
-        if getattr(self, "_int4_unpacked_column_size", None):
-            config["_int4_unpacked_column_size"] = (
-                self._int4_unpacked_column_size
-            )
-            config["_int4_rows"] = self._int4_rows
-            config["original_kernel_shape"] = list(self.original_kernel_shape)
         return {**base_config, **config}
 
     @classmethod
@@ -451,22 +444,7 @@ class EinsumDense(Layer):
                 config.get("quantization_config", None)
             )
         )
-        # Extract INT4 attributes (not constructor parameters)
-        int4_unpacked_column_size = config.pop(
-            "_int4_unpacked_column_size", None
-        )
-        int4_rows = config.pop("_int4_rows", None)
-        original_kernel_shape = config.pop("original_kernel_shape", None)
-
-        layer = super().from_config(config)
-
-        # Restore INT4 attributes if present
-        if int4_unpacked_column_size is not None:
-            layer._int4_unpacked_column_size = int4_unpacked_column_size
-            layer._int4_rows = int4_rows
-            layer.original_kernel_shape = tuple(original_kernel_shape)
-
-        return layer
+        return super().from_config(config)
 
     @property
     def variable_serialization_spec(self):
