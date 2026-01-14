@@ -242,7 +242,7 @@ class OrbaxCheckpoint(MonitorCallback):
             return True
         return False
 
-    def _save_checkpoint(self, step, logs=None, force_sync=False):
+    def _save_checkpoint(self, step, logs=None, force_sync=None):
         """Save a checkpoint at the given step with multi-host coordination."""
 
         # --- Prepare Composite State (Backend-Agnostic) ---
@@ -276,19 +276,73 @@ class OrbaxCheckpoint(MonitorCallback):
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
-            # Always capture state in memory for exact matching
-            import copy
+            # For exact weight matching, we need to capture the state exactly
+            # as it will be serialized to disk
+            import keras
 
-            captured_state = copy.deepcopy(composite_state)
+            backend = keras.backend.backend()
 
-            if force_sync or not self.save_on_background:
+            # Create a state copy using the same process as orbax serialization
+            state_for_exact_matching = {}
+            for key, value in composite_state.items():
+                if isinstance(value, dict):
+                    # Handle nested dictionaries (trainable/non-trainable)
+                    state_for_exact_matching[key] = {}
+                    for layer_name, layer_vars in value.items():
+                        if isinstance(layer_vars, dict):
+                            state_for_exact_matching[key][layer_name] = {}
+                            for var_name, var_value in layer_vars.items():
+                                # Convert to numpy arrays (orbax format)
+                                if backend == "jax":
+                                    import numpy as np
+
+                                    exact_state = state_for_exact_matching[key]
+                                    exact_state[layer_name][var_name] = (
+                                        np.asarray(var_value)
+                                    )
+                                else:
+                                    # For other backends, convert to numpy
+                                    import numpy as np
+
+                                    exact_state = state_for_exact_matching[key]
+                                    exact_state[layer_name][var_name] = (
+                                        np.asarray(var_value)
+                                    )
+                        else:
+                            # Handle non-dict values
+                            if backend == "jax":
+                                import numpy as np
+
+                                state_for_exact_matching[key][layer_name] = (
+                                    np.asarray(layer_vars)
+                                )
+                            else:
+                                import numpy as np
+
+                                state_for_exact_matching[key][layer_name] = (
+                                    np.asarray(layer_vars)
+                                )
+                else:
+                    # Handle non-weight values (configs, etc.)
+                    state_for_exact_matching[key] = value
+
+            # Use force_sync if explicitly specified, otherwise use the
+            # save_on_background setting
+            use_sync = (
+                force_sync
+                if force_sync is not None
+                else not self.save_on_background
+            )
+
+            if use_sync:
                 # Synchronous save
                 self.checkpointer.save_pytree(step, composite_state)
-                self._last_saved_state = captured_state
             else:
                 # Async save
                 self.checkpointer.save_pytree_async(step, composite_state)
-                self._last_saved_state = captured_state
+
+            # Store the exact state that should match what's saved to disk
+            self._last_saved_state = state_for_exact_matching
 
             # Store the checkpoint path for reference
             self._last_checkpoint_path = os.path.join(self.directory, str(step))
@@ -343,45 +397,23 @@ class OrbaxCheckpoint(MonitorCallback):
 
         if should_save:
             # Use epoch number as the step for Orbax save
-            # For the final epoch, force synchronous saving to ensure exact
-            # weight matching
-            # Check if this is the final epoch by looking at epochs parameter
-            force_sync = False
-            if (
-                hasattr(self.model, "history")
-                and self.model.history is not None
-            ):
-                # Check if this is the last epoch based on training parameters
-                current_epoch = len(self.model.history.epoch)
-                initial_epoch = getattr(self.model.history, "initial_epoch", 0)
-                target_epochs = getattr(self, "_target_epochs", None)
-                if (
-                    target_epochs is not None
-                    and (current_epoch - initial_epoch) >= target_epochs - 1
-                ):
-                    force_sync = True
-
-            # Also force sync if this is epoch 2 or higher (likely final
-            # for most tests)
-            if epoch >= 2:
-                force_sync = True
-
-            self._save_checkpoint(step=epoch, logs=logs, force_sync=force_sync)
+            self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
         # Set flag to indicate training is ending (for any remaining callbacks)
         self._training_ending = True
 
-        # For async saving, force a final synchronous checkpoint that will
-        # be loaded
-        # This ensures exact weight matching for testing
+        # For exact weight matching, save a final checkpoint that will be
+        # loaded. Ensure this checkpoint will be preserved and found.
         if self.model:
-            # Save one final checkpoint with step 999999 to ensure it's
-            # preserved and loaded
             try:
-                final_step = (
-                    999999  # Use a high step number that will be preserved
-                )
+                # Wait for any pending async saves to complete first
+                self.checkpointer.wait()
+
+                # Save a final checkpoint with force_sync=True for atomicity
+                # Use a step preserved by the max_to_keep policy
+                final_step = max(getattr(self, "_current_epoch", 0), 999999)
+
                 self._save_checkpoint(
                     step=final_step, logs=logs, force_sync=True
                 )
@@ -430,26 +462,6 @@ class OrbaxCheckpoint(MonitorCallback):
         # Multi-host synchronization: ensure all hosts complete
         self._sync_processes("checkpoint_wait_complete")
 
-    def get_final_saved_weights(self):
-        """Get the exact weights that were saved at the end of training.
-
-        This method returns the weights saved during on_train_end, which
-        provides exact weight matching for testing purposes since training
-        has completed.
-
-        Returns:
-            List of weight arrays that were saved at training end,
-            or None if training hasn't ended yet.
-            The order matches model.get_weights().
-        """
-        if (
-            not hasattr(self, "_final_saved_state")
-            or self._final_saved_state is None
-        ):
-            return None
-
-        return self._extract_weights_from_state(self._final_saved_state)
-
     def _extract_weights_from_state(self, state):
         """Extract weights from saved state in model.get_weights() order."""
         if state is None:
@@ -486,79 +498,21 @@ class OrbaxCheckpoint(MonitorCallback):
     def get_last_saved_weights(self):
         """Get the weights that were saved in the last checkpoint.
 
-        For exact weight matching after training completes, use
-        get_final_saved_weights() instead.
+        Returns the exact weights that match what will be loaded from the
+        checkpoint. After training ends, this returns the final checkpoint
+        weights that provide exact weight matching for testing.
 
         Returns:
             List of weight arrays that were saved in the last checkpoint,
             or None if no checkpoint has been saved yet.
             The order matches model.get_weights().
         """
-        # First try to get final weights if training has ended
-        final_weights = self.get_final_saved_weights()
-        if final_weights is not None:
-            return final_weights
+        # If training has ended, use the final saved state for exact matching
+        if (
+            hasattr(self, "_final_saved_state")
+            and self._final_saved_state is not None
+        ):
+            return self._extract_weights_from_state(self._final_saved_state)
 
-        # Fallback to the last saved state during training
+        # During training, use the last saved state
         return self._extract_weights_from_state(self._last_saved_state)
-
-    def get_last_saved_weights_exact(self):
-        """Get exact weights for testing, uses synchronous save to ensure
-        precision.
-
-        This method is specifically for testing scenarios where exact weight
-        matching is required. It performs a synchronous save to ensure
-        deterministic state capture.
-
-        Returns:
-            List of weight arrays that were saved in the last checkpoint,
-            or None if no checkpoint has been saved yet.
-            The order matches model.get_weights().
-        """
-        if self._last_saved_state is None:
-            return None
-
-        # For exact matching, we need to ensure the model hasn't changed
-        # since save. The challenge with async saving is timing - the model
-        # may continue training while the save happens in background. For
-        # exact testing, we should use sync saves.
-
-        # Extract weights from the saved state in the same order as
-        # model.get_weights()
-        weights = []
-
-        # Collect trainable weights first (in model layer order)
-        if "trainable_variables" in self._last_saved_state:
-            trainable_vars = self._last_saved_state["trainable_variables"]
-            # Iterate through model layers to maintain order
-            for layer in self.model.layers:
-                layer_name = layer.name
-                if layer_name in trainable_vars:
-                    # Add weights in the order they appear in the layer
-                    layer_vars = trainable_vars[layer_name]
-                    for weight in layer.trainable_weights:
-                        weight_name = weight.name.split("/")[
-                            -1
-                        ]  # Get base name (e.g., 'kernel', 'bias')
-                        if weight_name in layer_vars:
-                            weights.append(layer_vars[weight_name])
-
-        # Then collect non-trainable weights (in model layer order)
-        if "non_trainable_variables" in self._last_saved_state:
-            non_trainable_vars = self._last_saved_state[
-                "non_trainable_variables"
-            ]
-            # Iterate through model layers to maintain order
-            for layer in self.model.layers:
-                layer_name = layer.name
-                if layer_name in non_trainable_vars:
-                    # Add weights in the order they appear in the layer
-                    layer_vars = non_trainable_vars[layer_name]
-                    for weight in layer.non_trainable_weights:
-                        weight_name = weight.name.split("/")[
-                            -1
-                        ]  # Get base name (e.g., 'moving_mean')
-                        if weight_name in layer_vars:
-                            weights.append(layer_vars[weight_name])
-
-        return weights
