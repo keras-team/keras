@@ -6,26 +6,32 @@ import pytest
 
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
 
-from parameter_sharding import ShardedWeight
-from parameter_sharding import make_parameter_sharded_model
-
-import keras
-from keras import distribution
-from keras import ops
 from keras.src import backend
+from keras.src import distribution
+from keras.src import ops
+from keras.src.distribution.tensor_parallel.parameter_sharding import (
+    ShardedWeight,
+)
+from keras.src.distribution.tensor_parallel.parameter_sharding import (
+    make_parameter_sharded_model,
+)
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
 from keras.src.distribution.tensor_parallel.tensor_layout import (
     split_tensor_for_parallelism,
 )
+from keras.src.layers import Activation
+from keras.src.layers import Dense
+from keras.src.layers import Input
+from keras.src.models import Model
 from keras.src.testing import TestCase
 
 
 def _create_simple_mlp():
-    inputs = keras.Input(shape=(16,), name="input")
-    x = keras.layers.Dense(32, use_bias=True, name="up_proj")(inputs)
-    x = keras.layers.Activation("relu")(x)
-    outputs = keras.layers.Dense(8, use_bias=False, name="down_proj")(x)
-    return keras.Model(inputs=inputs, outputs=outputs, name="simple_mlp")
+    inputs = Input(shape=(16,), name="input")
+    x = Dense(32, use_bias=True, name="up_proj")(inputs)
+    x = Activation("relu")(x)
+    outputs = Dense(8, use_bias=False, name="down_proj")(x)
+    return Model(inputs=inputs, outputs=outputs, name="simple_mlp")
 
 
 @pytest.mark.skipif(
