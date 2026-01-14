@@ -1172,17 +1172,34 @@ def rot90(array, k=1, axes=(0, 1)):
     result = array
 
     for _ in range(k):
-        # 1. Transpose axis1 and axis2
+        # 1. Transpose
         perm = list(range(ndim))
         perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
         perm_const = ov_opset.constant(perm, Type.i32).output(0)
         result = ov_opset.transpose(result, perm_const).output(0)
 
-        # 2. Reverse along axis1 (OpenVINO-style)
-        axes_mask = [False] * ndim
-        axes_mask[axis1] = True
-        axes_const = ov_opset.constant(axes_mask, Type.boolean).output(0)
-        result = ov_opset.reverse(result, axes_const).output(0)
+        # 2. Reverse along axis1 using reverse_sequence
+        shape = ov_opset.shape_of(result).output(0)
+        seq_len = ov_opset.gather(
+            shape,
+            ov_opset.constant(axis1, Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+
+        seq_lengths = ov_opset.broadcast(
+            seq_len,
+            ov_opset.constant([1], Type.i32),
+        ).output(0)
+
+        # batch_axis must be different from seq_axis
+        batch_axis = axis2 if axis2 != axis1 else 0
+
+        result = ov_opset.reverse_sequence(
+            result,
+            seq_lengths,
+            batch_axis=batch_axis,
+            seq_axis=axis1,
+        ).output(0)
 
     return OpenVINOKerasTensor(result)
 
