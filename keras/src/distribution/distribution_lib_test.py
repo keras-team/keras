@@ -1,36 +1,25 @@
 """Test for distribution_lib.py."""
 
 import os
-
-# FILE: keras/src/distribution/distribution_lib_test.py
-
-
-# --- TOP-LEVEL ENVIRONMENT SETUP ---
-# This MUST be at the top of the file, before any Keras/TF imports.
-# It configures the environment for all tests in this file.
-os.environ["KERAS_BACKEND"] = "jax"
-os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-
-# --- Now continue with the rest of the imports ---
-# ... and so on
 from unittest import mock
 
 import numpy as np
 import pytest
 import tensorflow as tf
 
-import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
 from keras.src.distribution.distribution_lib import AutoTPDistribution
-
-try:
-    import keras_hub
-except ImportError:
-    keras_hub = None
+from keras.src.distribution.tensor_parallel.tensor_parallel import (
+    TensorParallelKeras,
+)
+from keras.src.layers import Dense
+from keras.src.layers import Input
+from keras.src.losses import SparseCategoricalCrossentropy
+from keras.src.models import Model
+from keras.src.optimizers import Adam
 
 
 @pytest.mark.skipif(
@@ -563,10 +552,10 @@ class AutoTPDistributionTest(testing.TestCase):
         self.devices = distribution_lib.list_devices()
         if len(self.devices) < 2:
             self.skipTest("This test requires at least 2 devices.")
-        inputs = keras.Input(shape=(4,), name="input_layer")
-        x = keras.layers.Dense(8, name="dense_1")(inputs)
-        outputs = keras.layers.Dense(2, name="dense_2")(x)
-        self.model = keras.Model(inputs, outputs)
+        inputs = Input(shape=(4,), name="input_layer")
+        x = Dense(8, name="dense_1")(inputs)
+        outputs = Dense(2, name="dense_2")(x)
+        self.model = Model(inputs, outputs)
 
     def test_init_with_explicit_device_mesh(self):
         """Tests initialization with a user-provided DeviceMesh."""
@@ -579,7 +568,7 @@ class AutoTPDistributionTest(testing.TestCase):
         self.assertEqual(distribution.batch_dim_name, "data")
         self.assertIsInstance(
             distribution.model,
-            keras.src.distribution.tensor_parallel.tensor_parallel.TensorParallelKeras,
+            TensorParallelKeras,
         )
         self.assertEqual(distribution.model.world_size, 2)
 
@@ -654,10 +643,8 @@ class AutoTPDistributionTest(testing.TestCase):
 
         with distribution.scope():
             dist_model.compile(
-                optimizer=keras.optimizers.Adam(0.01),
-                loss=keras.losses.SparseCategoricalCrossentropy(
-                    from_logits=True
-                ),
+                optimizer=Adam(0.01),
+                loss=SparseCategoricalCrossentropy(from_logits=True),
                 metrics=["accuracy"],
             )
 
