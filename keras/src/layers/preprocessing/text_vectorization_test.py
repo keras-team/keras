@@ -314,3 +314,112 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         # after custom split, the outputted index should be the last
         # token in the vocab.
         self.assertAllEqual(output, [[4]])
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_tf_idf_adapted_vocabulary(self):
+        """Test saving/loading TextVectorization with tf-idf and
+        adapted vocab.
+        """
+        input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
+        model = Sequential(
+            [
+                layers.Input(dtype="string", shape=(1,)),
+                layers.TextVectorization(output_mode="tf_idf"),
+            ]
+        )
+        model.layers[0].adapt(input_data)
+        output = model(input_data)
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "model_tf_idf_adapted.keras"
+        )
+        model.save(temp_filepath)
+        model = saving.load_model(temp_filepath)
+        self.assertAllClose(output, model(input_data))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_tf_idf_preset_vocabulary(self):
+        """Test saving/loading TextVectorization with tf-idf and
+        preset vocab.
+        """
+        input_data = np.array(["foo bar", "baz foo foo"])
+        model = Sequential(
+            [
+                layers.Input(dtype="string", shape=(1,)),
+                layers.TextVectorization(
+                    output_mode="tf_idf",
+                    vocabulary=["foo", "bar", "baz"],
+                    idf_weights=[0.3, 0.5, 0.2],
+                ),
+            ]
+        )
+        output = model(input_data)
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "model_tf_idf_preset.keras"
+        )
+        model.save(temp_filepath)
+        model = saving.load_model(temp_filepath)
+        self.assertAllClose(output, model(input_data))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_tf_idf_with_ngrams(self):
+        """Test saving/loading TextVectorization with tf-idf and ngrams."""
+        input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
+        model = Sequential(
+            [
+                layers.Input(dtype="string", shape=(1,)),
+                layers.TextVectorization(output_mode="tf_idf", ngrams=(1, 2)),
+            ]
+        )
+        model.layers[0].adapt(input_data)
+        output = model(input_data)
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "model_tf_idf_ngrams.keras"
+        )
+        model.save(temp_filepath)
+        model = saving.load_model(temp_filepath)
+        self.assertAllClose(output, model(input_data))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_tf_idf_with_max_tokens(self):
+        """Test saving/loading TextVectorization with tf-idf and max_tokens."""
+        input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
+        model = Sequential(
+            [
+                layers.Input(dtype="string", shape=(1,)),
+                layers.TextVectorization(
+                    output_mode="tf_idf", max_tokens=5, pad_to_max_tokens=True
+                ),
+            ]
+        )
+        model.layers[0].adapt(input_data)
+        output = model(input_data)
+        # Verify output has padded shape
+        self.assertEqual(output.shape[-1], 5)
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "model_tf_idf_max_tokens.keras"
+        )
+        model.save(temp_filepath)
+        model = saving.load_model(temp_filepath)
+        loaded_output = model(input_data)
+        self.assertAllClose(output, loaded_output)
+        self.assertEqual(loaded_output.shape[-1], 5)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_tf_idf_config_serialization(self):
+        """Test that tf-idf config is properly serialized and deserialized."""
+        layer = layers.TextVectorization(
+            output_mode="tf_idf",
+            vocabulary=["foo", "bar", "baz"],
+            idf_weights=[0.3, 0.5, 0.2],
+        )
+        self.run_class_serialization_test(layer)
