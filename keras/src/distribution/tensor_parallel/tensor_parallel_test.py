@@ -1,12 +1,14 @@
 import numpy as np
 import pytest
 
-import keras
-from keras import layers
 from keras.src import backend
+from keras.src import layers
 from keras.src.distribution.tensor_parallel.tensor_parallel import (
     TensorParallelKeras,
 )
+from keras.src.layers import Input
+from keras.src.models import Model
+from keras.src.optimizers import Adam
 from keras.src.testing import TestCase
 
 
@@ -23,12 +25,12 @@ class TensorParallelKerasTest(TestCase):
         """Set up a reusable model and data for all tests."""
         super().setUp()
 
-        inputs = keras.Input(shape=(64,), name="input_layer")
+        inputs = Input(shape=(64,), name="input_layer")
         x = layers.Dense(128, activation="relu", name="dense_column_sharded")(
             inputs
         )
         outputs = layers.Dense(10, name="dense_row_sharded")(x)
-        self.original_model = keras.Model(
+        self.original_model = Model(
             inputs=inputs, outputs=outputs, name="test_mlp"
         )
 
@@ -80,12 +82,12 @@ class TensorParallelKerasTest(TestCase):
         Tests if the output of the sharded model is numerically identical
         to the original model.
         """
-        inputs = keras.Input(shape=(64,), name="input_layer")
+        inputs = Input(shape=(64,), name="input_layer")
         x = layers.Dense(
             128, activation="relu", kernel_initializer="glorot_uniform"
         )(inputs)
         outputs = layers.Dense(10, kernel_initializer="glorot_uniform")(x)
-        original_model = keras.Model(inputs=inputs, outputs=outputs)
+        original_model = Model(inputs=inputs, outputs=outputs)
 
         input_data = np.random.rand(32, 64).astype("float32")
 
@@ -112,7 +114,7 @@ class TensorParallelKerasTest(TestCase):
         )
 
         tp_model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=0.01),
+            optimizer=Adam(learning_rate=0.01),
             loss="mse",
         )
 

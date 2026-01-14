@@ -10,13 +10,15 @@ from typing import Union
 
 import numpy as np
 
-import keras
-from keras import ops
+from keras.src import ops
 from keras.src.distribution import list_devices
 from keras.src.distribution.tensor_parallel.autoconfig import get_default_config
 from keras.src.distribution.tensor_parallel.parameter_sharding import (
     make_parameter_sharded_model,
 )
+from keras.src.layers import Add
+from keras.src.layers import Input
+from keras.src.layers import Lambda
 from keras.src.models import Model
 
 
@@ -228,7 +230,7 @@ class TensorParallelKeras(Model):
             return self._original_model
 
         input_layers = {
-            inp.name.split(":")[0]: keras.Input(
+            inp.name.split(":")[0]: Input(
                 shape=inp.shape[1:],
                 dtype=inp.dtype,
                 name=inp.name.split(":")[0],
@@ -274,18 +276,18 @@ class TensorParallelKeras(Model):
             final_output = ops.concatenate(partial_outputs, axis=-1)
             original_output_dim = self._original_model.output_shape[-1]
             if final_output.shape[-1] != original_output_dim:
-                final_output = keras.layers.Lambda(
-                    lambda x: x[..., :original_output_dim]
-                )(final_output)
+                final_output = Lambda(lambda x: x[..., :original_output_dim])(
+                    final_output
+                )
         elif sharding_type == "row":
             if len(partial_outputs) > 1:
-                summed_output = keras.layers.Add()(partial_outputs)
+                summed_output = Add()(partial_outputs)
             else:
                 summed_output = partial_outputs[0]
 
             if final_layer.use_bias:
                 bias = final_layer.bias
-                final_output = keras.layers.Lambda(
+                final_output = Lambda(
                     lambda x: x - bias * (self.device_count - 1)
                 )(summed_output)
             else:
@@ -293,7 +295,7 @@ class TensorParallelKeras(Model):
         else:
             final_output = partial_outputs[0]
 
-        assembled_model = keras.Model(
+        assembled_model = Model(
             inputs=list(input_layers.values()), outputs=final_output
         )
         return assembled_model
