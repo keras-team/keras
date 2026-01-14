@@ -1,487 +1,412 @@
+import functools
 import re
 
-from keras.src.backend import distributed_backend
+from keras import Variable
+from keras import device
+from keras.src import layers
+from keras.src import ops
+from keras.src.backend import distribution_lib
+from keras.src.distribution.tensor_parallel.tensor_layout import (
+    split_tensor_for_parallelism,
+)
 
 
 class ShardedWeight:
-    """A wrapper for a sharded Keras Variable to provide a consistent interface.
+    """Wrapper for a sharded Keras Variable providing a consistent interface.
 
-    This class wraps a tensor shard in a Keras Variable, making it compatible
-    with the Keras ecosystem. It exposes common variable properties like name,
-    shape, and trainable status.
+    Attributes:
+        regularizer: Placeholder for weight regularization logic.
     """
 
-    def __init__(self, tensor_shard, name, trainable=True):
+    def __init__(self, tensor_shard, name, trainable=True, device_id=None):
         """Initializes the ShardedWeight.
 
         Args:
-            tensor_shard: The tensor piece (shard) to be managed by this weight.
-            name (str): The name for the underlying Keras Variable.
-            trainable (bool, optional): Whether the variable is trainable.
-                Defaults to True.
+            tensor_shard: The tensor slice belonging to this rank.
+            name: The original variable name.
+            trainable: Boolean indicating if the weight is trainable.
+            device_id: Device identifier string for the variable placement.
         """
-        import keras
+        dev_name = device_id if device_id else "UNKNOWN_DEVICE"
 
-        self._variable = keras.Variable(
-            initializer=tensor_shard, trainable=trainable, name=name
-        )
+        safe_name = name.replace("/", "_").replace(":", "_")
+        with device(dev_name):
+            self._variable = Variable(
+                initializer=tensor_shard, trainable=trainable, name=safe_name
+            )
         self.regularizer = None
 
     @property
     def name(self):
-        """Returns the name of the underlying variable."""
+        """Returns variable name."""
         return self._variable.name
 
     @property
     def trainable(self):
-        """Returns whether the variable is trainable."""
+        """Returns trainability."""
         return self._variable.trainable
 
     @property
     def shape(self):
-        """Returns the shape of the variable."""
+        """Returns sharded shape."""
         return self._variable.shape
 
     @property
     def dtype(self):
-        """Returns the dtype of the underlying variable."""
+        """Returns data type."""
         return self._variable.dtype
 
     @property
     def variable(self):
-        """Provides direct access to the underlying Keras Variable."""
+        """Returns the internal Variable object."""
         return self._variable
 
     @property
     def value(self):
-        """Returns the value of the underlying variable."""
+        """Returns the variable value."""
         return self._variable.value
 
     def numpy(self):
-        """Returns the value of the variable as a NumPy array."""
+        """Returns numpy representation."""
         return self._variable.numpy()
 
     def num_elements(self):
-        """Returns the total number of elements in the tensor."""
-        import keras
-
-        return keras.ops.size(self._variable)
-
-    def __repr__(self):
-        """Returns a string representation of the ShardedWeight."""
-        return (
-            f"<ShardedWeight name='{self.name}' "
-            f"shape={self.shape} trainable={self.trainable}>"
-        )
+        """Returns total element count."""
+        return ops.size(self._variable)
 
 
 class ParameterShardingStrategy:
-    """Implements parameter-level sharding for a Keras model.
+    """Handles parameter-level sharding and configuration normalization."""
 
-    This strategy shards a model's weights according to a provided configuration
-    without altering the model's architecture. It identifies weights
-    that match specific patterns, applies sharding actions to them, and stores
-    the mapping between original and sharded weights.
-    """
-
-    def __init__(self, world_size, rank):
-        """Initializes the ParameterShardingStrategy.
+    def __init__(self, device_count, rank):
+        """Initializes the strategy.
 
         Args:
-            world_size (int): The total number of devices in distributed setup.
-            rank (int): The rank of the current device.
+            device_count: Total devices in the model axis.
+            rank: Current device rank.
         """
-        self.world_size = world_size
+        self.device_count = device_count
         self.rank = rank
         self.sharded_weights = {}
         self.original_weights = {}
         self.weight_mapping = {}
         self.sharded_weights_by_id = {}
+        self.param_path_map = {}
+        self._id_to_param_map = {}
 
     def shard_model_parameters(self, model, config, device_id):
-        """Shards model parameters based on a layout configuration.
-
-        This method iterates through the rules in configuration, finds matching
-        parameters in the model, and applies the specified sharding action. It
-        then returns a `ParameterShardedModel` wrapper that uses these sharded
-        weights.
+        """Orchestrates the sharding of model parameters.
 
         Args:
-            model (keras.Model): The Keras model to be sharded.
-            config (LayoutMap): A configuration object specifying which weights
-                to shard and how.
-            device_id: The device identifier for the current process.
+            model: Original model instance.
+            config: LayoutMap with sharding rules.
+            device_id: Targeted device identifier.
 
         Returns:
-            tuple: A tuple containing:
-                - ParameterShardedModel: The wrapped model with sharded
-                    parameters.
-                - set: A set of names of the parameters that were modified.
+            Tuple of (sharded_model, modified_parameters_set).
         """
         ParameterShardedModel = _define_parameter_sharded_model()
 
+        self.param_path_map = {w.path: w for w in model.weights}
+        for w in model.weights:
+            ref_fn = getattr(w, "experimental_ref", None)
+            ref = ref_fn() if ref_fn else w
+            self._id_to_param_map[id(ref)] = (w.path, w)
+
+        for layer in model._flatten_layers(recursive=True, include_self=True):
+            if "Embedding" in layer.__class__.__name__:
+                for attr in [
+                    "embeddings",
+                    "position_embeddings",
+                    "_embeddings",
+                ]:
+                    var = getattr(layer, attr, None)
+                    if var is not None:
+                        vrf_fn = getattr(var, "experimental_ref", None)
+                        vid = id(vrf_fn()) if vrf_fn else id(var)
+                        if vid not in config.state_rules:
+                            config.state_rules[vid] = functools.partial(
+                                split_tensor_for_parallelism,
+                                device_count=self.device_count,
+                                dim=1,
+                            )
+
+        # Normalize configuration keys to string paths
+        norm_rules = {}
+        for pattern, action in list(config.state_rules.items()):
+            if isinstance(pattern, int) and pattern in self._id_to_param_map:
+                path, _ = self._id_to_param_map[pattern]
+                norm_rules[path] = action
+                del config.state_rules[pattern]
+        config.state_rules.update(norm_rules)
+
         self._store_original_weights(model)
-        modified_parameters = set()
+        modified = set()
 
         for pattern, action in config.state_rules.items():
-            if hasattr(action, "__call__"):
-                matching_params = self._find_matching_parameters(model, pattern)
+            if callable(action):
+                for name, param in self._find_matching_parameters(
+                    model, pattern
+                ):
+                    pr_fn = getattr(param, "experimental_ref", None)
+                    pid = id(pr_fn()) if pr_fn else id(param)
 
-                for param_name, param in matching_params:
-                    if hasattr(param, "experimental_ref"):
-                        param_id = id(param.experimental_ref())
-                    else:
-                        param_id = id(param)
-
-                    if param_id in self.sharded_weights_by_id:
-                        self.sharded_weights[param_name] = (
-                            self.sharded_weights_by_id[param_id]
-                        )
-
-                        existing_param_name = "unknown"
-                        for name, shard in self.sharded_weights.items():
-                            if shard is self.sharded_weights_by_id[param_id]:
-                                existing_param_name = name
-                                break
-
-                        self.weight_mapping[param_name] = self.weight_mapping[
-                            existing_param_name
+                    if pid in self.sharded_weights_by_id:
+                        self.sharded_weights[name] = self.sharded_weights_by_id[
+                            pid
                         ]
-                        modified_parameters.add(param_name)
+                        modified.add(name)
                         continue
 
-                    sharded_param = action(param, self.rank)
-
-                    self.sharded_weights[param_name] = sharded_param
-                    self.sharded_weights_by_id[param_id] = sharded_param
-
-                    self.weight_mapping[param_name] = {
-                        "original_shape": param.shape,
-                        "sharded_shape": sharded_param.shape,
-                        "action": action,
+                    shard = action(param, self.rank)
+                    self.sharded_weights[name] = shard
+                    self.sharded_weights_by_id[pid] = shard
+                    self.weight_mapping[name] = {
+                        "original": param.shape,
+                        "sharded": shard.shape,
                     }
+                    modified.add(name)
 
-                    modified_parameters.add(param_name)
-
-        sharded_model = ParameterShardedModel(
-            original_model=model,
-            sharding_strategy=self,
-            config=config,
-            device_id=device_id,
-        )
-
-        return sharded_model, modified_parameters
+        sharded_model = ParameterShardedModel(model, self, config, device_id)
+        return sharded_model, modified
 
     def _store_original_weights(self, model):
-        """Recursively finds and stores the original weights of a model."""
-        from keras.src import layers
-
-        def find_weights_recursive(current_layer, prefix=""):
-            name = current_layer.name
-            full_name = f"{prefix}.{name}" if prefix else name
-
-            if hasattr(current_layer, "weights") and current_layer.weights:
-                for weight in current_layer.weights:
-                    cleaned_name = weight.name.split("/")[-1].split(":")[0]
-                    param_name = f"{full_name}.{cleaned_name}"
-                    self.original_weights[param_name] = weight.numpy()
-
-            if hasattr(current_layer, "layers") and current_layer.layers:
-                for sub_layer in current_layer.layers:
-                    find_weights_recursive(sub_layer, full_name)
-
-            for attr_name in dir(current_layer):
-                if attr_name.startswith("__") and attr_name.endswith("__"):
-                    continue
-
-                attr = getattr(current_layer, attr_name)
-
-                if isinstance(attr, layers.Layer) and attr is not current_layer:
-                    find_weights_recursive(attr, full_name)
-                elif isinstance(attr, (list, tuple)):
-                    for item in attr:
-                        if isinstance(item, layers.Layer):
-                            find_weights_recursive(item, full_name)
-
-        for layer in model.layers:
-            find_weights_recursive(layer, prefix="")
+        """Backs up weights as numpy arrays."""
+        for w in model.weights:
+            if hasattr(w, "numpy"):
+                self.original_weights[w.path] = w.numpy()
 
     def _find_matching_parameters(self, model, pattern):
-        """Finds model parameters that match a given regex pattern.
-
-        Args:
-            model (keras.Model): The model to search within.
-            pattern (str): The regex pattern to match against parameter names.
-
-        Returns:
-            list: A list of tuples, where each tuple contains the full parameter
-                  name and the corresponding weight object.
-        """
-        from keras.src import layers
-
-        matching_params = []
-        processed_layers = set()
-
-        def search_layer_recursive(current_layer, prefix=""):
-            if id(current_layer) in processed_layers:
-                return
-            processed_layers.add(id(current_layer))
-
-            name = current_layer.name
-            full_name = f"{prefix}.{name}" if prefix else name
-
-            if hasattr(current_layer, "weights") and current_layer.weights:
-                for weight in current_layer.weights:
-                    cleaned_weight_name = weight.name.split("/")[-1].split(":")[
-                        0
-                    ]
-                    param_name = f"{full_name}.{cleaned_weight_name}"
-
-                    if re.match(pattern, param_name):
-                        matching_params.append((param_name, weight))
-
-            if hasattr(current_layer, "layers") and current_layer.layers:
-                for sub_layer in current_layer.layers:
-                    search_layer_recursive(sub_layer, full_name)
-
-            for attr_name in dir(current_layer):
-                if attr_name.startswith("__") and attr_name.endswith("__"):
-                    continue
-
-                attr = getattr(current_layer, attr_name)
-
-                if isinstance(attr, layers.Layer) and attr is not current_layer:
-                    search_layer_recursive(attr, full_name)
-                elif isinstance(attr, (list, tuple)):
-                    for item in attr:
-                        if isinstance(item, layers.Layer):
-                            search_layer_recursive(item, full_name)
-
-        search_layer_recursive(model, prefix="")
-        return matching_params
+        """Matches a pattern to model weights."""
+        if isinstance(pattern, int):
+            return (
+                [self._id_to_param_map[pattern]]
+                if pattern in self._id_to_param_map
+                else []
+            )
+        if not isinstance(pattern, str):
+            return []
+        if pattern in self.param_path_map:
+            return [(pattern, self.param_path_map[pattern])]
+        suffix = "/" + pattern
+        return [
+            (p, w) for p, w in self.param_path_map.items() if p.endswith(suffix)
+        ]
 
 
 def _define_parameter_sharded_model():
-    """Factory function to define and return the ParameterShardedModel class.
-
-    This approach avoids circular import dependencies by defining the class
-    that inherits from `keras.src.models.Model` inside a function.
-
-    Returns:
-        The ParameterShardedModel class definition.
-    """
+    """Defines the wrapper model class dynamically."""
+    from keras.src.models import Functional
     from keras.src.models import Model
 
     class ParameterShardedModel(Model):
-        """A wrapper model that manages sharded parameters for tensor
-        parallelism.
-
-        This model wraps an existing Keras model, preserving its original
-        architecture. It overrides the `weights` property and the `call` method
-        to handle sharded weights and insert the necessary communication
-        collectives (e.g., AllReduce, AllGather) during the forward pass.
-        """
+        """Wrapper model implementing distributed forward pass logic."""
 
         def __init__(
             self, original_model, sharding_strategy, config, device_id
         ):
-            """Initializes the ParameterShardedModel.
-
-            Args:
-                original_model: The original, unsharded Keras model.
-                sharding_strategy: The strategy object
-                    that contains the sharded weights and mappings.
-                config (LayoutMap): The sharding configuration.
-                device_id: The device identifier for the current process.
-            """
-            super().__init__()
+            """Initializes the model and caches mappings."""
+            super().__init__(name=original_model.name)
             self.original_model = original_model
             self.sharding_strategy = sharding_strategy
             self.config = config
             self._device = device_id
-            self._build_and_cache_weights()
-            if original_model.inputs:
-                self.build(original_model.inputs[0].shape)
 
-        @property
-        def device(self):
-            """Returns the device ID associated with this model shard."""
-            return self._device
+            if not self.original_model.built and self.original_model.inputs:
+                self.original_model.build(self.original_model.inputs[0].shape)
+
+            self._build_and_cache_weights()
+            self._layer_rules = self._cache_layer_rules()
+
+        def _cache_layer_rules(self):
+            """Pre-maps layers to communication rules."""
+            rules = {}
+            for layer in self.original_model.layers:
+                lp = getattr(layer, "path", layer.name)
+                if lp is None:
+                    continue
+                lp_s = str(lp)
+                for pat, rule in self.config.output_rules.items():
+                    if (
+                        pat == lp_s
+                        or lp_s.endswith("/" + pat)
+                        or (isinstance(pat, str) and re.search(pat, lp_s))
+                    ):
+                        rules[id(layer)] = (
+                            rule.get(0) if isinstance(rule, dict) else rule
+                        )
+                        break
+            return rules
 
         def _build_and_cache_weights(self):
-            """Constructs and caches the definitive list of model weights.
-
-            This method combines newly created `ShardedWeight` objects with any
-            original weights that were not sharded (i.e., replicated weights).
-            This combined list is then cached to be returned by the `weights`
-            property, ensuring the optimizer sees all trainable parameters.
-            """
-            weights_list = []
-            sharded_weight_ids = set(
-                self.sharding_strategy.sharded_weights_by_id.keys()
+            """Merges sharded and original weights into a definitive list."""
+            ws, sids = (
+                [],
+                set(self.sharding_strategy.sharded_weights_by_id.keys()),
             )
-
-            for (
-                param_name,
-                sharded_tensor,
-            ) in self.sharding_strategy.sharded_weights.items():
-                weights_list.append(ShardedWeight(sharded_tensor, param_name))
-
-            for weight in self.original_model.weights:
-                if hasattr(weight, "experimental_ref"):
-                    weight_id = id(weight.experimental_ref())
-                else:
-                    weight_id = id(weight)
-
-                if weight_id not in sharded_weight_ids:
-                    weights_list.append(weight)
-
-            self._weights_list = weights_list
+            for name, shard in self.sharding_strategy.sharded_weights.items():
+                ws.append(ShardedWeight(shard, name, device_id=self._device))
+            for w in self.original_model.weights:
+                rf_fn = getattr(w, "experimental_ref", None)
+                ref = rf_fn() if rf_fn else w
+                if id(ref) not in sids:
+                    ws.append(w)
+            self._weights_list = ws
 
         @property
         def weights(self):
-            """Overrides the base property to return the cached list of weights.
-
-            This list includes both the custom `ShardedWeight` objects and any
-            unsharded (replicated) weights from the original model.
-            """
+            """Returns model weights."""
             return self._weights_list
 
+        def compute_output_shape(self, input_shape):
+            """Returns original output shape."""
+            return self.original_model.compute_output_shape(input_shape)
+
+        def compute_output_spec(self, *args, **kwargs):
+            """Returns original output spec."""
+            if args:
+                return self.original_model.compute_output_spec(args[0])
+            return self.original_model.compute_output_spec(**kwargs)
+
         def call(self, inputs, training=None, mask=None):
-            """Executes the forward pass of the model with sharded parameters.
-
-            This method manually reconstructs the forward pass of original
-            model's computation graph. It propagates tensors from one layer to
-            the next, and after layer's computation, it checks if communication
-            collective needs to be applied to the output tensor based on the
-            sharding configuration.
-
-            Args:
-                inputs: Input tensor(s).
-                training (bool, optional): Indicates whether the model is in
-                    training mode. Defaults to None.
-                mask: Mask tensor(s). Defaults to None.
-
-            Returns:
-                The final output tensor(s) of the model.
-            """
-            from keras.src import layers
-
-            tensor_cache = {}
-
+            """Optimized forward pass using pre-calculated mappings."""
+            cache = {}
+            model_inps = self.original_model.inputs
             if isinstance(inputs, dict):
-                for inp_tensor in self.original_model.inputs:
-                    tensor_cache[id(inp_tensor)] = inputs[inp_tensor.name]
+                for t in model_inps:
+                    nm = getattr(t, "name", "")
+                    val = inputs.get(nm, inputs.get(nm.split(":")[0]))
+                    if val is not None:
+                        cache[id(t)] = val
+                        if nm:
+                            cache[nm] = val
+                            cache[nm.split(":")[0]] = val
             else:
-                tensor_cache[id(self.original_model.inputs[0])] = inputs
+                in_l = inputs if isinstance(inputs, (list, tuple)) else [inputs]
+                for i, t in enumerate(model_inps):
+                    if i < len(in_l):
+                        val = in_l[i]
+                        cache[id(t)] = val
+                        nm = getattr(t, "name", "")
+                        if nm:
+                            cache[nm] = val
+                            cache[nm.split(":")[0]] = val
 
             for layer in self.original_model.layers:
                 if isinstance(layer, layers.InputLayer):
                     continue
 
-                layer_inputs = []
-                for node in layer._inbound_nodes:
-                    for symbolic_input_tensor in node.input_tensors:
-                        layer_inputs.append(
-                            tensor_cache[id(symbolic_input_tensor)]
-                        )
+                nodes = getattr(layer, "_inbound_nodes", [])
+                if not nodes:
+                    continue
+                node = nodes[0]
+                recon = []
+                for sym in node.input_tensors:
+                    val = cache.get(id(sym))
+                    if val is None:
+                        snm = getattr(sym, "name", "")
+                        val = cache.get(snm, cache.get(snm.split(":")[0]))
+                    if val is not None:
+                        recon.append(val)
 
-                if len(layer_inputs) == 1:
-                    layer_inputs = layer_inputs[0]
-
-                current_tensor = layer(layer_inputs, training=training)
-                tensor_cache[id(layer.output)] = current_tensor
-
-                layer_path = layer.path
-                output_rule = None
-                for pattern, rule in self.config.output_rules.items():
-                    if re.search(pattern, layer_path):
-                        output_rule = rule.get(0)
-                        break
-                if output_rule:
-                    current_tensor = self._apply_communication(
-                        current_tensor, layer.name, output_rule
+                if len(recon) == 0:
+                    l_in = inputs
+                elif isinstance(layer, (Functional, Model)):
+                    nms = getattr(layer, "input_names", None)
+                    if not nms:
+                        in_t = getattr(layer, "inputs", [])
+                        nms = [
+                            getattr(x, "name", "").split(":")[0] for x in in_t
+                        ]
+                    l_in = (
+                        dict(zip(nms, recon))
+                        if nms and len(recon) == len(nms)
+                        else recon
                     )
-                    tensor_cache[id(layer.output)] = current_tensor
-
-            final_outputs = []
-            for symbolic_output in self.original_model.outputs:
-                final_outputs.append(tensor_cache[id(symbolic_output)])
-
-            if len(final_outputs) == 1:
-                return final_outputs[0]
-            return final_outputs
-
-        def _apply_communication(self, sharded_output, layer_name, rule_str):
-            """Applies a collective communication operation to a tensor.
-
-            This method uses the distributed backend to perform operations like
-            AllReduce (for summing partial results in row-parallel layouts) or
-            AllGather (for combining results in column-parallel layouts).
-
-            Args:
-                sharded_output: The tensor to apply the communication op to.
-                layer_name (str): The name of the layer producing the output.
-                rule_str (str): A string from config describing the operation
-                    (e.g., 'allreduce sum', 'allgather -1').
-
-            Returns:
-                The tensor after the communication operation has been applied.
-            """
-            comm_ops = distributed_backend.get_communication_ops()
-
-            if "sum" in rule_str or "allreduce" in rule_str:
-                return comm_ops["all_reduce"](
-                    sharded_output, op="sum", axis_name="model"
-                )
-            elif "gather" in rule_str:
-                parts = rule_str.split(" ")
-                last_part = parts[-1]
-                if len(parts) > 1 and (
-                    last_part.isdigit()
-                    or (last_part.startswith("-") and last_part[1:].isdigit())
-                ):
-                    dim = int(last_part)
                 else:
-                    dim = -1
-                return comm_ops["all_gather"](
-                    sharded_output, axis=dim, axis_name="model"
+                    l_in = recon[0] if len(recon) == 1 else recon
+
+                kwargs = {"training": training} if training is not None else {}
+                node_args = getattr(node, "arguments", None)
+                if node_args:
+                    for k, v in (
+                        getattr(node_args, "kwargs", {}) or {}
+                    ).items():
+                        if k != "training":
+                            kwargs[k] = v
+
+                out = layer(l_in, **kwargs)
+
+                rule = self._layer_rules.get(id(layer))
+                if rule:
+                    out = (
+                        rule(out)
+                        if callable(rule)
+                        else self._comm(out, layer.name, rule)
+                    )
+
+                for n in nodes:
+                    syms = getattr(n, "output_tensors", [])
+                    vals = out if isinstance(out, (list, tuple)) else [out]
+                    for o_idx, (s, v) in enumerate(zip(syms, vals)):
+                        cache[id(s)] = v
+                        cache[("node", layer.name, 0, o_idx)] = v
+                        snm = getattr(s, "name", "")
+                        if snm:
+                            cache[snm] = v
+                            cache[snm.split(":")[0]] = v
+
+            results = []
+            for s_out in self.original_model.outputs:
+                val = cache.get(id(s_out))
+                if val is None:
+                    hist = getattr(s_out, "_keras_history", None)
+                    if hist and len(hist) >= 3:
+                        val = cache.get(
+                            (
+                                "node",
+                                getattr(hist[0], "name", ""),
+                                hist[1],
+                                hist[2],
+                            )
+                        )
+                if val is None:
+                    raise RuntimeError(f"Missing runtime value for: {s_out}.")
+                results.append(val)
+
+            return results[0] if len(results) == 1 else results
+
+        def _comm(self, val, name, rule):
+            """Internal communication wrapper."""
+            if "sum" in rule or "allreduce" in rule:
+                return distribution_lib.all_reduce(
+                    val, op="sum", axis_name="model"
                 )
-            else:
-                return sharded_output
+            if "gather" in rule:
+                parts = rule.split(" ")
+                dim = (
+                    int(parts[-1])
+                    if len(parts) > 1 and parts[-1].lstrip("-").isdigit()
+                    else -1
+                )
+                return distribution_lib.all_gather(
+                    val, axis=dim, axis_name="model"
+                )
+            return val
 
         def get_config(self):
-            """Returns the configuration of the original model."""
+            """Returns model configuration."""
             return self.original_model.get_config()
 
         @classmethod
         def from_config(cls, config, custom_objects=None):
-            """Creates a model from its configuration."""
+            """Rebuilds sharded model from config."""
             return cls(**config)
 
     return ParameterShardedModel
 
 
-def make_parameter_sharded_model(module, config, rank, world_size, device_id):
-    """Creates a parameter-sharded version of a Keras model.
-
-    This is the main entry point for applying parameter sharding. It initializes
-    the sharding strategy and uses it to transform the given model.
-
-    Args:
-        module (keras.Model): The Keras model to shard.
-        config (LayoutMap): The configuration defining the sharding rules.
-        rank (int): The rank of the current device.
-        world_size (int): The total number of devices.
-        device_id: The identifier for the current device.
-
-    Returns:
-        tuple: A tuple containing:
-            - ParameterShardedModel: The new, sharded model wrapper.
-            - set: A set of names of the parameters that were sharded.
-    """
-    sharding_strategy = ParameterShardingStrategy(world_size, rank)
-    sharded_model, modified_parameters = (
-        sharding_strategy.shard_model_parameters(module, config, device_id)
-    )
-    return sharded_model, modified_parameters
+def make_parameter_sharded_model(module, config, rank, device_count, device_id):
+    """Factory function to create a parameter-sharded model."""
+    strat = ParameterShardingStrategy(device_count, rank)
+    return strat.shard_model_parameters(module, config, device_id)

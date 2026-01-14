@@ -5,37 +5,53 @@ import pytest
 import torch
 import torch.distributed as dist
 
-from keras.src import backend
 from keras.src.backend import distribution_lib
 from keras.src.distribution import DeviceMesh
 from keras.src.distribution import TensorLayout
 
 
+@pytest.fixture(scope="session", autouse=True)
 def setup_torch_distributed():
-    """
-    A fixture to initialize the distributed process group if not already done.
-    This allows test file to be run directly with `pytest` for single-process
-    checks, while also working correctly when launched with `torchrun`.
-    """
     if not dist.is_available() or dist.is_initialized():
         return
 
     os.environ.setdefault("MASTER_ADDR", "localhost")
-    os.environ.setdefault("MASTER_PORT", "29500")
+    os.environ.setdefault("MASTER_PORT", "29500")  # A default free port
     os.environ.setdefault("RANK", "0")
     os.environ.setdefault("WORLD_SIZE", "1")
     dist.init_process_group(backend="gloo")
 
 
 @pytest.mark.skipif(
-    backend.backend() != "torch",
-    reason="Backend specific test",
+    not torch.distributed.is_available(),
+    reason="PyTorch distributed components are not available.",
 )
 class TestTorchDistributionLibLive:
     """
-    Tests for the Torch distribution library without using mocks.
-    These tests will reflect the capabilities of environment they are run in.
+    Tests for the Torch distribution library.
     """
+
+    def test_get_device_count(self):
+        """Tests the get_device_count helper against the runtime environment."""
+        assert distribution_lib.get_device_count("cpu") == 1
+
+        if torch.cuda.is_available():
+            gpu_count = torch.cuda.device_count()
+            assert distribution_lib.get_device_count("gpu") == gpu_count
+            assert distribution_lib.get_device_count("cuda") == gpu_count
+        else:
+            assert distribution_lib.get_device_count("gpu") == 0
+
+        if torch.cuda.is_available():
+            assert (
+                distribution_lib.get_device_count() == torch.cuda.device_count()
+            )
+        elif (
+            hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
+        ):
+            assert distribution_lib.get_device_count() == 1
+        else:
+            assert distribution_lib.get_device_count() == 1
 
     def test_device_listing_and_info(self):
         """Tests device discovery functions against the runtime environment."""

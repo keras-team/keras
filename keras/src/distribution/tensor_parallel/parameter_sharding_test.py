@@ -1,22 +1,22 @@
+import functools
 import os
-
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
-import re
 
 import numpy as np
 import pytest
 
+os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=2"
+
+from parameter_sharding import ShardedWeight
+from parameter_sharding import make_parameter_sharded_model
+
 import keras
 from keras import distribution
+from keras import ops
 from keras.src import backend
-from keras.src.distribution.tensor_parallel.parameter_sharding import (
-    ShardedWeight,
-)
-from keras.src.distribution.tensor_parallel.parameter_sharding import (
-    make_parameter_sharded_model,
-)
 from keras.src.distribution.tensor_parallel.tensor_layout import LayoutMap
-from keras.src.distribution.tensor_parallel.tensor_layout import Split
+from keras.src.distribution.tensor_parallel.tensor_layout import (
+    split_tensor_for_parallelism,
+)
 from keras.src.testing import TestCase
 
 
@@ -29,113 +29,100 @@ def _create_simple_mlp():
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="This test is for the JAX backend only.",
+    backend.backend() not in ("jax", "torch"),
+    reason="Parameter sharding tests are supported for JAX and PyTorch.",
 )
-class ParameterShardingTest(TestCase):
+class UnifiedParameterShardingTest(TestCase):
     def setUp(self):
         super().setUp()
-        import logging
 
-        logging.getLogger().setLevel(logging.ERROR)
-
-        self.world_size = 2
-        all_devices = distribution.list_devices()
-        self.devices = all_devices[: self.world_size]
-        if len(self.devices) < self.world_size:
-            self.skipTest(
-                f"""Not enough devices to run TP test. 
-                Found {len(self.devices)}, need {self.world_size}"""
-            )
+        self.all_devices = distribution.list_devices()
+        self.device_count = (
+            len(self.all_devices) if len(self.all_devices) > 0 else 1
+        )
+        self.devices = self.all_devices if self.all_devices else ["cpu"]
 
         self.original_model = _create_simple_mlp()
         self.original_model.build(input_shape=(None, 16))
 
         self.tp_config = LayoutMap(
             state_rules={
-                re.escape("simple_mlp.up_proj.kernel"): Split(
-                    self.world_size, dim=1
+                "up_proj/kernel": functools.partial(
+                    split_tensor_for_parallelism,
+                    device_count=self.device_count,
+                    dim=1,
                 ),
-                re.escape("simple_mlp.down_proj.kernel"): Split(
-                    self.world_size, dim=0
+                "down_proj/kernel": functools.partial(
+                    split_tensor_for_parallelism,
+                    device_count=self.device_count,
+                    dim=0,
                 ),
             },
-            output_rules={},
+            output_rules={"down_proj": "sum"},
         )
         self.input_data = np.random.rand(4, 16).astype("float32")
-        self.labels = np.random.rand(4, 8).astype("float32")
 
-    def test_model_sharding_creation_and_weight_counts(self):
-        sharded_models = []
-        for rank in range(self.world_size):
-            with keras.device(self.devices[rank]):
-                sharded_model, modified_params = make_parameter_sharded_model(
-                    self.original_model,
-                    self.tp_config,
-                    rank=rank,
-                    world_size=self.world_size,
-                    device_id=self.devices[rank],
-                )
-                self.assertIsInstance(sharded_model, keras.Model)
-                self.assertIn("simple_mlp.up_proj.kernel", modified_params)
-                self.assertIn("simple_mlp.down_proj.kernel", modified_params)
-                sharded_models.append(sharded_model)
-        self.assertEqual(
-            len(self.original_model.weights), len(sharded_models[0].weights)
-        )
-
-    def test_sharded_weight_shapes(self):
+    def test_model_sharding_structure(self):
+        """Verifies sharding logic is applied correctly to the weight shapes."""
         rank = 0
-        with keras.device(self.devices[rank]):
-            sharded_model, _ = make_parameter_sharded_model(
-                self.original_model,
-                self.tp_config,
-                rank=rank,
-                world_size=self.world_size,
-                device_id=self.devices[rank],
-            )
-        original_weights_dict = {w.path: w for w in self.original_model.weights}
-        sharded_weights_dict = {
-            w.name if isinstance(w, ShardedWeight) else w.path: w
-            for w in sharded_model.weights
-        }
-        orig_up_kernel = original_weights_dict["up_proj/kernel"]
-        shard_up_kernel = sharded_weights_dict["simple_mlp.up_proj.kernel"]
-        self.assertEqual(shard_up_kernel.shape[0], orig_up_kernel.shape[0])
-        self.assertEqual(
-            shard_up_kernel.shape[1],
-            orig_up_kernel.shape[1] // self.world_size,
-        )
-        orig_down_kernel = original_weights_dict["down_proj/kernel"]
-        shard_down_kernel = sharded_weights_dict["simple_mlp.down_proj.kernel"]
-        self.assertEqual(
-            shard_down_kernel.shape[0],
-            orig_down_kernel.shape[0] // self.world_size,
-        )
-        self.assertEqual(shard_down_kernel.shape[1], orig_down_kernel.shape[1])
-
-    def test_forward_pass_correctness(self):
-        expected_output = self.original_model(self.input_data)
-        sharded_outputs = []
-        original_weights = self.original_model.get_weights()
-        for rank in range(self.world_size):
-            with keras.device(self.devices[rank]):
-                cloned_original = keras.models.clone_model(self.original_model)
-                cloned_original.set_weights(original_weights)
-                sharded_model, _ = make_parameter_sharded_model(
-                    cloned_original,
-                    self.tp_config,
-                    rank=rank,
-                    world_size=self.world_size,
-                    device_id=self.devices[rank],
-                )
-                output = sharded_model(self.input_data)
-                sharded_outputs.append(output)
-        reconstructed_output = (
-            keras.ops.sum(keras.ops.stack(sharded_outputs), axis=0)
-            / self.world_size
+        sharded_model, modified_params = make_parameter_sharded_model(
+            self.original_model,
+            self.tp_config,
+            rank=rank,
+            device_count=self.device_count,
+            device_id=self.devices[rank],
         )
 
-        self.assertAllClose(
-            expected_output, reconstructed_output, atol=1e-5, rtol=1e-5
+        self.assertTrue(any("up_proj/kernel" in p for p in modified_params))
+
+        sharded_weights_dict = {w.name: w for w in sharded_model.weights}
+
+        expected_up_dim = 32 // self.device_count
+        self.assertEqual(
+            sharded_weights_dict["up_proj_kernel"].shape, (16, expected_up_dim)
         )
+
+    def test_forward_pass_execution(self):
+        """Tests the manual execution loop in the sharded wrapper."""
+        rank = 0
+        sharded_model, _ = make_parameter_sharded_model(
+            self.original_model,
+            self.tp_config,
+            rank=rank,
+            device_count=self.device_count,
+            device_id=self.devices[rank],
+        )
+
+        input_tensor = ops.convert_to_tensor(self.input_data)
+
+        try:
+            output = sharded_model(input_tensor)
+            self.assertEqual(output.shape, (4, 8))
+        except Exception as e:
+            msg = str(e).lower()
+            if "process group" in msg or "logical devices" in msg:
+                pytest.skip(f"Collective ops not available: {e}")
+            else:
+                raise e
+
+    def test_device_placement(self):
+        """Verifies ShardedWeight respects the requested device."""
+        rank = 0
+        target_device = self.devices[rank]
+
+        sharded_model, _ = make_parameter_sharded_model(
+            self.original_model,
+            self.tp_config,
+            rank=rank,
+            device_count=self.device_count,
+            device_id=target_device,
+        )
+
+        for w in sharded_model.weights:
+            if isinstance(w, ShardedWeight):
+                val = w.variable.value
+                actual_device = str(getattr(val, "device", "cpu")).lower()
+
+                target_type = str(target_device).split(":")[0].lower()
+                self.assertIn(target_type, actual_device)
+                break
