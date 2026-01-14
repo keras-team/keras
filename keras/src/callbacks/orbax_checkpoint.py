@@ -176,6 +176,14 @@ class OrbaxCheckpoint(MonitorCallback):
             preservation_policy=preservation_policy,
         )
 
+    def __del__(self):
+        """Destructor to ensure checkpointer cleanup on garbage collection."""
+        try:
+            if hasattr(self, "checkpointer") and self.checkpointer is not None:
+                self.checkpointer.close()
+        except Exception:
+            pass  # Ignore cleanup errors during destruction
+
     def _is_multihost_initialized(self):
         """Check if multi-host environment is initialized."""
         # Multi-host checkpointing is only supported on JAX backend

@@ -264,15 +264,19 @@ class OrbaxCheckpointTest(testing.TestCase):
             save_on_background=False,  # Synchronous saving
         )
 
-        # Train and ensure it completes (synchronous save should not block)
-        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        try:
+            # Train and ensure it completes (synchronous save should not block)
+            model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+            callback.wait_until_finished()
 
-        # Check that checkpoints were created
-        checkpoint_files = os.listdir(checkpoint_dir)
-        self.assertGreater(
-            len(checkpoint_files), 0, "Should have checkpoint files"
-        )
+            # Check that checkpoints were created
+            checkpoint_files = os.listdir(checkpoint_dir)
+            self.assertGreater(
+                len(checkpoint_files), 0, "Should have checkpoint files"
+            )
+        finally:
+            # Ensure proper cleanup to prevent file descriptor leaks
+            callback.on_train_end()
 
     def test_invalid_save_freq(self):
         """Test error handling for invalid save_freq parameter."""
@@ -397,15 +401,19 @@ class OrbaxCheckpointTest(testing.TestCase):
             save_on_background=True,  # Test async saving
         )
 
-        # Train for 1 epoch
-        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        try:
+            # Train for 1 epoch
+            model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+            callback.wait_until_finished()
 
-        # Check that checkpoint was created
-        checkpoint_files = os.listdir(checkpoint_dir)
-        self.assertGreater(
-            len(checkpoint_files), 0, "Should have checkpoint files"
-        )
+            # Check that checkpoint was created
+            checkpoint_files = os.listdir(checkpoint_dir)
+            self.assertGreater(
+                len(checkpoint_files), 0, "Should have checkpoint files"
+            )
+        finally:
+            # Ensure proper cleanup to prevent file descriptor leaks
+            callback.on_train_end()
 
     @pytest.mark.skipif(
         backend.backend() != "jax",
