@@ -1,5 +1,4 @@
 import types
-from functools import partial
 
 from keras.src import ops
 from keras.src import quantizers
@@ -466,7 +465,7 @@ class GPTQ:
             group_size=self.config.group_size,
             activation_order=self.config.activation_order,
             order_metric=ops.diagonal(hessian_matrix),
-            compute_scale_zero=partial(self.quantizer.find_params, weight=True),
+            compute_scale_zero=self.quantizer.find_params,
         )
         quantized = ops.cast(
             quantized, self.original_layer.quantized_kernel.dtype

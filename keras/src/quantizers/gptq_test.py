@@ -649,7 +649,7 @@ class TestModelQuantization(testing.TestCase):
             "mode": "gptq",
             "config": GPTQConfig(dataset=["a"], tokenizer=lambda x: x),
             "expected_exception": ValueError,
-            "error_msg": "For 'gptq' mode, a valid quantization structure",
+            "error_msg": "For mode='gptq', a valid quantization structure",
         },
     )
     def test_quantize_scenarios(

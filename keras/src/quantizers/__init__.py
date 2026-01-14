@@ -1,6 +1,7 @@
 import inspect
 
 from keras.src.api_export import keras_export
+from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.quantization_config import Float8QuantizationConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
@@ -24,6 +25,7 @@ ALL_OBJECTS = {
     Int8QuantizationConfig,
     Int4QuantizationConfig,
     Float8QuantizationConfig,
+    AWQConfig,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(

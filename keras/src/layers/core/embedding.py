@@ -514,7 +514,7 @@ class Embedding(Layer):
                 `embeddings_scale`: The quantization scale for the merged
                     embeddings. This is `None` if the layer is not quantized.
         """
-        if self.dtype_policy.quantization_mode in (None, "gptq"):
+        if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
             return self.embeddings, None
 
         embeddings_value = self._embeddings
