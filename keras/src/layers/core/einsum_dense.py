@@ -1006,7 +1006,6 @@ class EinsumDense(Layer):
         pack_axis = getattr(self, "_int4_pack_axis", 0)
         orig_len = getattr(self, "_orig_length_along_pack_axis", None)
         block_size = getattr(self, "_int4_block_size", None)
-        has_zero_point = hasattr(self, "kernel_zero")
         has_g_idx = hasattr(self, "g_idx")
 
         @ops.custom_gradient
@@ -1087,18 +1086,10 @@ class EinsumDense(Layer):
                     flat_scale = ops.reshape(scale, (n_groups, -1))
                     flat_zero = ops.reshape(zero, (n_groups, -1))
 
-                    # Use g_idx if available, else fall back to block_size
-                    if has_g_idx and g_idx_t is not None:
-                        dequant_flat = quantizers.dequantize_with_g_idx(
-                            flat_kernel, flat_scale, flat_zero, g_idx_t
-                        )
-                    else:
-                        # Backwards compatibility fallback
-                        dequant_flat = (
-                            quantizers.dequantize_grouped_with_zero_point(
-                                flat_kernel, flat_scale, flat_zero, block_size
-                            )
-                        )
+                    # Sub-channel: use efficient dequantization with g_idx
+                    dequant_flat = quantizers.dequantize_with_g_idx(
+                        flat_kernel, flat_scale, flat_zero, g_idx_t
+                    )
                     dequant_flat = ops.cast(dequant_flat, self.compute_dtype)
 
                     # Reshape back to transposed shape, then inverse transpose
@@ -1151,10 +1142,11 @@ class EinsumDense(Layer):
             return x, grad_fn
 
         # Use actual tensors if available, otherwise use dummy tensors
-        # (TensorFlow's custom_gradient requires all args to be tensors)
+        # (TensorFlow's custom_gradient requires all args to be tensors).
+        # kernel_zero and g_idx are always created together for sub-channel.
         kernel_zero_tensor = (
             ops.convert_to_tensor(self.kernel_zero)
-            if has_zero_point
+            if has_g_idx
             else ops.zeros((1,), dtype="int8")
         )
         g_idx_tensor = (
@@ -1570,18 +1562,10 @@ class EinsumDense(Layer):
                 flat_scale = ops.reshape(self.kernel_scale, (n_groups, -1))
                 flat_zero = ops.reshape(self.kernel_zero, (n_groups, -1))
 
-                # Use g_idx if available, else fall back to block_size
-                if hasattr(self, "g_idx"):
-                    dequant_flat = quantizers.dequantize_with_g_idx(
-                        flat_kernel, flat_scale, flat_zero, self.g_idx
-                    )
-                else:
-                    # Backwards compatibility fallback
-                    dequant_flat = (
-                        quantizers.dequantize_grouped_with_zero_point(
-                            flat_kernel, flat_scale, flat_zero, block_size
-                        )
-                    )
+                # Sub-channel: use efficient dequantization with g_idx
+                dequant_flat = quantizers.dequantize_with_g_idx(
+                    flat_kernel, flat_scale, flat_zero, self.g_idx
+                )
                 transposed_shape = list(reduced_dims) + non_reduced_shape
                 dequant = ops.reshape(dequant_flat, transposed_shape)
                 kernel_fp = ops.transpose(dequant, inv_perm)

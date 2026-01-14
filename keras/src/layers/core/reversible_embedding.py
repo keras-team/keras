@@ -287,8 +287,6 @@ class ReversibleEmbedding(layers.Embedding):
             return super()._int4_call(inputs)
         else:
             block_size = getattr(self, "_int4_block_size", None)
-            has_g_idx = hasattr(self, "g_idx")
-            has_zero_point = hasattr(self, "embeddings_zero")
 
             if self.tie_weights:
                 embeddings = ops.transpose(self._embeddings)
@@ -319,8 +317,8 @@ class ReversibleEmbedding(layers.Embedding):
                 logits = ops.matmul(inputs, unpacked_embeddings)
                 logits = ops.cast(logits, self.compute_dtype)
                 logits = ops.divide(logits, ops.multiply(inputs_scale, scale))
-            elif self.tie_weights and has_g_idx and has_zero_point:
-                # Grouped with asymmetric quantization (tied weights)
+            elif self.tie_weights:
+                # Sub-channel with asymmetric quantization (tied weights)
                 # Must dequantize embeddings before matmul for correctness
                 # unpacked_embeddings shape: (output_dim, input_dim)
                 # scale shape: (input_dim, n_groups)
@@ -352,19 +350,14 @@ class ReversibleEmbedding(layers.Embedding):
                 logits = ops.matmul(inputs, float_embeddings)
                 logits = ops.divide(logits, inputs_scale)
             else:
-                # Fallback: Grouped dequantization for reverse path
+                # Untied weights: use symmetric grouped quantization
                 # For the matmul, we sum over output_dim, so we can't
                 # directly apply grouped scale. We use average scale.
                 logits = ops.matmul(inputs, unpacked_embeddings)
                 logits = ops.cast(logits, self.compute_dtype)
-                if self.tie_weights:
-                    # For tied weights, scale is (input_dim, n_groups)
-                    # Average scale across groups
-                    avg_scale = ops.mean(scale, axis=-1)
-                else:
-                    # For untied weights, scale is (n_groups, input_dim)
-                    # Average scale across groups
-                    avg_scale = ops.mean(scale, axis=0)
+                # For untied weights, scale is (n_groups, input_dim)
+                # Average scale across groups
+                avg_scale = ops.mean(scale, axis=0)
                 logits = ops.divide(
                     logits, ops.multiply(inputs_scale, avg_scale)
                 )

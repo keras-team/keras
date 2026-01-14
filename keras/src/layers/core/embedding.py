@@ -473,8 +473,6 @@ class Embedding(Layer):
         outputs = ops.take(unpacked_embeddings, inputs, axis=0)
 
         block_size = getattr(self, "_int4_block_size", None)
-        has_zero_point = hasattr(self, "embeddings_zero")
-        has_g_idx = hasattr(self, "g_idx")
 
         if block_size is None or block_size == -1:
             # Per-channel dequantization
@@ -483,8 +481,8 @@ class Embedding(Layer):
                 ops.cast(outputs, dtype=self.compute_dtype),
                 ops.expand_dims(embeddings_scale, axis=-1),
             )
-        elif has_g_idx:
-            # Grouped dequantization using g_idx for efficient lookup
+        else:
+            # Sub-channel: grouped dequantization using g_idx
             # outputs shape: (batch..., output_dim)
             # scale shape after take: (batch..., n_groups)
             embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
@@ -494,71 +492,18 @@ class Embedding(Layer):
             g_idx_int = ops.cast(self.g_idx, "int32")
             scale_flat = ops.take(embeddings_scale, g_idx_int, axis=-1)
 
-            if has_zero_point:
-                # Get zero point for each input token
-                embeddings_zero = ops.take(self.embeddings_zero, inputs, axis=0)
-                zero_flat = ops.take(embeddings_zero, g_idx_int, axis=-1)
+            # Get zero point for each input token
+            embeddings_zero = ops.take(self.embeddings_zero, inputs, axis=0)
+            zero_flat = ops.take(embeddings_zero, g_idx_int, axis=-1)
 
-                # Dequantize: output = scale * (quantized - zero_point)
-                outputs = ops.multiply(
-                    scale_flat,
-                    ops.subtract(
-                        ops.cast(outputs, dtype=self.compute_dtype),
-                        ops.cast(zero_flat, dtype=self.compute_dtype),
-                    ),
-                )
-            else:
-                # Backward compatibility: no zero point
-                outputs = ops.divide(
+            # Dequantize: output = scale * (quantized - zero_point)
+            outputs = ops.multiply(
+                scale_flat,
+                ops.subtract(
                     ops.cast(outputs, dtype=self.compute_dtype),
-                    scale_flat,
-                )
-        else:
-            # Fallback: Grouped dequantization without g_idx
-            # (for backwards compatibility with old models)
-            # outputs shape: (batch..., output_dim)
-            # scale shape after take: (batch..., n_groups)
-            embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
-
-            # For grouped dequantization, we need to expand each group's scale
-            # to cover block_size elements along the output_dim axis
-            output_dim = self._orig_output_dim
-            n_groups = embeddings_scale.shape[-1]
-
-            # Repeat scale for each element in the group
-            # scale: (..., n_groups) -> (..., n_groups, block_size)
-            scale_expanded = ops.expand_dims(embeddings_scale, axis=-1)
-            scale_expanded = ops.repeat(scale_expanded, block_size, axis=-1)
-            # Flatten last two dims: (..., n_groups * block_size)
-            original_shape = ops.shape(scale_expanded)
-            new_shape = list(original_shape[:-2]) + [n_groups * block_size]
-            scale_flat = ops.reshape(scale_expanded, new_shape)
-            # Trim to output_dim (in case output_dim is not divisible)
-            scale_flat = scale_flat[..., :output_dim]
-
-            if has_zero_point:
-                # Get zero point for each input token
-                embeddings_zero = ops.take(self.embeddings_zero, inputs, axis=0)
-                # Expand zero point the same way as scale
-                zero_expanded = ops.expand_dims(embeddings_zero, axis=-1)
-                zero_expanded = ops.repeat(zero_expanded, block_size, axis=-1)
-                zero_flat = ops.reshape(zero_expanded, new_shape)
-                zero_flat = zero_flat[..., :output_dim]
-
-                # Dequantize: output = scale * (quantized - zero_point)
-                outputs = ops.multiply(
-                    scale_flat,
-                    ops.subtract(
-                        ops.cast(outputs, dtype=self.compute_dtype),
-                        ops.cast(zero_flat, dtype=self.compute_dtype),
-                    ),
-                )
-            else:
-                # Backward compatibility: no zero point
-                outputs = ops.divide(
-                    ops.cast(outputs, dtype=self.compute_dtype),
-                    scale_flat,
-                )
+                    ops.cast(zero_flat, dtype=self.compute_dtype),
+                ),
+            )
 
         if self.lora_enabled:
             lora_outputs = ops.take(self.lora_embeddings_a, inputs, axis=0)
@@ -731,45 +676,17 @@ class Embedding(Layer):
                     ops.cast(unpacked_embeddings, self.compute_dtype),
                     ops.expand_dims(embeddings_scale, axis=-1),
                 )
-            elif hasattr(self, "g_idx"):
-                # Grouped dequantization using g_idx for efficient lookup
+            else:
+                # Sub-channel: grouped dequantization using g_idx
                 g_idx_int = ops.cast(self.g_idx, "int32")
                 scale_flat = ops.take(embeddings_scale, g_idx_int, axis=-1)
-
-                if hasattr(self, "embeddings_zero"):
-                    zero_flat = ops.take(
-                        self.embeddings_zero, g_idx_int, axis=-1
-                    )
-                    float_embeddings = ops.multiply(
-                        scale_flat,
-                        ops.subtract(
-                            ops.cast(unpacked_embeddings, self.compute_dtype),
-                            ops.cast(zero_flat, self.compute_dtype),
-                        ),
-                    )
-                else:
-                    float_embeddings = ops.divide(
-                        ops.cast(unpacked_embeddings, self.compute_dtype),
-                        scale_flat,
-                    )
-            else:
-                # Fallback: Grouped dequantization without g_idx
-                # (for backwards compatibility with old models)
-                output_dim = self._orig_output_dim
-                n_groups = embeddings_scale.shape[-1]
-
-                # Expand scale to match output_dim
-                scale_expanded = ops.expand_dims(embeddings_scale, axis=-1)
-                scale_expanded = ops.repeat(scale_expanded, block_size, axis=-1)
-                scale_flat = ops.reshape(
-                    scale_expanded,
-                    (self.input_dim, n_groups * block_size),
-                )
-                scale_flat = scale_flat[:, :output_dim]
-
-                float_embeddings = ops.divide(
-                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                zero_flat = ops.take(self.embeddings_zero, g_idx_int, axis=-1)
+                float_embeddings = ops.multiply(
                     scale_flat,
+                    ops.subtract(
+                        ops.cast(unpacked_embeddings, self.compute_dtype),
+                        ops.cast(zero_flat, self.compute_dtype),
+                    ),
                 )
             quant_range = (-8, 7)
         elif self.quantization_mode == "int8":

@@ -812,7 +812,6 @@ class Dense(Layer):
         """Forward pass for int4 quantized Dense layer."""
 
         block_size = getattr(self, "_int4_block_size", None)
-        has_zero_point = hasattr(self, "kernel_zero")
         has_g_idx = hasattr(self, "g_idx")
 
         @ops.custom_gradient
@@ -842,25 +841,13 @@ class Dense(Layer):
                         ops.cast(unpacked_kernel, dtype=self.compute_dtype),
                         kernel_scale,
                     )
-                elif has_g_idx:
-                    # Sub-channel with g_idx: use efficient dequantization
+                else:
+                    # Sub-channel: use efficient dequantization with g_idx
                     float_kernel = quantizers.dequantize_with_g_idx(
                         unpacked_kernel,
                         kernel_scale,
                         kernel_zero,
                         g_idx,
-                    )
-                    float_kernel = ops.cast(float_kernel, self.compute_dtype)
-                else:
-                    # Sub-channel fallback: use block_size-based dequantization
-                    # (for backwards compatibility with old models)
-                    float_kernel = (
-                        quantizers.dequantize_grouped_with_zero_point(
-                            unpacked_kernel,
-                            kernel_scale,
-                            kernel_zero,
-                            block_size,
-                        )
                     )
                     float_kernel = ops.cast(float_kernel, self.compute_dtype)
                 inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
@@ -879,28 +866,21 @@ class Dense(Layer):
                 x = ops.matmul(inputs, unpacked_kernel)
                 x = ops.cast(x, self.compute_dtype)
                 x = ops.divide(x, output_scale)
-            elif has_g_idx:
-                # Sub-channel with g_idx: use efficient dequantization
+            else:
+                # Sub-channel: use efficient dequantization with g_idx
                 float_kernel = quantizers.dequantize_with_g_idx(
                     unpacked_kernel, kernel_scale, kernel_zero, g_idx
-                )
-                float_kernel = ops.cast(float_kernel, self.compute_dtype)
-                x = ops.matmul(inputs, float_kernel)
-            else:
-                # Sub-channel fallback: use block_size-based dequantization
-                # (for backwards compatibility with old models)
-                float_kernel = quantizers.dequantize_grouped_with_zero_point(
-                    unpacked_kernel, kernel_scale, kernel_zero, block_size
                 )
                 float_kernel = ops.cast(float_kernel, self.compute_dtype)
                 x = ops.matmul(inputs, float_kernel)
             return x, grad_fn
 
         # Use actual tensors if available, otherwise use dummy tensors
-        # (TensorFlow's custom_gradient requires all args to be tensors)
+        # (TensorFlow's custom_gradient requires all args to be tensors).
+        # kernel_zero and g_idx are always created together for sub-channel.
         kernel_zero_tensor = (
             ops.convert_to_tensor(self.kernel_zero)
-            if has_zero_point
+            if has_g_idx
             else ops.zeros((1,), dtype="int8")
         )
         g_idx_tensor = (
@@ -1180,16 +1160,10 @@ class Dense(Layer):
                     ops.cast(unpacked_kernel, self.compute_dtype),
                     kernel_scale,
                 )
-            elif hasattr(self, "g_idx"):
-                # Sub-channel with g_idx: use efficient dequantization
+            else:
+                # Sub-channel: use efficient dequantization with g_idx
                 float_kernel = quantizers.dequantize_with_g_idx(
                     unpacked_kernel, kernel_scale, self.kernel_zero, self.g_idx
-                )
-                float_kernel = ops.cast(float_kernel, self.compute_dtype)
-            else:
-                # Sub-channel fallback: use block_size-based dequantization
-                float_kernel = quantizers.dequantize_grouped_with_zero_point(
-                    unpacked_kernel, kernel_scale, self.kernel_zero, block_size
                 )
                 float_kernel = ops.cast(float_kernel, self.compute_dtype)
             quant_range = (-8, 7)
