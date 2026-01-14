@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
-    types: [labeled]
+    types: [unlabeled]
   release:
     types: [created]
 
@@ -16,11 +16,11 @@ jobs:
   test-in-container:
     name: Run tests on TPU
     runs-on: linux-x86-ct6e-44-1tpu
-    # Only run on pushes to master, releases or "kokoro:force-run" label
+    # Only run on pushes to master, releases or "kokoro:force-run" unlabel
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      (github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name == 'kokoro:force-run')
+      (github.event_name == 'pull_request' && github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
 
     strategy:
       fail-fast: false
