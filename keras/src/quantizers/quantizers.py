@@ -1156,51 +1156,55 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
     )
 
 
-def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
+def quantize_with_sz_map(
+    weights_matrix, scale, zero, g_idx, maxq, group_axis=-1
+):
     """Quantize the weight matrix from group params.
 
     This function uses the provided scale and zero tensors to quantize the
-    input weights_matrix according to the group indices. It maps each column
-    of the weights_matrix to its corresponding group parameters and performs
-    the quantization operation.
+    input weights_matrix according to the group indices. It maps each position
+    along group_axis of the weights_matrix to its corresponding group
+    parameters and performs the quantization operation.
 
     Args:
-        weights_matrix: 2D tensor of shape [out_features, in_features].
-        scale: Per-group scale tensor of shape [out_features, n_groups].
-        zero: Per-group zero-point tensor of shape [out_features, n_groups].
-        g_idx: Integer tensor of shape [in_features,] mapping each column to
-            its group index.
+        weights_matrix: Tensor to quantize.
+        scale: Per-group scale tensor with n_groups along group_axis.
+        zero: Per-group zero-point tensor with n_groups along group_axis.
+        g_idx: Integer tensor mapping positions along group_axis to group
+            indices.
         maxq: Scalar (float) representing the maximum integer quantization
             level (e.g., 2^bits - 1).
+        group_axis: The axis in scale/zero containing group indices.
+            Default: -1 (last axis).
 
     Returns:
         A tensor with the same shape as `weights_matrix` containing the
         quantized weights produced using the provided group parameters.
     """
     groups = ops.cast(g_idx, "int32")
-    scale_cols = ops.take(scale, groups, axis=1)  # [out_features, in_features]
-    zero_cols = ops.take(zero, groups, axis=1)  # [out_features, in_features]
+    scale_cols = ops.take(scale, groups, axis=group_axis)
+    zero_cols = ops.take(zero, groups, axis=group_axis)
 
     # Quantize elementwise, then cast to int
     return quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
 
 
-def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
+def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx, group_axis=-1):
     """Rebuild a dequantized weight matrix from group params.
 
     This function uses the provided scale and zero tensors to dequantize the
-    input weights_matrix according to the group indices. It maps each column
-    of the weights_matrix to its corresponding group parameters and performs
-    the dequantization operation.
+    input weights_matrix according to the group indices. It maps each position
+    along group_axis of the weights_matrix to its corresponding group
+    parameters and performs the dequantization operation.
 
     Args:
-        weights_matrix: 2D tensor of shape [out_features, in_features].
-        scale: Per-group scale tensor of shape [out_features, n_groups].
-        zero: Per-group zero-point tensor of shape [out_features, n_groups].
-        g_idx: Integer tensor of shape [in_features,] mapping each column to
-            its group index.
-        maxq: Scalar (float) representing the maximum integer quantization
-            level (e.g., 2^bits - 1).
+        weights_matrix: Tensor to dequantize.
+        scale: Per-group scale tensor with n_groups along group_axis.
+        zero: Per-group zero-point tensor with n_groups along group_axis.
+        g_idx: Integer tensor mapping positions along group_axis to group
+            indices.
+        group_axis: The axis in scale/zero containing group indices.
+            Default: -1 (last axis).
 
     Returns:
         A tensor with the same shape as `weights_matrix` containing the
@@ -1208,12 +1212,12 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
     """
     # Map group indices to scales and zeros
     groups = ops.cast(g_idx, "int32")
-    scales_mapped = ops.take(scale, groups, axis=1)
-    zeros_mapped = ops.take(zero, groups, axis=1)
+    scales_mapped = ops.take(scale, groups, axis=group_axis)
+    zeros_mapped = ops.take(zero, groups, axis=group_axis)
     zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
 
-    quantized = ops.multiply(
+    dequantized = ops.multiply(
         ops.subtract(weights_matrix, zeros_mapped), scales_mapped
     )
 
-    return quantized
+    return dequantized

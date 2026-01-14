@@ -185,12 +185,10 @@ class Dense(Layer):
 
             # Handle int4 unpacking cases in one place
             if is_int4:
-                # GPTQ layout: unpack [ceil(out/2), in] to [out, in], then
-                # transpose to [in, out]
+                # unpack [in, ceil(out/2)] to [in, out]
                 kernel = quantizers.unpack_int4(
-                    kernel, self._orig_output_dim, axis=0
+                    kernel, self._orig_output_dim, axis=-1
                 )
-                kernel = ops.transpose(kernel)
             elif is_gptq and gptq_calibrated and gptq_bits == 4:
                 kernel = quantizers.unpack_int4(
                     self.quantized_kernel,
@@ -656,8 +654,8 @@ class Dense(Layer):
     def _int4_build(self, kernel_shape, config=None):
         """Build variables for int4 quantization.
 
-        The kernel is stored in GPTQ layout: transposed [out, in] and packed
-        along axis 0, resulting in shape `(ceil(units/2), input_dim)`.
+        The kernel is packed along the last axis,
+        resulting in shape `(input_dim, ceil(units/2))`.
 
         Args:
             kernel_shape: The original float32 kernel shape
@@ -669,13 +667,13 @@ class Dense(Layer):
         )
         input_dim, output_dim = kernel_shape
 
-        # kernel is transposed then packed along axis 0
-        # Stored shape: [ceil(output_dim/2), input_dim]
+        # kernel is packed along last axis (output dimension)
+        # Stored shape: [input_dim, ceil(output_dim/2)]
         packed_cols = (output_dim + 1) // 2
 
         self._kernel = self.add_weight(
             name="kernel",
-            shape=(packed_cols, input_dim),
+            shape=(input_dim, packed_cols),
             initializer="zeros",
             dtype="int8",
             trainable=False,
@@ -688,9 +686,9 @@ class Dense(Layer):
             # Per-channel: one scale per output unit
             scale_shape = (self.units,)
         else:
-            # Sub-channel: [out_features, n_groups]
+            # Sub-channel: [n_groups, out_features]
             n_groups = math.ceil(input_dim / block_size)
-            scale_shape = (self.units, n_groups)
+            scale_shape = (n_groups, self.units)
 
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
@@ -827,20 +825,19 @@ class Dense(Layer):
                 inputs, kernel, kernel_scale
             ):
                 """Per-channel int4 forward pass with custom gradient."""
-                # Unpack: stored as [ceil(out/2), in], unpack along axis 0
+                # Unpack: stored as [in, ceil(out/2)], unpack along last axis
                 unpacked_kernel = quantizers.unpack_int4(
-                    kernel, self._orig_output_dim, axis=0
+                    kernel, self._orig_output_dim, axis=-1
                 )
 
                 def grad_fn(*args, upstream=None):
                     if upstream is None:
                         (upstream,) = args
-                    # Per-channel: unpacked is [out, in], transpose to [in, out]
+                    # Per-channel: unpacked is [in, out]
                     float_kernel = ops.divide(
                         ops.cast(unpacked_kernel, dtype=self.compute_dtype),
-                        ops.expand_dims(kernel_scale, axis=-1),
+                        kernel_scale,
                     )
-                    float_kernel = ops.transpose(float_kernel)
                     inputs_grad = ops.matmul(
                         upstream, ops.transpose(float_kernel)
                     )
@@ -854,8 +851,7 @@ class Dense(Layer):
                     )
                     output_scale = ops.multiply(output_scale, inputs_scale)
 
-                # Transpose after matmul: inputs @ kernel.T
-                x = ops.matmul(inputs, ops.transpose(unpacked_kernel))
+                x = ops.matmul(inputs, unpacked_kernel)
                 x = ops.cast(x, self.compute_dtype)
                 x = ops.divide(x, output_scale)
                 return x, grad_fn
@@ -872,9 +868,9 @@ class Dense(Layer):
                 inputs, kernel, kernel_scale, kernel_zero, g_idx
             ):
                 """Sub-channel int4 forward pass with custom gradient."""
-                # Unpack: stored as [ceil(out/2), in], unpack along axis 0
+                # Unpack: stored as [in, ceil(out/2)], unpack along last axis
                 unpacked_kernel = quantizers.unpack_int4(
-                    kernel, self._orig_output_dim, axis=0
+                    kernel, self._orig_output_dim, axis=-1
                 )
 
                 def grad_fn(*args, upstream=None):
@@ -885,17 +881,23 @@ class Dense(Layer):
                         kernel_scale,
                         kernel_zero,
                         g_idx,
+                        group_axis=0,
                     )
                     float_kernel = ops.cast(float_kernel, self.compute_dtype)
-                    inputs_grad = ops.matmul(upstream, float_kernel)
+                    inputs_grad = ops.matmul(
+                        upstream, ops.transpose(float_kernel)
+                    )
                     return (inputs_grad, None, None, None, None)
 
                 float_kernel = dequantize_with_sz_map(
-                    unpacked_kernel, kernel_scale, kernel_zero, g_idx
+                    unpacked_kernel,
+                    kernel_scale,
+                    kernel_zero,
+                    g_idx,
+                    group_axis=0,
                 )
                 float_kernel = ops.cast(float_kernel, self.compute_dtype)
-                # Transpose: [out, in] -> [in, out]
-                x = ops.matmul(inputs, ops.transpose(float_kernel))
+                x = ops.matmul(inputs, float_kernel)
                 return x, grad_fn
 
             x = matmul_sub_channel_with_inputs_gradient(
@@ -1054,19 +1056,16 @@ class Dense(Layer):
                     self._kernel, to_numpy=True
                 )
                 kernel_scale = ops.squeeze(kernel_scale, axis=0)
-                kernel_value_int4 = ops.transpose(kernel_value_int4)
             else:
                 # Sub-channel quantization with asymmetric zero point
+                # Returns kernel [in, out], scale [n_groups, out], zero
+                # [n_groups, out]
                 kernel_value_int4, kernel_scale, kernel_zero = (
                     quantizers.abs_max_quantize_grouped_with_zero_point(
                         self._kernel, block_size=block_size, to_numpy=True
                     )
                 )
-                # Transpose all outputs to be able to re-use some utils
-                kernel_value_int4 = ops.transpose(kernel_value_int4)
-                kernel_scale = ops.transpose(kernel_scale)
-                kernel_zero = ops.transpose(kernel_zero)
-
+                # g_idx maps each input position to its group index
                 g_idx = ops.cast(
                     ops.floor_divide(
                         ops.arange(input_dim, dtype="int32"), block_size
@@ -1074,9 +1073,10 @@ class Dense(Layer):
                     "float32",
                 )
 
-            # Pack two int4 values per int8 byte along axis 0
+            # Pack two int4 values per int8 byte along last axis
+            # Stored as [in, ceil(out/2)]
             packed_kernel_value, _, _ = quantizers.pack_int4(
-                kernel_value_int4, axis=0
+                kernel_value_int4, axis=-1
             )
             del self._kernel
             self.quantized_build(kernel_shape, mode, self.quantization_config)
@@ -1158,20 +1158,26 @@ class Dense(Layer):
 
         # Step 1: Dequantize kernel to float
         if self.quantization_mode == "int4":
+            # Unpack along last axis ([in, out])
             unpacked_kernel = quantizers.unpack_int4(
-                kernel_value, self._orig_output_dim, axis=0
+                kernel_value, self._orig_output_dim, axis=-1
             )
             if block_size is None or block_size == -1:
+                # Per-channel: kernel [in, out], scale [out]
                 float_kernel = ops.divide(
                     ops.cast(unpacked_kernel, self.compute_dtype),
-                    ops.expand_dims(kernel_scale, axis=-1),
+                    kernel_scale,
                 )
             else:
+                # Sub-channel: scale/zero are [n_groups, out]
                 float_kernel = dequantize_with_sz_map(
-                    unpacked_kernel, kernel_scale, self.kernel_zero, self.g_idx
+                    unpacked_kernel,
+                    kernel_scale,
+                    self.kernel_zero,
+                    self.g_idx,
+                    group_axis=0,
                 )
                 float_kernel = ops.cast(float_kernel, self.compute_dtype)
-            float_kernel = ops.transpose(float_kernel)
             quant_range = (-8, 7)
         elif self.quantization_mode == "int8":
             float_kernel = ops.divide(
@@ -1195,19 +1201,16 @@ class Dense(Layer):
             and block_size is not None
             and block_size != -1
         ):
+            # Sub-channel: returns kernel [in, out], scale [n_groups, out]
             requantized_kernel, kernel_scale, kernel_zero = (
                 quantizers.abs_max_quantize_grouped_with_zero_point(
                     merged_float_kernel, block_size=block_size, to_numpy=True
                 )
             )
-            # Transpose to GPTQ layout
-            requantized_kernel = ops.transpose(requantized_kernel)
-            kernel_scale = ops.transpose(kernel_scale)
-            kernel_zero = ops.transpose(kernel_zero)
         elif self.quantization_mode == "int4":
-            kernel_t = ops.transpose(merged_float_kernel)
+            # Per-channel: quantize along input axis (axis=0)
             requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
-                kernel_t,
+                merged_float_kernel,
                 axis=0,
                 value_range=quant_range,
                 dtype="int8",
@@ -1227,8 +1230,9 @@ class Dense(Layer):
             kernel_zero = None
 
         if self.quantization_mode == "int4":
+            # Pack along last axis
             kernel_value, _, _ = quantizers.pack_int4(
-                requantized_kernel, axis=0
+                requantized_kernel, axis=-1
             )
         else:
             kernel_value = requantized_kernel

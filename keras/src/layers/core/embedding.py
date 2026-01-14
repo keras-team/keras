@@ -13,6 +13,7 @@ from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import get_block_size_for_layer
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
 
@@ -478,22 +479,18 @@ class Embedding(Layer):
                 ops.expand_dims(embeddings_scale, axis=-1),
             )
         else:
-            # Sub-channel: use g_idx to map each position to itsgroup's params
+            # Sub-channel: look up scale/zero for each input token,
+            # then dequantize using g_idx to expand groups
             embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
-            g_idx_int = ops.cast(self.g_idx, "int32")
-            scale_flat = ops.take(embeddings_scale, g_idx_int, axis=-1)
-
-            # Get zero point for each input token
             embeddings_zero = ops.take(self.embeddings_zero, inputs, axis=0)
-            zero_flat = ops.take(embeddings_zero, g_idx_int, axis=-1)
 
-            # Dequantize: output = scale * (quantized - zero_point)
-            outputs = ops.multiply(
-                scale_flat,
-                ops.subtract(
-                    ops.cast(outputs, dtype=self.compute_dtype),
-                    ops.cast(zero_flat, dtype=self.compute_dtype),
-                ),
+            # Scale/zero are [batch..., n_groups], g_idx is [output_dim]
+            outputs = dequantize_with_sz_map(
+                ops.cast(outputs, dtype=self.compute_dtype),
+                embeddings_scale,
+                embeddings_zero,
+                self.g_idx,
+                group_axis=-1,
             )
 
         if self.lora_enabled:
@@ -660,16 +657,13 @@ class Embedding(Layer):
                     ops.expand_dims(embeddings_scale, axis=-1),
                 )
             else:
-                # Sub-channel: grouped dequantization using g_idx
-                g_idx_int = ops.cast(self.g_idx, "int32")
-                scale_flat = ops.take(embeddings_scale, g_idx_int, axis=-1)
-                zero_flat = ops.take(self.embeddings_zero, g_idx_int, axis=-1)
-                float_embeddings = ops.multiply(
-                    scale_flat,
-                    ops.subtract(
-                        ops.cast(unpacked_embeddings, self.compute_dtype),
-                        ops.cast(zero_flat, self.compute_dtype),
-                    ),
+                # Sub-channel: grouped dequantization using shared utility
+                float_embeddings = dequantize_with_sz_map(
+                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                    embeddings_scale,
+                    self.embeddings_zero,
+                    self.g_idx,
+                    group_axis=-1,
                 )
             quant_range = (-8, 7)
         elif self.quantization_mode == "int8":

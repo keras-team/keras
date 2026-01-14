@@ -239,14 +239,12 @@ class EinsumDense(Layer):
 
             # Handle int4 unpacking cases in one place
             if is_int4:
-                # GPTQ layout: unpack [ceil(columns/2), rows] to [columns, rows]
+                # unpack [rows, ceil(columns/2)] to [rows, columns]
                 kernel = quantizers.unpack_int4(
                     kernel,
                     self._int4_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                 )
-                # Transpose [columns, rows] -> [rows, columns] and reshape
-                kernel = ops.transpose(kernel)
                 kernel = ops.reshape(kernel, self.original_kernel_shape)
             elif is_gptq and gptq_calibrated and gptq_bits == 4:
                 kernel = quantizers.unpack_int4(
@@ -779,8 +777,8 @@ class EinsumDense(Layer):
     def _int4_build(self, kernel_shape, config=None):
         """Build variables for int4 quantization.
 
-        The kernel is stored in GPTQ layout: flattened to 2D, transposed to
-        [columns, rows], and packed along axis 0.
+        The kernel is  flattened to 2D [rows, columns]
+        and packed along last axis to [rows, ceil(columns/2)].
 
         Args:
             kernel_shape: Original kernel shape (may be N-dimensional).
@@ -809,18 +807,21 @@ class EinsumDense(Layer):
         self._int4_unpacked_column_size = columns
         self._int4_rows = rows
 
+        # Kernel packed along last axis (columns)
+        # Stored shape: [rows, ceil(columns/2)]
         packed_cols = (columns + 1) // 2
         self._kernel = self.add_weight(
             name="kernel",
-            shape=(packed_cols, rows),
+            shape=(rows, packed_cols),
             initializer="zeros",
             dtype="int8",
             trainable=False,
         )
 
         if use_grouped:
+            # Sub-channel: [n_groups, columns]
             n_groups = math.ceil(rows / block_size)
-            scale_shape = (columns, n_groups)
+            scale_shape = (n_groups, columns)
         else:
             scale_shape = (columns,)
 
@@ -995,19 +996,21 @@ class EinsumDense(Layer):
                 inputs, packed_kernel, kernel_scale
             ):
                 """Per-channel int4 forward pass with custom gradient."""
+                # Unpack: stored as [rows, ceil(columns/2)],
+                # unpack along last axis
                 unpacked_kernel = quantizers.unpack_int4(
                     packed_kernel,
                     self._int4_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="int8",
                 )
 
                 def _dequantize_kernel(unpacked, scale):
+                    # kernel is [rows, columns], scale is [columns]
                     float_kernel = ops.divide(
                         ops.cast(unpacked, dtype=self.compute_dtype),
-                        ops.expand_dims(scale, axis=-1),
+                        scale,
                     )
-                    float_kernel = ops.transpose(float_kernel)
                     return ops.reshape(float_kernel, self.original_kernel_shape)
 
                 def grad_fn(*args, upstream=None):
@@ -1055,21 +1058,22 @@ class EinsumDense(Layer):
                 inputs, packed_kernel, kernel_scale, kernel_zero, g_idx
             ):
                 """Sub-channel int4 forward pass with custom gradient."""
+                # Unpack: stored as [rows, ceil(columns/2)],
+                # unpack along last axis
                 unpacked_kernel = quantizers.unpack_int4(
                     packed_kernel,
                     self._int4_unpacked_column_size,
-                    axis=0,
+                    axis=-1,
                     dtype="int8",
                 )
 
                 def _dequantize_kernel(unpacked, scale, zero, g_idx_t):
+                    # Dequantize with group_axis=0 since
+                    # scale is [n_groups, columns]
                     float_kernel = dequantize_with_sz_map(
-                        unpacked, scale, zero, g_idx_t
+                        unpacked, scale, zero, g_idx_t, group_axis=0
                     )
                     float_kernel = ops.cast(float_kernel, self.compute_dtype)
-                    # Transpose: [columns, rows] -> [rows, columns]
-                    float_kernel = ops.transpose(float_kernel)
-                    # Reshape to original kernel shape
                     return ops.reshape(float_kernel, self.original_kernel_shape)
 
                 def grad_fn(*args, upstream=None):
@@ -1256,19 +1260,15 @@ class EinsumDense(Layer):
                     to_numpy=True,
                 )
                 kernel_scale = ops.squeeze(kernel_scale, axis=0)
-                kernel_value_int4 = ops.transpose(kernel_value_int4)
             else:
                 # Sub-channel quantization with asymmetric zero point
+                # Returns kernel [rows, columns], scale [n_groups, columns]
                 kernel_value_int4, kernel_scale, kernel_zero = (
                     quantizers.abs_max_quantize_grouped_with_zero_point(
                         flat_kernel, block_size=block_size, to_numpy=True
                     )
                 )
-                # Transpose all outputs to GPTQ layout [columns, ...]
-                kernel_value_int4 = ops.transpose(kernel_value_int4)
-                kernel_scale = ops.transpose(kernel_scale)
-                kernel_zero = ops.transpose(kernel_zero)
-
+                # g_idx maps each row position to its group index
                 g_idx = ops.cast(
                     ops.floor_divide(
                         ops.arange(rows, dtype="int32"), block_size
@@ -1276,9 +1276,10 @@ class EinsumDense(Layer):
                     "float32",
                 )
 
-            # Pack two int4 values per int8 byte along axis 0
+            # Pack two int4 values per int8 byte along last axis
+            # Stored as [rows, ceil(columns/2)]
             packed_kernel_value, _, _ = quantizers.pack_int4(
-                kernel_value_int4, axis=0
+                kernel_value_int4, axis=-1
             )
             kernel_value = packed_kernel_value
             del self._kernel
@@ -1403,29 +1404,29 @@ class EinsumDense(Layer):
 
         # 1. Dequantize the kernel
         if self.quantization_mode == "int4":
-            # GPTQ layout: unpack [ceil(columns/2), rows] to [columns, rows]
+            # Unpack [rows, ceil(columns/2)] to [rows, columns]
             unpacked_kernel = quantizers.unpack_int4(
                 self._kernel,
                 self._int4_unpacked_column_size,
-                axis=0,
+                axis=-1,
             )
             block_size = getattr(self, "_int4_block_size", None)
             if block_size is not None and block_size != -1:
-                # Grouped dequantization using dequantize_with_sz_map directly
+                # Grouped dequantization with group_axis=0
                 kernel_fp = dequantize_with_sz_map(
                     unpacked_kernel,
                     self.kernel_scale,
                     self.kernel_zero,
                     self.g_idx,
+                    group_axis=0,
                 )
             else:
-                # Per-channel dequantization: [columns, rows]
+                # Per-channel dequantization:
+                # kernel [rows, columns], scale [columns]
                 kernel_fp = ops.divide(
                     ops.cast(unpacked_kernel, self.compute_dtype),
-                    ops.expand_dims(self.kernel_scale, axis=-1),
+                    self.kernel_scale,
                 )
-            # Transpose [columns, rows] -> [rows, columns] and reshape
-            kernel_fp = ops.transpose(kernel_fp)
             kernel_fp = ops.reshape(kernel_fp, self.original_kernel_shape)
         elif self.quantization_mode == "int8":
             adjusted_scale = self._adjust_scale_for_dequant(self.kernel_scale)
@@ -1454,21 +1455,17 @@ class EinsumDense(Layer):
             if block_size is not None and block_size != -1:
                 # Use abs_max_quantize_grouped_with_zero_point for proper
                 # signed quantization (same as quantize() method)
+                # Returns kernel [rows, columns], scale [n_groups, columns]
                 kernel_quant, new_scale, new_zero = (
                     quantizers.abs_max_quantize_grouped_with_zero_point(
                         flat_kernel, block_size=block_size, to_numpy=True
                     )
                 )
-                # Transpose to GPTQ layout: [rows, columns] -> [columns, rows]
-                kernel_quant = np.transpose(kernel_quant)  # [columns, rows]
-                new_scale = np.transpose(new_scale)  # [columns, n_groups]
-                new_zero = np.transpose(new_zero)  # [columns, n_groups]
                 kernel_zero = new_zero
             else:
-                # Per-channel: transpose to GPTQ layout [columns, rows]
-                flat_kernel_t = np.transpose(flat_kernel)
+                # Per-channel: quantize along rows axis
                 kernel_quant, new_scale = quantizers.abs_max_quantize(
-                    flat_kernel_t,
+                    flat_kernel,
                     axis=0,
                     value_range=(-8, 7),
                     dtype="int8",
@@ -1477,8 +1474,8 @@ class EinsumDense(Layer):
                 new_scale = ops.squeeze(new_scale, axis=0)
                 kernel_zero = None
 
-            # Pack along axis 0 (GPTQ layout)
-            new_kernel, _, _ = quantizers.pack_int4(kernel_quant, axis=0)
+            # Pack along last axis
+            new_kernel, _, _ = quantizers.pack_int4(kernel_quant, axis=-1)
         elif self.quantization_mode == "int8":
             new_kernel, new_scale = quantizers.abs_max_quantize(
                 merged_kernel_fp,

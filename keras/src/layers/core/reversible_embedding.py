@@ -10,6 +10,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import set_keras_mask
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import get_block_size_for_layer
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
 @keras_export("keras.layers.ReversibleEmbedding")
@@ -406,24 +407,17 @@ class ReversibleEmbedding(layers.Embedding):
                 # embeddings_zero shape: (input_dim, n_groups)
                 # g_idx shape: (output_dim,)
 
-                # Dequantize using g_idx
-                g_idx_int = ops.cast(self.g_idx, "int32")
-                # Map each output position to its group's scale/zero
-                # scale[i, g_idx[o]] for each (i, o) position
-                # Transpose to get: scale_t shape (n_groups, input_dim)
+                # Transpose scale/zero for dequantization:
+                # [input_dim, n_groups] -> [n_groups, input_dim]
                 scale_t = ops.transpose(scale)
                 zero_t = ops.transpose(self.embeddings_zero)
-                # Take along axis=0 gives (output_dim, input_dim)
-                scale_mapped = ops.take(scale_t, g_idx_int, axis=0)
-                zero_mapped = ops.take(zero_t, g_idx_int, axis=0)
 
-                # Dequantize: float_emb = scale * (quantized - zero)
-                float_embeddings = ops.multiply(
-                    scale_mapped,
-                    ops.subtract(
-                        ops.cast(unpacked_embeddings, self.compute_dtype),
-                        ops.cast(zero_mapped, self.compute_dtype),
-                    ),
+                float_embeddings = dequantize_with_sz_map(
+                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                    scale_t,
+                    zero_t,
+                    self.g_idx,
+                    group_axis=0,
                 )
 
                 # inputs shape: (batch, output_dim)
@@ -438,22 +432,16 @@ class ReversibleEmbedding(layers.Embedding):
                 # reverse_embeddings_zero shape: (n_groups, input_dim)
 
                 # Compute g_idx to map each output position to its group
-                g_idx_int = ops.floor_divide(
+                g_idx = ops.floor_divide(
                     ops.arange(self.output_dim, dtype="int32"), block_size
                 )
-                # Take along axis=0 gives (output_dim, input_dim)
-                scale_mapped = ops.take(scale, g_idx_int, axis=0)
-                zero_mapped = ops.take(
-                    self.reverse_embeddings_zero, g_idx_int, axis=0
-                )
 
-                # Dequantize: float_emb = scale * (quantized - zero)
-                float_embeddings = ops.multiply(
-                    scale_mapped,
-                    ops.subtract(
-                        ops.cast(unpacked_embeddings, self.compute_dtype),
-                        ops.cast(zero_mapped, self.compute_dtype),
-                    ),
+                float_embeddings = dequantize_with_sz_map(
+                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                    scale,
+                    self.reverse_embeddings_zero,
+                    g_idx,
+                    group_axis=0,
                 )
 
                 # inputs shape: (batch, output_dim)
