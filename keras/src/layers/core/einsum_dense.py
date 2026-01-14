@@ -1329,16 +1329,8 @@ class EinsumDense(Layer):
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:
-            from keras.src.quantizers.quantization_config import (
-                Int4QuantizationConfig,
-            )
-
             policy_name = mode
-            if mode == "gptq":
-                policy_name = self.quantization_config.dtype_policy_string()
-            elif mode == "awq":
-                policy_name = self.quantization_config.dtype_policy_string()
-            elif mode == "awq":
+            if mode in ("gptq", "awq"):
                 policy_name = self.quantization_config.dtype_policy_string()
             elif mode == "int4":
                 # Include block_size in policy name for sub-channel quantization

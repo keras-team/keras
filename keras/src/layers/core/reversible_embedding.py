@@ -292,12 +292,8 @@ class ReversibleEmbedding(layers.Embedding):
                 embeddings = ops.transpose(self._embeddings)
                 scale = self.embeddings_scale
                 # For tied weights, scale shape is (input_dim,) or
-                # (input_dim, n_groups). Handle differently for grouped.
-                if block_size is not None and block_size != -1:
-                    # Grouped: scale is (input_dim, n_groups), use as-is
-                    pass
-                else:
-                    # Per-channel: transpose scale
+                # (input_dim, n_groups). For per-channel, transpose scale.
+                if block_size is None or block_size == -1:
                     scale = ops.transpose(scale)
             else:
                 embeddings = self.reverse_embeddings
