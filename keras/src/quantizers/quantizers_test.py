@@ -647,8 +647,15 @@ class QuantizersTest(testing.TestCase):
             )
         )
 
-        dequantized = quantizers.dequantize_grouped_with_zero_point(
-            quantized, scale, zero, block_size
+        # Use dequantize_with_sz_map with generated g_idx
+        g_idx = ops.arange(input_dim) // block_size
+        dequantized = ops.transpose(
+            quantizers.dequantize_with_sz_map(
+                ops.transpose(ops.cast(quantized, scale.dtype)),
+                ops.transpose(scale),
+                ops.transpose(zero),
+                g_idx,
+            )
         )
 
         rmse = ops.sqrt(ops.mean(ops.square(kernel - dequantized)))
@@ -677,12 +684,7 @@ class QuantizersTest(testing.TestCase):
         n_groups = math.ceil(input_dim / block_size)  # 4 groups
         self.assertEqual(quantized.shape, (input_dim, output_dim))
         self.assertEqual(scale.shape, (n_groups, output_dim))
-
-        # Verify roundtrip
-        dequantized = quantizers.dequantize_grouped_with_zero_point(
-            quantized, scale, zero, block_size
-        )
-        self.assertEqual(dequantized.shape, (input_dim, output_dim))
+        self.assertEqual(zero.shape, (n_groups, output_dim))
 
     def test_grouped_quantize_to_numpy(self):
         """Test grouped quantization with to_numpy=True."""
@@ -731,9 +733,18 @@ class QuantizersTest(testing.TestCase):
                 kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
             )
         )
-        grouped_dequantized = quantizers.dequantize_grouped_with_zero_point(
-            grouped_quantized, grouped_scale, grouped_zero, block_size
+
+        # Use dequantize_with_sz_map with generated g_idx
+        g_idx = ops.arange(input_dim) // block_size
+        grouped_dequantized = ops.transpose(
+            quantizers.dequantize_with_sz_map(
+                ops.transpose(ops.cast(grouped_quantized, grouped_scale.dtype)),
+                ops.transpose(grouped_scale),
+                ops.transpose(grouped_zero),
+                g_idx,
+            )
         )
+
         grouped_rmse = ops.sqrt(
             ops.mean(ops.square(kernel - grouped_dequantized))
         )
@@ -785,12 +796,7 @@ class QuantizersTest(testing.TestCase):
             n_groups = math.ceil(input_dim / block_size)
             self.assertEqual(quantized.shape, (input_dim, output_dim))
             self.assertEqual(scale.shape, (n_groups, output_dim))
-
-            # Verify roundtrip
-            dequantized = quantizers.dequantize_grouped_with_zero_point(
-                quantized, scale, zero, block_size
-            )
-            self.assertEqual(dequantized.shape, (input_dim, output_dim))
+            self.assertEqual(zero.shape, (n_groups, output_dim))
 
     def test_grouped_quantize_preserves_dtype(self):
         """Test that grouped quantization preserves scale dtype from input."""
@@ -813,38 +819,6 @@ class QuantizersTest(testing.TestCase):
             kernel_f16, block_size=block_size, value_range=(-8, 7), dtype="int8"
         )
         self.assertDType(scale_f16, "float16")
-
-    def test_dequantize_grouped_with_zero_point_edge_cases(self):
-        """Test dequantize_grouped_with_zero_point with edge cases."""
-        # Test with exact divisible input_dim
-        input_dim, output_dim, block_size = 256, 128, 64
-        kernel = random.uniform(
-            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
-        )
-        quantized, scale, zero = (
-            quantizers.abs_max_quantize_grouped_with_zero_point(
-                kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
-            )
-        )
-        dequantized = quantizers.dequantize_grouped_with_zero_point(
-            quantized, scale, zero, block_size
-        )
-        self.assertEqual(dequantized.shape, (input_dim, output_dim))
-
-        # Test with non-divisible input_dim
-        input_dim, output_dim, block_size = 300, 128, 64
-        kernel = random.uniform(
-            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
-        )
-        quantized, scale, zero = (
-            quantizers.abs_max_quantize_grouped_with_zero_point(
-                kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
-            )
-        )
-        dequantized = quantizers.dequantize_grouped_with_zero_point(
-            quantized, scale, zero, block_size
-        )
-        self.assertEqual(dequantized.shape, (input_dim, output_dim))
 
 
 class Int4QuantizationConfigTest(testing.TestCase):

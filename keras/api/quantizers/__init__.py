@@ -37,9 +37,6 @@ from keras.src.quantizers.quantizers import (
     compute_float8_scale as compute_float8_scale,
 )
 from keras.src.quantizers.quantizers import (
-    dequantize_grouped_with_zero_point as dequantize_grouped_with_zero_point,
-)
-from keras.src.quantizers.quantizers import (
     fake_quant_with_min_max_vars as fake_quant_with_min_max_vars,
 )
 from keras.src.quantizers.quantizers import pack_int4 as pack_int4

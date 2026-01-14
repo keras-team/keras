@@ -16,7 +16,6 @@ from keras.src.quantizers.quantizers import (
 from keras.src.quantizers.quantizers import compute_float8_amax_history
 from keras.src.quantizers.quantizers import compute_float8_scale
 from keras.src.quantizers.quantizers import compute_quantization_parameters
-from keras.src.quantizers.quantizers import dequantize_grouped_with_zero_point
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import fake_quant_with_min_max_vars
 from keras.src.quantizers.quantizers import pack_int4
