@@ -384,11 +384,17 @@ class Embedding(Layer):
         )
 
     def _int4_build(self, embeddings_shape, config=None):
-        input_dim, output_dim = embeddings_shape
-        packed_rows = (output_dim + 1) // 2  # ceil for odd dims
+        """Build variables for int4 quantization.
 
-        # Embeddings are stored *packed*: each int8 byte contains two int4
-        # values.
+        Args:
+            embeddings_shape: Original shape `(input_dim, output_dim)`.
+            config: Optional quantization config specifying block_size.
+        """
+        input_dim, output_dim = embeddings_shape
+        packed_rows = (output_dim + 1) // 2
+
+        # Embeddings are stored packed: each int8 byte contains two
+        # int4 values.
         self._embeddings = self.add_weight(
             name="embeddings",
             shape=(input_dim, packed_rows),
@@ -397,17 +403,12 @@ class Embedding(Layer):
             trainable=False,
         )
 
-        # Determine block_size from config or dtype_policy
         block_size = get_block_size_for_layer(self, config)
-
-        # Store block_size for runtime dequantization
         self._int4_block_size = block_size
 
         if block_size is None or block_size == -1:
-            # Per-channel: one scale per vocabulary item
             scale_shape = (self.input_dim,)
         else:
-            # Grouped (sub-channel): scale per group along output_dim
             n_groups = math.ceil(output_dim / block_size)
             scale_shape = (self.input_dim, n_groups)
 
@@ -418,8 +419,8 @@ class Embedding(Layer):
             trainable=False,
         )
 
-        # Add embeddings_zero and g_idx for sub-channel quantization
-        # (asymmetric)
+        # Sub-channel quantization uses asymmetric quantization with
+        # zero point
         if block_size is not None and block_size > 0:
             self.embeddings_zero = self.add_weight(
                 name="embeddings_zero",
@@ -428,8 +429,6 @@ class Embedding(Layer):
                 dtype="int8",
                 trainable=False,
             )
-            # g_idx maps each column to its group index for efficient
-            # dequantization
             self.g_idx = self.add_weight(
                 name="g_idx",
                 shape=(output_dim,),
@@ -438,7 +437,6 @@ class Embedding(Layer):
                 trainable=False,
             )
 
-        # Record original output_dim for unpacking at runtime.
         self._orig_output_dim = output_dim
 
     def _int8_call(self, inputs, training=None):
@@ -462,8 +460,7 @@ class Embedding(Layer):
         return outputs
 
     def _int4_call(self, inputs, training=None):
-        # We cannot update quantized self._embeddings, so the custom gradient is
-        # not needed
+        """Forward pass for int4 quantized Embedding layer."""
         if backend.standardize_dtype(inputs.dtype) not in ("int32", "int64"):
             inputs = ops.cast(inputs, "int32")
 
@@ -475,20 +472,14 @@ class Embedding(Layer):
         block_size = getattr(self, "_int4_block_size", None)
 
         if block_size is None or block_size == -1:
-            # Per-channel dequantization
             embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
             outputs = ops.divide(
                 ops.cast(outputs, dtype=self.compute_dtype),
                 ops.expand_dims(embeddings_scale, axis=-1),
             )
         else:
-            # Sub-channel: grouped dequantization using g_idx
-            # outputs shape: (batch..., output_dim)
-            # scale shape after take: (batch..., n_groups)
+            # Sub-channel: use g_idx to map each position to itsgroup's params
             embeddings_scale = ops.take(self.embeddings_scale, inputs, axis=0)
-
-            # Use g_idx to map each output position to its group's scale
-            # g_idx shape: (output_dim,) -> maps position to group index
             g_idx_int = ops.cast(self.g_idx, "int32")
             scale_flat = ops.take(embeddings_scale, g_idx_int, axis=-1)
 
@@ -543,7 +534,6 @@ class Embedding(Layer):
                 Int4QuantizationConfig,
             )
 
-            # Determine block_size from config
             block_size = None
             if isinstance(self.quantization_config, Int4QuantizationConfig):
                 block_size = self.quantization_config.block_size
@@ -551,7 +541,7 @@ class Embedding(Layer):
             use_grouped = block_size is not None and block_size != -1
 
             if not use_grouped:
-                # Per-channel quantization (legacy behavior)
+                # Per-channel quantization
                 weight_quantizer = (
                     QuantizationConfig.weight_quantizer_or_default(
                         self.quantization_config,
@@ -567,14 +557,10 @@ class Embedding(Layer):
                 )
                 embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             else:
-                # Grouped (sub-channel) quantization along output_dim (axis=-1)
+                # Sub-channel quantization with asymmetric zero point
                 input_dim, output_dim = ops.shape(self._embeddings)
-
-                # For grouped quantization along axis=-1, transpose to put
-                # output_dim first, then use abs_max_quantize_grouped
-                embeddings_t = ops.transpose(
-                    self._embeddings
-                )  # (output_dim, input)
+                # Transpose to put output_dim first for grouped quantization
+                embeddings_t = ops.transpose(self._embeddings)
 
                 embeddings_value_t, scale_t, zero_t = (
                     quantizers.abs_max_quantize_grouped_with_zero_point(
@@ -585,14 +571,11 @@ class Embedding(Layer):
                         to_numpy=True,
                     )
                 )
-                # scale_t shape: (n_groups, input_dim)
-                # Transpose back: embeddings (input, output),
-                # scale (input, n_grp)
+                # Transpose back to (input_dim, output_dim) layout
                 embeddings_value = ops.transpose(embeddings_value_t)
                 embeddings_scale = ops.transpose(scale_t)
                 embeddings_zero = ops.transpose(zero_t)
 
-            # Pack two int4 values into a single int8 byte.
             packed_embeddings_value, _, _ = quantizers.pack_int4(
                 embeddings_value, axis=-1
             )
@@ -602,10 +585,10 @@ class Embedding(Layer):
             )
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
-            # Assign zero point and g_idx for sub-channel quantization
             if use_grouped:
                 self.embeddings_zero.assign(embeddings_zero)
-                # Compute g_idx: maps each output position to its group index
+                # Compute g_idx: maps each output position to its group
+                # index
                 g_idx = ops.floor_divide(
                     ops.arange(output_dim, dtype="int32"), block_size
                 )

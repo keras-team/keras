@@ -612,28 +612,9 @@ class QuantizersTest(testing.TestCase):
         ("block_64", 64),
         ("block_128", 128),
     )
-    def test_abs_max_quantize_grouped_shapes(self, block_size):
-        """Test that grouped quantization produces correct shapes."""
-        input_dim, output_dim = 512, 256
-        kernel = random.uniform(
-            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
-        )
-
-        quantized, scale = quantizers.abs_max_quantize_grouped(
-            kernel,
-            block_size=block_size,
-            value_range=(-8, 7),
-            dtype="int8",
-        )
-
-        n_groups = math.ceil(input_dim / block_size)
-        self.assertEqual(quantized.shape, (input_dim, output_dim))
-        self.assertEqual(scale.shape, (n_groups, output_dim))
-        self.assertDType(quantized, "int8")
-
-    def test_grouped_quantize_dequantize_roundtrip(self):
+    def test_grouped_quantize_dequantize_roundtrip(self, block_size):
         """Test that grouped quantize/dequantize has low error."""
-        input_dim, output_dim, block_size = 256, 128, 64
+        input_dim, output_dim = 256, 128
         kernel = random.uniform(
             (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
         )
@@ -664,7 +645,6 @@ class QuantizersTest(testing.TestCase):
 
     def test_grouped_quantize_with_padding(self):
         """Test grouped quantization when input_dim is not divisible."""
-        import math
 
         # 500 is not divisible by 128, so padding will be needed
         input_dim, output_dim, block_size = 500, 256, 128
@@ -685,27 +665,6 @@ class QuantizersTest(testing.TestCase):
         self.assertEqual(quantized.shape, (input_dim, output_dim))
         self.assertEqual(scale.shape, (n_groups, output_dim))
         self.assertEqual(zero.shape, (n_groups, output_dim))
-
-    def test_grouped_quantize_to_numpy(self):
-        """Test grouped quantization with to_numpy=True."""
-        import math
-
-        input_dim, output_dim, block_size = 256, 128, 64
-        kernel = random.uniform(
-            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
-        )
-
-        quantized, scale = quantizers.abs_max_quantize_grouped(
-            kernel,
-            block_size=block_size,
-            value_range=(-8, 7),
-            dtype="int8",
-            to_numpy=True,
-        )
-
-        n_groups = math.ceil(input_dim / block_size)
-        self.assertEqual(quantized.shape, (input_dim, output_dim))
-        self.assertEqual(scale.shape, (n_groups, output_dim))
 
     def test_grouped_vs_perchannel_accuracy(self):
         """Test that grouped quantization has lower error than per-channel."""
@@ -753,30 +712,8 @@ class QuantizersTest(testing.TestCase):
         # (in most cases it should be lower due to finer granularity)
         self.assertLessEqual(float(grouped_rmse), float(pc_rmse) + 0.01)
 
-    def test_grouped_quantize_different_value_ranges(self):
-        """Test grouped quantization with different value ranges."""
-        input_dim, output_dim, block_size = 256, 128, 64
-        kernel = random.uniform(
-            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
-        )
-
-        # Test int4 range (-8, 7)
-        q_int4, s_int4 = quantizers.abs_max_quantize_grouped(
-            kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
-        )
-        self.assertLessEqual(ops.max(q_int4), 7)
-        self.assertGreaterEqual(ops.min(q_int4), -8)
-
-        # Test int8 range (-127, 127)
-        q_int8, s_int8 = quantizers.abs_max_quantize_grouped(
-            kernel, block_size=block_size, value_range=(-127, 127), dtype="int8"
-        )
-        self.assertLessEqual(ops.max(q_int8), 127)
-        self.assertGreaterEqual(ops.min(q_int8), -127)
-
     def test_grouped_quantize_various_block_sizes(self):
         """Test grouped quantization with various block sizes."""
-        import math
 
         input_dim, output_dim = 512, 128
         kernel = random.uniform(
@@ -797,28 +734,6 @@ class QuantizersTest(testing.TestCase):
             self.assertEqual(quantized.shape, (input_dim, output_dim))
             self.assertEqual(scale.shape, (n_groups, output_dim))
             self.assertEqual(zero.shape, (n_groups, output_dim))
-
-    def test_grouped_quantize_preserves_dtype(self):
-        """Test that grouped quantization preserves scale dtype from input."""
-        input_dim, output_dim, block_size = 256, 128, 64
-
-        # Test with float32
-        kernel_f32 = random.uniform(
-            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
-        )
-        _, scale_f32 = quantizers.abs_max_quantize_grouped(
-            kernel_f32, block_size=block_size, value_range=(-8, 7), dtype="int8"
-        )
-        self.assertDType(scale_f32, "float32")
-
-        # Test with float16
-        kernel_f16 = random.uniform(
-            (input_dim, output_dim), minval=-1, maxval=1, dtype="float16"
-        )
-        _, scale_f16 = quantizers.abs_max_quantize_grouped(
-            kernel_f16, block_size=block_size, value_range=(-8, 7), dtype="int8"
-        )
-        self.assertDType(scale_f16, "float16")
 
 
 class Int4QuantizationConfigTest(testing.TestCase):

@@ -182,7 +182,83 @@ class ReversibleEmbedding(layers.Embedding):
                 variable_spec.append("reverse_embeddings")
                 if mode in ("int4", "int8"):
                     variable_spec.append("reverse_embeddings_scale")
+                if mode == "int4":
+                    # reverse_embeddings_zero only exists for sub-channel
+                    variable_spec.append("reverse_embeddings_zero")
         return _spec
+
+    def save_own_variables(self, store):
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+
+        # Embeddings plus optional merged LoRA-aware scale
+        embeddings_value, merged_kernel_scale = (
+            self._get_embeddings_with_merged_lora()
+        )
+        idx = 0
+        for name in self.variable_serialization_spec[mode]:
+            if name == "embeddings":
+                store[str(idx)] = embeddings_value
+            elif name == "embeddings_zero" and not hasattr(
+                self, "embeddings_zero"
+            ):
+                # embeddings_zero only exists for sub-channel int4 quantization
+                continue
+            elif name == "g_idx" and not hasattr(self, "g_idx"):
+                # g_idx only exists for sub-channel int4 quantization
+                continue
+            elif name == "reverse_embeddings_zero" and not hasattr(
+                self, "reverse_embeddings_zero"
+            ):
+                # reverse_embeddings_zero only exists for sub-channel int4
+                continue
+            elif name == "embeddings_scale" and mode in ("int4", "int8"):
+                store[str(idx)] = merged_kernel_scale
+            else:
+                store[str(idx)] = getattr(self, name)
+            idx += 1
+
+    def load_own_variables(self, store):
+        if not self.lora_enabled:
+            self._check_load_own_variables(store)
+        # Do nothing if the layer isn't yet built
+        if not self.built:
+            return
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+
+        idx = 0
+        for name in self.variable_serialization_spec[mode]:
+            if name == "embeddings":
+                self._embeddings.assign(store[str(idx)])
+            elif name == "embeddings_zero" and not hasattr(
+                self, "embeddings_zero"
+            ):
+                # embeddings_zero only exists for sub-channel int4 quantization
+                continue
+            elif name == "g_idx" and not hasattr(self, "g_idx"):
+                # g_idx only exists for sub-channel int4 quantization
+                continue
+            elif name == "reverse_embeddings_zero" and not hasattr(
+                self, "reverse_embeddings_zero"
+            ):
+                # reverse_embeddings_zero only exists for sub-channel int4
+                continue
+            else:
+                getattr(self, name).assign(store[str(idx)])
+            idx += 1
+        if self.lora_enabled:
+            self.lora_embeddings_a.assign(
+                ops.zeros(self.lora_embeddings_a.shape)
+            )
+            self.lora_embeddings_b.assign(
+                ops.zeros(self.lora_embeddings_b.shape)
+            )
 
     def quantized_build(self, embeddings_shape, mode, config=None):
         if mode == "int8":
@@ -255,6 +331,15 @@ class ReversibleEmbedding(layers.Embedding):
                 initializer="ones",
                 trainable=False,
             )
+
+            # Zero point for asymmetric grouped quantization
+            if block_size is not None and block_size != -1:
+                self.reverse_embeddings_zero = self.add_weight(
+                    name="reverse_embeddings_zero",
+                    shape=reverse_scale_shape,
+                    initializer="zeros",
+                    trainable=False,
+                )
 
     def _int8_call(self, inputs, reverse=False):
         if not reverse:
@@ -346,17 +431,35 @@ class ReversibleEmbedding(layers.Embedding):
                 logits = ops.matmul(inputs, float_embeddings)
                 logits = ops.divide(logits, inputs_scale)
             else:
-                # Untied weights: use symmetric grouped quantization
-                # For the matmul, we sum over output_dim, so we can't
-                # directly apply grouped scale. We use average scale.
-                logits = ops.matmul(inputs, unpacked_embeddings)
-                logits = ops.cast(logits, self.compute_dtype)
-                # For untied weights, scale is (n_groups, input_dim)
-                # Average scale across groups
-                avg_scale = ops.mean(scale, axis=0)
-                logits = ops.divide(
-                    logits, ops.multiply(inputs_scale, avg_scale)
+                # Untied weights with asymmetric grouped quantization
+                # Must dequantize embeddings before matmul for correctness
+                # unpacked_embeddings shape: (output_dim, input_dim)
+                # scale shape: (n_groups, input_dim)
+                # reverse_embeddings_zero shape: (n_groups, input_dim)
+
+                # Compute g_idx to map each output position to its group
+                g_idx_int = ops.floor_divide(
+                    ops.arange(self.output_dim, dtype="int32"), block_size
                 )
+                # Take along axis=0 gives (output_dim, input_dim)
+                scale_mapped = ops.take(scale, g_idx_int, axis=0)
+                zero_mapped = ops.take(
+                    self.reverse_embeddings_zero, g_idx_int, axis=0
+                )
+
+                # Dequantize: float_emb = scale * (quantized - zero)
+                float_embeddings = ops.multiply(
+                    scale_mapped,
+                    ops.subtract(
+                        ops.cast(unpacked_embeddings, self.compute_dtype),
+                        ops.cast(zero_mapped, self.compute_dtype),
+                    ),
+                )
+
+                # inputs shape: (batch, output_dim)
+                # float_embeddings shape: (output_dim, input_dim)
+                logits = ops.matmul(inputs, float_embeddings)
+                logits = ops.divide(logits, inputs_scale)
 
             # Optionally soft-cap logits.
             if self.logit_soft_cap is not None:
@@ -413,7 +516,6 @@ class ReversibleEmbedding(layers.Embedding):
                 Int4QuantizationConfig,
             )
 
-            # Determine block_size from config
             block_size = None
             if isinstance(self.quantization_config, Int4QuantizationConfig):
                 block_size = self.quantization_config.block_size
@@ -438,11 +540,8 @@ class ReversibleEmbedding(layers.Embedding):
                 )
                 embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             else:
-                # Grouped (sub-channel) quantization along output_dim (axis=-1)
-                # Use asymmetric quantization with zero point to match Embedding
-                embeddings_np = self._embeddings
-                embeddings_t = ops.transpose(embeddings_np)
-
+                # Sub-channel quantization with asymmetric zero point
+                embeddings_t = ops.transpose(self._embeddings)
                 embeddings_value_t, scale_t, zero_t = (
                     quantizers.abs_max_quantize_grouped_with_zero_point(
                         embeddings_t,
@@ -452,14 +551,11 @@ class ReversibleEmbedding(layers.Embedding):
                         to_numpy=True,
                     )
                 )
-                # scale_t shape: (n_groups, input_dim)
-                # Transpose back: embeddings (input, output),
-                # scale (input, n_grp)
+                # Transpose back to (input_dim, output_dim) layout
                 embeddings_value = ops.transpose(embeddings_value_t)
                 embeddings_scale = ops.transpose(scale_t)
                 embeddings_zero = ops.transpose(zero_t)
 
-            # Pack forward embeddings
             packed_embeddings_value, _, _ = quantizers.pack_int4(
                 embeddings_value, axis=-1
             )
@@ -468,7 +564,6 @@ class ReversibleEmbedding(layers.Embedding):
             # Quantize reverse embeddings if not tied
             if not self.tie_weights:
                 if not use_grouped:
-                    # Per-channel quantization
                     reverse_weight_quantizer = (
                         QuantizationConfig.weight_quantizer_or_default(
                             self.quantization_config,
@@ -488,13 +583,9 @@ class ReversibleEmbedding(layers.Embedding):
                         reverse_embeddings_scale, axis=0
                     )
                 else:
-                    # Grouped quantization along axis=0 (output_dim)
-                    reverse_np = self.reverse_embeddings
-                    # Shape: (output_dim, input_dim)
-                    # Groups along axis=0, so use directly
-                    reverse_value, reverse_scale = (
-                        quantizers.abs_max_quantize_grouped(
-                            reverse_np,
+                    reverse_value, reverse_scale, reverse_zero = (
+                        quantizers.abs_max_quantize_grouped_with_zero_point(
+                            self.reverse_embeddings,
                             block_size=block_size,
                             value_range=(-8, 7),
                             dtype="int8",
@@ -503,8 +594,8 @@ class ReversibleEmbedding(layers.Embedding):
                     )
                     reverse_embeddings_value = reverse_value
                     reverse_embeddings_scale = reverse_scale
+                    reverse_embeddings_zero = reverse_zero
 
-                # Pack reverse embeddings
                 packed_reverse_embeddings_value, _, _ = quantizers.pack_int4(
                     reverse_embeddings_value, axis=0
                 )
@@ -515,7 +606,6 @@ class ReversibleEmbedding(layers.Embedding):
             )
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
-            # Assign zero point and g_idx for sub-channel quantization
             if use_grouped:
                 self.embeddings_zero.assign(embeddings_zero)
             if use_grouped and hasattr(self, "g_idx"):
@@ -527,6 +617,8 @@ class ReversibleEmbedding(layers.Embedding):
             if not self.tie_weights:
                 self.reverse_embeddings.assign(packed_reverse_embeddings_value)
                 self.reverse_embeddings_scale.assign(reverse_embeddings_scale)
+                if use_grouped:
+                    self.reverse_embeddings_zero.assign(reverse_embeddings_zero)
         else:
             raise self._quantization_mode_error(mode)
 

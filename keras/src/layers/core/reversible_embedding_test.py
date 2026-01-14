@@ -372,6 +372,14 @@ class ReversibleEmbeddingTest(test_case.TestCase):
             loaded_layer.quantization_config.block_size, block_size
         )
 
+        # Verify reverse_embeddings_zero is preserved for untied grouped
+        if not tie_weights and block_size is not None:
+            self.assertTrue(hasattr(loaded_layer, "reverse_embeddings_zero"))
+            self.assertAllClose(
+                loaded_layer.reverse_embeddings_zero,
+                layer.reverse_embeddings_zero,
+            )
+
         # Verify outputs match after deserialization
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
@@ -414,6 +422,15 @@ class ReversibleEmbeddingTest(test_case.TestCase):
                 layer.reverse_embeddings_scale.shape,
                 expected_reverse_scale_shape,
             )
+            # Check reverse_embeddings_zero shape for grouped quantization
+            if block_size is not None and block_size != -1:
+                self.assertTrue(hasattr(layer, "reverse_embeddings_zero"))
+                self.assertEqual(
+                    layer.reverse_embeddings_zero.shape,
+                    expected_reverse_scale_shape,
+                )
+            else:
+                self.assertFalse(hasattr(layer, "reverse_embeddings_zero"))
 
     @parameterized.named_parameters(
         ("grouped_block_4", 4),

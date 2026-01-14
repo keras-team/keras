@@ -25,9 +25,6 @@ from keras.src.quantizers.quantizers import AbsMaxQuantizer as AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer as Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize as abs_max_quantize
 from keras.src.quantizers.quantizers import (
-    abs_max_quantize_grouped as abs_max_quantize_grouped,
-)
-from keras.src.quantizers.quantizers import (
     abs_max_quantize_grouped_with_zero_point as abs_max_quantize_grouped_with_zero_point,
 )
 from keras.src.quantizers.quantizers import (
