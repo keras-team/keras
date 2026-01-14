@@ -1,9 +1,10 @@
 import os
 import zipfile
 
-import numpy as np
 from absl import logging
 
+from keras.src import backend
+from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
@@ -366,10 +367,8 @@ def _load_model_from_orbax_checkpoint(
     filepath, custom_objects=None, compile=True
 ):
     """Load a model from an Orbax checkpoint directory."""
-    from keras.src import backend
     from keras.src import models
     from keras.src import optimizers
-    from keras.src import tree
     from keras.src.utils.module_utils import ocp
 
     # Ensure orbax is available
@@ -380,10 +379,10 @@ def _load_model_from_orbax_checkpoint(
 
     # Determine the step to load
     available_steps = []
-    if os.path.exists(filepath):
-        subdirs = os.listdir(filepath)
+    if file_utils.exists(filepath):
+        subdirs = file_utils.listdir(filepath)
         for d in subdirs:
-            if os.path.isdir(os.path.join(filepath, d)):
+            if file_utils.isdir(file_utils.join(filepath, d)):
                 try:
                     available_steps.append(int(d))
                 except ValueError:
@@ -444,6 +443,7 @@ def _load_model_from_orbax_checkpoint(
 
     # Convert back to numpy if needed for non-JAX backends
     if backend.backend() != "jax":
+        import numpy as np
 
         def convert_to_numpy(obj):
             if hasattr(obj, "__array__"):
@@ -451,6 +451,69 @@ def _load_model_from_orbax_checkpoint(
             return obj
 
         state_tree = tree.map_structure(convert_to_numpy, state_tree)
+
+    # Initialize metrics variables before setting state tree
+    # Metrics variables are only created when the model is used, but we need
+    # them to exist before we can restore their saved state
+    if (
+        state_tree["metrics_variables"]
+        and hasattr(model, "compiled")
+        and model.compiled
+    ):
+        try:
+            # Create a minimal dummy input to initialize metrics
+            # This ensures all metrics variables are created so they can be
+            # restored
+            import numpy as np
+
+            # Get input shape from the model
+            dummy_input = None
+            dummy_target = None
+
+            if hasattr(model, "inputs") and model.inputs:
+                input_tensor = model.inputs[0]
+                if hasattr(input_tensor, "shape"):
+                    shape = list(input_tensor.shape)
+                    shape[0] = 1  # batch size = 1
+                    dummy_input = np.zeros(shape, dtype="float32")
+
+                    # Create matching dummy target
+                    if hasattr(model, "output_shape") and model.output_shape:
+                        # Try to match the model's actual output shape
+                        output_shape = model.output_shape
+                        if (
+                            isinstance(output_shape, tuple)
+                            and len(output_shape) > 1
+                        ):
+                            target_shape = list(output_shape)
+                            target_shape[0] = 1  # batch size = 1
+                            dummy_target = np.zeros(
+                                target_shape, dtype="float32"
+                            )
+                    elif hasattr(model, "layers") and model.layers:
+                        # Try to get output shape from last layer
+                        last_layer = model.layers[-1]
+                        if hasattr(last_layer, "units"):
+                            dummy_target = np.zeros(
+                                (1, last_layer.units), dtype="float32"
+                            )
+
+                    # Fallback target shape
+                    if dummy_target is None:
+                        dummy_target = np.zeros(
+                            (1, dummy_input.shape[-1]), dtype="float32"
+                        )
+
+            # Run a single evaluation to initialize all metrics
+            # Note: predict() only creates loss metrics, evaluate() creates
+            # all metrics
+            if dummy_input is not None and dummy_target is not None:
+                model.evaluate(dummy_input, dummy_target, verbose=0)
+
+        except Exception:
+            # If any step fails, don't break model loading
+            # This initialization is an optimization, not a requirement
+            pass
 
     model.set_state_tree(state_tree)
 

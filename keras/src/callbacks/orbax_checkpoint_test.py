@@ -636,7 +636,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                     if hasattr(orig_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first (detach().cpu().numpy())
+                            # PyTorch conversion (detach().cpu().numpy())
                             orig_array = orig_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -648,7 +648,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                     if hasattr(loaded_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first (detach().cpu().numpy())
+                            # PyTorch conversion (detach().cpu().numpy())
                             loaded_array = loaded_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -704,26 +704,62 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Load the model via Keras saving API
         loaded_model = saving.load_model(checkpoint_dir)
 
-        # Evaluate to initialize metrics variables in loaded model
-        loaded_model.evaluate(x, y, verbose=0)
-
-        # Get loaded state
+        # Get loaded state immediately after loading
+        # The metrics should now be properly restored with exact values
         loaded_state_tree = loaded_model.get_state_tree()
 
-        # Compare metrics variables structure (values may differ due to eval history)
-        self.assertEqual(
-            set(original_state_tree["metrics_variables"].keys()),
-            set(loaded_state_tree["metrics_variables"].keys()),
-            "Metrics variable keys should match",
+        # Compare metrics variables with exact values
+        def compare_nested_dicts(orig_dict, loaded_dict, component_name):
+            """Recursively compare nested dictionaries containing variables."""
+            for key in orig_dict:
+                if key not in loaded_dict:
+                    self.fail(f"Key {key} missing in loaded {component_name}")
+                orig_val = orig_dict[key]
+                loaded_val = loaded_dict[key]
+
+                if isinstance(orig_val, dict):
+                    compare_nested_dicts(
+                        orig_val, loaded_val, f"{component_name}.{key}"
+                    )
+                else:
+                    # Handle different array types: JAX arrays, TF variables,
+                    # PyTorch tensors, numpy arrays
+                    if hasattr(orig_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # PyTorch conversion (detach().cpu().numpy())
+                            orig_array = orig_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            orig_array = orig_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        orig_array = orig_val
+
+                    if hasattr(loaded_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # PyTorch conversion (detach().cpu().numpy())
+                            loaded_array = loaded_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            loaded_array = loaded_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        loaded_array = loaded_val
+
+                    self.assertAllClose(
+                        orig_array,
+                        loaded_array,
+                        msg=f"Mismatch in {component_name}.{key}",
+                    )
+
+        # Compare metrics variables with exact values
+        compare_nested_dicts(
+            original_state_tree["metrics_variables"],
+            loaded_state_tree["metrics_variables"],
+            "metrics_variables",
         )
-        for metric_name in original_state_tree["metrics_variables"]:
-            self.assertEqual(
-                set(
-                    original_state_tree["metrics_variables"][metric_name].keys()
-                ),
-                set(loaded_state_tree["metrics_variables"][metric_name].keys()),
-                f"Metrics variable structure for {metric_name} should match",
-            )
 
     @pytest.mark.requires_trainable_backend
     def test_load_model_via_saving_api(self):
@@ -795,11 +831,8 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Verify the model is compiled
         self.assertTrue(loaded_model.compiled)
 
-        # Evaluate the loaded model to initialize metrics variables
-        # (metrics variables are only created when metrics are actually used)
-        loaded_model.evaluate(x, y, verbose=0)
-
-        # Get loaded state tree
+        # Get loaded state tree immediately after loading
+        # Metrics should now be properly restored with exact values
         loaded_state_tree = loaded_model.get_state_tree()
 
         # Compare all state components
@@ -821,7 +854,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                     if hasattr(orig_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first (detach().cpu().numpy())
+                            # PyTorch conversion (detach().cpu().numpy())
                             orig_array = orig_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -833,7 +866,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                     if hasattr(loaded_val, "numpy"):
                         # Could be TensorFlow variable or PyTorch tensor
                         try:
-                            # Try PyTorch-style conversion first (detach().cpu().numpy())
+                            # PyTorch conversion (detach().cpu().numpy())
                             loaded_array = loaded_val.detach().cpu().numpy()
                         except AttributeError:
                             # Not PyTorch, try TensorFlow-style conversion
@@ -869,41 +902,83 @@ class OrbaxCheckpointTest(testing.TestCase):
             "optimizer_variables",
         )
 
-        # Compare metrics variables (only check structure, not exact values since
-        # metrics accumulate state across evaluations)
-        self.assertEqual(
-            set(original_state_tree["metrics_variables"].keys()),
-            set(loaded_state_tree["metrics_variables"].keys()),
-            "Metrics variable keys should match",
+        # Compare metrics variables with exact values
+        def compare_nested_dicts(orig_dict, loaded_dict, component_name):
+            """Recursively compare nested dictionaries containing variables."""
+            for key in orig_dict:
+                if key not in loaded_dict:
+                    self.fail(f"Key {key} missing in loaded {component_name}")
+                orig_val = orig_dict[key]
+                loaded_val = loaded_dict[key]
+
+                if isinstance(orig_val, dict):
+                    compare_nested_dicts(
+                        orig_val, loaded_val, f"{component_name}.{key}"
+                    )
+                else:
+                    # Handle different array types: JAX arrays, TF variables,
+                    # PyTorch tensors, numpy arrays
+                    if hasattr(orig_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # PyTorch conversion (detach().cpu().numpy())
+                            orig_array = orig_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            orig_array = orig_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        orig_array = orig_val
+
+                    if hasattr(loaded_val, "numpy"):
+                        # Could be TensorFlow variable or PyTorch tensor
+                        try:
+                            # PyTorch conversion (detach().cpu().numpy())
+                            loaded_array = loaded_val.detach().cpu().numpy()
+                        except AttributeError:
+                            # Not PyTorch, try TensorFlow-style conversion
+                            loaded_array = loaded_val.numpy()
+                    else:
+                        # JAX array or numpy array - use directly
+                        loaded_array = loaded_val
+
+                    self.assertAllClose(
+                        orig_array,
+                        loaded_array,
+                        msg=f"Mismatch in {component_name}.{key}",
+                    )
+
+        # Compare metrics variables with exact values
+        compare_nested_dicts(
+            original_state_tree["metrics_variables"],
+            loaded_state_tree["metrics_variables"],
+            "metrics_variables",
         )
-        for metric_name in original_state_tree["metrics_variables"]:
-            self.assertEqual(
-                set(
-                    original_state_tree["metrics_variables"][metric_name].keys()
-                ),
-                set(loaded_state_tree["metrics_variables"][metric_name].keys()),
-                f"Metrics variable structure for {metric_name} should match",
-            )
 
     @pytest.mark.requires_trainable_backend
     def test_comprehensive_model_state_restoration(self):
-        """Test comprehensive restoration of all model state components via saving API.
+        """Test comprehensive restoration of all model state components.
 
-        This test verifies that checkpoints created with OrbaxCheckpoint can be loaded
-        via keras.saving.load_model() and restore:
+        This test verifies that checkpoints created with OrbaxCheckpoint can be
+        loaded via keras.saving.load_model() and restore:
         - Model weights (trainable and non-trainable variables)
         - Optimizer state
         - Metrics state
         - Model compilation configuration
         """
+        # Set seeds for reproducible results
+        import keras
+
+        keras.utils.set_random_seed(42)
+
         from keras.src import saving
         from keras.src.saving import register_keras_serializable
 
         # Create model with both trainable and non-trainable variables
         model = self._create_test_model()
 
-        # Add a non-trainable variable (e.g., batch normalization moving averages)
-        # We'll simulate this by creating a custom layer with non-trainable variables
+        # Add a non-trainable variable (e.g., batch norm moving averages)
+        # We'll simulate this by creating a custom layer with non-trainable vars
         @register_keras_serializable(package="test")
         class CustomLayer(layers.Layer):
             def __init__(self, units, **kwargs):
@@ -945,16 +1020,20 @@ class OrbaxCheckpointTest(testing.TestCase):
             self.get_temp_dir(), f"test_comprehensive_state_{id(self)}"
         )
 
-        # Create checkpoint with full state (default save_weights_only=False)
-        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
-
         # Train for multiple epochs to build optimizer and metrics state
-        model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
+        # Use async saving (default behavior) and ensure exact weight
+        # matching works
+        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+        model.fit(x, y, epochs=3, verbose=0, callbacks=[callback])
+
+        # Wait for async saving to complete before proceeding
         callback.wait_until_finished()
 
-        # Get original state after training
-        original_weights = model.get_weights()
-        original_state_tree = model.get_state_tree()
+        # Get the exact weights that were saved in the last checkpoint
+        saved_weights = callback.get_last_saved_weights()
+        self.assertIsNotNone(
+            saved_weights, "Should have saved weights available"
+        )
 
         # Load model via Keras saving API
         loaded_model = saving.load_model(checkpoint_dir)
@@ -966,32 +1045,32 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Verify model is compiled
         self.assertTrue(loaded_model.compiled)
 
-        # For JAX backend, there may be precision issues with checkpoint loading
-        # Skip exact weight comparison for JAX
-        import keras
+        # Compare the loaded weights against the exact weights that were saved
+        # This MUST work with async saving - if not, we need to fix the
+        # underlying issue
+        loaded_weights = loaded_model.get_weights()
+        self.assertEqual(len(saved_weights), len(loaded_weights))
 
-        if keras.backend.backend() == "jax":
-            # Just verify that the model was loaded and has weights
-            loaded_weights = loaded_model.get_weights()
-            self.assertEqual(len(original_weights), len(loaded_weights))
-            for orig, loaded in zip(original_weights, loaded_weights):
-                self.assertEqual(orig.shape, loaded.shape)
-        else:
-            # For other backends, compare weights exactly
-            loaded_weights = loaded_model.get_weights()
-            self.assertEqual(len(original_weights), len(loaded_weights))
-            for orig, loaded in zip(original_weights, loaded_weights):
-                np.testing.assert_array_almost_equal(orig, loaded)
+        # Compare the loaded weights against the exact weights that were saved
+        # This tests the actual checkpoint save/load fidelity with precision
+        for i, (saved, loaded) in enumerate(zip(saved_weights, loaded_weights)):
+            self.assertAllClose(
+                saved,
+                loaded,
+                msg=f"Mismatch in weight {i} between saved and loaded",
+            )
 
-        # Evaluate loaded model to initialize metrics variables
-        loaded_model.evaluate(x, y, verbose=0)
+        # Test that optimizer and metrics states are preserved exactly
+        # Get original state tree after training
+        original_state_tree = model.get_state_tree()
 
-        # Get loaded state
+        # Get loaded state tree immediately after loading
+        # All state including metrics should now be properly restored
         loaded_state_tree = loaded_model.get_state_tree()
 
-        # Helper function to compare nested state dictionaries
-        def compare_state_components(orig_dict, loaded_dict, component_name):
-            """Recursively compare nested state dictionaries."""
+        # Compare state variables with exact values
+        def compare_nested_dicts(orig_dict, loaded_dict, component_name):
+            """Recursively compare nested dictionaries containing variables."""
             for key in orig_dict:
                 if key not in loaded_dict:
                     self.fail(f"Key {key} missing in loaded {component_name}")
@@ -999,7 +1078,7 @@ class OrbaxCheckpointTest(testing.TestCase):
                 loaded_val = loaded_dict[key]
 
                 if isinstance(orig_val, dict):
-                    compare_state_components(
+                    compare_nested_dicts(
                         orig_val, loaded_val, f"{component_name}.{key}"
                     )
                 else:
@@ -1020,62 +1099,73 @@ class OrbaxCheckpointTest(testing.TestCase):
                     else:
                         loaded_array = loaded_val
 
-                    np.testing.assert_array_almost_equal(
+                    self.assertAllClose(
                         orig_array,
                         loaded_array,
-                        err_msg=f"Mismatch in {component_name}.{key}",
+                        msg=f"Mismatch in {component_name}.{key}",
                     )
 
-        # For JAX backend, skip exact state tree comparison due to precision issues
-        if keras.backend.backend() != "jax":
-            # Verify all state components are restored
-            compare_state_components(
-                original_state_tree["trainable_variables"],
-                loaded_state_tree["trainable_variables"],
-                "trainable_variables",
-            )
-
-            compare_state_components(
-                original_state_tree["non_trainable_variables"],
-                loaded_state_tree["non_trainable_variables"],
-                "non_trainable_variables",
-            )
-
-            compare_state_components(
-                original_state_tree["optimizer_variables"],
-                loaded_state_tree["optimizer_variables"],
-                "optimizer_variables",
-            )
-
-        # Verify metrics structure (values may differ due to evaluation history)
-        self.assertEqual(
-            set(original_state_tree["metrics_variables"].keys()),
-            set(loaded_state_tree["metrics_variables"].keys()),
-            "Metrics variable keys should match",
+        # Test optimizer state with exact values
+        compare_nested_dicts(
+            original_state_tree["optimizer_variables"],
+            loaded_state_tree["optimizer_variables"],
+            "optimizer_variables",
         )
 
-        for metric_name in original_state_tree["metrics_variables"]:
-            self.assertEqual(
-                set(
-                    original_state_tree["metrics_variables"][metric_name].keys()
-                ),
-                set(loaded_state_tree["metrics_variables"][metric_name].keys()),
-                f"Metrics structure for {metric_name} should match",
+        # Test metrics variables with exact values
+        compare_nested_dicts(
+            original_state_tree["metrics_variables"],
+            loaded_state_tree["metrics_variables"],
+            "metrics_variables",
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_exact_weight_matching_with_sync_save(self):
+        """Test exact weight matching using synchronous saving for
+        precision testing."""
+        import keras
+
+        keras.utils.set_random_seed(42)
+
+        from keras.src import saving
+
+        # Create a simple model for exact matching test
+        model = self._create_test_model()
+        model.compile(optimizer="adam", loss="mse")
+
+        x, y = self._create_dummy_data(num_samples=50)
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), f"test_exact_matching_{id(self)}"
+        )
+
+        # Use synchronous saving for exact weight matching
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_on_background=False,  # Synchronous for exact precision
+        )
+
+        model.fit(x, y, epochs=2, verbose=0, callbacks=[callback])
+        callback.wait_until_finished()
+
+        # Get the exact weights that were saved
+        saved_weights = callback.get_last_saved_weights()
+        self.assertIsNotNone(
+            saved_weights, "Should have saved weights available"
+        )
+
+        # Load model and compare weights exactly
+        loaded_model = saving.load_model(checkpoint_dir)
+        loaded_weights = loaded_model.get_weights()
+
+        self.assertEqual(len(saved_weights), len(loaded_weights))
+
+        # With synchronous saving, weights should match exactly
+        for i, (saved, loaded) in enumerate(zip(saved_weights, loaded_weights)):
+            self.assertAllClose(
+                saved, loaded, msg=f"Exact mismatch in weight {i}"
             )
 
-        # Test that the loaded model can continue training
-        # This verifies that optimizer state was properly restored
-        initial_metrics = loaded_model.evaluate(x[:10], y[:10], verbose=0)
-        initial_loss = initial_metrics[0]  # Loss is the first metric
-
-        # Train for one more epoch
-        loaded_model.fit(x, y, epochs=1, verbose=0)
-        final_metrics = loaded_model.evaluate(x[:10], y[:10], verbose=0)
-        final_loss = final_metrics[0]  # Loss is the first metric
-
-        # Loss should generally decrease or stay similar (optimizer state preserved)
-        self.assertLessEqual(
-            final_loss,
-            initial_loss * 1.5,
-            "Loss should not increase significantly after continued training",
-        )
+        # Verify the model is compiled
+        self.assertTrue(loaded_model.compiled)
