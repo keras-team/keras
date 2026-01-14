@@ -634,6 +634,11 @@ class IndexLookupLayerTest(testing.TestCase):
         }
         layer = layers.IndexLookup(**kwargs)
         layer.adapt(adapt_data)
+
+        # Verify adapted vocabulary and idf_weights are set
+        original_vocab = layer.get_vocabulary()
+        original_idf_weights = layer.idf_weights.numpy()
+
         model = models.Sequential(
             [
                 layers.Input(shape=(None,), dtype="string"),
@@ -643,8 +648,21 @@ class IndexLookupLayerTest(testing.TestCase):
         output_1 = model(batch_input_data)
         path = os.path.join(self.get_temp_dir(), "model_tf_idf_adapted.keras")
         model.save(path)
-        model = saving_api.load_model(path)
-        output_2 = model(batch_input_data)
+
+        # Load and verify vocabulary and weights are restored
+        loaded_model = saving_api.load_model(path)
+        loaded_layer = loaded_model.layers[0]
+
+        # Verify vocabulary is the same
+        self.assertEqual(loaded_layer.get_vocabulary(), original_vocab)
+
+        # Verify idf_weights are restored correctly
+        self.assertAllClose(
+            loaded_layer.idf_weights.numpy(), original_idf_weights
+        )
+
+        # Verify outputs match
+        output_2 = loaded_model(batch_input_data)
         self.assertAllClose(output_1, output_2)
 
     @pytest.mark.skipif(
@@ -696,6 +714,11 @@ class IndexLookupLayerTest(testing.TestCase):
         }
         layer = layers.IndexLookup(**kwargs)
         layer.adapt(adapt_data)
+
+        # Verify adapted vocabulary and idf_weights are set
+        original_vocab = layer.get_vocabulary()
+        original_idf_weights = layer.idf_weights.numpy()
+
         model = models.Sequential(
             [
                 layers.Input(shape=(None,), dtype="int64"),
@@ -707,8 +730,21 @@ class IndexLookupLayerTest(testing.TestCase):
             self.get_temp_dir(), "model_tf_idf_int_adapted.keras"
         )
         model.save(path)
-        model = saving_api.load_model(path)
-        output_2 = model(batch_input_data)
+
+        # Load and verify vocabulary and weights are restored
+        loaded_model = saving_api.load_model(path)
+        loaded_layer = loaded_model.layers[0]
+
+        # Verify vocabulary is the same
+        self.assertEqual(loaded_layer.get_vocabulary(), original_vocab)
+
+        # Verify idf_weights are restored correctly
+        self.assertAllClose(
+            loaded_layer.idf_weights.numpy(), original_idf_weights
+        )
+
+        # Verify outputs match
+        output_2 = loaded_model(batch_input_data)
         self.assertAllClose(output_1, output_2)
 
     @pytest.mark.skipif(
