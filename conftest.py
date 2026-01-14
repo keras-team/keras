@@ -33,7 +33,9 @@ def pytest_collection_modifyitems(config, items):
 
     tpu_skipped_tests = []
     if backend() == "jax":
-        try:
+        import jax
+
+        if jax.default_backend() == "tpu":
             with open(
                 "keras/src/backend/jax/excluded_tpu_tests.txt", "r"
             ) as file:
@@ -43,8 +45,6 @@ def pytest_collection_modifyitems(config, items):
                 tpu_skipped_tests = [
                     line.strip() for line in tpu_skipped_tests if line.strip()
                 ]
-        except FileNotFoundError:
-            pass  # File doesn't exist, no tests to skip
 
     requires_trainable_backend = pytest.mark.skipif(
         backend() in ["numpy", "openvino"],
