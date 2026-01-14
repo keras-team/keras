@@ -103,7 +103,7 @@ class TensorParallelKerasTest(TestCase):
 
     def test_distributed_training_workflow(self):
         """
-        Tests if model can be compiled and trained for one step without errors.
+        Tests if model can be compiled and trained for one step.
         """
         tp_model = TensorParallelKeras(
             self.original_model,
