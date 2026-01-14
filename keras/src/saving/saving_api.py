@@ -367,6 +367,8 @@ def _load_model_from_orbax_checkpoint(
     filepath, custom_objects=None, compile=True
 ):
     """Load a model from an Orbax checkpoint directory."""
+    import numpy as np
+
     from keras.src import models
     from keras.src import optimizers
     from keras.src.utils.module_utils import ocp
@@ -374,76 +376,76 @@ def _load_model_from_orbax_checkpoint(
     # Ensure orbax is available
     ocp.initialize()
 
-    # Create a checkpointer for loading
-    checkpointer = ocp.training.Checkpointer(directory=filepath)
-
-    # Determine the step to load
+    # Optimized step detection using os.scandir
     available_steps = []
-    if file_utils.exists(filepath):
-        subdirs = file_utils.listdir(filepath)
-        for d in subdirs:
-            if file_utils.isdir(file_utils.join(filepath, d)):
-                try:
-                    available_steps.append(int(d))
-                except ValueError:
-                    pass
+    try:
+        with os.scandir(filepath) as entries:
+            for entry in entries:
+                if entry.is_dir():
+                    try:
+                        available_steps.append(int(entry.name))
+                    except ValueError:
+                        continue
+    except FileNotFoundError:
+        raise ValueError(f"No checkpoints found in {filepath}")
 
     if not available_steps:
         raise ValueError(f"No checkpoints found in {filepath}")
 
     step = max(available_steps)
 
-    # Load the composite state
+    # Load the composite state efficiently
+    checkpointer = ocp.training.Checkpointer(directory=filepath)
     with ocp.Context():
         composite_state = checkpointer.load_pytree(step)
 
-    # Reconstruct the model from config
+    # Validate and extract model config
     if "model_config" not in composite_state:
         raise ValueError(
             "Checkpoint does not contain model configuration. "
             "This checkpoint may have been saved with save_weights_only=True."
         )
 
-    model_config = composite_state["model_config"]
+    # Create and build model from config
     model = models.Model.from_config(
-        model_config, custom_objects=custom_objects
+        composite_state["model_config"], custom_objects=custom_objects
     )
 
-    # Build the model - try to infer input shape from the config
-    if not model.built:
-        # Try to find input shape from the first layer
-        if model.layers and hasattr(model.layers[0], "batch_shape"):
-            input_shape = model.layers[0].batch_shape
-            if (
-                input_shape and input_shape[0] is None
-            ):  # Replace None with batch size
+    # Build model if needed using first layer's batch_shape
+    if not model.built and model.layers:
+        first_layer = model.layers[0]
+        if hasattr(first_layer, "batch_shape") and first_layer.batch_shape:
+            input_shape = first_layer.batch_shape
+            if input_shape[0] is None:  # Replace None batch with actual shape
                 input_shape = (None,) + input_shape[1:]
-            if input_shape:
-                model.build(input_shape)
+            model.build(input_shape)
 
-    # Compile if requested and compile config exists
-    if compile and "compile_config" in composite_state:
-        model.compile_from_config(composite_state["compile_config"])
-    elif compile and "optimizer_config" in composite_state:
-        # Fallback for backwards compatibility
-        optimizer = optimizers.deserialize(
-            composite_state["optimizer_config"], custom_objects=custom_objects
-        )
-        model.compile(optimizer=optimizer)
+    # Handle compilation efficiently
+    if compile:
+        compile_config = composite_state.get("compile_config")
+        if compile_config:
+            model.compile_from_config(compile_config)
+        elif "optimizer_config" in composite_state:
+            # Fallback for backwards compatibility
+            optimizer = optimizers.deserialize(
+                composite_state["optimizer_config"],
+                custom_objects=custom_objects,
+            )
+            model.compile(optimizer=optimizer)
 
-    # Set the state tree
+    # Prepare state tree efficiently
     state_tree = {
-        "trainable_variables": composite_state.get("trainable_variables", {}),
-        "non_trainable_variables": composite_state.get(
-            "non_trainable_variables", {}
-        ),
-        "optimizer_variables": composite_state.get("optimizer_variables", {}),
-        "metrics_variables": composite_state.get("metrics_variables", {}),
+        key: composite_state.get(key, {})
+        for key in [
+            "trainable_variables",
+            "non_trainable_variables",
+            "optimizer_variables",
+            "metrics_variables",
+        ]
     }
 
-    # Convert back to numpy if needed for non-JAX backends
+    # Convert to numpy for non-JAX backends
     if backend.backend() != "jax":
-        import numpy as np
 
         def convert_to_numpy(obj):
             if hasattr(obj, "__array__"):
@@ -452,69 +454,43 @@ def _load_model_from_orbax_checkpoint(
 
         state_tree = tree.map_structure(convert_to_numpy, state_tree)
 
-    # Initialize metrics variables before setting state tree
-    # Metrics variables are only created when the model is used, but we need
-    # them to exist before we can restore their saved state
+    # Initialize metrics variables if needed (optimization for faster loading)
     if (
         state_tree["metrics_variables"]
-        and hasattr(model, "compiled")
         and model.compiled
+        and hasattr(model, "inputs")
+        and model.inputs
     ):
         try:
-            # Create a minimal dummy input to initialize metrics
-            # This ensures all metrics variables are created so they can be
-            # restored
-            import numpy as np
+            # Create minimal dummy data to initialize metrics
+            input_tensor = model.inputs[0]
+            if hasattr(input_tensor, "shape") and input_tensor.shape:
+                input_shape = list(input_tensor.shape)
+                input_shape[0] = 1  # Batch size of 1
+                dummy_input = np.zeros(input_shape, dtype="float32")
 
-            # Get input shape from the model
-            dummy_input = None
-            dummy_target = None
+                # Determine dummy target shape
+                dummy_target = None
+                if hasattr(model, "output_shape") and model.output_shape:
+                    output_shape = list(model.output_shape)
+                    output_shape[0] = 1
+                    dummy_target = np.zeros(output_shape, dtype="float32")
+                elif model.layers and hasattr(model.layers[-1], "units"):
+                    last_layer = model.layers[-1]
+                    dummy_target = np.zeros(
+                        (1, last_layer.units), dtype="float32"
+                    )
+                else:
+                    # Fallback: use same shape as input
+                    dummy_target = np.zeros_like(dummy_input)
 
-            if hasattr(model, "inputs") and model.inputs:
-                input_tensor = model.inputs[0]
-                if hasattr(input_tensor, "shape"):
-                    shape = list(input_tensor.shape)
-                    shape[0] = 1  # batch size = 1
-                    dummy_input = np.zeros(shape, dtype="float32")
-
-                    # Create matching dummy target
-                    if hasattr(model, "output_shape") and model.output_shape:
-                        # Try to match the model's actual output shape
-                        output_shape = model.output_shape
-                        if (
-                            isinstance(output_shape, tuple)
-                            and len(output_shape) > 1
-                        ):
-                            target_shape = list(output_shape)
-                            target_shape[0] = 1  # batch size = 1
-                            dummy_target = np.zeros(
-                                target_shape, dtype="float32"
-                            )
-                    elif hasattr(model, "layers") and model.layers:
-                        # Try to get output shape from last layer
-                        last_layer = model.layers[-1]
-                        if hasattr(last_layer, "units"):
-                            dummy_target = np.zeros(
-                                (1, last_layer.units), dtype="float32"
-                            )
-
-                    # Fallback target shape
-                    if dummy_target is None:
-                        dummy_target = np.zeros(
-                            (1, dummy_input.shape[-1]), dtype="float32"
-                        )
-
-            # Run a single evaluation to initialize all metrics
-            # Note: predict() only creates loss metrics, evaluate() creates
-            # all metrics
-            if dummy_input is not None and dummy_target is not None:
+                # Initialize metrics through evaluation
                 model.evaluate(dummy_input, dummy_target, verbose=0)
 
         except Exception:
-            # If any step fails, don't break model loading
-            # This initialization is an optimization, not a requirement
+            # Gracefully handle any initialization failures
             pass
 
+    # Apply the loaded state to the model
     model.set_state_tree(state_tree)
-
     return model
