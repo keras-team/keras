@@ -1178,27 +1178,32 @@ def rot90(array, k=1, axes=(0, 1)):
         perm_const = ov_opset.constant(perm, Type.i32).output(0)
         result = ov_opset.transpose(result, perm_const).output(0)
 
-        # 2. Reverse along axis1 using reverse_sequence
+        # 2. Reverse along axis1 using Slice + Concat
         shape = ov_opset.shape_of(result).output(0)
-        seq_len = ov_opset.gather(
+
+        axis_len = ov_opset.gather(
             shape,
             ov_opset.constant(axis1, Type.i32),
             ov_opset.constant(0, Type.i32),
         ).output(0)
 
-        seq_lengths = ov_opset.broadcast(
-            seq_len,
-            ov_opset.constant([1], Type.i32),
-        ).output(0)
+        minus_one = ov_opset.constant(-1, Type.i64).output(0)
+        zero = ov_opset.constant(0, Type.i64).output(0)
+        one = ov_opset.constant(1, Type.i64).output(0)
 
-        # batch_axis must be different from seq_axis
-        batch_axis = axis2 if axis2 != axis1 else 0
+        starts = [zero] * ndim
+        ends = [axis_len if i == axis1 else minus_one for i in range(ndim)]
+        strides = [minus_one if i == axis1 else one for i in range(ndim)]
 
-        result = ov_opset.reverse_sequence(
+        starts = ov_opset.concat(starts, 0).output(0)
+        ends = ov_opset.concat(ends, 0).output(0)
+        strides = ov_opset.concat(strides, 0).output(0)
+
+        result = ov_opset.slice(
             result,
-            seq_lengths,
-            batch_axis=batch_axis,
-            seq_axis=axis1,
+            starts,
+            ends,
+            strides,
         ).output(0)
 
     return OpenVINOKerasTensor(result)
