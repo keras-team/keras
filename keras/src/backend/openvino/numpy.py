@@ -1158,7 +1158,14 @@ def rot90(array, k=1, axes=(0, 1)):
     if not isinstance(axes, (tuple, list)) or len(axes) != 2:
         raise ValueError("axes must be a tuple of length 2")
 
-    ndim = len(array.get_partial_shape())
+    shape = array.get_partial_shape()
+    ndim = shape.rank.get_length()
+    if ndim is None:
+        raise ValueError(
+            "`rot90` does not support tensors with dynamic rank "
+            "for the OpenVINO backend."
+        )
+
     axis1 = canonicalize_axis(axes[0], ndim)
     axis2 = canonicalize_axis(axes[1], ndim)
 
@@ -1172,38 +1179,28 @@ def rot90(array, k=1, axes=(0, 1)):
     result = array
 
     for _ in range(k):
-        # 1. Transpose
+        # 1️⃣ Transpose axis1 <-> axis2
         perm = list(range(ndim))
         perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
         perm_const = ov_opset.constant(perm, Type.i32).output(0)
         result = ov_opset.transpose(result, perm_const).output(0)
 
-        # 2. Reverse along axis1 using Slice + Concat
-        shape = ov_opset.shape_of(result).output(0)
+        # 2️⃣ Reverse along axis1 using StridedSlice
+        begin = [0] * ndim
+        end = [0] * ndim
+        strides = [1] * ndim
+        strides[axis1] = -1
 
-        axis_len = ov_opset.gather(
-            shape,
-            ov_opset.constant(axis1, Type.i32),
-            ov_opset.constant(0, Type.i32),
-        ).output(0)
+        begin_mask = [1] * ndim
+        end_mask = [1] * ndim
 
-        minus_one = ov_opset.constant(-1, Type.i64).output(0)
-        zero = ov_opset.constant(0, Type.i64).output(0)
-        one = ov_opset.constant(1, Type.i64).output(0)
-
-        starts = [zero] * ndim
-        ends = [axis_len if i == axis1 else minus_one for i in range(ndim)]
-        strides = [minus_one if i == axis1 else one for i in range(ndim)]
-
-        starts = ov_opset.concat(starts, 0).output(0)
-        ends = ov_opset.concat(ends, 0).output(0)
-        strides = ov_opset.concat(strides, 0).output(0)
-
-        result = ov_opset.slice(
-            result,
-            starts,
-            ends,
-            strides,
+        result = ov_opset.strided_slice(
+            data=result,
+            begin=begin,
+            end=end,
+            strides=strides,
+            begin_mask=begin_mask,
+            end_mask=end_mask,
         ).output(0)
 
     return OpenVINOKerasTensor(result)
