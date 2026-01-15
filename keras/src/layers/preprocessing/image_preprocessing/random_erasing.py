@@ -47,7 +47,7 @@ class RandomErasing(BaseImagePreprocessingLayer):
     ```python
     random_erasing = keras.layers.RandomErasing(factor=1.0)
 
-    image = [...]  # your input image
+    image = np.random.randint(0, 255, (4, 224, 224, 3), dtype="uint8")
 
     output = random_erasing(image, training=True)
 

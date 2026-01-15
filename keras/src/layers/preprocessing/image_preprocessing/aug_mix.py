@@ -77,9 +77,9 @@ class AugMix(BaseImagePreprocessingLayer):
     ```python
     augmix = keras.layers.AugMix(
         value_range=(0, 255),
-        num_chains=3,  # Creates 3 different augmentation chains
-        chain_depth=3, # Each chain applies up to 3 random augmentations
-        factor=0.3,    # Controls the strength of augmentations
+        num_chains=3,
+        chain_depth=3,
+        factor=0.3,
         all_ops=True
     )
 
