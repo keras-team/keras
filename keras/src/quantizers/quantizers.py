@@ -1201,10 +1201,16 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx, group_axis=-1):
         weights_matrix: Tensor to dequantize.
         scale: Per-group scale tensor with n_groups along group_axis.
         zero: Per-group zero-point tensor with n_groups along group_axis.
-        g_idx: Integer tensor mapping positions along group_axis to group
-            indices.
-        group_axis: The axis in scale/zero containing group indices.
-            Default: -1 (last axis).
+        g_idx: 1D integer tensor of length equal to the size of
+            `weights_matrix` along the dimension being dequantized. Each
+            element specifies which group index (0 to n_groups-1) that
+            position belongs to. For example, with 128 columns and
+            group_size=32, g_idx would be
+            `[0,0,...,0, 1,1,...,1, 2,2,...,2, 3,3,...,3]` (32 of each).
+        group_axis: The axis in `scale` and `zero` along which to index
+            using `g_idx`. This determines which dimension of the
+            scale/zero tensors contains the per-group values. Default: -1
+            (last axis).
 
     Returns:
         A tensor with the same shape as `weights_matrix` containing the
