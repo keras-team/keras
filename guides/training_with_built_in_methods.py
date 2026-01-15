@@ -1166,6 +1166,12 @@ To correctly resume training and restore the optimizer state (e.g., to continue 
 without resetting it), you must **compile the model before loading the weights**.
 
 ```python
+# Define a learning rate schedule to demonstrate resumption.
+initial_learning_rate = 0.1
+lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+    initial_learning_rate, decay_steps=100000, decay_rate=0.96, staircase=True
+)
+
 # 1. Create a fresh model instance
 model = get_uncompiled_model()
 
