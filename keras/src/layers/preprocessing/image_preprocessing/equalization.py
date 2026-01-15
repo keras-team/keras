@@ -45,10 +45,13 @@ class Equalization(BaseImagePreprocessingLayer):
     Example:
 
     ```python
+    # Create an equalization layer for standard 8-bit images
     equalizer = keras.layers.Equalization()
 
+    # An image with uneven intensity distribution
     image = [...] # your input image
 
+    # Apply histogram equalization
     equalized_image = equalizer(image)
 
     # For images with custom value range
