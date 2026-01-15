@@ -57,7 +57,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
     images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
 
     contrasted_images = contrast_layer(images, training=True)
-    
+
     output = contrast_layer(images, training=False)
     ```
     """
