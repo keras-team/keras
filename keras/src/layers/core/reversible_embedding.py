@@ -434,17 +434,13 @@ class ReversibleEmbedding(layers.Embedding):
                 # unpacked_embeddings shape: (output_dim, input_dim)
                 # scale shape: (n_groups, input_dim)
                 # reverse_embeddings_zero shape: (n_groups, input_dim)
-
-                # Compute g_idx to map each output position to its group
-                g_idx = ops.floor_divide(
-                    ops.arange(self.output_dim, dtype="int32"), block_size
-                )
+                # g_idx shape: (output_dim,) - reuse from forward pass
 
                 float_embeddings = dequantize_with_sz_map(
                     ops.cast(unpacked_embeddings, self.compute_dtype),
                     scale,
                     self.reverse_embeddings_zero,
-                    g_idx,
+                    self.g_idx,
                     group_axis=0,
                 )
 
@@ -600,12 +596,6 @@ class ReversibleEmbedding(layers.Embedding):
             self.embeddings_scale.assign(embeddings_scale)
             if use_grouped:
                 self.embeddings_zero.assign(embeddings_zero)
-            if use_grouped and hasattr(self, "g_idx"):
-                output_dim = embeddings_shape[1]
-                g_idx = ops.floor_divide(
-                    ops.arange(output_dim, dtype="int32"), block_size
-                )
-                self.g_idx.assign(ops.cast(g_idx, "float32"))
             if not self.tie_weights:
                 self.reverse_embeddings.assign(packed_reverse_embeddings_value)
                 self.reverse_embeddings_scale.assign(reverse_embeddings_scale)

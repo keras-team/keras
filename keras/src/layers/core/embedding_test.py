@@ -510,7 +510,7 @@ class EmbeddingTest(test_case.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8", 2, 2, 4),
-        ("int4", "int4", 2, 4, 5),  # +1 non-trainable for embeddings_zero
+        ("int4", "int4", 2, 4, 6),  # +2 for embeddings_zero + g_idx
     )
     @pytest.mark.requires_trainable_backend
     def test_quantize_lora_integration(

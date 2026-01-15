@@ -438,6 +438,11 @@ class Embedding(Layer):
                 dtype="float32",
                 trainable=False,
             )
+            self.g_idx.assign(
+                ops.floor_divide(
+                    ops.arange(output_dim, dtype="float32"), block_size
+                )
+            )
 
         self._orig_output_dim = output_dim
 
@@ -585,12 +590,6 @@ class Embedding(Layer):
             self.embeddings_scale.assign(embeddings_scale)
             if use_grouped:
                 self.embeddings_zero.assign(embeddings_zero)
-                # Compute g_idx: maps each output position to its group
-                # index
-                g_idx = ops.floor_divide(
-                    ops.arange(output_dim, dtype="int32"), block_size
-                )
-                self.g_idx.assign(ops.cast(g_idx, "float32"))
         else:
             raise self._quantization_mode_error(mode)
 
