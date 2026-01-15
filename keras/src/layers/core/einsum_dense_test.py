@@ -1159,9 +1159,9 @@ class EinsumDenseTest(testing.TestCase):
             "2": np.random.random((1, 8, 32)).astype("float32"),
         }
         int4_store = {
-            # GPTQ layout: kernel is [ceil(columns/2), rows] = [128, 3]
+            # int4 layout: kernel is [rows, ceil(columns/2)] = [3, 128]
             # where rows=3, columns=8*32=256
-            "0": np.random.randint(-128, 127, size=(128, 3), dtype="int8"),
+            "0": np.random.randint(-128, 127, size=(3, 128), dtype="int8"),
             "1": np.random.random((32,)).astype("float32"),
             "2": np.random.random((256,)).astype("float32"),  # per-channel
         }
