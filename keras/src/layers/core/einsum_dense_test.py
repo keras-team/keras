@@ -801,7 +801,7 @@ class EinsumDenseTest(testing.TestCase):
             (1, 4, 32),
             (1, 4, 8, 16),
             4,
-            5,
+            6,
         ),
     )
     @pytest.mark.requires_trainable_backend

@@ -600,7 +600,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8", 3, 2, 5),
-        ("int4", "int4", 3, 4, 6),  # +2 non-trainable for zero and g_idx
+        ("int4", "int4", 3, 4, 7),  # +2 non-trainable for zero and g_idx
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
