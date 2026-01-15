@@ -11,6 +11,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend.common.variables import is_float_dtype
 from keras.src.backend.common.variables import standardize_dtype
 from keras.src.layers.layer import Layer
+from keras.src.random.seed_generator import draw_seed
 from keras.src.saving import serialization_lib
 from keras.src.utils import jax_utils
 from keras.src.utils import tracking
@@ -244,15 +245,9 @@ class JaxLayer(Layer):
                 f" Tensorflow backend. Current backend: {backend.backend()}"
             )
 
-        if init_fn is None and params is None and state is None:
-            raise ValueError(
-                "`init_fn`, `params` and `state` cannot all be `None`."
-            )
-
         super().__init__(**kwargs)
         self.call_fn = call_fn
         self.init_fn = init_fn
-        self.seed_generator = backend.random.SeedGenerator(seed)
         self.tracked_params = self._create_variables(params, trainable=True)
         self.tracked_state = self._create_variables(state, trainable=False)
         if self.params is not None or self.state is not None:
@@ -264,7 +259,25 @@ class JaxLayer(Layer):
             {"params", "state", "rng", "inputs", "training"},
             {"inputs"},
         )
-        self.has_state = "state" in self.call_fn_arguments
+        self.call_fn_has_params = "params" in self.call_fn_arguments
+        self.call_fn_has_state = "state" in self.call_fn_arguments
+        call_fn_has_rng = "rng" in self.call_fn_arguments
+
+        if call_fn_has_rng:
+            self.seed_generator = backend.random.SeedGenerator(seed)
+        else:
+            self.seed_generator = None
+
+        if (
+            init_fn is None
+            and params is None
+            and state is None
+            and (self.call_fn_has_params or self.call_fn_has_state)
+        ):
+            raise ValueError(
+                "`init_fn`, `params` and `state` cannot all be `None` when "
+                "`call_fn` takes a `params` or a `state` argument."
+            )
 
         if init_fn:
             self.init_fn_arguments = self._validate_signature(
@@ -428,37 +441,58 @@ class JaxLayer(Layer):
         flat_variables, _ = jax.tree_util.tree_flatten(variables)
         return flat_variables
 
-    def _get_init_rng(self):
+    def _get_init_seed(self):
         """
-        Returns a key in form of the backend array of size 2 dtype uint32
-        to pass to `init_fn`.
+        Returns a single seed as a tensor of shape [2].
 
-        By default, this returns a Jax or TF array of size 2 by calling
-        `self.seed_generator.next()`. Override this to return a different
-        structure.
+        Call this within `_get_init_rng()` to obtain a new seed.
 
         Returns:
-            a key as an Jax or TF array of size 2 dtype uint32 will be passed
-            as the `rng` argument of `init_fn`.
+            A native tensor of shape [2] and the backend dtype for seeds.
+        """
+        # Use the global SeedGenerator.
+        return draw_seed(None)
+
+    def _get_init_rng(self):
+        """
+        Returns a seed or seeds to pass as the `rng` argument of `init_fn`.
+
+        By default, this returns a single seed. Override this to return a
+        different structure. Overrides should use `self._get_init_seed()` to
+        obtain new seeds.
+
+        Returns:
+            RNG key or structure of keys as tensors of shape [2] and the backend
+            dtype for seeds.
+        """
+        return self._get_init_seed()
+
+    def _get_call_seed(self):
+        """
+        Returns a single seed as a tensor of shape [2].
+
+        Call this within `_get_call_rng()` to obtain a new seed.
+
+        Returns:
+            A native tensor of shape [2] and the backend dtype for seeds.
         """
         return self.seed_generator.next()
 
     def _get_call_rng(self, training):
         """
-        Returns a key in form of the backend array of size 2 dtype uint32
-        to pass to `call_fn`.
+        Returns a seed or seeds to pass as the `rng` argument of `call_fn`.
 
-        By default, this returns a Jax or TF array of size 2 by calling
-        `self.seed_generator.next()` when `training` is `True`, and `None` when
-        `training` is `False`. Override this to return a different structure or
-        to pass RNGs in inference mode too.
+        By default, this returns a seed when `training` is `True`, and `None`
+        when `training` is `False`. Override this to return a different
+        structure or to pass seeds in inference mode too. Overrides should use
+        `self._get_call_seed()` to obtain seeds.
 
         Returns:
-            a key as an Jax or TF array of size 2 dtype uint32 will be passed
-            as the `rng` argument of `call_fn`.
+            RNG key or structure of keys as tensors of shape [2] and the backend
+            dtype for seeds.
         """
         if training:
-            return self.seed_generator.next()
+            return self._get_call_seed()
         else:
             return None
 
@@ -492,7 +526,7 @@ class JaxLayer(Layer):
                 init_args.append(True)
 
         init_result = self.init_fn(*init_args)
-        if self.has_state:
+        if self.call_fn_has_state:
             init_params, init_state = init_result
         else:
             init_params, init_state = init_result, None
@@ -503,7 +537,11 @@ class JaxLayer(Layer):
         self.tracked_state = self._create_variables(init_state, trainable=False)
 
     def build(self, input_shape):
-        if self.params is None and self.state is None:
+        if (
+            self.params is None
+            and self.state is None
+            and (self.call_fn_has_params or self.call_fn_has_state)
+        ):
             self._initialize_weights(input_shape)
 
         if backend.backend() == "tensorflow":
@@ -578,7 +616,7 @@ class JaxLayer(Layer):
             variable.assign(value)
 
         def call_with_fn(fn):
-            if self.has_state:
+            if self.call_fn_has_state:
                 predictions, new_state = fn(*call_args)
                 jax.tree_util.tree_map(
                     assign_state_to_variable, new_state, self.state
@@ -711,12 +749,12 @@ class FlaxLayer(JaxLayer):
         **kwargs,
     ):
         # Late import to only require Flax when this is used.
-        from flax.core import scope as flax_scope
+        from flax.linen import DenyList
 
         self.module = module
         self.method = method
 
-        apply_mutable = flax_scope.DenyList(["params"])
+        apply_mutable = DenyList(["params"])
 
         def apply_with_training(params, state, rng, inputs, training):
             return self.module.apply(
@@ -801,13 +839,13 @@ class FlaxLayer(JaxLayer):
 
     def _get_init_rng(self):
         return {
-            "params": self.seed_generator.next(),
-            "dropout": self.seed_generator.next(),
+            "params": self._get_init_seed(),
+            "dropout": self._get_init_seed(),
         }
 
     def _get_call_rng(self, training):
         if training:
-            return {"dropout": self.seed_generator.next()}
+            return {"dropout": self._get_call_seed()}
         else:
             return {}
 
