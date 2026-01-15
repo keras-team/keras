@@ -49,7 +49,6 @@ class RandomContrast(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomContrast layer
     contrast_layer = keras.layers.RandomContrast(
         factor=0.3,
         value_range=(0, 255)
@@ -58,8 +57,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
     images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
 
     contrasted_images = contrast_layer(images, training=True)
-
-    # At inference time, no adjustment is applied
+    
     output = contrast_layer(images, training=False)
     ```
     """

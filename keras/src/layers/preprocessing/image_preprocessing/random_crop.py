@@ -58,7 +58,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
     cropped_images = crop_layer(images, training=True)
     # Output shape: (2, 192, 192, 3)
 
-    # At inference time, performs center crop
+    # performs center crop
     center_cropped = crop_layer(images, training=False)
     ```
     """

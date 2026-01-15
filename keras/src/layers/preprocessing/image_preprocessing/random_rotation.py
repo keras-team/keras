@@ -79,9 +79,6 @@ class RandomRotation(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    import keras
-    import numpy as np
-
     # rotation happens between -20% and 20% of 360 degrees
     rotation_layer = keras.layers.RandomRotation(factor=0.2)
 

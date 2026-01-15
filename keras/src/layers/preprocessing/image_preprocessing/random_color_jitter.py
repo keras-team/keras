@@ -67,18 +67,17 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
     (images, labels), _ = keras.datasets.cifar10.load_data()
     images = images.astype("float32")
 
-    # Create a RandomColorJitter layer
     jitter = keras.layers.RandomColorJitter(
         value_range=(0, 255),
-        brightness_factor=0.2,  # ±20% brightness change
-        contrast_factor=0.5,    # contrast factor between 0.5 and 1.5
-        saturation_factor=0.4,  # saturation factor between 0.0 and 0.4
+        brightness_factor=0.2,
+        contrast_factor=0.5,
+        saturation_factor=0.4,
         hue_factor=0.2
     )
+
     # All 4 color adjustments are applied sequentially and randomly
     jittered_images = jitter(images, training=True)
 
-    # At inference time, no jittering is applied
     output = jitter(images, training=False)
     ```
     """
