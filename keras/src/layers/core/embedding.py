@@ -232,27 +232,28 @@ class Embedding(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
-        # Embeddings plus optional merged LoRA-aware scale
-        # (returns (embeddings, None) for `None` mode).
-        embeddings_value, merged_kernel_scale = (
+        # Embeddings plus optional merged LoRA-aware scale/zero (returns
+        # (embeddings, None, None) for `None` mode).
+        embeddings_value, merged_embeddings_scale, merged_embeddings_zero = (
             self._get_embeddings_with_merged_lora()
         )
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "embeddings":
                 store[str(idx)] = embeddings_value
-            elif name == "embeddings_zero" and not hasattr(
-                self, "embeddings_zero"
-            ):
-                # embeddings_zero only exists for sub-channel int4 quantization
-                continue
+            elif name == "embeddings_zero":
+                if merged_embeddings_zero is None:
+                    # embeddings_zero only exists for sub-channel int4
+                    # quantization
+                    continue
+                store[str(idx)] = merged_embeddings_zero
             elif name == "g_idx" and not hasattr(self, "g_idx"):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
             elif name == "embeddings_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_embeddings_with_merged_lora()`
-                store[str(idx)] = merged_kernel_scale
+                store[str(idx)] = merged_embeddings_scale
             else:
                 store[str(idx)] = getattr(self, name)
             idx += 1
@@ -629,19 +630,23 @@ class Embedding(Layer):
         without modification.
 
         Returns:
-            A tuple `(embeddings_value, embeddings_scale)`:
+            A tuple `(embeddings_value, embeddings_scale, embeddings_zero)`:
                 `embeddings_value`: The merged embeddings. A quantized tensor if
                     quantization is active, otherwise a high precision tensor.
                 `embeddings_scale`: The quantization scale for the merged
                     embeddings. This is `None` if the layer is not quantized.
+                `embeddings_zero`: The zero point for sub-channel quantization.
+                    This is `None` for per-channel quantization modes.
         """
         if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
-            return self.embeddings, None
+            return self.embeddings, None, None
 
         embeddings_value = self._embeddings
         embeddings_scale = self.embeddings_scale
+        embeddings_zero = getattr(self, "embeddings_zero", None)
+
         if not self.lora_enabled:
-            return embeddings_value, embeddings_scale
+            return embeddings_value, embeddings_scale, embeddings_zero
 
         block_size = getattr(self, "_int4_block_size", None)
 
@@ -695,6 +700,7 @@ class Embedding(Layer):
                     to_numpy=True,
                 )
                 new_scale = ops.squeeze(new_scale, axis=-1)
+                embeddings_zero = None
             else:
                 # Grouped re-quantization (asymmetric with zero point)
                 merged_np = merged_float_embeddings
@@ -713,10 +719,7 @@ class Embedding(Layer):
                 # Transpose back
                 requantized_embeddings = ops.transpose(requantized_t)
                 new_scale = ops.transpose(scale_t)
-                new_zero = ops.transpose(zero_t)
-                # Update embeddings_zero with new values
-                if hasattr(self, "embeddings_zero"):
-                    self.embeddings_zero.assign(new_zero)
+                embeddings_zero = ops.transpose(zero_t)
 
             # Pack for int4
             embeddings_value, _, _ = quantizers.pack_int4(
@@ -736,4 +739,5 @@ class Embedding(Layer):
             )
             embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
             embeddings_value = requantized_embeddings
-        return embeddings_value, embeddings_scale
+            embeddings_zero = None
+        return embeddings_value, embeddings_scale, embeddings_zero

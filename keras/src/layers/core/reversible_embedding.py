@@ -196,19 +196,21 @@ class ReversibleEmbedding(layers.Embedding):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
-        # Embeddings plus optional merged LoRA-aware scale
-        embeddings_value, merged_kernel_scale = (
+        # Embeddings plus optional merged LoRA-aware scale/zero (returns
+        # (embeddings, None, None) for `None` mode).
+        embeddings_value, merged_embeddings_scale, merged_embeddings_zero = (
             self._get_embeddings_with_merged_lora()
         )
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "embeddings":
                 store[str(idx)] = embeddings_value
-            elif name == "embeddings_zero" and not hasattr(
-                self, "embeddings_zero"
-            ):
-                # embeddings_zero only exists for sub-channel int4 quantization
-                continue
+            elif name == "embeddings_zero":
+                if merged_embeddings_zero is None:
+                    # embeddings_zero only exists for sub-channel int4
+                    # quantization
+                    continue
+                store[str(idx)] = merged_embeddings_zero
             elif name == "g_idx" and not hasattr(self, "g_idx"):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
@@ -218,7 +220,9 @@ class ReversibleEmbedding(layers.Embedding):
                 # reverse_embeddings_zero only exists for sub-channel int4
                 continue
             elif name == "embeddings_scale" and mode in ("int4", "int8"):
-                store[str(idx)] = merged_kernel_scale
+                # For int4/int8, the merged LoRA scale (if any) comes from
+                # `_get_embeddings_with_merged_lora()`
+                store[str(idx)] = merged_embeddings_scale
             else:
                 store[str(idx)] = getattr(self, name)
             idx += 1
