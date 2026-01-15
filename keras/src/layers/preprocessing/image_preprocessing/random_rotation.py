@@ -82,16 +82,13 @@ class RandomRotation(BaseImagePreprocessingLayer):
     import keras
     import numpy as np
 
-    # Create a RandomRotation layer
     # rotation happens between -20% and 20% of 360 degrees
     rotation_layer = keras.layers.RandomRotation(factor=0.2)
 
-    # sample images
     images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
 
     rotated_images = rotation_layer(images, training=True)
 
-    # At inference time, no rotation is applied
     output = rotation_layer(images, training=False)
 
     # Rotate with custom fill mode

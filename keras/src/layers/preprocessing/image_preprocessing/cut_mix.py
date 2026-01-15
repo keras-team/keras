@@ -33,10 +33,8 @@ class CutMix(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a CutMix layer in which factor controls the patch size variability
     cutmix = keras.layers.CutMix(factor=0.8)
 
-    # Generate sample images and one-hot encoded labels
     images = np.random.randint(0, 255, (8, 224, 224, 3), dtype='uint8')
     labels = keras.ops.one_hot(
         np.array([0, 1, 2, 3, 0, 1, 2, 3]),
@@ -50,7 +48,6 @@ class CutMix(BaseImagePreprocessingLayer):
         training=True
     )
 
-    # At inference, no augmentation is applied
     output_inference = cutmix(
         {"images": images, "labels": labels},
         training=False

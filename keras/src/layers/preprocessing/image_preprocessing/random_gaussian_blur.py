@@ -39,17 +39,14 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomGaussianBlur layer
     random_blur = keras.layers.RandomGaussianBlur(
         factor=1.0,
         kernel_size=3,
         sigma=1.0
     )
 
-    # Your input image
     image = [...]  # your input image
 
-    # Apply random Gaussian blur
     output = random_blur(image, training=True)
 
     # For stronger blur with custom sigma range

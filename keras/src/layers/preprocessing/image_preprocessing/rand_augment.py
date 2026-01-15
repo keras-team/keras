@@ -39,17 +39,14 @@ class RandAugment(BaseImagePreprocessingLayer):
     (images, labels), _ = keras.datasets.cifar10.load_data()
     images = images.astype("float32")
 
-    # Create a RandAugment layer
     augmenter = keras.layers.RandAugment(
         value_range=(0, 255),
-        num_ops=2,  # Apply 2 random augmentation operations per image
-        factor=0.5  # Control the strength of augmentations (0-1 normalized)
+        num_ops=2,
+        factor=0.5
     )
 
-    # Apply augmentation during training
     augmented_images = augmenter(images, training=True)
 
-    # At inference time, no augmentation is applied
     output = augmenter(images, training=False)
     ```
     """

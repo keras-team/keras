@@ -48,7 +48,6 @@ class RandomBrightness(BaseImagePreprocessingLayer):
     ```python
     random_bright = keras.layers.RandomBrightness(factor=0.2)
 
-    # An image with shape [2, 2, 3]
     image = [[[1, 2, 3], [4 ,5 ,6]], [[7, 8, 9], [10, 11, 12]]]
 
     # Assume we randomly select the factor to be 0.1, then it will apply

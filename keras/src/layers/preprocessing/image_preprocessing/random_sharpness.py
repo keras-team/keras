@@ -36,17 +36,13 @@ class RandomSharpness(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomSharpness layer
-    # factor can be sampled between 0.0 (full blur) and 0.5 (no change)
     sharpness_layer = keras.layers.RandomSharpness(
-        factor=0.5,
+        factor=0.5,  # sampled between 0.0 (full blur) and 0.5 (no change)
         value_range=(0, 255)
     )
 
-    # Sample image
     image = np.array([[[100, 150, 200], [50, 75, 100]]])
 
-    # Apply sharpness adjustment
     output = sharpness_layer(image)
     ```
     """

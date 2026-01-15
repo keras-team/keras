@@ -19,13 +19,11 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a MaxNumBoundingBoxes layer to ensure max 10 boxes
     max_boxes_layer = keras.layers.MaxNumBoundingBoxes(
         max_number=10,
         fill_value=-1
     )
 
-    # Sample bounding boxes dict
     bounding_boxes = {
         "boxes": np.array([
             [[10, 20, 100, 150], [50, 60, 200, 250], [0, 0, 50, 50]],
@@ -33,9 +31,8 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
         "labels": np.array([[1, 2, 3]])
     }
 
-    # Ensure max 10 boxes per image
-    # If fewer than 10 boxes, pad with fill_value (-1)
-    # If more than 10 boxes, truncate to 10
+    # Ensures max 10 boxes per image. If fewer than 10 boxes, pads with
+    # fill_value (-1). If more than 10 boxes, truncates to 10.
     result = max_boxes_layer({"bounding_boxes": bounding_boxes})
     ```
     """

@@ -69,7 +69,6 @@ class RandomShear(BaseImagePreprocessingLayer):
 
     images = [...]  # your input image
 
-    # Apply random shear transformation
     output = shear_layer(images, training=True)
     ```
     """

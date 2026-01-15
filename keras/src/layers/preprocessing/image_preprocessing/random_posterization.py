@@ -26,13 +26,10 @@ class RandomPosterization(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomPosterization layer with 4 bits
     random_posterization = keras.layers.RandomPosterization(factor=4)
 
-    # Your input image
     image = [...]  # your input image
 
-    # Apply posterization
     output = random_posterization(image)
 
     # For more extreme posterization with 2 bits

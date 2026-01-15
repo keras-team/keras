@@ -47,13 +47,10 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomGrayscale layer
     random_grayscale = keras.layers.RandomGrayscale(factor=0.5)
 
-    # Your input image
     image = [...]  # your input image
 
-    # Apply random grayscale conversion
     output = random_grayscale(image, training=True)
 
     # For always converting to grayscale

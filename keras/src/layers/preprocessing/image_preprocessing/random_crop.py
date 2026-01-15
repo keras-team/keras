@@ -51,13 +51,10 @@ class RandomCrop(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomCrop layer that outputs 192x192 images
     crop_layer = keras.layers.RandomCrop(height=192, width=192)
 
-    # Generate sample images (batch_size=2, height=224, width=224, channels=3)
     images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
 
-    # Apply random cropping during training
     cropped_images = crop_layer(images, training=True)
     # Output shape: (2, 192, 192, 3)
 

@@ -53,7 +53,6 @@ class RandomFlip(BaseImagePreprocessingLayer):
     flip_layer = keras.layers.RandomFlip(mode="horizontal_and_vertical")
 
     images = np.random.randint(0, 255, (4, 224, 224, 3), dtype='uint8')
-    # Random horizontal and vertical flip during training
     output = flip_layer(images, training=True)
     ```
     """

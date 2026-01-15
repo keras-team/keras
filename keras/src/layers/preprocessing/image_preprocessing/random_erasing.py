@@ -45,13 +45,10 @@ class RandomErasing(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomErasing layer with default factor
     random_erasing = keras.layers.RandomErasing(factor=1.0)
 
-    # Your input image
     image = [...]  # your input image
 
-    # Apply random erasing
     output = random_erasing(image, training=True)
 
     # For custom scale and fill value

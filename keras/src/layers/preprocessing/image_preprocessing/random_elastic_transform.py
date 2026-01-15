@@ -65,7 +65,6 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomElasticTransform layer
     # This creates wave-like distortions in the image
     elastic_transform = keras.layers.RandomElasticTransform(
         factor=1.0,
@@ -74,7 +73,6 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
 
     image = np.random.randint(0, 255, (224, 224, 3), dtype='uint8')
 
-    # Apply elastic deformation
     # The image will appear warped/stretched like elastic material
     output = elastic_transform(image, training=True)
 

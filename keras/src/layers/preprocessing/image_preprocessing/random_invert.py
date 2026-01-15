@@ -34,21 +34,17 @@ class RandomInvert(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomInvert layer with default factor
     random_invert = keras.layers.RandomInvert(factor=0.5)
 
-    # Your input image
     image = [...]  # your input image
 
-    # Apply random color inversion
     output = random_invert(image, training=True)
 
-    # For always inverting colors with custom value range
-    invert_always = keras.layers.RandomInvert(
+    invert_layer = keras.layers.RandomInvert(
         factor=1.0,
         value_range=[0.0, 1.0]
     )
-    output_inverted = invert_always(image, training=True)
+    output_inverted = invert_layer(image, training=True)
     ```
     """
 

@@ -97,7 +97,6 @@ class RandomTranslation(BaseImagePreprocessingLayer):
 
     images = [...]  # your input image
 
-    # Apply random translation
     output = translation_layer(images, training=True)
     ```
     """

@@ -33,7 +33,6 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
     Example:
 
     ```python
-    # Create a RandomColorDegeneration layer
     color_degeneration = keras.layers.RandomColorDegeneration(
         factor=0.4,
         value_range=(0, 255)
@@ -41,10 +40,8 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
 
     images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
 
-    # Apply color degeneration during training
     degraded_images = color_degeneration(images, training=True)
 
-    # At inference time, no degradation is applied
     output = color_degeneration(images, training=False)
     ```
     """
