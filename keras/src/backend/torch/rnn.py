@@ -415,11 +415,18 @@ def _is_sequence_right_padded(mask):
 def _has_fully_masked_sequence(mask):
     """Check if input sequence contains any fully masked data.
 
-    cuDNN kernel will error out if the input sequence contains any
-    fully masked data. We walk around this issue by rerouting the computation
-    to standard kernel, until the issue on cudnn side has been fixed. For a
-    fully masked sequence, it will contain all Falses. To make it easy to
-    check, we inverse the boolean, check if any of the sequence has all True.
+    cuDNN kernel will error out if the input sequence contains any fully masked
+    data. We work around this issue by rerouting the computation to the
+    standard kernel until the issue on the cuDNN side has been fixed. For a
+    fully masked sequence, it will contain all `False` values. To make it easy
+    to check, we invert the boolean and check if any of the sequences has all
+    `True` values.
+
+    Args:
+        mask: The mask tensor.
+
+    Returns:
+        A boolean tensor, `True` if the mask contains a fully masked sequence.
     """
     return torch.any(torch.all(~mask, dim=1))
 
@@ -470,12 +477,19 @@ def _compute_sequence_length_from_mask(mask, batch_first):
 
 
 def prepare_lstm_weights(lstm, kernel, recurrent_kernel, bias, device):
-    """Copies kernel and recurrent kernel weights in the Pytorch format.
+    """Copies kernel and recurrent kernel weights into the PyTorch format.
 
     We split the kernel and recurrent kernel weights, create associated
     torch tensors adapted to be in line with the cuDNN optimization.
     After we have copied the weights, we ensure the parameters are on
     the same device and memory layout is optimized for cuDNN.
+
+    Args:
+        lstm: The PyTorch LSTM layer to prepare weights for.
+        kernel: The kernel weights tensor.
+        recurrent_kernel: The recurrent kernel weights tensor.
+        bias: The bias tensor.
+        device: The device to place the tensors on.
     """
 
     lstm = lstm.to(device)

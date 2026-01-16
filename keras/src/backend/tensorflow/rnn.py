@@ -539,11 +539,20 @@ def _do_lstm_arguments_support_cudnn(
 
 
 def _has_fully_masked_sequence(mask):
-    """cuDNN kernel will error out if the input sequence contains any
-    fully masked data. We walk around this issue by rerouting the computation
-    to standard kernel, until the issue on cudnn side has been fixed.  For a
-    fully masked sequence, it will contain all Falses. To make it easy to
-    check, we inverse the boolean, check if any of the sequence has all True.
+    """Check if input sequence contains any fully masked data.
+
+    cuDNN kernel will error out if the input sequence contains any fully masked
+    data. We work around this issue by rerouting the computation to the
+    standard kernel until the issue on the cuDNN side has been fixed. For a
+    fully masked sequence, it will contain all `False` values. To make it easy
+    to check, we invert the boolean and check if any of the sequences has all
+    `True` values.
+
+    Args:
+        mask: The mask tensor.
+
+    Returns:
+        A boolean tensor, `True` if the mask contains a fully masked sequence.
     """
     return tf.reduce_any(
         tf.reduce_all(tf.logical_not(tf.cast(mask, dtype="bool")), axis=1)
