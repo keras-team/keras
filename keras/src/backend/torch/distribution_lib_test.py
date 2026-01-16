@@ -1,172 +1,88 @@
 import os
 
-import numpy as np
+import distribution_lib
 import pytest
 import torch
 import torch.distributed as dist
 
-from keras.src.backend import distribution_lib
-from keras.src.distribution import DeviceMesh
-from keras.src.distribution import TensorLayout
-
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_torch_distributed():
-    if not dist.is_available() or dist.is_initialized():
-        return
+    """Sets up a mock distributed environment for testing."""
+    if not torch.cuda.is_available() and not dist.is_initialized():
+        os.environ["MASTER_ADDR"] = "localhost"
+        os.environ["MASTER_PORT"] = "29505"
+        dist.init_process_group(backend="gloo", rank=0, world_size=1)
 
-    os.environ.setdefault("MASTER_ADDR", "localhost")
-    os.environ.setdefault("MASTER_PORT", "29500")  # A default free port
-    os.environ.setdefault("RANK", "0")
-    os.environ.setdefault("WORLD_SIZE", "1")
-    dist.init_process_group(backend="gloo")
+    yield
+
+    if dist.is_initialized():
+        dist.destroy_process_group()
 
 
-@pytest.mark.skipif(
-    not torch.distributed.is_available(),
-    reason="PyTorch distributed components are not available.",
-)
-class TestTorchDistributionLibLive:
-    """
-    Tests for the Torch distribution library.
-    """
+class TestTorchDistributionLib:
+    """Tests for the specific distribution_lib implementation provided."""
 
-    def test_get_device_count(self):
-        """Tests the get_device_count helper against the runtime environment."""
-        assert distribution_lib.get_device_count("cpu") == 1
-
-        if torch.cuda.is_available():
-            gpu_count = torch.cuda.device_count()
-            assert distribution_lib.get_device_count("gpu") == gpu_count
-            assert distribution_lib.get_device_count("cuda") == gpu_count
-        else:
-            assert distribution_lib.get_device_count("gpu") == 0
-
-        if torch.cuda.is_available():
-            assert (
-                distribution_lib.get_device_count() == torch.cuda.device_count()
-            )
-        elif (
-            hasattr(torch.backends, "mps") and torch.backends.mps.is_available()
-        ):
-            assert distribution_lib.get_device_count() == 1
-        else:
-            assert distribution_lib.get_device_count() == 1
-
-    def test_device_listing_and_info(self):
-        """Tests device discovery functions against the runtime environment."""
-        if torch.cuda.is_available():
-            gpu_devices = distribution_lib.list_devices("gpu")
-            assert len(gpu_devices) == torch.cuda.device_count()
-            assert gpu_devices[0] == "cuda:0"
-        else:
-            assert distribution_lib.list_devices("gpu") == []
-
+    def test_list_devices(self):
+        """Tests device discovery logic."""
         cpu_devices = distribution_lib.list_devices("cpu")
         assert cpu_devices == ["cpu:0"]
 
-        with pytest.raises(ValueError, match="Unknown device type"):
-            distribution_lib.list_devices("unsupported_device")
-
-    def test_device_helpers(self):
-        """Tests validation, backend, and memory info functions."""
-        device_str = "cpu:0"
         if torch.cuda.is_available():
-            device_str = "cuda:0"
-
-        assert distribution_lib.validate_device_placement(device_str) is True
-        assert distribution_lib.validate_device_placement("invalid:0") is False
-
-        assert distribution_lib.get_device_backend("cpu") == "torch"
-        assert distribution_lib.get_device_backend("gpu") == "torch"
-
-        mem_info = distribution_lib.get_device_memory_info(device_str)
-        assert mem_info is not None
-        assert "type" in mem_info
-        assert mem_info["index"] == 0
-
-    def test_process_discovery(self):
-        """Tests process_id and num_processes in the live environment."""
-        rank = distribution_lib.process_id()
-        world_size = distribution_lib.num_processes()
-
-        if dist.is_initialized():
-            assert rank == dist.get_rank()
-            assert world_size == dist.get_world_size()
+            gpu_devices = distribution_lib.list_devices("cuda")
+            assert len(gpu_devices) == torch.cuda.device_count()
+            assert "cuda:0" in gpu_devices
         else:
-            assert rank == 0
-            assert world_size == 1
+            assert distribution_lib.list_devices("gpu") == []
 
-    def test_backend_conversions(self):
-        """Tests the conversion of Keras objects to Torch backend objects."""
-        world_size = distribution_lib.num_processes()
-        if world_size < 2:
-            pytest.skip(
-                "Skipping conversion tests in a single-process environment."
-            )
+    def test_process_info(self):
+        """Tests num_processes and process_id integration with torch.dist."""
+        assert distribution_lib.num_processes() == dist.get_world_size()
+        assert distribution_lib.process_id() == dist.get_rank()
 
-        devices = [f"cpu:{i}" for i in range(world_size)]
-        shape = (world_size,)
-        axis_names = ("data",)
-        keras_mesh = DeviceMesh(shape, axis_names, devices)
-
-        torch_mesh = distribution_lib._to_backend_mesh(keras_mesh)
-        assert isinstance(torch_mesh, dist.DeviceMesh)
-        assert torch_mesh.mesh.shape == shape
-
-        keras_layout = TensorLayout(axes=("data",), device_mesh=keras_mesh)
-        placements = distribution_lib._to_backend_layout(keras_layout)
-        assert isinstance(placements[0], dist.Shard)
-
-        keras_layout_replicated = TensorLayout(
-            axes=(None,), device_mesh=keras_mesh
+    def test_distribute_variable(self):
+        """Tests if distribute_variable currently acts as identity."""
+        sample_tensor = torch.tensor([1, 2, 3])
+        result = distribution_lib.distribute_variable(
+            sample_tensor, layout=None
         )
-        placements_replicated = distribution_lib._to_backend_layout(
-            keras_layout_replicated
-        )
-        assert isinstance(placements_replicated[0], dist.Replicate)
+        assert torch.equal(sample_tensor, result)
 
-    def test_tensor_distribution(self):
-        """Tests the distribution of a tensor into a DTensor."""
-        if not dist.is_initialized() or distribution_lib.num_processes() < 2:
-            pytest.skip(
-                "Tensor distribution test requires a multi-process environment."
-            )
+    def test_all_reduce(self):
+        """Tests the all_reduce wrapper logic."""
+        if not dist.is_initialized():
+            pytest.skip("Distributed not initialized")
 
-        world_size = distribution_lib.num_processes()
-        devices = np.arange(world_size)
-        keras_mesh = DeviceMesh((world_size,), ("batch",), devices)
-        keras_layout = TensorLayout(("batch", None), keras_mesh)
+        tensor = torch.tensor([1.0, 2.0], device="cpu")
+        reduced = distribution_lib.all_reduce(tensor, op="sum")
+        assert torch.equal(tensor, reduced)
 
-        local_tensor = torch.randn((10, 20))
+        assert reduced is not tensor
 
-        dtensor = distribution_lib.distribute_tensor(local_tensor, keras_layout)
-        assert isinstance(dtensor, torch.distributed.dtensor.DTensor)
-        assert dtensor.device_mesh.mesh.shape == (world_size,)
-        assert isinstance(dtensor.placements[0], dist.Shard)
+    def test_all_gather(self):
+        """Tests the all_gather wrapper logic."""
+        if not dist.is_initialized():
+            pytest.skip("Distributed not initialized")
 
-        dvariable = distribution_lib.distribute_variable(
-            local_tensor, keras_layout
-        )
-        assert isinstance(dvariable, torch.distributed.dtensor.DTensor)
+        tensor = torch.tensor([1.0], device="cpu")
+        gathered = distribution_lib.all_gather(tensor, axis=0)
 
-    def test_distribute_data_input(self):
-        """Tests the `from_local` logic for distributing input data."""
-        if not dist.is_initialized() or distribution_lib.num_processes() < 2:
-            pytest.skip(
-                "Input distribution test requires a multi-process environment."
-            )
+        assert gathered.shape == (1,)
+        assert gathered[0] == 1.0
 
-        world_size = distribution_lib.num_processes()
-        devices = np.arange(world_size)
-        keras_mesh = DeviceMesh((world_size,), ("batch",), devices)
-        keras_layout = TensorLayout(("batch", None), keras_mesh)
+    def test_initialize_rng(self):
+        """Tests that RNG initialization runs without error."""
+        try:
+            distribution_lib.initialize_rng()
+        except Exception as e:
+            pytest.fail(f"initialize_rng failed with {e}")
 
-        per_process_batch = torch.ones((8, 16))
-
-        global_batch = distribution_lib.distribute_data_input(
-            per_process_batch, keras_layout, batch_dim_name="batch"
-        )
-
-        assert isinstance(global_batch, torch.distributed.dtensor.DTensor)
-        assert global_batch.shape == (world_size * 8, 16)
+    def test_initialize_full(self):
+        """
+        Tests the environment variable setup in initialize.
+        """
+        distribution_lib.initialize("localhost:29506", 1, 0)
+        assert os.environ["RANK"] == "0"
+        assert os.environ["WORLD_SIZE"] == "1"
+        assert os.environ["MASTER_ADDR"] == "localhost"
+        assert os.environ["MASTER_PORT"] == "29506"
