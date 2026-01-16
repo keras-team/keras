@@ -539,11 +539,12 @@ def _do_lstm_arguments_support_cudnn(
 
 
 def _has_fully_masked_sequence(mask):
-    # Cudnn kernel will error out if the input sequence contains any
-    # fully masked data. We walk around this issue by rerouting the computation
-    # to standard kernel, until the issue on cudnn side has been fixed.  For a
-    # fully masked sequence, it will contain all Falses. To make it easy to
-    # check, we inverse the boolean, check if any of the sequence has all True.
+    """cuDNN kernel will error out if the input sequence contains any
+    fully masked data. We walk around this issue by rerouting the computation
+    to standard kernel, until the issue on cudnn side has been fixed.  For a
+    fully masked sequence, it will contain all Falses. To make it easy to
+    check, we inverse the boolean, check if any of the sequence has all True.
+    """
     return tf.reduce_any(
         tf.reduce_all(tf.logical_not(tf.cast(mask, dtype="bool")), axis=1)
     )
@@ -900,8 +901,8 @@ def _cudnn_lstm(
 
     if tf.sysconfig.get_build_info()["is_rocm_build"]:
         # ROCm MIOpen's weight sequence for LSTM is different from both
-        # canonical and Cudnn format
-        # MIOpen: [i, f, o, c] Cudnn/Canonical: [i, f, c, o]
+        # canonical and cuDNN format
+        # MIOpen: [i, f, o, c] cuDNN/Canonical: [i, f, c, o]
         # i is input gate weights.
         # f is forget gate weights.
         # o is output gate weights.
