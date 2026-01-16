@@ -985,6 +985,7 @@ class AutoTPDistribution(Distribution):
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
         self._is_multi_process = self._num_process > 1
+
         from keras.src.distribution.tensor_parallel.tensor_parallel import (
             TensorParallelKeras,
         )
@@ -996,22 +997,20 @@ class AutoTPDistribution(Distribution):
         )
 
     def get_data_layout(self, data_shape):
+        """Shard data on the 'data' axis of the mesh."""
         data_shard_spec = [None] * len(data_shape)
         data_shard_spec[0] = self.batch_dim_name
         return TensorLayout(data_shard_spec, self.device_mesh)
 
     def get_variable_layout(self, variable):
-        warnings.warn(
-            "Variable layout is determined automatically within "
-            "AutoTPDistribution. This method will return a replicated layout."
-        )
-        return TensorLayout([None] * len(variable.shape), self.device_mesh)
+        return None
 
     def get_tensor_layout(self, path):
+        """Intermediate tensors do not require automated layout propagation."""
         return None
 
     def distribute_dataset(self, dataset):
-        """Distributes the dataset across processes based on the device mesh."""
+        """Distributes the dataset across processes based on the 'data' axis."""
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
@@ -1031,8 +1030,7 @@ class AutoTPDistribution(Distribution):
         if global_batch_size.numpy() < 0:
             raise ValueError(
                 "The batch size of the input dataset is unknown. "
-                "Please configure the batch size for the input dataset, "
-                "e.g., via `dataset.batch(batch_size)`"
+                "Please configure the batch size"
             )
 
         mesh_batch_dim_index = self.device_mesh.axis_names.index(
@@ -1044,12 +1042,12 @@ class AutoTPDistribution(Distribution):
             return dataset.prefetch(tf.data.AUTOTUNE)
 
         num_model_replicas_per_process = num_model_replicas / self._num_process
+
         if num_model_replicas_per_process >= 1:
             if global_batch_size % self._num_process != 0:
                 raise ValueError(
-                    "Global batch size must be divisible by the number of "
-                    f"processes. `global_batch_size`={global_batch_size} and "
-                    f"`num_process`={self._num_process}"
+                    f"Global batch size {global_batch_size} must be divisible "
+                    f"by the number of processes {self._num_process}."
                 )
             per_process_batch_size = global_batch_size // self._num_process
             distributed_dataset = dataset.rebatch(per_process_batch_size)
@@ -1061,9 +1059,8 @@ class AutoTPDistribution(Distribution):
         else:
             if global_batch_size % num_model_replicas != 0:
                 raise ValueError(
-                    "Global batch size must be divisible by the number of "
-                    f"replicas. `global_batch_size`={global_batch_size} and "
-                    f"`num_model_replicas`={num_model_replicas}"
+                    f"Global batch size {global_batch_size} must be divisible "
+                    f"by the number of replicas {num_model_replicas}."
                 )
             per_replica_batch_size = global_batch_size // num_model_replicas
             distributed_dataset = dataset.rebatch(per_replica_batch_size)
