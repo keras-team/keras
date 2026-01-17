@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_example,
+)
 
 
 @keras_export("keras.layers.RandomInvert")
@@ -33,19 +36,7 @@ class RandomInvert(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    random_invert = keras.layers.RandomInvert(factor=0.5)
-
-    image = [...]  # your input image
-
-    output = random_invert(image, training=True)
-
-    invert_layer = keras.layers.RandomInvert(
-        factor=1.0,
-        value_range=[0.0, 1.0]
-    )
-    output_inverted = invert_layer(image, training=True)
-    ```
+    {{base_image_preprocessing_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -143,3 +134,9 @@ class RandomInvert(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandomInvert.__doc__ = RandomInvert.__doc__.replace(
+    "{{base_image_preprocessing_example}}",
+    base_image_preprocessing_example,
+)

@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_example,
+)
 
 
 @keras_export("keras.layers.RandomGrayscale")
@@ -46,17 +49,7 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    random_grayscale = keras.layers.RandomGrayscale(factor=0.5)
-
-    image = [...]  # your input image
-
-    output = random_grayscale(image, training=True)
-
-    # For always converting to grayscale
-    grayscale_always = keras.layers.RandomGrayscale(factor=1.0)
-    output_grayscale = grayscale_always(image, training=True)
-    ```
+    {{base_image_preprocessing_example}}
     """
 
     def __init__(self, factor=0.5, data_format=None, seed=None, **kwargs):
@@ -129,3 +122,9 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         config = super().get_config()
         config.update({"factor": self.factor})
         return config
+
+
+RandomGrayscale.__doc__ = RandomGrayscale.__doc__.replace(
+    "{{base_image_preprocessing_example}}",
+    base_image_preprocessing_example,
+)

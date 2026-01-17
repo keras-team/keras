@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random import SeedGenerator
 
 
@@ -32,27 +35,7 @@ class CutMix(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    cutmix = keras.layers.CutMix(factor=0.8)
-
-    images = np.random.randint(0, 255, (8, 224, 224, 3), dtype='uint8')
-    labels = keras.ops.one_hot(
-        np.array([0, 1, 2, 3, 0, 1, 2, 3]),
-        num_classes=4
-    )
-
-    # Random rectangular patches are cut from one image and pasted into another
-    # Labels are also mixed proportionally to the patch area
-    output = cutmix(
-        {"images": images, "labels": labels},
-        training=True
-    )
-
-    output_inference = cutmix(
-        {"images": images, "labels": labels},
-        training=False
-    )
-    ```
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -251,3 +234,9 @@ class CutMix(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+CutMix.__doc__ = CutMix.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example,
+)

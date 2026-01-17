@@ -5,6 +5,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_example,
+)
 from keras.src.random import SeedGenerator
 from keras.src.utils import backend_utils
 
@@ -74,22 +77,7 @@ class AugMix(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    augmix = keras.layers.AugMix(
-        value_range=(0, 255),
-        num_chains=3,
-        chain_depth=3,
-        factor=0.3,
-        all_ops=True
-    )
-
-    images = np.random.randint(0, 255, (8, 224, 224, 3), dtype='uint8')
-
-    # Each image is augmented in 3 different ways (chains) and then mixed
-    augmented_images = augmix(images, training=True)
-
-    output = augmix(images, training=False)
-    ```
+    {{base_image_preprocessing_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -345,3 +333,9 @@ class AugMix(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+AugMix.__doc__ = AugMix.__doc__.replace(
+    "{{base_image_preprocessing_example}}",
+    base_image_preprocessing_example,
+)

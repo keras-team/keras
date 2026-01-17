@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_example,
+)
 from keras.src.random import SeedGenerator
 from keras.src.utils import backend_utils
 
@@ -35,20 +38,7 @@ class RandAugment(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    (images, labels), _ = keras.datasets.cifar10.load_data()
-    images = images.astype("float32")
-
-    augmenter = keras.layers.RandAugment(
-        value_range=(0, 255),
-        num_ops=2,
-        factor=0.5
-    )
-
-    augmented_images = augmenter(images, training=True)
-
-    output = augmenter(images, training=False)
-    ```
+    {{base_image_preprocessing_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -282,3 +272,9 @@ class RandAugment(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandAugment.__doc__ = RandAugment.__doc__.replace(
+    "{{base_image_preprocessing_example}}",
+    base_image_preprocessing_example,
+)
