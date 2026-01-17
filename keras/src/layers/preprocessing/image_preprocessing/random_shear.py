@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     clip_to_image_size,
 )
@@ -64,13 +67,7 @@ class RandomShear(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    shear_layer = keras.layers.RandomShear(x_factor=0.2, y_factor=0.2)
-
-    images = [...]  # your input image
-
-    output = shear_layer(images, training=True)
-    ```
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -412,3 +409,9 @@ class RandomShear(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+RandomShear.__doc__ = RandomShear.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example,
+)

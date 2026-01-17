@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 
 
 @keras_export("keras.layers.RandomPosterization")
@@ -25,20 +28,7 @@ class RandomPosterization(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    random_posterization = keras.layers.RandomPosterization(factor=4)
-
-    image = [...]  # your input image
-
-    output = random_posterization(image)
-
-    # For more extreme posterization with 2 bits
-    extreme_posterization = keras.layers.RandomPosterization(
-        factor=2,
-        value_range=[0.0, 1.0]
-    )
-    output_extreme = extreme_posterization(image)
-    ```
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -169,3 +159,9 @@ class RandomPosterization(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+RandomPosterization.__doc__ = RandomPosterization.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example,
+)

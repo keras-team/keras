@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -48,18 +51,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    contrast_layer = keras.layers.RandomContrast(
-        factor=0.3,
-        value_range=(0, 255)
-    )
-
-    images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
-
-    contrasted_images = contrast_layer(images, training=True)
-
-    output = contrast_layer(images, training=False)
-    ```
+    {{base_image_preprocessing_color_example}}
     """
 
     _FACTOR_BOUNDS = (0, 1)
@@ -162,3 +154,9 @@ class RandomContrast(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandomContrast.__doc__ = RandomContrast.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example,
+)

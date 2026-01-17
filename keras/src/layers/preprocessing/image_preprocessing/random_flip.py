@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     clip_to_image_size,
 )
@@ -49,12 +52,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    flip_layer = keras.layers.RandomFlip(mode="horizontal_and_vertical")
-
-    images = np.random.randint(0, 255, (4, 224, 224, 3), dtype='uint8')
-    output = flip_layer(images, training=True)
-    ```
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -243,3 +241,9 @@ class RandomFlip(BaseImagePreprocessingLayer):
             }
         )
         return config
+
+
+RandomFlip.__doc__ = RandomFlip.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example,
+)

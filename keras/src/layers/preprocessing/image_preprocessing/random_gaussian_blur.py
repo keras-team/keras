@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random import SeedGenerator
 
 
@@ -38,25 +41,7 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    random_blur = keras.layers.RandomGaussianBlur(
-        factor=1.0,
-        kernel_size=3,
-        sigma=1.0
-    )
-
-    image = [...]  # your input image
-
-    output = random_blur(image, training=True)
-
-    # For stronger blur with custom sigma range
-    strong_blur = keras.layers.RandomGaussianBlur(
-        factor=1.0,
-        kernel_size=5,
-        sigma=(1.0, 3.0)
-    )
-    output_blurred = strong_blur(image, training=True)
-    ```
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -240,3 +225,9 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
             }
         )
         return config
+
+
+RandomGaussianBlur.__doc__ = RandomGaussianBlur.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example,
+)

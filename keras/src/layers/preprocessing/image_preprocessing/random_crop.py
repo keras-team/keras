@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     convert_format,
 )
@@ -50,17 +53,7 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    crop_layer = keras.layers.RandomCrop(height=192, width=192)
-
-    images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
-
-    cropped_images = crop_layer(images, training=True)
-    # Output shape: (2, 192, 192, 3)
-
-    # performs center crop
-    center_cropped = crop_layer(images, training=False)
-    ```
+    {{base_image_preprocessing_transform_example}}
     """
 
     def __init__(
@@ -288,3 +281,9 @@ class RandomCrop(BaseImagePreprocessingLayer):
             }
         )
         return config
+
+
+RandomCrop.__doc__ = RandomCrop.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example,
+)

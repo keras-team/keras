@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random import SeedGenerator
 
 
@@ -35,16 +38,7 @@ class RandomSharpness(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    sharpness_layer = keras.layers.RandomSharpness(
-        factor=0.5,  # sampled between 0.0 (full blur) and 0.5 (no change)
-        value_range=(0, 255)
-    )
-
-    image = np.array([[[100, 150, 200], [50, 75, 100]]])
-
-    output = sharpness_layer(image)
-    ```
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -182,3 +176,9 @@ class RandomSharpness(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+RandomSharpness.__doc__ = RandomSharpness.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example,
+)

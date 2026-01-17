@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     clip_to_image_size,
 )
@@ -90,15 +93,7 @@ class RandomTranslation(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    translation_layer = keras.layers.RandomTranslation(
-        height_factor=0.2, width_factor=0.2
-    )
-
-    images = [...]  # your input image
-
-    output = translation_layer(images, training=True)
-    ```
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -394,3 +389,9 @@ class RandomTranslation(BaseImagePreprocessingLayer):
             "data_format": self.data_format,
         }
         return {**base_config, **config}
+
+
+RandomTranslation.__doc__ = RandomTranslation.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example,
+)

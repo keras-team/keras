@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -64,26 +67,7 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    # This creates wave-like distortions in the image
-    elastic_transform = keras.layers.RandomElasticTransform(
-        factor=1.0,
-        scale=(50, 100)  # Control the magnitude of distortion
-    )
-
-    image = np.random.randint(0, 255, (224, 224, 3), dtype='uint8')
-
-    # The image will appear warped/stretched like elastic material
-    output = elastic_transform(image, training=True)
-
-    # For more subtle distortions
-    subtle_elastic = keras.layers.RandomElasticTransform(
-        factor=0.5,
-        scale=(10, 30),
-        fill_mode="reflect"
-    )
-    subtle_output = subtle_elastic(image, training=True)
-    ```
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -299,3 +283,9 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             "seed": self.seed,
         }
         return {**base_config, **config}
+
+
+RandomElasticTransform.__doc__ = RandomElasticTransform.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example,
+)

@@ -6,6 +6,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.utils import backend_utils
 
@@ -63,23 +66,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    (images, labels), _ = keras.datasets.cifar10.load_data()
-    images = images.astype("float32")
-
-    jitter = keras.layers.RandomColorJitter(
-        value_range=(0, 255),
-        brightness_factor=0.2,
-        contrast_factor=0.5,
-        saturation_factor=0.4,
-        hue_factor=0.2
-    )
-
-    # All 4 color adjustments are applied sequentially and randomly
-    jittered_images = jitter(images, training=True)
-
-    output = jitter(images, training=False)
-    ```
+    {{base_image_preprocessing_color_example}}
     """
 
     def __init__(
@@ -231,3 +218,9 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandomColorJitter.__doc__ = RandomColorJitter.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example,
+)
