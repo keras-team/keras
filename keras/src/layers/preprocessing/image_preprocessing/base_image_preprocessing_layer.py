@@ -383,3 +383,70 @@ class BaseImagePreprocessingLayer(DataLayer):
         )
 
         return affine_matrix
+
+
+base_image_preprocessing_transform_example = """
+```python
+layer = keras.layers.RandomRotation(factor=0.2, bounding_box_format="xyxy")
+images = np.random.randint(0, 255, (4, 224, 224, 3), dtype="uint8")
+
+bounding_boxes = {
+    "boxes": np.array([
+        [[10, 20, 100, 150], [50, 60, 200, 250]],
+        [[15, 25, 110, 160], [55, 65, 210, 260]],
+        [[20, 30, 120, 170], [60, 70, 220, 270]],
+        [[25, 35, 130, 180], [65, 75, 230, 280]],
+    ], dtype="float32"),
+    "labels": np.array([[0, 1], [1, 2], [2, 3], [0, 3]], dtype="int32")
+}
+
+labels = keras.ops.one_hot(
+    np.array([0, 1, 2, 3]),
+    num_classes=4
+)
+
+segmentation_masks = np.random.randint(0, 3, (4, 224, 224, 1), dtype="uint8")
+
+output = layer(
+    {
+        "images": images,
+        "bounding_boxes": bounding_boxes,
+        "labels": labels,
+        "segmentation_masks": segmentation_masks
+    },
+    training=True
+)
+```
+"""
+
+base_image_preprocessing_example = """
+```python
+layer = keras.layers.RandomRotation(factor=0.2)
+images = np.random.randint(0, 255, (8, 224, 224, 3), dtype="uint8")
+
+output = layer(images, training=True)
+```
+"""
+
+base_image_preprocessing_color_example = """
+```python
+layer = keras.layers.RandomBrightness(factor=0.2, value_range=(0, 255))
+images = np.random.randint(0, 255, (8, 224, 224, 3), dtype="uint8")
+
+labels = keras.ops.one_hot(
+    np.array([0, 1, 2, 0, 1, 2, 0, 1]),
+    num_classes=3
+)
+
+segmentation_masks = np.random.randint(0, 3, (8, 224, 224, 1), dtype="uint8")
+
+output = layer(
+    {
+        "images": images,
+        "labels": labels,
+        "segmentation_masks": segmentation_masks
+    },
+    training=True
+)
+```
+"""
