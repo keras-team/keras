@@ -653,11 +653,14 @@ def unpack_int4(packed, orig_len, axis=0, dtype="int8"):
         )
 
     def to_signed(x):
-        """Converts unpacked nibbles [0, 15] to signed int4 [-8, 7]."""
+        """Converts unpacked nibbles [0, 15] to signed int4 [-8, 7].
+
+        Uses a branchless XOR approach: (x ^ 8) - 8
+        This maps: 0->0, 1->1, ..., 7->7, 8->-8, 9->-7, ..., 15->-1
+        """
         dtype_x = backend.standardize_dtype(x.dtype)
         eight = ops.cast(8, dtype_x)
-        sixteen = ops.cast(16, dtype_x)
-        return ops.where(x < eight, x, x - sixteen)
+        return ops.subtract(ops.bitwise_xor(x, eight), eight)
 
     rank = getattr(packed.shape, "rank", None) or len(packed.shape)
     if axis < 0:
@@ -748,7 +751,7 @@ class GPTQQuantizer(Quantizer):
         self.zero = None
         self.maxq = None
 
-    def find_params(self, input_tensor, weight=True):
+    def find_params(self, input_tensor):
         """Finds quantization parameters (scale and zero) for a given tensor."""
         self.scale, self.zero, self.maxq = compute_quantization_parameters(
             input_tensor,
@@ -756,7 +759,6 @@ class GPTQQuantizer(Quantizer):
             symmetric=self.symmetric,
             per_channel=self.per_channel,
             group_size=self.group_size,
-            weight=weight,
             compute_dtype=self.compute_dtype,
         )
         return self.scale, self.zero, self.maxq
@@ -793,98 +795,105 @@ def compute_quantization_parameters(
     symmetric=False,
     per_channel=False,
     group_size=-1,
-    weight=False,
     compute_dtype="float32",
 ):
     """
-    Computes the scale and zero-point for quantization.
+    Computes the scale and zero-point for quantizing weight tensors.
 
     This function calculates the scale and zero-point required for quantizing
-    a given tensor `x` based on the specified parameters. It supports grouped,
-    per-channel, per-tensor, symmetric, and asymmetric quantization - along
-    with any combinations of these.
+    a given weight tensor `x` based on the specified parameters. It supports
+    grouped, per-channel, per-tensor, symmetric, and asymmetric quantization.
+
+    For grouped quantization (per_channel=True, group_size > 0), the output
+    shapes are [out_features, n_groups] where n_groups is the number of groups
+    along the in_features dimension.
 
     Args:
-        x: KerasTensor. The input tensor to quantize.
+        x: KerasTensor. The weight tensor to quantize with shape
+            [out_features, in_features].
         bits: int. The number of bits to quantize to (e.g., 4).
         symmetric: bool. Whether to use symmetric quantization.
         per_channel: bool. Whether to quantize per channel.
-        group_size: int. The group size for quantization.
-        weight: bool. Whether the input tensor is a weight tensor.
+        group_size: int. The group size for quantization. -1 means no grouping.
+        compute_dtype: str. The dtype for computation. Defaults to "float32".
 
     Returns:
         scale: KerasTensor. The scale tensor for quantization.
         zero: KerasTensor. The zero tensor for quantization.
         maxq: scalar. The maximum quantization value.
     """
+    # Input validation
     if x is None:
         raise ValueError(f"Input tensor {x} cannot be None.")
-
-    # For weights, we typically expect at least a 2D tensor.
-    if weight and len(x.shape) < 2:
+    if len(x.shape) < 2:
         raise ValueError(
             f"Input weight tensor {x} must have a rank of at "
             f"least 2, but got rank {len(x.shape)}."
         )
-
     if ops.size(x) == 0:
         raise ValueError("Input tensor 'x' cannot be empty.")
 
-    original_shape = x.shape
+    out_features, in_features = x.shape[0], x.shape[1]
 
-    if per_channel:
-        if weight:
-            if group_size != -1:
-                input_reshaped = ops.reshape(x, [-1, group_size])
-            else:
-                input_reshaped = ops.reshape(x, [original_shape[0], -1])
-    else:  # per-tensor
-        input_reshaped = ops.reshape(x, [1, -1])
+    # Determine number of groups for quantization
+    if per_channel and group_size > 0:
+        n_groups = (in_features + group_size - 1) // group_size
+    else:
+        n_groups = 1
 
-    # Find min/max values
-    min_values = ops.min(input_reshaped, axis=1)
-    max_values = ops.max(input_reshaped, axis=1)
+    # Compute min/max values based on quantization mode
+    if n_groups > 1:
+        # Grouped quantization: output shape [out_features, n_groups]
+        remainder = in_features % group_size
+        if remainder != 0:
+            pad_size = group_size - remainder
+            x = ops.pad(x, [[0, 0], [0, pad_size]], constant_values=0.0)
 
-    # Apply symmetric quantization logic if enabled
+        x_grouped = ops.reshape(x, [out_features, n_groups, group_size])
+        min_values = ops.min(x_grouped, axis=2)
+        max_values = ops.max(x_grouped, axis=2)
+    else:
+        # Per-channel or per-tensor: compute stats along rows
+        reduction_shape = [out_features, -1] if per_channel else [1, -1]
+        x_reshaped = ops.reshape(x, reduction_shape)
+        min_values = ops.min(x_reshaped, axis=1)
+        max_values = ops.max(x_reshaped, axis=1)
+
+    # Symmetric quantization: make range symmetric around zero
     if symmetric:
-        max_values = ops.maximum(ops.abs(min_values), max_values)
+        max_abs = ops.maximum(ops.abs(min_values), max_values)
         min_values = ops.where(
-            ops.less(min_values, 0), ops.negative(max_values), min_values
+            ops.less(min_values, 0), ops.negative(max_abs), min_values
         )
+        max_values = max_abs
 
-    # Ensure range is not zero to avoid division errors
+    # Ensure non-zero range to avoid division errors
     zero_range = ops.equal(min_values, max_values)
     min_values = ops.where(zero_range, ops.subtract(min_values, 1), min_values)
     max_values = ops.where(zero_range, ops.add(max_values, 1), max_values)
 
+    # Compute scale and zero-point
     maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), compute_dtype)
-
-    # Calculate scale and zero-point
     scale = ops.divide(ops.subtract(max_values, min_values), maxq)
+    scale = ops.where(ops.less_equal(scale, 0), 1e-8, scale)
+
     if symmetric:
         zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
     else:
         zero = ops.round(ops.divide(ops.negative(min_values), scale))
 
-    # Ensure scale is non-zero
-    scale = ops.where(ops.less_equal(scale, 0), 1e-8, scale)
-
-    if weight:
-        # Per-channel, non-grouped case: simple reshape is correct.
-        if per_channel and group_size == -1:
-            scale = ops.reshape(scale, [-1, 1])
-            zero = ops.reshape(zero, [-1, 1])
-        elif not per_channel:
-            num_rows = original_shape[0]
-            scale = ops.tile(ops.reshape(scale, (1, 1)), (num_rows, 1))
-            zero = ops.tile(ops.reshape(zero, (1, 1)), (num_rows, 1))
-    if per_channel:
+    # Reshape output to [out_features, n_groups] or [out_features, 1]
+    if n_groups > 1:
+        pass  # Already [out_features, n_groups]
+    elif per_channel:
         scale = ops.reshape(scale, [-1, 1])
         zero = ops.reshape(zero, [-1, 1])
+    else:
+        # Per-tensor: tile single value to [out_features, 1]
+        scale = ops.tile(ops.reshape(scale, (1, 1)), (out_features, 1))
+        zero = ops.tile(ops.reshape(zero, (1, 1)), (out_features, 1))
 
-    zero = ops.cast(zero, "uint8")
-
-    return scale, zero, maxq
+    return scale, ops.cast(zero, "uint8"), maxq
 
 
 def quantize_with_zero_point(input_tensor, scale, zero, maxq):

@@ -161,3 +161,15 @@ class QuantizationConfigTest(testing.TestCase):
         self.assertAllEqual(quantizer.value_range, weight_range)
         self.assertIsNone(loaded_layer.quantization_config.activation_quantizer)
         self.assertTrue(loaded_layer._is_quantized)
+
+    def test_awq_requires_config(self):
+        """Test that AWQ mode requires a config."""
+        with self.assertRaisesRegex(ValueError, "AWQConfig"):
+            validate_and_resolve_config("awq", None)
+
+    def test_awq_requires_correct_config_type(self):
+        """Test that AWQ requires AWQConfig type."""
+        # Int8QuantizationConfig has mode='int8', so passing mode='awq' raises
+        # a contradictory arguments error
+        with self.assertRaisesRegex(ValueError, "Contradictory arguments"):
+            validate_and_resolve_config("awq", Int8QuantizationConfig())

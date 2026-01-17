@@ -7,6 +7,7 @@ since your modifications would be overwritten.
 from keras.src.quantizers import deserialize as deserialize
 from keras.src.quantizers import get as get
 from keras.src.quantizers import serialize as serialize
+from keras.src.quantizers.awq_config import AWQConfig as AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig as GPTQConfig
 from keras.src.quantizers.quantization_config import (
     Float8QuantizationConfig as Float8QuantizationConfig,

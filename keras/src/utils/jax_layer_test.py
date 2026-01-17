@@ -33,7 +33,15 @@ input_shape = (28, 28, 1)  # Excluding batch_size
 
 
 @object_registration.register_keras_serializable()
-def jax_stateless_init(rng, inputs):
+def jax_stateless_function(inputs):
+    x = jax.numpy.sum(inputs, axis=(1, 2, 3))
+    x = jax.numpy.expand_dims(x, axis=1)
+    x = jax.numpy.tile(x, (1, 10))
+    return x
+
+
+@object_registration.register_keras_serializable()
+def jax_model_no_state_init(rng, inputs):
     layer_sizes = [784, 300, 100, 10]
     params = []
     w_init = jax.nn.initializers.glorot_normal()
@@ -46,7 +54,7 @@ def jax_stateless_init(rng, inputs):
 
 
 @object_registration.register_keras_serializable()
-def jax_stateless_apply(params, inputs):
+def jax_model_no_state_apply(params, inputs):
     activations = inputs.reshape((inputs.shape[0], -1))  # flatten
     for w, b in params[:-1]:
         outputs = jnp.dot(activations, w) + b
@@ -58,15 +66,15 @@ def jax_stateless_apply(params, inputs):
 
 
 @object_registration.register_keras_serializable()
-def jax_stateful_init(rng, inputs, training):
-    params = jax_stateless_init(rng, inputs)
+def jax_model_with_state_init(rng, inputs, training):
+    params = jax_model_no_state_init(rng, inputs)
     state = jnp.zeros([], jnp.int32)
     return params, state
 
 
 @object_registration.register_keras_serializable()
-def jax_stateful_apply(params, state, inputs, training):
-    outputs = jax_stateless_apply(params, inputs)
+def jax_model_with_state_apply(params, state, inputs, training):
+    outputs = jax_model_no_state_apply(params, inputs)
     if training:
         state = state + 1
     return outputs, state
@@ -355,10 +363,21 @@ class TestJaxLayer(testing.TestCase):
 
     @parameterized.named_parameters(
         {
+            "testcase_name": "stateless",
+            "init_kwargs": {
+                "call_fn": jax_stateless_function,
+                "init_fn": None,
+            },
+            "trainable_weights": 0,
+            "trainable_params": 0,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
             "testcase_name": "training_independent",
             "init_kwargs": {
-                "call_fn": jax_stateless_apply,
-                "init_fn": jax_stateless_init,
+                "call_fn": jax_model_no_state_apply,
+                "init_fn": jax_model_no_state_init,
             },
             "trainable_weights": 6,
             "trainable_params": 266610,
@@ -368,8 +387,8 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "training_state",
             "init_kwargs": {
-                "call_fn": jax_stateful_apply,
-                "init_fn": jax_stateful_init,
+                "call_fn": jax_model_with_state_apply,
+                "init_fn": jax_model_with_state_init,
             },
             "trainable_weights": 6,
             "trainable_params": 266610,
@@ -379,8 +398,8 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "training_state_dtype_policy",
             "init_kwargs": {
-                "call_fn": jax_stateful_apply,
-                "init_fn": jax_stateful_init,
+                "call_fn": jax_model_with_state_apply,
+                "init_fn": jax_model_with_state_init,
                 "dtype": DTypePolicy("mixed_float16"),
             },
             "trainable_weights": 6,

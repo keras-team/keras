@@ -1126,22 +1126,28 @@ def expm1(x):
 
 def flip(x, axis=None):
     x_node = get_ov_output(x)
-    ndim = x.ndim
+
+    # Using OpenVINO tensor shape
+    ndim = len(x_node.get_partial_shape())
     if ndim is None:
         raise ValueError(
-            "The `flip` operation does not support tensors with dynamic rank"
+            "The `flip` operation does not support tensors with dynamic rank "
             "for the OpenVINO backend."
         )
+
     if axis is None:
         axis = list(range(ndim))
     elif isinstance(axis, int):
         axis = [axis]
+
     axis = [a + ndim if a < 0 else a for a in axis]
+
     begin = [0] * ndim
     end = [0] * ndim
     strides = [1] * ndim
     for a in axis:
         strides[a] = -1
+
     all_ones_mask = [1] * ndim
     result = ov_opset.strided_slice(
         data=x_node,
@@ -1152,6 +1158,61 @@ def flip(x, axis=None):
         end_mask=all_ones_mask,
     )
     return OpenVINOKerasTensor(result.output(0))
+
+
+def rot90(array, k=1, axes=(0, 1)):
+    """Rotate an array by 90 degrees in the plane specified by axes."""
+    array = get_ov_output(array)
+
+    if not isinstance(axes, (tuple, list)) or len(axes) != 2:
+        raise ValueError("axes must be a tuple of length 2")
+
+    shape = array.get_partial_shape()
+    ndim = shape.rank.get_length()
+    if ndim is None:
+        raise ValueError(
+            "`rot90` does not support tensors with dynamic rank "
+            "for the OpenVINO backend."
+        )
+
+    axis1 = canonicalize_axis(axes[0], ndim)
+    axis2 = canonicalize_axis(axes[1], ndim)
+
+    if axis1 == axis2:
+        raise ValueError("axes must be different")
+
+    k = k % 4
+    if k == 0:
+        return OpenVINOKerasTensor(array)
+
+    result = array
+
+    for _ in range(k):
+        # 1️ Transpose axis1 <-> axis2
+        perm = list(range(ndim))
+        perm[axis1], perm[axis2] = perm[axis2], perm[axis1]
+        perm_const = ov_opset.constant(perm, Type.i32).output(0)
+        result = ov_opset.transpose(result, perm_const).output(0)
+
+        # 2️ Reverse along axis1 using StridedSlice
+        begin = [0] * ndim
+        end = [0] * ndim
+        strides = [1] * ndim
+        strides[axis1] = -1
+
+        begin_mask = [1] * ndim
+        end_mask = [1] * ndim
+
+        result = ov_opset.strided_slice(
+            data=result,
+            begin=begin,
+            end=end,
+            strides=strides,
+            begin_mask=begin_mask,
+            end_mask=end_mask,
+        ).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def floor(x):
@@ -1394,7 +1455,66 @@ def isreal(x):
 
 
 def kron(x1, x2):
-    raise NotImplementedError("`kron` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "kron()")
+    x1_shape = x1.get_partial_shape()
+    x2_shape = x2.get_partial_shape()
+    if x1_shape.rank.is_dynamic or x2_shape.rank.is_dynamic:
+        raise ValueError(
+            "`kron` does not support tensors with dynamic rank for "
+            "the OpenVINO backend."
+        )
+    ndim1 = x1_shape.rank.get_length()
+    ndim2 = x2_shape.rank.get_length()
+    if ndim1 < ndim2:
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            ov_opset.constant(ndim2 - ndim1, Type.i32),
+            ov_opset.constant(1, Type.i32),
+        )
+        x1 = ov_opset.unsqueeze(x1, axes)
+        ndim1 = ndim2
+    elif ndim2 < ndim1:
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i32),
+            ov_opset.constant(ndim1 - ndim2, Type.i32),
+            ov_opset.constant(1, Type.i32),
+        )
+        x2 = ov_opset.unsqueeze(x2, axes)
+        ndim2 = ndim1
+    shape1 = ov_opset.shape_of(x1, Type.i32)
+    shape2 = ov_opset.shape_of(x2, Type.i32)
+    ones = ov_opset.broadcast(
+        ov_opset.constant(1, Type.i32), ov_opset.constant([ndim1], Type.i32)
+    )
+    axis = ov_opset.constant(1, Type.i32)
+    flatten = ov_opset.constant([-1], Type.i32)
+    unsqueezed_ones = ov_opset.unsqueeze(ones, axis)
+    x1_new_shape = ov_opset.reshape(
+        ov_opset.concat(
+            [ov_opset.unsqueeze(shape1, axis), unsqueezed_ones],
+            axis=1,
+        ),
+        flatten,
+        False,
+    )
+    x2_new_shape = ov_opset.reshape(
+        ov_opset.concat(
+            [unsqueezed_ones, ov_opset.unsqueeze(shape2, axis)],
+            axis=1,
+        ),
+        flatten,
+        False,
+    )
+    result = ov_opset.multiply(
+        ov_opset.reshape(x1, x1_new_shape, False),
+        ov_opset.reshape(x2, x2_new_shape, False),
+    )
+    result = ov_opset.reshape(
+        result, ov_opset.multiply(shape1, shape2), False
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def lcm(x1, x2):
@@ -2230,7 +2350,14 @@ def sinh(x):
 
 
 def size(x):
-    raise NotImplementedError("`size` is not supported with openvino backend")
+    x = get_ov_output(x)
+    shape_tensor = ov_opset.shape_of(x, output_type=Type.i64)
+    final_size = ov_opset.reduce_prod(
+        shape_tensor,
+        ov_opset.constant([0], Type.i64),
+        keep_dims=False,
+    )
+    return OpenVINOKerasTensor(final_size.output(0))
 
 
 def sort(x, axis=-1):
@@ -2372,9 +2499,20 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
-    raise NotImplementedError(
-        "`swapaxes` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    if x_shape.rank.is_dynamic:
+        raise ValueError(
+            "`swapaxes` does not support tensors with dynamic rank for the "
+            "OpenVINO backend."
+        )
+    rank = x_shape.rank.get_length()
+    axis1 = canonicalize_axis(axis1, rank)
+    axis2 = canonicalize_axis(axis2, rank)
+    axes = list(range(rank))
+    axes[axis1], axes[axis2] = axes[axis2], axes[axis1]
+    result = ov_opset.transpose(x, ov_opset.constant(axes, Type.i32))
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def take(x, indices, axis=None):

@@ -7,6 +7,9 @@ since your modifications would be overwritten.
 from keras.src.dtype_policies import deserialize as deserialize
 from keras.src.dtype_policies import get as get
 from keras.src.dtype_policies import serialize as serialize
+from keras.src.dtype_policies.dtype_policy import (
+    AWQDTypePolicy as AWQDTypePolicy,
+)
 from keras.src.dtype_policies.dtype_policy import DTypePolicy as DTypePolicy
 from keras.src.dtype_policies.dtype_policy import (
     FloatDTypePolicy as FloatDTypePolicy,
