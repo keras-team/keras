@@ -982,7 +982,7 @@ class Layer(BackendLayer, Operation):
                                 batch_size = ops.cast(
                                     ops.shape(output)[0], dtype=loss.dtype
                                 )
-                                loss = loss / batch_size
+                                loss = ops.where(batch_size > 0, loss / batch_size, 0.0)
                             self.add_loss(loss)
 
             # Set `previous_mask` on outputs if available. It is provided only
