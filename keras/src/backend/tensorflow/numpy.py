@@ -2138,10 +2138,6 @@ def nansum(x, axis=None, keepdims=False):
         dtype = "uint32"
     x_clean = cast(x_clean, dtype)
 
-    if isinstance(x, tf.SparseTensor):
-        return tf.sparse.reduce_sum(
-            x_clean, axis=axis, keepdims=keepdims, output_is_sparse=True
-        )
     return tf.reduce_sum(x_clean, axis=axis, keepdims=keepdims)
 
 
