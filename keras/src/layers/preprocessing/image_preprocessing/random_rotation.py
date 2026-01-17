@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
     converters,
 )
@@ -78,23 +81,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```python
-    # rotation happens between -20% and 20% of 360 degrees
-    rotation_layer = keras.layers.RandomRotation(factor=0.2)
-
-    images = np.random.randint(0, 255, (2, 224, 224, 3), dtype='uint8')
-
-    rotated_images = rotation_layer(images, training=True)
-
-    output = rotation_layer(images, training=False)
-
-    # Rotate with custom fill mode
-    rotation_layer = keras.layers.RandomRotation(
-        factor=0.3,
-        fill_mode="constant",
-        fill_value=127
-    )
-    ```
+    {{base_image_preprocessing_transform_example}}
     """
 
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
@@ -267,3 +254,9 @@ class RandomRotation(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandomRotation.__doc__ = RandomRotation.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example,
+)
