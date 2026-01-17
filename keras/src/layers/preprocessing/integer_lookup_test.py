@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from tensorflow import data as tf_data
 
@@ -7,8 +9,6 @@ from keras.src import testing
 
 
 class IntegerLookupTest(testing.TestCase):
-    # TODO: increase coverage. Most features aren't being tested.
-
     def test_config(self):
         layer = layers.IntegerLookup(
             output_mode="int",
@@ -153,3 +153,104 @@ class IntegerLookupTest(testing.TestCase):
         )
         output_data = layer(input_data)
         self.assertEqual(output_data.shape, (2, 4))
+
+    def test_max_tokens(self):
+        layer = layers.IntegerLookup(output_mode="int", max_tokens=4)
+        layer.adapt([1, 2, 3, 4, 5, 6, 1, 1, 2, 2])
+        vocab = layer.get_vocabulary()
+        self.assertEqual(len(vocab), 4)
+
+    def test_mask_token(self):
+        layer = layers.IntegerLookup(
+            output_mode="int",
+            vocabulary=[1, 2, 3],
+            mask_token=0,
+        )
+        output = layer([0, 1, 2, 3])
+        self.assertAllClose(output, np.array([0, 2, 3, 4]))
+
+    def test_invert(self):
+        layer = layers.IntegerLookup(
+            vocabulary=[10, 20, 30],
+            invert=True,
+        )
+        output = layer([1, 2, 3, 0])
+        self.assertAllClose(output, np.array([10, 20, 30, -1]))
+
+    def test_pad_to_max_tokens(self):
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2],
+            output_mode="multi_hot",
+            max_tokens=5,
+            pad_to_max_tokens=True,
+        )
+        output = layer([1, 2])
+        self.assertEqual(output.shape[-1], 5)
+
+    def test_num_oov_indices(self):
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            num_oov_indices=2,
+            output_mode="int",
+        )
+        output = layer([1, 2, 3, 999, 1000])
+        self.assertAllClose(output[:3], np.array([2, 3, 4]))
+        self.assertTrue(all(o in [0, 1] for o in np.array(output[3:])))
+
+    def test_get_vocabulary(self):
+        layer = layers.IntegerLookup(output_mode="int")
+        layer.adapt([5, 5, 5, 10, 10, 15])
+        vocab = layer.get_vocabulary()
+        self.assertEqual(vocab[0], -1)
+        self.assertEqual(vocab[1], 5)
+
+    def test_invalid_max_tokens(self):
+        with self.assertRaises(ValueError):
+            layers.IntegerLookup(max_tokens=1)
+
+    def test_invalid_num_oov_indices(self):
+        with self.assertRaises(ValueError):
+            layers.IntegerLookup(num_oov_indices=-1)
+
+    def test_sparse_output(self):
+        if backend.backend() != "tensorflow":
+            self.skipTest("sparse=True only supported on TensorFlow")
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            output_mode="multi_hot",
+            sparse=True,
+        )
+        output = layer([1, 2])
+        self.assertTrue(hasattr(output, "indices"))  # SparseTensor check
+
+    def test_invalid_vocabulary_dtype(self):
+        with self.assertRaises(ValueError):
+            layers.IntegerLookup(vocabulary_dtype="int32")
+
+    def test_num_oov_indices_zero(self):
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            num_oov_indices=0,
+            output_mode="int",
+        )
+        output = layer([1, 2, 3])
+        self.assertAllClose(output, np.array([0, 1, 2]))
+
+    def test_adapt_with_steps(self):
+        layer = layers.IntegerLookup(output_mode="int")
+        ds = tf_data.Dataset.from_tensor_slices([1, 2, 3, 1, 1]).batch(2)
+        layer.adapt(ds, steps=2)
+        vocab = layer.get_vocabulary()
+        self.assertIn(1, vocab)
+
+    def test_vocabulary_from_file(self):
+        tmp_dir = self.get_temp_dir()
+        vocab_file = os.path.join(tmp_dir, "vocab.txt")
+        with open(vocab_file, "w") as f:
+            f.write("10\n20\n30\n")
+        layer = layers.IntegerLookup(
+            vocabulary=vocab_file,
+            output_mode="int",
+        )
+        output = layer([10, 20, 30, 999])
+        self.assertAllClose(output, np.array([1, 2, 3, 0]))
