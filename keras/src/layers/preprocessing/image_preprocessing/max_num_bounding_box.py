@@ -24,6 +24,8 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
         fill_value=-1
     )
 
+    images = np.random.randint(0, 255, (1, 224, 224, 3), dtype="uint8")
+
     bounding_boxes = {
         "boxes": np.array([
             [[10, 20, 100, 150], [50, 60, 200, 250], [0, 0, 50, 50]],
@@ -31,9 +33,10 @@ class MaxNumBoundingBoxes(BaseImagePreprocessingLayer):
         "labels": np.array([[1, 2, 3]])
     }
 
-    # Ensures max 10 boxes per image. If fewer than 10 boxes, pads with
-    # fill_value (-1). If more than 10 boxes, truncates to 10.
-    result = max_boxes_layer({"bounding_boxes": bounding_boxes})
+    result = max_boxes_layer({
+        "images": images,
+        "bounding_boxes": bounding_boxes
+    })
     ```
     """
 
