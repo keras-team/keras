@@ -589,26 +589,18 @@ class LayerTest(testing.TestCase):
         layer(layers.Input(batch_shape=(2, 2)))
         self.assertLen(layer.losses, 0)
 
-    def test_activity_regularization_batch_normalization(self):
+    @parameterized.named_parameters(
+        ("batch_size_1", 1),
+        ("batch_size_5", 5),
+        ("batch_size_10", 10),
+    )
+    def test_activity_regularization_batch_normalization(self, batch_size):
         class SimpleLayer(layers.Layer):
             def call(self, x):
                 return x
 
-        # Test with batch size 1
         layer = SimpleLayer(activity_regularizer="l2")
-        layer(ops.ones((1, 5)) * 2.0)
-        self.assertLen(layer.losses, 1)
-        self.assertAllClose(layer.losses[0], 0.2)
-
-        # Test with batch size 5
-        layer = SimpleLayer(activity_regularizer="l2")
-        layer(ops.ones((5, 5)) * 2.0)
-        self.assertLen(layer.losses, 1)
-        self.assertAllClose(layer.losses[0], 0.2)
-
-        # Test with batch size 10
-        layer = SimpleLayer(activity_regularizer="l2")
-        layer(ops.ones((10, 5)) * 2.0)
+        layer(ops.ones((batch_size, 5)) * 2.0)
         self.assertLen(layer.losses, 1)
         self.assertAllClose(layer.losses[0], 0.2)
 
