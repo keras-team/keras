@@ -590,6 +590,7 @@ class LayerTest(testing.TestCase):
         self.assertLen(layer.losses, 0)
 
     @parameterized.named_parameters(
+        ("batch_size_0", 0),
         ("batch_size_1", 1),
         ("batch_size_5", 5),
         ("batch_size_10", 10),
@@ -602,7 +603,8 @@ class LayerTest(testing.TestCase):
         layer = SimpleLayer(activity_regularizer="l2")
         layer(ops.ones((batch_size, 5)) * 2.0)
         self.assertLen(layer.losses, 1)
-        self.assertAllClose(layer.losses[0], 0.2)
+        expected_loss = 0.0 if batch_size == 0 else 0.2
+        self.assertAllClose(layer.losses[0], expected_loss)
 
     @pytest.mark.requires_trainable_backend
     def test_add_loss(self):
