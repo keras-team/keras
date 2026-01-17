@@ -622,6 +622,15 @@ class ExtractPatches(Operation):
                 out_shape = out_shape[1:]
         return KerasTensor(shape=out_shape, dtype=images.dtype)
 
+    def get_config(self):
+        return {
+            "size": self.size,
+            "strides": self.strides,
+            "dilation_rate": self.dilation_rate,
+            "padding": self.padding,
+            "data_format": self.data_format,
+        }
+
 
 @keras_export("keras.ops.image.extract_patches")
 def extract_patches(
