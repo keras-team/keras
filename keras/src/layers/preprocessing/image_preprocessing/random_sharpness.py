@@ -180,5 +180,7 @@ class RandomSharpness(BaseImagePreprocessingLayer):
 
 RandomSharpness.__doc__ = RandomSharpness.__doc__.replace(
     "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example,
+    base_image_preprocessing_color_example.replace(
+        "{LayerName}", "RandomSharpness"
+    ),
 )

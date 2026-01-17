@@ -387,7 +387,7 @@ class BaseImagePreprocessingLayer(DataLayer):
 
 base_image_preprocessing_transform_example = """
 ```python
-layer = keras.layers.RandomRotation(factor=0.2, bounding_box_format="xyxy")
+layer = keras.layers.{LayerName}(bounding_box_format="xyxy")
 images = np.random.randint(0, 255, (4, 224, 224, 3), dtype="uint8")
 
 bounding_boxes = {
@@ -421,7 +421,7 @@ output = layer(
 
 base_image_preprocessing_example = """
 ```python
-layer = keras.layers.RandomRotation(factor=0.2)
+layer = keras.layers.{LayerName}()
 images = np.random.randint(0, 255, (8, 224, 224, 3), dtype="uint8")
 
 output = layer(images, training=True)
@@ -430,7 +430,7 @@ output = layer(images, training=True)
 
 base_image_preprocessing_color_example = """
 ```python
-layer = keras.layers.RandomBrightness(factor=0.2, value_range=(0, 255))
+layer = keras.layers.{LayerName}(value_range=(0, 255))
 images = np.random.randint(0, 255, (8, 224, 224, 3), dtype="uint8")
 
 labels = keras.ops.one_hot(

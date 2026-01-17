@@ -258,5 +258,7 @@ class RandomRotation(BaseImagePreprocessingLayer):
 
 RandomRotation.__doc__ = RandomRotation.__doc__.replace(
     "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example,
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomRotation"
+    ),
 )

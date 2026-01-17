@@ -276,5 +276,5 @@ class RandAugment(BaseImagePreprocessingLayer):
 
 RandAugment.__doc__ = RandAugment.__doc__.replace(
     "{{base_image_preprocessing_example}}",
-    base_image_preprocessing_example,
+    base_image_preprocessing_example.replace("{LayerName}", "RandAugment"),
 )

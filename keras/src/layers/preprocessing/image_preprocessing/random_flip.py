@@ -245,5 +245,7 @@ class RandomFlip(BaseImagePreprocessingLayer):
 
 RandomFlip.__doc__ = RandomFlip.__doc__.replace(
     "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example,
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomFlip"
+    ),
 )

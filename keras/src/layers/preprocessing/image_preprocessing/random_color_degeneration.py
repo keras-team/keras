@@ -144,5 +144,7 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
 
 RandomColorDegeneration.__doc__ = RandomColorDegeneration.__doc__.replace(
     "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example,
+    base_image_preprocessing_color_example.replace(
+        "{LayerName}", "RandomColorDegeneration"
+    ),
 )

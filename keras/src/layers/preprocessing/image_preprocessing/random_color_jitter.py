@@ -222,5 +222,7 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
 
 RandomColorJitter.__doc__ = RandomColorJitter.__doc__.replace(
     "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example,
+    base_image_preprocessing_color_example.replace(
+        "{LayerName}", "RandomColorJitter"
+    ),
 )

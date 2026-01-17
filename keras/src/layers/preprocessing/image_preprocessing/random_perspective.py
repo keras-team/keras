@@ -347,5 +347,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
 
 RandomPerspective.__doc__ = RandomPerspective.__doc__.replace(
     "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example,
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomPerspective"
+    ),
 )

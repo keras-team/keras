@@ -138,5 +138,5 @@ class RandomInvert(BaseImagePreprocessingLayer):
 
 RandomInvert.__doc__ = RandomInvert.__doc__.replace(
     "{{base_image_preprocessing_example}}",
-    base_image_preprocessing_example,
+    base_image_preprocessing_example.replace("{LayerName}", "RandomInvert"),
 )

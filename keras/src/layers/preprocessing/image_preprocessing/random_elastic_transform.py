@@ -287,5 +287,7 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
 
 RandomElasticTransform.__doc__ = RandomElasticTransform.__doc__.replace(
     "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example,
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomElasticTransform"
+    ),
 )
