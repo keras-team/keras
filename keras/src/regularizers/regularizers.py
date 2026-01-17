@@ -46,9 +46,9 @@ class Regularizer:
 
     >>> # The kernel regularization term is 0.25
     >>> # The activity regularization term (after dividing by batch size of 5)
-    >>> # is 1.0
+    >>> # is 5.0
     >>> ops.sum(layer.losses)
-    1.25
+    5.25
 
     ## Available penalties
 
