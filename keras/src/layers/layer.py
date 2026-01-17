@@ -976,12 +976,13 @@ class Layer(BackendLayer, Operation):
                     for output in tree.flatten(outputs):
                         if backend.is_tensor(output):
                             loss = self.activity_regularizer(output)
-                            # Normalize by batch size to ensure consistent
-                            # regularization strength across batch sizes
-                            batch_size = ops.cast(
-                                ops.shape(output)[0], dtype=loss.dtype
-                            )
-                            loss = loss / batch_size
+                            if output.ndim > 0:
+                                # Normalize by batch size to ensure consistent
+                                # regularization strength across batch sizes
+                                batch_size = ops.cast(
+                                    ops.shape(output)[0], dtype=loss.dtype
+                                )
+                                loss = loss / batch_size
                             self.add_loss(loss)
 
             # Set `previous_mask` on outputs if available. It is provided only
