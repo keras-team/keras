@@ -64,7 +64,8 @@ class SplashAttentionTest(testing.TestCase):
                 mask = jnp.ones((B, H, T, T))
 
                 # This should run without ConcretizationTypeError
-                # because the code should detect `mask` is a Tracer and disable flash_attention
+                # because the code should detect `mask` is a Tracer and disable
+                # flash_attention
                 out = run_attention(query, key, value, mask)
                 self.assertIsNotNone(out)
                 self.assertEqual(out.shape, (B, T, H, D))
