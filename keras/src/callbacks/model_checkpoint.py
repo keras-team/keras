@@ -82,7 +82,10 @@ class ModelCheckpoint(MonitorCallback):
     # Define a learning rate schedule
     initial_learning_rate = 0.1
     lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-        initial_learning_rate, decay_steps=100000, decay_rate=0.96, staircase=True
+        initial_learning_rate,
+        decay_steps=100000,
+        decay_rate=0.96,
+        staircase=True,
     )
 
     # 1. Create a fresh model instance
