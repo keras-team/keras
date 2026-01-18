@@ -1156,43 +1156,6 @@ callbacks = [
 model.fit(x_train, y_train, epochs=1, callbacks=callbacks)
 
 """
-### Resuming training from weight-only checkpoints
-
-When using `ModelCheckpoint` with `save_weights_only=True` (or calling `model.save_weights()`),
-the weights file will include the state of the optimizer (including iteration count and learning rate state)
-if the model is compiled at the time of saving.
-
-To correctly resume training and restore the optimizer state (e.g., to continue a learning rate schedule
-without resetting it), you must **compile the model before loading the weights**.
-
-```python
-# Define a learning rate schedule to demonstrate resumption.
-initial_learning_rate = 0.1
-lr_schedule = keras.optimizers.schedules.ExponentialDecay(
-    initial_learning_rate, decay_steps=100000, decay_rate=0.96, staircase=True
-)
-
-# 1. Create a fresh model instance
-model = get_uncompiled_model()
-
-# 2. Compile the model *before* loading weights
-# This instantiates the optimizer and its schedule
-model.compile(
-    optimizer=keras.optimizers.RMSprop(learning_rate=lr_schedule),
-    loss="sparse_categorical_crossentropy",
-    metrics=["sparse_categorical_accuracy"],
-)
-
-# 3. Load the weights
-# The optimizer state (iterations, etc.) is restored here automatically
-model.load_weights("checkpoint.weights.h5")
-
-# 4. Continue training
-model.fit(x_train, y_train, epochs=10)
-```
-"""
-
-"""
 You call also write your own callback for saving and restoring models.
 
 For a complete guide on serialization and saving, see the
