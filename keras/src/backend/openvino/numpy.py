@@ -1803,7 +1803,8 @@ def logaddexp2(x1, x2):
     max_val = ov_opset.maximum(x1, x2).output(0)
 
     # Use min(x1-x2, x2-x1) to compute -|x1-x2|
-    # Note: min(diff, -diff) is used instead of abs/negative for robustness against potential Abs op instability.
+    # Note: min(diff, -diff) is used instead of abs/negative for robustness
+    # against potential Abs op instability.
     diff = ov_opset.subtract(x1, x2).output(0)
     neg_diff = ov_opset.subtract(x2, x1).output(0)
     neg_abs_diff = ov_opset.minimum(diff, neg_diff).output(0)
