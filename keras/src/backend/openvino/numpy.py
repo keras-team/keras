@@ -1788,7 +1788,10 @@ def logaddexp2(x1, x2):
     x2 = get_ov_output(x2, element_type)
     x1, x2 = _align_operand_types(x1, x2, "logaddexp2()")
 
-    if x1.get_element_type().is_integral() or x2.get_element_type().is_integral():
+    if (
+        x1.get_element_type().is_integral()
+        or x2.get_element_type().is_integral()
+    ):
         float_dtype = OPENVINO_DTYPES[config.floatx()]
         if x1.get_element_type().is_integral():
             x1 = ov_opset.convert(x1, float_dtype).output(0)
@@ -1798,8 +1801,9 @@ def logaddexp2(x1, x2):
     element_type = x1.get_element_type()
 
     max_val = ov_opset.maximum(x1, x2).output(0)
-    
+
     # Use min(x1-x2, x2-x1) to compute -|x1-x2|
+    # Note: min(diff, -diff) is used instead of abs/negative for robustness against potential Abs op instability.
     diff = ov_opset.subtract(x1, x2).output(0)
     neg_diff = ov_opset.subtract(x2, x1).output(0)
     neg_abs_diff = ov_opset.minimum(diff, neg_diff).output(0)
@@ -1811,7 +1815,8 @@ def logaddexp2(x1, x2):
     one_plus_term = ov_opset.add(one, term).output(0)
 
     ln_val = ov_opset.log(one_plus_term).output(0)
-    ln_2 = ov_opset.log(two).output(0)
+    # Pre-compute log(2) as constant optimization
+    ln_2 = ov_opset.constant(np.log(2.0), element_type).output(0)
     log2_val = ov_opset.divide(ln_val, ln_2).output(0)
 
     result = ov_opset.add(max_val, log2_val).output(0)
