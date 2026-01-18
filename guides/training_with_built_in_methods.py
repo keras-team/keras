@@ -1294,4 +1294,3 @@ with keras.device("gpu:0"):
 Note: For distributed training across multiple devices, see the
 [distributed training guides](/guides/distributed_training/).
 """
-
