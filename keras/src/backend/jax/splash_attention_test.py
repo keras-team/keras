@@ -1,15 +1,31 @@
+# Copyright 2024 The Keras Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 
 import unittest.mock
-import pytest
+
 import jax
 import jax.numpy as jnp
+import pytest
+
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.jax import nn as jax_nn
 
+
 @pytest.mark.skipif(backend.backend() != "jax", reason="Test is JAX-specific.")
 class SplashAttentionTest(testing.TestCase):
-
     def test_splash_attention_with_tracer_mask_fallback(self):
         # Reproduces behavior described in https://github.com/keras-team/keras/issues/21916
         # When compiling with JIT, the mask becomes a Tracer.
@@ -23,7 +39,10 @@ class SplashAttentionTest(testing.TestCase):
         # We also need to mock _can_use_flash_attention to return True
         # so we enter the block where the check happens.
 
-        with unittest.mock.patch("keras.src.backend.jax.nn._can_use_flash_attention", return_value=True):
+        with unittest.mock.patch(
+            "keras.src.backend.jax.nn._can_use_flash_attention",
+            return_value=True,
+        ):
             # We mock jax.devices() to simulate TPU platform
             # The actual device object needs a 'platform' attribute
             mock_device = unittest.mock.Mock()
@@ -49,4 +68,3 @@ class SplashAttentionTest(testing.TestCase):
                 out = run_attention(query, key, value, mask)
                 self.assertIsNotNone(out)
                 self.assertEqual(out.shape, (B, T, H, D))
-
