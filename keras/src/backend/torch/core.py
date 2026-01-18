@@ -1,6 +1,7 @@
 import builtins
 import contextlib
 import functools
+import importlib.util
 import os
 import warnings
 
@@ -33,14 +34,12 @@ if "KERAS_TORCH_DEVICE" in os.environ:
 
     # Guard DirectML usage
     if device.startswith("privateuseone"):
-        try:
-            import torch_directml
-        except ImportError as e:
+        if importlib.util.find_spec("torch_directml") is None:
             raise ImportError(
                 "KERAS_TORCH_DEVICE is set to a DirectML device "
                 f"({device}), but torch-directml is not available. "
                 "Please install torch-directml and ensure it can be imported."
-            ) from e
+            )
 
     DEFAULT_DEVICE = device
 else:
@@ -55,8 +54,6 @@ if DEFAULT_DEVICE.startswith("privateuseone"):
         "Using PyTorch DirectML device. "
         "Some operations may fall back to CPU due to limited backend support."
     )
-
-
 TORCH_DTYPES = {
     "float16": torch.float16,
     "float32": torch.float32,
