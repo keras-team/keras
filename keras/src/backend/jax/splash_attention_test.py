@@ -19,18 +19,18 @@ class SplashAttentionTest(testing.TestCase):
         # Mock is_tpu=True to trigger the Splash Attention path
         # We can't actually run on TPU in CI, but we want to test the logic path
         # up to the fallback check.
-        
+
         # We also need to mock _can_use_flash_attention to return True
         # so we enter the block where the check happens.
-        
+
         with unittest.mock.patch("keras.src.backend.jax.nn._can_use_flash_attention", return_value=True):
             # We mock jax.devices() to simulate TPU platform
             # The actual device object needs a 'platform' attribute
             mock_device = unittest.mock.Mock()
             mock_device.platform = "tpu"
-            
+
             with unittest.mock.patch("jax.devices", return_value=[mock_device]):
-                 
+
                 @jax.jit
                 def run_attention(query, key, value, mask):
                     return jax_nn.dot_product_attention(
