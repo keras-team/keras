@@ -5064,6 +5064,64 @@ def moveaxis(x, source, destination):
     return backend.numpy.moveaxis(x, source=source, destination=destination)
 
 
+class Nanmin(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanmin(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+            sparse=sparse,
+        )
+
+
+@keras_export(["keras.ops.nanmin", "keras.ops.numpy.nanmin"])
+def nanmin(x, axis=None, keepdims=False):
+    """Minimum of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the minimum is computed.
+            The default is to compute the minimum of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Returns:
+        Output tensor containing the minimum, with NaN values ignored. If all
+        values along a reduced axis are NaN, the result is NaN.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanmin(x)
+    1.0
+
+    >>> ops.nanmin(x, axis=1)
+    array([1., 1.])
+
+    >>> ops.nanmin(x, axis=1, keepdims=True)
+    array([[1.],
+           [1.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanmin(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanmin(x, axis=axis, keepdims=keepdims)
+
+
 class NanToNum(Operation):
     def __init__(self, nan=0.0, posinf=None, neginf=None, *, name=None):
         super().__init__(name=name)
