@@ -321,7 +321,9 @@ class OrbaxCheckpoint(MonitorCallback):
         except Exception:
             pass  # Ignore errors during cleanup
 
-        # Clear any remaining pending saves
+        # Wait for any remaining async operations to complete
+        for future in self._pending_saves:
+            future.result()
         self._pending_saves.clear()
 
         # Multi-host synchronization: ensure all hosts complete cleanup
@@ -334,7 +336,7 @@ class OrbaxCheckpoint(MonitorCallback):
         """
         # Wait for any async operations to complete on this host
         for future in self._pending_saves:
-            future.wait()
+            future.result()
         self._pending_saves.clear()
 
         # Multi-host synchronization: ensure all hosts complete
