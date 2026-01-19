@@ -1410,7 +1410,7 @@ class DenseTest(testing.TestCase):
 
         x = np.random.random((2, input_dim)).astype("float32")
         y_before = layer(x)
-        g_idx_before = ops.convert_to_numpy(layer.g_idx)
+        g_idx_before = layer.g_idx
 
         # Save and load
         model = models.Sequential([layer])

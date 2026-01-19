@@ -1239,7 +1239,6 @@ class EinsumDense(Layer):
             use_grouped = block_size is not None and block_size != -1
 
             # Flatten kernel to 2D: rows = reduced dims, columns = non-reduced
-            kernel_np = ops.convert_to_numpy(self._kernel)
             rows = 1
             columns = 1
             for i, dim in enumerate(kernel_shape):
@@ -1248,7 +1247,7 @@ class EinsumDense(Layer):
                 else:
                     columns *= dim
 
-            flat_kernel = kernel_np.reshape(rows, columns)
+            flat_kernel = ops.reshape(self._kernel, (rows, columns))
 
             if not use_grouped:
                 # Per-channel quantization
@@ -1440,7 +1439,7 @@ class EinsumDense(Layer):
         lora_update = (self.lora_alpha / self.lora_rank) * ops.matmul(
             self.lora_kernel_a, self.lora_kernel_b
         )
-        merged_kernel_fp = ops.add(kernel_fp, lora_update)
+        merged_kernel = ops.add(kernel_fp, lora_update)
 
         # 3. Re-quantize the merged float kernel back to the target format
         if self.quantization_mode == "int4":
@@ -1449,8 +1448,7 @@ class EinsumDense(Layer):
             columns = self._int4_unpacked_column_size
 
             # Flatten to 2D [rows, columns]
-            kernel_np = ops.convert_to_numpy(merged_kernel_fp)
-            flat_kernel = kernel_np.reshape(rows, columns)
+            flat_kernel = ops.reshape(merged_kernel, (rows, columns))
 
             if block_size is not None and block_size != -1:
                 # Use abs_max_quantize_grouped_with_zero_point for proper
@@ -1478,7 +1476,7 @@ class EinsumDense(Layer):
             new_kernel, _, _ = quantizers.pack_int4(kernel_quant, axis=-1)
         elif self.quantization_mode == "int8":
             new_kernel, new_scale = quantizers.abs_max_quantize(
-                merged_kernel_fp,
+                merged_kernel,
                 axis=self._kernel_reduced_axes,
                 to_numpy=True,
             )
