@@ -10,11 +10,23 @@ def is_orbax_checkpoint(filepath):
     if not os.path.exists(filepath):
         return False
 
+    # Check for orbax.checkpoint file or step subdirectories
+    if os.path.isfile(os.path.join(filepath, "orbax.checkpoint")):
+        return True
+
+    # Check if it has step subdirectories (digit-named directories)
     try:
-        return ocp.is_orbax_checkpoint(filepath)
-    except (ImportError, AttributeError):
-        # Fallback to check for orbax.checkpoint file if Orbax API not available
-        return os.path.isfile(os.path.join(filepath, "orbax.checkpoint"))
+        items = os.listdir(filepath)
+        has_step_subdirs = any(
+            os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
+            for item in items
+        )
+        if has_step_subdirs:
+            return True
+    except OSError:
+        pass
+
+    return False
 
 
 def find_latest_orbax_checkpoint(checkpoint_dir):
