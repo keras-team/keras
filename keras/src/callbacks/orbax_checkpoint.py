@@ -253,7 +253,9 @@ class OrbaxCheckpoint(MonitorCallback):
         # Context() uses defaults.
         with ocp.Context():
             if self.save_on_background:
-                future = self.checkpointer.save_pytree_async(step, composite_state)
+                future = self.checkpointer.save_pytree_async(
+                    step, composite_state
+                )
                 self._pending_saves.append(future)
             else:
                 self.checkpointer.save_pytree(step, composite_state)
