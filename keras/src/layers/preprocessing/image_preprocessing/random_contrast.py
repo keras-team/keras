@@ -92,8 +92,8 @@ class RandomContrast(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation, training=True):
         if training:
-            constrast_factor = transformation["contrast_factor"]
-            outputs = self._adjust_constrast(images, constrast_factor)
+            contrast_factor = transformation["contrast_factor"]
+            outputs = self._adjust_contrast(images, contrast_factor)
             outputs = self.backend.numpy.clip(
                 outputs, self.value_range[0], self.value_range[1]
             )
@@ -117,7 +117,7 @@ class RandomContrast(BaseImagePreprocessingLayer):
     ):
         return segmentation_masks
 
-    def _adjust_constrast(self, inputs, contrast_factor):
+    def _adjust_contrast(self, inputs, contrast_factor):
         if self.data_format == "channels_first":
             height_axis = -2
             width_axis = -1

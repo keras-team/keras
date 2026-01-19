@@ -106,6 +106,10 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 4, 4, 75))
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (None, 4, 4, 75))
+        out = kimage.extract_patches(x, 5, strides=1)
+        self.assertEqual(out.shape, (None, 16, 16, 75))
+        out = kimage.extract_patches(x, 5, strides=(2, 3))
+        self.assertEqual(out.shape, (None, 8, 6, 75))
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -115,6 +119,10 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (None, 75, 4, 4))
         out = kimage.extract_patches(x, 5)
         self.assertEqual(out.shape, (None, 75, 4, 4))
+        out = kimage.extract_patches(x, 5, strides=1)
+        self.assertEqual(out.shape, (None, 75, 16, 16))
+        out = kimage.extract_patches(x, 5, strides=(2, 3))
+        self.assertEqual(out.shape, (None, 75, 8, 6))
 
     def test_extract_patches_3d(self):
         # Test channels_last
@@ -2357,18 +2365,28 @@ class ImageOpsBehaviorTests(testing.TestCase):
             kimage.affine_transform(images, invalid_transform)
 
     def test_extract_patches_invalid_size(self):
-        size = (3, 3, 3)  # Invalid size, too many dimensions
+        size = "5"  # Invalid size type
         image = np.random.uniform(size=(2, 20, 20, 3))
+        with self.assertRaisesRegex(TypeError, "Expected an int or a tuple"):
+            kimage.extract_patches(image, size)
+
+        size = (3, 3, 3, 3)  # Invalid size, too many dimensions
         with self.assertRaisesRegex(
-            TypeError, "Expected an int or a tuple of length 2"
+            ValueError, "Expected a tuple of length 2 or 3"
         ):
             kimage.extract_patches(image, size)
 
-        size = "5"  # Invalid size type
-        with self.assertRaisesRegex(
-            TypeError, "Expected an int or a tuple of length 2"
-        ):
-            kimage.extract_patches(image, size)
+    def test_extract_patches_unified_3d(self):
+        # Test that extract_patches handles 3D volumes when size has 3 elements
+        # channels_last
+        volume = np.random.uniform(size=(2, 20, 20, 20, 3)).astype("float32")
+        patches = kimage.extract_patches(volume, (5, 5, 5))
+        self.assertEqual(patches.shape, (2, 4, 4, 4, 375))
+
+        # unbatched
+        volume = np.random.uniform(size=(20, 20, 20, 3)).astype("float32")
+        patches = kimage.extract_patches(volume, (5, 5, 5))
+        self.assertEqual(patches.shape, (4, 4, 4, 375))
 
     def test_map_coordinates_invalid_coordinates_rank(self):
         # Test mismatched dim of coordinates

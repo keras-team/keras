@@ -1018,6 +1018,10 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return np.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def ptp(x, axis=None, keepdims=False):
+    return np.ptp(x, axis=axis, keepdims=keepdims)
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
@@ -1333,6 +1337,14 @@ def power(x1, x2):
 
 def negative(x):
     return np.negative(x)
+
+
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+
+    return np.nextafter(x1, x2).astype(dtype)
 
 
 def square(x):

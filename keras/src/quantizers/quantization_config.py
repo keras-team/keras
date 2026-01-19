@@ -182,6 +182,11 @@ def validate_and_resolve_config(mode, config):
                 "For GPTQ, you must pass a `GPTQConfig` object in the "
                 "`config` argument."
             )
+        elif mode == "awq":
+            raise ValueError(
+                "For AWQ, you must pass an `AWQConfig` object in the "
+                "`config` argument."
+            )
         else:
             if mode is not None:
                 raise ValueError(
@@ -218,6 +223,15 @@ def validate_and_resolve_config(mode, config):
             raise ValueError(
                 "Mode 'gptq' requires a valid `config` argument of type "
                 f"`GPTQConfig`. Received: {type(config)}"
+            )
+
+    if mode == "awq":
+        from keras.src.quantizers.awq_config import AWQConfig
+
+        if not isinstance(config, AWQConfig):
+            raise ValueError(
+                "Mode 'awq' requires a valid `config` argument of type "
+                f"`AWQConfig`. Received: {type(config)}"
             )
 
     return config

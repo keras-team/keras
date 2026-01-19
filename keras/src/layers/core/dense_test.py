@@ -16,6 +16,7 @@ from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src.backend.common import keras_tensor
+from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
@@ -888,6 +889,22 @@ class DenseTest(testing.TestCase):
         new_layer.build((None, 8))
         self.assertEqual(new_layer.quantization_mode, "gptq")
 
+    def test_awq_serialization(self):
+        """Test that an AWQ-quantized layer can be serialized and deserialized
+        correctly."""
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        layer.quantize(
+            "awq",
+            config=AWQConfig(
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
+            ),
+        )
+        config = layer.get_config()
+        new_layer = layers.Dense.from_config(config)
+        new_layer.build((None, 8))
+        self.assertEqual(new_layer.quantization_mode, "awq")
+
     def test_int4_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 kernel."""
         layer = layers.Dense(units=2)
@@ -943,6 +960,14 @@ class DenseTest(testing.TestCase):
             # g_idx
             "4": np.random.random((8,)).astype("float32"),
         }
+        awq_store = {
+            "0": np.random.random((16,)).astype("float32"),  # bias
+            "1": np.random.randint(0, 16, size=(8, 8), dtype="uint8"),  # kernel
+            "2": np.random.random((16, 1)).astype("float32"),  # scale
+            "3": np.random.random((16, 1)).astype("uint8"),  # zero
+            "4": np.random.random((8,)).astype("float32"),  # awq_scales
+            "5": np.random.random((8,)).astype("float32"),  # g_idx
+        }
 
         # Test float32 layer.
         layer = layers.Dense(units=16)
@@ -991,6 +1016,18 @@ class DenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_zero, gptq_store["3"])
         self.assertAllClose(layer.g_idx, gptq_store["4"])
 
+        # Test awq-quantized layer.
+        layer = layers.Dense(units=16, dtype="awq/4/8_from_float32")
+        layer.build((None, 8))
+        layer.load_own_variables(awq_store)
+        self.assertTrue(layer.is_awq_calibrated)
+        self.assertAllClose(layer.bias, awq_store["0"])
+        self.assertAllClose(layer.quantized_kernel, awq_store["1"])
+        self.assertAllClose(layer.kernel_scale, awq_store["2"])
+        self.assertAllClose(layer.kernel_zero, awq_store["3"])
+        self.assertAllClose(layer.awq_scales, awq_store["4"])
+        self.assertAllClose(layer.g_idx, awq_store["5"])
+
     def test_int4_gptq_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 GPTQ
         kernel."""
@@ -1019,6 +1056,40 @@ class DenseTest(testing.TestCase):
             "gptq",
             config=GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+
+        quantized_kernel_params = ops.prod(layer.quantized_kernel.shape)
+        self.assertEqual(quantized_kernel_params, original_kernel_params // 2)
+
+    def test_int4_awq_kernel_returns_unpacked_form(self):
+        """Test that the `kernel` property returns the unpacked int4 AWQ
+        kernel."""
+        layer = layers.Dense(units=2)
+        layer.build((None, 2))
+        layer.quantize(
+            "awq",
+            config=AWQConfig(
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
+            ),
+        )
+        layer.is_awq_calibrated = True  # Bypass calibration check
+        packed_kernel = layer.quantized_kernel
+        self.assertAllClose(
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        )
+
+    def test_awq_kernel_packing(self):
+        """Validates that 4-bit AWQ packing reduces the kernel size."""
+        layer = layers.Dense(units=16, use_bias=False)
+        layer.build((None, 8))
+
+        original_kernel_params = ops.prod(layer._kernel.shape)
+
+        layer.quantize(
+            "awq",
+            config=AWQConfig(
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
 

@@ -15,6 +15,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
@@ -1096,6 +1097,27 @@ class EinsumDenseTest(testing.TestCase):
         new_layer.build((None, 3))
         self.assertEqual(new_layer.quantization_mode, "gptq")
 
+    def test_awq_serialization(self):
+        """Test that an AWQ-quantized layer can be serialized and deserialized
+        correctly."""
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+        layer.quantize(
+            "awq",
+            config=AWQConfig(
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
+            ),
+        )
+        layer_config = layer.get_config()
+        new_layer = layers.EinsumDense.from_config(layer_config)
+        new_layer.build((None, 3))
+        self.assertEqual(new_layer.quantization_mode, "awq")
+
     def test_int4_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 kernel."""
         layer = layers.EinsumDense(
@@ -1154,6 +1176,15 @@ class EinsumDenseTest(testing.TestCase):
             # g_idx
             "4": np.random.random((24,)).astype("float32"),
         }
+        # kernel shape (3, 8, 32), packed: (16, 24) for 4-bit
+        awq_store = {
+            "0": np.random.random((32,)).astype("float32"),  # bias
+            "1": np.random.randint(0, 16, size=(16, 24), dtype="uint8"),
+            "2": np.random.random((32, 3)).astype("float32"),  # scale
+            "3": np.random.random((32, 3)).astype("uint8"),  # zero
+            "4": np.random.random((24,)).astype("float32"),  # awq_scales
+            "5": np.random.random((24,)).astype("float32"),  # g_idx
+        }
         config = dict(
             equation="ab,bcd->acd",
             output_shape=(8, 32),
@@ -1207,6 +1238,18 @@ class EinsumDenseTest(testing.TestCase):
         self.assertAllClose(layer.kernel_zero, gptq_store["3"])
         self.assertAllClose(layer.g_idx, gptq_store["4"])
 
+        # Test awq-quantized layer.
+        layer = layers.EinsumDense(**config, dtype="awq/4/8_from_float32")
+        layer.build((None, 3))
+        layer.load_own_variables(awq_store)
+        self.assertTrue(layer.is_awq_calibrated)
+        self.assertAllClose(layer.bias, awq_store["0"])
+        self.assertAllClose(layer.quantized_kernel, awq_store["1"])
+        self.assertAllClose(layer.kernel_scale, awq_store["2"])
+        self.assertAllClose(layer.kernel_zero, awq_store["3"])
+        self.assertAllClose(layer.awq_scales, awq_store["4"])
+        self.assertAllClose(layer.g_idx, awq_store["5"])
+
     def test_int4_gptq_kernel_returns_unpacked_form(self):
         """Test that the `kernel` property returns the unpacked int4 GPTQ
         kernel."""
@@ -1243,6 +1286,51 @@ class EinsumDenseTest(testing.TestCase):
             "gptq",
             config=GPTQConfig(
                 dataset=None, tokenizer=None, weight_bits=4, group_size=8
+            ),
+        )
+
+        quantized_kernel_params = ops.prod(layer.quantized_kernel.shape)
+        self.assertEqual(
+            quantized_kernel_params,
+            original_kernel_params // 2,
+        )
+
+    def test_int4_awq_kernel_returns_unpacked_form(self):
+        """Test that the `kernel` property returns the unpacked int4 AWQ
+        kernel."""
+        layer = layers.EinsumDense(
+            equation="ab,bc->ac",
+            output_shape=(2,),
+        )
+        layer.build((None, 2))
+        layer.quantize(
+            "awq",
+            config=AWQConfig(
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
+            ),
+        )
+        layer.is_awq_calibrated = True  # Bypass calibration check
+        packed_kernel = layer.quantized_kernel
+        self.assertAllClose(
+            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        )
+
+    def test_awq_kernel_packing(self):
+        """Validates that 4-bit AWQ packing reduces the kernel size."""
+        config = dict(
+            equation="ab,bcd->acd",
+            output_shape=(8, 32),
+            bias_axes="d",
+        )
+        layer = layers.EinsumDense(**config)
+        layer.build((None, 3))
+
+        original_kernel_params = ops.prod(layer._kernel.shape)
+
+        layer.quantize(
+            "awq",
+            config=AWQConfig(
+                dataset=None, tokenizer=None, group_size=8, num_grid_points=10
             ),
         )
 

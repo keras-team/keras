@@ -3,6 +3,7 @@ from absl.testing import parameterized
 from keras.src.dtype_policies import deserialize
 from keras.src.dtype_policies import get
 from keras.src.dtype_policies import serialize
+from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
@@ -744,3 +745,24 @@ class GPTQConfigErrorHandlingTest(test_case.TestCase):
                 tokenizer=None,
                 group_size=0,
             )
+
+
+class AWQDTypePolicyTest(test_case.TestCase):
+    """Test AWQDTypePolicy creation and error handling."""
+
+    def test_awq_dtype_policy_creation(self):
+        """Test AWQDTypePolicy can be created."""
+        policy = AWQDTypePolicy("awq/4/128", source_name="float32")
+        self.assertEqual(policy.weight_bits, 4)
+        self.assertEqual(policy.group_size, 128)
+        self.assertEqual(policy.mode, "awq")
+
+    def test_awq_dtype_policy_invalid_bits(self):
+        """Test AWQDTypePolicy rejects non-4-bit."""
+        with self.assertRaisesRegex(ValueError, "only supports 4-bit"):
+            AWQDTypePolicy("awq/8/128", source_name="float32")
+
+    def test_awq_dtype_policy_invalid_format(self):
+        """Test AWQDTypePolicy rejects invalid format."""
+        with self.assertRaisesRegex(ValueError, "Invalid mode"):
+            AWQDTypePolicy("awq/4", source_name="float32")

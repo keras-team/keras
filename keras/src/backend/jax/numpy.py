@@ -1063,6 +1063,11 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     return jnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.ptp(x, axis=axis, keepdims=keepdims)
+
+
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
@@ -1349,6 +1354,12 @@ def power(x1, x2):
 def negative(x):
     x = convert_to_tensor(x)
     return jnp.negative(x)
+
+
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.nextafter(x1, x2)
 
 
 @sparse.elementwise_unary(linear=False)
