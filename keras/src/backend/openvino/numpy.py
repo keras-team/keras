@@ -1803,18 +1803,15 @@ def logaddexp2(x1, x2):
     neg_abs_diff = ov_opset.negative(abs_diff)
 
     element_type = neg_abs_diff.get_element_type()
-    log_2 = ov_opset.log(ov_opset.constant(2, element_type))
 
-    scaled = ov_opset.multiply(neg_abs_diff, log_2)
+    two = ov_opset.constant(2, dtype=element_type)
 
-    exp_scaled = ov_opset.exp(scaled)
+    power_of_2 = ov_opset.power(two, neg_abs_diff)
 
-    one_plus_exp = ov_opset.add(ov_opset.constant(1, element_type), exp_scaled)
-
-    log = ov_opset.log(one_plus_exp)
-
-    log2_term = ov_opset.divide(log, log_2)
-
+    one_plus_power = ov_opset.add(
+        ov_opset.constant(1, dtype=element_type), power_of_2
+    )
+    log2_term = ov_opset.divide(ov_opset.log(one_plus_power), ov_opset.log(two))
     result = ov_opset.add(max_val, log2_term).output(0)
 
     return OpenVINOKerasTensor(result)
