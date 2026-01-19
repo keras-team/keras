@@ -1272,6 +1272,28 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
+def nanmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if not torch.is_floating_point(x):
+        return x.min(dim=axis, keepdim=keepdims).values
+
+    x_clean = torch.where(
+        torch.isnan(x),
+        torch.full((), float("inf"), device=x.device, dtype=x.dtype),
+        x,
+    )
+
+    out = x_clean.min(dim=axis, keepdim=keepdims).values
+
+    if axis is not None:
+        all_nan = torch.isnan(x).all(dim=axis, keepdim=keepdims)
+        out = torch.where(all_nan, torch.nan, out)
+    elif torch.isnan(x).all():
+        out = torch.tensor(float("nan"), device=x.device, dtype=x.dtype)
+
+    return out
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
     return torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
