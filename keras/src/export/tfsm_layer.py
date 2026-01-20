@@ -147,7 +147,7 @@ class TFSMLayer(layers.Layer):
         return {**base_config, **config}
 
     @classmethod
-    def from_config(cls, config, custom_objects=None, safe_mode=True):
+    def from_config(cls, config, custom_objects=None, safe_mode=None):
         """Creates a TFSMLayer from its config.
 
         Args:
@@ -155,8 +155,11 @@ class TFSMLayer(layers.Layer):
                 `get_config`.
             custom_objects: Optional dictionary mapping names to custom
                 objects.
-            safe_mode: Boolean, whether to disallow loading TFSMLayer.
-                Defaults to `True`.
+            safe_mode: Boolean or None.
+                When True, deserialization is disallowed.
+                When False, deserialization is allowed.
+                When None (default), the global Keras deserialization
+                safe mode is used.
 
         Returns:
             A TFSMLayer instance.
