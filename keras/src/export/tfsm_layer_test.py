@@ -148,3 +148,91 @@ class TestTFSMLayer(testing.TestCase):
                 call_endpoint="serve",
                 call_training_endpoint="wrong",
             )
+
+    def test_safe_mode_direct_instantiation_allowed(self):
+        """Test that direct TFSMLayer instantiation works regardless of safe_mode.
+
+        Direct instantiation is allowed because the user is explicitly creating
+        the layer - the security concern is only during deserialization of
+        untrusted .keras files.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        saved_model.export_saved_model(model, temp_filepath)
+
+        # Direct instantiation should work even without enabling unsafe mode
+        # (setUp enables it, so we test the behavior is working)
+        reloaded_layer = tfsm_layer.TFSMLayer(temp_filepath)
+        self.assertIsNotNone(reloaded_layer)
+
+    def test_safe_mode_from_config_blocked(self):
+        """Test that from_config() raises ValueError when safe_mode=True.
+
+        This is the core security fix: when deserializing an untrusted .keras
+        model, from_config() is called and should block TFSMLayer loading
+        to prevent attacker-controlled SavedModels from being loaded.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        saved_model.export_saved_model(model, temp_filepath)
+
+        # Create a TFSMLayer and get its config
+        reloaded_layer = tfsm_layer.TFSMLayer(temp_filepath)
+        config = reloaded_layer.get_config()
+
+        # from_config with explicit safe_mode=True should raise
+        with self.assertRaisesRegex(
+            ValueError,
+            "Loading a TFSMLayer from config is disallowed.*safe_mode=True",
+        ):
+            tfsm_layer.TFSMLayer.from_config(config, safe_mode=True)
+
+    def test_safe_mode_from_config_allowed_when_disabled(self):
+        """Test that from_config() works when safe_mode=False.
+
+        When the user explicitly passes safe_mode=False or calls
+        enable_unsafe_deserialization(), loading should succeed.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        ref_input = tf.random.normal((3, 10))
+        ref_output = model(ref_input)
+
+        saved_model.export_saved_model(model, temp_filepath)
+        reloaded_layer = tfsm_layer.TFSMLayer(temp_filepath)
+        config = reloaded_layer.get_config()
+
+        # from_config with explicit safe_mode=False should work
+        rereloaded_layer = tfsm_layer.TFSMLayer.from_config(
+            config, safe_mode=False
+        )
+        self.assertAllClose(rereloaded_layer(ref_input), ref_output, atol=1e-7)
+
+    def test_safe_mode_model_loading_blocked(self):
+        """Test that loading a .keras model with TFSMLayer is blocked in safe_mode.
+
+        This tests the full attack scenario: an attacker creates a malicious
+        .keras file containing a TFSMLayer pointing to a malicious SavedModel.
+        When a victim loads this with safe_mode=True (the default), it should
+        be blocked.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        model = get_model()
+        saved_model.export_saved_model(model, temp_filepath)
+
+        # Create and save a model containing TFSMLayer
+        reloaded_layer = tfsm_layer.TFSMLayer(temp_filepath)
+        wrapper_model = models.Sequential([reloaded_layer])
+        model_path = os.path.join(self.get_temp_dir(), "tfsm_model.keras")
+        wrapper_model.save(model_path, save_format="keras_v3")
+
+        # Loading with safe_mode=True should raise
+        with self.assertRaisesRegex(
+            ValueError,
+            "Loading a TFSMLayer from config is disallowed.*safe_mode=True",
+        ):
+            saving_lib.load_model(
+                model_path,
+                custom_objects={"TFSMLayer": tfsm_layer.TFSMLayer},
+                safe_mode=True,
+            )
