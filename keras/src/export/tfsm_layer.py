@@ -14,9 +14,9 @@ class TFSMLayer(layers.Layer):
         filepath: `str` or `pathlib.Path` object. The path to the SavedModel.
         call_endpoint: Name of the endpoint to use as the `call()` method
             of the reloaded layer. If the SavedModel was created
-            via `model.export()`,
-            then the default endpoint name is `'serve'`. In other cases
-            it may be named `'serving_default'`.
+            via `model.export()`, then the default endpoint name is
+            `'serve'`. In other cases it may be named
+            `'serving_default'`.
 
     Example:
 
@@ -35,15 +35,13 @@ class TFSMLayer(layers.Layer):
     **Limitations:**
 
     * Only call endpoints with a single `inputs` tensor argument
-    (which may optionally be a dict/tuple/list of tensors) are supported.
-    For endpoints with multiple separate input tensor arguments, consider
-    subclassing `TFSMLayer` and implementing a `call()` method with a
-    custom signature.
-    * If you need training-time behavior to differ from inference-time behavior
-    (i.e. if you need the reloaded object to support a `training=True` argument
-    in `__call__()`), make sure that the training-time call function is
-    saved as a standalone endpoint in the artifact, and provide its name
-    to the `TFSMLayer` via the `call_training_endpoint` argument.
+      (which may optionally be a dict/tuple/list of tensors) are supported.
+    * If you need training-time behavior to differ from inference-time
+      behavior (i.e. if you need the reloaded object to support a
+      `training=True` argument in `__call__()`), make sure that the
+      training-time call function is saved as a standalone endpoint in the
+      artifact, and provide its name to the `TFSMLayer` via the
+      `call_training_endpoint` argument.
     """
 
     def __init__(
@@ -74,7 +72,9 @@ class TFSMLayer(layers.Layer):
         if hasattr(self._reloaded_obj, call_endpoint):
             self.call_endpoint_fn = getattr(self._reloaded_obj, call_endpoint)
         elif call_endpoint in self._reloaded_obj.signatures:
-            self.call_endpoint_fn = self._reloaded_obj.signatures[call_endpoint]
+            self.call_endpoint_fn = self._reloaded_obj.signatures[
+                call_endpoint
+            ]
         else:
             raise ValueError(
                 f"The endpoint '{call_endpoint}' "
@@ -93,9 +93,11 @@ class TFSMLayer(layers.Layer):
                     self._reloaded_obj, call_training_endpoint
                 )
             elif call_training_endpoint in self._reloaded_obj.signatures:
-                self.call_training_endpoint_fn = self._reloaded_obj.signatures[
-                    call_training_endpoint
-                ]
+                self.call_training_endpoint_fn = (
+                    self._reloaded_obj.signatures[
+                        call_training_endpoint
+                    ]
+                )
             else:
                 raise ValueError(
                     f"The endpoint '{call_training_endpoint}' "
@@ -110,6 +112,7 @@ class TFSMLayer(layers.Layer):
         all_fns = [self.call_endpoint_fn]
         if call_training_endpoint:
             all_fns.append(self.call_training_endpoint_fn)
+
         tvs, ntvs = _list_variables_used_by_fns(all_fns)
         for v in tvs:
             self._add_existing_weight(v)
@@ -148,11 +151,15 @@ class TFSMLayer(layers.Layer):
         """Creates a TFSMLayer from its config.
 
         Args:
-            config: A Python dictionary, typically the output of `get_config`.
-            custom_objects: Optional dictionary mapping names to custom objects.
-            safe_mode: Boolean or None. When True, deserialization is disallowed.
-                When False, deserialization is allowed. When None (default),
-                the global Keras deserialization safe mode is used.
+            config: A Python dictionary, typically the output of
+                `get_config`.
+            custom_objects: Optional dictionary mapping names to custom
+                objects.
+            safe_mode: Boolean or None.
+                When True, deserialization is disallowed.
+                When False, deserialization is allowed.
+                When None (default), the global Keras deserialization
+                safe mode is used.
 
         Returns:
             A TFSMLayer instance.
@@ -166,11 +173,11 @@ class TFSMLayer(layers.Layer):
         if effective_safe_mode is not False:
             raise ValueError(
                 "Requested the deserialization of a `TFSMLayer`, which "
-                "loads an external SavedModel. This carries a potential risk "
-                "of arbitrary code execution and thus it is disallowed by "
-                "default. If you trust the source of the artifact, you can "
-                "override this error by passing `safe_mode=False` to the "
-                "loading function, or calling "
+                "loads an external SavedModel. This carries a potential "
+                "risk of arbitrary code execution and thus it is "
+                "disallowed by default. If you trust the source of the "
+                "artifact, you can override this error by passing "
+                "`safe_mode=False` to the loading function, or calling "
                 "`keras.config.enable_unsafe_deserialization()`."
             )
 
