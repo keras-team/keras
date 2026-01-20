@@ -150,7 +150,9 @@ class TestTFSMLayer(testing.TestCase):
             )
 
     def test_safe_mode_direct_instantiation_allowed(self):
-        """Test that direct TFSMLayer instantiation works regardless of safe_mode.
+        """Test that direct TFSMLayer instantiation works.
+
+        Direct instantiation works regardless of safe_mode.
 
         Direct instantiation is allowed because the user is explicitly creating
         the layer - the security concern is only during deserialization of
@@ -209,7 +211,9 @@ class TestTFSMLayer(testing.TestCase):
         self.assertAllClose(rereloaded_layer(ref_input), ref_output, atol=1e-7)
 
     def test_safe_mode_model_loading_blocked(self):
-        """Test that loading a .keras model with TFSMLayer is blocked in safe_mode.
+        """Test that loading a .keras model with TFSMLayer is blocked.
+
+        Loading is blocked when safe_mode=True.
 
         This tests the full attack scenario: an attacker creates a malicious
         .keras file containing a TFSMLayer pointing to a malicious SavedModel.
