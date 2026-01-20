@@ -174,7 +174,9 @@ class TFSMLayer(layers.Layer):
             A TFSMLayer instance.
         """
         # Follow the same pattern as Lambda layer for safe_mode handling
-        safe_mode = safe_mode or serialization_lib.in_safe_mode()
+        effective_safe_mode = safe_mode if safe_mode is not None else serialization_lib.in_safe_mode()
+
+        if effective_safe_mode is not False:
 
         if safe_mode:
             raise ValueError(
