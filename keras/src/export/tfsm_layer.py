@@ -59,7 +59,6 @@ class TFSMLayer(layers.Layer):
                 "TensorFlow backend."
             )
 
-        # Initialize an empty layer, then add_weight() etc. as needed.
         super().__init__(trainable=trainable, name=name, dtype=dtype)
 
         self._reloaded_obj = tf.saved_model.load(filepath)
@@ -147,7 +146,7 @@ class TFSMLayer(layers.Layer):
         return {**base_config, **config}
 
     @classmethod
-    def from_config(cls, config, custom_objects=None, safe_mode=None):
+    def from_config(cls, config, custom_objects=None, safe_mode=True):
         """Creates a TFSMLayer from its config.
 
         Args:
@@ -155,22 +154,21 @@ class TFSMLayer(layers.Layer):
                 `get_config`.
             custom_objects: Optional dictionary mapping names to custom
                 objects.
-            safe_mode: Boolean or None.
-                When True, deserialization is disallowed.
+            safe_mode: Boolean.
                 When False, deserialization is allowed.
-                When None (default), the global Keras deserialization
+                When True (default), the global Keras deserialization
                 safe mode is used.
 
         Returns:
             A TFSMLayer instance.
         """
         effective_safe_mode = (
-            safe_mode
-            if safe_mode is not None
-            else serialization_lib.in_safe_mode()
+            serialization_lib.in_safe_mode()
+            if safe_mode
+            else False
         )
 
-        if effective_safe_mode is not False:
+        if effective_safe_mode:
             raise ValueError(
                 "Requested the deserialization of a `TFSMLayer`, which "
                 "loads an external SavedModel. This carries a potential "
