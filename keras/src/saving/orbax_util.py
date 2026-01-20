@@ -6,15 +6,39 @@ from keras.src.utils.module_utils import ocp
 
 
 def is_orbax_checkpoint(filepath):
-    """Check if the given path is an Orbax checkpoint directory."""
-    if not os.path.exists(filepath):
+    """Check if the given path is an Orbax checkpoint directory.
+
+    This function implements custom detection logic instead of relying on
+    Orbax APIs which may be unreliable in some environments.
+    """
+    if not os.path.exists(filepath) or not os.path.isdir(filepath):
         return False
 
     try:
-        return ocp.is_orbax_checkpoint(filepath)
-    except (ImportError, AttributeError):
-        # Fallback to check for orbax.checkpoint file if Orbax API not available
-        return os.path.isfile(os.path.join(filepath, "orbax.checkpoint"))
+        # List directory contents
+        contents = os.listdir(filepath)
+
+        # A set is more efficient for membership testing
+        orbax_indicators = {
+            "orbax.checkpoint",
+            "pytree.orbax-checkpoint",
+            "checkpoint_metadata",
+        }
+
+        # Fast check for standard files
+        if not orbax_indicators.isdisjoint(contents):
+            return True
+
+        # Check for step directories or temporary files in a single pass
+        return any(
+            ".orbax-checkpoint-tmp" in item
+            or (item.isdigit() and os.path.isdir(os.path.join(filepath, item)))
+            for item in contents
+        )
+
+    except (OSError, PermissionError):
+        # If we can't read the directory, assume it's not a checkpoint
+        return False
 
 
 def find_latest_orbax_checkpoint(checkpoint_dir):
