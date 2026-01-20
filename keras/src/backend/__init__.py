@@ -74,4 +74,74 @@ class name_scope(backend_name_scope):
 
 @keras_export("keras.device")
 def device(device_name):
+    """Context manager for backend-agnostic device placement.
+
+    Use this context manager to control which device tensors are allocated on across
+    all backends (TensorFlow, JAX, PyTorch). This is useful for memory management,
+    data preprocessing, and multi-device setups.
+
+    Args:
+        device_name: String specifying the device in format `"device_type:device_index"`.
+            For example: `"cpu:0"`, `"gpu:0"`, `"gpu:1"`.
+            For PyTorch backend, `"gpu"` is automatically converted to `"cuda"`.
+
+    Example:
+
+    Basic usage with CPU and GPU:
+
+    ```python
+    import keras
+    import numpy as np
+
+    # Allocate tensors on CPU
+    with keras.device("cpu:0"):
+        cpu_tensor = keras.ops.ones((2, 2))
+
+    # Allocate tensors on GPU (if available)
+    with keras.device("gpu:0"):
+        gpu_tensor = keras.ops.ones((2, 2))
+    ```
+
+    Practical example with CPU preprocessing and GPU training:
+
+    ```python
+    import keras
+    import numpy as np
+
+    # Create dummy data and model
+    x_raw = np.random.rand(128, 784)
+    y_train = np.random.randint(0, 10, size=(128,))
+    model = keras.Sequential([
+        keras.Input(shape=(784,)),
+        keras.layers.Dense(10)
+    ])
+    model.compile(
+        optimizer="adam",
+        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+    )
+
+    # Preprocess data on CPU
+    with keras.device("cpu:0"):
+        x_processed = keras.ops.cast(x_raw, "float32")
+
+    # Train on GPU (if available)
+    with keras.device("gpu:0"):
+        model.fit(x_processed, y_train, epochs=2)
+    ```
+
+    Use cases:
+
+    - **Memory management**: Keep large tensors on CPU to save GPU memory
+    - **Data preprocessing**: Process data on CPU before moving to GPU for training
+    - **Multi-GPU setups**: Explicitly control which GPU receives which tensors
+
+    Device naming conventions:
+
+    - `"cpu:0"` - First CPU
+    - `"gpu:0"` - First GPU (works across all backends)
+    - `"gpu:1"` - Second GPU
+
+    Note: For distributed training across multiple devices, see the
+    [distributed training guides](https://keras.io/guides/distributed_training/).
+    """
     return device_scope(device_name)  # noqa: F405
