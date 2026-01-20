@@ -72,10 +72,8 @@ class TFSMLayer(layers.Layer):
 
         # Resolve the call function.
         if hasattr(self._reloaded_obj, call_endpoint):
-            # Case 1: it's set as an attribute.
             self.call_endpoint_fn = getattr(self._reloaded_obj, call_endpoint)
         elif call_endpoint in self._reloaded_obj.signatures:
-            # Case 2: it's listed in the `signatures` field.
             self.call_endpoint_fn = self._reloaded_obj.signatures[call_endpoint]
         else:
             raise ValueError(
@@ -88,7 +86,7 @@ class TFSMLayer(layers.Layer):
                 f"{list(self._reloaded_obj.signatures.keys())}"
             )
 
-        # Resolving the training function.
+        # Resolve the training function.
         if call_training_endpoint:
             if hasattr(self._reloaded_obj, call_training_endpoint):
                 self.call_training_endpoint_fn = getattr(
@@ -108,7 +106,7 @@ class TFSMLayer(layers.Layer):
                     f"{list(self._reloaded_obj.signatures.keys())}"
                 )
 
-        # Add trainable and non-trainable weights from the call_endpoint_fn.
+        # Add trainable and non-trainable weights from the call functions.
         all_fns = [self.call_endpoint_fn]
         if call_training_endpoint:
             all_fns.append(self.call_training_endpoint_fn)
@@ -127,21 +125,18 @@ class TFSMLayer(layers.Layer):
             trainable=weight.trainable,
             dtype=weight.dtype,
             shape=weight.shape,
-            # Keras variable names cannot contain slashes.
             name=weight.name.replace("/", "_"),
         )
         self._track_variable(variable)
 
     def call(self, inputs, training=False, **kwargs):
-        if training:
-            if self.call_training_endpoint:
-                return self.call_training_endpoint_fn(inputs, **kwargs)
+        if training and self.call_training_endpoint:
+            return self.call_training_endpoint_fn(inputs, **kwargs)
         return self.call_endpoint_fn(inputs, **kwargs)
 
     def get_config(self):
         base_config = super().get_config()
         config = {
-            # Note: this is not intended to be portable.
             "filepath": self.filepath,
             "call_endpoint": self.call_endpoint,
             "call_training_endpoint": self.call_training_endpoint,
@@ -156,14 +151,11 @@ class TFSMLayer(layers.Layer):
             config: A Python dictionary, typically the output of `get_config`.
             custom_objects: Optional dictionary mapping names to custom objects.
             safe_mode: Boolean, whether to disallow loading TFSMLayer.
-                When `safe_mode=True`, loading is disallowed because TFSMLayer
-                loads external SavedModels that may contain attacker-controlled
-                executable graph code. Defaults to `True`.
+                Defaults to `True`.
 
         Returns:
             A TFSMLayer instance.
         """
-        # Follow the same pattern as Lambda layer for safe_mode handling
         effective_safe_mode = (
             safe_mode
             if safe_mode is not None
@@ -172,11 +164,12 @@ class TFSMLayer(layers.Layer):
 
         if effective_safe_mode is not False:
             raise ValueError(
-                "Loading a TFSMLayer from config is disallowed when "
-                "`safe_mode=True` because it loads an external SavedModel "
-                "that may contain attacker-controlled executable graph code. "
-                "If you trust the source, pass `safe_mode=False` to the "
-                "loading function, or call "
+                "Requested the deserialization of a `TFSMLayer`, which "
+                "loads an external SavedModel. This carries a potential risk "
+                "of arbitrary code execution and thus it is disallowed by "
+                "default. If you trust the source of the artifact, you can "
+                "override this error by passing `safe_mode=False` to the "
+                "loading function, or calling "
                 "`keras.config.enable_unsafe_deserialization()`."
             )
 
