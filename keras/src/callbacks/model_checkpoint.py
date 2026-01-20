@@ -34,10 +34,21 @@ class ModelCheckpoint(MonitorCallback):
     Example:
 
     ```python
-    model.compile(loss=..., optimizer=...,
-                  metrics=['accuracy'])
+    # Define a learning rate schedule
+    initial_learning_rate = 0.1
+    lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate,
+        decay_steps=100000,
+        decay_rate=0.96,
+        staircase=True,
+    )
 
-    EPOCHS = 10
+    model.compile(
+        optimizer=keras.optimizers.RMSprop(learning_rate=lr_schedule),
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+
     checkpoint_filepath = '/tmp/ckpt/checkpoint.model.keras'
     model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
@@ -46,7 +57,7 @@ class ModelCheckpoint(MonitorCallback):
         save_best_only=True)
 
     # Model is saved at the end of every epoch, if it's the best seen so far.
-    model.fit(epochs=EPOCHS, callbacks=[model_checkpoint_callback])
+    model.fit(x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback])
 
     # The model (that are considered the best) can be loaded as -
     keras.models.load_model(checkpoint_filepath)
@@ -62,7 +73,7 @@ class ModelCheckpoint(MonitorCallback):
 
     # Model weights are saved at the end of every epoch, if it's the best seen
     # so far.
-    model.fit(epochs=EPOCHS, callbacks=[model_checkpoint_callback])
+    model.fit(x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback])
 
     # The model weights (that are considered the best) can be loaded as -
     model.load_weights(checkpoint_filepath)
