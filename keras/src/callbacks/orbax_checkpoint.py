@@ -328,16 +328,3 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Multi-host synchronization: ensure all hosts complete cleanup
         self._sync_processes("checkpoint_cleanup")
-
-    def wait_until_finished(self):
-        """Wait for any in-progress checkpoint operations to complete.
-        This method blocks until all asynchronous checkpoint save operations
-        have completed across all hosts in a multi-host setup.
-        """
-        # Wait for any async operations to complete on this host
-        for future in self._pending_saves:
-            future.result()
-        self._pending_saves.clear()
-
-        # Multi-host synchronization: ensure all hosts complete
-        self._sync_processes("checkpoint_wait_complete")
