@@ -62,7 +62,7 @@ class TFSMLayer(layers.Layer):
             )
 
         # Check safe mode before loading external SavedModel
-        if serialization_lib.in_safe_mode():
+        if serialization_lib.in_safe_mode() is not False:
             raise ValueError(
                 "Loading a TFSMLayer is disallowed when `safe_mode=True` "
                 "because it loads an external SavedModel that may contain "
