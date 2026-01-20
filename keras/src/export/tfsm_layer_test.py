@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import tensorflow as tf
 
+import keras
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
@@ -20,6 +21,11 @@ from keras.src.saving import saving_lib
     reason="TFSM Layer reloading is only for the TF backend.",
 )
 class TestTFSMLayer(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        # Enable unsafe deserialization for tests that load external SavedModels
+        keras.config.enable_unsafe_deserialization()
+
     def test_reloading_export_archive(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
