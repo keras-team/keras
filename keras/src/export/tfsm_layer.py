@@ -149,7 +149,7 @@ class TFSMLayer(layers.Layer):
         return {**base_config, **config}
 
     @classmethod
-    def from_config(cls, config, custom_objects=None, safe_mode=None):
+    def from_config(cls, config, custom_objects=None, safe_mode=True):
         """Creates a TFSMLayer from its config.
 
         Args:
