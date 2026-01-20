@@ -67,8 +67,8 @@ class TFSMLayer(layers.Layer):
                 "Loading a TFSMLayer is disallowed when `safe_mode=True` "
                 "because it loads an external SavedModel that may contain "
                 "attacker-controlled executable graph code. If you trust the "
-                "source, pass `safe_mode=False` to the loading function, or call "
-                "`keras.config.enable_unsafe_deserialization()`."
+                "source, pass `safe_mode=False` to the loading function, or "
+                "call `keras.config.enable_unsafe_deserialization()`."
             )
 
         # Initialize an empty layer, then add_weight() etc. as needed.
@@ -174,11 +174,13 @@ class TFSMLayer(layers.Layer):
             A TFSMLayer instance.
         """
         # Follow the same pattern as Lambda layer for safe_mode handling
-        effective_safe_mode = safe_mode if safe_mode is not None else serialization_lib.in_safe_mode()
+        effective_safe_mode = (
+            safe_mode
+            if safe_mode is not None
+            else serialization_lib.in_safe_mode()
+        )
 
         if effective_safe_mode is not False:
-
-        if safe_mode:
             raise ValueError(
                 "Loading a TFSMLayer from config is disallowed when "
                 "`safe_mode=True` because it loads an external SavedModel "
