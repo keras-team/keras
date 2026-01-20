@@ -160,6 +160,7 @@ class TestTFSMLayer(testing.TestCase):
         """
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
+        model(tf.random.normal((1, 10)))
         saved_model.export_saved_model(model, temp_filepath)
 
         # Direct instantiation should work even without enabling unsafe mode
@@ -176,6 +177,7 @@ class TestTFSMLayer(testing.TestCase):
         """
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
+        model(tf.random.normal((1, 10)))
         saved_model.export_saved_model(model, temp_filepath)
 
         # Create a TFSMLayer and get its config
@@ -222,6 +224,7 @@ class TestTFSMLayer(testing.TestCase):
         """
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model()
+        model(tf.random.normal((1, 10)))
         saved_model.export_saved_model(model, temp_filepath)
 
         # Create and save a model containing TFSMLayer
