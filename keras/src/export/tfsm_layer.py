@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.export.saved_model import _list_variables_used_by_fns
+from keras.src.saving import serialization_lib
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -58,6 +59,16 @@ class TFSMLayer(layers.Layer):
             raise NotImplementedError(
                 "The TFSMLayer is only currently supported with the "
                 "TensorFlow backend."
+            )
+
+        # Check safe mode before loading external SavedModel
+        if serialization_lib.in_safe_mode():
+            raise ValueError(
+                "Loading a TFSMLayer is disallowed when `safe_mode=True` "
+                "because it loads an external SavedModel that may contain "
+                "attacker-controlled executable graph code. If you trust the "
+                "source, pass `safe_mode=False` to the loading function, or call "
+                "`keras.config.enable_unsafe_deserialization()`."
             )
 
         # Initialize an empty layer, then add_weight() etc. as needed.
@@ -146,3 +157,33 @@ class TFSMLayer(layers.Layer):
             "call_training_endpoint": self.call_training_endpoint,
         }
         return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config, custom_objects=None, safe_mode=None):
+        """Creates a TFSMLayer from its config.
+
+        Args:
+            config: A Python dictionary, typically the output of `get_config`.
+            custom_objects: Optional dictionary mapping names to custom objects.
+            safe_mode: Boolean, whether to disallow loading TFSMLayer.
+                When `safe_mode=True`, loading is disallowed because TFSMLayer
+                loads external SavedModels that may contain attacker-controlled
+                executable graph code. Defaults to `True`.
+
+        Returns:
+            A TFSMLayer instance.
+        """
+        # Follow the same pattern as Lambda layer for safe_mode handling
+        safe_mode = safe_mode or serialization_lib.in_safe_mode()
+
+        if safe_mode:
+            raise ValueError(
+                "Loading a TFSMLayer from config is disallowed when "
+                "`safe_mode=True` because it loads an external SavedModel "
+                "that may contain attacker-controlled executable graph code. "
+                "If you trust the source, pass `safe_mode=False` to the "
+                "loading function, or call "
+                "`keras.config.enable_unsafe_deserialization()`."
+            )
+
+        return cls(**config)
