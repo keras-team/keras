@@ -960,6 +960,17 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
+def nansum(x, axis=None, keepdims=False):
+    axis = standardize_axis_for_numpy(axis)
+    dtype = standardize_dtype(x.dtype)
+
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    return np.nansum(x, axis=axis, keepdims=keepdims).astype(dtype)
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     return np.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
