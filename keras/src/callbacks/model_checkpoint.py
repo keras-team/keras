@@ -57,7 +57,9 @@ class ModelCheckpoint(MonitorCallback):
         save_best_only=True)
 
     # Model is saved at the end of every epoch, if it's the best seen so far.
-    model.fit(x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback])
+    model.fit(
+        x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback]
+    )
 
     # The model (that are considered the best) can be loaded as -
     keras.models.load_model(checkpoint_filepath)
@@ -73,7 +75,9 @@ class ModelCheckpoint(MonitorCallback):
 
     # Model weights are saved at the end of every epoch, if it's the best seen
     # so far.
-    model.fit(x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback])
+    model.fit(
+        x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback]
+    )
 
     # The model weights (that are considered the best) can be loaded as -
     model.load_weights(checkpoint_filepath)
