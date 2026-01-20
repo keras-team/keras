@@ -1,10 +1,9 @@
-import unittest.mock
 import math
+import unittest.mock
 from itertools import combinations
 
 import jax
 import jax.numpy as jnp
-
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -19,6 +18,7 @@ from keras.src import testing
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.jax import nn as jax_nn
 from keras.src.layers.convolutional.conv_test import np_conv1d
 from keras.src.layers.convolutional.conv_test import np_conv2d
 from keras.src.layers.convolutional.conv_test import np_conv3d
@@ -35,7 +35,6 @@ from keras.src.layers.pooling.average_pooling_test import np_avgpool1d
 from keras.src.layers.pooling.average_pooling_test import np_avgpool2d
 from keras.src.layers.pooling.max_pooling_test import np_maxpool1d
 from keras.src.layers.pooling.max_pooling_test import np_maxpool2d
-from keras.src.backend.jax import nn as jax_nn
 from keras.src.ops import nn as knn
 from keras.src.ops import numpy as knp
 from keras.src.testing.test_utils import named_product
@@ -1329,7 +1328,9 @@ class NNOpsStaticShapeTest(testing.TestCase):
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
-    @pytest.mark.skipif(backend.backend() != "jax", reason="Test is JAX-specific.")
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="Test is JAX-specific."
+    )
     def test_splash_attention_with_tracer_mask_fallback(self):
         # Reproduces behavior described in https://github.com/keras-team/keras/issues/21916
         # When compiling with JIT, the mask becomes a Tracer.
@@ -1373,6 +1374,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
                 out = run_attention(query, key, value, mask)
                 self.assertIsNotNone(out)
                 self.assertEqual(out.shape, (B, T, H, D))
+
     @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
     def test_dot_product_attention_inside_scan(self):
         import jax
