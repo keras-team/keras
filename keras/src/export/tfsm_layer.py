@@ -61,16 +61,6 @@ class TFSMLayer(layers.Layer):
                 "TensorFlow backend."
             )
 
-        # Check safe mode before loading external SavedModel
-        if serialization_lib.in_safe_mode() is not False:
-            raise ValueError(
-                "Loading a TFSMLayer is disallowed when `safe_mode=True` "
-                "because it loads an external SavedModel that may contain "
-                "attacker-controlled executable graph code. If you trust the "
-                "source, pass `safe_mode=False` to the loading function, or "
-                "call `keras.config.enable_unsafe_deserialization()`."
-            )
-
         # Initialize an empty layer, then add_weight() etc. as needed.
         super().__init__(trainable=trainable, name=name, dtype=dtype)
 
