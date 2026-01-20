@@ -321,8 +321,11 @@ class OrbaxCheckpoint(MonitorCallback):
         for future in self._pending_saves:
             try:
                 future.result()  # Wait for completion
-            except Exception:
-                pass  # Ignore errors during cleanup
+            except Exception as e:
+                warnings.warn(
+                    f"Failed to complete async checkpoint save: {e}",
+                    stacklevel=2,
+                )
         self._pending_saves.clear()
 
         # Close the Checkpointer to ensure all pending saves complete
