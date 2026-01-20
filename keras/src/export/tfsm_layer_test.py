@@ -33,7 +33,7 @@ class TestTFSMLayer(testing.TestCase):
         ref_output = model(ref_input)
 
         saved_model.export_saved_model(model, temp_filepath)
-        reloaded_layer = tfsm_layer.TFSMLayer(temp_filepath)
+        reloaded_layer = export.TFSMLayer(temp_filepath, safe_mode=False)
         self.assertAllClose(reloaded_layer(ref_input), ref_output, atol=1e-7)
         self.assertLen(reloaded_layer.weights, len(model.weights))
         self.assertLen(
