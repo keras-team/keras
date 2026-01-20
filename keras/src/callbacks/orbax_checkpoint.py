@@ -135,6 +135,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
         self._total_batches_seen = 0  # Global batch counter for step tracking
+        self._pending_saves = []  # For background saves
 
         # Multi-host support
         self._multihost_initialized = self._is_multihost_initialized()
@@ -252,7 +253,10 @@ class OrbaxCheckpoint(MonitorCallback):
         # Context() uses defaults.
         with ocp.Context():
             if self.save_on_background:
-                self.checkpointer.save_pytree_async(step, composite_state)
+                future = self.checkpointer.save_pytree_async(
+                    step, composite_state
+                )
+                self._pending_saves.append(future)
             else:
                 self.checkpointer.save_pytree(step, composite_state)
 
@@ -317,6 +321,11 @@ class OrbaxCheckpoint(MonitorCallback):
         except Exception:
             pass  # Ignore errors during cleanup
 
+        # Wait for any remaining async operations to complete
+        for future in self._pending_saves:
+            future.result()
+        self._pending_saves.clear()
+
         # Multi-host synchronization: ensure all hosts complete cleanup
         self._sync_processes("checkpoint_cleanup")
 
@@ -326,7 +335,9 @@ class OrbaxCheckpoint(MonitorCallback):
         have completed across all hosts in a multi-host setup.
         """
         # Wait for any async operations to complete on this host
-        self.checkpointer.wait()
+        for future in self._pending_saves:
+            future.result()
+        self._pending_saves.clear()
 
         # Multi-host synchronization: ensure all hosts complete
         self._sync_processes("checkpoint_wait_complete")
