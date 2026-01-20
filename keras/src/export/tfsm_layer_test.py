@@ -16,7 +16,6 @@ from keras.src.export.saved_model_test import get_model
 from keras.src.saving import saving_lib
 from keras.src.saving import serialization_lib
 
-
 @pytest.mark.skipif(
     backend.backend() != "tensorflow",
     reason="TFSM Layer reloading is only for the TF backend.",
