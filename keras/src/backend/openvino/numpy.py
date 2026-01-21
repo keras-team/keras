@@ -2056,6 +2056,10 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nansum(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nansum` is not supported with openvino backend")
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = get_ov_output(x)
     dtype = x.get_element_type()

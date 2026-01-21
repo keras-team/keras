@@ -565,6 +565,7 @@ class ExtractPatches(Operation):
         if isinstance(size, int):
             size = (size, size)
         self.size = size
+        self.is_3d = len(self.size) == 3
         if strides is None:
             strides = size
         self.strides = strides
@@ -588,11 +589,21 @@ class ExtractPatches(Operation):
         if self.data_format == "channels_last":
             channels_in = images_shape[-1]
         else:
-            channels_in = images_shape[-3]
-        if original_ndim == 3:
-            images_shape = [1] + images_shape
-        filters = self.size[0] * self.size[1] * channels_in
-        kernel_size = (self.size[0], self.size[1])
+            channels_in = images_shape[-4] if self.is_3d else images_shape[-3]
+
+        if self.is_3d:
+            # 3D patch extraction
+            if original_ndim == 4:
+                images_shape = [1] + images_shape
+            filters = self.size[0] * self.size[1] * self.size[2] * channels_in
+            kernel_size = (self.size[0], self.size[1], self.size[2])
+        else:
+            # 2D patch extraction
+            if original_ndim == 3:
+                images_shape = [1] + images_shape
+            filters = self.size[0] * self.size[1] * channels_in
+            kernel_size = (self.size[0], self.size[1])
+
         out_shape = compute_conv_output_shape(
             images_shape,
             filters,
@@ -602,9 +613,23 @@ class ExtractPatches(Operation):
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
         )
-        if original_ndim == 3:
-            out_shape = out_shape[1:]
+
+        if self.is_3d:
+            if original_ndim == 4:
+                out_shape = out_shape[1:]
+        else:
+            if original_ndim == 3:
+                out_shape = out_shape[1:]
         return KerasTensor(shape=out_shape, dtype=images.dtype)
+
+    def get_config(self):
+        return {
+            "size": self.size,
+            "strides": self.strides,
+            "dilation_rate": self.dilation_rate,
+            "padding": self.padding,
+            "data_format": self.data_format,
+        }
 
 
 @keras_export("keras.ops.image.extract_patches")
@@ -687,26 +712,6 @@ def extract_patches(
                 f"Received: size={size} with length {len(size)}"
             )
 
-    # Determine 2D vs 3D based on size argument
-    if not isinstance(size, int) and len(size) == 3:
-        # 3D patch extraction
-        if any_symbolic_tensors((images,)):
-            return ExtractPatches3D(
-                size=size,
-                strides=strides,
-                dilation_rate=dilation_rate,
-                padding=padding,
-                data_format=data_format,
-            ).symbolic_call(images)
-        return _extract_patches_3d(
-            images,
-            size,
-            strides,
-            dilation_rate,
-            padding,
-            data_format=data_format,
-        )
-
     # 2D patch extraction (default)
     if any_symbolic_tensors((images,)):
         return ExtractPatches(
@@ -723,6 +728,23 @@ def extract_patches(
 
 
 def _extract_patches(
+    images,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    if not isinstance(size, int) and len(size) == 3:
+        return _extract_patches_3d(
+            images, size, strides, dilation_rate, padding, data_format
+        )
+    return _extract_patches_2d(
+        images, size, strides, dilation_rate, padding, data_format
+    )
+
+
+def _extract_patches_2d(
     images,
     size,
     strides=None,
@@ -766,74 +788,6 @@ def _extract_patches(
     if _unbatched:
         patches = backend.numpy.squeeze(patches, axis=0)
     return patches
-
-
-class ExtractPatches3D(Operation):
-    def __init__(
-        self,
-        size,
-        strides=None,
-        dilation_rate=1,
-        padding="valid",
-        data_format=None,
-        *,
-        name=None,
-    ):
-        super().__init__(name=name)
-        if isinstance(size, int):
-            size = (size, size, size)
-        elif len(size) != 3:
-            raise TypeError(
-                "Invalid `size` argument. Expected an "
-                f"int or a tuple of length 3. Received: size={size}"
-            )
-        self.size = size
-        if strides is not None:
-            if isinstance(strides, int):
-                strides = (strides, strides, strides)
-            elif len(strides) != 3:
-                raise ValueError(f"Invalid `strides` argument. Got: {strides}")
-        else:
-            strides = size
-        self.strides = strides
-        self.dilation_rate = dilation_rate
-        self.padding = padding
-        self.data_format = backend.standardize_data_format(data_format)
-
-    def call(self, volumes):
-        return _extract_patches_3d(
-            volumes,
-            self.size,
-            self.strides,
-            self.dilation_rate,
-            self.padding,
-            self.data_format,
-        )
-
-    def compute_output_spec(self, volumes):
-        volumes_shape = list(volumes.shape)
-        original_ndim = len(volumes_shape)
-        strides = self.strides
-        if self.data_format == "channels_last":
-            channels_in = volumes_shape[-1]
-        else:
-            channels_in = volumes_shape[-4]
-        if original_ndim == 4:
-            volumes_shape = [1] + volumes_shape
-        filters = self.size[0] * self.size[1] * self.size[2] * channels_in
-        kernel_size = (self.size[0], self.size[1], self.size[2])
-        out_shape = compute_conv_output_shape(
-            volumes_shape,
-            filters,
-            kernel_size,
-            strides=strides,
-            padding=self.padding,
-            data_format=self.data_format,
-            dilation_rate=self.dilation_rate,
-        )
-        if original_ndim == 4:
-            out_shape = out_shape[1:]
-        return KerasTensor(shape=out_shape, dtype=volumes.dtype)
 
 
 def _extract_patches_3d(
@@ -935,8 +889,11 @@ def extract_patches_3d(
     >>> patches.shape
     (3, 3, 3, 81)
     """
+    # Convert int to 3-tuple for 3D
+    if isinstance(size, int):
+        size = (size, size, size)
     if any_symbolic_tensors((volumes,)):
-        return ExtractPatches3D(
+        return ExtractPatches(
             size=size,
             strides=strides,
             dilation_rate=dilation_rate,
