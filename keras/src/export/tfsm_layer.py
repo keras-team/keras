@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.export.saved_model import _list_variables_used_by_fns
@@ -153,12 +154,12 @@ class TFSMLayer(layers.Layer):
         if effective_safe_mode is not False:
             raise ValueError(
                 "Requested the deserialization of a `TFSMLayer`, which "
-                "loads an external SavedModel. This carries a potential "
-                "risk of arbitrary code execution and thus it is "
-                "disallowed by default. If you trust the source of the "
-                "artifact, you can override this error by passing "
-                "`safe_mode=False` to the loading function, or calling "
-                "`keras.config.enable_unsafe_deserialization()`."
+                "loads an external SavedModel. This carries a potential risk "
+                "of arbitrary code execution and thus it is disallowed by "
+                "default. If you trust the source of the artifact, you can "
+                "override this error by passing `safe_mode=False` to the "
+                "loading function, or calling "
+                "`keras.config.enable_unsafe_deserialization()."
             )
 
         return cls(**config)
