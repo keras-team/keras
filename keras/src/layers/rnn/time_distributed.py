@@ -85,19 +85,68 @@ class TimeDistributed(Wrapper):
                 from keras.src.utils.module_utils import tensorflow as tf
 
                 if tf.executing_eagerly():
-                    is_valid_mask = mask_shape[:2] == (batch_size, timesteps)
+                    # In eager mode, validate using static shapes to avoid
+                    # tracing issues on JAX/TPU
+                    mask_static = mask.shape
+                    input_static = inputs.shape
+                    if (
+                        input_static[0] is not None
+                        and mask_static[0] is not None
+                        and input_static[0] != mask_static[0]
+                    ):
+                        raise ValueError(
+                            "`TimeDistributed` Layer should be passed a "
+                            f"`mask` of shape ({input_static[0]}, "
+                            f"{input_static[1]}, ...), received: "
+                            f"mask.shape={mask_static}"
+                        )
+                    if (
+                        input_static[1] is not None
+                        and mask_static[1] is not None
+                        and input_static[1] != mask_static[1]
+                    ):
+                        raise ValueError(
+                            "`TimeDistributed` Layer should be passed a "
+                            f"`mask` of shape ({input_static[0]}, "
+                            f"{input_static[1]}, ...), received: "
+                            f"mask.shape={mask_static}"
+                        )
                 else:
+                    # In graph mode, only check time dimension
                     is_valid_mask = mask_shape[1:2] == (timesteps,)
+                    if not is_valid_mask:
+                        raise ValueError(
+                            "`TimeDistributed` Layer should be passed a "
+                            f"`mask` of shape ({batch_size}, {timesteps}, "
+                            f"...), received: mask.shape={mask_shape}"
+                        )
             else:
-                # For non-TensorFlow backends, always check both dimensions
-                is_valid_mask = mask_shape[:2] == (batch_size, timesteps)
-
-            if not is_valid_mask:
-                raise ValueError(
-                    "`TimeDistributed` Layer should be passed a `mask` of "
-                    f"shape ({batch_size}, {timesteps}, ...), "
-                    f"received: mask.shape={mask_shape}"
-                )
+                # For non-TensorFlow backends, validate using static shapes
+                # to avoid tracing issues with JAX on TPU
+                mask_static = mask.shape
+                input_static = inputs.shape
+                if (
+                    input_static[0] is not None
+                    and mask_static[0] is not None
+                    and input_static[0] != mask_static[0]
+                ):
+                    raise ValueError(
+                        "`TimeDistributed` Layer should be passed a "
+                        f"`mask` of shape ({input_static[0]}, "
+                        f"{input_static[1]}, ...), received: "
+                        f"mask.shape={mask_static}"
+                    )
+                if (
+                    input_static[1] is not None
+                    and mask_static[1] is not None
+                    and input_static[1] != mask_static[1]
+                ):
+                    raise ValueError(
+                        "`TimeDistributed` Layer should be passed a "
+                        f"`mask` of shape ({input_static[0]}, "
+                        f"{input_static[1]}, ...), received: "
+                        f"mask.shape={mask_static}"
+                    )
 
         def time_distributed_transpose(data):
             """Swaps the timestep and batch dimensions of a tensor."""
