@@ -2129,6 +2129,14 @@ def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
     if not x.dtype.is_floating:
+        dtype = standardize_dtype(x.dtype)
+        if dtype == "bool":
+            return cast(
+                tf.reduce_min(
+                    cast(x, config.floatx()), axis=axis, keepdims=keepdims
+                ),
+                dtype,
+            )
         return tf.reduce_min(x, axis=axis, keepdims=keepdims)
 
     inf = tf.constant(float("inf"), dtype=x.dtype)

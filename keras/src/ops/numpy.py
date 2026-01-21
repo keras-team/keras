@@ -5079,11 +5079,9 @@ class Nanmin(Operation):
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
 
-        sparse = getattr(x, "sparse", False)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
-            sparse=sparse,
         )
 
 
