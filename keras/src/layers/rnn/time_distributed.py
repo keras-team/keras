@@ -80,35 +80,27 @@ class TimeDistributed(Wrapper):
         if mask_shape is not None:
             # For TF backend with graph mode and `partial_batch_size`, skip
             # evaluation of `batch_size` as it can be a `strided_slice` and
-            # not a constant.
+            # not a constant. In eager mode or non-TF backends, check both dims.
             if backend.backend() == "tensorflow":
                 from keras.src.utils.module_utils import tensorflow as tf
 
-                if not tf.executing_eagerly() and mask_shape[1:2] != (
-                    timesteps,
-                ):
-                    raise ValueError(
-                        "`TimeDistributed` Layer should be passed a `mask` of "
-                        f"shape ({batch_size}, {timesteps}, ...), "
-                        f"received: mask.shape={mask_shape}"
-                    )
-                elif tf.executing_eagerly() and mask_shape[:2] != (
-                    batch_size,
-                    timesteps,
-                ):
-                    raise ValueError(
-                        "`TimeDistributed` Layer should be passed a `mask` of "
-                        f"shape ({batch_size}, {timesteps}, ...), "
-                        f"received: mask.shape={mask_shape}"
-                    )
+                is_valid_mask = (
+                    not tf.executing_eagerly()
+                    and mask_shape[1:2] == (timesteps,)
+                ) or (
+                    tf.executing_eagerly()
+                    and mask_shape[:2] == (batch_size, timesteps)
+                )
             else:
-                # For non-TensorFlow backends
-                if mask_shape[:2] != (batch_size, timesteps):
-                    raise ValueError(
-                        "`TimeDistributed` Layer should be passed a `mask` of "
-                        f"shape ({batch_size}, {timesteps}, ...), "
-                        f"received: mask.shape={mask_shape}"
-                    )
+                # For non-TensorFlow backends, always check both dimensions
+                is_valid_mask = mask_shape[:2] == (batch_size, timesteps)
+
+            if not is_valid_mask:
+                raise ValueError(
+                    "`TimeDistributed` Layer should be passed a `mask` of "
+                    f"shape ({batch_size}, {timesteps}, ...), "
+                    f"received: mask.shape={mask_shape}"
+                )
 
         def time_distributed_transpose(data):
             """Swaps the timestep and batch dimensions of a tensor."""
