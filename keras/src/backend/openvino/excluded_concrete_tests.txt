@@ -1,6 +1,5 @@
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
-NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
@@ -17,6 +16,7 @@ NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_ldexp
+NumpyDtypeTest::test_nansum
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
@@ -39,7 +39,6 @@ NumpyDtypeTest::test_view
 NumpyDtypeTest::test_vstack
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
-NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
@@ -50,6 +49,7 @@ NumpyOneInputOpsCorrectnessTest::test_diagflat
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
+NumpyOneInputOpsCorrectnessTest::test_nansum
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_round
