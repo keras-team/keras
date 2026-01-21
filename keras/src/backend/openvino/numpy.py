@@ -3165,6 +3165,66 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
-    raise NotImplementedError(
-        "`argpartition` is not supported with openvino backend"
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    axis = canonicalize_axis(axis, rank)
+    axes = list(range(rank))
+    axes[axis], axes[-1] = axes[-1], axes[axis]
+    x = ov_opset.transpose(x, ov_opset.constant(axes))
+    x_shape_tensor = ov_opset.shape_of(x)
+    n = ov_opset.gather(
+        x_shape_tensor,
+        ov_opset.constant(-1),
+        ov_opset.constant(0),
     )
+    if isinstance(kth, int) and kth < 0:
+        kth_tensor = ov_opset.add(
+            n,
+            ov_opset.constant(kth, n.get_element_type()),
+        )
+    else:
+        kth_tensor = ov_opset.constant(kth, n.get_element_type())
+    one = ov_opset.constant(1, kth_tensor.get_element_type())
+    k_val = ov_opset.add(kth_tensor, one)
+    bottom_ind = ov_opset.topk(
+        ov_opset.negative(x),
+        k=k_val,
+        axis=-1,
+        mode="max",
+        sort="value",
+    ).output(1)
+    one_hot_mask = ov_opset.one_hot(
+        bottom_ind,
+        n,
+        ov_opset.constant(1),
+        ov_opset.constant(0),
+        axis=-1,
+    )
+    mask = ov_opset.reduce_sum(
+        one_hot_mask,
+        ov_opset.constant([-2]),
+        keep_dims=False,
+    )
+    ones = ov_opset.broadcast(
+        ov_opset.constant(1),
+        x_shape_tensor,
+    )
+    proxy = ov_opset.subtract(ones, mask)
+    remaining_k = ov_opset.subtract(n, k_val)
+    top_ind = ov_opset.topk(
+        proxy,
+        k=remaining_k,
+        axis=-1,
+        mode="max",
+        sort="value",
+    ).output(1)
+    result = ov_opset.concat([bottom_ind, top_ind], axis=-1)
+    inv_axes = [0] * rank
+    for i, a in enumerate(axes):
+        inv_axes[a] = i
+    result = ov_opset.transpose(
+        result,
+        ov_opset.constant(inv_axes),
+    ).output(0)
+    return OpenVINOKerasTensor(result)
