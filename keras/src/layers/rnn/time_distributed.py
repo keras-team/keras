@@ -84,13 +84,10 @@ class TimeDistributed(Wrapper):
             if backend.backend() == "tensorflow":
                 from keras.src.utils.module_utils import tensorflow as tf
 
-                is_valid_mask = (
-                    not tf.executing_eagerly()
-                    and mask_shape[1:2] == (timesteps,)
-                ) or (
-                    tf.executing_eagerly()
-                    and mask_shape[:2] == (batch_size, timesteps)
-                )
+                if tf.executing_eagerly():
+                    is_valid_mask = mask_shape[:2] == (batch_size, timesteps)
+                else:
+                    is_valid_mask = mask_shape[1:2] == (timesteps,)
             else:
                 # For non-TensorFlow backends, always check both dimensions
                 is_valid_mask = mask_shape[:2] == (batch_size, timesteps)
