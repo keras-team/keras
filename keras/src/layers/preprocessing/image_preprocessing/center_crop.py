@@ -183,28 +183,26 @@ class CenterCrop(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         inputs = self.backend.cast(images, self.compute_dtype)
+        inputs_shape = self.backend.shape(inputs)
+
         if self.data_format == "channels_first":
-            init_height = inputs.shape[-2]
-            init_width = inputs.shape[-1]
+            init_height = inputs_shape[-2]
+            init_width = inputs_shape[-1]
         else:
-            init_height = inputs.shape[-3]
-            init_width = inputs.shape[-2]
+            init_height = inputs_shape[-3]
+            init_width = inputs_shape[-2]
 
-        if init_height is None or init_width is None:
-            # Dynamic size case. TODO.
-            raise ValueError(
-                "At this time, CenterCrop can only "
-                "process images with a static spatial "
-                f"shape. Received: inputs.shape={inputs.shape}"
-            )
-
+        # All these operations work both with ints (static sizes) and scalar
+        # tensors (dynamic sizes).
         h_diff = init_height - self.height
         w_diff = init_width - self.width
 
-        h_start = int(h_diff / 2)
-        w_start = int(w_diff / 2)
+        h_start = h_diff // 2
+        w_start = w_diff // 2
 
-        if h_diff >= 0 and w_diff >= 0:
+        if (not isinstance(h_diff, int) or h_diff >= 0) and (
+            not isinstance(w_diff, int) or w_diff >= 0
+        ):
             if len(inputs.shape) == 4:
                 if self.data_format == "channels_first":
                     return inputs[
