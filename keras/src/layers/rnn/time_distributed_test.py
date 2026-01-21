@@ -99,3 +99,28 @@ class TimeDistributedTest(testing.TestCase):
         Y_train = np.random.randint(1, 2, size=(22, 20))
 
         model.fit(X_train, Y_train, epochs=1, batch_size=16)
+
+    def test_mask_validation_with_mismatched_timesteps(self):
+        """Test TimeDistributed raises ValueError for mask with wrong timesteps.
+
+        Regression test for: https://github.com/keras-team/keras/issues/22037
+        """
+        batch = 4
+        timesteps = 5
+        features = 3
+
+        td = layers.TimeDistributed(layers.Dense(units=5, activation="softmax"))
+        inputs = np.zeros((batch, timesteps, features))
+
+        # Mask with correct timesteps should work
+        mask_valid = np.ones((batch, timesteps), dtype=bool)
+        output = td(inputs, mask=mask_valid)
+        self.assertEqual(output.shape, (batch, timesteps, 5))
+
+        # Mask with mismatched timesteps should raise ValueError
+        mask_timemismatch = np.ones((batch, timesteps + 1), dtype=bool)
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`TimeDistributed` Layer should be passed a `mask` of shape.*",
+        ):
+            td(inputs, mask=mask_timemismatch)
