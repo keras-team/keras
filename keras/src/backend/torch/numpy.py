@@ -1280,21 +1280,14 @@ def nanmin(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         return x
 
-    x_clean = torch.where(
-        torch.isnan(x),
-        torch.full((), float("inf"), device=x.device, dtype=x.dtype),
-        x,
-    )
-
+    x_clean = torch.where(torch.isnan(x), float("inf"), x)
     out = torch.amin(x_clean, dim=axis, keepdim=keepdims)
 
-    if axis is not None:
-        all_nan = torch.isnan(x).all(dim=axis, keepdim=keepdims)
-        out = torch.where(all_nan, torch.nan, out)
-    elif torch.isnan(x).all():
-        out = torch.tensor(float("nan"), dtype=x.dtype)
-
-    return out
+    return torch.where(
+        torch.isnan(x).all(dim=axis, keepdim=keepdims),
+        torch.tensor(float("nan"), dtype=x.dtype, device=get_device()),
+        out,
+    )
 
 
 def nansum(x, axis=None, keepdims=False):

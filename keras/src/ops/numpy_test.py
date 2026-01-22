@@ -5523,8 +5523,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
-        self.assertTrue(np.isnan(knp.nanmin(x_all_nan)))
-        self.assertTrue(np.isnan(np.nanmin(x_all_nan)))
+        self.assertAllClose(knp.nanmin(x_all_nan), np.nanmin(x_all_nan))
         self.assertAllClose(
             knp.nanmin(x_all_nan, axis=1),
             np.nanmin(x_all_nan, axis=1),
@@ -5543,7 +5542,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_nansum(self):
-        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]])
+        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, np.inf]])
 
         self.assertAllClose(knp.nansum(x), np.nansum(x))
         self.assertAllClose(knp.nansum(x, axis=()), np.nansum(x, axis=()))

@@ -2131,27 +2131,18 @@ def nanmin(x, axis=None, keepdims=False):
     if not x.dtype.is_floating:
         dtype = standardize_dtype(x.dtype)
         if dtype == "bool":
-            return cast(
-                tf.reduce_min(
-                    cast(x, config.floatx()), axis=axis, keepdims=keepdims
-                ),
-                dtype,
-            )
+            return tf.reduce_all(x, axis=axis, keepdims=keepdims)
         return tf.reduce_min(x, axis=axis, keepdims=keepdims)
 
-    inf = tf.constant(float("inf"), dtype=x.dtype)
-    x_clean = tf.where(tf.math.is_nan(x), inf, x)
+    x_clean = tf.where(
+        tf.math.is_nan(x), tf.constant(float("inf"), dtype=x.dtype), x
+    )
 
-    out = tf.reduce_min(x_clean, axis=axis, keepdims=keepdims)
-
-    if axis is not None:
-        all_nan = tf.reduce_all(tf.math.is_nan(x), axis=axis, keepdims=keepdims)
-        out = tf.where(all_nan, tf.constant(float("nan"), dtype=x.dtype), out)
-    else:
-        if tf.reduce_all(tf.math.is_nan(x)):
-            out = tf.constant(float("nan"), dtype=x.dtype)
-
-    return out
+    return tf.where(
+        tf.reduce_all(tf.math.is_nan(x), axis=axis, keepdims=keepdims),
+        tf.constant(float("nan"), dtype=x.dtype),
+        tf.reduce_min(x_clean, axis=axis, keepdims=keepdims),
+    )
 
 
 def nansum(x, axis=None, keepdims=False):
