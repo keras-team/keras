@@ -73,27 +73,34 @@ class TimeDistributed(Wrapper):
     def call(self, inputs, training=None, mask=None):
         # Validate mask shape using static shape info when available
         if mask is not None:
-            mask_static = mask.shape
-            input_static = inputs.shape
-            if (
-                input_static[0] is not None
-                and mask_static[0] is not None
-                and input_static[0] != mask_static[0]
-            ):
+            mask_shape = mask.shape
+            input_shape = inputs.shape
+
+            # Check if mask has at least 2 dimensions
+            if len(mask_shape) < 2:
                 raise ValueError(
                     "`TimeDistributed` Layer should be passed a `mask` of "
-                    f"shape ({input_static[0]}, {input_static[1]}, ...), "
-                    f"received: mask.shape={mask_static}"
+                    f"shape ({input_shape[0]}, {input_shape[1]}, ...), "
+                    f"received: mask.shape={mask_shape}"
                 )
-            if (
-                input_static[1] is not None
-                and mask_static[1] is not None
-                and input_static[1] != mask_static[1]
-            ):
+
+            # Check batch size and timesteps dimensions match
+            batch_mismatch = (
+                input_shape[0] is not None
+                and mask_shape[0] is not None
+                and input_shape[0] != mask_shape[0]
+            )
+            time_mismatch = (
+                input_shape[1] is not None
+                and mask_shape[1] is not None
+                and input_shape[1] != mask_shape[1]
+            )
+
+            if batch_mismatch or time_mismatch:
                 raise ValueError(
                     "`TimeDistributed` Layer should be passed a `mask` of "
-                    f"shape ({input_static[0]}, {input_static[1]}, ...), "
-                    f"received: mask.shape={mask_static}"
+                    f"shape ({input_shape[0]}, {input_shape[1]}, ...), "
+                    f"received: mask.shape={mask_shape}"
                 )
 
         input_shape = ops.shape(inputs)
@@ -126,6 +133,6 @@ class TimeDistributed(Wrapper):
         # Implementation #2: use backend.vectorized_map.
 
         outputs = backend.vectorized_map(
-            step_function, ops.arange(input_shape[0])
+            step_function, ops.arange(input_shape[1])
         )
         return time_distributed_transpose(outputs)
