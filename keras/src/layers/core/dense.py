@@ -292,7 +292,7 @@ class Dense(Layer):
             raise self._quantization_mode_error(mode)
 
         # Kernel plus optional merged LoRA-aware scale/zero (returns
-        # (kernel, None, None) for None/gptq)
+        # (kernel, None, None) for None/gptq/awq)
         kernel_value, merged_kernel_scale, merged_kernel_zero = (
             self._get_kernel_with_merged_lora()
         )

@@ -125,6 +125,20 @@ class Int4QuantizationConfig(QuantizationConfig):
             )
         self.block_size = block_size
 
+        # Sub-channel quantization does not support custom quantizers
+        is_sub_channel = block_size is not None and block_size > 0
+        has_custom_quantizer = (
+            self.weight_quantizer is not None
+            or self.activation_quantizer is not None
+        )
+        if is_sub_channel and has_custom_quantizer:
+            raise ValueError(
+                "Int4 sub-channel quantization (block_size > 0) does not "
+                "support custom quantizers. Either set block_size to None "
+                "or -1 for per-channel quantization, or remove the custom "
+                f"quantizer arguments. Received: block_size={block_size}"
+            )
+
         if self.weight_quantizer is not None:
             if self.weight_quantizer.value_range != (-8, 7):
                 raise ValueError(
