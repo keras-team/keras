@@ -1,6 +1,5 @@
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
-NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
@@ -54,7 +53,6 @@ NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_logaddexp2
-NumpyOneInputOpsCorrectnessTest::test_nanmin
 NumpyOneInputOpsCorrectnessTest::test_nansum
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
