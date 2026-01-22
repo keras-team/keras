@@ -45,8 +45,8 @@ class Regularizer:
     >>> out = layer(tensor)
 
     >>> # The kernel regularization term is 0.25
-    >>> # The activity regularization term (after dividing by the batch size)
-    >>> # is 5
+    >>> # The activity regularization term (after dividing by batch size of 5)
+    >>> # is 5.0
     >>> ops.sum(layer.losses)
     5.25
 
