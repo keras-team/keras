@@ -49,9 +49,11 @@ class ReversibleEmbeddingTest(test_case.TestCase):
                 activation_quantizer=activation_quantizer,
             )
         elif mode == "int4":
+            # Custom quantizers require per-channel mode (block_size=None)
             config = Int4QuantizationConfig(
                 weight_quantizer=weight_quantizer,
                 activation_quantizer=activation_quantizer,
+                block_size=None,
             )
 
         layer.quantize(mode, config=config)

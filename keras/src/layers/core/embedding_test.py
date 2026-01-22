@@ -40,8 +40,11 @@ class EmbeddingTest(test_case.TestCase):
                 weight_quantizer=weight_quantizer, activation_quantizer=None
             )
         elif mode == "int4":
+            # Custom quantizers require per-channel mode (block_size=None)
             config = Int4QuantizationConfig(
-                weight_quantizer=weight_quantizer, activation_quantizer=None
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=None,
+                block_size=None,
             )
 
         layer.quantize(mode, config=config)
