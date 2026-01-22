@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -62,6 +65,9 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
 
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -277,3 +283,11 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
             "seed": self.seed,
         }
         return {**base_config, **config}
+
+
+RandomElasticTransform.__doc__ = RandomElasticTransform.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomElasticTransform"
+    ),
+)
