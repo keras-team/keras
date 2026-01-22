@@ -848,6 +848,9 @@ class EinsumDense(Layer):
                 dtype="float32",
                 trainable=False,
             )
+            self.g_idx.assign(
+                ops.floor_divide(ops.arange(rows, dtype="float32"), block_size)
+            )
 
     def _float8_build(self):
         from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
@@ -1267,13 +1270,6 @@ class EinsumDense(Layer):
                         flat_kernel, block_size=block_size, to_numpy=True
                     )
                 )
-                # g_idx maps each row position to its group index
-                g_idx = ops.cast(
-                    ops.floor_divide(
-                        ops.arange(rows, dtype="int32"), block_size
-                    ),
-                    "float32",
-                )
 
             # Pack two int4 values per int8 byte along last axis
             # Stored as [rows, ceil(columns/2)]
@@ -1288,10 +1284,9 @@ class EinsumDense(Layer):
         if mode in ("int8", "int4"):
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
-            # Assign zero point and g_idx for sub-channel int4 quantization
+            # Assign zero point for sub-channel int4 quantization
             if mode == "int4" and use_grouped:
                 self.kernel_zero.assign(kernel_zero)
-                self.g_idx.assign(g_idx)
 
         # Set new dtype policy
         if self.dtype_policy.quantization_mode is None:

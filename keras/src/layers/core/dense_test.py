@@ -53,9 +53,11 @@ class DenseTest(testing.TestCase):
                 activation_quantizer=activation_quantizer,
             )
         elif mode == "int4":
+            # Custom quantizers require per-channel mode (block_size=None)
             config = Int4QuantizationConfig(
                 weight_quantizer=weight_quantizer,
                 activation_quantizer=activation_quantizer,
+                block_size=None,
             )
 
         layer.quantize(mode, config=config)
@@ -1183,7 +1185,7 @@ class DenseTest(testing.TestCase):
         Test custom quantizer serialization for dense layer with
         int4 quantization.
         """
-        # Setup
+        # Setup - custom quantizers require per-channel mode (block_size=None)
         weight_range = (-8, 7)
         act_range = (-2, 2)
         config = Int4QuantizationConfig(
@@ -1191,6 +1193,7 @@ class DenseTest(testing.TestCase):
             activation_quantizer=AbsMaxQuantizer(
                 axis=-1, value_range=act_range
             ),
+            block_size=None,
         )
 
         # Build & Quantize

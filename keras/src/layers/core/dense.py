@@ -713,6 +713,11 @@ class Dense(Layer):
                 dtype="float32",
                 trainable=False,
             )
+            self.g_idx.assign(
+                ops.floor_divide(
+                    ops.arange(input_dim, dtype="float32"), block_size
+                )
+            )
 
         # Record dimensions for unpacking and reshaping at runtime.
         self._orig_input_dim = input_dim
@@ -1040,8 +1045,6 @@ class Dense(Layer):
             if isinstance(self.quantization_config, Int4QuantizationConfig):
                 block_size = self.quantization_config.block_size
 
-            input_dim = kernel_shape[0]
-
             if block_size is None or block_size == -1:
                 # Per-channel quantization
                 weight_quantizer = (
@@ -1065,13 +1068,6 @@ class Dense(Layer):
                         self._kernel, block_size=block_size, to_numpy=True
                     )
                 )
-                # g_idx maps each input position to its group index
-                g_idx = ops.cast(
-                    ops.floor_divide(
-                        ops.arange(input_dim, dtype="int32"), block_size
-                    ),
-                    "float32",
-                )
 
             # Pack two int4 values per int8 byte along last axis
             # Stored as [in, ceil(out/2)]
@@ -1084,7 +1080,6 @@ class Dense(Layer):
             self.kernel_scale.assign(kernel_scale)
             if block_size is not None and block_size > 0:
                 self.kernel_zero.assign(kernel_zero)
-                self.g_idx.assign(g_idx)
         elif mode == "gptq":
             self.quantized_build(kernel_shape, mode, self.quantization_config)
         elif mode == "awq":
