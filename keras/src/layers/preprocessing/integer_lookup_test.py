@@ -195,7 +195,9 @@ class IntegerLookupTest(testing.TestCase):
         )
         output = layer([1, 2, 3, 999, 1000])
         self.assertAllClose(output[:3], np.array([2, 3, 4]))
-        self.assertTrue(all(o in [0, 1] for o in backend.convert_to_numpy(output[3:])))
+        self.assertTrue(
+            all(o in [0, 1] for o in backend.convert_to_numpy(output[3:]))
+        )
 
     def test_get_vocabulary(self):
         layer = layers.IntegerLookup(output_mode="int")
