@@ -4,7 +4,7 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
     BaseImagePreprocessingLayer,
 )
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
-    base_image_preprocessing_example,
+    base_image_preprocessing_transform_example,
 )
 from keras.src.random import SeedGenerator
 from keras.src.utils import backend_utils
@@ -38,7 +38,7 @@ class RandAugment(BaseImagePreprocessingLayer):
 
     Example:
 
-    {{base_image_preprocessing_example}}
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -275,6 +275,8 @@ class RandAugment(BaseImagePreprocessingLayer):
 
 
 RandAugment.__doc__ = RandAugment.__doc__.replace(
-    "{{base_image_preprocessing_example}}",
-    base_image_preprocessing_example.replace("{LayerName}", "RandAugment"),
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandAugment"
+    ),
 )

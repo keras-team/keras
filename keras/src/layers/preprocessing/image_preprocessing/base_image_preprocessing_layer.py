@@ -419,15 +419,6 @@ output = layer(
 ```
 """
 
-base_image_preprocessing_example = """
-```python
-layer = keras.layers.{LayerName}()
-images = np.random.randint(0, 255, (8, 224, 224, 3), dtype="uint8")
-
-output = layer(images, training=True)
-```
-"""
-
 base_image_preprocessing_color_example = """
 ```python
 layer = keras.layers.{LayerName}(value_range=(0, 255))

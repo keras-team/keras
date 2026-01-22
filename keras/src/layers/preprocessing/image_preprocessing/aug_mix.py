@@ -6,7 +6,7 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
     BaseImagePreprocessingLayer,
 )
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
-    base_image_preprocessing_example,
+    base_image_preprocessing_transform_example,
 )
 from keras.src.random import SeedGenerator
 from keras.src.utils import backend_utils
@@ -77,7 +77,7 @@ class AugMix(BaseImagePreprocessingLayer):
 
     Example:
 
-    {{base_image_preprocessing_example}}
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -336,6 +336,6 @@ class AugMix(BaseImagePreprocessingLayer):
 
 
 AugMix.__doc__ = AugMix.__doc__.replace(
-    "{{base_image_preprocessing_example}}",
-    base_image_preprocessing_example.replace("{LayerName}", "AugMix"),
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example.replace("{LayerName}", "AugMix"),
 )
