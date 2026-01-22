@@ -3,8 +3,6 @@ import zipfile
 
 from absl import logging
 
-from keras.src import backend
-from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
@@ -355,10 +353,8 @@ def _load_model_from_orbax_checkpoint(
     filepath, custom_objects=None, compile=True
 ):
     """Load a model from an Orbax checkpoint directory."""
-    import numpy as np
 
     from keras.src import models
-    from keras.src import optimizers
     from keras.src.utils.module_utils import ocp
 
     # Ensure orbax is available
@@ -399,29 +395,13 @@ def _load_model_from_orbax_checkpoint(
         composite_state["model_config"], custom_objects=custom_objects
     )
 
-    # Build model if needed using first layer's batch_shape
-    if not model.built and model.layers:
-        first_layer = model.layers[0]
-        if hasattr(first_layer, "batch_shape") and first_layer.batch_shape:
-            input_shape = first_layer.batch_shape
-            if input_shape[0] is None:  # Replace None batch with actual shape
-                input_shape = (None,) + input_shape[1:]
-            model.build(input_shape)
-
     # Handle compilation efficiently
     if compile:
         compile_config = composite_state.get("compile_config")
         if compile_config:
             model.compile_from_config(compile_config)
-        elif "optimizer_config" in composite_state:
-            # Fallback for backwards compatibility
-            optimizer = optimizers.deserialize(
-                composite_state["optimizer_config"],
-                custom_objects=custom_objects,
-            )
-            model.compile(optimizer=optimizer)
 
-    # Prepare state tree efficiently
+    # Prepare state tree with only variable keys for set_state_tree
     state_tree = {
         key: composite_state.get(key, {})
         for key in [
@@ -431,53 +411,6 @@ def _load_model_from_orbax_checkpoint(
             "metrics_variables",
         ]
     }
-
-    # Convert to numpy for non-JAX backends
-    if backend.backend() != "jax":
-
-        def convert_to_numpy(obj):
-            if hasattr(obj, "__array__"):
-                return np.asarray(obj)
-            return obj
-
-        state_tree = tree.map_structure(convert_to_numpy, state_tree)
-
-    # Initialize metrics variables if needed (optimization for faster loading)
-    if (
-        state_tree["metrics_variables"]
-        and model.compiled
-        and hasattr(model, "inputs")
-        and model.inputs
-    ):
-        try:
-            # Create minimal dummy data to initialize metrics
-            input_tensor = model.inputs[0]
-            if hasattr(input_tensor, "shape") and input_tensor.shape:
-                input_shape = list(input_tensor.shape)
-                input_shape[0] = 1  # Batch size of 1
-                dummy_input = np.zeros(input_shape, dtype="float32")
-
-                # Determine dummy target shape
-                dummy_target = None
-                if hasattr(model, "output_shape") and model.output_shape:
-                    output_shape = list(model.output_shape)
-                    output_shape[0] = 1
-                    dummy_target = np.zeros(output_shape, dtype="float32")
-                elif model.layers and hasattr(model.layers[-1], "units"):
-                    last_layer = model.layers[-1]
-                    dummy_target = np.zeros(
-                        (1, last_layer.units), dtype="float32"
-                    )
-                else:
-                    # Fallback: use same shape as input
-                    dummy_target = np.zeros_like(dummy_input)
-
-                # Initialize metrics through evaluation
-                model.evaluate(dummy_input, dummy_target, verbose=0)
-
-        except Exception:
-            # Gracefully handle any initialization failures
-            pass
 
     # Apply the loaded state to the model
     model.set_state_tree(state_tree)

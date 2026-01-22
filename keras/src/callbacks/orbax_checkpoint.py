@@ -139,6 +139,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self._current_epoch = 0  # Keep track of epoch
         self._total_batches_seen = 0  # Global batch counter for step tracking
         self._last_saved_state = None  # Store the state that was last saved
+        self._async_futures = []  # Track async save futures
 
         # Multi-host support
         self._multihost_initialized = self._is_multihost_initialized()
@@ -175,14 +176,6 @@ class OrbaxCheckpoint(MonitorCallback):
             directory=directory,
             preservation_policy=preservation_policy,
         )
-
-    def __del__(self):
-        """Destructor to ensure checkpointer cleanup on garbage collection."""
-        try:
-            if hasattr(self, "checkpointer") and self.checkpointer is not None:
-                self.checkpointer.close()
-        except Exception:
-            pass  # Ignore cleanup errors during destruction
 
     def _is_multihost_initialized(self):
         """Check if multi-host environment is initialized."""
@@ -250,7 +243,9 @@ class OrbaxCheckpoint(MonitorCallback):
             return True
         return False
 
-    def _save_checkpoint(self, step, logs=None, force_sync=None):
+    def _save_checkpoint(
+        self, step, logs=None, force_sync=None, overwrite=False
+    ):
         """Save a checkpoint at the given step with multi-host coordination."""
 
         # --- Prepare Composite State (Backend-Agnostic) ---
@@ -261,11 +256,10 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.save_weights_only:
             composite_state = {
                 "trainable_variables": state_tree["trainable_variables"],
-            }
-            if "non_trainable_variables" in state_tree:
-                composite_state["non_trainable_variables"] = state_tree[
+                "non_trainable_variables": state_tree[
                     "non_trainable_variables"
-                ]
+                ],
+            }
         else:
             composite_state = state_tree
             # Include model configuration for full model restoration
@@ -275,33 +269,13 @@ class OrbaxCheckpoint(MonitorCallback):
                 composite_state["compile_config"] = (
                     self.model.get_compile_config()
                 )
-                from keras.src import optimizers
-
-                composite_state["optimizer_config"] = optimizers.serialize(
-                    self.model.optimizer
-                )
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
-            # Create exact state copy for weight matching
-            # For JAX backend, preserve native arrays for performance
-            # For other backends, convert to numpy for exact matching
-            if backend.backend() == "jax":
-                # Use original state for JAX backend to preserve performance
-                state_for_exact_matching = composite_state
-            else:
-                # Convert to numpy for non-JAX backends for exact matching
-                def _convert_to_numpy(obj):
-                    """Convert arrays to numpy format for exact matching."""
-                    if hasattr(obj, "shape"):  # Array-like objects
-                        return np.asarray(obj)
-                    return obj
-
-                # Use tree.map_structure for efficient deep conversion
-                state_for_exact_matching = tree.map_structure(
-                    _convert_to_numpy, composite_state
-                )
+            # Use composite_state directly since _get_state_tree already
+            # handles the appropriate format conversion for each backend
+            state_for_exact_matching = composite_state
 
             # Use force_sync if explicitly specified, otherwise use the
             # save_on_background setting
@@ -313,13 +287,20 @@ class OrbaxCheckpoint(MonitorCallback):
 
             if use_sync:
                 # Synchronous save
-                self.checkpointer.save_pytree(step, composite_state)
+                self.checkpointer.save_pytree(
+                    step, composite_state, overwrite=overwrite
+                )
+                # Safe to store state for sync saves (no buffer donation issues)
+                self._last_saved_state = state_for_exact_matching
             else:
                 # Async save
-                self.checkpointer.save_pytree_async(step, composite_state)
-
-            # Store the exact state that should match what's saved to disk
-            self._last_saved_state = state_for_exact_matching
+                future = self.checkpointer.save_pytree_async(
+                    step, composite_state, overwrite=overwrite
+                )
+                self._async_futures.append(future)
+                # Don't store state for async saves to avoid memory issues
+                # (either doubling HBM usage or invalid buffers from donation)
+                self._last_saved_state = None
 
             # Store the checkpoint path for reference
             self._last_checkpoint_path = os.path.join(self.directory, str(step))
@@ -377,47 +358,19 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        # Set flag to indicate training is ending (for any remaining callbacks)
-        self._training_ending = True
-
         # For exact weight matching, save a final checkpoint that will be
         # loaded. Ensure this checkpoint will be preserved and found.
-        if self.model:
-            try:
-                # Wait for any pending async saves to complete first
-                self.checkpointer.wait()
+        # Wait for any pending async saves to complete first
+        self.checkpointer.wait()
 
-                # Save a final checkpoint with force_sync=True for atomicity
-                # Use a step preserved by the max_to_keep policy
-                final_step = max(getattr(self, "_current_epoch", 0), 999999)
+        # Save a final checkpoint with force_sync=True for atomicity
+        # Use a step preserved by the max_to_keep policy
+        final_step = max(getattr(self, "_current_epoch", 0), 999999)
 
-                self._save_checkpoint(
-                    step=final_step, logs=logs, force_sync=True
-                )
-                self._final_saved_state = self._last_saved_state
-            except Exception as e:
-                print(f"Warning: Could not save final checkpoint: {e}")
-                # Fall back to current saved state
-                if (
-                    hasattr(self, "_last_saved_state")
-                    and self._last_saved_state is not None
-                ):
-                    self._final_saved_state = self._last_saved_state
-                else:
-                    from keras.src.callbacks.orbax_checkpoint import (
-                        _get_state_tree,
-                    )
-
-                    state_tree = _get_state_tree(self.model)
-
-                    if backend.backend() == "jax":
-                        import copy
-
-                        self._final_saved_state = copy.deepcopy(state_tree)
-                    else:
-                        import copy
-
-                        self._final_saved_state = copy.deepcopy(state_tree)
+        self._save_checkpoint(
+            step=final_step, logs=logs, force_sync=True, overwrite=True
+        )
+        self._final_saved_state = self._last_saved_state
 
         # Close the Checkpointer to ensure all pending saves complete
         try:
@@ -433,7 +386,12 @@ class OrbaxCheckpoint(MonitorCallback):
         This method blocks until all asynchronous checkpoint save operations
         have completed across all hosts in a multi-host setup.
         """
-        # Wait for any async operations to complete on this host
+        # Wait for all tracked async futures to complete
+        for future in self._async_futures:
+            future.result()  # Wait for completion
+        self._async_futures.clear()  # Clear completed futures
+
+        # Wait for any remaining async operations to complete on this host
         self.checkpointer.wait()
 
         # Multi-host synchronization: ensure all hosts complete
@@ -491,5 +449,11 @@ class OrbaxCheckpoint(MonitorCallback):
         ):
             return self._extract_weights_from_state(self._final_saved_state)
 
-        # During training, use the last saved state
-        return self._extract_weights_from_state(self._last_saved_state)
+        # During training, use the last saved state if available
+        if self._last_saved_state is not None:
+            return self._extract_weights_from_state(self._last_saved_state)
+
+        # If no saved state (e.g., async saves), get current model state
+        # This may not be exactly what was saved, but is the best approximation
+        current_state = _get_state_tree(self.model)
+        return self._extract_weights_from_state(current_state)
