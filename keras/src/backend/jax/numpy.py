@@ -1013,6 +1013,11 @@ def moveaxis(x, source, destination):
     return jnp.moveaxis(x, source=source, destination=destination)
 
 
+def nanmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanmin(x, axis=axis, keepdims=keepdims)
+
+
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nansum(x, axis=axis, keepdims=keepdims)
