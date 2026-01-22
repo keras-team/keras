@@ -1,8 +1,13 @@
+import os
+
 import numpy as np
+import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import models
+from keras.src import saving
 from keras.src import testing
 
 
@@ -153,3 +158,70 @@ class IntegerLookupTest(testing.TestCase):
         )
         output_data = layer(input_data)
         self.assertEqual(output_data.shape, (2, 4))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires int input dtype"
+    )
+    def test_save_load_tf_idf_adapted(self):
+        """Test saving/loading IntegerLookup with tf-idf and adapted
+        vocabulary.
+        """
+        adapt_data = [1, 1, 1, 2, 2, 3]
+        input_data = np.array([[1, 2, 4]])
+
+        layer = layers.IntegerLookup(
+            output_mode="tf_idf",
+            name="integer_lookup",
+        )
+        layer.adapt(adapt_data)
+
+        model = models.Sequential(
+            [layers.Input(shape=(None,), dtype="int64"), layer]
+        )
+        output_1 = model(input_data)
+
+        temp_dir = self.get_temp_dir()
+        model_path = os.path.join(temp_dir, "model_tf_idf_adapted.keras")
+        model.save(model_path)
+        loaded_model = saving.load_model(model_path)
+        output_2 = loaded_model(input_data)
+        self.assertAllClose(output_1, output_2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires int input dtype"
+    )
+    def test_save_load_tf_idf_preset_vocabulary(self):
+        """Test saving/loading IntegerLookup with tf-idf and preset
+        vocabulary.
+        """
+        vocabulary = [1, 2, 3]
+        idf_weights = [0.5, 0.3, 0.2]
+        input_data = np.array([[1, 2, 4]])
+
+        layer = layers.IntegerLookup(
+            output_mode="tf_idf",
+            vocabulary=vocabulary,
+            idf_weights=idf_weights,
+            name="integer_lookup",
+        )
+
+        model = models.Sequential(
+            [layers.Input(shape=(None,), dtype="int64"), layer]
+        )
+        output_1 = model(input_data)
+
+        temp_dir = self.get_temp_dir()
+        model_path = os.path.join(temp_dir, "model_tf_idf_preset.keras")
+        model.save(model_path)
+        loaded_model = saving.load_model(model_path)
+        output_2 = loaded_model(input_data)
+        self.assertAllClose(output_1, output_2)
+
+    def test_tf_idf_config_serialization(self):
+        """Test that tf-idf config is properly serialized and deserialized."""
+        layer = layers.IntegerLookup(
+            output_mode="tf_idf",
+            vocabulary=[1, 2, 3],
+            idf_weights=[0.5, 0.3, 0.2],
+        )
+        self.run_class_serialization_test(layer)

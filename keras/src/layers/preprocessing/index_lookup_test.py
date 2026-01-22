@@ -616,3 +616,199 @@ class IndexLookupLayerTest(testing.TestCase):
         ):
             input_data = ["sample", "data"]
             layer(input_data)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_saving_tf_idf_adapted_vocabulary(self):
+        """Test saving/loading tf-idf layer with adapted vocabulary."""
+        adapt_data = ["one", "one", "one", "two", "two", "three"]
+        batch_input_data = np.array([["one", "two", "four"]])
+        kwargs = {
+            "max_tokens": 7,
+            "num_oov_indices": 1,
+            "mask_token": "",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+            "output_mode": "tf_idf",
+        }
+        layer = layers.IndexLookup(**kwargs)
+        layer.adapt(adapt_data)
+        original_vocab = layer.get_vocabulary()
+        original_idf_weights = layer.idf_weights.numpy()
+        model = models.Sequential(
+            [
+                layers.Input(shape=(None,), dtype="string"),
+                layer,
+            ]
+        )
+        output_1 = model(batch_input_data)
+        path = os.path.join(self.get_temp_dir(), "model_tf_idf_adapted.keras")
+        model.save(path)
+        loaded_model = saving_api.load_model(path)
+        loaded_layer = loaded_model.layers[0]
+        self.assertEqual(loaded_layer.get_vocabulary(), original_vocab)
+        self.assertAllClose(
+            loaded_layer.idf_weights.numpy(), original_idf_weights
+        )
+        output_2 = loaded_model(batch_input_data)
+        self.assertAllClose(output_1, output_2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_saving_tf_idf_preset_vocabulary(self):
+        """Test saving/loading tf-idf layer with preset vocabulary."""
+        vocabulary = ["one", "two", "three"]
+        idf_weights = [0.5, 0.3, 0.2]
+        batch_input_data = np.array([["one", "two", "four"]])
+        kwargs = {
+            "max_tokens": 7,
+            "num_oov_indices": 1,
+            "mask_token": "",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+            "output_mode": "tf_idf",
+            "vocabulary": vocabulary,
+            "idf_weights": idf_weights,
+        }
+        layer = layers.IndexLookup(**kwargs)
+        original_vocab = layer.get_vocabulary()
+        original_idf_weights = layer.idf_weights.numpy()
+        model = models.Sequential(
+            [
+                layers.Input(shape=(None,), dtype="string"),
+                layer,
+            ]
+        )
+        output_1 = model(batch_input_data)
+        path = os.path.join(self.get_temp_dir(), "model_tf_idf_preset.keras")
+        model.save(path)
+        loaded_model = saving_api.load_model(path)
+        loaded_layer = loaded_model.layers[0]
+        self.assertEqual(loaded_layer.get_vocabulary(), original_vocab)
+        self.assertAllClose(
+            loaded_layer.idf_weights.numpy(), original_idf_weights
+        )
+        output_2 = loaded_model(batch_input_data)
+        self.assertAllClose(output_1, output_2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires int input dtype"
+    )
+    def test_saving_tf_idf_integer_adapted_vocabulary(self):
+        """Test saving/loading tf-idf layer with integer adapted vocabulary."""
+        adapt_data = [1, 1, 1, 2, 2, 3]
+        batch_input_data = np.array([[1, 2, 4]])
+        kwargs = {
+            "max_tokens": 7,
+            "num_oov_indices": 1,
+            "mask_token": 0,
+            "oov_token": -1,
+            "vocabulary_dtype": "int64",
+            "output_mode": "tf_idf",
+        }
+        layer = layers.IndexLookup(**kwargs)
+        layer.adapt(adapt_data)
+        original_vocab = layer.get_vocabulary()
+        original_idf_weights = layer.idf_weights.numpy()
+        model = models.Sequential(
+            [
+                layers.Input(shape=(None,), dtype="int64"),
+                layer,
+            ]
+        )
+        output_1 = model(batch_input_data)
+        path = os.path.join(
+            self.get_temp_dir(), "model_tf_idf_int_adapted.keras"
+        )
+        model.save(path)
+        loaded_model = saving_api.load_model(path)
+        loaded_layer = loaded_model.layers[0]
+        self.assertEqual(loaded_layer.get_vocabulary(), original_vocab)
+        self.assertAllClose(
+            loaded_layer.idf_weights.numpy(), original_idf_weights
+        )
+        output_2 = loaded_model(batch_input_data)
+        self.assertAllClose(output_1, output_2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires int input dtype"
+    )
+    def test_saving_tf_idf_integer_preset_vocabulary(self):
+        """Test saving/loading tf-idf layer with integer preset vocabulary."""
+        vocabulary = [1, 2, 3]
+        idf_weights = [0.5, 0.3, 0.2]
+        batch_input_data = np.array([[1, 2, 4]])
+        kwargs = {
+            "max_tokens": 7,
+            "num_oov_indices": 1,
+            "mask_token": 0,
+            "oov_token": -1,
+            "vocabulary_dtype": "int64",
+            "output_mode": "tf_idf",
+            "vocabulary": vocabulary,
+            "idf_weights": idf_weights,
+        }
+        layer = layers.IndexLookup(**kwargs)
+        original_vocab = layer.get_vocabulary()
+        original_idf_weights = layer.idf_weights.numpy()
+        model = models.Sequential(
+            [
+                layers.Input(shape=(None,), dtype="int64"),
+                layer,
+            ]
+        )
+        output_1 = model(batch_input_data)
+        path = os.path.join(
+            self.get_temp_dir(), "model_tf_idf_int_preset.keras"
+        )
+        model.save(path)
+        loaded_model = saving_api.load_model(path)
+        loaded_layer = loaded_model.layers[0]
+        self.assertEqual(loaded_layer.get_vocabulary(), original_vocab)
+        self.assertAllClose(
+            loaded_layer.idf_weights.numpy(), original_idf_weights
+        )
+        output_2 = loaded_model(batch_input_data)
+        self.assertAllClose(output_1, output_2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_saving_tf_idf_with_pad_to_max_tokens(self):
+        """Test saving/loading tf-idf layer with pad_to_max_tokens=True."""
+        adapt_data = ["one", "one", "one", "two", "two", "three"]
+        batch_input_data = np.array([["one", "two", "four"]])
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 1,
+            "mask_token": "",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+            "output_mode": "tf_idf",
+            "pad_to_max_tokens": True,
+        }
+        layer = layers.IndexLookup(**kwargs)
+        layer.adapt(adapt_data)
+        original_vocab = layer.get_vocabulary()
+        original_idf_weights = layer.idf_weights.numpy()
+        model = models.Sequential(
+            [
+                layers.Input(shape=(None,), dtype="string"),
+                layer,
+            ]
+        )
+        output_1 = model(batch_input_data)
+        self.assertEqual(output_1.shape[-1], 10)
+        path = os.path.join(self.get_temp_dir(), "model_tf_idf_padded.keras")
+        model.save(path)
+        loaded_model = saving_api.load_model(path)
+        loaded_layer = loaded_model.layers[0]
+        self.assertEqual(loaded_layer.get_vocabulary(), original_vocab)
+        self.assertAllClose(
+            loaded_layer.idf_weights.numpy(), original_idf_weights
+        )
+        output_2 = loaded_model(batch_input_data)
+        self.assertAllClose(output_1, output_2)
+        self.assertEqual(output_2.shape[-1], 10)

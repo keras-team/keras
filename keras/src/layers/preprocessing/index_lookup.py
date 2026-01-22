@@ -249,6 +249,19 @@ class IndexLookup(Layer):
                     trainable=False,
                 )
                 self.idf_weights_const = self.idf_weights.value()
+            else:
+                # Initialize placeholder idf_weights for deserialization.
+                # When loading a model, load_own_variables() is called before
+                # load_assets(), and it expects idf_weights to exist.
+                # Use dynamic shape (None) to allow assign() to work with
+                # different shapes when loading weights.
+                self.idf_weights = tf.Variable(
+                    [0.0],
+                    dtype=backend.floatx(),
+                    trainable=False,
+                    shape=tf.TensorShape(None),
+                )
+                self.idf_weights_const = self.idf_weights.value()
 
         if vocabulary is not None:
             self.set_vocabulary(vocabulary, idf_weights)
@@ -851,7 +864,14 @@ class IndexLookup(Layer):
             else:
                 values = [int(line) for line in lines]
             if self.output_mode == "tf_idf":
-                self.set_vocabulary(values, idf_weights=False)
+                # idf_weights were already loaded via load_own_variables(),
+                # which is called before load_assets(). Extract the weights
+                # for just the vocabulary tokens (excluding any padding).
+                # The vocabulary includes special tokens, so we use the full
+                # length of the vocabulary.
+                vocab_size = len(values)
+                idf_weights = self.idf_weights.numpy()[:vocab_size]
+                self.set_vocabulary(values, idf_weights=idf_weights)
             else:
                 self.set_vocabulary(values)
 

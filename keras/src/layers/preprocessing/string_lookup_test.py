@@ -157,3 +157,62 @@ class StringLookupTest(testing.TestCase):
         self.assertIsInstance(output_string, list)
         expected_string = ["a", "b", "[OOV]"]
         self.assertEqual(output_string, expected_string)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_tf_idf_adapted(self):
+        """Test saving/loading StringLookup with tf-idf and adapted
+        vocabulary.
+        """
+        layer = layers.StringLookup(output_mode="tf_idf", name="string_lookup")
+        layer.adapt(["a", "a", "a", "b", "b", "c"])
+        input_data = np.array([["b", "c", "d"]])
+
+        model = models.Sequential(
+            [layers.Input(shape=(None,), dtype="string"), layer]
+        )
+        output_1 = model(input_data)
+
+        temp_dir = self.get_temp_dir()
+        model_path = os.path.join(temp_dir, "model_tf_idf_adapted.keras")
+        model.save(model_path)
+        loaded_model = saving.load_model(model_path)
+        output_2 = loaded_model(input_data)
+        self.assertAllClose(output_1, output_2)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_tf_idf_preset_vocabulary(self):
+        """Test saving/loading StringLookup with tf-idf and preset
+        vocabulary.
+        """
+        layer = layers.StringLookup(
+            output_mode="tf_idf",
+            vocabulary=["a", "b", "c"],
+            idf_weights=[0.5, 0.3, 0.2],
+            name="string_lookup",
+        )
+        input_data = np.array([["b", "c", "d"]])
+
+        model = models.Sequential(
+            [layers.Input(shape=(None,), dtype="string"), layer]
+        )
+        output_1 = model(input_data)
+
+        temp_dir = self.get_temp_dir()
+        model_path = os.path.join(temp_dir, "model_tf_idf_preset.keras")
+        model.save(model_path)
+        loaded_model = saving.load_model(model_path)
+        output_2 = loaded_model(input_data)
+        self.assertAllClose(output_1, output_2)
+
+    def test_tf_idf_config_serialization(self):
+        """Test that tf-idf config is properly serialized and deserialized."""
+        layer = layers.StringLookup(
+            output_mode="tf_idf",
+            vocabulary=["a", "b", "c"],
+            idf_weights=[0.5, 0.3, 0.2],
+        )
+        self.run_class_serialization_test(layer)
