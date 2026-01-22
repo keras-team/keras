@@ -76,12 +76,12 @@ class TimeDistributed(Wrapper):
             mask_shape = mask.shape
             input_shape = inputs.shape
 
-            # Check if mask has at least 2 dimensions
+            # Check if mask has at least 2 dimensions (batch and timesteps)
             if len(mask_shape) < 2:
                 raise ValueError(
-                    "`TimeDistributed` Layer should be passed a `mask` of "
-                    f"shape ({input_shape[0]}, {input_shape[1]}, ...), "
-                    f"received: mask.shape={mask_shape}"
+                    "The `mask` passed to the `TimeDistributed` layer must be "
+                    "at least 2D (e.g., `(batch_size, timesteps)`), but it has "
+                    f"{len(mask_shape)} dimension(s) with shape {mask_shape}."
                 )
 
             # Check batch size and timesteps dimensions match
@@ -98,9 +98,12 @@ class TimeDistributed(Wrapper):
 
             if batch_mismatch or time_mismatch:
                 raise ValueError(
-                    "`TimeDistributed` Layer should be passed a `mask` of "
-                    f"shape ({input_shape[0]}, {input_shape[1]}, ...), "
-                    f"received: mask.shape={mask_shape}"
+                    "The `mask` passed to the `TimeDistributed` layer has a "
+                    f"shape {mask_shape} that is incompatible with the input "
+                    f"shape {input_shape}. The first two dimensions of the "
+                    "mask (batch size and timesteps) must match the input's "
+                    "first two dimensions. Expected mask shape prefix: "
+                    f"({input_shape[0]}, {input_shape[1]})."
                 )
 
         input_shape = ops.shape(inputs)
@@ -133,6 +136,6 @@ class TimeDistributed(Wrapper):
         # Implementation #2: use backend.vectorized_map.
 
         outputs = backend.vectorized_map(
-            step_function, ops.arange(input_shape[1])
+            step_function, ops.arange(input_shape[0])
         )
         return time_distributed_transpose(outputs)

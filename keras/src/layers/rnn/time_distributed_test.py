@@ -121,7 +121,7 @@ class TimeDistributedTest(testing.TestCase):
         mask_timemismatch = np.ones((batch, timesteps + 1), dtype=bool)
         with self.assertRaisesRegex(
             ValueError,
-            r"`TimeDistributed` Layer should be passed a `mask` of shape.*",
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
         ):
             td(inputs, mask=mask_timemismatch)
 
@@ -142,7 +142,7 @@ class TimeDistributedTest(testing.TestCase):
         mask_batchmismatch = np.ones((batch + 1, timesteps), dtype=bool)
         with self.assertRaisesRegex(
             ValueError,
-            r"`TimeDistributed` Layer should be passed a `mask` of shape.*",
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
         ):
             td(inputs, mask=mask_batchmismatch)
 
@@ -188,7 +188,7 @@ class TimeDistributedTest(testing.TestCase):
         mask_3d_mismatch = np.ones((batch, timesteps + 1, 2), dtype=bool)
         with self.assertRaisesRegex(
             ValueError,
-            r"`TimeDistributed` Layer should be passed a `mask` of shape.*",
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
         ):
             td(inputs, mask=mask_3d_mismatch)
 
@@ -227,6 +227,6 @@ class TimeDistributedTest(testing.TestCase):
         mask_both_mismatch = np.ones((batch + 1, timesteps + 1), dtype=bool)
         with self.assertRaisesRegex(
             ValueError,
-            r"`TimeDistributed` Layer should be passed a `mask` of shape.*",
+            r"The `mask` passed to the `TimeDistributed` layer has a shape.*",
         ):
             td(inputs, mask=mask_both_mismatch)
