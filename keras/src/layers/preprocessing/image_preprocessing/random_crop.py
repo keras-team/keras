@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     convert_format,
 )
@@ -47,6 +50,10 @@ class RandomCrop(BaseImagePreprocessingLayer):
         seed: Integer. Used to create a random seed.
         **kwargs: Base layer keyword arguments, such as
             `name` and `dtype`.
+
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     def __init__(
@@ -274,3 +281,11 @@ class RandomCrop(BaseImagePreprocessingLayer):
             }
         )
         return config
+
+
+RandomCrop.__doc__ = RandomCrop.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomCrop"
+    ),
+)

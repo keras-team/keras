@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.random import SeedGenerator
 from keras.src.utils import backend_utils
 
@@ -32,6 +35,10 @@ class RandAugment(BaseImagePreprocessingLayer):
         interpolation: The interpolation method to use for resizing operations.
             Options include `nearest`, `bilinear`. Default is `bilinear`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -265,3 +272,11 @@ class RandAugment(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandAugment.__doc__ = RandAugment.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandAugment"
+    ),
+)

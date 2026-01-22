@@ -2107,6 +2107,10 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nanmin(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nanmin` is not supported with openvino backend")
+
+
 def nansum(x, axis=None, keepdims=False):
     raise NotImplementedError("`nansum` is not supported with openvino backend")
 

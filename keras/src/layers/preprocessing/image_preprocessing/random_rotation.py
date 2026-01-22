@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
     converters,
 )
@@ -75,6 +78,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
+
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
@@ -247,3 +254,11 @@ class RandomRotation(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandomRotation.__doc__ = RandomRotation.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomRotation"
+    ),
+)
