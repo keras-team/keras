@@ -71,82 +71,32 @@ class TimeDistributed(Wrapper):
         super().build(child_input_shape)
 
     def call(self, inputs, training=None, mask=None):
+        # Validate mask shape using static shape info when available
+        if mask is not None:
+            mask_static = mask.shape
+            input_static = inputs.shape
+            if (
+                input_static[0] is not None
+                and mask_static[0] is not None
+                and input_static[0] != mask_static[0]
+            ):
+                raise ValueError(
+                    "`TimeDistributed` Layer should be passed a `mask` of "
+                    f"shape ({input_static[0]}, {input_static[1]}, ...), "
+                    f"received: mask.shape={mask_static}"
+                )
+            if (
+                input_static[1] is not None
+                and mask_static[1] is not None
+                and input_static[1] != mask_static[1]
+            ):
+                raise ValueError(
+                    "`TimeDistributed` Layer should be passed a `mask` of "
+                    f"shape ({input_static[0]}, {input_static[1]}, ...), "
+                    f"received: mask.shape={mask_static}"
+                )
+
         input_shape = ops.shape(inputs)
-        mask_shape = None if mask is None else ops.shape(mask)
-        batch_size = input_shape[0]
-        timesteps = input_shape[1]
-
-        # Validate mask shape
-        if mask_shape is not None:
-            # For TF backend with graph mode and `partial_batch_size`, skip
-            # evaluation of `batch_size` as it can be a `strided_slice` and
-            # not a constant. In eager mode or non-TF backends, check both dims.
-            if backend.backend() == "tensorflow":
-                from keras.src.utils.module_utils import tensorflow as tf
-
-                if tf.executing_eagerly():
-                    # In eager mode, validate using static shapes to avoid
-                    # tracing issues on JAX/TPU
-                    mask_static = mask.shape
-                    input_static = inputs.shape
-                    if (
-                        input_static[0] is not None
-                        and mask_static[0] is not None
-                        and input_static[0] != mask_static[0]
-                    ):
-                        raise ValueError(
-                            "`TimeDistributed` Layer should be passed a "
-                            f"`mask` of shape ({input_static[0]}, "
-                            f"{input_static[1]}, ...), received: "
-                            f"mask.shape={mask_static}"
-                        )
-                    if (
-                        input_static[1] is not None
-                        and mask_static[1] is not None
-                        and input_static[1] != mask_static[1]
-                    ):
-                        raise ValueError(
-                            "`TimeDistributed` Layer should be passed a "
-                            f"`mask` of shape ({input_static[0]}, "
-                            f"{input_static[1]}, ...), received: "
-                            f"mask.shape={mask_static}"
-                        )
-                else:
-                    # In graph mode, only check time dimension
-                    is_valid_mask = mask_shape[1:2] == (timesteps,)
-                    if not is_valid_mask:
-                        raise ValueError(
-                            "`TimeDistributed` Layer should be passed a "
-                            f"`mask` of shape ({batch_size}, {timesteps}, "
-                            f"...), received: mask.shape={mask_shape}"
-                        )
-            else:
-                # For non-TensorFlow backends, validate using static shapes
-                # to avoid tracing issues with JAX on TPU
-                mask_static = mask.shape
-                input_static = inputs.shape
-                if (
-                    input_static[0] is not None
-                    and mask_static[0] is not None
-                    and input_static[0] != mask_static[0]
-                ):
-                    raise ValueError(
-                        "`TimeDistributed` Layer should be passed a "
-                        f"`mask` of shape ({input_static[0]}, "
-                        f"{input_static[1]}, ...), received: "
-                        f"mask.shape={mask_static}"
-                    )
-                if (
-                    input_static[1] is not None
-                    and mask_static[1] is not None
-                    and input_static[1] != mask_static[1]
-                ):
-                    raise ValueError(
-                        "`TimeDistributed` Layer should be passed a "
-                        f"`mask` of shape ({input_static[0]}, "
-                        f"{input_static[1]}, ...), received: "
-                        f"mask.shape={mask_static}"
-                    )
 
         def time_distributed_transpose(data):
             """Swaps the timestep and batch dimensions of a tensor."""
@@ -175,5 +125,7 @@ class TimeDistributed(Wrapper):
 
         # Implementation #2: use backend.vectorized_map.
 
-        outputs = backend.vectorized_map(step_function, ops.arange(timesteps))
+        outputs = backend.vectorized_map(
+            step_function, ops.arange(input_shape[0])
+        )
         return time_distributed_transpose(outputs)
