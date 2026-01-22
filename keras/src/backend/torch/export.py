@@ -36,15 +36,31 @@ class TorchExportArchive:
             )
 
         sample_inputs = tree.map_structure(
-            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+            lambda x: convert_spec_to_tensor(x, replace_none_number=2),
             input_signature,
         )
         sample_inputs = tuple(sample_inputs)
 
+        # Build dynamic_shapes from input_signature where shape has None
+        # Use a shared "batch" dim for dimension 0 across all inputs
+        batch_dim = torch.export.Dim("batch", min=1)
+        dynamic_shapes = []
+        for spec in input_signature:
+            dim_spec = {}
+            for dim_idx, dim_val in enumerate(spec.shape):
+                if dim_val is None:
+                    if dim_idx == 0:
+                        dim_spec[dim_idx] = batch_dim
+                    else:
+                        dim_spec[dim_idx] = torch.export.Dim(
+                            f"dim_{len(dynamic_shapes)}_{dim_idx}", min=1
+                        )
+            dynamic_shapes.append(dim_spec if dim_spec else None)
+        dynamic_shapes = tuple(dynamic_shapes) if any(dynamic_shapes) else None
+
         # Ref: torch_xla.tf_saved_model_integration
-        # TODO: Utilize `dynamic_shapes`
         exported = torch.export.export(
-            resource, sample_inputs, dynamic_shapes=None, strict=False
+            resource, sample_inputs, dynamic_shapes=dynamic_shapes, strict=False
         )
         options = torch_xla.stablehlo.StableHLOExportOptions(
             override_tracing_arguments=sample_inputs
