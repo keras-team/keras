@@ -1522,7 +1522,25 @@ def lcm(x1, x2):
 
 
 def ldexp(x1, x2):
-    raise NotImplementedError("`ldexp` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "ldexp()")
+
+    float_dtype = OPENVINO_DTYPES[config.floatx()]
+    if x1.get_element_type().is_integral():
+        x1 = ov_opset.convert(x1, float_dtype)
+    if x2.get_element_type().is_integral():
+        x2 = ov_opset.convert(x2, float_dtype)
+
+    const_two = ov_opset.constant(2, x2.get_element_type())
+    result = ov_opset.multiply(x1, ov_opset.power(const_two, x2))
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def less(x1, x2):
@@ -3188,7 +3206,20 @@ def correlate(x1, x2, mode="valid"):
 
 
 def select(condlist, choicelist, default=0):
-    raise NotImplementedError("`select` is not supported with openvino backend")
+    if len(condlist) != len(choicelist):
+        raise ValueError(
+            "select(): condlist and choicelist must have the same length"
+        )
+    conds = [get_ov_output(c) for c in condlist]
+    choices = [get_ov_output(v) for v in choicelist]
+
+    result = get_ov_output(default)
+    for cond_idx in reversed(range(len(conds))):
+        cond = conds[cond_idx]
+        choice = choices[cond_idx]
+        choice, result = _align_operand_types(choice, result, "select()")
+        result = ov_opset.select(cond, choice, result).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def slogdet(x):
