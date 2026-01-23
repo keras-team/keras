@@ -138,7 +138,6 @@ class OrbaxCheckpoint(MonitorCallback):
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
         self._total_batches_seen = 0  # Global batch counter for step tracking
-        self._last_saved_state = None  # Store the state that was last saved
         self._async_futures = []  # Track async save futures
 
         # Multi-host support
@@ -172,9 +171,14 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Create the V1 Checkpointer with direct parameter passing
         # Orbax will handle directory creation on all processes as needed
+        # save_decision_policy is required for proper coordination of
+        # rapid async saves
         self.checkpointer = ocp.training.Checkpointer(
             directory=directory,
             preservation_policy=preservation_policy,
+            save_decision_policy=ocp.training.save_decision_policies.FixedIntervalPolicy(
+                1
+            ),
         )
 
     def _is_multihost_initialized(self):
@@ -273,10 +277,6 @@ class OrbaxCheckpoint(MonitorCallback):
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
-            # Use composite_state directly since _get_state_tree already
-            # handles the appropriate format conversion for each backend
-            state_for_exact_matching = composite_state
-
             # Use force_sync if explicitly specified, otherwise use the
             # save_on_background setting
             use_sync = (
@@ -290,17 +290,12 @@ class OrbaxCheckpoint(MonitorCallback):
                 self.checkpointer.save_pytree(
                     step, composite_state, overwrite=overwrite
                 )
-                # Safe to store state for sync saves (no buffer donation issues)
-                self._last_saved_state = state_for_exact_matching
             else:
                 # Async save
                 future = self.checkpointer.save_pytree_async(
                     step, composite_state, overwrite=overwrite
                 )
                 self._async_futures.append(future)
-                # Don't store state for async saves to avoid memory issues
-                # (either doubling HBM usage or invalid buffers from donation)
-                self._last_saved_state = None
 
             # Store the checkpoint path for reference
             self._last_checkpoint_path = os.path.join(self.directory, str(step))
@@ -358,21 +353,10 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        # For exact weight matching, save a final checkpoint that will be
-        # loaded. Ensure this checkpoint will be preserved and found.
-        # Wait for any pending async saves to complete first
-        self.checkpointer.wait()
+        # Wait for any pending async saves to complete
+        self.wait_until_finished()
 
-        # Save a final checkpoint with force_sync=True for atomicity
-        # Use a step preserved by the max_to_keep policy
-        final_step = max(getattr(self, "_current_epoch", 0), 999999)
-
-        self._save_checkpoint(
-            step=final_step, logs=logs, force_sync=True, overwrite=True
-        )
-        self._final_saved_state = self._last_saved_state
-
-        # Close the Checkpointer to ensure all pending saves complete
+        # Close the Checkpointer to ensure cleanup
         try:
             self.checkpointer.close()
         except Exception:
@@ -396,64 +380,3 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Multi-host synchronization: ensure all hosts complete
         self._sync_processes("checkpoint_wait_complete")
-
-    def _extract_weights_from_state(self, state):
-        """Extract weights from saved state in model.get_weights() order."""
-        if state is None:
-            return None
-
-        weights = []
-
-        # Collect trainable weights first (in model layer order)
-        if "trainable_variables" in state:
-            trainable_vars = state["trainable_variables"]
-            for layer in self.model.layers:
-                layer_name = layer.name
-                if layer_name in trainable_vars:
-                    layer_vars = trainable_vars[layer_name]
-                    for weight in layer.trainable_weights:
-                        weight_name = weight.name.split("/")[-1]
-                        if weight_name in layer_vars:
-                            weights.append(layer_vars[weight_name])
-
-        # Then collect non-trainable weights (in model layer order)
-        if "non_trainable_variables" in state:
-            non_trainable_vars = state["non_trainable_variables"]
-            for layer in self.model.layers:
-                layer_name = layer.name
-                if layer_name in non_trainable_vars:
-                    layer_vars = non_trainable_vars[layer_name]
-                    for weight in layer.non_trainable_weights:
-                        weight_name = weight.name.split("/")[-1]
-                        if weight_name in layer_vars:
-                            weights.append(layer_vars[weight_name])
-
-        return weights
-
-    def get_last_saved_weights(self):
-        """Get the weights that were saved in the last checkpoint.
-
-        Returns the exact weights that match what will be loaded from the
-        checkpoint. After training ends, this returns the final checkpoint
-        weights that provide exact weight matching for testing.
-
-        Returns:
-            List of weight arrays that were saved in the last checkpoint,
-            or None if no checkpoint has been saved yet.
-            The order matches model.get_weights().
-        """
-        # If training has ended, use the final saved state for exact matching
-        if (
-            hasattr(self, "_final_saved_state")
-            and self._final_saved_state is not None
-        ):
-            return self._extract_weights_from_state(self._final_saved_state)
-
-        # During training, use the last saved state if available
-        if self._last_saved_state is not None:
-            return self._extract_weights_from_state(self._last_saved_state)
-
-        # If no saved state (e.g., async saves), get current model state
-        # This may not be exactly what was saved, but is the best approximation
-        current_state = _get_state_tree(self.model)
-        return self._extract_weights_from_state(current_state)

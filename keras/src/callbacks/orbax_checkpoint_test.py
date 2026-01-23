@@ -711,7 +711,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         callback.wait_until_finished()
 
         # Verify exact weight matching functionality
-        final_saved_weights = callback.get_last_saved_weights()
+        final_saved_weights = model.get_weights()
         self.assertIsNotNone(final_saved_weights, "Should have saved weights")
 
         # Load and verify complete model restoration
@@ -783,7 +783,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=1, verbose=0, callbacks=[sync_callback])
         sync_callback.wait_until_finished()
 
-        sync_saved_weights = sync_callback.get_last_saved_weights()
+        sync_saved_weights = model.get_weights()
         sync_loaded_model = saving.load_model(sync_dir)
         sync_loaded_weights = sync_loaded_model.get_weights()
 
@@ -804,7 +804,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=1, verbose=0, callbacks=[async_callback])
         async_callback.wait_until_finished()
 
-        async_saved_weights = async_callback.get_last_saved_weights()
+        async_saved_weights = model.get_weights()
         async_loaded_model = saving.load_model(async_dir)
         async_loaded_weights = async_loaded_model.get_weights()
 
