@@ -5094,7 +5094,8 @@ def nanmax(x, axis=None, keepdims=False):
         axis: Axis or axes along which the maximum is computed.
             The default is to compute the maximum of the flattened tensor.
         keepdims: If this is set to `True`, the axes which are reduced are left
-            in the result as dimensions with size one.
+            in the result as dimensions with size one. Defaults
+            to `False`.
 
     Returns:
         Output tensor containing the maximum, with NaN values ignored. If all
