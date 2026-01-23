@@ -13,4 +13,3 @@ torch
 jax[cpu]
 
 -r requirements-common.txt
-psutil
