@@ -5064,6 +5064,63 @@ def moveaxis(x, source, destination):
     return backend.numpy.moveaxis(x, source=source, destination=destination)
 
 
+class Nanmax(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanmax(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanmax", "keras.ops.numpy.nanmax"])
+def nanmax(x, axis=None, keepdims=False):
+    """Maximum of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the maximum is computed.
+            The default is to compute the maximum of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults
+            to `False`.
+
+    Returns:
+        Output tensor containing the maximum, with NaN values ignored. If all
+        values along a reduced axis are NaN, the result is NaN.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanmax(x)
+    3.0
+
+    >>> ops.nanmax(x, axis=1)
+    array([3., 2.])
+
+    >>> ops.nanmax(x, axis=1, keepdims=True)
+    array([[3.],
+           [2.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanmax(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanmax(x, axis=axis, keepdims=keepdims)
+
+
 class Nanmin(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
