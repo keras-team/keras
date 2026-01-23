@@ -277,7 +277,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     [0, 1, 3, 6, 10]
 
     >>> sum_fn = lambda x, y: [x[0] + y[0], x[1] + y[1], x[2] + y[2]]
-    >>> xs = [keras.ops.array([[1, 2]]) for _ in range(3)]
+    >>> xs = [keras.ops.array([1, 2]) for _ in range(3)]
     >>> ys = keras.ops.associative_scan(sum_fn, xs, axis=0)
     >>> ys
     [[1, 3], [1, 3], [1, 3]]
