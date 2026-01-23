@@ -1,9 +1,7 @@
 import builtins
 import contextlib
 import functools
-import importlib.util
 import os
-import warnings
 
 import ml_dtypes
 import numpy as np
@@ -30,30 +28,16 @@ IS_THREAD_SAFE = True
 # are not currently implemented for the MPS device.
 # check https://github.com/pytorch/pytorch/issues/77764.
 if "KERAS_TORCH_DEVICE" in os.environ:
-    device = os.environ["KERAS_TORCH_DEVICE"]
-
-    # Guard DirectML usage
-    if device.startswith("privateuseone"):
-        if importlib.util.find_spec("torch_directml") is None:
-            raise ImportError(
-                "KERAS_TORCH_DEVICE is set to a DirectML device "
-                f"({device}), but torch-directml is not available. "
-                "Please install torch-directml and ensure it can be imported."
-            )
-
-    DEFAULT_DEVICE = device
+    DEFAULT_DEVICE = os.environ["KERAS_TORCH_DEVICE"]
+elif torch.backends.mps.is_available():
+    DEFAULT_DEVICE = "mps"
+elif torch.cuda.is_available():
+    DEFAULT_DEVICE = "cuda"
+elif hasattr(torch, "xpu") and torch.xpu.is_available():
+    DEFAULT_DEVICE = "xpu"
 else:
-    if torch.cuda.is_available():
-        DEFAULT_DEVICE = "cuda"
-    else:
-        DEFAULT_DEVICE = "cpu"
+    DEFAULT_DEVICE = "cpu"
 
-
-if DEFAULT_DEVICE.startswith("privateuseone"):
-    warnings.warn(
-        "Using PyTorch DirectML device. "
-        "Some operations may fall back to CPU due to limited backend support."
-    )
 TORCH_DTYPES = {
     "float16": torch.float16,
     "float32": torch.float32,
