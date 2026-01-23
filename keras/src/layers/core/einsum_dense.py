@@ -1038,9 +1038,20 @@ class EinsumDense(Layer):
                     inputs_scale = self._adjust_scale_for_quant(
                         inputs_scale, "input"
                     )
-                    x = ops.einsum(self.equation, inputs_q, float_kernel)
-                    x = ops.cast(x, self.compute_dtype)
-                    x = ops.divide(x, inputs_scale)
+                    # Cast inputs to float for einsum. This is a workaround
+                    # for PyTorch's einsum which doesn't support
+                    # mixed-precision inputs (int8 input, float kernel).
+                    if backend.backend() == "torch":
+                        x = ops.einsum(
+                            self.equation,
+                            ops.cast(inputs_q, self.compute_dtype),
+                            float_kernel,
+                        )
+                        x = ops.divide(x, inputs_scale)
+                    else:
+                        x = ops.einsum(self.equation, inputs_q, float_kernel)
+                        x = ops.cast(x, self.compute_dtype)
+                        x = ops.divide(x, inputs_scale)
                 else:
                     # Weight-only per-channel quantization
                     float_kernel = _dequantize_kernel(
