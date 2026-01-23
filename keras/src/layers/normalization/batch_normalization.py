@@ -72,6 +72,21 @@ class BatchNormalization(Layer):
             variance) for the layer across all devices at each training step
             in a distributed training strategy.
             If `False`, each replica uses its own local batch statistics.
+        renorm: Whether to use
+            [Batch Renormalization](https://arxiv.org/abs/1702.03275). This
+            adds extra variables during training. The inference is the same
+            for either value of this parameter.
+        renorm_clipping: A dictionary that may map keys `"rmax"`, `"rmin"`,
+            `"dmax"` to scalar `Tensors` used to clip the renorm correction.
+            The correction `(r, d)` is used as
+            `corrected_value = normalized_value * r + d`, with `r` clipped to
+            `[rmin, rmax]`, and `d` to `[-dmax, dmax]`. Missing `rmax`, `rmin`,
+            `dmax` are set to `inf`, `0`, `inf`, respectively.
+        renorm_momentum: Momentum used to update the moving means and standard
+            deviations with renorm. Unlike `momentum`, this affects training
+            and should be neither too small (which would add noise) nor too
+            large (which would give stale estimates). Note that `momentum` is
+            still applied to get the means and variances for inference.
         **kwargs: Base layer keyword arguments (e.g. `name` and `dtype`).
 
     Call arguments:
@@ -136,6 +151,9 @@ class BatchNormalization(Layer):
         gamma_regularizer=None,
         beta_constraint=None,
         gamma_constraint=None,
+        renorm=False,
+        renorm_clipping=None,
+        renorm_momentum=0.99,
         synchronized=False,
         **kwargs,
     ):
@@ -164,6 +182,18 @@ class BatchNormalization(Layer):
         self.beta_constraint = constraints.get(beta_constraint)
         self.gamma_constraint = constraints.get(gamma_constraint)
         self.supports_masking = True
+
+        self.renorm = renorm
+        if renorm:
+            renorm_clipping = renorm_clipping or {}
+            keys = ["rmax", "rmin", "dmax"]
+            if set(renorm_clipping) - set(keys):
+                raise ValueError(
+                    "Received invalid keys for `renorm_clipping` argument: "
+                    f"{renorm_clipping}. Supported values: {keys}."
+                )
+        self.renorm_clipping = renorm_clipping
+        self.renorm_momentum = renorm_momentum
 
         self.gamma = None
         self.beta = None
@@ -208,6 +238,41 @@ class BatchNormalization(Layer):
             autocast=False,
         )
 
+        if self.renorm:
+            # In batch renormalization we track the inference moving stddev
+            # instead of the moving variance to more closely align with the
+            # paper. The stddev is initialized as sqrt of the variance
+            # initializer.
+            def moving_stddev_initializer(shape, dtype=None):
+                return ops.sqrt(
+                    self.moving_variance_initializer(shape, dtype=dtype)
+                )
+
+            self.moving_stddev = self.add_weight(
+                shape=shape,
+                name="moving_stddev",
+                initializer=moving_stddev_initializer,
+                trainable=False,
+                autocast=False,
+            )
+            # Create variables to maintain the moving mean and standard
+            # deviation. These are used in training and thus are different
+            # from the moving averages above.
+            self.renorm_mean = self.add_weight(
+                shape=shape,
+                name="renorm_mean",
+                initializer=self.moving_mean_initializer,
+                trainable=False,
+                autocast=False,
+            )
+            self.renorm_stddev = self.add_weight(
+                shape=shape,
+                name="renorm_stddev",
+                initializer=moving_stddev_initializer,
+                trainable=False,
+                autocast=False,
+            )
+
         self.input_spec = InputSpec(
             ndim=len(input_shape), axes={self.axis: input_shape[self.axis]}
         )
@@ -250,20 +315,6 @@ class BatchNormalization(Layer):
         moving_mean = ops.cast(self.moving_mean, inputs.dtype)
         moving_variance = ops.cast(self.moving_variance, inputs.dtype)
 
-        if training and self.trainable:
-            mean, variance = self._moments(inputs, mask)
-
-            self.moving_mean.assign(
-                moving_mean * self.momentum + mean * (1.0 - self.momentum)
-            )
-            self.moving_variance.assign(
-                moving_variance * self.momentum
-                + variance * (1.0 - self.momentum)
-            )
-        else:
-            mean = moving_mean
-            variance = moving_variance
-
         if self.scale:
             gamma = ops.cast(self.gamma, inputs.dtype)
         else:
@@ -273,6 +324,42 @@ class BatchNormalization(Layer):
             beta = ops.cast(self.beta, inputs.dtype)
         else:
             beta = None
+
+        if training and self.trainable:
+            mean, variance = self._moments(inputs, mask)
+
+            if self.renorm:
+                # Compute renorm corrections (r and d).
+                (
+                    r,
+                    d,
+                    mean,
+                    variance,
+                ) = self._renorm_correction_and_moments(mean, variance)
+
+                # When training with renorm, the normalized values (x) are
+                # transformed as: x * gamma + beta without renorm, and
+                # (x * r + d) * gamma + beta = x * (r * gamma) + (d * gamma +
+                # beta) with renorm.
+                # So we compose the transforms to get effective scale and
+                # offset.
+                gamma, beta = self._compose_transforms(
+                    r, d, gamma, beta, inputs.dtype
+                )
+
+                # Update moving statistics.
+                self._update_renorm_statistics(mean, variance)
+            else:
+                self.moving_mean.assign(
+                    moving_mean * self.momentum + mean * (1.0 - self.momentum)
+                )
+                self.moving_variance.assign(
+                    moving_variance * self.momentum
+                    + variance * (1.0 - self.momentum)
+                )
+        else:
+            mean = moving_mean
+            variance = moving_variance
 
         outputs = ops.batch_normalization(
             x=inputs,
@@ -306,6 +393,9 @@ class BatchNormalization(Layer):
             "beta_constraint": constraints.serialize(self.beta_constraint),
             "gamma_constraint": constraints.serialize(self.gamma_constraint),
             "synchronized": self.synchronized,
+            "renorm": self.renorm,
+            "renorm_clipping": self.renorm_clipping,
+            "renorm_momentum": self.renorm_momentum,
         }
         return {**base_config, **config}
 
@@ -346,3 +436,118 @@ class BatchNormalization(Layer):
         variance = weighted_distsq / (sum_of_weights + backend.epsilon())
 
         return ops.squeeze(mean), ops.squeeze(variance)
+
+    def _renorm_correction_and_moments(self, mean, variance):
+        """Computes the correction for batch renormalization.
+
+        This method computes the r and d correction factors.
+
+        Args:
+            mean: The mean of the current batch.
+            variance: The variance of the current batch.
+
+        Returns:
+            A tuple (r, d, mean, variance) where r and d are the correction
+            factors, and mean/variance are passed through unchanged.
+        """
+        stddev = ops.sqrt(variance + self.epsilon)
+
+        # Get the renorm moving statistics.
+        renorm_mean = ops.cast(self.renorm_mean, mean.dtype)
+        # Avoid divide by zero early on in training.
+        renorm_stddev = ops.maximum(
+            ops.cast(self.renorm_stddev, mean.dtype),
+            ops.sqrt(ops.cast(self.epsilon, mean.dtype)),
+        )
+
+        # Compute the corrections for batch renorm.
+        r = ops.divide(stddev, renorm_stddev)
+        d = ops.divide(ops.subtract(mean, renorm_mean), renorm_stddev)
+
+        # Apply clipping.
+        rmin = self.renorm_clipping.get("rmin")
+        rmax = self.renorm_clipping.get("rmax")
+        dmax = self.renorm_clipping.get("dmax")
+
+        if rmin is not None:
+            r = ops.maximum(r, rmin)
+        if rmax is not None:
+            r = ops.minimum(r, rmax)
+        if dmax is not None:
+            d = ops.clip(d, -dmax, dmax)
+
+        return r, d, mean, variance
+
+    def _compose_transforms(self, r, d, gamma, beta, dtype):
+        """Composes the renorm correction with gamma and beta.
+
+        When training with renorm, the normalized values (x) are transformed
+        as: (x * r + d) * gamma + beta = x * (r * gamma) + (d * gamma + beta).
+        This method computes the effective scale and offset.
+
+        Args:
+            r: The r correction factor.
+            d: The d correction factor.
+            gamma: The gamma (scale) parameter, or None.
+            beta: The beta (offset) parameter, or None.
+            dtype: The dtype for the output.
+
+        Returns:
+            A tuple (effective_gamma, effective_beta).
+        """
+        r = ops.stop_gradient(r)
+        d = ops.stop_gradient(d)
+
+        if gamma is not None:
+            effective_gamma = ops.multiply(r, gamma)
+            effective_beta = ops.multiply(d, gamma)
+        else:
+            effective_gamma = ops.cast(r, dtype)
+            effective_beta = ops.cast(d, dtype)
+
+        if beta is not None:
+            effective_beta = ops.add(effective_beta, beta)
+
+        return effective_gamma, effective_beta
+
+    def _update_renorm_statistics(self, mean, variance):
+        """Updates the renorm and moving statistics.
+
+        Args:
+            mean: The mean of the current batch.
+            variance: The variance of the current batch.
+        """
+        stddev = ops.sqrt(variance + self.epsilon)
+
+        # Update renorm moving mean and stddev.
+        renorm_mean = ops.cast(self.renorm_mean, mean.dtype)
+        renorm_stddev = ops.cast(self.renorm_stddev, mean.dtype)
+
+        self.renorm_mean.assign(
+            renorm_mean * self.renorm_momentum
+            + mean * (1.0 - self.renorm_momentum)
+        )
+        self.renorm_stddev.assign(
+            renorm_stddev * self.renorm_momentum
+            + stddev * (1.0 - self.renorm_momentum)
+        )
+
+        # Update inference moving statistics.
+        moving_mean = ops.cast(self.moving_mean, mean.dtype)
+        moving_stddev = ops.cast(self.moving_stddev, mean.dtype)
+
+        self.moving_mean.assign(
+            moving_mean * self.momentum + mean * (1.0 - self.momentum)
+        )
+
+        # Update moving_stddev, then compute moving var from it.
+        new_moving_stddev = moving_stddev * self.momentum + stddev * (
+            1.0 - self.momentum
+        )
+        self.moving_stddev.assign(new_moving_stddev)
+
+        # Apply ReLU in case floating point rounding causes it to go negative.
+        new_moving_variance = ops.maximum(
+            new_moving_stddev * new_moving_stddev - self.epsilon, 0.0
+        )
+        self.moving_variance.assign(new_moving_variance)
