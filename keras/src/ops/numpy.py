@@ -5076,7 +5076,6 @@ class Nanmax(Operation):
     def compute_output_spec(self, x):
         dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
 
-        # Torch uint32 reduction bug parity
         if backend.backend() == "torch" and dtype == "uint32":
             dtype = "int32"
 
