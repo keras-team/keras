@@ -360,23 +360,9 @@ def _load_model_from_orbax_checkpoint(
     # Ensure orbax is available
     ocp.initialize()
 
-    # Optimized step detection using os.scandir
-    available_steps = []
-    try:
-        with os.scandir(filepath) as entries:
-            for entry in entries:
-                if entry.is_dir():
-                    try:
-                        available_steps.append(int(entry.name))
-                    except ValueError:
-                        continue
-    except FileNotFoundError:
-        raise ValueError(f"No checkpoints found in {filepath}")
-
-    if not available_steps:
-        raise ValueError(f"No checkpoints found in {filepath}")
-
-    step = max(available_steps)
+    # Find the latest checkpoint step using the utility function
+    checkpoint_path = find_latest_orbax_checkpoint(filepath)
+    step = int(os.path.basename(checkpoint_path))
 
     # Load the composite state efficiently
     checkpointer = ocp.training.Checkpointer(directory=filepath)
@@ -402,14 +388,16 @@ def _load_model_from_orbax_checkpoint(
             model.compile_from_config(compile_config)
 
     # Prepare state tree with only variable keys for set_state_tree
+    variable_keys = [
+        "trainable_variables",
+        "non_trainable_variables",
+        "optimizer_variables",
+        "metrics_variables",
+    ]
     state_tree = {
-        key: composite_state.get(key, {})
-        for key in [
-            "trainable_variables",
-            "non_trainable_variables",
-            "optimizer_variables",
-            "metrics_variables",
-        ]
+        key: composite_state[key]
+        for key in variable_keys
+        if key in composite_state
     }
 
     # Apply the loaded state to the model
