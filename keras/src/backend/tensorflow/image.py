@@ -1074,3 +1074,144 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    input_shape = images.shape
+
+    if len(input_shape) not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single channel image), "
+            "rank 3 (single image), or rank 4 (batch of images). "
+            f"Received: images.shape={input_shape}"
+        )
+
+    need_squeeze_batch = False
+    need_squeeze_channel = False
+
+    if len(input_shape) == 2:
+        images = tf.expand_dims(images, axis=0)
+        images = tf.expand_dims(images, axis=-1)
+        need_squeeze_batch = True
+        need_squeeze_channel = True
+    elif len(input_shape) == 3:
+        if data_format == "channels_first":
+            images = tf.expand_dims(images, axis=0)
+            need_squeeze_batch = True
+        else:
+            images = tf.expand_dims(images, axis=0)
+            need_squeeze_batch = True
+
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    def process_single_image(img):
+        def process_single_channel(channel_img):
+            mask = tf.cast(channel_img != 0, tf.float32)
+            return _exact_euclidean_distance_transform_2d_tf(mask)
+
+        return tf.map_fn(
+            process_single_channel,
+            tf.transpose(img, [2, 0, 1]),
+            fn_output_signature=tf.TensorSpec(
+                shape=[None, None], dtype=tf.float32
+            ),
+            parallel_iterations=10,
+        )
+
+    output = tf.map_fn(
+        process_single_image,
+        images,
+        fn_output_signature=tf.TensorSpec(
+            shape=[None, None, None], dtype=tf.float32
+        ),
+        parallel_iterations=10,
+    )
+
+    output = tf.transpose(output, [0, 2, 3, 1])
+
+    if data_format == "channels_first":
+        output = tf.transpose(output, (0, 3, 1, 2))
+
+    if need_squeeze_channel:
+        axis = -1 if data_format == "channels_last" else 1
+        output = tf.squeeze(output, axis=axis)
+    if need_squeeze_batch:
+        output = tf.squeeze(output, axis=0)
+
+    return output
+
+
+def _exact_euclidean_distance_transform_2d_tf(mask):
+    dist = tf.where(
+        mask > 0,
+        tf.constant(1e10, dtype=tf.float32),
+        tf.constant(0.0, dtype=tf.float32),
+    )
+
+    dist = tf.map_fn(
+        _edt_1d_tf,
+        dist,
+        fn_output_signature=tf.TensorSpec(shape=[None], dtype=tf.float32),
+        parallel_iterations=10,
+    )
+
+    dist = tf.transpose(dist)
+
+    dist = tf.map_fn(
+        _edt_1d_tf,
+        dist,
+        fn_output_signature=tf.TensorSpec(shape=[None], dtype=tf.float32),
+        parallel_iterations=10,
+    )
+
+    dist = tf.transpose(dist)
+    dist = tf.sqrt(dist)
+    return dist
+
+
+def _edt_1d_tf(f):
+    def _edt_1d_numpy(f_np):
+        n = len(f_np)
+        if n == 0:
+            return f_np
+        if n == 1:
+            return f_np
+
+        d = np.zeros(n, dtype=np.float32)
+        v = np.zeros(n, dtype=np.int32)
+        z = np.zeros(n + 1, dtype=np.float32)
+
+        k = 0
+        v[0] = 0
+        z[0] = -1e10
+        z[1] = 1e10
+
+        for q in range(1, n):
+            while k >= 0:
+                s = ((f_np[q] + q * q) - (f_np[v[k]] + v[k] * v[k])) / (
+                    2 * q - 2 * v[k]
+                )
+
+                if s > z[k]:
+                    break
+                k -= 1
+
+            k += 1
+            v[k] = q
+            z[k] = s
+            z[k + 1] = 1e10
+
+        k = 0
+        for q in range(n):
+            while z[k + 1] < q:
+                k += 1
+            d[q] = (q - v[k]) ** 2 + f_np[v[k]]
+
+        return d.astype(np.float32)
+
+    result = tf.py_function(_edt_1d_numpy, [f], tf.float32)
+    result.set_shape(f.shape)
+    return result

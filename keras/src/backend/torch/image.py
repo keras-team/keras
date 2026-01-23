@@ -1190,3 +1190,117 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    input_shape = images.shape
+
+    if len(input_shape) not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single channel image), "
+            "rank 3 (single image), or rank 4 (batch of images). "
+            f"Received: images.shape={input_shape}"
+        )
+
+    need_squeeze_batch = False
+    need_squeeze_channel = False
+
+    if len(input_shape) == 2:
+        images = torch.unsqueeze(images, dim=0)
+        images = torch.unsqueeze(images, dim=-1)
+        need_squeeze_batch = True
+        need_squeeze_channel = True
+    elif len(input_shape) == 3:
+        if data_format == "channels_first":
+            images = torch.unsqueeze(images, dim=0)
+            need_squeeze_batch = True
+        else:
+            images = torch.unsqueeze(images, dim=0)
+            need_squeeze_batch = True
+
+    if data_format == "channels_first":
+        images = images.permute(0, 2, 3, 1)
+
+    batch_size, height, width, channels = images.shape
+
+    output = torch.zeros_like(images, dtype=torch.float32)
+
+    for b in range(batch_size):
+        for c in range(channels):
+            mask = (images[b, :, :, c] != 0).to(torch.float32)
+            output[b, :, :, c] = _exact_euclidean_distance_transform_2d_torch(
+                mask
+            )
+
+    if data_format == "channels_first":
+        output = output.permute(0, 3, 1, 2)
+
+    if need_squeeze_channel:
+        axis = -1 if data_format == "channels_last" else 1
+        output = torch.squeeze(output, dim=axis)
+    if need_squeeze_batch:
+        output = torch.squeeze(output, dim=0)
+
+    return output
+
+
+def _exact_euclidean_distance_transform_2d_torch(mask):
+    height, width = mask.shape
+    device = mask.device
+
+    dist = torch.where(
+        mask > 0,
+        torch.tensor(1e10, device=device, dtype=torch.float32),
+        torch.tensor(0.0, device=device, dtype=torch.float32),
+    )
+
+    for i in range(height):
+        dist[i, :] = _edt_1d_torch(dist[i, :])
+
+    for j in range(width):
+        dist[:, j] = _edt_1d_torch(dist[:, j])
+
+    dist = torch.sqrt(dist)
+    return dist
+
+
+def _edt_1d_torch(f):
+    n = len(f)
+    device = f.device
+
+    if n == 0:
+        return f
+    if n == 1:
+        return f
+
+    d = torch.zeros(n, dtype=torch.float32, device=device)
+    v = torch.zeros(n, dtype=torch.int32, device=device)
+    z = torch.zeros(n + 1, dtype=torch.float32, device=device)
+
+    k = 0
+    v[0] = 0
+    z[0] = -1e10
+    z[1] = 1e10
+
+    for q in range(1, n):
+        while k >= 0:
+            s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k])
+
+            if s > z[k]:
+                break
+            k -= 1
+
+        k += 1
+        v[k] = q
+        z[k] = s
+        z[k + 1] = 1e10
+
+    k = 0
+    for q in range(n):
+        while z[k + 1] < q:
+            k += 1
+        d[q] = (q - v[k]) ** 2 + f[v[k]]
+
+    return d

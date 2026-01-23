@@ -895,3 +895,110 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    input_shape = images.shape
+
+    if len(input_shape) not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single channel image), "
+            "rank 3 (single image), or rank 4 (batch of images). "
+            f"Received: images.shape={input_shape}"
+        )
+
+    need_squeeze_batch = False
+    need_squeeze_channel = False
+
+    if len(input_shape) == 2:
+        images = jnp.expand_dims(images, axis=(0, -1))
+        need_squeeze_batch = True
+        need_squeeze_channel = True
+    elif len(input_shape) == 3:
+        if data_format == "channels_first":
+            images = jnp.expand_dims(images, axis=0)
+            need_squeeze_batch = True
+        else:
+            images = jnp.expand_dims(images, axis=0)
+            need_squeeze_batch = True
+
+    if data_format == "channels_first":
+        images = jnp.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+    output = jnp.zeros_like(images, dtype=jnp.float32)
+
+    for b in range(batch_size):
+        for c in range(channels):
+            mask = (images[b, :, :, c] != 0).astype(jnp.float32)
+
+            dist = _exact_euclidean_distance_transform_2d_jax(mask)
+            output = output.at[b, :, :, c].set(dist)
+
+    if data_format == "channels_first":
+        output = jnp.transpose(output, (0, 3, 1, 2))
+
+    if need_squeeze_channel:
+        output = jnp.squeeze(
+            output, axis=-1 if data_format == "channels_last" else 1
+        )
+    if need_squeeze_batch:
+        output = jnp.squeeze(output, axis=0)
+
+    return output
+
+
+def _exact_euclidean_distance_transform_2d_jax(mask):
+    height, width = mask.shape
+
+    dist = jnp.where(mask > 0, 1e10, 0.0).astype(jnp.float32)
+
+    for i in range(height):
+        dist = dist.at[i, :].set(_edt_1d_jax(dist[i, :]))
+
+    for j in range(width):
+        dist = dist.at[:, j].set(_edt_1d_jax(dist[:, j]))
+
+    dist = jnp.sqrt(dist)
+    return dist
+
+
+def _edt_1d_jax(f):
+    n = len(f)
+
+    if n == 0:
+        return f
+    if n == 1:
+        return f
+
+    d = jnp.zeros(n, dtype=jnp.float32)
+    v = jnp.zeros(n, dtype=jnp.int32)
+    z = jnp.zeros(n + 1, dtype=jnp.float32)
+
+    k = 0
+    v = v.at[0].set(0)
+    z = z.at[0].set(-1e10)
+    z = z.at[1].set(1e10)
+
+    for q in range(1, n):
+        while k >= 0:
+            s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k])
+
+            if s > z[k]:
+                break
+            k -= 1
+
+        k += 1
+        v = v.at[k].set(q)
+        z = z.at[k].set(s)
+        z = z.at[k + 1].set(1e10)
+
+    k = 0
+    for q in range(n):
+        while z[k + 1] < q:
+            k += 1
+        d = d.at[q].set((q - v[k]) ** 2 + f[v[k]])
+
+    return d
