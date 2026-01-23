@@ -75,38 +75,6 @@ class RandomRotation(BaseImagePreprocessingLayer):
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
-    Examples:
-
-    Basic image rotation:
-
-    >>> import tensorflow as tf
-    >>> from keras import layers
-    >>> images = tf.random.uniform((2, 128, 128, 3))
-    >>> layer = layers.RandomRotation(factor=0.2)
-    >>> output = layer(images)
-    >>> output.shape
-    TensorShape([2, 128, 128, 3])
-
-    Synchronized image and segmentation mask rotation:
-
-    >>> images = tf.random.uniform((1, 128, 128, 3))
-    >>> masks = tf.random.uniform(
-    ...     (1, 128, 128, 1), maxval=2, dtype=tf.int32
-    ... )
-    >>> data = {
-    ...     "images": images,
-    ...     "segmentation_masks": masks,
-    ... }
-    >>> layer = layers.RandomRotation(
-    ...     factor=0.25,
-    ...     fill_mode="crop"
-    ... )
-    >>> output = layer(data)
-    >>> output["images"].shape
-    TensorShape([1, 128, 128, 3])
-    >>> output["segmentation_masks"].shape
-    TensorShape([1, 128, 128, 1])
-
     """
 
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
