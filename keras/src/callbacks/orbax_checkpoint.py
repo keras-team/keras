@@ -247,7 +247,7 @@ class OrbaxCheckpoint(MonitorCallback):
             return True
         return False
 
-    def _save_checkpoint(self, step, logs=None, force_sync=None):
+    def _save_checkpoint(self, step, logs=None):
         """Save a checkpoint at the given step with multi-host coordination."""
 
         # --- Prepare Composite State (Backend-Agnostic) ---
@@ -275,13 +275,8 @@ class OrbaxCheckpoint(MonitorCallback):
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
-            # Use force_sync if explicitly specified, otherwise use the
-            # save_on_background setting
-            use_sync = (
-                force_sync
-                if force_sync is not None
-                else not self.save_on_background
-            )
+            # Determine sync vs async based on save_on_background setting
+            use_sync = not self.save_on_background
 
             if use_sync:
                 # Synchronous save
