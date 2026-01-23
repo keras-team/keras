@@ -344,10 +344,8 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        # Wait for any pending async saves to complete
-        self.wait_until_finished()
-
-        # Close the Checkpointer to ensure cleanup
+        # Close the Checkpointer - this waits for any pending async saves
+        # to complete before closing
         try:
             self.checkpointer.close()
         except Exception:
