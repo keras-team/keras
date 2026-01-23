@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -45,6 +48,10 @@ class RandomContrast(BaseImagePreprocessingLayer):
             typically either `[0, 1]` or `[0, 255]` depending on how your
             preprocessing pipeline is set up.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _FACTOR_BOUNDS = (0, 1)
@@ -147,3 +154,11 @@ class RandomContrast(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandomContrast.__doc__ = RandomContrast.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example.replace(
+        "{LayerName}", "RandomContrast"
+    ),
+)

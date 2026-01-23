@@ -1,6 +1,5 @@
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
-NumpyDtypeTest::test_argpartition
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
@@ -16,8 +15,7 @@ NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
-NumpyDtypeTest::test_ldexp
-NumpyDtypeTest::test_logaddexp2
+NumpyDtypeTest::test_nanmin
 NumpyDtypeTest::test_nansum
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
@@ -41,7 +39,6 @@ NumpyDtypeTest::test_view
 NumpyDtypeTest::test_vstack
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
-NumpyOneInputOpsCorrectnessTest::test_argpartition
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
@@ -52,14 +49,13 @@ NumpyOneInputOpsCorrectnessTest::test_diagflat
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
-NumpyOneInputOpsCorrectnessTest::test_logaddexp2
+NumpyOneInputOpsCorrectnessTest::test_nanmin
 NumpyOneInputOpsCorrectnessTest::test_nansum
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_round
 NumpyOneInputOpsCorrectnessTest::test_ptp
 NumpyOneInputOpsCorrectnessTest::test_searchsorted
-NumpyOneInputOpsCorrectnessTest::test_select
 NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_tile
@@ -79,7 +75,6 @@ NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_gcd
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_lcm
-NumpyTwoInputOpsCorrectnessTest::test_ldexp
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyTwoInputOpsCorrectnessTest::test_tensordot
@@ -93,11 +88,9 @@ NumpyOneInputOpsStaticShapeTest::test_isreal
 NumpyOneInputOpsStaticShapeTest::test_view
 NumpyTwoInputOpsDynamicShapeTest::test_gcd
 NumpyTwoInputOpsDynamicShapeTest::test_lcm
-NumpyTwoInputOpsDynamicShapeTest::test_ldexp
 NumpyTwoInputOpsDynamicShapeTest::test_nextafter
 NumpyTwoInputOpsStaticShapeTest::test_gcd
 NumpyTwoInputOpsStaticShapeTest::test_lcm
-NumpyTwoInputOpsStaticShapeTest::test_ldexp
 NumpyTwoInputOpsStaticShapeTest::test_nextafter
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments

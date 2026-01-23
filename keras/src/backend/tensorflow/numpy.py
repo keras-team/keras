@@ -2125,6 +2125,26 @@ def moveaxis(x, source, destination):
     return tf.transpose(x, perm)
 
 
+def nanmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not x.dtype.is_floating:
+        dtype = standardize_dtype(x.dtype)
+        if dtype == "bool":
+            return tf.reduce_all(x, axis=axis, keepdims=keepdims)
+        return tf.reduce_min(x, axis=axis, keepdims=keepdims)
+
+    x_clean = tf.where(
+        tf.math.is_nan(x), tf.constant(float("inf"), dtype=x.dtype), x
+    )
+
+    return tf.where(
+        tf.reduce_all(tf.math.is_nan(x), axis=axis, keepdims=keepdims),
+        tf.constant(float("nan"), dtype=x.dtype),
+        tf.reduce_min(x_clean, axis=axis, keepdims=keepdims),
+    )
+
+
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)

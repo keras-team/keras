@@ -589,6 +589,23 @@ class LayerTest(testing.TestCase):
         layer(layers.Input(batch_shape=(2, 2)))
         self.assertLen(layer.losses, 0)
 
+    @parameterized.named_parameters(
+        ("batch_size_0", 0),
+        ("batch_size_1", 1),
+        ("batch_size_5", 5),
+        ("batch_size_10", 10),
+    )
+    def test_activity_regularization_batch_normalization(self, batch_size):
+        class SimpleLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = SimpleLayer(activity_regularizer="l2")
+        layer(ops.ones((batch_size, 5)) * 2.0)
+        self.assertLen(layer.losses, 1)
+        expected_loss = 0.0 if batch_size == 0 else 0.2
+        self.assertAllClose(layer.losses[0], expected_loss)
+
     @pytest.mark.requires_trainable_backend
     def test_add_loss(self):
         class LossLayer(layers.Layer):

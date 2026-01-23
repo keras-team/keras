@@ -27,6 +27,7 @@ from keras.src import backend
 from keras.src import constraints
 from keras.src import dtype_policies
 from keras.src import initializers
+from keras.src import ops
 from keras.src import regularizers
 from keras.src import tree
 from keras.src import utils
@@ -974,7 +975,15 @@ class Layer(BackendLayer, Operation):
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
                         if backend.is_tensor(output):
-                            self.add_loss(self.activity_regularizer(output))
+                            loss = self.activity_regularizer(output)
+                            if output.ndim > 0:
+                                # Normalize by batch size to ensure consistent
+                                # regularization strength across batch sizes
+                                batch_size = ops.cast(
+                                    ops.shape(output)[0], dtype=loss.dtype
+                                )
+                                loss = ops.divide_no_nan(loss, batch_size)
+                            self.add_loss(loss)
 
             # Set `previous_mask` on outputs if available. It is provided only
             # for the first positional input arg and its mask.

@@ -1522,7 +1522,25 @@ def lcm(x1, x2):
 
 
 def ldexp(x1, x2):
-    raise NotImplementedError("`ldexp` is not supported with openvino backend")
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "ldexp()")
+
+    float_dtype = OPENVINO_DTYPES[config.floatx()]
+    if x1.get_element_type().is_integral():
+        x1 = ov_opset.convert(x1, float_dtype)
+    if x2.get_element_type().is_integral():
+        x2 = ov_opset.convert(x2, float_dtype)
+
+    const_two = ov_opset.constant(2, x2.get_element_type())
+    result = ov_opset.multiply(x1, ov_opset.power(const_two, x2))
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def less(x1, x2):
@@ -1779,9 +1797,42 @@ def logaddexp(x1, x2):
 
 
 def logaddexp2(x1, x2):
-    raise NotImplementedError(
-        "`logaddexp2` is not supported with openvino backend"
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "logaddexp2()")
+
+    if x1.element_type.is_integral() or x2.element_type.is_integral():
+        float_dtype = OPENVINO_DTYPES[config.floatx()]
+        if x1.get_element_type().is_integral():
+            x1 = ov_opset.convert(x1, float_dtype)
+        if x2.get_element_type().is_integral():
+            x2 = ov_opset.convert(x2, float_dtype)
+
+    max_val = ov_opset.maximum(x1, x2)
+
+    sub = ov_opset.subtract(x1, x2)
+    abs_diff = ov_opset.abs(sub)
+
+    neg_abs_diff = ov_opset.negative(abs_diff)
+
+    element_type = neg_abs_diff.get_element_type()
+
+    two = ov_opset.constant(2, dtype=element_type)
+
+    power_of_2 = ov_opset.power(two, neg_abs_diff)
+
+    one_plus_power = ov_opset.add(
+        ov_opset.constant(1, dtype=element_type), power_of_2
     )
+    log2_term = ov_opset.divide(ov_opset.log(one_plus_power), ov_opset.log(two))
+    result = ov_opset.add(max_val, log2_term).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def logical_and(x1, x2):
@@ -2054,6 +2105,10 @@ def moveaxis(x, source, destination):
 
     axes_const = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
+
+
+def nanmin(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nanmin` is not supported with openvino backend")
 
 
 def nansum(x, axis=None, keepdims=False):
@@ -3155,7 +3210,20 @@ def correlate(x1, x2, mode="valid"):
 
 
 def select(condlist, choicelist, default=0):
-    raise NotImplementedError("`select` is not supported with openvino backend")
+    if len(condlist) != len(choicelist):
+        raise ValueError(
+            "select(): condlist and choicelist must have the same length"
+        )
+    conds = [get_ov_output(c) for c in condlist]
+    choices = [get_ov_output(v) for v in choicelist]
+
+    result = get_ov_output(default)
+    for cond_idx in reversed(range(len(conds))):
+        cond = conds[cond_idx]
+        choice = choices[cond_idx]
+        choice, result = _align_operand_types(choice, result, "select()")
+        result = ov_opset.select(cond, choice, result).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def slogdet(x):
@@ -3165,6 +3233,66 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
-    raise NotImplementedError(
-        "`argpartition` is not supported with openvino backend"
+    x = get_ov_output(x)
+    x_shape = x.get_partial_shape()
+    rank = x_shape.rank.get_length()
+    axis = canonicalize_axis(axis, rank)
+    axes = list(range(rank))
+    axes[axis], axes[-1] = axes[-1], axes[axis]
+    x = ov_opset.transpose(x, ov_opset.constant(axes))
+    x_shape_tensor = ov_opset.shape_of(x)
+    n = ov_opset.gather(
+        x_shape_tensor,
+        ov_opset.constant(-1),
+        ov_opset.constant(0),
     )
+    if isinstance(kth, int) and kth < 0:
+        kth_tensor = ov_opset.add(
+            n,
+            ov_opset.constant(kth, n.get_element_type()),
+        )
+    else:
+        kth_tensor = ov_opset.constant(kth, n.get_element_type())
+    one = ov_opset.constant(1, kth_tensor.get_element_type())
+    k_val = ov_opset.add(kth_tensor, one)
+    bottom_ind = ov_opset.topk(
+        ov_opset.negative(x),
+        k=k_val,
+        axis=-1,
+        mode="max",
+        sort="value",
+    ).output(1)
+    one_hot_mask = ov_opset.one_hot(
+        bottom_ind,
+        n,
+        ov_opset.constant(1),
+        ov_opset.constant(0),
+        axis=-1,
+    )
+    mask = ov_opset.reduce_sum(
+        one_hot_mask,
+        ov_opset.constant([-2]),
+        keep_dims=False,
+    )
+    ones = ov_opset.broadcast(
+        ov_opset.constant(1),
+        x_shape_tensor,
+    )
+    proxy = ov_opset.subtract(ones, mask)
+    remaining_k = ov_opset.subtract(n, k_val)
+    top_ind = ov_opset.topk(
+        proxy,
+        k=remaining_k,
+        axis=-1,
+        mode="max",
+        sort="value",
+    ).output(1)
+    result = ov_opset.concat([bottom_ind, top_ind], axis=-1)
+    inv_axes = [0] * rank
+    for i, a in enumerate(axes):
+        inv_axes[a] = i
+    result = ov_opset.transpose(
+        result,
+        ov_opset.constant(inv_axes),
+    ).output(0)
+    return OpenVINOKerasTensor(result)
