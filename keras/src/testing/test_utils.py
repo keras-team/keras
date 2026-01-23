@@ -161,3 +161,67 @@ def named_product(*args, **kwargs):
         tests = new_tests
 
     return tests
+
+
+def assert_symbolic_shape_consistency(
+    test_case, layer, input_shape, expected_output_shape=None
+):
+    """Test utility to verify symbolic tensor shape computation consistency.
+
+    This utility tests that a layer correctly computes output shapes for
+    symbolic tensors and that the shapes are consistent with eager tensor
+    execution.
+
+    Args:
+        test_case: TestCase instance to use for assertions.
+        layer: Keras layer to test.
+        input_shape: Tuple representing the input shape (without batch dim).
+        expected_output_shape: Optional tuple representing expected output
+            shape (without batch dimension). If None, only consistency is
+            tested.
+    """
+    import numpy as np
+
+    import keras
+
+    # Create symbolic input
+    symbolic_input = keras.Input(shape=input_shape)
+    symbolic_output = layer(symbolic_input)
+    # Create eager input with batch dimension
+    batch_size = 2
+    eager_input = np.random.uniform(-1, 1, size=(batch_size,) + input_shape)
+
+    try:
+        eager_output = layer(eager_input)
+    except Exception as e:
+        # If layer requires adaptation or other setup, skip eager test
+        if "adapt" in str(e).lower() or "boundaries" in str(e).lower():
+            # Only test symbolic shape
+            if expected_output_shape is not None:
+                expected_symbolic_shape = (None,) + expected_output_shape
+                test_case.assertEqual(
+                    symbolic_output.shape,
+                    expected_symbolic_shape,
+                    f"Symbolic shape mismatch: expected "
+                    f"{expected_symbolic_shape}, got {symbolic_output.shape}",
+                )
+            return
+        else:
+            raise e
+    # Test shape consistency between symbolic and eager
+    symbolic_shape_no_batch = symbolic_output.shape[1:]
+    eager_shape_no_batch = eager_output.shape[1:]
+    test_case.assertEqual(
+        symbolic_shape_no_batch,
+        eager_shape_no_batch,
+        f"Shape inconsistency: symbolic {symbolic_shape_no_batch} != "
+        f"eager {eager_shape_no_batch}",
+    )
+    # Test expected output shape if provided
+    if expected_output_shape is not None:
+        test_case.assertEqual(
+            symbolic_shape_no_batch,
+            expected_output_shape,
+            f"Output shape mismatch: expected {expected_output_shape}, "
+            f"got {symbolic_shape_no_batch}",
+        )

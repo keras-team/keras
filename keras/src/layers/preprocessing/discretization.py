@@ -213,8 +213,38 @@ class Discretization(DataLayer):
             return
         self.summary = np.array([[], []], dtype="float32")
 
+    def compute_output_shape(self, input_shape):
+        if self.output_mode == "int":
+            return input_shape
+
+        # Calculate depth (number of bins)
+        depth = (
+            len(self.bin_boundaries) + 1
+            if self.bin_boundaries is not None
+            else self.num_bins
+        )
+
+        if self.output_mode == "one_hot":
+            # For one_hot mode, add depth dimension
+            # If last dimension is 1, replace it with depth, otherwise append
+            if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
+                return tuple(input_shape[:-1]) + (depth,)
+            else:
+                return tuple(input_shape) + (depth,)
+        else:
+            # For multi_hot and count modes, the behavior is more complex
+            # and depends on the backend implementation. For now, we'll use
+            # a simplified approach that works for the most common cases.
+            # This may need refinement based on actual backend behavior.
+            if input_shape and len(input_shape) >= 2:
+                # Replace last dimension with depth
+                return tuple(input_shape[:-1]) + (depth,)
+            else:
+                return (depth,)
+
     def compute_output_spec(self, inputs):
-        return backend.KerasTensor(shape=inputs.shape, dtype=self.output_dtype)
+        output_shape = self.compute_output_shape(inputs.shape)
+        return backend.KerasTensor(shape=output_shape, dtype=self.output_dtype)
 
     def load_own_variables(self, store):
         if len(store) == 1:

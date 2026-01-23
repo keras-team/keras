@@ -231,3 +231,108 @@ class DiscretizationTest(testing.TestCase):
             backend.standardize_dtype(predict_output.dtype),
         )
         self.assertTrue(backend.is_int_dtype(model_call_output.dtype))
+
+    def test_symbolic_tensor_output_shape(self):
+        """Test symbolic tensors have correct output shape for different modes.
+
+        This test ensures that issue #22044 is fixed - Discretization layer
+        with output_mode='one_hot' should produce correct output shape for
+        symbolic tensors.
+        """
+        # Test one_hot mode - should add depth dimension
+        layer_one_hot = layers.Discretization(
+            bin_boundaries=[0.0, 1.0, 2.0], output_mode="one_hot"
+        )
+        symbolic_input = layers.Input(shape=(3, 4))
+        symbolic_output = layer_one_hot(symbolic_input)
+        # 3 boundaries create 4 bins, so output should be (None, 3, 4, 4)
+        self.assertEqual(symbolic_output.shape, (None, 3, 4, 4))
+
+        # Test multi_hot mode - should replace last dimension with depth
+        layer_multi_hot = layers.Discretization(
+            bin_boundaries=[0.0, 1.0, 2.0], output_mode="multi_hot"
+        )
+        symbolic_output_multi = layer_multi_hot(symbolic_input)
+        # multi_hot replaces last dimension, so output should be (None, 3, 4)
+        self.assertEqual(symbolic_output_multi.shape, (None, 3, 4))
+
+        # Test count mode - should replace last dimension with depth
+        layer_count = layers.Discretization(
+            bin_boundaries=[0.0, 1.0, 2.0], output_mode="count"
+        )
+        symbolic_output_count = layer_count(symbolic_input)
+        # count replaces last dimension, so output should be (None, 3, 4)
+        self.assertEqual(symbolic_output_count.shape, (None, 3, 4))
+
+        # Test int mode - should keep same shape
+        layer_int = layers.Discretization(
+            bin_boundaries=[0.0, 1.0, 2.0], output_mode="int"
+        )
+        symbolic_output_int = layer_int(symbolic_input)
+        # int mode keeps same shape, so output should be (None, 3, 4)
+        self.assertEqual(symbolic_output_int.shape, (None, 3, 4))
+
+        # Test consistency between eager and symbolic tensors for one_hot mode
+        eager_input = np.random.uniform(0, 3, size=(2, 3, 4))
+        eager_output = layer_one_hot(eager_input)
+        # Shapes should be consistent (ignoring batch dimension)
+        self.assertEqual(eager_output.shape[1:], symbolic_output.shape[1:])
+
+    def test_compute_output_shape_edge_cases(self):
+        """Test edge cases in compute_output_shape to improve coverage."""
+
+        # Test with num_bins instead of bin_boundaries
+        layer_num_bins = layers.Discretization(
+            num_bins=5, output_mode="one_hot"
+        )
+        shape = layer_num_bins.compute_output_shape((None, 3, 4))
+        expected = (None, 3, 4, 5)  # num_bins=5
+        self.assertEqual(shape, expected)
+
+        # Test different output modes
+        modes_and_shapes = [
+            ("int", (None, 3, 4), (None, 3, 4)),  # int mode - no change
+            ("one_hot", (None, 3, 4), (None, 3, 4, 3)),  # one_hot - add dim
+            ("multi_hot", (None, 3, 4), (None, 3, 3)),  # multi_hot - replace
+            ("count", (None, 3, 4), (None, 3, 3)),  # count - replace
+        ]
+
+        for mode, input_shape, expected_shape in modes_and_shapes:
+            layer = layers.Discretization(
+                bin_boundaries=[0.0, 1.0], output_mode=mode
+            )
+            result_shape = layer.compute_output_shape(input_shape)
+            self.assertEqual(result_shape, expected_shape)
+
+        # Test edge case - last dimension is 1 with one_hot
+        layer_one_hot = layers.Discretization(
+            bin_boundaries=[0.0, 1.0], output_mode="one_hot"
+        )
+
+        # Should replace last dimension of 1 with depth
+        shape = layer_one_hot.compute_output_shape((None, 5, 1))
+        expected = (None, 5, 3)  # 2 boundaries = 3 bins, replace last dim
+        self.assertEqual(shape, expected)
+
+        # Test empty input shape
+        shape = layer_one_hot.compute_output_shape(())
+        expected = (3,)  # Just depth
+        self.assertEqual(shape, expected)
+
+    def test_compute_output_spec_method(self):
+        """Test compute_output_spec method directly."""
+
+        layer = layers.Discretization(
+            bin_boundaries=[0.0, 1.0, 2.0], output_mode="one_hot"
+        )
+
+        # Create a KerasTensor input
+        input_tensor = backend.KerasTensor(shape=(None, 3, 4), dtype="float32")
+
+        # Test compute_output_spec
+        output_spec = layer.compute_output_spec(input_tensor)
+
+        # Verify shape and dtype
+        expected_shape = (None, 3, 4, 4)  # 3 boundaries = 4 bins
+        self.assertEqual(output_spec.shape, expected_shape)
+        self.assertEqual(output_spec.dtype, layer.output_dtype)
