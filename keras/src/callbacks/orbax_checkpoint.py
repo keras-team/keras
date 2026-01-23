@@ -247,9 +247,7 @@ class OrbaxCheckpoint(MonitorCallback):
             return True
         return False
 
-    def _save_checkpoint(
-        self, step, logs=None, force_sync=None, overwrite=False
-    ):
+    def _save_checkpoint(self, step, logs=None, force_sync=None):
         """Save a checkpoint at the given step with multi-host coordination."""
 
         # --- Prepare Composite State (Backend-Agnostic) ---
@@ -287,13 +285,11 @@ class OrbaxCheckpoint(MonitorCallback):
 
             if use_sync:
                 # Synchronous save
-                self.checkpointer.save_pytree(
-                    step, composite_state, overwrite=overwrite
-                )
+                self.checkpointer.save_pytree(step, composite_state)
             else:
                 # Async save
                 future = self.checkpointer.save_pytree_async(
-                    step, composite_state, overwrite=overwrite
+                    step, composite_state
                 )
                 self._async_futures.append(future)
 
