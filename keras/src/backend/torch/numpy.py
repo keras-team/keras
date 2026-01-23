@@ -1272,6 +1272,24 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
+def nanmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    if not torch.is_floating_point(x):
+        return torch.amax(x, dim=axis, keepdim=keepdims)
+
+    if axis == () or axis == []:
+        return x
+
+    x_clean = torch.where(torch.isnan(x), float("-inf"), x)
+    out = torch.amax(x_clean, dim=axis, keepdim=keepdims)
+
+    return torch.where(
+        torch.isnan(x).all(dim=axis, keepdim=keepdims),
+        torch.tensor(float("nan"), dtype=x.dtype, device=get_device()),
+        out,
+    )
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
