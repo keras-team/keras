@@ -337,12 +337,9 @@ class BatchNormalization(Layer):
                     variance,
                 ) = self._renorm_correction_and_moments(mean, variance)
 
-                # When training with renorm, the normalized values (x) are
-                # transformed as: x * gamma + beta without renorm, and
+                # x = x * gamma + beta without renorm, and
                 # (x * r + d) * gamma + beta = x * (r * gamma) + (d * gamma +
                 # beta) with renorm.
-                # So we compose the transforms to get effective scale and
-                # offset.
                 gamma, beta = self._compose_transforms(
                     r, d, gamma, beta, inputs.dtype
                 )
@@ -512,7 +509,6 @@ class BatchNormalization(Layer):
 
     def _update_renorm_statistics(self, mean, variance):
         """Updates the renorm and moving statistics.
-
         Args:
             mean: The mean of the current batch.
             variance: The variance of the current batch.
@@ -532,7 +528,6 @@ class BatchNormalization(Layer):
             + stddev * (1.0 - self.renorm_momentum)
         )
 
-        # Update inference moving statistics.
         moving_mean = ops.cast(self.moving_mean, mean.dtype)
         moving_stddev = ops.cast(self.moving_stddev, mean.dtype)
 
@@ -540,14 +535,13 @@ class BatchNormalization(Layer):
             moving_mean * self.momentum + mean * (1.0 - self.momentum)
         )
 
-        # Update moving_stddev, then compute moving var from it.
         new_moving_stddev = moving_stddev * self.momentum + stddev * (
             1.0 - self.momentum
         )
         self.moving_stddev.assign(new_moving_stddev)
 
-        # Apply ReLU in case floating point rounding causes it to go negative.
-        new_moving_variance = ops.maximum(
-            new_moving_stddev * new_moving_stddev - self.epsilon, 0.0
+        # Derive `moving_variance` from `moving_stddev`, applying ReLU in case
+        # floating point rounding causes it to go negative.
+        self.moving_variance.assign(
+            ops.relu(new_moving_stddev * new_moving_stddev - self.epsilon)
         )
-        self.moving_variance.assign(new_moving_variance)
