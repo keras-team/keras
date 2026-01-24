@@ -2145,6 +2145,16 @@ def nanmax(x, axis=None, keepdims=False):
     )
 
 
+def nanmean(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    normalizer = tf.reduce_sum(
+        tf.cast(~tf.math.is_nan(x), x.dtype), axis=axis, keepdims=keepdims
+    )
+
+    nan_sum = nansum(x, axis=axis, keepdims=keepdims)
+    return tf.math.divide_no_nan(nan_sum, normalizer)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
