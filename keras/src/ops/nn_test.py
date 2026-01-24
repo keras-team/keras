@@ -2492,9 +2492,14 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask = mask[None, None, ...]
             mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
-            if backend.backend() in ("torch", "openvino"):
+            if backend.backend() == "openvino":
                 self.skipTest(
-                    "torch and openvino do not support `bias` with "
+                    "openvino does not support `bias` with "
+                    "`dot_product_attention`"
+                )
+            if backend.backend() == "torch" and mask is not None:
+                self.skipTest(
+                    "torch does not support `mask` and `bias` with "
                     "`dot_product_attention`"
                 )
             bias = np.arange(math.prod(bias_shape), dtype=float).reshape(
@@ -2510,6 +2515,11 @@ class NNOpsCorrectnessTest(testing.TestCase):
             elif backend.backend() == "torch":
                 import torch
 
+                if bias is not None:
+                    self.skipTest(
+                        "Flash attention doesn't support `bias` in torch "
+                        "backend."
+                    )
                 if mask is not None:
                     self.skipTest(
                         "Flash attention doesn't support `mask=None` in torch "
