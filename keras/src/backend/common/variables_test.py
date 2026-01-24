@@ -819,9 +819,6 @@ class VariableOpsCorrectnessTest(test_case.TestCase):
         result = v2**v1
         self.assertAllClose(result, np.array([4.0, 25.0, 216.0]))
 
-    @skip_if_backend(
-        "openvino", "`round` is not supported with openvino backend"
-    )
     def test_round(self):
         v = backend.Variable(initializer=np.array([1.1, 2.2, 3.3]))
         self.assertAllClose(round(v), np.array([1.0, 2.0, 3.0]))
