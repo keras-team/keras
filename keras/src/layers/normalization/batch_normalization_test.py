@@ -320,6 +320,102 @@ class BatchNormalizationTest(testing.TestCase):
 
         self.assertAllClose(out, out_renorm, atol=1e-5, rtol=1e-5)
 
+    def test_renorm_correctness(self):
+        epsilon = 1e-3
+        momentum = 0.9
+        renorm_momentum = 0.8
+
+        # Create layer
+        layer = layers.BatchNormalization(
+            axis=-1,
+            epsilon=epsilon,
+            momentum=momentum,
+            renorm=True,
+            renorm_momentum=renorm_momentum,
+        )
+        layer.build((None, 3))
+
+        # Assign initial values
+        init_moving_mean = np.array([1.0, -2.0, 0.5], dtype="float32")
+        init_moving_var = np.array([2.0, 3.0, 0.5], dtype="float32")
+        init_moving_stddev = np.sqrt(init_moving_var)
+        init_renorm_mean = np.array([0.5, -1.0, 1.0], dtype="float32")
+        init_renorm_stddev = np.array([1.5, 2.0, 0.8], dtype="float32")
+        init_gamma = np.array([1.2, 0.8, 1.5], dtype="float32")
+        init_beta = np.array([0.1, -0.1, 0.2], dtype="float32")
+
+        layer.moving_mean.assign(init_moving_mean)
+        layer.moving_variance.assign(init_moving_var)
+        layer.moving_stddev.assign(init_moving_stddev)
+        layer.renorm_mean.assign(init_renorm_mean)
+        layer.renorm_stddev.assign(init_renorm_stddev)
+        layer.gamma.assign(init_gamma)
+        layer.beta.assign(init_beta)
+
+        # Input data
+        x = np.array(
+            [[4.0, 6.0, 2.0], [8.0, -2.0, 5.0], [6.0, 4.0, 3.0]],
+            dtype="float32",
+        )
+
+        # Manually compute expected output.
+        # Normalise input.
+        batch_mean = np.mean(x, axis=0)
+        batch_var = np.var(x, axis=0)
+        batch_stddev = np.sqrt(batch_var + epsilon)
+        x_norm = (x - batch_mean) / batch_stddev
+
+        # Compute r, d, and then expected output.
+        r = batch_stddev / init_renorm_stddev
+        d = (batch_mean - init_renorm_mean) / init_renorm_stddev
+
+        expected_output = (x_norm * r + d) * init_gamma + init_beta
+        actual_output = layer(x, training=True)
+        actual_output_np = backend.convert_to_numpy(actual_output)
+        self.assertAllClose(actual_output_np, expected_output, atol=1e-5)
+
+        # Verify moving statistics.
+        expected_renorm_mean = (
+            init_renorm_mean * renorm_momentum
+            + batch_mean * (1 - renorm_momentum)
+        )
+        self.assertAllClose(
+            backend.convert_to_numpy(layer.renorm_mean),
+            expected_renorm_mean,
+            atol=1e-5,
+        )
+        expected_renorm_stddev = (
+            init_renorm_stddev * renorm_momentum
+            + batch_stddev * (1 - renorm_momentum)
+        )
+        self.assertAllClose(
+            backend.convert_to_numpy(layer.renorm_stddev),
+            expected_renorm_stddev,
+            atol=1e-5,
+        )
+        expected_moving_mean = init_moving_mean * momentum + batch_mean * (
+            1 - momentum
+        )
+        self.assertAllClose(
+            backend.convert_to_numpy(layer.moving_mean),
+            expected_moving_mean,
+            atol=1e-5,
+        )
+        expected_moving_stddev = (
+            init_moving_stddev * momentum + batch_stddev * (1 - momentum)
+        )
+        self.assertAllClose(
+            backend.convert_to_numpy(layer.moving_stddev),
+            expected_moving_stddev,
+            atol=1e-5,
+        )
+        expected_moving_var = expected_moving_stddev**2 - epsilon
+        self.assertAllClose(
+            backend.convert_to_numpy(layer.moving_variance),
+            expected_moving_var,
+            atol=1e-5,
+        )
+
     def test_serialization(self):
         layer = layers.BatchNormalization(
             renorm=True,
