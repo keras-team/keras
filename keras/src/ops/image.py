@@ -1906,3 +1906,235 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+class SSIM(Operation):
+    def __init__(
+        self,
+        max_val=1.0,
+        filter_size=11,
+        filter_sigma=1.5,
+        k1=0.01,
+        k2=0.03,
+        data_format=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.max_val = max_val
+        self.filter_size = filter_size
+        self.filter_sigma = filter_sigma
+        self.k1 = k1
+        self.k2 = k2
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, image1, image2):
+        return _ssim(
+            image1,
+            image2,
+            max_val=self.max_val,
+            filter_size=self.filter_size,
+            filter_sigma=self.filter_sigma,
+            k1=self.k1,
+            k2=self.k2,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, image1, image2):
+        if len(image1.shape) != 4:
+            raise ValueError(
+                "Expected image1 to be 4D (batch, height, width, channels) "
+                f"or (batch, channels, height, width). Got: {image1.shape}"
+            )
+        if len(image2.shape) != 4:
+            raise ValueError(
+                "Expected image2 to be 4D (batch, height, width, channels) "
+                f"or (batch, channels, height, width). Got: {image2.shape}"
+            )
+        # Output is a scalar per batch item
+        return KerasTensor(shape=(image1.shape[0],), dtype=image1.dtype)
+
+
+@keras_export("keras.ops.image.ssim")
+def ssim(
+    image1,
+    image2,
+    max_val=1.0,
+    filter_size=11,
+    filter_sigma=1.5,
+    k1=0.01,
+    k2=0.03,
+    data_format=None,
+):
+    """Computes the Structural Similarity Index (SSIM) between two images.
+
+    SSIM is a perception-based metric that quantifies image quality degradation
+    caused by processing such as data compression or transmission losses.
+    It considers changes in structural information, luminance, and contrast.
+
+    Args:
+        image1: First batch of images. Must be 4D with shape
+            `(batch, height, width, channels)` or
+            `(batch, channels, height, width)`.
+        image2: Second batch of images. Must have the same shape as `image1`.
+        max_val: The dynamic range of the images (i.e., the difference between
+            the maximum and minimum allowed values). Defaults to `1.0` for
+            normalized images.
+        filter_size: Size of the Gaussian filter used for computing SSIM.
+            Defaults to `11`.
+        filter_sigma: Standard deviation of the Gaussian filter.
+            Defaults to `1.5`.
+        k1: Constant used to maintain stability in the luminance comparison.
+            Defaults to `0.01`.
+        k2: Constant used to maintain stability in the contrast comparison.
+            Defaults to `0.03`.
+        data_format: A string specifying the data format of the input images.
+            It can be either `"channels_last"` or `"channels_first"`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        A tensor of SSIM values for each image in the batch, with shape
+        `(batch_size,)`. Values range from -1 to 1, where 1 indicates
+        identical images.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> image1 = np.random.random((2, 64, 64, 3)).astype("float32")
+    >>> image2 = np.random.random((2, 64, 64, 3)).astype("float32")
+    >>> ssim_values = ops.image.ssim(image1, image2)
+    >>> ssim_values.shape
+    (2,)
+
+    >>> # Identical images should have SSIM close to 1
+    >>> identical_ssim = ops.image.ssim(image1, image1)
+
+    >>> # Images with channels_first format
+    >>> image1_cf = np.random.random((2, 3, 64, 64)).astype("float32")
+    >>> image2_cf = np.random.random((2, 3, 64, 64)).astype("float32")
+    >>> ssim_values = ops.image.ssim(
+    ...     image1_cf, image2_cf, data_format="channels_first"
+    ... )
+    """
+    if any_symbolic_tensors((image1, image2)):
+        return SSIM(
+            max_val=max_val,
+            filter_size=filter_size,
+            filter_sigma=filter_sigma,
+            k1=k1,
+            k2=k2,
+            data_format=data_format,
+        ).symbolic_call(image1, image2)
+    return _ssim(
+        image1,
+        image2,
+        max_val=max_val,
+        filter_size=filter_size,
+        filter_sigma=filter_sigma,
+        k1=k1,
+        k2=k2,
+        data_format=data_format,
+    )
+
+
+def _ssim(
+    image1, image2, max_val, filter_size, filter_sigma, k1, k2, data_format
+):
+    """Internal implementation of SSIM."""
+    data_format = backend.standardize_data_format(data_format)
+
+    if len(ops.shape(image1)) != 4:
+        raise ValueError(
+            "Expected image1 to be 4D (batch, height, width, channels) "
+            f"or (batch, channels, height, width). Got: {ops.shape(image1)}"
+        )
+    if len(ops.shape(image2)) != 4:
+        raise ValueError(
+            "Expected image2 to be 4D (batch, height, width, channels) "
+            f"or (batch, channels, height, width). Got: {ops.shape(image2)}"
+        )
+
+    # Convert to channels_last if needed
+    if data_format == "channels_first":
+        # (batch, channels, height, width) -> (batch, height, width, channels)
+        image1 = ops.transpose(image1, (0, 2, 3, 1))
+        image2 = ops.transpose(image2, (0, 2, 3, 1))
+
+    # Get number of channels
+    num_channels = ops.shape(image1)[-1]
+
+    # Constants for stability
+    c1 = (k1 * max_val) ** 2
+    c2 = (k2 * max_val) ** 2
+
+    # Create Gaussian filter kernel
+    kernel_size = filter_size
+    coords = ops.arange(kernel_size, dtype=image1.dtype)
+    coords = coords - (kernel_size - 1) / 2.0
+
+    # 1D Gaussian
+    g = ops.exp(-(coords**2) / (2.0 * filter_sigma**2))
+    g = g / ops.sum(g)
+
+    # 2D Gaussian kernel via outer product
+    kernel = ops.outer(g, g)
+    kernel = ops.reshape(kernel, (kernel_size, kernel_size, 1, 1))
+
+    # Tile kernel for all channels: (H, W, channels, 1)
+    kernel = ops.tile(kernel, (1, 1, num_channels, 1))
+
+    # Compute means using depthwise convolution
+    mu1 = ops.nn.depthwise_conv(
+        image1, kernel, padding="valid", data_format="channels_last"
+    )
+    mu2 = ops.nn.depthwise_conv(
+        image2, kernel, padding="valid", data_format="channels_last"
+    )
+
+    # Compute squared means
+    mu1_sq = ops.square(mu1)
+    mu2_sq = ops.square(mu2)
+    mu1_mu2 = mu1 * mu2
+
+    # Compute variances and covariance
+    sigma1_sq = (
+        ops.nn.depthwise_conv(
+            ops.square(image1),
+            kernel,
+            padding="valid",
+            data_format="channels_last",
+        )
+        - mu1_sq
+    )
+    sigma2_sq = (
+        ops.nn.depthwise_conv(
+            ops.square(image2),
+            kernel,
+            padding="valid",
+            data_format="channels_last",
+        )
+        - mu2_sq
+    )
+    sigma12 = (
+        ops.nn.depthwise_conv(
+            image1 * image2,
+            kernel,
+            padding="valid",
+            data_format="channels_last",
+        )
+        - mu1_mu2
+    )
+
+    # SSIM formula
+    # SSIM = (2*mu1*mu2 + C1) * (2*sigma12 + C2) /
+    #        ((mu1^2 + mu2^2 + C1) * (sigma1^2 + sigma2^2 + C2))
+    numerator = (2.0 * mu1_mu2 + c1) * (2.0 * sigma12 + c2)
+    denominator = (mu1_sq + mu2_sq + c1) * (sigma1_sq + sigma2_sq + c2)
+
+    ssim_map = numerator / denominator
+
+    # Average over spatial dimensions and channels
+    # ssim_map shape: (batch, height, width, channels)
+    return ops.mean(ssim_map, axis=(1, 2, 3))

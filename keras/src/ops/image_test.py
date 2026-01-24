@@ -248,6 +248,20 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         )
         self.assertEqual(out.shape, output_shape)
 
+    def test_ssim(self):
+        # Test channels_last
+        x1 = KerasTensor([None, 64, 64, 3])
+        x2 = KerasTensor([None, 64, 64, 3])
+        out = kimage.ssim(x1, x2)
+        self.assertEqual(out.shape, (None,))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x1 = KerasTensor([None, 3, 64, 64])
+        x2 = KerasTensor([None, 3, 64, 64])
+        out = kimage.ssim(x1, x2, data_format="channels_first")
+        self.assertEqual(out.shape, (None,))
+
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
@@ -1997,6 +2011,27 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-4)
+
+    def test_ssim(self):
+        # Test that identical images have SSIM = 1
+        x = np.random.random((2, 64, 64, 3)).astype("float32")
+        out = kimage.ssim(x, x)
+        self.assertAllClose(out, np.ones(2), atol=1e-5)
+
+        # Test against TensorFlow SSIM
+        x1 = np.random.random((2, 64, 64, 3)).astype("float32")
+        x2 = np.random.random((2, 64, 64, 3)).astype("float32")
+        out = kimage.ssim(x1, x2)
+        ref_out = tf.image.ssim(x1, x2, max_val=1.0, filter_size=11)
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-5)
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x1_cf = np.transpose(x1, (0, 3, 1, 2))
+        x2_cf = np.transpose(x2, (0, 3, 1, 2))
+        out_cf = kimage.ssim(x1_cf, x2_cf, data_format="channels_first")
+        self.assertAllClose(ref_out, out_cf, atol=1e-5)
 
 
 class ImageOpsDtypeTest(testing.TestCase):
