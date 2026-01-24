@@ -77,7 +77,7 @@ class BatchNormalization(Layer):
             adds extra variables during training. The inference is the same
             for either value of this parameter.
         renorm_clipping: A dictionary that may map keys `"rmax"`, `"rmin"`,
-            `"dmax"` to scalar `Tensors` used to clip the renorm correction.
+            `"dmax"` to floats used to clip the renorm correction.
             The correction `(r, d)` is used as
             `corrected_value = normalized_value * r + d`, with `r` clipped to
             `[rmin, rmax]`, and `d` to `[-dmax, dmax]`. Missing `rmax`, `rmin`,
@@ -444,7 +444,7 @@ class BatchNormalization(Layer):
             variance: The variance of the current batch.
 
         Returns:
-            A tuple (r, d, mean, variance) where r and d are the correction
+            A tuple (r, s, mean, variance) where r and d are the correction
             factors, and mean/variance are passed through unchanged.
         """
         stddev = ops.sqrt(variance + self.epsilon)
