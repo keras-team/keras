@@ -5131,11 +5131,7 @@ class Nanmean(Operation):
         return backend.numpy.nanmean(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
-
-        if backend.backend() == "torch" and dtype == "uint32":
-            dtype = "int32"
-
+        dtype = dtypes.result_type(x.dtype, float)
         return KerasTensor(
             reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
             dtype=dtype,
