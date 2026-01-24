@@ -191,7 +191,7 @@ class BatchNormalizationTest(testing.TestCase):
         self.assertEqual(len(layer.non_trainable_weights), 4)
 
         # Random data centered on 5.0, variance 10.0
-        x = np.random.normal(loc=5.0, scale=10.0, size=(200, 4, 4, 3))
+        x = np.random.normal(loca=5.0, scale=10.0, size=(200, 4, 4, 3))
 
         out = layer(x, training=True)
         self.assertAllClose(out, x)
@@ -335,14 +335,15 @@ class BatchNormalizationTest(testing.TestCase):
         )
         layer.build((None, 3))
 
-        # Assign initial values
-        init_moving_mean = np.array([1.0, -2.0, 0.5], dtype="float32")
-        init_moving_var = np.array([2.0, 3.0, 0.5], dtype="float32")
+        # Assign initial values.
+        size = (3,)
+        init_moving_mean = np.random.normal(0.0, 1.0, size=size)
+        init_moving_var = np.abs(np.random.normal(1.0, 0.5, size=size))
         init_moving_stddev = np.sqrt(init_moving_var)
-        init_renorm_mean = np.array([0.5, -1.0, 1.0], dtype="float32")
-        init_renorm_stddev = np.array([1.5, 2.0, 0.8], dtype="float32")
-        init_gamma = np.array([1.2, 0.8, 1.5], dtype="float32")
-        init_beta = np.array([0.1, -0.1, 0.2], dtype="float32")
+        init_renorm_mean = np.random.normal(0.0, 1.0, size=size)
+        init_renorm_stddev = np.abs(np.random.normal(1.0, 0.5, size=size))
+        init_gamma = np.random.normal(1.0, 0.1, size=size)
+        init_beta = np.random.normal(0.0, 0.1, size=size)
 
         layer.moving_mean.assign(init_moving_mean)
         layer.moving_variance.assign(init_moving_var)
