@@ -76,17 +76,18 @@ class BatchNormalization(Layer):
             [Batch Renormalization](https://arxiv.org/abs/1702.03275). This
             adds extra variables during training. The inference is the same
             for either value of this parameter.
-        renorm_clipping: A dictionary that may map keys `"rmax"`, `"rmin"`,
-            `"dmax"` to floats used to clip the renorm correction.
-            The correction `(r, d)` is used as
+        renorm_clipping: Dictionary, valid only if `renorm = True`.
+            Maps optional keys `"rmax"`, `"rmin"`, `"dmax"` to floats used to
+            clip the renorm correction. The correction `(r, d)` is used as
             `corrected_value = normalized_value * r + d`, with `r` clipped to
             `[rmin, rmax]`, and `d` to `[-dmax, dmax]`. Missing `rmax`, `rmin`,
             `dmax` are set to `inf`, `0`, `inf`, respectively.
         renorm_momentum: Momentum used to update the moving means and standard
-            deviations with renorm. Unlike `momentum`, this affects training
-            and should be neither too small (which would add noise) nor too
-            large (which would give stale estimates). Note that `momentum` is
-            still applied to get the means and variances for inference.
+            deviations with renorm. Valid only if `renorm= True`. Unlike
+            `momentum`, this affects training and should be neither too small
+            (which would add noise) nor too large (which would give stale
+            estimates). Note that `momentum` is still applied to get the means
+            and variances for inference.
         **kwargs: Base layer keyword arguments (e.g. `name` and `dtype`).
 
     Call arguments:
@@ -192,6 +193,21 @@ class BatchNormalization(Layer):
                     "Received invalid keys for `renorm_clipping` argument: "
                     f"{renorm_clipping}. Supported values: {keys}."
                 )
+            rmax = renorm_clipping.get("rmax")
+            rmin = renorm_clipping.get("rmin")
+            dmax = renorm_clipping.get("dmax")
+
+            if rmax and rmin and rmax < rmin:
+                raise ValueError(
+                    "rmax should be greater than rmin in the `renorm_clipping` "
+                    "argument. Received: rmax={rmax}, rmin={rmin}."
+                )
+            if dmax and dmax < 0:
+                raise ValueError(
+                    "dmax should be non-negative in the `renorm_clipping` "
+                    """argument. Received: dmax={dmax}."""
+                )
+
         self.renorm_clipping = renorm_clipping
         self.renorm_momentum = renorm_momentum
 
