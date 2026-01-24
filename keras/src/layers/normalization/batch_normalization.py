@@ -197,12 +197,12 @@ class BatchNormalization(Layer):
             rmin = renorm_clipping.get("rmin")
             dmax = renorm_clipping.get("dmax")
 
-            if rmax and rmin and rmax < rmin:
+            if rmax is not None and rmin is not None and rmax < rmin:
                 raise ValueError(
                     "rmax should be greater than rmin in the `renorm_clipping` "
                     "argument. Received: rmax={rmax}, rmin={rmin}."
                 )
-            if dmax and dmax < 0:
+            if dmax is not None and dmax < 0:
                 raise ValueError(
                     "dmax should be non-negative in the `renorm_clipping` "
                     """argument. Received: dmax={dmax}."""
