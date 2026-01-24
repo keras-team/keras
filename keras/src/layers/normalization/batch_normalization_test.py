@@ -191,7 +191,7 @@ class BatchNormalizationTest(testing.TestCase):
         self.assertEqual(len(layer.non_trainable_weights), 4)
 
         # Random data centered on 5.0, variance 10.0
-        x = np.random.normal(loca=5.0, scale=10.0, size=(200, 4, 4, 3))
+        x = np.random.normal(loc=5.0, scale=10.0, size=(200, 4, 4, 3))
 
         out = layer(x, training=True)
         self.assertAllClose(out, x)
@@ -328,6 +328,7 @@ class BatchNormalizationTest(testing.TestCase):
 
         self.assertAllClose(out, out_renorm, atol=1e-5, rtol=1e-5)
 
+    @pytest.mark.requires_trainable_backend
     def test_renorm_correctness(self):
         epsilon = 1e-3
         momentum = 0.9
