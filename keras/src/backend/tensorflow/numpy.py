@@ -2154,8 +2154,15 @@ def nanmean(x, axis=None, keepdims=False):
     dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
 
     nan_sum = cast(nansum(x, axis=axis, keepdims=keepdims), dtype)
+
+    is_nan_mask = (
+        tf.math.is_nan(x)
+        if x.dtype.is_floating
+        else tf.zeros_like(x, dtype=tf.bool)
+    )
+
     normalizer = tf.reduce_sum(
-        cast(~tf.math.is_nan(cast(x, config.floatx())), dtype),
+        cast(~is_nan_mask, dtype),
         axis=axis,
         keepdims=keepdims,
     )
