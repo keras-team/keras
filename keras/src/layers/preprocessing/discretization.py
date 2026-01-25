@@ -232,10 +232,6 @@ class Discretization(DataLayer):
             else:
                 return tuple(input_shape) + (depth,)
         else:
-            # For multi_hot and count modes, the behavior is more complex
-            # and depends on the backend implementation. For now, we'll use
-            # a simplified approach that works for the most common cases.
-            # This may need refinement based on actual backend behavior.
             if input_shape and len(input_shape) >= 2:
                 # Replace last dimension with depth
                 return tuple(input_shape[:-1]) + (depth,)
