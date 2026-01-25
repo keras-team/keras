@@ -177,10 +177,8 @@ class BatchNormalizationTest(testing.TestCase):
             run_eagerly=run_eagerly,
         )
         model.fit(x=padded_data, y=padded_data, batch_size=10, epochs=5)
-        self.assertAllClose(model.layers[2].moving_mean.numpy(), [1.5, 5.0])
-        self.assertAllClose(
-            model.layers[2].moving_variance.numpy(), [0.25, 0.0]
-        )
+        self.assertAllClose(model.layers[2].moving_mean, [1.5, 5.0])
+        self.assertAllClose(model.layers[2].moving_variance, [0.25, 0.0])
 
     def test_trainable_behavior(self):
         layer = layers.BatchNormalization(axis=-1, momentum=0.8, epsilon=1e-7)
@@ -381,8 +379,7 @@ class BatchNormalizationTest(testing.TestCase):
 
         expected_output = (x_norm * r + d) * init_gamma + init_beta
         actual_output = layer(x, training=True)
-        actual_output_np = backend.convert_to_numpy(actual_output)
-        self.assertAllClose(actual_output_np, expected_output, atol=1e-5)
+        self.assertAllClose(actual_output, expected_output, atol=1e-5)
 
         # Verify moving statistics.
         expected_renorm_mean = (
@@ -390,7 +387,7 @@ class BatchNormalizationTest(testing.TestCase):
             + batch_mean * (1 - renorm_momentum)
         )
         self.assertAllClose(
-            backend.convert_to_numpy(layer.renorm_mean),
+            layer.renorm_mean,
             expected_renorm_mean,
             atol=1e-5,
         )
@@ -399,7 +396,7 @@ class BatchNormalizationTest(testing.TestCase):
             + batch_stddev * (1 - renorm_momentum)
         )
         self.assertAllClose(
-            backend.convert_to_numpy(layer.renorm_stddev),
+            layer.renorm_stddev,
             expected_renorm_stddev,
             atol=1e-5,
         )
@@ -407,7 +404,7 @@ class BatchNormalizationTest(testing.TestCase):
             1 - momentum
         )
         self.assertAllClose(
-            backend.convert_to_numpy(layer.moving_mean),
+            layer.moving_mean,
             expected_moving_mean,
             atol=1e-5,
         )
@@ -415,13 +412,13 @@ class BatchNormalizationTest(testing.TestCase):
             init_moving_stddev * momentum + batch_stddev * (1 - momentum)
         )
         self.assertAllClose(
-            backend.convert_to_numpy(layer.moving_stddev),
+            layer.moving_stddev,
             expected_moving_stddev,
             atol=1e-5,
         )
         expected_moving_var = expected_moving_stddev**2 - epsilon
         self.assertAllClose(
-            backend.convert_to_numpy(layer.moving_variance),
+            layer.moving_variance,
             expected_moving_var,
             atol=1e-5,
         )

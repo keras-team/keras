@@ -8,6 +8,26 @@ from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 
 
+# TODO(abheesht17): Move this to utils?
+def _clone_initializer(initializer):
+    """Clones an initializer to ensure a new seed.
+
+    Args:
+        initializer: The initializer to clone.
+
+    Returns:
+        A cloned initializer if it is clonable, otherwise the original one.
+
+    As of tensorflow 2.10, we need to clone user passed initializers when
+    invoking them twice to avoid creating the same randomized initialization.
+    """
+    if isinstance(initializer, keras.initializers.Initializer):
+        config = initializer.get_config()
+        return initializer.__class__.from_config(config)
+    # If we get a string or dict, just return as we cannot and should not clone.
+    return initializer
+
+
 @keras_export("keras.layers.BatchNormalization")
 class BatchNormalization(Layer):
     """Layer that normalizes its inputs.
@@ -261,7 +281,9 @@ class BatchNormalization(Layer):
             # initializer.
             def moving_stddev_initializer(shape, dtype=None):
                 return ops.sqrt(
-                    self.moving_variance_initializer(shape, dtype=dtype)
+                    _clone_initializer(
+                        self.moving_variance_initializer(shape, dtype=dtype)
+                    )
                 )
 
             self.moving_stddev = self.add_weight(
@@ -277,7 +299,7 @@ class BatchNormalization(Layer):
             self.renorm_mean = self.add_weight(
                 shape=shape,
                 name="renorm_mean",
-                initializer=self.moving_mean_initializer,
+                initializer=_clone_initializer(self.moving_mean_initializer),
                 trainable=False,
                 autocast=False,
             )
