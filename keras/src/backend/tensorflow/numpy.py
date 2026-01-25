@@ -2147,12 +2147,26 @@ def nanmax(x, axis=None, keepdims=False):
 
 def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return x
+
+    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+
+    nan_sum = cast(nansum(x, axis=axis, keepdims=keepdims), dtype)
     normalizer = tf.reduce_sum(
-        tf.cast(~tf.math.is_nan(x), x.dtype), axis=axis, keepdims=keepdims
+        cast(~tf.math.is_nan(cast(x, config.floatx())), dtype),
+        axis=axis,
+        keepdims=keepdims,
     )
 
-    nan_sum = nansum(x, axis=axis, keepdims=keepdims)
-    return tf.math.divide_no_nan(nan_sum, normalizer)
+    out = tf.math.divide_no_nan(nan_sum, normalizer)
+
+    return tf.where(
+        normalizer > 0,
+        out,
+        tf.fill(tf.shape(out), tf.constant(float("nan"), out.dtype)),
+    )
 
 
 def nanmin(x, axis=None, keepdims=False):

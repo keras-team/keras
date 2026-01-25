@@ -1297,11 +1297,7 @@ def nanmean(x, axis=None, keepdims=False):
         return x
 
     dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
-
-    if not torch.is_floating_point(x) and not torch.is_complex(x):
-        x = cast(x, dtype)
-
-    return cast(torch.nanmean(x, dim=axis, keepdim=keepdims), dtype)
+    return torch.nanmean(cast(x, dtype), dim=axis, keepdim=keepdims)
 
 
 def nanmin(x, axis=None, keepdims=False):
