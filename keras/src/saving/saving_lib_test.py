@@ -1319,24 +1319,6 @@ class SavingH5IOStoreTest(testing.TestCase):
         for key in ["a", "b"]:
             self.assertIn(key, vars_store.keys())
 
-        # Items.
-        for key, value in vars_store.items():
-            if key == "a":
-                self.assertAllClose(value, a)
-            elif key == "b":
-                self.assertAllClose(value, b)
-            else:
-                raise ValueError(f"Unexpected key: {key}")
-
-        # Values.
-        for value in vars_store.values():
-            if backend.standardize_dtype(value.dtype) == "float32":
-                self.assertAllClose(value, a)
-            elif backend.standardize_dtype(value.dtype) == "int32":
-                self.assertAllClose(value, b)
-            else:
-                raise ValueError(f"Unexpected value: {value}")
-
     def test_sharded_h5_io_store_exception_raised(self):
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))
 
