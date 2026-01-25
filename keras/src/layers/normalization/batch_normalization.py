@@ -21,7 +21,7 @@ def _clone_initializer(initializer):
     As of tensorflow 2.10, we need to clone user passed initializers when
     invoking them twice to avoid creating the same randomized initialization.
     """
-    if isinstance(initializer, keras.initializers.Initializer):
+    if isinstance(initializer, initializers.Initializer):
         config = initializer.get_config()
         return initializer.__class__.from_config(config)
     # If we get a string or dict, just return as we cannot and should not clone.
