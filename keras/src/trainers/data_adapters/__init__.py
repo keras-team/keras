@@ -35,7 +35,7 @@ def get_data_adapter(
     distribution = distribution_lib.distribution()
     # Allow numpy arrays and torch DataLoader for PyTorch backend in multi-process mode
     # since PyTorch's torch.distributed.run spawns processes that each handle their own data
-    from keras.src.backend import keras_backend
+    from keras.src.backend import backend as keras_backend
     is_torch = keras_backend() == "torch"
     can_convert_arrays = array_data_adapter.can_convert_arrays((x, y, sample_weight))
     if (
