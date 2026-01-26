@@ -2270,7 +2270,16 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def ptp(x, axis=None, keepdims=False):
-    raise NotImplementedError("`ptp` is not supported with openvino backend")
+    if axis == ():
+        return zeros_like(x)
+    x = get_ov_output(x)
+
+    x_resolved, resolved_axis = _resolve_axis(x, axis)
+
+    max_val = ov_opset.reduce_max(x_resolved, resolved_axis, keepdims)
+    min_val = ov_opset.reduce_min(x_resolved, resolved_axis, keepdims)
+
+    return OpenVINOKerasTensor(ov_opset.subtract(max_val, min_val).output(0))
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
