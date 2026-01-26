@@ -2819,7 +2819,17 @@ def vdot(x1, x2):
 
 
 def vstack(xs):
-    raise NotImplementedError("`vstack` is not supported with openvino backend")
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+    elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
+    axis = 0
+    for i in range(1, len(elems)):
+        elems[0], elems[i] = _align_operand_types(
+            elems[0], elems[i], "vstack()"
+        )
+    return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
