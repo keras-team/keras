@@ -1,7 +1,12 @@
 """Unified high-level distribution APIs across backends.
 
-Currently only the JAX backend is supported. The TensorFlow backend
-will be supported in the future (via tf.dtensor API).
+This module provides distribution strategies that work across different
+backends (JAX, TensorFlow, PyTorch). The implementation delegates
+backend-specific operations to the corresponding backend's distribution_lib.
+
+- JAX: Uses jax.sharding for automatic sharding
+- TensorFlow: Uses tf.dtensor (experimental)
+- PyTorch: Uses torch.distributed primitives with explicit tensor partitioning
 """
 
 import collections
@@ -512,13 +517,37 @@ class DataParallel(Distribution):
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
+        # Check for PyTorch DataLoader
+        try:
+            from torch.utils.data import DataLoader, DistributedSampler
+            if isinstance(dataset, DataLoader):
+                # PyTorch DataLoader - use DistributedSampler
+                sampler = DistributedSampler(
+                    dataset.dataset,
+                    num_replicas=self._num_process,
+                    rank=self._process_id,
+                    shuffle=dataset.shuffle,
+                    drop_last=dataset.drop_last,
+                )
+                return DataLoader(
+                    dataset.dataset,
+                    batch_size=dataset.batch_size,
+                    sampler=sampler,
+                    num_workers=dataset.num_workers,
+                    pin_memory=dataset.pin_memory,
+                    drop_last=dataset.drop_last,
+                    persistent_workers=dataset.persistent_workers,
+                )
+        except ImportError:
+            pass
+
         # Try to distribute a global tf.data.Dataset.
         from keras.src.utils.module_utils import tensorflow as tf
 
         if not tf.available or not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
-                "Only `tf.data.Dataset` is supported for auto-sharding, "
-                f"got {type(dataset)}"
+                "Only `tf.data.Dataset` and `torch.utils.data.DataLoader` "
+                f"are supported for auto-sharding, got {type(dataset)}"
             )
 
         from tensorflow.python.data.experimental.ops import (
@@ -683,13 +712,37 @@ class ModelParallel(Distribution):
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
+        # Check for PyTorch DataLoader
+        try:
+            from torch.utils.data import DataLoader, DistributedSampler
+            if isinstance(dataset, DataLoader):
+                # PyTorch DataLoader - use DistributedSampler
+                sampler = DistributedSampler(
+                    dataset.dataset,
+                    num_replicas=self._num_process,
+                    rank=self._process_id,
+                    shuffle=dataset.shuffle,
+                    drop_last=dataset.drop_last,
+                )
+                return DataLoader(
+                    dataset.dataset,
+                    batch_size=dataset.batch_size,
+                    sampler=sampler,
+                    num_workers=dataset.num_workers,
+                    pin_memory=dataset.pin_memory,
+                    drop_last=dataset.drop_last,
+                    persistent_workers=dataset.persistent_workers,
+                )
+        except ImportError:
+            pass
+
         # Try to distribute a global tf.data.Dataset.
         from keras.src.utils.module_utils import tensorflow as tf
 
         if not tf.available or not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
-                "Only `tf.data.Dataset` is supported for auto-sharding, "
-                f"got {type(dataset)}"
+                "Only `tf.data.Dataset` and `torch.utils.data.DataLoader` "
+                f"are supported for auto-sharding, got {type(dataset)}"
             )
 
         from tensorflow.python.data.experimental.ops import (
