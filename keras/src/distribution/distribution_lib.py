@@ -541,10 +541,10 @@ class DataParallel(Distribution):
         )
         if self.device_mesh.devices.ndim != 1:
             warnings.warn(
-                "Expect the input mesh to be 1D, but received "
-                "mesh.devices.ndim=%d. "
-                "The first axis will be used for data-parallel sharding.",
-                device_mesh.devices.ndim,
+                f"Expect the input mesh to be 1D, but received "
+                f"mesh.devices.ndim={device_mesh.devices.ndim}. "
+                f"The first axis will be used for data-parallel sharding.",
+                stacklevel=2,
             )
 
     def _initialize_mesh_from_devices(self, devices, auto_shard_dataset):
