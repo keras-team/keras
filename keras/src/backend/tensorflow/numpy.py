@@ -2151,29 +2151,19 @@ def nanmean(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         return x
 
+    if not x.dtype.is_floating:
+        return tf.reduce_mean(
+            tf.cast(x, "float32"), axis=axis, keepdims=keepdims
+        )
+
     dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
-
-    nan_sum = cast(nansum(x, axis=axis, keepdims=keepdims), dtype)
-
-    is_nan_mask = (
-        tf.math.is_nan(x)
-        if x.dtype.is_floating
-        else tf.zeros_like(x, dtype=tf.bool)
-    )
-
+    total_sum = cast(nansum(x, axis=axis, keepdims=keepdims), dtype)
     normalizer = tf.reduce_sum(
-        cast(~is_nan_mask, dtype),
+        cast(~tf.math.is_nan(x), dtype),
         axis=axis,
         keepdims=keepdims,
     )
-
-    out = tf.math.divide_no_nan(nan_sum, normalizer)
-
-    return tf.where(
-        normalizer > 0,
-        out,
-        tf.fill(tf.shape(out), tf.constant(float("nan"), out.dtype)),
-    )
+    return tf.divide(total_sum, normalizer)
 
 
 def nanmin(x, axis=None, keepdims=False):
