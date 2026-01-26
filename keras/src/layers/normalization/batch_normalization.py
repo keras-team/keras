@@ -280,11 +280,8 @@ class BatchNormalization(Layer):
             # paper. The stddev is initialized as sqrt of the variance
             # initializer.
             def moving_stddev_initializer(shape, dtype=None):
-                return ops.sqrt(
-                    _clone_initializer(
-                        self.moving_variance_initializer(shape, dtype=dtype)
-                    )
-                )
+                cloned = _clone_initializer(self.moving_variance_initializer)
+                return ops.sqrt(cloned(shape, dtype=dtype))
 
             self.moving_stddev = self.add_weight(
                 shape=shape,
