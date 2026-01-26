@@ -78,9 +78,6 @@ class ExportSavedModelTest(testing.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         revived_model.serve(tf.random.normal((6, 10)))
 
     @parameterized.named_parameters(
@@ -171,9 +168,6 @@ class ExportSavedModelTest(testing.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         revived_model.serve(tf.random.normal((6, 10)))
 
     @parameterized.named_parameters(
@@ -233,9 +227,6 @@ class ExportSavedModelTest(testing.TestCase):
         saved_model.export_saved_model(revived_model, self.get_temp_dir())
 
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         bigger_input = tree.map_structure(
             lambda x: tf.concat([x, x], axis=0), ref_input
         )
@@ -262,9 +253,6 @@ class ExportSavedModelTest(testing.TestCase):
             ref_output, revived_model.serve(ref_input_x, ref_input_y)
         )
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         revived_model.serve(
             tf.random.normal((6, 10)), tf.random.normal((6, 10))
         )
