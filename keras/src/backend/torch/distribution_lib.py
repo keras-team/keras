@@ -10,10 +10,70 @@ tensor partitioning and torch.distributed primitives.
 """
 
 import os
+import sys
+from datetime import datetime
 
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
+
+
+# Debugging utilities for torch distribution
+_DEBUG_ENABLED = None
+_DEBUG_PREFIX = "[TORCH-DISTRIBUTION-DEBUG]"
+
+
+def _is_debug_enabled():
+    """Check if debug mode is enabled via environment variable."""
+    global _DEBUG_ENABLED
+    if _DEBUG_ENABLED is None:
+        _DEBUG_ENABLED = os.environ.get("KERAS_TORCH_DISTRIBUTION_DEBUG", "0") == "1"
+    return _DEBUG_ENABLED
+
+
+def _get_debug_prefix():
+    """Get prefix for debug messages with timestamp and rank info."""
+    if dist.is_initialized():
+        rank = dist.get_rank()
+        return f"{_DEBUG_PREFIX} [Rank {rank}] [{datetime.now().strftime('%H:%M:%S.%f')[:-3]}]"
+    else:
+        return f"{_DEBUG_PREFIX} [{datetime.now().strftime('%H:%M:%S.%f')[:-3]}]"
+
+
+def _debug_log(message):
+    """Log debug message if debug mode is enabled."""
+    if _is_debug_enabled():
+        prefix = _get_debug_prefix()
+        print(f"{prefix} {message}", flush=True)
+        sys.stdout.flush()
+
+
+def _debug_function_entry(func_name, args=None, kwargs=None):
+    """Log function entry with arguments."""
+    if _is_debug_enabled():
+        args_str = str(args) if args else ""
+        kwargs_str = str(kwargs) if kwargs else ""
+        _debug_log(f"ENTER {func_name}({args_str}, {kwargs_str})")
+
+
+def _debug_function_exit(func_name, result=None):
+    """Log function exit with result."""
+    if _is_debug_enabled():
+        result_str = str(result) if result is not None else "None"
+        # Truncate long results
+        if len(result_str) > 200:
+            result_str = result_str[:200] + "..."
+        _debug_log(f"EXIT {func_name} -> {result_str}")
+
+
+def _debug_tensor_info(tensor, name="tensor"):
+    """Log tensor information for debugging."""
+    if _is_debug_enabled() and tensor is not None:
+        if hasattr(tensor, 'shape') and hasattr(tensor, 'dtype'):
+            _debug_log(f"{name}: shape={tensor.shape}, dtype={tensor.dtype}, "
+                      f"requires_grad={tensor.requires_grad if hasattr(tensor, 'requires_grad') else 'N/A'}")
+        else:
+            _debug_log(f"{name}: {type(tensor)}")
 
 
 def list_devices(device_type=None):
@@ -88,17 +148,25 @@ def distribute_tensor(tensor, layout):
     Returns:
         Distributed tensor (or tuple of shards for model parallel).
     """
+    _debug_function_entry("distribute_tensor", kwargs={"layout": layout})
+    _debug_tensor_info(tensor, "input_tensor")
+
     # Avoid circular imports.
     from keras.src.distribution import TensorLayout
 
     if isinstance(layout, TensorLayout):
         # Convert to backend layout if needed
         backend_layout = layout.backend_layout if hasattr(layout, 'backend_layout') else layout
+        _debug_log(f"Using TensorLayout: axes={backend_layout.axes}, device_mesh={backend_layout.device_mesh}")
     else:
         backend_layout = layout
+        _debug_log(f"Using raw layout: {backend_layout}")
 
     # Handle None layout (no distribution needed)
     if backend_layout is None:
+        _debug_log("Layout is None, returning tensor as-is (replicated)")
+        _debug_tensor_info(tensor, "output_tensor")
+        _debug_function_exit("distribute_tensor", result=tensor)
         return tensor
 
     # Get axes from layout
@@ -107,20 +175,27 @@ def distribute_tensor(tensor, layout):
     else:
         axes = backend_layout
 
+    _debug_log(f"Layout axes: {axes}")
+
     # Get device mesh
     device_mesh = None
     if hasattr(backend_layout, 'device_mesh') and backend_layout.device_mesh is not None:
         device_mesh = backend_layout.device_mesh
+        _debug_log(f"Device mesh: shape={device_mesh.shape}, axis_names={device_mesh.axis_names}")
 
     # Check if this is a replicated tensor (no sharding axes)
     sharding_axes = [ax for ax in axes if ax is not None]
     if not sharding_axes:
         # Replicated - return tensor as-is
+        _debug_log("No sharding axes found, returning tensor as-is (replicated)")
+        _debug_tensor_info(tensor, "output_tensor")
+        _debug_function_exit("distribute_tensor", result=tensor)
         return tensor
 
     # For now, support basic sharding on first sharding axis
     # Model parallelism will require more sophisticated handling
     first_sharding_axis = sharding_axes[0]
+    _debug_log(f"First sharding axis: {first_sharding_axis}")
 
     if device_mesh is not None:
         # Get the axis index in the mesh
@@ -129,16 +204,36 @@ def distribute_tensor(tensor, layout):
             axis_idx = axis_names.index(first_sharding_axis)
             mesh_dim = device_mesh.shape[axis_idx]
 
+            _debug_log(f"Sharding on mesh axis {axis_idx} (dimension size: {mesh_dim})")
+            _debug_log(f"Tensor dimension at axis {axis_idx}: {tensor.shape[axis_idx]}")
+
             # Shard along the specified axis
             if tensor.shape[axis_idx] >= mesh_dim:
                 if tensor.shape[axis_idx] % mesh_dim == 0:
                     shard_size = tensor.shape[axis_idx] // mesh_dim
-                    return list(torch.split(tensor, shard_size, dim=axis_idx))
+                    _debug_log(f"Even sharding: shard_size={shard_size}, splitting tensor")
+                    result = list(torch.split(tensor, shard_size, dim=axis_idx))
+                    _debug_log(f"Split into {len(result)} shards")
+                    _debug_tensor_info(result[0], "first_shard")
+                    _debug_function_exit("distribute_tensor", result=result)
+                    return result
                 else:
                     # Cannot evenly divide, return as list
-                    return list(torch.chunk(tensor, mesh_dim, dim=axis_idx))
+                    _debug_log("Uneven sharding: cannot evenly divide, using torch.chunk")
+                    result = list(torch.chunk(tensor, mesh_dim, dim=axis_idx))
+                    _debug_log(f"Chunked into {len(result)} shards")
+                    _debug_tensor_info(result[0], "first_chunk")
+                    _debug_function_exit("distribute_tensor", result=result)
+                    return result
+            else:
+                _debug_log(f"Tensor dimension ({tensor.shape[axis_idx]}) < mesh dimension ({mesh_dim}), cannot shard")
+        else:
+            _debug_log(f"Axis '{first_sharding_axis}' not found in device mesh axes {axis_names}")
 
     # Fallback: return original tensor if sharding not applicable
+    _debug_log("Falling back to original tensor (no sharding applied)")
+    _debug_tensor_info(tensor, "output_tensor")
+    _debug_function_exit("distribute_tensor", result=tensor)
     return tensor
 
 
@@ -155,21 +250,30 @@ def distribute_variable(value, layout):
     Returns:
         Distributed variable representation.
     """
+    _debug_function_entry("distribute_variable", kwargs={"layout": layout})
+    _debug_tensor_info(value, "variable_value")
+
     from keras.src.distribution import TensorLayout
 
     if isinstance(layout, TensorLayout):
         backend_layout = layout.backend_layout if hasattr(layout, 'backend_layout') else layout
+        _debug_log(f"Using TensorLayout: axes={backend_layout.axes}")
     else:
         backend_layout = layout
+        _debug_log(f"Using raw layout: {backend_layout}")
 
     # For PyTorch, we wrap the tensor with distribution metadata
     # The actual sharding is applied during operations
     if hasattr(value, '_distributed_layout'):
+        _debug_log("Variable already has distributed layout, updating it")
         value._distributed_layout = backend_layout
     else:
         # Store layout as attribute for later use
+        _debug_log("Setting distributed layout attribute on variable")
         value._distributed_layout = backend_layout
 
+    _debug_log(f"Variable layout set to: {backend_layout}")
+    _debug_function_exit("distribute_variable", result=value)
     return value
 
 
@@ -188,13 +292,26 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
     Returns:
         A global batch distributed according to `layout`.
     """
-    # For PyTorch, we just need to ensure the data is on the right device
-    # and properly shaped
+    _debug_function_entry("distribute_data_input", 
+                         kwargs={"layout": layout, "batch_dim_name": batch_dim_name})
+    
     if isinstance(per_process_batch, (tuple, list)):
-        return type(per_process_batch)(
+        _debug_log(f"Input is {type(per_process_batch)} with {len(per_process_batch)} elements")
+        result = type(per_process_batch)(
             distribute_data_input(x, layout, batch_dim_name) for x in per_process_batch
         )
-    return per_process_batch
+        _debug_function_exit("distribute_data_input", result=result)
+        return result
+    
+    _debug_tensor_info(per_process_batch, "per_process_batch")
+    _debug_log(f"Batch dimension name: {batch_dim_name}")
+    
+    # For PyTorch, we just need to ensure the data is on the right device
+    # and properly shaped
+    result = per_process_batch
+    _debug_tensor_info(result, "distributed_batch")
+    _debug_function_exit("distribute_data_input", result=result)
+    return result
 
 
 def initialize(job_addresses=None, num_processes=None, process_id=None):
@@ -217,16 +334,24 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         - KERAS_DISTRIBUTION_NUM_PROCESSES
         - KERAS_DISTRIBUTION_PROCESS_ID
     """
+    _debug_function_entry("initialize", 
+                         args=(job_addresses, num_processes, process_id))
+    
     # Check environment variables first
     if job_addresses is None and "KERAS_DISTRIBUTION_JOB_ADDRESSES" in os.environ:
         job_addresses = os.environ["KERAS_DISTRIBUTION_JOB_ADDRESSES"]
+        _debug_log(f"Using job_addresses from env: {job_addresses}")
     if num_processes is None and "KERAS_DISTRIBUTION_NUM_PROCESSES" in os.environ:
         num_processes = int(os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"])
+        _debug_log(f"Using num_processes from env: {num_processes}")
     if process_id is None and "KERAS_DISTRIBUTION_PROCESS_ID" in os.environ:
         process_id = int(os.environ["KERAS_DISTRIBUTION_PROCESS_ID"])
+        _debug_log(f"Using process_id from env: {process_id}")
 
     if num_processes is None or num_processes <= 1:
         # No multi-process setup needed
+        _debug_log("No multi-process setup needed (num_processes <= 1)")
+        _debug_function_exit("initialize")
         return
 
     # Parse job addresses
@@ -235,6 +360,10 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         coordinator_address = job_addresses[0]
     else:
         coordinator_address = job_addresses
+
+    _debug_log(f"Coordinator address: {coordinator_address}")
+    _debug_log(f"Number of processes: {num_processes}")
+    _debug_log(f"Current process ID: {process_id}")
 
     # Set environment variables for torch.distributed
     os.environ["MASTER_ADDR"] = coordinator_address.split(":")[0] if ":" in coordinator_address else coordinator_address
@@ -249,12 +378,27 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
 
     # Initialize process group
     if not dist.is_initialized():
+        backend = "nccl" if torch.cuda.is_available() else "gloo"
+        _debug_log(f"Initializing torch.distributed with backend: {backend}")
+        _debug_log(f"MASTER_ADDR: {os.environ['MASTER_ADDR']}")
+        _debug_log(f"MASTER_PORT: {os.environ['MASTER_PORT']}")
+        
         dist.init_process_group(
-            backend="nccl" if torch.cuda.is_available() else "gloo",
+            backend=backend,
             init_method="env://",
             rank=process_id if process_id is not None else 0,
             world_size=num_processes,
         )
+        
+        _debug_log("Successfully initialized torch.distributed process group")
+        _debug_log(f"World size: {dist.get_world_size()}")
+        _debug_log(f"Local rank: {dist.get_rank()}")
+    else:
+        _debug_log("torch.distributed already initialized")
+        _debug_log(f"World size: {dist.get_world_size()}")
+        _debug_log(f"Local rank: {dist.get_rank()}")
+    
+    _debug_function_exit("initialize")
 
 
 def num_processes():
@@ -347,7 +491,12 @@ def all_reduce(tensor, reduce_op="sum"):
     Returns:
         Reduced tensor (available on all processes).
     """
+    _debug_function_entry("all_reduce", kwargs={"reduce_op": reduce_op})
+    _debug_tensor_info(tensor, "input_tensor")
+
     if not dist.is_initialized():
+        _debug_log("torch.distributed not initialized, skipping all_reduce")
+        _debug_function_exit("all_reduce", result=tensor)
         return tensor
 
     # Convert string to torch distributed op
@@ -362,8 +511,14 @@ def all_reduce(tensor, reduce_op="sum"):
     else:
         op = dist.ReduceOp.SUM
 
+    _debug_log(f"Performing all_reduce with operation: {reduce_op}")
+    _debug_log(f"World size: {dist.get_world_size()}, Rank: {dist.get_rank()}")
+
     # All-reduce requires same tensor on all processes
     dist.all_reduce(tensor, op)
+    
+    _debug_tensor_info(tensor, "reduced_tensor")
+    _debug_function_exit("all_reduce", result=tensor)
     return tensor
 
 
@@ -376,19 +531,32 @@ def all_gather(tensor):
     Returns:
         Concatenated tensor from all processes.
     """
+    _debug_function_entry("all_gather")
+    _debug_tensor_info(tensor, "input_tensor")
+
     if not dist.is_initialized():
+        _debug_log("torch.distributed not initialized, skipping all_gather")
+        _debug_function_exit("all_gather", result=tensor)
         return tensor
 
     world_size = dist.get_world_size()
+    _debug_log(f"World size: {world_size}")
 
     if world_size == 1:
+        _debug_log("Single process, no gathering needed")
+        _debug_function_exit("all_gather", result=tensor)
         return tensor
 
     # Gather tensor shapes to handle potentially different sizes
+    _debug_log("Gathering tensors from all processes")
     tensor_list = [torch.zeros_like(tensor) for _ in range(world_size)]
     dist.all_gather(tensor_list, tensor)
 
-    return torch.cat(tensor_list, dim=0)
+    result = torch.cat(tensor_list, dim=0)
+    _debug_tensor_info(result, "gathered_tensor")
+    _debug_log(f"Gathered tensor shape: {result.shape}")
+    _debug_function_exit("all_gather", result=result)
+    return result
 
 
 def broadcast(tensor, src=0):
@@ -401,12 +569,25 @@ def broadcast(tensor, src=0):
     Returns:
         Broadcasted tensor.
     """
+    _debug_function_entry("broadcast", kwargs={"src": src})
+    _debug_tensor_info(tensor, "input_tensor")
+
     if not dist.is_initialized():
+        _debug_log("torch.distributed not initialized, skipping broadcast")
+        _debug_function_exit("broadcast", result=tensor)
         return tensor
 
-    if dist.get_rank() != src:
+    rank = dist.get_rank()
+    _debug_log(f"Current rank: {rank}, Source rank: {src}")
+
+    if rank != src:
+        _debug_log(f"Rank {rank} is not source, zeroing tensor before broadcast")
         tensor = torch.zeros_like(tensor)
 
+    _debug_log(f"Broadcasting tensor from source rank {src}")
     dist.broadcast(tensor, src=src)
+    
+    _debug_tensor_info(tensor, "broadcasted_tensor")
+    _debug_function_exit("broadcast", result=tensor)
     return tensor
 
