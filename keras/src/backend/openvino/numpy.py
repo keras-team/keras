@@ -2688,7 +2688,23 @@ def tensordot(x1, x2, axes=2):
 
 
 def round(x, decimals=0):
-    raise NotImplementedError("`round` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()])
+
+    if decimals == 0:
+        result = ov_opset.round(x, "half_to_even")
+    else:
+        factor = ov_opset.constant(10.0**decimals, x.get_element_type())
+        scaled = ov_opset.multiply(x, factor)
+        rounded = ov_opset.round(scaled, "half_to_even")
+        result = ov_opset.divide(rounded, factor)
+
+    if x_type.is_integral():
+        result = ov_opset.convert(result, x_type)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def tile(x, repeats):
@@ -2865,9 +2881,20 @@ def divide(x1, x2):
 
 
 def divide_no_nan(x1, x2):
-    raise NotImplementedError(
-        "`divide_no_nan` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()")
+
+    zero = ov_opset.constant(0, x2.get_element_type())
+    div = ov_opset.divide(x1, x2)
+    is_zero = ov_opset.equal(x2, zero)
+    result = ov_opset.select(is_zero, zero, div)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def true_divide(x1, x2):

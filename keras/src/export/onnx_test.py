@@ -111,9 +111,6 @@ class ExportONNXTest(testing.TestCase):
         }
         self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         ort_inputs = {
             k.name: v
             for k, v in zip(
@@ -193,9 +190,6 @@ class ExportONNXTest(testing.TestCase):
         onnx.export_onnx(revived_model, temp_filepath)
 
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         bigger_ref_input = tree.map_structure(
             lambda x: np.concatenate([x, x], axis=0), ref_input
         )
@@ -238,9 +232,6 @@ class ExportONNXTest(testing.TestCase):
         }
         self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         ort_inputs = {
             k.name: v
             for k, v in zip(

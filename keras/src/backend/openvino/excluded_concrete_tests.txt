@@ -27,7 +27,6 @@ NumpyDtypeTest::test_nextafter
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_ptp
 NumpyDtypeTest::test_quantile
-NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_std
@@ -57,7 +56,6 @@ NumpyOneInputOpsCorrectnessTest::test_nanmin
 NumpyOneInputOpsCorrectnessTest::test_nansum
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
-NumpyOneInputOpsCorrectnessTest::test_round
 NumpyOneInputOpsCorrectnessTest::test_ptp
 NumpyOneInputOpsCorrectnessTest::test_searchsorted
 NumpyOneInputOpsCorrectnessTest::test_signbit
@@ -74,7 +72,6 @@ NumpyTwoInputOpsCorrectnessTest::test_bitwise_or
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_right_shift
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_xor
 NumpyTwoInputOpsCorrectnessTest::test_cross
-NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_gcd
 NumpyTwoInputOpsCorrectnessTest::test_inner
