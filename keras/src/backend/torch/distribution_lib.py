@@ -322,7 +322,8 @@ def all_gather_variable(variable):
     if not isinstance(local_shard, (list, tuple)):
         local_shard = [local_shard]
 
-    output_list = [torch.zeros_like(s) for s in local_shard]
+    world_size = dist.get_world_size()
+    output_list = [torch.empty_like(local_shard[0]) for _ in range(world_size)]
     dist.all_gather(output_list, local_shard[0])
 
     gathered = torch.cat(output_list, dim=sharding_axis)
