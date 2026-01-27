@@ -512,7 +512,9 @@ class DataParallel(Distribution):
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
-        from torch.utils.data import DataLoader, DistributedSampler
+        from torch.utils.data import DataLoader
+        from torch.utils.data import DistributedSampler
+
         if isinstance(dataset, DataLoader):
             sampler = DistributedSampler(
                 dataset.dataset,
@@ -529,7 +531,7 @@ class DataParallel(Distribution):
                 pin_memory=dataset.pin_memory,
                 drop_last=dataset.drop_last,
                 persistent_workers=dataset.persistent_workers,
-                )
+            )
 
         # Try to distribute a global tf.data.Dataset.
         from keras.src.utils.module_utils import tensorflow as tf
@@ -702,8 +704,9 @@ class ModelParallel(Distribution):
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
+        from torch.utils.data import DataLoader
+        from torch.utils.data import DistributedSampler
 
-        from torch.utils.data import DataLoader, DistributedSampler
         if isinstance(dataset, DataLoader):
             sampler = DistributedSampler(
                 dataset.dataset,

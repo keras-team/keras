@@ -81,20 +81,27 @@ def distribute_tensor(tensor, layout):
     from keras.src.distribution import TensorLayout
 
     if isinstance(layout, TensorLayout):
-        backend_layout = layout.backend_layout if hasattr(layout, 'backend_layout') else layout
+        backend_layout = (
+            layout.backend_layout
+            if hasattr(layout, "backend_layout")
+            else layout
+        )
     else:
         backend_layout = layout
 
     if backend_layout is None:
         return tensor
 
-    if hasattr(backend_layout, 'axes'):
+    if hasattr(backend_layout, "axes"):
         axes = backend_layout.axes
     else:
         axes = backend_layout
 
     device_mesh = None
-    if hasattr(backend_layout, 'device_mesh') and backend_layout.device_mesh is not None:
+    if (
+        hasattr(backend_layout, "device_mesh")
+        and backend_layout.device_mesh is not None
+    ):
         device_mesh = backend_layout.device_mesh
 
     sharding_axes = [ax for ax in axes if ax is not None]
@@ -167,7 +174,7 @@ def _shard_tensor(tensor, layout, rank=None, device=None):
     if device is None:
         device = _get_current_device()
 
-    if hasattr(layout, 'backend_layout'):
+    if hasattr(layout, "backend_layout"):
         backend_layout = layout.backend_layout
     else:
         backend_layout = layout
@@ -175,18 +182,18 @@ def _shard_tensor(tensor, layout, rank=None, device=None):
     if backend_layout is None:
         return tensor
 
-    axes = getattr(backend_layout, 'axes', None)
+    axes = getattr(backend_layout, "axes", None)
     if axes is None:
-        axes = getattr(backend_layout, 'sharding', None)
+        axes = getattr(backend_layout, "sharding", None)
     if axes is None:
         if isinstance(backend_layout, dict):
-            axes = backend_layout.get('axes', [])
+            axes = backend_layout.get("axes", [])
         else:
             axes = []
 
-    device_mesh = getattr(backend_layout, 'device_mesh', None)
+    device_mesh = getattr(backend_layout, "device_mesh", None)
     if device_mesh is None:
-        mesh = getattr(backend_layout, 'mesh', None)
+        mesh = getattr(backend_layout, "mesh", None)
         if mesh is not None:
             device_mesh = mesh
 
@@ -197,11 +204,9 @@ def _shard_tensor(tensor, layout, rank=None, device=None):
     first_sharding_axis = sharding_axes[0]
 
     mesh_dim_size = 1
-    mesh_devices = []
     if device_mesh is not None:
-        axis_names = getattr(device_mesh, 'axis_names', [])
-        shape = getattr(device_mesh, 'shape', [])
-        mesh_devices = getattr(device_mesh, 'devices', [])
+        axis_names = getattr(device_mesh, "axis_names", [])
+        shape = getattr(device_mesh, "shape", [])
 
         if first_sharding_axis in axis_names:
             axis_idx = axis_names.index(first_sharding_axis)
@@ -212,9 +217,13 @@ def _shard_tensor(tensor, layout, rank=None, device=None):
     if mesh_dim_size > 1 and dim_size >= mesh_dim_size:
         if dim_size % mesh_dim_size == 0:
             shard_size = dim_size // mesh_dim_size
-            shards = list(torch.split(tensor, shard_size, dim=first_sharding_axis))
+            shards = list(
+                torch.split(tensor, shard_size, dim=first_sharding_axis)
+            )
         else:
-            shards = list(torch.chunk(tensor, mesh_dim_size, dim=first_sharding_axis))
+            shards = list(
+                torch.chunk(tensor, mesh_dim_size, dim=first_sharding_axis)
+            )
 
         shard = shards[rank % len(shards)]
 
@@ -243,13 +252,17 @@ def distribute_variable(value, layout):
     from keras.src.distribution import TensorLayout
 
     if isinstance(layout, TensorLayout):
-        backend_layout = layout.backend_layout if hasattr(layout, 'backend_layout') else layout
+        backend_layout = (
+            layout.backend_layout
+            if hasattr(layout, "backend_layout")
+            else layout
+        )
     else:
         backend_layout = layout
 
     should_shard = False
     if backend_layout is not None:
-        axes = getattr(backend_layout, 'axes', [])
+        axes = getattr(backend_layout, "axes", [])
         if axes is not None:
             should_shard = any(ax is not None for ax in axes)
 
@@ -260,14 +273,18 @@ def distribute_variable(value, layout):
         return value
 
     current_device = _get_current_device()
-    if value.device.type in ('cuda', 'mps'):
+    if value.device.type in ("cuda", "mps"):
         value = value.cpu()
 
-    sharded_value = _shard_tensor(value, backend_layout, rank=_get_current_rank(), device=current_device)
+    sharded_value = _shard_tensor(
+        value, backend_layout, rank=_get_current_rank(), device=current_device
+    )
 
     sharded_value._distributed_layout = backend_layout
     sharded_value._full_shape = value.shape
-    sharded_value._sharding_axis = getattr(backend_layout, 'axes', [None] * len(value.shape))[0]
+    sharded_value._sharding_axis = getattr(
+        backend_layout, "axes", [None] * len(value.shape)
+    )[0]
     sharded_value._is_sharded = True
 
     return sharded_value
@@ -284,29 +301,21 @@ def all_gather_variable(variable):
         The full gathered tensor if variable is sharded and distributed
             is initialized. Otherwise, returns the variable unchanged.
     """
-    if not getattr(variable, '_is_sharded', False):
+    if not getattr(variable, "_is_sharded", False):
         return variable
 
     if not dist.is_initialized():
         return variable
 
-    full_shape = getattr(variable, '_full_shape', None)
-    sharding_axis = getattr(variable, '_sharding_axis', 0)
+    full_shape = getattr(variable, "_full_shape", None)
+    sharding_axis = getattr(variable, "_sharding_axis", 0)
 
     if full_shape is None:
         return variable
 
-    world_size = dist.get_world_size()
-
     local_shard = variable
-    if local_shard.device.type in ('cuda', 'mps'):
+    if local_shard.device.type in ("cuda", "mps"):
         local_shard = local_shard.cpu()
-
-    output = torch.zeros(full_shape, dtype=local_shard.dtype, device='cpu')
-
-    dim_size = full_shape[sharding_axis]
-    shard_size = dim_size // world_size
-
     if not isinstance(local_shard, (list, tuple)):
         local_shard = [local_shard]
 
@@ -336,7 +345,8 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
     """
     if isinstance(per_process_batch, (tuple, list)):
         result = type(per_process_batch)(
-            distribute_data_input(x, layout, batch_dim_name) for x in per_process_batch
+            distribute_data_input(x, layout, batch_dim_name)
+            for x in per_process_batch
         )
         return result
 
@@ -367,9 +377,15 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
     Raises:
         RuntimeError: If CUDA is requested but not available.
     """
-    if job_addresses is None and "KERAS_DISTRIBUTION_JOB_ADDRESSES" in os.environ:
+    if (
+        job_addresses is None
+        and "KERAS_DISTRIBUTION_JOB_ADDRESSES" in os.environ
+    ):
         job_addresses = os.environ["KERAS_DISTRIBUTION_JOB_ADDRESSES"]
-    if num_processes is None and "KERAS_DISTRIBUTION_NUM_PROCESSES" in os.environ:
+    if (
+        num_processes is None
+        and "KERAS_DISTRIBUTION_NUM_PROCESSES" in os.environ
+    ):
         num_processes = int(os.environ["KERAS_DISTRIBUTION_NUM_PROCESSES"])
     if process_id is None and "KERAS_DISTRIBUTION_PROCESS_ID" in os.environ:
         process_id = int(os.environ["KERAS_DISTRIBUTION_PROCESS_ID"])
@@ -383,13 +399,19 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
     else:
         coordinator_address = job_addresses
 
-    os.environ["MASTER_ADDR"] = coordinator_address.split(":")[0] if ":" in coordinator_address else coordinator_address
+    os.environ["MASTER_ADDR"] = (
+        coordinator_address.split(":")[0]
+        if ":" in coordinator_address
+        else coordinator_address
+    )
     os.environ["MASTER_PORT"] = "29500"
 
     if "RANK" not in os.environ:
         os.environ["RANK"] = str(process_id if process_id is not None else 0)
     if "LOCAL_RANK" not in os.environ:
-        os.environ["LOCAL_RANK"] = str(process_id if process_id is not None else 0)
+        os.environ["LOCAL_RANK"] = str(
+            process_id if process_id is not None else 0
+        )
     if "WORLD_SIZE" not in os.environ:
         os.environ["WORLD_SIZE"] = str(num_processes)
 
@@ -557,4 +579,3 @@ def broadcast(tensor, src=0):
     dist.broadcast(tensor, src=src)
 
     return tensor
-
