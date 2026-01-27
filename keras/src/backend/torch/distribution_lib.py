@@ -34,7 +34,7 @@ def list_devices(device_type=None):
     if device_type == "cpu":
         return ["cpu:0"]
 
-    if device_type is None:
+    if device_type is None or device_type == "cpu":
         return ["cpu:0"]
 
     raise ValueError(f"Unsupported device_type: {device_type}")
