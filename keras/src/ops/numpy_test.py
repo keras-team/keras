@@ -3824,7 +3824,8 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
     def test_arctan2_nan_propagation(self):
         out = knp.arctan2(1.0, np.nan)
-        self.assertTrue(np.isnan(out.numpy()))
+        out_np = np.asarray(out)
+        self.assertTrue(np.isnan(out_np))
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
