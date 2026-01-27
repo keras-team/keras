@@ -6,7 +6,6 @@ will be supported in the future (via tf.dtensor API).
 
 import collections
 import contextlib
-import logging
 import os
 import re
 import warnings
@@ -17,20 +16,6 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import distribution_lib
 from keras.src.backend.common import global_state
-
-# Set up logging for model parallel verification
-logger = logging.getLogger("keras.distribution")
-logger.setLevel(logging.INFO)
-
-# Create console handler if not already exists
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        "[%(levelname)s] %(name)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 DEFAULT_BATCH_DIM_NAME = "batch"
 GLOBAL_ATTRIBUTE_NAME = "distribution"
@@ -702,27 +687,12 @@ class ModelParallel(Distribution):
     def get_variable_layout(self, variable):
         # First check if the variable already has a layout assigned.
         if getattr(variable, "_layout", None) is not None:
-            logger.debug(
-                f"[ModelParallel] Variable {variable.path} has explicit layout"
-            )
             return variable._layout
         # Check the layout map.
         variable_layout = self._layout_map[variable.path]
         if variable_layout is not None:
-            logger.info(
-                f"[ModelParallel] Variable {variable.path} | "
-                f"Shape: {variable.shape} | "
-                f"Layout axes: {variable_layout.axes} | "
-                f"Device mesh shape: {self.device_mesh.shape} | "
-                f"Device mesh axis names: {self.device_mesh.axis_names}"
-            )
             return variable_layout
         variable_shard_spec = [None] * len(variable.shape)
-        logger.debug(
-            f"[ModelParallel] Variable {variable.path} | "
-            f"Shape: {variable.shape} | "
-            f"No matching layout, using replicated layout"
-        )
         return TensorLayout(variable_shard_spec, self.device_mesh)
 
     def get_tensor_layout(self, path):
@@ -979,194 +949,3 @@ def set_distribution(value):
         value: a `Distribution` instance.
     """
     global_state.set_global_attribute(GLOBAL_ATTRIBUTE_NAME, value)
-
-
-@keras_export("keras.distribution.verify_model_parallel")
-def verify_model_parallel(distribution=None, model=None):
-    """Verify that model parallel is working correctly.
-
-    This utility function checks if model parallel distribution is active
-    and provides a summary of the sharding status for all model variables.
-
-    Args:
-        distribution: Optional `ModelParallel` distribution instance.
-            If not provided, uses the current global distribution.
-        model: Optional Keras model to verify. If not provided,
-            only checks distribution configuration.
-
-    Returns:
-        dict: A dictionary containing verification results with keys:
-            - 'is_model_parallel': bool indicating if ModelParallel is active
-            - 'total_devices': total number of devices in the mesh
-            - 'device_mesh_shape': shape of the device mesh
-            - 'device_mesh_axis_names': axis names of the mesh
-            - 'num_sharded_variables': count of variables with sharding
-            - 'num_replicated_variables': count of replicated variables
-            - 'sharded_variables': list of sharded variable paths
-            - 'replicated_variables': list of replicated variable paths
-            - 'is_active': bool indicating if model parallel is working
-
-    Example:
-        ```python
-        from keras.src.distribution import (
-            DeviceMesh,
-            LayoutMap,
-            ModelParallel,
-            set_distribution,
-            verify_model_parallel,
-        )
-
-        # Set up model parallel distribution
-        devices = list_devices()
-        device_mesh = DeviceMesh(shape=(2, 4), axis_names=('batch', 'model'), devices=devices)
-        layout_map = LayoutMap(device_mesh)
-        layout_map['dense.*kernel'] = (None, 'model')
-        layout_map['dense.*bias'] = ('model',)
-
-        distribution = ModelParallel(layout_map=layout_map)
-        set_distribution(distribution)
-
-        # Create and build model
-        model = create_model()
-        model.build(input_shape=(32, 784))
-
-        # Verify model parallel is working
-        result = verify_model_parallel(distribution, model)
-        print(result)
-        ```
-    """
-    if distribution is None:
-        distribution = distribution()
-
-    if distribution is None or not isinstance(distribution, ModelParallel):
-        logger.warning(
-            "[ModelParallel] No ModelParallel distribution is active. "
-            "Please set up a ModelParallel distribution first."
-        )
-        return {
-            'is_model_parallel': False,
-            'total_devices': 0,
-            'device_mesh_shape': None,
-            'device_mesh_axis_names': None,
-            'num_sharded_variables': 0,
-            'num_replicated_variables': 0,
-            'sharded_variables': [],
-            'replicated_variables': [],
-            'is_active': False,
-        }
-
-    # Get device mesh information
-    device_mesh = distribution.device_mesh
-    total_devices = int(np.prod(device_mesh.shape))
-    mesh_shape = device_mesh.shape
-    axis_names = device_mesh.axis_names
-
-    logger.info(
-        f"[ModelParallel] Verification starting... | "
-        f"Device mesh shape: {mesh_shape} | "
-        f"Total devices: {total_devices} | "
-        f"Axis names: {axis_names}"
-    )
-
-    # If no model provided, just return distribution info
-    if model is None:
-        logger.info(
-            f"[ModelParallel] No model provided, returning distribution info only"
-        )
-        return {
-            'is_model_parallel': True,
-            'total_devices': total_devices,
-            'device_mesh_shape': list(mesh_shape),
-            'device_mesh_axis_names': list(axis_names),
-            'num_sharded_variables': 0,
-            'num_replicated_variables': 0,
-            'sharded_variables': [],
-            'replicated_variables': [],
-            'is_active': total_devices > 1,
-        }
-
-    # Analyze model variables
-    sharded_variables = []
-    replicated_variables = []
-
-    for variable in model.variables:
-        layout = distribution.get_variable_layout(variable)
-        # Check if variable has sharding (any axis is not None)
-        has_sharding = layout is not None and any(ax is not None for ax in layout.axes)
-
-        if has_sharding:
-            # Calculate sharded shape and memory reduction
-            full_shape = variable.shape
-            sharded_shape = list(full_shape)
-            layout_axes = list(layout.axes)
-
-            # Find the first sharded axis and calculate sharded shape
-            for i, ax in enumerate(layout_axes):
-                if ax is not None:
-                    ax_idx = axis_names.index(ax)
-                    mesh_dim = mesh_shape[ax_idx]
-                    if full_shape[i] % mesh_dim == 0:
-                        sharded_shape[i] = full_shape[i] // mesh_dim
-                    else:
-                        sharded_shape[i] = (full_shape[i] + mesh_dim - 1) // mesh_dim
-
-            # Calculate memory reduction
-            full_elements = int(np.prod(full_shape))
-            sharded_elements = int(np.prod(sharded_shape))
-            reduction = 1 - (sharded_elements / full_elements)
-
-            sharded_variables.append({
-                'path': variable.path,
-                'full_shape': list(full_shape),
-                'sharded_shape': sharded_shape,
-                'layout_axes': layout_axes,
-                'reduction': reduction,
-                'shard_factor': full_shape[layout_axes.index(next(ax for ax in layout_axes if ax is not None))] if any(ax is not None for ax in layout_axes) else None,
-            })
-        else:
-            replicated_variables.append({
-                'path': variable.path,
-                'shape': list(variable.shape),
-            })
-
-    num_sharded = len(sharded_variables)
-    num_replicated = len(replicated_variables)
-    is_active = total_devices > 1 and num_sharded > 0
-
-    # Log summary
-    logger.info(
-        f"[ModelParallel] Verification Summary: | "
-        f"Total devices: {total_devices} | "
-        f"Sharded variables: {num_sharded} | "
-        f"Replicated variables: {num_replicated} | "
-        f"Model parallel is {'ACTIVE' if is_active else 'INACTIVE'}"
-    )
-
-    # Log detailed variable info with sharded shape and memory reduction
-    if sharded_variables:
-        logger.info("[ModelParallel] Sharded variables:")
-        for var in sharded_variables:
-            logger.info(
-                f"  - {var['path']} | "
-                f"Full shape: {var['full_shape']} | "
-                f"Sharded shape: {var['sharded_shape']} | "
-                f"Layout: {var['layout_axes']} | "
-                f"Memory reduction: {var['reduction']:.0%}"
-            )
-
-    if replicated_variables:
-        logger.info("[ModelParallel] Replicated variables:")
-        for var in replicated_variables:
-            logger.info(f"  - {var['path']} | Shape: {var['shape']}")
-
-    return {
-        'is_model_parallel': True,
-        'total_devices': total_devices,
-        'device_mesh_shape': list(mesh_shape),
-        'device_mesh_axis_names': list(axis_names),
-        'num_sharded_variables': num_sharded,
-        'num_replicated_variables': num_replicated,
-        'sharded_variables': sharded_variables,
-        'replicated_variables': replicated_variables,
-        'is_active': is_active,
-    }

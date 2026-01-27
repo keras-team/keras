@@ -1,22 +1,7 @@
 import os
-import logging
 
 import torch
 import torch.distributed as dist
-
-# Set up logging for model parallel verification
-logger = logging.getLogger("keras.distribution")
-logger.setLevel(logging.DEBUG)
-
-# Create console handler if not already exists
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter(
-        "[%(levelname)s] %(name)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 
 def list_devices(device_type=None):
@@ -188,9 +173,6 @@ def _shard_tensor(tensor, layout, rank=None, device=None):
         backend_layout = layout
 
     if backend_layout is None:
-        logger.debug(
-            f"[ModelParallel] No layout specified, returning tensor on device {device}"
-        )
         return tensor
 
     axes = getattr(backend_layout, 'axes', None)
@@ -210,9 +192,6 @@ def _shard_tensor(tensor, layout, rank=None, device=None):
 
     sharding_axes = [ax for ax in axes if ax is not None]
     if not sharding_axes:
-        logger.debug(
-            f"[ModelParallel] No sharding axes found, returning tensor on device {device}"
-        )
         return tensor
 
     first_sharding_axis = sharding_axes[0]
@@ -241,23 +220,8 @@ def _shard_tensor(tensor, layout, rank=None, device=None):
 
         shard = shard.to(device)
 
-        # Log the sharding operation
-        logger.info(
-            f"[ModelParallel] Sharding tensor | "
-            f"Original shape: {tuple(tensor.shape)} | "
-            f"Shard axis: {first_sharding_axis} | "
-            f"Shard shape: {tuple(shard.shape)} | "
-            f"Rank: {rank} | "
-            f"Device: {device} | "
-            f"Mesh devices: {len(mesh_devices) if hasattr(mesh_devices, '__len__') else mesh_dim_size}"
-        )
-
         return shard
     else:
-        logger.debug(
-            f"[ModelParallel] Mesh dimension ({mesh_dim_size}) <= 1 or tensor dim ({dim_size}) < mesh dim, "
-            f"returning tensor on device {device}"
-        )
         return tensor
 
 
@@ -293,11 +257,6 @@ def distribute_variable(value, layout):
         current_device = _get_current_device()
         if value.device != current_device:
             value = value.to(current_device)
-        logger.debug(
-            f"[ModelParallel] Replicating variable | "
-            f"Shape: {tuple(value.shape)} | "
-            f"Device: {value.device}"
-        )
         return value
 
     current_device = _get_current_device()
@@ -310,21 +269,6 @@ def distribute_variable(value, layout):
     sharded_value._full_shape = value.shape
     sharded_value._sharding_axis = getattr(backend_layout, 'axes', [None] * len(value.shape))[0]
     sharded_value._is_sharded = True
-
-    # Log the variable distribution
-    axes = getattr(backend_layout, 'axes', [])
-    device_mesh = getattr(backend_layout, 'device_mesh', None)
-    mesh_shape = getattr(device_mesh, 'shape', []) if device_mesh else []
-
-    logger.info(
-        f"[ModelParallel] Distributing variable | "
-        f"Full shape: {value.shape} | "
-        f"Shard shape: {tuple(sharded_value.shape)} | "
-        f"Axes: {axes} | "
-        f"Device mesh: {mesh_shape} | "
-        f"Device: {current_device} | "
-        f"Is sharded: {sharded_value._is_sharded}"
-    )
 
     return sharded_value
 
@@ -341,24 +285,15 @@ def all_gather_variable(variable):
             is initialized. Otherwise, returns the variable unchanged.
     """
     if not getattr(variable, '_is_sharded', False):
-        logger.debug(
-            f"[ModelParallel] Variable is not sharded, skipping gather"
-        )
         return variable
 
     if not dist.is_initialized():
-        logger.debug(
-            f"[ModelParallel] Distributed not initialized, skipping gather"
-        )
         return variable
 
     full_shape = getattr(variable, '_full_shape', None)
     sharding_axis = getattr(variable, '_sharding_axis', 0)
 
     if full_shape is None:
-        logger.debug(
-            f"[ModelParallel] No full shape attribute, skipping gather"
-        )
         return variable
 
     world_size = dist.get_world_size()
@@ -382,17 +317,6 @@ def all_gather_variable(variable):
 
     current_device = _get_current_device()
     gathered = gathered.to(current_device)
-
-    # Log the gather operation
-    logger.info(
-        f"[ModelParallel] Gathering variable shards | "
-        f"Full shape: {full_shape} | "
-        f"Shard shape: {tuple(variable.shape)} | "
-        f"Gathered shape: {tuple(gathered.shape)} | "
-        f"Sharding axis: {sharding_axis} | "
-        f"World size: {world_size} | "
-        f"Device: {current_device}"
-    )
 
     return gathered
 
