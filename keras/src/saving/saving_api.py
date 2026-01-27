@@ -354,7 +354,6 @@ def _load_model_from_orbax_checkpoint(
 ):
     """Load a model from an Orbax checkpoint directory."""
 
-    from keras.src import models
     from keras.src.utils.module_utils import ocp
 
     # Ensure orbax is available
@@ -376,16 +375,14 @@ def _load_model_from_orbax_checkpoint(
             "This checkpoint may have been saved with save_weights_only=True."
         )
 
-    # Create and build model from config
-    model = models.Model.from_config(
-        composite_state["model_config"], custom_objects=custom_objects
+    # Create and build model from config using saving_lib helper
+    # This properly handles shared objects and compile_config
+    model = saving_lib._model_from_config(
+        composite_state["model_config"],
+        custom_objects=custom_objects,
+        compile=compile,
+        safe_mode=True,
     )
-
-    # Handle compilation efficiently
-    if compile:
-        compile_config = composite_state.get("compile_config")
-        if compile_config:
-            model.compile_from_config(compile_config)
 
     # Prepare state tree with only variable keys for set_state_tree
     variable_keys = [

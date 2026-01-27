@@ -1,4 +1,3 @@
-import os
 import warnings
 
 import numpy as np
@@ -9,6 +8,7 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
+from keras.src.saving import saving_lib
 from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
@@ -265,12 +265,9 @@ class OrbaxCheckpoint(MonitorCallback):
         else:
             composite_state = state_tree
             # Include model configuration for full model restoration
-            composite_state["model_config"] = self.model.get_config()
-            # Include compile config if compiled
-            if self.model.compiled:
-                composite_state["compile_config"] = (
-                    self.model.get_compile_config()
-                )
+            # Use saving_lib helper to properly handle shared objects
+            config_json, _ = saving_lib._serialize_model_as_json(self.model)
+            composite_state["model_config"] = config_json
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
@@ -287,9 +284,6 @@ class OrbaxCheckpoint(MonitorCallback):
                     step, composite_state
                 )
                 self._async_futures.append(future)
-
-            # Store the checkpoint path for reference
-            self._last_checkpoint_path = os.path.join(self.directory, str(step))
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):

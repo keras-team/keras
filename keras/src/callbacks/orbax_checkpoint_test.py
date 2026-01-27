@@ -13,7 +13,7 @@ from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
 # Import advanced Orbax functionality directly from the LazyModule
 
 
-class OrbaxCheckpointTest(testing.TestCase):
+class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
     def _create_test_model(self):
         """Create a simple test model compatible with 2-device sharding."""
         inputs = layers.Input(shape=(10,), name="input_layer")
@@ -29,112 +29,106 @@ class OrbaxCheckpointTest(testing.TestCase):
         y = np.random.randn(num_samples, 2)  # Match 2 outputs
         return x, y
 
+    @parameterized.parameters(
+        {"save_freq": 10, "epochs": 1, "batch_size": 5},  # batch-level
+        {"save_freq": "epoch", "epochs": 3, "batch_size": None},  # epoch-level
+    )
     @pytest.mark.requires_trainable_backend
-    def test_save_freq_batch(self):
-        """Test batch-level saving."""
+    def test_checkpoint_saving_basic(self, save_freq, epochs, batch_size):
+        """Test basic checkpoint saving with different frequencies."""
         model = self._create_test_model()
         x, y = self._create_dummy_data(num_samples=50)
 
         checkpoint_dir = os.path.join(
-            self.get_temp_dir(), f"test_batch_freq_{id(self)}"
+            self.get_temp_dir(), f"test_save_{save_freq}_{id(self)}"
         )
-        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq=10)
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, save_freq=save_freq
+        )
 
-        # Train for one epoch with batch saving
-        model.fit(x, y, epochs=1, batch_size=5, callbacks=[callback], verbose=0)
+        # Train with specified configuration
+        fit_kwargs = {"callbacks": [callback], "verbose": 0}
+        if batch_size:
+            fit_kwargs["batch_size"] = batch_size
+        model.fit(x, y, epochs=epochs, **fit_kwargs)
 
-        # Wait for async operations to complete before cleanup
-        callback.wait_until_finished()
-
-        # Check that checkpoint files were created
-        # With 50 samples, batch_size=5, and save_freq=10, there are 10 batches.
-        # The callback should save at the end of batch 9 (step 10, since
-        # _total_batches_seen is 1-indexed).
+        # Verify checkpoint files were created
         checkpoint_files = os.listdir(checkpoint_dir)
-        # Should have at least one checkpoint file
         self.assertGreater(
-            len(checkpoint_files),
-            0,
-            f"Should have checkpoint files, found {checkpoint_files}",
+            len(checkpoint_files), 0, "Should have checkpoint files"
         )
 
-        # With max_to_keep=1, the final checkpoint from on_train_end may have
-        # replaced the batch checkpoint. This is expected behavior.
-        # Just verify that a checkpoint was created
-        self.assertTrue(
-            len(checkpoint_files) > 0,
-            f"Should have at least one checkpoint, found {checkpoint_files}",
-        )
-
+    @parameterized.parameters(
+        {"mode": "min", "monitor": "loss"},
+        {"mode": "max", "monitor": "loss"},
+    )
     @pytest.mark.requires_trainable_backend
-    def test_directory_creation(self):
-        """Test that checkpoint directory is created if it doesn't exist."""
+    def test_save_best_only(self, mode, monitor):
+        """Test save_best_only with different modes."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data(num_samples=100)
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), f"test_best_{mode}_{id(self)}"
+        )
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            monitor=monitor,
+            save_best_only=True,
+            mode=mode,
+            save_freq="epoch",
+        )
+
+        model.fit(x, y, epochs=5, callbacks=[callback], verbose=0)
+
+        checkpoint_files = os.listdir(checkpoint_dir)
+        self.assertGreater(
+            len(checkpoint_files), 0, "Should have checkpoint files"
+        )
+
+    @parameterized.parameters(
+        {"save_on_background": False},
+        {"save_on_background": True},
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_async_vs_sync_saving(self, save_on_background):
+        """Test synchronous vs asynchronous saving."""
         model = self._create_test_model()
         x, y = self._create_dummy_data()
 
         checkpoint_dir = os.path.join(
-            self.get_temp_dir(), "test_create_dir", "subdir"
-        )
-        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
-
-        # Directory should be created during training
-        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-
-        self.assertTrue(
-            os.path.exists(checkpoint_dir),
-            "Checkpoint directory should be created",
-        )
-
-        # Wait for async operations to complete before test cleanup
-        callback.wait_until_finished()
-
-    @pytest.mark.requires_trainable_backend
-    def test_save_best_only(self):
-        """Test save_best_only functionality with different modes."""
-        model = self._create_test_model()
-        x, y = self._create_dummy_data(num_samples=100)
-
-        # Test with mode='min' (save when loss decreases)
-        checkpoint_dir = os.path.join(
-            self.get_temp_dir(), f"test_save_best_min_{id(self)}"
+            self.get_temp_dir(), f"test_async_{save_on_background}_{id(self)}"
         )
         callback = OrbaxCheckpoint(
             directory=checkpoint_dir,
-            monitor="loss",
-            save_best_only=True,
-            mode="min",
             save_freq="epoch",
+            save_on_background=save_on_background,
         )
 
-        # Train for multiple epochs - should only save when loss improves
-        model.fit(x, y, epochs=5, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
 
-        # Check that checkpoint directory exists and has files
         checkpoint_files = os.listdir(checkpoint_dir)
         self.assertGreater(
-            len(checkpoint_files), 0, "Should have at least one checkpoint"
+            len(checkpoint_files), 0, "Should have checkpoint files"
         )
 
-        # Test with mode='max' (save when accuracy increases)
-        checkpoint_dir_max = os.path.join(
-            self.get_temp_dir(), f"test_save_best_max_{id(self)}"
+    @pytest.mark.requires_trainable_backend
+    def test_max_to_keep(self):
+        """Test max_to_keep parameter limits number of checkpoints."""
+        model = self._create_test_model()
+        x, y = self._create_dummy_data()
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), f"test_max_keep_{id(self)}"
         )
-        callback_max = OrbaxCheckpoint(
-            directory=checkpoint_dir_max,
-            monitor="loss",  # Using loss with mode=max
-            save_best_only=True,
-            mode="max",
-            save_freq="epoch",
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir, save_freq="epoch", max_to_keep=2
         )
 
-        model.fit(x, y, epochs=3, callbacks=[callback_max], verbose=0)
-        callback_max.wait_until_finished()
+        model.fit(x, y, epochs=5, callbacks=[callback], verbose=0)
 
-        checkpoint_files_max = os.listdir(checkpoint_dir_max)
-        self.assertGreater(
-            len(checkpoint_files_max), 0, "Should have at least one checkpoint"
-        )
+        checkpoint_files = os.listdir(checkpoint_dir)
+        self.assertLessEqual(len(checkpoint_files), 5)
 
     @pytest.mark.requires_trainable_backend
     def test_load_weights_from_orbax_checkpoint(self):
@@ -155,7 +149,6 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train to create checkpoint
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
 
         # Get original weights after training
         original_weights = model.get_weights()
@@ -202,7 +195,6 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train for 3 epochs
         model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
 
         # Should have only the latest checkpoint (epoch 2) due to max_to_keep=1
         checkpoint_files = os.listdir(checkpoint_dir)
@@ -224,64 +216,9 @@ class OrbaxCheckpointTest(testing.TestCase):
             f"found {checkpoint_files}",
         )
 
-    @pytest.mark.requires_trainable_backend
-    def test_max_to_keep(self):
-        """Test max_to_keep parameter limits number of checkpoints."""
-        model = self._create_test_model()
-        x, y = self._create_dummy_data()
-
-        checkpoint_dir = os.path.join(
-            self.get_temp_dir(), f"test_max_keep_{id(self)}"
-        )
-        callback = OrbaxCheckpoint(
-            directory=checkpoint_dir, save_freq="epoch", max_to_keep=2
-        )
-
-        # Train for 5 epochs
-        model.fit(x, y, epochs=5, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
-
-        # Should only keep the 2 most recent checkpoints
-        checkpoint_files = os.listdir(checkpoint_dir)
-        # Orbax may keep more than max_to_keep in some cases
-        self.assertLessEqual(
-            len(checkpoint_files),
-            5,
-            f"Should not have more than 5 checkpoints, "
-            f"found {len(checkpoint_files)}",
-        )
-
-    @pytest.mark.requires_trainable_backend
-    def test_save_on_background_sync(self):
-        """Test save_on_background=False for synchronous saving."""
-        model = self._create_test_model()
-        x, y = self._create_dummy_data()
-
-        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_sync_save")
-        callback = OrbaxCheckpoint(
-            directory=checkpoint_dir,
-            save_freq="epoch",
-            save_on_background=False,  # Synchronous saving
-        )
-
-        try:
-            # Train and ensure it completes (synchronous save should not block)
-            model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
-            callback.wait_until_finished()
-
-            # Check that checkpoints were created
-            checkpoint_files = os.listdir(checkpoint_dir)
-            self.assertGreater(
-                len(checkpoint_files), 0, "Should have checkpoint files"
-            )
-        finally:
-            # Ensure proper cleanup to prevent file descriptor leaks
-            callback.on_train_end()
-
     def test_invalid_save_freq(self):
         """Test error handling for invalid save_freq parameter."""
         checkpoint_dir = os.path.join(self.get_temp_dir(), "test_invalid_freq")
-
         with self.assertRaises(ValueError):
             OrbaxCheckpoint(directory=checkpoint_dir, save_freq="invalid")
 
@@ -297,38 +234,22 @@ class OrbaxCheckpointTest(testing.TestCase):
             monitor="loss",
             save_best_only=True,
             mode="min",
-            initial_value_threshold=1.0,  # High threshold
+            initial_value_threshold=1.0,
             save_freq="epoch",
         )
 
-        # Train - should only save if loss goes below 1.0
         model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
-
-        # Check that checkpoint directory exists
-        # (may or may not have files depending on loss)
-        self.assertTrue(
-            os.path.exists(checkpoint_dir), "Checkpoint directory should exist"
-        )
+        self.assertTrue(os.path.exists(checkpoint_dir))
 
     @parameterized.parameters(
-        {
-            "save_on_background": False,
-        },  # basic
-        {
-            "save_on_background": True,
-        },  # background_save
+        {"save_on_background": False},
+        {"save_on_background": True},
     )
     @pytest.mark.requires_trainable_backend
-    def test_checkpoint_loading_comprehensive(
-        self,
-        save_on_background,
-    ):
-        """Test checkpoint loading using load_weights API."""
-        # Create and compile model
+    def test_checkpoint_loading_comprehensive(self, save_on_background):
+        """Test checkpoint loading with async and sync saving."""
         model = self._create_test_model()
         model.compile(optimizer="adam", loss="mse")
-
         x, y = self._create_dummy_data(num_samples=200)
 
         checkpoint_dir = os.path.join(
@@ -336,84 +257,33 @@ class OrbaxCheckpointTest(testing.TestCase):
             f"test_loading_{save_on_background}_{id(self)}",
         )
 
-        # Create callback
         callback = OrbaxCheckpoint(
             directory=checkpoint_dir,
             save_freq="epoch",
             save_on_background=save_on_background,
-            save_weights_only=True,  # Only save weights for load_weights test
+            save_weights_only=True,
         )
 
-        # Train to create checkpoint
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-
-        if save_on_background:
-            callback.wait_until_finished()
-
-        # Get original state
         original_weights = model.get_weights()
 
         # Test load_weights functionality
         new_model = self._create_test_model()
-        # Initialize optimizer by running a training step
         new_model.compile(optimizer="adam", loss="mse")
         new_x, new_y = self._create_dummy_data(num_samples=10)
         new_model.fit(new_x, new_y, epochs=1, batch_size=5, verbose=0)
 
-        # Initialize with different weights to ensure loading works
         different_weights = [w * 2 for w in original_weights]
         new_model.set_weights(different_weights)
 
-        # Verify weights are different initially
-        new_weights_before = new_model.get_weights()
-        for orig, new in zip(original_weights, new_weights_before):
-            self.assertNotAllClose(
-                orig, new, msg="Weights should be different before loading"
-            )
+        # Verify different before loading
+        for orig, new in zip(original_weights, new_model.get_weights()):
+            self.assertNotAllClose(orig, new)
 
-        # Load weights from Orbax checkpoint using load_weights
+        # Load and verify
         new_model.load_weights(checkpoint_dir)
-
-        # Verify weights were loaded correctly
-        loaded_weights = new_model.get_weights()
-        for orig, loaded in zip(original_weights, loaded_weights):
-            self.assertAllClose(
-                orig,
-                loaded,
-                msg="Weights should match after loading from checkpoint",
-            )
-
-        # For Orbax checkpoints, the complete state is loaded including
-        # optimizer and metrics state from the checkpoint
-        # Note: metrics_variables are not saved in Orbax checkpoints
-
-    @pytest.mark.requires_trainable_backend
-    def test_save_on_background_async(self):
-        """Test save_on_background=True functionality."""
-        model = self._create_test_model()
-        x, y = self._create_dummy_data()
-
-        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_async_save")
-
-        callback = OrbaxCheckpoint(
-            directory=checkpoint_dir,
-            save_freq="epoch",
-            save_on_background=True,  # Test async saving
-        )
-
-        try:
-            # Train for 1 epoch
-            model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-            callback.wait_until_finished()
-
-            # Check that checkpoint was created
-            checkpoint_files = os.listdir(checkpoint_dir)
-            self.assertGreater(
-                len(checkpoint_files), 0, "Should have checkpoint files"
-            )
-        finally:
-            # Ensure proper cleanup to prevent file descriptor leaks
-            callback.on_train_end()
+        for orig, loaded in zip(original_weights, new_model.get_weights()):
+            self.assertAllClose(orig, loaded)
 
     @pytest.mark.skipif(
         backend.backend() != "jax",
@@ -481,7 +351,6 @@ class OrbaxCheckpointTest(testing.TestCase):
 
             # Train to create checkpoint
             model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
-            callback.wait_until_finished()
 
             # Get original model predictions and weights
             original_predictions = model.predict(x[:5], verbose=0)
@@ -546,29 +415,27 @@ class OrbaxCheckpointTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_checkpoint_loading_via_saving_api(self):
-        """Test basic checkpoint loading and weights-only error handling."""
+        """Test model loading via saving API."""
         from keras.src import saving
 
         model = self._create_test_model()
         x, y = self._create_dummy_data()
 
-        # Test 1: Basic model loading (weights + compilation state)
+        # Test basic model loading
         checkpoint_dir = os.path.join(self.get_temp_dir(), "test_basic_loading")
         callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
 
         original_weights = model.get_weights()
         loaded_model = saving.load_model(checkpoint_dir)
-        loaded_weights = loaded_model.get_weights()
 
-        # Compare weights and verify compilation
-        self.assertEqual(len(original_weights), len(loaded_weights))
-        for orig, loaded in zip(original_weights, loaded_weights):
-            np.testing.assert_array_almost_equal(orig, loaded)
+        # Verify weights and compilation
+        self.assertEqual(len(original_weights), len(loaded_model.get_weights()))
+        for orig, loaded in zip(original_weights, loaded_model.get_weights()):
+            self.assertAllClose(orig, loaded)
         self.assertTrue(loaded_model.compiled)
 
-        # Test 2: Weights-only checkpoint should fail with saving API
+        # Test weights-only checkpoint should fail with load_model
         weights_only_dir = os.path.join(
             self.get_temp_dir(), "test_weights_only"
         )
@@ -578,7 +445,6 @@ class OrbaxCheckpointTest(testing.TestCase):
             save_weights_only=True,
         )
         model.fit(x, y, epochs=1, callbacks=[weights_callback], verbose=0)
-        weights_callback.wait_until_finished()
 
         with self.assertRaises(ValueError):
             saving.load_model(weights_only_dir)
@@ -601,7 +467,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
 
         original_state_tree = model.get_state_tree()
         loaded_model = saving.load_model(checkpoint_dir)
@@ -634,10 +499,10 @@ class OrbaxCheckpointTest(testing.TestCase):
                                 return val.numpy()  # TensorFlow
                         return val  # JAX array or numpy
 
-                    np.testing.assert_array_almost_equal(
+                    self.assertAllClose(
                         to_numpy(orig_val),
                         to_numpy(loaded_val),
-                        err_msg=f"Mismatch in {component_name}.{key}",
+                        msg=f"Mismatch in {component_name}.{key}",
                     )
 
         # Compare all state components
@@ -708,7 +573,6 @@ class OrbaxCheckpointTest(testing.TestCase):
         # Test async saving with exact weight matching
         callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
         model.fit(x, y, epochs=2, verbose=0, callbacks=[callback])
-        callback.wait_until_finished()
 
         # Verify exact weight matching functionality
         final_saved_weights = model.get_weights()
@@ -781,7 +645,6 @@ class OrbaxCheckpointTest(testing.TestCase):
             directory=sync_dir, save_freq="epoch", save_on_background=False
         )
         model.fit(x, y, epochs=1, verbose=0, callbacks=[sync_callback])
-        sync_callback.wait_until_finished()
 
         sync_saved_weights = model.get_weights()
         sync_loaded_model = saving.load_model(sync_dir)
@@ -802,7 +665,6 @@ class OrbaxCheckpointTest(testing.TestCase):
             directory=async_dir, save_freq="epoch", save_on_background=True
         )
         model.fit(x, y, epochs=1, verbose=0, callbacks=[async_callback])
-        async_callback.wait_until_finished()
 
         async_saved_weights = model.get_weights()
         async_loaded_model = saving.load_model(async_dir)
