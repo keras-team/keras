@@ -1710,6 +1710,29 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.nanmax(x4, axis=2).shape, (None, 2, 4))
         self.assertEqual(knp.nanmax(x4, axis=(1, 3)).shape, (None, 3))
 
+    def test_nanmean(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.nanmean(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.nanmean(x, axis=1).shape, (None, 3))
+        self.assertEqual(
+            knp.nanmean(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
+
+        self.assertEqual(knp.nanmean(x, axis=(1,)).shape, (None, 3))
+
+        self.assertEqual(knp.nanmean(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(
+            knp.nanmean(x, axis=(1, 2), keepdims=True).shape, (None, 1, 1)
+        )
+
+        self.assertEqual(knp.nanmean(x, axis=()).shape, (None, 3, 3))
+
+        x4 = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nanmean(x4, axis=2).shape, (None, 2, 4))
+        self.assertEqual(knp.nanmean(x4, axis=(1, 3)).shape, (None, 3))
+
     def test_nanmin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.nanmin(x).shape, ())
@@ -2410,6 +2433,13 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.nanmax(x, axis=0).shape, (3,))
         self.assertEqual(knp.nanmax(x, axis=1).shape, (2,))
         self.assertEqual(knp.nanmax(x, axis=1, keepdims=True).shape, (2, 1))
+
+    def test_nanmean(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.nanmean(x).shape, ())
+        self.assertEqual(knp.nanmean(x, axis=0).shape, (3,))
+        self.assertEqual(knp.nanmean(x, axis=1).shape, (2,))
+        self.assertEqual(knp.nanmean(x, axis=1, keepdims=True).shape, (2, 1))
 
     def test_nanmin(self):
         x = KerasTensor((2, 3))
@@ -5569,6 +5599,44 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.nanmax(x_3d, axis=(1, 2)),
             np.nanmax(x_3d, axis=(1, 2)),
+        )
+
+    def test_nanmean(self):
+        x = np.array([[1.0, np.nan, 3.0, 4.0], [np.nan, 2.0, np.inf, -np.inf]])
+
+        self.assertAllClose(knp.nanmean(x), np.nanmean(x))
+        self.assertAllClose(knp.nanmean(x, axis=()), np.nanmean(x, axis=()))
+        self.assertAllClose(knp.nanmean(x, axis=1), np.nanmean(x, axis=1))
+        self.assertAllClose(knp.nanmean(x, axis=(1,)), np.nanmean(x, axis=(1,)))
+        self.assertAllClose(
+            knp.nanmean(x, axis=1, keepdims=True),
+            np.nanmean(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(knp.Nanmean()(x), np.nanmean(x))
+        self.assertAllClose(knp.Nanmean(axis=1)(x), np.nanmean(x, axis=1))
+        self.assertAllClose(
+            knp.Nanmean(axis=1, keepdims=True)(x),
+            np.nanmean(x, axis=1, keepdims=True),
+        )
+
+        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+        self.assertAllClose(knp.nanmean(x_all_nan), np.nanmean(x_all_nan))
+        self.assertAllClose(
+            knp.nanmean(x_all_nan, axis=1),
+            np.nanmean(x_all_nan, axis=1),
+        )
+
+        x_3d = np.array(
+            [
+                [[1.0, np.nan], [2.0, 3.0]],
+                [[np.nan, 4.0], [5.0, np.nan]],
+            ]
+        )
+        self.assertAllClose(knp.nanmean(x_3d), np.nanmean(x_3d))
+        self.assertAllClose(
+            knp.nanmean(x_3d, axis=(1, 2)),
+            np.nanmean(x_3d, axis=(1, 2)),
         )
 
     def test_nanmin(self):
@@ -8761,6 +8829,25 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.nanmax(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Nanmax().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nanmean(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.nanmean(x_jax).dtype)
+
+        if backend.backend() == "torch" and expected_dtype == "uint32":
+            expected_dtype = "int32"
+
+        self.assertEqual(
+            standardize_dtype(knp.nanmean(x).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Nanmean().symbolic_call(x).dtype),
             expected_dtype,
         )
 

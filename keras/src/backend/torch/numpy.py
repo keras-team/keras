@@ -1290,6 +1290,16 @@ def nanmax(x, axis=None, keepdims=False):
     )
 
 
+def nanmean(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return x
+
+    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    return torch.nanmean(cast(x, dtype), dim=axis, keepdim=keepdims)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):

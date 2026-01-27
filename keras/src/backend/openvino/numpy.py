@@ -2111,6 +2111,12 @@ def nanmax(x, axis=None, keepdims=False):
     raise NotImplementedError("`nanmax` is not supported with openvino backend")
 
 
+def nanmean(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanmean` is not supported with openvino backend"
+    )
+
+
 def nanmin(x, axis=None, keepdims=False):
     raise NotImplementedError("`nanmin` is not supported with openvino backend")
 
