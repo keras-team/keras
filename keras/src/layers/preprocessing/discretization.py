@@ -233,8 +233,11 @@ class Discretization(DataLayer):
                 return tuple(input_shape) + (depth,)
         else:
             if input_shape and len(input_shape) >= 2:
-                # Replace last dimension with depth
-                return tuple(input_shape[:-1]) + (depth,)
+                # Match to eager tensor, remove second and append depth
+                out_shape = (
+                    (input_shape[0],) + tuple(input_shape[2:]) + (depth,)
+                )
+                return out_shape
             else:
                 return (depth,)
 

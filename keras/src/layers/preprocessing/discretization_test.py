@@ -252,13 +252,13 @@ class DiscretizationTest(testing.TestCase):
                     "testcase_name": "multi_hot_mode",
                     "output_mode": "multi_hot",
                     "input_shape": (3, 4),
-                    "expected_shape": (None, 3, 5),  # multi_hot - replace
+                    "expected_shape": (None, 4, 5),  # multi_hot - replace
                 },
                 {
                     "testcase_name": "count_mode",
                     "output_mode": "count",
                     "input_shape": (3, 4),
-                    "expected_shape": (None, 3, 5),  # count - replace
+                    "expected_shape": (None, 4, 5),  # count - replace
                 },
             ]
         )
@@ -266,12 +266,7 @@ class DiscretizationTest(testing.TestCase):
     def test_symbolic_tensor_output_shape(
         self, output_mode, input_shape, expected_shape
     ):
-        """Test symbolic tensors have correct output shape for modes.
-
-        This test ensures that issue #22044 is fixed - Discretization layer
-        with output_mode='one_hot' should produce correct output shape for
-        symbolic tensors.
-        """
+        """Test symbolic tensors have correct output shape for modes."""
         # Create layer with bin_boundaries that create 5 bins (4 boundaries)
         layer = layers.Discretization(
             bin_boundaries=[0.0, 1.0, 2.0, 5.0], output_mode=output_mode
@@ -284,24 +279,20 @@ class DiscretizationTest(testing.TestCase):
         # Verify symbolic output shape
         self.assertEqual(symbolic_output.shape, expected_shape)
 
-        # Test consistency between eager and symbolic tensors for one_hot mode
-        if output_mode == "one_hot":
-            eager_input = np.random.uniform(0, 3, size=(2,) + input_shape)
-            eager_output = layer(eager_input)
+        eager_input = np.random.uniform(0, 3, size=(2,) + input_shape)
+        eager_output = layer(eager_input)
 
-            # Verify batch dimension is preserved correctly
-            self.assertEqual(eager_output.shape[0], 2)  # Batch size preserved
-            self.assertEqual(
-                symbolic_output.shape[0], None
-            )  # Batch is None for symbolic
+        # Verify batch dimension is preserved correctly
+        self.assertEqual(eager_output.shape[0], 2)  # Batch size preserved
+        self.assertEqual(
+            symbolic_output.shape[0], None
+        )  # Batch is None for symbolic
 
-            # Verify non-batch dimensions are identical
-            self.assertEqual(eager_output.shape[1:], symbolic_output.shape[1:])
+        # Verify non-batch dimensions are identical
+        self.assertEqual(eager_output.shape[1:], symbolic_output.shape[1:])
 
-            # Verify total number of dimensions is the same
-            self.assertEqual(
-                len(eager_output.shape), len(symbolic_output.shape)
-            )
+        # Verify total number of dimensions is the same
+        self.assertEqual(len(eager_output.shape), len(symbolic_output.shape))
 
     @parameterized.named_parameters(
         [
@@ -321,13 +312,13 @@ class DiscretizationTest(testing.TestCase):
                 "testcase_name": "multi_hot_mode",
                 "output_mode": "multi_hot",
                 "input_shape": (None, 3, 4),
-                "expected_shape": (None, 3, 3),  # multi_hot - replace
+                "expected_shape": (None, 4, 3),  # multi_hot - replace
             },
             {
                 "testcase_name": "count_mode",
                 "output_mode": "count",
                 "input_shape": (None, 3, 4),
-                "expected_shape": (None, 3, 3),  # count - replace
+                "expected_shape": (None, 4, 3),  # count - replace
             },
         ]
     )
@@ -449,7 +440,7 @@ class DiscretizationTest(testing.TestCase):
                     "input_shape": (None, 6, 3),
                     "expected_shape": (
                         None,
-                        6,
+                        3,
                         5,
                     ),  # multi_hot - replace last dimension
                 },
@@ -460,7 +451,7 @@ class DiscretizationTest(testing.TestCase):
                     "input_shape": (None, 4, 2),
                     "expected_shape": (
                         None,
-                        4,
+                        2,
                         6,
                     ),  # count - replace last dimension
                 },
@@ -483,17 +474,3 @@ class DiscretizationTest(testing.TestCase):
             expected_shape,
             f"Failed for num_bins={num_bins}, mode={output_mode}",
         )
-
-    @parameterized.named_parameters(
-        named_product(num_bins=[1, 2, 3, 5, 10, 20, 100])
-    )
-    def _test_num_bins_one_hot_mode(self, num_bins):
-        """Test various num_bins values with one_hot mode."""
-        input_shape = (None, 4, 3)
-
-        layer = layers.Discretization(num_bins=num_bins, output_mode="one_hot")
-
-        result_shape = layer.compute_output_shape(input_shape)
-        expected_shape = (None, 4, 3, num_bins)
-
-        self.assertEqual(result_shape, expected_shape)
