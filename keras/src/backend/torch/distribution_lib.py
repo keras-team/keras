@@ -151,7 +151,7 @@ def _get_current_device():
             rank for GPU, mps for Apple Silicon, or cpu otherwise.
     """
     if torch.cuda.is_available():
-        local_rank = dist.get_rank() if dist.is_initialized() else 0
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
         return torch.device(f"cuda:{local_rank}")
     elif hasattr(torch, "mps") and torch.mps.is_available():
         return torch.device("mps")
@@ -322,7 +322,8 @@ def all_gather_variable(variable):
     if not isinstance(local_shard, (list, tuple)):
         local_shard = [local_shard]
 
-    output_list = [torch.zeros_like(s) for s in local_shard]
+    world_size = dist.get_world_size()
+    output_list = [torch.empty_like(local_shard[0]) for _ in range(world_size)]
     dist.all_gather(output_list, local_shard[0])
 
     gathered = torch.cat(output_list, dim=sharding_axis)
