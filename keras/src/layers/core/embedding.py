@@ -255,6 +255,14 @@ class Embedding(Layer):
                 # `_get_embeddings_with_merged_lora()`
                 store[str(idx)] = merged_embeddings_scale
             else:
+                # Generic handling for subclass variables:
+                # Check if the attribute exists on the instance before saving.
+                # This supports optional variables in subclasses (e.g.,
+                # `reverse_embeddings_zero` in ReversibleEmbedding) that are
+                # present in the spec but may not exist on the object depending
+                # on configuration (e.g., per-channel vs. sub-channel).
+                if not hasattr(self, name):
+                    continue
                 store[str(idx)] = getattr(self, name)
             idx += 1
 
@@ -281,6 +289,12 @@ class Embedding(Layer):
                 # g_idx only exists for sub-channel int4 quantization
                 continue
             else:
+                # Generic handling for subclass variables:
+                # Check if the attribute exists before attempting to assign.
+                # If the variable is in the spec but missing from the object,
+                # we skip it to prevent AttributeError.
+                if not hasattr(self, name):
+                    continue
                 getattr(self, name).assign(store[str(idx)])
             idx += 1
         if self.lora_enabled:
