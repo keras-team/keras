@@ -411,10 +411,6 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
 
     if "RANK" not in os.environ:
         os.environ["RANK"] = str(process_id if process_id is not None else 0)
-    if "LOCAL_RANK" not in os.environ:
-        os.environ["LOCAL_RANK"] = str(
-            process_id if process_id is not None else 0
-        )
     if "WORLD_SIZE" not in os.environ:
         os.environ["WORLD_SIZE"] = str(num_processes)
 
