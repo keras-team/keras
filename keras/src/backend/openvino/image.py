@@ -87,3 +87,16 @@ def scale_and_translate(
     raise NotImplementedError(
         "`scale_and_translate` is not supported with openvino backend"
     )
+
+
+def crop_to_bounding_box(
+    images,
+    offset_height,
+    offset_width,
+    target_height,
+    target_width,
+    data_format=None,
+):
+    raise NotImplementedError(
+        "`crop_to_bounding_box` is not supported with openvino backend"
+    )
