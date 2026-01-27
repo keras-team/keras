@@ -13,9 +13,7 @@ import collections
 import contextlib
 import os
 import re
-import sys
 import warnings
-from datetime import datetime
 
 import numpy as np
 
@@ -26,50 +24,6 @@ from keras.src.backend.common import global_state
 
 DEFAULT_BATCH_DIM_NAME = "batch"
 GLOBAL_ATTRIBUTE_NAME = "distribution"
-
-
-# Debugging utilities for distribution API
-_DIST_DEBUG_ENABLED = None
-_DIST_DEBUG_PREFIX = "[DISTRIBUTION-API-DEBUG]"
-
-
-def _is_dist_debug_enabled():
-    """Check if debug mode is enabled via environment variable."""
-    global _DIST_DEBUG_ENABLED
-    if _DIST_DEBUG_ENABLED is None:
-        _DIST_DEBUG_ENABLED = os.environ.get("KERAS_DISTRIBUTION_DEBUG", "0") == "1"
-    return _DIST_DEBUG_ENABLED
-
-
-def _get_dist_debug_prefix():
-    """Get prefix for debug messages with timestamp."""
-    return f"{_DIST_DEBUG_PREFIX} [{datetime.now().strftime('%H:%M:%S.%f')[:-3]}]"
-
-
-def _dist_debug_log(message):
-    """Log debug message if debug mode is enabled."""
-    if _is_dist_debug_enabled():
-        prefix = _get_dist_debug_prefix()
-        print(f"{prefix} {message}", flush=True)
-        sys.stdout.flush()
-
-
-def _dist_debug_function_entry(func_name, args=None, kwargs=None):
-    """Log function entry with arguments."""
-    if _is_dist_debug_enabled():
-        args_str = str(args) if args else ""
-        kwargs_str = str(kwargs) if kwargs else ""
-        _dist_debug_log(f"ENTER {func_name}({args_str}, {kwargs_str})")
-
-
-def _dist_debug_function_exit(func_name, result=None):
-    """Log function exit with result."""
-    if _is_dist_debug_enabled():
-        result_str = str(result) if result is not None else "None"
-        # Truncate long results
-        if len(result_str) > 200:
-            result_str = result_str[:200] + "..."
-        _dist_debug_log(f"EXIT {func_name} -> {result_str}")
 
 
 @keras_export("keras.distribution.list_devices")
@@ -225,9 +179,6 @@ class DeviceMesh:
         axis_names,
         devices=None,
     ):
-        _dist_debug_function_entry("DeviceMesh.__init__", 
-                                 kwargs={"shape": shape, "axis_names": axis_names})
-        
         if not shape or not axis_names:
             raise ValueError(
                 "Shape and axis_names cannot be empty. Received: "
@@ -241,7 +192,6 @@ class DeviceMesh:
             )
         if devices is None:
             devices = list_devices()
-            _dist_debug_log(f"Using default devices from list_devices(): {len(devices)} devices")
         devices = np.array(devices)
         if np.prod(shape) != np.prod(devices.shape):
             raise ValueError(
@@ -253,10 +203,6 @@ class DeviceMesh:
         self._shape = shape
         self._axis_names = axis_names
         self._devices = np.reshape(devices, shape)
-        
-        _dist_debug_log(f"DeviceMesh created: shape={shape}, axis_names={axis_names}")
-        _dist_debug_log(f"Devices reshaped to: {self._devices.shape}")
-        _dist_debug_function_exit("DeviceMesh.__init__", result=self)
 
     @property
     def shape(self):
@@ -308,16 +254,9 @@ class TensorLayout:
     """
 
     def __init__(self, axes, device_mesh=None):
-        _dist_debug_function_entry("TensorLayout.__init__", kwargs={"axes": axes, "device_mesh": device_mesh})
-        
         self._axes = tuple(axes)
         self._device_mesh = device_mesh
         self._validate_axes()
-        
-        _dist_debug_log(f"TensorLayout created: axes={self._axes}")
-        if device_mesh:
-            _dist_debug_log(f"Device mesh: shape={device_mesh.shape}, axis_names={device_mesh.axis_names}")
-        _dist_debug_function_exit("TensorLayout.__init__", result=self)
 
     @property
     def axes(self):
@@ -506,29 +445,17 @@ class DataParallel(Distribution):
     """
 
     def __init__(self, device_mesh=None, devices=None, auto_shard_dataset=True):
-        _dist_debug_function_entry("DataParallel.__init__", 
-                                 kwargs={"device_mesh": device_mesh, "devices": devices, 
-                                        "auto_shard_dataset": auto_shard_dataset})
-        
         if device_mesh:
-            _dist_debug_log("Initializing DataParallel with provided device_mesh")
             self._initialize_with_device_mesh(device_mesh, auto_shard_dataset)
         elif devices:
-            _dist_debug_log("Initializing DataParallel with provided devices")
             self._initialize_mesh_from_devices(devices, auto_shard_dataset)
         else:
-            _dist_debug_log("Initializing DataParallel with default devices from list_devices()")
             self._initialize_mesh_from_list_devices(auto_shard_dataset)
 
         # Those following attributes might get convert to public methods.
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
         self._is_multi_process = self._num_process > 1
-        
-        _dist_debug_log(f"DataParallel created: device_mesh={self.device_mesh}")
-        _dist_debug_log(f"Number of processes: {self._num_process}, Process ID: {self._process_id}")
-        _dist_debug_log(f"Multi-process: {self._is_multi_process}")
-        _dist_debug_function_exit("DataParallel.__init__", result=self)
 
     def _initialize_with_device_mesh(self, device_mesh, auto_shard_dataset):
         if not isinstance(device_mesh, DeviceMesh):
@@ -744,10 +671,6 @@ class ModelParallel(Distribution):
         auto_shard_dataset=True,
         **kwargs,
     ):
-        _dist_debug_function_entry("ModelParallel.__init__", 
-                                 kwargs={"layout_map": layout_map, "batch_dim_name": batch_dim_name,
-                                        "auto_shard_dataset": auto_shard_dataset})
-        
         kwargs.pop("device_mesh", None)
         if layout_map is None:
             raise ValueError("You must specify a layout_map argument.")
@@ -758,10 +681,7 @@ class ModelParallel(Distribution):
             )
         device_mesh = layout_map.device_mesh
         batch_dim_name = batch_dim_name or device_mesh.axis_names[0]
-        
-        _dist_debug_log(f"Using device mesh: shape={device_mesh.shape}, axis_names={device_mesh.axis_names}")
-        _dist_debug_log(f"Batch dimension name: {batch_dim_name}")
-        
+
         super().__init__(device_mesh, batch_dim_name, auto_shard_dataset)
         self._layout_map = layout_map
 
@@ -769,11 +689,6 @@ class ModelParallel(Distribution):
         self._num_process = distribution_lib.num_processes()
         self._process_id = distribution_lib.process_id()
         self._is_multi_process = self._num_process > 1
-        
-        _dist_debug_log(f"ModelParallel created: layout_map with {len(layout_map)} entries")
-        _dist_debug_log(f"Number of processes: {self._num_process}, Process ID: {self._process_id}")
-        _dist_debug_log(f"Multi-process: {self._is_multi_process}")
-        _dist_debug_function_exit("ModelParallel.__init__", result=self)
 
     def get_data_layout(self, data_shape):
         data_shard_spec = [None] * len(data_shape)
@@ -936,11 +851,8 @@ class LayoutMap(collections.abc.MutableMapping):
     """
 
     def __init__(self, device_mesh):
-        _dist_debug_function_entry("LayoutMap.__init__", kwargs={"device_mesh": device_mesh})
         self._layout_map = collections.OrderedDict()
         self._device_mesh = device_mesh
-        _dist_debug_log(f"LayoutMap created with device mesh: shape={device_mesh.shape}")
-        _dist_debug_function_exit("LayoutMap.__init__", result=self)
 
     def __getitem__(self, key):
         """Retrieves the corresponding layout by the string key.
@@ -956,21 +868,15 @@ class LayoutMap(collections.abc.MutableMapping):
         Returns:
             Corresponding layout based on the query.
         """
-        _dist_debug_function_entry("LayoutMap.__getitem__", kwargs={"key": key})
-        
         if key in self._layout_map:
-            _dist_debug_log(f"Exact match found for key '{key}'")
-            result = self._layout_map[key]
-            _dist_debug_function_exit("LayoutMap.__getitem__", result=result)
-            return result
+            return self._layout_map[key]
 
         matching_keys = []
         for k in self._layout_map:
             if re.search(k, key):
                 matching_keys.append(k)
-        
+
         if len(matching_keys) > 1:
-            _dist_debug_log(f"Multiple matches found for key '{key}': {matching_keys}")
             raise ValueError(
                 f"Path '{key}' matches multiple layout "
                 f"specification keys: {matching_keys}. Please make "
@@ -978,13 +884,8 @@ class LayoutMap(collections.abc.MutableMapping):
                 "one layout specification key in the LayoutMap."
             )
         elif len(matching_keys) == 1:
-            _dist_debug_log(f"Regex match found for key '{key}' with pattern '{matching_keys[0]}'")
-            result = self._layout_map[matching_keys[0]]
-            _dist_debug_function_exit("LayoutMap.__getitem__", result=result)
-            return result
-        
-        _dist_debug_log(f"No layout found for key '{key}'")
-        _dist_debug_function_exit("LayoutMap.__getitem__", result=None)
+            return self._layout_map[matching_keys[0]]
+
         return None
 
     def __setitem__(self, key, layout):
@@ -995,29 +896,21 @@ class LayoutMap(collections.abc.MutableMapping):
             layout: The `TensorLayout`. As a shortcut, tuple of string and None
                 are also acceptable, and will be converted to `TensorLayout`.
         """
-        _dist_debug_function_entry("LayoutMap.__setitem__", kwargs={"key": key, "layout": layout})
-        
         if key in self._layout_map:
-            _dist_debug_log(f"Key '{key}' already exists in LayoutMap")
             raise ValueError(
                 f"{key} already exist in the LayoutMap with "
                 f"value {self._layout_map[key]}. Please make sure to "
                 "not use duplicated keys."
             )
         if isinstance(layout, tuple):
-            _dist_debug_log(f"Converting tuple {layout} to TensorLayout")
             layout = TensorLayout(axes=layout, device_mesh=None)
 
         if not isinstance(layout, TensorLayout):
-            _dist_debug_log(f"Invalid layout type for key '{key}': {type(layout)}")
             raise ValueError(
                 f"{layout} should be a TensorLayout type, got {type(layout)}"
             )
         self._maybe_populate_device_mesh(layout)
         self._layout_map[key] = layout
-        
-        _dist_debug_log(f"Added layout for key '{key}': axes={layout.axes}")
-        _dist_debug_function_exit("LayoutMap.__setitem__")
 
     def __delitem__(self, key):
         # let the dict to handle the key missing error
