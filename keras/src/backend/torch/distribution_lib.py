@@ -62,7 +62,7 @@ def get_device_count(device_type=None):
     if device_type in ("gpu", "cuda"):
         return 0
 
-    if device_type == "cpu":
+    if device_type is None or device_type == "cpu":
         return 1
 
     return 0
