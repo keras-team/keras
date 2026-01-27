@@ -309,8 +309,10 @@ class EinsumDense(Layer):
         self._tracker.unlock()
         # Determine the appropriate (unpacked) kernel shape for LoRA.
         if self.quantization_mode == "int4":
-            # For INT4 with GPTQ layout, use original_kernel_shape since
-            # the packed kernel is transposed
+            # INT4 weights are stored in a flattened 2D layout that loses
+            # the original N-dimensional structure required by the einsum
+            # equation. We use `original_kernel_shape`` to ensure LoRA adapters
+            # operate in the correct logical dimension space.
             kernel_shape_for_lora = tuple(self.original_kernel_shape)
         else:
             kernel_shape_for_lora = self.kernel.shape
