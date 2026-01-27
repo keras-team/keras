@@ -3822,6 +3822,10 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             standardize_dtype(knp.Digitize()(x, bins).dtype) == "int32"
         )
 
+    def test_arctan2_nan_propagation(self):
+        out = knp.arctan2(1.0, np.nan)
+        self.assertTrue(np.isnan(out.numpy()))
+
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_mean(self):
