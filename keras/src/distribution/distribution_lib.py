@@ -671,7 +671,6 @@ class ModelParallel(Distribution):
             )
         device_mesh = layout_map.device_mesh
         batch_dim_name = batch_dim_name or device_mesh.axis_names[0]
-
         super().__init__(device_mesh, batch_dim_name, auto_shard_dataset)
         self._layout_map = layout_map
 
@@ -703,37 +702,33 @@ class ModelParallel(Distribution):
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
-        # Check for PyTorch DataLoader
-        try:
-            from torch.utils.data import DataLoader, DistributedSampler
-            if isinstance(dataset, DataLoader):
-                # PyTorch DataLoader - use DistributedSampler
-                sampler = DistributedSampler(
-                    dataset.dataset,
-                    num_replicas=self._num_process,
-                    rank=self._process_id,
-                    shuffle=dataset.shuffle,
-                    drop_last=dataset.drop_last,
-                )
-                return DataLoader(
-                    dataset.dataset,
-                    batch_size=dataset.batch_size,
-                    sampler=sampler,
-                    num_workers=dataset.num_workers,
-                    pin_memory=dataset.pin_memory,
-                    drop_last=dataset.drop_last,
-                    persistent_workers=dataset.persistent_workers,
-                )
-        except ImportError:
-            pass
+
+        from torch.utils.data import DataLoader, DistributedSampler
+        if isinstance(dataset, DataLoader):
+            sampler = DistributedSampler(
+                dataset.dataset,
+                num_replicas=self._num_process,
+                rank=self._process_id,
+                shuffle=dataset.shuffle,
+                drop_last=dataset.drop_last,
+            )
+            return DataLoader(
+                dataset.dataset,
+                batch_size=dataset.batch_size,
+                sampler=sampler,
+                num_workers=dataset.num_workers,
+                pin_memory=dataset.pin_memory,
+                drop_last=dataset.drop_last,
+                persistent_workers=dataset.persistent_workers,
+            )
 
         # Try to distribute a global tf.data.Dataset.
         from keras.src.utils.module_utils import tensorflow as tf
 
         if not tf.available or not isinstance(dataset, tf.data.Dataset):
             raise ValueError(
-                "Only `tf.data.Dataset` and `torch.utils.data.DataLoader` "
-                f"are supported for auto-sharding, got {type(dataset)}"
+                "Only `tf.data.Dataset` is supported for auto-sharding, "
+                f"got {type(dataset)}"
             )
 
         from tensorflow.python.data.experimental.ops import (
