@@ -699,6 +699,12 @@ class Dense(Layer):
 
         # Sub-channel quantization uses asymmetric quantization
         if block_size is not None and block_size > 0:
+
+            def idx_initializer(shape, dtype):
+                return ops.floor_divide(
+                    ops.arange(input_dim, dtype=dtype), block_size
+                )
+
             self.kernel_zero = self.add_weight(
                 name="kernel_zero",
                 shape=scale_shape,
@@ -709,14 +715,9 @@ class Dense(Layer):
             self.g_idx = self.add_weight(
                 name="g_idx",
                 shape=(input_dim,),
-                initializer="zeros",
+                initializer=idx_initializer,
                 dtype="float32",
                 trainable=False,
-            )
-            self.g_idx.assign(
-                ops.floor_divide(
-                    ops.arange(input_dim, dtype="float32"), block_size
-                )
             )
 
         # Record dimensions for unpacking and reshaping at runtime.

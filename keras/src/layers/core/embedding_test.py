@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -672,7 +673,6 @@ class EmbeddingTest(test_case.TestCase):
     )
     def test_int4_quantization_block_size(self, block_size):
         """Test int4 quantization with different block_size configurations."""
-        import math
 
         input_dim, output_dim = 100, 256
         layer = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
@@ -767,7 +767,6 @@ class EmbeddingTest(test_case.TestCase):
 
     def test_int4_grouped_vs_perchannel_scale_shapes(self):
         """Test that grouped and per-channel have different scale shapes."""
-        import math
 
         input_dim, output_dim = 100, 256
         block_size = 64

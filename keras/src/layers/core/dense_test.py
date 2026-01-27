@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -1253,8 +1254,6 @@ class DenseTest(testing.TestCase):
             expected_scale_shape = (output_dim,)
         else:
             # Sub-channel: (n_groups, out_features)
-            import math
-
             n_groups = math.ceil(input_dim / block_size)
             expected_scale_shape = (n_groups, output_dim)
 

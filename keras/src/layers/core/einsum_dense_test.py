@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -20,6 +21,7 @@ from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
+from keras.src.saving.saving_api import load_model
 
 
 class EinsumDenseTest(testing.TestCase):
@@ -1429,8 +1431,6 @@ class EinsumDenseTest(testing.TestCase):
             expected_scale_shape = (64,)
         else:
             # Sub-channel: (n_groups, columns) = (n_groups, out)
-            import math
-
             n_groups = math.ceil(256 / block_size)
             expected_scale_shape = (n_groups, 64)
 
@@ -1649,10 +1649,6 @@ class EinsumDenseTest(testing.TestCase):
         if testing.tensorflow_uses_gpu():
             self.skipTest("Segfault on TF GPU")
 
-        import tempfile
-
-        import keras
-
         # Equation: bnh,nhd->bd (two reduced axes: n, h)
         layer = layers.EinsumDense(
             equation="bnh,nhd->bd",
@@ -1668,10 +1664,9 @@ class EinsumDenseTest(testing.TestCase):
 
         # Save and load model
         model = models.Sequential([layer])
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = f"{tmpdir}/model.keras"
-            model.save(path)
-            loaded_model = keras.models.load_model(path)
+        path = f"{self.get_temp_dir()}/model.keras"
+        model.save(path)
+        loaded_model = load_model(path)
 
         # Verify outputs match
         y_after = loaded_model(x)

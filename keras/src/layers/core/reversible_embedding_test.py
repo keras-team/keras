@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -283,7 +284,6 @@ class ReversibleEmbeddingTest(test_case.TestCase):
     )
     def test_int4_quantization_block_size(self, block_size, tie_weights):
         """Test int4 quantization with different block_size configurations."""
-        import math
 
         input_dim, output_dim = 100, 256
         layer = layers.ReversibleEmbedding(
@@ -396,7 +396,6 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         self, tie_weights, block_size
     ):
         """Test that grouped and per-channel have different scale shapes."""
-        import math
 
         input_dim, output_dim = 100, 256
 
