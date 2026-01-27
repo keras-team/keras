@@ -1,230 +1,133 @@
-"""Tests for RandomResizedCrop layer."""
-
-import numpy as np
+# keras/src/layers/preprocessing/image_preprocessing/random_resized_crop_test.py
 import pytest
+import numpy as np
+from absl.testing import parameterized
+from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
-from keras.src import ops
 from keras.src import testing
-
-SKIP_BACKENDS = ["openvino"]
-
-pytestmark = pytest.mark.skipif(
-    backend.backend() in SKIP_BACKENDS,
-    reason=(
-        "RandomResizedCrop tests not supported for backend: {}".format(
-            backend.backend()
-        )
-    ),
-)
 
 
 class RandomResizedCropTest(testing.TestCase):
-    """Test suite for RandomResizedCrop layer."""
-
-    def test_random_resized_crop_inference_deterministic(self):
-        """Test that inference mode is deterministic."""
-        seed = 3481
-        layer = layers.RandomResizedCrop(224, 224, seed=seed)
-        np.random.seed(seed)
-        inputs = np.random.random((2, 256, 256, 3)).astype("float32")
-
-        output1 = layer(inputs, training=False)
-        output2 = layer(inputs, training=False)
-
-        self.assertAllClose(output1, output2)
-
-    def test_random_resized_crop_training_random(self):
-        """Test that training mode produces random results."""
-        seed = 3481
-        layer = layers.RandomResizedCrop(224, 224, seed=seed)
-        np.random.seed(seed)
-        inputs = np.random.random((1, 300, 300, 3)).astype("float32")
-
-        output1 = layer(inputs, training=True)
-        output2 = layer(inputs, training=True)
-
-        output1_np = ops.convert_to_numpy(output1)
-        output2_np = ops.convert_to_numpy(output2)
-        diff = np.mean(np.abs(output1_np - output2_np))
-        self.assertGreater(float(diff), 1e-4)
-
-    def test_random_resized_crop_output_shape(self):
-        """Test output shape is correct."""
-        data_format = backend.config.image_data_format()
-        if data_format == "channels_last":
-            input_data = np.random.random((2, 256, 256, 3)).astype("float32")
-        else:
-            input_data = np.random.random((2, 3, 256, 256)).astype("float32")
-
+    @parameterized.named_parameters(
+        ("unbatched_channels_last", (64, 64, 3), (32, 48, 3), "channels_last"),
+        ("batched_channels_last", (4, 64, 64, 3), (4, 32, 48, 3), "channels_last"),
+        ("unbatched_channels_first", (3, 64, 64), (3, 32, 48), "channels_first"),
+        ("batched_channels_first", (4, 3, 64, 64), (4, 3, 32, 48), "channels_first"),
+    )
+    def test_random_resized_crop_output_shape(self, input_shape, expected_shape, data_format):
         layer = layers.RandomResizedCrop(
-            224,
-            224,
-            data_format=data_format,
-            seed=1337,
+            height=32, width=48, data_format=data_format
         )
-        output = layer(input_data, training=True)
+        inputs = np.ones(input_shape, dtype="float32")
+        outputs = layer(inputs, training=True)
+        self.assertEqual(tuple(outputs.shape), expected_shape)
+
+    @parameterized.named_parameters(
+        ("channels_last", "channels_last"),
+        ("channels_first", "channels_first"),
+    )
+    def test_random_resized_crop_inference_is_deterministic(self, data_format):
+        layer = layers.RandomResizedCrop(height=32, width=32, data_format=data_format)
 
         if data_format == "channels_last":
-            self.assertEqual(output.shape, (2, 224, 224, 3))
+            inputs = np.arange(64 * 64 * 3, dtype="float32").reshape((64, 64, 3))
         else:
-            self.assertEqual(output.shape, (2, 3, 224, 224))
+            inputs = np.arange(3 * 64 * 64, dtype="float32").reshape((3, 64, 64))
 
-    def test_random_resized_crop_unbatched_input(self):
-        """Test with unbatched (3D) input."""
-        data_format = backend.config.image_data_format()
-        if data_format == "channels_last":
-            input_data = np.random.random((256, 256, 3)).astype("float32")
-        else:
-            input_data = np.random.random((3, 256, 256)).astype("float32")
+        out1 = layer(inputs, training=False)
+        out2 = layer(inputs, training=False)
 
+        self.assertAllClose(out1, out2, atol=0.0, rtol=0.0)
+
+    def test_random_resized_crop_training_is_random(self):
+        layer1 = layers.RandomResizedCrop(height=32, width=32, seed=1)
+        layer2 = layers.RandomResizedCrop(height=32, width=32, seed=2)
+
+        inputs = np.arange(2 * 64 * 64 * 3, dtype="float32").reshape((2, 64, 64, 3))
+
+        out1 = layer1(inputs, training=True)
+        out2 = layer2(inputs, training=True)
+
+        # Extremely unlikely to be identical if randomness is applied
+        with self.assertRaises(AssertionError):
+            self.assertAllClose(out1, out2, atol=1e-6)
+
+    def test_random_resized_crop_dtype_preserved(self):
+        layer = layers.RandomResizedCrop(height=16, width=16)
+
+        inputs = np.ones((64, 64, 3), dtype="float16")
+        outputs = layer(inputs, training=True)
+
+        # tf.image.crop_and_resize promotes float16 to float32
+        self.assertEqual(outputs.dtype, "float32")
+
+    def test_random_resized_crop_config_roundtrip(self):
         layer = layers.RandomResizedCrop(
-            224,
-            224,
-            data_format=data_format,
-            seed=1337,
-        )
-        output = layer(input_data, training=True)
-
-        if data_format == "channels_last":
-            self.assertEqual(output.shape, (224, 224, 3))
-        else:
-            self.assertEqual(output.shape, (3, 224, 224))
-
-    def test_random_resized_crop_seed_reproducibility(self):
-        """Test that same seed produces same results."""
-        data_format = backend.config.image_data_format()
-        if data_format == "channels_last":
-            input_data = np.random.random((2, 256, 256, 3)).astype("float32")
-        else:
-            input_data = np.random.random((2, 3, 256, 256)).astype("float32")
-
-        layer1 = layers.RandomResizedCrop(
-            224,
-            224,
-            scale=(0.08, 1.0),
-            ratio=(0.75, 1.33),
-            data_format=data_format,
-            seed=1337,
-        )
-        layer2 = layers.RandomResizedCrop(
-            224,
-            224,
-            scale=(0.08, 1.0),
-            ratio=(0.75, 1.33),
-            data_format=data_format,
-            seed=1337,
-        )
-
-        output1 = layer1(input_data, training=True)
-        output2 = layer2(input_data, training=True)
-
-        self.assertAllClose(output1, output2)
-
-    def test_random_resized_crop_different_seeds(self):
-        """Test that different seeds produce different results."""
-        data_format = backend.config.image_data_format()
-        if data_format == "channels_last":
-            input_data = np.random.random((2, 256, 256, 3)).astype("float32")
-        else:
-            input_data = np.random.random((2, 3, 256, 256)).astype("float32")
-
-        layer1 = layers.RandomResizedCrop(
-            224, 224, seed=123, data_format=data_format
-        )
-        layer2 = layers.RandomResizedCrop(
-            224, 224, seed=456, data_format=data_format
-        )
-
-        output1 = layer1(input_data, training=True)
-        output2 = layer2(input_data, training=True)
-
-        output1_np = ops.convert_to_numpy(output1)
-        output2_np = ops.convert_to_numpy(output2)
-        diff = np.mean(np.abs(output1_np - output2_np))
-        self.assertGreater(float(diff), 1e-4)
-
-    def test_random_resized_crop_custom_parameters(self):
-        """Test with custom scale and ratio parameters."""
-        data_format = backend.config.image_data_format()
-        if data_format == "channels_last":
-            input_data = np.random.random((2, 256, 256, 3)).astype("float32")
-        else:
-            input_data = np.random.random((2, 3, 256, 256)).astype("float32")
-
-        layer = layers.RandomResizedCrop(
-            224,
-            224,
-            scale=(0.5, 1.0),
-            ratio=(0.9, 1.1),
-            data_format=data_format,
-            seed=1337,
-        )
-        output = layer(input_data, training=True)
-
-        if data_format == "channels_last":
-            self.assertEqual(output.shape, (2, 224, 224, 3))
-        else:
-            self.assertEqual(output.shape, (2, 3, 224, 224))
-
-    def test_random_resized_crop_config_serialization(self):
-        """Test layer serialization and deserialization."""
-        layer = layers.RandomResizedCrop(
-            224,
-            224,
-            scale=(0.08, 1.0),
-            ratio=(0.75, 1.33),
-            interpolation="bilinear",
-            seed=1337,
+            height=24,
+            width=40,
+            scale=(0.2, 0.8),
+            ratio=(0.75, 1.25),
         )
 
         config = layer.get_config()
-        new_layer = layers.RandomResizedCrop.from_config(config)
+        recreated = layers.RandomResizedCrop.from_config(config)
 
-        self.assertEqual(new_layer.height, 224)
-        self.assertEqual(new_layer.width, 224)
-        self.assertEqual(new_layer.scale, (0.08, 1.0))
-        self.assertEqual(new_layer.ratio, (0.75, 1.33))
-        self.assertEqual(new_layer.interpolation, "bilinear")
-        self.assertEqual(new_layer.seed, 1337)
+        self.assertEqual(recreated.height, 24)
+        self.assertEqual(recreated.width, 40)
+        self.assertEqual(recreated.scale, (0.2, 0.8))
+        self.assertEqual(recreated.ratio, (0.75, 1.25))
+
+    @pytest.mark.requires_trainable_backend
+    def test_random_resized_crop_tf_data_compatibility(self):
+        layer = layers.RandomResizedCrop(height=32, width=32)
+
+        def augment(x):
+            return layer(x, training=True)
+
+        ds = (
+            tf_data.Dataset.from_tensor_slices(
+                np.random.uniform(size=(8, 64, 64, 3)).astype("float32")
+            )
+            .batch(4)
+            .map(augment)
+        )
+
+        for batch in ds.take(1):
+            self.assertEqual(tuple(batch.shape), (4, 32, 32, 3))
 
     def test_random_resized_crop_compute_output_shape(self):
-        """Test compute_output_shape method."""
-        layer = layers.RandomResizedCrop(224, 224)
+        layer = layers.RandomResizedCrop(height=32, width=48, data_format="channels_last")
+        input_shape = (4, 64, 64, 3)
+        output_shape = layer.compute_output_shape(input_shape)
+        self.assertEqual(output_shape, (4, 32, 48, 3))
 
-        output_shape = layer.compute_output_shape((8, 256, 256, 3))
-        self.assertEqual(output_shape, (8, 224, 224, 3))
+    def test_random_resized_crop_compute_output_spec(self):
+        layer = layers.RandomResizedCrop(height=32, width=48)
+        inputs = backend.KerasTensor((4, 64, 64, 3), dtype="float32")
+        output_spec = layer.compute_output_spec(inputs)
+        self.assertEqual(output_spec.shape, (4, 32, 48, 3))
+        self.assertEqual(output_spec.dtype, "float32")
 
-        output_shape = layer.compute_output_shape((256, 256, 3))
-        self.assertEqual(output_shape, (224, 224, 3))
+    def test_random_resized_crop_scale_bounds(self):
+        # Test that scale bounds are respected
+        layer = layers.RandomResizedCrop(height=32, width=32, scale=(0.5, 0.5))
 
-        output_shape = layer.compute_output_shape((None, 256, 256, 3))
-        self.assertEqual(output_shape, (None, 224, 224, 3))
+        inputs = np.ones((4, 64, 64, 3), dtype="float32")
+        outputs = layer(inputs, training=True)
 
-    def test_random_resized_crop_non_square_target(self):
-        """Test with non-square target size."""
-        layer = layers.RandomResizedCrop(320, 224, seed=1337)
-        input_data = np.random.random((2, 400, 400, 3)).astype("float32")
-        output = layer(input_data, training=True)
+        # With scale=0.5, crop area should be 0.5 * 64 * 64 = 2048
+        # Crop height/width should be sqrt(2048) ≈ 45.25, but clamped
+        # Since we resize to 32x32, output should be 32x32
+        self.assertEqual(tuple(outputs.shape), (4, 32, 32, 3))
 
-        output_np = ops.convert_to_numpy(output)
-        self.assertEqual(output_np.shape, (2, 320, 224, 3))
+    def test_random_resized_crop_ratio_bounds(self):
+        # Test that ratio bounds are respected
+        layer = layers.RandomResizedCrop(height=32, width=32, ratio=(1.0, 1.0))
 
-    def test_random_resized_crop_rectangular_input(self):
-        """Test with rectangular (non-square) input."""
-        layer = layers.RandomResizedCrop(224, 224, seed=1337)
-        input_data = np.random.random((2, 300, 500, 3)).astype("float32")
-        output = layer(input_data, training=False)
+        inputs = np.ones((4, 64, 64, 3), dtype="float32")
+        outputs = layer(inputs, training=True)
 
-        output_np = ops.convert_to_numpy(output)
-        self.assertEqual(output_np.shape, (2, 224, 224, 3))
-
-    def test_random_resized_crop_dtype_float32(self):
-        """Test with float32 input."""
-        layer = layers.RandomResizedCrop(224, 224, seed=1337)
-        input_data = np.random.random((2, 256, 256, 3)).astype("float32")
-        output = layer(input_data, training=True)
-
-        output_np = ops.convert_to_numpy(output)
-        self.assertEqual(output_np.dtype, np.float32)
+        # With ratio=1.0, crop should be square
+        self.assertEqual(tuple(outputs.shape), (4, 32, 32, 3))

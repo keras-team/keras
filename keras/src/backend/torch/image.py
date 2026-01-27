@@ -1190,3 +1190,30 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def crop_to_bounding_box(
+    images,
+    offset_height,
+    offset_width,
+    target_height,
+    target_width,
+    data_format=None,
+):
+    import torch
+
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    if data_format == "channels_last":
+        return images[
+            :,
+            offset_height : offset_height + target_height,
+            offset_width : offset_width + target_width,
+            :,
+        ]
+    else:  # channels_first
+        return images[
+            :,
+            offset_height : offset_height + target_height,
+            offset_width : offset_width + target_width,
+        ]
