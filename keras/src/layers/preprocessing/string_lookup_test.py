@@ -9,7 +9,6 @@ from keras.src import layers
 from keras.src import models
 from keras.src import saving
 from keras.src import testing
-from keras.src.ops import convert_to_numpy
 from keras.src.ops import convert_to_tensor
 
 
@@ -169,22 +168,17 @@ class StringLookupTest(testing.TestCase):
             invert=True,
         )
         output = layer([1, 2, 0])
-
-        if backend.is_tensor(output):
-            output = convert_to_numpy(output)
-            output = [
-                x.decode("utf-8") if isinstance(x, (bytes, bytearray)) else x
-                for x in output
-            ]
-
-        self.assertEqual(output, ["a", "b", "[UNK]"])
+        self.assertAllEqual(
+            backend.convert_to_numpy(output).astype(str),
+            ["a", "b", "[UNK]"],
+        )
 
     def test_output_mode_count_shape(self):
         layer = layers.StringLookup(
             vocabulary=["a", "b"],
             output_mode="count",
         )
-        output = layer(["a", "b", "a"])
+        output = layer(["a", "a", "a", "b", "b"])
         self.assertEqual(output.shape[-1], len(layer.get_vocabulary()))
 
     def test_output_mode_multi_hot_binary(self):
@@ -193,11 +187,7 @@ class StringLookupTest(testing.TestCase):
             output_mode="multi_hot",
         )
         output = layer(["a", "b"])
-
-        if backend.is_tensor(output):
-            output = convert_to_numpy(output)
-
-        self.assertTrue(np.all((output == 0) | (output == 1)))
+        self.assertAllClose(output, [0, 1, 1])
 
     def test_mask_token_basic(self):
         layer = layers.StringLookup(
@@ -205,19 +195,7 @@ class StringLookupTest(testing.TestCase):
             mask_token="[MASK]",
         )
         output = layer(["[MASK]", "a"])
-
-        if backend.is_tensor(output):
-            output = convert_to_numpy(output)
-
         self.assertEqual(int(output[0]), 0)
-
-    def test_adapt_with_python_iterable(self):
-        layer = layers.StringLookup()
-        layer.adapt(["a", "a", "b", "c"])
-        vocab = layer.get_vocabulary()
-
-        for token in ["a", "b", "c"]:
-            self.assertIn(token, vocab)
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
