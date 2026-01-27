@@ -237,18 +237,160 @@ def distribute_tensor(tensor, layout):
     return tensor
 
 
+def _get_current_rank():
+    """Get the current process rank for distributed training.
+
+    Returns:
+        int: The current rank, or 0 if not in distributed mode.
+    """
+    if dist.is_initialized():
+        return dist.get_rank()
+    return 0
+
+
+def _get_current_device():
+    """Get the current device for this process.
+
+    Returns:
+        torch.device: The current device (cuda, mps, or cpu).
+    """
+    if torch.cuda.is_available():
+        local_rank = dist.get_rank() if dist.is_initialized() else 0
+        return torch.device(f"cuda:{local_rank}")
+    elif hasattr(torch, "mps") and torch.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def _shard_tensor(tensor, layout, rank=None, device=None):
+    """Shard a tensor according to the layout.
+
+    This partitions the tensor across devices based on the layout axes.
+
+    Args:
+        tensor: The full tensor to shard.
+        layout: The TensorLayout or backend layout specifying sharding.
+        rank: The current rank (defaults to _get_current_rank()).
+        device: The target device (defaults to _get_current_device()).
+
+    Returns:
+        torch.Tensor: The shard of the tensor for this device.
+    """
+    _debug_function_entry("_shard_tensor")
+    _debug_tensor_info(tensor, "input_tensor")
+
+    if rank is None:
+        rank = _get_current_rank()
+    if device is None:
+        device = _get_current_device()
+
+    # Extract axes and device mesh from layout
+    if hasattr(layout, 'backend_layout'):
+        backend_layout = layout.backend_layout
+    else:
+        backend_layout = layout
+
+    if backend_layout is None:
+        _debug_log("No layout provided, returning tensor as-is")
+        _debug_tensor_info(tensor, "output_tensor")
+        _debug_function_exit("_shard_tensor")
+        return tensor
+
+    # Get axes
+    axes = getattr(backend_layout, 'axes', None)
+    if axes is None:
+        axes = getattr(backend_layout, 'sharding', None)
+    if axes is None:
+        # Fallback for raw dict layout
+        if isinstance(backend_layout, dict):
+            axes = backend_layout.get('axes', [])
+        else:
+            axes = []
+
+    # Get device mesh
+    device_mesh = getattr(backend_layout, 'device_mesh', None)
+    if device_mesh is None:
+        mesh = getattr(backend_layout, 'mesh', None)
+        if mesh is not None:
+            device_mesh = mesh
+
+    # Check if any axis needs sharding
+    sharding_axes = [ax for ax in axes if ax is not None]
+    if not sharding_axes:
+        # No sharding needed
+        _debug_log("No sharding axes, returning tensor as-is")
+        _debug_tensor_info(tensor, "output_tensor")
+        _debug_function_exit("_shard_tensor")
+        return tensor
+
+    # Get the first sharding axis
+    first_sharding_axis = sharding_axes[0]
+    _debug_log(f"First sharding axis: {first_sharding_axis}")
+
+    # Get mesh dimension for this axis
+    mesh_dim_size = 1
+    if device_mesh is not None:
+        axis_names = getattr(device_mesh, 'axis_names', [])
+        shape = getattr(device_mesh, 'shape', [])
+        
+        if first_sharding_axis in axis_names:
+            axis_idx = axis_names.index(first_sharding_axis)
+            mesh_dim_size = shape[axis_idx]
+            _debug_log(f"Mesh dimension size for axis '{first_sharding_axis}': {mesh_dim_size}")
+        else:
+            _debug_log(f"Axis '{first_sharding_axis}' not found in mesh axes {axis_names}")
+
+    # Calculate shard size
+    dim_size = tensor.shape[first_sharding_axis]
+    _debug_log(f"Tensor dimension at axis {first_sharding_axis}: {dim_size}")
+
+    if mesh_dim_size > 1 and dim_size >= mesh_dim_size:
+        # Partition the tensor
+        if dim_size % mesh_dim_size == 0:
+            shard_size = dim_size // mesh_dim_size
+            _debug_log(f"Even partitioning: shard_size={shard_size}")
+            shards = list(torch.split(tensor, shard_size, dim=first_sharding_axis))
+        else:
+            _debug_log(f"Uneven partitioning: using torch.chunk with {mesh_dim_size} chunks")
+            shards = list(torch.chunk(tensor, mesh_dim_size, dim=first_sharding_axis))
+
+        # Select the shard for this rank
+        shard = shards[rank % len(shards)]
+        _debug_log(f"Selected shard {rank % len(shards)} of {len(shards)}")
+        _debug_tensor_info(shard, "sharded_tensor")
+
+        # Move shard to target device
+        shard = shard.to(device)
+        _debug_tensor_info(shard, "sharded_tensor_on_device")
+
+        _debug_function_exit("_shard_tensor", result=shard)
+        return shard
+    else:
+        # Cannot shard (mesh dim is 1 or tensor dim too small)
+        _debug_log(f"Cannot shard: mesh_dim_size={mesh_dim_size}, dim_size={dim_size}")
+        _debug_tensor_info(tensor, "output_tensor")
+        _debug_function_exit("_shard_tensor")
+        return tensor
+
+
 def distribute_variable(value, layout):
     """Create a distributed variable for PyTorch.
 
-    This creates a representation of a variable that respects the given
-    layout/sharding specification.
+    This creates a sharded variable that respects the given layout/sharding
+    specification. Unlike the JAX backend which uses automatic sharding,
+    PyTorch requires explicit tensor partitioning.
+
+    The tensor is:
+    1. Created/initialized on CPU to avoid GPU memory issues
+    2. Partitioned using torch.split or torch.chunk
+    3. Only the required shard is moved to the GPU
 
     Args:
         value: the initial value of the variable (torch.Tensor).
         layout: `TensorLayout` for the created variable.
 
     Returns:
-        Distributed variable representation.
+        torch.Tensor: The sharded variable (only the shard for this device).
     """
     _debug_function_entry("distribute_variable", kwargs={"layout": layout})
     _debug_tensor_info(value, "variable_value")
@@ -257,24 +399,133 @@ def distribute_variable(value, layout):
 
     if isinstance(layout, TensorLayout):
         backend_layout = layout.backend_layout if hasattr(layout, 'backend_layout') else layout
-        _debug_log(f"Using TensorLayout: axes={backend_layout.axes}")
+        _debug_log(f"Using TensorLayout: axes={backend_layout.axes if hasattr(backend_layout, 'axes') else 'N/A'}")
     else:
         backend_layout = layout
         _debug_log(f"Using raw layout: {backend_layout}")
 
-    # For PyTorch, we wrap the tensor with distribution metadata
-    # The actual sharding is applied during operations
-    if hasattr(value, '_distributed_layout'):
-        _debug_log("Variable already has distributed layout, updating it")
-        value._distributed_layout = backend_layout
-    else:
-        # Store layout as attribute for later use
-        _debug_log("Setting distributed layout attribute on variable")
-        value._distributed_layout = backend_layout
+    # Check if we need to shard (layout has sharding axes)
+    should_shard = False
+    if backend_layout is not None:
+        axes = getattr(backend_layout, 'axes', [])
+        if axes is not None:
+            should_shard = any(ax is not None for ax in axes)
 
-    _debug_log(f"Variable layout set to: {backend_layout}")
-    _debug_function_exit("distribute_variable", result=value)
-    return value
+    if not should_shard:
+        # No sharding needed - just move tensor to device
+        _debug_log("No sharding required, moving tensor to device")
+        current_device = _get_current_device()
+        if value.device != current_device:
+            value = value.to(current_device)
+        _debug_tensor_info(value, "output_tensor")
+        _debug_function_exit("distribute_variable", result=value)
+        return value
+
+    # We need to shard the tensor
+    _debug_log("Sharding tensor according to layout")
+
+    # Ensure tensor is on CPU first (to avoid OOM during partitioning)
+    current_device = _get_current_device()
+    if value.device.type in ('cuda', 'mps'):
+        _debug_log("Tensor is on GPU, moving to CPU for safe partitioning")
+        value = value.cpu()
+
+    # Shard the tensor
+    sharded_value = _shard_tensor(value, backend_layout, rank=_get_current_rank(), device=current_device)
+
+    # Store full layout info for potential All-Gather operations
+    # This allows reconstructing the full tensor when needed
+    sharded_value._distributed_layout = backend_layout
+    sharded_value._full_shape = value.shape
+    sharded_value._sharding_axis = getattr(backend_layout, 'axes', [None] * len(value.shape))[0]
+    sharded_value._is_sharded = True
+
+    _debug_log(f"Variable sharded successfully")
+    _debug_tensor_info(sharded_value, "output_tensor")
+    _debug_function_exit("distribute_variable", result=sharded_value)
+    return sharded_value
+
+
+def all_gather_variable(variable):
+    """Gather all shards of a distributed variable.
+
+    This is useful when you need the full tensor (e.g., for saving,
+    checkpointing, or evaluation).
+
+    Args:
+        variable: A sharded torch.Tensor with _distributed_layout attribute.
+
+    Returns:
+        torch.Tensor: The full gathered tensor (on current device).
+    """
+    _debug_function_entry("all_gather_variable")
+    _debug_tensor_info(variable, "variable")
+
+    # Check if this is actually a sharded variable
+    if not getattr(variable, '_is_sharded', False):
+        _debug_log("Variable is not sharded, returning as-is")
+        _debug_function_exit("all_gather_variable", result=variable)
+        return variable
+
+    if not dist.is_initialized():
+        _debug_log("Distributed not initialized, returning tensor as-is")
+        _debug_function_exit("all_gather_variable", result=variable)
+        return variable
+
+    # Get sharding info
+    full_shape = getattr(variable, '_full_shape', None)
+    sharding_axis = getattr(variable, '_sharding_axis', 0)
+
+    if full_shape is None:
+        _debug_log("No full_shape info, cannot gather")
+        _debug_function_exit("all_gather_variable", result=variable)
+        return variable
+
+    world_size = dist.get_world_size()
+    rank = dist.get_rank()
+
+    _debug_log(f"Gathering variable with shape {full_shape} along axis {sharding_axis}")
+    _debug_log(f"World size: {world_size}, Current rank: {rank}")
+
+    # Get the local shard
+    local_shard = variable
+    if local_shard.device.type in ('cuda', 'mps'):
+        local_shard = local_shard.cpu()
+        _debug_log("Moved local shard to CPU for all_gather")
+
+    # Create output tensor on CPU
+    output = torch.zeros(full_shape, dtype=local_shard.dtype, device='cpu')
+
+    # Calculate the slice for this rank
+    dim_size = full_shape[sharding_axis]
+    if dim_size % world_size == 0:
+        shard_size = dim_size // world_size
+    else:
+        # Handle uneven case
+        shard_size = dim_size // world_size
+        # Last rank may have different size
+
+    _debug_log(f"Shard size: {shard_size}")
+
+    # Use all_gather to collect all shards
+    # Convert to list if it's a list of tensors
+    if not isinstance(local_shard, (list, tuple)):
+        local_shard = [local_shard]
+
+    # Gather tensors from all processes
+    output_list = [torch.zeros_like(s) for s in local_shard]
+    dist.all_gather(output_list, local_shard[0])
+
+    # Concatenate the gathered tensors
+    gathered = torch.cat(output_list, dim=sharding_axis)
+
+    # Move to current device
+    current_device = _get_current_device()
+    gathered = gathered.to(current_device)
+
+    _debug_tensor_info(gathered, "gathered_tensor")
+    _debug_function_exit("all_gather_variable", result=gathered)
+    return gathered
 
 
 def distribute_data_input(per_process_batch, layout, batch_dim_name):
