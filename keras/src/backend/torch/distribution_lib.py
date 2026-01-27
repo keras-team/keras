@@ -151,7 +151,7 @@ def _get_current_device():
             rank for GPU, mps for Apple Silicon, or cpu otherwise.
     """
     if torch.cuda.is_available():
-        local_rank = dist.get_rank() if dist.is_initialized() else 0
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
         return torch.device(f"cuda:{local_rank}")
     elif hasattr(torch, "mps") and torch.mps.is_available():
         return torch.device("mps")
