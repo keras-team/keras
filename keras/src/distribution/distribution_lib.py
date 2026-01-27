@@ -1095,11 +1095,33 @@ def verify_model_parallel(distribution=None, model=None):
         has_sharding = layout is not None and any(ax is not None for ax in layout.axes)
 
         if has_sharding:
+            # Calculate sharded shape and memory reduction
+            full_shape = variable.shape
+            sharded_shape = list(full_shape)
+            layout_axes = list(layout.axes)
+
+            # Find the first sharded axis and calculate sharded shape
+            for i, ax in enumerate(layout_axes):
+                if ax is not None:
+                    ax_idx = axis_names.index(ax)
+                    mesh_dim = mesh_shape[ax_idx]
+                    if full_shape[i] % mesh_dim == 0:
+                        sharded_shape[i] = full_shape[i] // mesh_dim
+                    else:
+                        sharded_shape[i] = (full_shape[i] + mesh_dim - 1) // mesh_dim
+
+            # Calculate memory reduction
+            full_elements = int(np.prod(full_shape))
+            sharded_elements = int(np.prod(sharded_shape))
+            reduction = 1 - (sharded_elements / full_elements)
+
             sharded_variables.append({
                 'path': variable.path,
-                'shape': list(variable.shape),
-                'layout_axes': list(layout.axes) if layout else [],
-                'shard_factor': variable.shape[layout.axes.index(next(ax for ax in layout.axes if ax is not None))] if any(ax is not None for ax in layout.axes) else None,
+                'full_shape': list(full_shape),
+                'sharded_shape': sharded_shape,
+                'layout_axes': layout_axes,
+                'reduction': reduction,
+                'shard_factor': full_shape[layout_axes.index(next(ax for ax in layout_axes if ax is not None))] if any(ax is not None for ax in layout_axes) else None,
             })
         else:
             replicated_variables.append({
@@ -1120,14 +1142,16 @@ def verify_model_parallel(distribution=None, model=None):
         f"Model parallel is {'ACTIVE' if is_active else 'INACTIVE'}"
     )
 
-    # Log detailed variable info
+    # Log detailed variable info with sharded shape and memory reduction
     if sharded_variables:
         logger.info("[ModelParallel] Sharded variables:")
         for var in sharded_variables:
             logger.info(
                 f"  - {var['path']} | "
-                f"Shape: {var['shape']} | "
-                f"Layout: {var['layout_axes']}"
+                f"Full shape: {var['full_shape']} | "
+                f"Sharded shape: {var['sharded_shape']} | "
+                f"Layout: {var['layout_axes']} | "
+                f"Memory reduction: {var['reduction']:.0%}"
             )
 
     if replicated_variables:
