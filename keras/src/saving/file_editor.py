@@ -509,8 +509,14 @@ class KerasFileEditor:
             # ------------------------------------------------------
 
             # Skip any objects that are not proper datasets
-            if not hasattr(value, "shape") or not hasattr(value, "dtype"):
+            if not isinstance(value, h5py.Dataset):
                 continue
+
+            if value.external:
+                raise ValueError(
+                    "Not allowed: H5 file Dataset with external links: "
+                    f"{value.external}"
+                )
 
             shape = value.shape
             dtype = value.dtype
