@@ -796,7 +796,8 @@ def _load_state(
             try:
                 saveable.load_own_variables(weights_store.get(inner_path))
             except Exception as e:
-                failed_saveables.add(id(saveable))
+                if failed_saveables is not None:
+                    failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
@@ -807,7 +808,8 @@ def _load_state(
             try:
                 saveable.load_assets(assets_store.get(inner_path))
             except Exception as e:
-                failed_saveables.add(id(saveable))
+                if failed_saveables is not None:
+                    failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
@@ -855,7 +857,7 @@ def _load_state(
     if not failure:
         if visited_saveables is not None and newly_failed <= 0:
             visited_saveables.add(id(saveable))
-        if id(saveable) in failed_saveables:
+        if failed_saveables is not None and id(saveable) in failed_saveables:
             failed_saveables.remove(id(saveable))
             error_msgs.pop(id(saveable))
 
@@ -1035,6 +1037,25 @@ class H5IOStore:
         # will mistakenly using `__len__` to determine the value.
         return self.h5_file.__bool__()
 
+    def _verify_group(self, group):
+        if not isinstance(group, h5py.Group):
+            raise ValueError(
+                f"Invalid H5 file, expected Group but received {type(group)}"
+            )
+        return group
+
+    def _verify_dataset(self, dataset):
+        if not isinstance(dataset, h5py.Dataset):
+            raise ValueError(
+                f"Invalid H5 file, expected Dataset, received {type(dataset)}"
+            )
+        if dataset.external:
+            raise ValueError(
+                "Not allowed: H5 file Dataset with external links: "
+                f"{dataset.external}"
+            )
+        return dataset
+
     def _get_h5_file(self, path_or_io, mode=None):
         mode = mode or self.mode
         if mode not in ("r", "w", "a"):
@@ -1094,15 +1115,19 @@ class H5IOStore:
         self._h5_entry_group = {}  # Defaults to an empty dict if not found.
         if not path:
             if "vars" in self.h5_file:
-                self._h5_entry_group = self.h5_file["vars"]
+                self._h5_entry_group = self._verify_group(self.h5_file["vars"])
         elif path in self.h5_file and "vars" in self.h5_file[path]:
-            self._h5_entry_group = self.h5_file[path]["vars"]
+            self._h5_entry_group = self._verify_group(
+                self._verify_group(self.h5_file[path])["vars"]
+            )
         else:
             # No hit. Fix for 2.13 compatibility.
             if "_layer_checkpoint_dependencies" in self.h5_file:
                 path = path.replace("layers", "_layer_checkpoint_dependencies")
                 if path in self.h5_file and "vars" in self.h5_file[path]:
-                    self._h5_entry_group = self.h5_file[path]["vars"]
+                    self._h5_entry_group = self._verify_group(
+                        self._verify_group(self.h5_file[path])["vars"]
+                    )
         self._h5_entry_initialized = True
         return self
 
@@ -1134,25 +1159,15 @@ class H5IOStore:
     def keys(self):
         return self._h5_entry_group.keys()
 
-    def items(self):
-        return self._h5_entry_group.items()
-
-    def values(self):
-        return self._h5_entry_group.values()
-
     def __getitem__(self, key):
-        value = self._h5_entry_group[key]
+        value = self._verify_dataset(self._h5_entry_group[key])
         if (
             hasattr(value, "attrs")
             and "dtype" in value.attrs
             and value.attrs["dtype"] == "bfloat16"
         ):
             value = np.array(value, dtype=ml_dtypes.bfloat16)
-        elif (
-            hasattr(value, "shape")
-            and hasattr(value, "dtype")
-            and not isinstance(value, np.ndarray)
-        ):
+        elif not isinstance(value, np.ndarray):
             value = np.array(value)
         return value
 
@@ -1355,15 +1370,13 @@ class ShardedH5IOStore(H5IOStore):
         self._get_h5_group(self._h5_entry_path)
 
     def _restore_h5_file(self):
-        """Ensure the current shard is the last one created.
-
-        We use mode="a" to avoid truncating the file during the switching.
-        """
+        """Ensure the current shard is the last one created."""
         if (
             pathlib.Path(self.h5_file.filename).name
             != self.current_shard_path.name
         ):
-            self._switch_h5_file(self.current_shard_path.name, mode="a")
+            mode = "a" if self.mode == "w" else "r"
+            self._switch_h5_file(self.current_shard_path.name, mode=mode)
 
     # H5 entry level methods.
 
@@ -1371,9 +1384,11 @@ class ShardedH5IOStore(H5IOStore):
         """Get the H5 entry group. If it doesn't exist, return an empty dict."""
         try:
             if not path:
-                self._h5_entry_group = self.h5_file["vars"]
+                self._h5_entry_group = self._verify_group(self.h5_file["vars"])
             else:
-                self._h5_entry_group = self.h5_file[path]["vars"]
+                self._h5_entry_group = self._verify_group(
+                    self._verify_group(self.h5_file[path])["vars"]
+                )
             self._h5_entry_initialized = True
         except KeyError:
             self._h5_entry_group = {}
@@ -1392,32 +1407,16 @@ class ShardedH5IOStore(H5IOStore):
         return total_len
 
     def keys(self):
-        keys = set(self._h5_entry_group.keys())
+        keys = []
+        current_shard_keys = list(self._h5_entry_group.keys())
         for filename in self.current_shard_filenames:
             if filename == self.current_shard_path.name:
-                continue
-            self._switch_h5_file(filename, mode="r")
-            keys.update(self._h5_entry_group.keys())
+                keys += current_shard_keys
+            else:
+                self._switch_h5_file(filename, mode="r")
+                keys += list(self._h5_entry_group.keys())
         self._restore_h5_file()
         return keys
-
-    def items(self):
-        yield from self._h5_entry_group.items()
-        for filename in self.current_shard_filenames:
-            if filename == self.current_shard_path.name:
-                continue
-            self._switch_h5_file(filename, mode="r")
-            yield from self._h5_entry_group.items()
-        self._restore_h5_file()
-
-    def values(self):
-        yield from self._h5_entry_group.values()
-        for filename in self.current_shard_filenames:
-            if filename == self.current_shard_path.name:
-                continue
-            self._switch_h5_file(filename, mode="r")
-            yield from self._h5_entry_group.values()
-        self._restore_h5_file()
 
     def __getitem__(self, key):
         if key in self._h5_entry_group:
