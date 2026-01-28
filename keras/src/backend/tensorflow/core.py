@@ -479,11 +479,11 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _scan(elems):
         elem_length = _get_dim(elems[0])
-        
+
         # Try to get the static value of elem_length to avoid infinite recursion
         # in tf.function when elem_length is symbolic
         static_elem_length = tf.get_static_value(elem_length)
-        
+
         a = [slice_along_axis(elem, 0, -1, step=2, axis=axis) for elem in elems]
         b = [
             slice_along_axis(elem, 1, None, step=2, axis=axis) for elem in elems
@@ -521,18 +521,19 @@ def associative_scan(f, elems, reverse=False, axis=0):
         def _process_recursive_result(odd_elems, is_even_length):
             """
             Helper function to process the result of a recursive _scan call.
-            
+
             Takes the recursively scanned odd-indexed elements and applies the
             post-processing logic (combining, concatenation, and interleaving)
             that is common to both static and symbolic execution paths.
-            
+
             Args:
                 odd_elems: Result from _scan(reduced_elems)
                 is_even_length: Boolean or symbolic tensor indicating if elem_length % 2 == 0
-                
+
             Returns:
                 The final scanned result after interleaving even and odd elements.
             """
+
             def _get_even_results():
                 return _combine(
                     [
@@ -557,9 +558,15 @@ def associative_scan(f, elems, reverse=False, axis=0):
             # For Python-level conditionals (static), is_even_length is a bool
             # For symbolic conditionals, is_even_length is a Tensor, handled via tf.cond
             if isinstance(is_even_length, bool):
-                results = _get_even_results() if is_even_length else _get_odd_results()
+                results = (
+                    _get_even_results()
+                    if is_even_length
+                    else _get_odd_results()
+                )
             else:
-                results = tf.cond(is_even_length, _get_even_results, _get_odd_results)
+                results = tf.cond(
+                    is_even_length, _get_even_results, _get_odd_results
+                )
 
             even_elems = [
                 tf.concat(
@@ -587,9 +594,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 # Recursive case with static length
                 odd_elems = _scan(reduced_elems)
                 # Use Python bool for static length
-                is_even = (static_elem_length % 2 == 0)
+                is_even = static_elem_length % 2 == 0
                 return _process_recursive_result(odd_elems, is_even)
-        
+
         # Fallback for symbolic lengths: use tf.cond
         at_base_case = tf.logical_or(
             tf.equal(elem_length, 2), tf.equal(elem_length, 3)
