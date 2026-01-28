@@ -419,22 +419,6 @@ def associative_scan(f, elems, reverse=False, axis=0):
     def _get_dim(x):
         return shape(x)[axis]
 
-    # Added constant dim check
-    static_dim = elems_flat[0].shape[0]
-    if static_dim is None:
-        raise ValueError(
-            "Array inputs to associative_scan must have a statically known "
-            "first dimension."
-        )
-
-    for elem in elems_flat[1:]:
-        if elem.shape[0] != static_dim:
-            raise ValueError(
-                "Array inputs to associative_scan must have the same "
-                "first dimension (static). (saw: {})".format(
-                    [e.shape for e in elems_flat]
-                )
-            )
     num_elems = _get_dim(elems_flat[0])
     if not all(_get_dim(elem) == num_elems for elem in elems_flat[1:]):
         raise ValueError(
@@ -533,6 +517,63 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 )
             ]
 
+        def _process_recursive_result(odd_elems, is_even_length):
+            """
+            Helper function to process the result of a recursive _scan call.
+            
+            Takes the recursively scanned odd-indexed elements and applies the
+            post-processing logic (combining, concatenation, and interleaving)
+            that is common to both static and symbolic execution paths.
+            
+            Args:
+                odd_elems: Result from _scan(reduced_elems)
+                is_even_length: Boolean or symbolic tensor indicating if elem_length % 2 == 0
+                
+            Returns:
+                The final scanned result after interleaving even and odd elements.
+            """
+            def _get_even_results():
+                return _combine(
+                    [
+                        slice_along_axis(odd_elem, 0, -1, axis=axis)
+                        for odd_elem in odd_elems
+                    ],
+                    [
+                        slice_along_axis(elem, 2, None, 2, axis=axis)
+                        for elem in elems
+                    ],
+                )
+
+            def _get_odd_results():
+                return _combine(
+                    [odd_elem for odd_elem in odd_elems],
+                    [
+                        slice_along_axis(elem, 2, None, 2, axis=axis)
+                        for elem in elems
+                    ],
+                )
+
+            # For Python-level conditionals (static), is_even_length is a bool
+            # For symbolic conditionals, is_even_length is a Tensor, handled via tf.cond
+            if isinstance(is_even_length, bool):
+                results = _get_even_results() if is_even_length else _get_odd_results()
+            else:
+                results = tf.cond(is_even_length, _get_even_results, _get_odd_results)
+
+            even_elems = [
+                tf.concat(
+                    [slice_along_axis(elem, 0, 1, axis=axis), result], axis=axis
+                )
+                for (elem, result) in zip(elems, results)
+            ]
+            return list(
+                builtins.map(
+                    lambda a, b: _interleave(a, b, axis=axis),
+                    even_elems,
+                    odd_elems,
+                )
+            )
+
         # If we have a static value, use Python conditionals to avoid
         # tracing the recursive case unnecessarily
         if static_elem_length is not None:
@@ -544,40 +585,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
             else:
                 # Recursive case with static length
                 odd_elems = _scan(reduced_elems)
-                
-                if static_elem_length % 2 == 0:
-                    results = _combine(
-                        [
-                            slice_along_axis(odd_elem, 0, -1, axis=axis)
-                            for odd_elem in odd_elems
-                        ],
-                        [
-                            slice_along_axis(elem, 2, None, 2, axis=axis)
-                            for elem in elems
-                        ],
-                    )
-                else:
-                    results = _combine(
-                        [odd_elem for odd_elem in odd_elems],
-                        [
-                            slice_along_axis(elem, 2, None, 2, axis=axis)
-                            for elem in elems
-                        ],
-                    )
-                
-                even_elems = [
-                    tf.concat(
-                        [slice_along_axis(elem, 0, 1, axis=axis), result], axis=axis
-                    )
-                    for (elem, result) in zip(elems, results)
-                ]
-                return list(
-                    builtins.map(
-                        lambda a, b: _interleave(a, b, axis=axis),
-                        even_elems,
-                        odd_elems,
-                    )
-                )
+                # Use Python bool for static length
+                is_even = (static_elem_length % 2 == 0)
+                return _process_recursive_result(odd_elems, is_even)
         
         # Fallback for symbolic lengths: use tf.cond
         at_base_case = tf.logical_or(
@@ -593,47 +603,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
         def _recursive_case():
             odd_elems = _scan(reduced_elems)
-
-            def _even_length_case():
-                return _combine(
-                    [
-                        slice_along_axis(odd_elem, 0, -1, axis=axis)
-                        for odd_elem in odd_elems
-                    ],
-                    [
-                        slice_along_axis(elem, 2, None, 2, axis=axis)
-                        for elem in elems
-                    ],
-                )
-
-            def _odd_length_case():
-                return _combine(
-                    [odd_elem for odd_elem in odd_elems],
-                    [
-                        slice_along_axis(elem, 2, None, 2, axis=axis)
-                        for elem in elems
-                    ],
-                )
-
-            results = tf.cond(
-                tf.equal(elem_length % 2, 0),
-                _even_length_case,
-                _odd_length_case,
-            )
-
-            even_elems = [
-                tf.concat(
-                    [slice_along_axis(elem, 0, 1, axis=axis), result], axis=axis
-                )
-                for (elem, result) in zip(elems, results)
-            ]
-            return list(
-                builtins.map(
-                    lambda a, b: _interleave(a, b, axis=axis),
-                    even_elems,
-                    odd_elems,
-                )
-            )
+            # Use symbolic tensor for dynamic length
+            is_even = tf.equal(elem_length % 2, 0)
+            return _process_recursive_result(odd_elems, is_even)
 
         return tf.cond(at_base_case, _base_case, _recursive_case)
 
