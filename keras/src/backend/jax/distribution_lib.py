@@ -1,6 +1,7 @@
 """Utilities for distribution strategy with JAX backend."""
 
 import jax
+import jax.lax as lax
 import numpy as np
 
 from keras.src.backend.common import global_state
@@ -210,6 +211,58 @@ def num_processes():
 def process_id():
     """Return the current process ID for the distribution setting."""
     return jax.process_index()
+
+
+def all_reduce(x, op="sum", axis_name="model"):
+    """Reduces a tensor across a device mesh axis using a collective.
+
+    Args:
+        x: The tensor to reduce.
+        op: The reduction operation. "sum" or "mean".
+        axis_name: The name of the mesh axis to reduce over.
+
+    Returns:
+        The reduced tensor.
+    """
+
+    def _reduce_fn(y):
+        if op == "sum":
+            return lax.psum(y, axis_name=axis_name)
+        elif op == "mean":
+            return lax.pmean(y, axis_name=axis_name)
+        else:
+            raise ValueError(
+                f"Unsupported reduction operation: {op}. "
+                "Supported options are 'sum' and 'mean'."
+            )
+
+    return jax.pmap(_reduce_fn, axis_name=axis_name)(x)
+
+
+def all_gather(x, axis, axis_name="model"):
+    """Gathers and concatenates tensors from all devices across a mesh axis.
+
+    This function assumes it is called within a `pjit` context. It takes
+    the local shard `x` from each device along the `axis_name` of the mesh
+    and concatenates them along the specified tensor `axis` to form a
+    single, larger tensor that is then replicated on all participating devices.
+
+    Args:
+        x (jax.Array): The input JAX array (tensor) shard on the local device.
+        axis (int): The tensor axis along which to concatenate the gathered
+            shards.
+        axis_name (str, optional): The name of the mesh axis to gather
+            from. Defaults to 'model'.
+
+    Returns:
+        jax.Array: The full, gathered JAX array, which is identical across
+        all devices participating in the gather.
+    """
+
+    def _gather_fn(y):
+        return lax.all_gather(y, axis_name=axis_name, axis=axis, tiled=False)
+
+    return jax.pmap(_gather_fn, axis_name=axis_name)(x)
 
 
 def _to_backend_device(device_name):
