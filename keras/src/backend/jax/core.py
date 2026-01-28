@@ -96,9 +96,15 @@ if config.is_nnx_enabled():
             mutable=None,
             **nnx_metadata,
         ):
-            # Ensure 'mutable' is in nnx_metadata, but explicit 'mutable'
-            # param takes precedence.
-            nnx_metadata["mutable"] = trainable if mutable is None else mutable
+            # Ensure 'mutable' is explicitly set in nnx_metadata.
+            # If mutable is not provided, default to trainable status.
+            # This ensures all variables have a clear mutability intent.
+            if mutable is None:
+                mutable = trainable
+            nnx_metadata["mutable"] = mutable
+            
+            # Track the mutable state for later mutation checks
+            self._mutable_state = mutable
 
             # First, initialize a basic nnx.Variable with a dummy value
             # This sets up the NNX variable structure
@@ -107,8 +113,8 @@ if config.is_nnx_enabled():
             else:
                 dummy_value = jnp.zeros(shape, dtype=standardize_dtype(dtype))
 
-            # Initialize nnx.Variable first
-            nnx.Variable.__init__(self, value=dummy_value, **nnx_metadata)
+            # Initialize nnx.Variable first with explicit mutable flag
+            nnx.Variable.__init__(self, value=dummy_value, mutable=mutable, **nnx_metadata)
 
             # Now we can safely set layout
             self._layout = layout
@@ -144,6 +150,12 @@ if config.is_nnx_enabled():
 
         @_value.setter
         def _value(self, new_keras_value):
+            # Check if the variable is mutable before allowing assignment
+            if hasattr(self, "_mutable_state") and not self._mutable_state:
+                raise RuntimeError(
+                    f"Cannot assign to immutable variable {self.name}. "
+                    f"This variable was initialized with mutable=False."
+                )
             self._direct_assign(new_keras_value)
 
         def __getstate__(self):
@@ -170,6 +182,10 @@ if config.is_nnx_enabled():
                 keras_state["_var_metadata"] = nnx_specific_state[
                     "_var_metadata"
                 ]
+            
+            # Preserve mutable state through serialization
+            if hasattr(self, "_mutable_state"):
+                keras_state["_mutable_state"] = self._mutable_state
 
             # Remove elements that might be problematic or redundant if
             # nnx.Variable's __getstate__
@@ -184,9 +200,14 @@ if config.is_nnx_enabled():
             nnx_raw_value = state["_value"]  # This was raw_value
             nnx_trace_state = state.pop("_trace_state", None)
             nnx_var_metadata = state.pop("_var_metadata", None)
+            # Restore mutable state if it was saved
+            mutable_state = state.pop("_mutable_state", True)
 
             # Populate the instance's __dict__ with the Keras attributes.
             self.__dict__.update(state)
+
+            # Restore the mutable state
+            self._mutable_state = mutable_state
 
             # restore the nnx.Variable specific slotted attributes.
             object.__setattr__(self, "raw_value", nnx_raw_value)
@@ -224,6 +245,13 @@ if config.is_nnx_enabled():
                 and "on_set_value" in self._var_metadata
             ):
                 value = self._var_metadata["on_set_value"](self, value)
+
+            # Check mutability before assignment
+            if hasattr(self, "_mutable_state") and not self._mutable_state:
+                raise RuntimeError(
+                    f"Cannot assign to immutable variable {self.name}. "
+                    f"This variable was initialized with mutable=False."
+                )
 
             # Set the value for both Keras and NNX parts
             # This ensures both systems see the same value
@@ -265,15 +293,18 @@ if config.is_nnx_enabled():
         # Remove elements that might be problematic or redundant if
         # nnx.Variable's __getstate__
         keras_state.pop("raw_value", None)
+        # Preserve mutable state through pytree operations
+        mutable_state = getattr(variable, "_mutable_state", True)
         aux_data = (
             variable._var_metadata,
             getattr(variable, "_trace_state", None),
             keras_state,
+            mutable_state,
         )
         return children, aux_data
 
     def _unflatten_nnx_variable(aux_data, children):
-        var_metadata, trace_state, keras_state = aux_data
+        var_metadata, trace_state, keras_state, mutable_state = aux_data
         raw_value = children[0]
 
         # Create uninitialized instance
@@ -281,6 +312,7 @@ if config.is_nnx_enabled():
 
         # Restore state
         variable._var_metadata = var_metadata
+        variable._mutable_state = mutable_state
         if trace_state is not None:
             variable._trace_state = trace_state
         variable.__dict__.update(keras_state)
@@ -298,11 +330,31 @@ if config.is_nnx_enabled():
         pass
 
     def __setattr__(self, name, value):
+        # Guard against mutation of immutable variables
+        # Allow special internal attributes and state during initialization
+        if (
+            name not in (
+                "_var_metadata",
+                "_raw_value",
+                "_trace_state",
+                "_mutable_state",
+                "_value",
+                "raw_value",
+            )
+            and hasattr(self, "_mutable_state")
+            and not self._mutable_state
+            and hasattr(self, "_var_metadata")
+        ):
+            raise RuntimeError(
+                f"Cannot modify immutable NNX Variable {getattr(self, 'name', 'unknown')}. "
+                f"This variable was initialized with mutable=False and cannot be modified."
+            )
+
         # Mirror Keras attributes to _var_metadata to ensure persistence
         # if the Pytree registration is not respected by NNX.
         if (
             name != "_var_metadata"
-            and name not in ("_raw_value", "_trace_state")
+            and name not in ("_raw_value", "_trace_state", "_mutable_state")
             and hasattr(self, "_var_metadata")
         ):
             self._var_metadata[name] = value
