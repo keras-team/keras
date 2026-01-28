@@ -1018,6 +1018,11 @@ def nanmax(x, axis=None, keepdims=False):
     return jnp.nanmax(x, axis=axis, keepdims=keepdims)
 
 
+def nanmean(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanmean(x, axis=axis, keepdims=keepdims)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
