@@ -528,10 +528,12 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
             Args:
                 odd_elems: Result from _scan(reduced_elems)
-                is_even_length: Boolean or symbolic tensor indicating if elem_length % 2 == 0
+                is_even_length: Boolean or symbolic tensor 
+                indicating if elem_length % 2 == 0
 
             Returns:
-                The final scanned result after interleaving even and odd elements.
+                The final scanned result after interleaving even and odd 
+                elements.
             """
 
             def _get_even_results():
@@ -556,7 +558,8 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 )
 
             # For Python-level conditionals (static), is_even_length is a bool
-            # For symbolic conditionals, is_even_length is a Tensor, handled via tf.cond
+            # For symbolic conditionals, is_even_length is a Tensor, 
+            # handled via tf.cond
             if isinstance(is_even_length, bool):
                 results = (
                     _get_even_results()
@@ -586,7 +589,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
         # tracing the recursive case unnecessarily
         if static_elem_length is not None:
             static_elem_length = int(static_elem_length)
-            if static_elem_length == 2:
+            if static_elem_length < 2:
+                return elems
+            elif static_elem_length == 2:
                 return _handle_base_case_elem_length_two()
             elif static_elem_length == 3:
                 return _handle_base_case_elem_length_three()
@@ -598,24 +603,29 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 return _process_recursive_result(odd_elems, is_even)
 
         # Fallback for symbolic lengths: use tf.cond
-        at_base_case = tf.logical_or(
-            tf.equal(elem_length, 2), tf.equal(elem_length, 3)
-        )
-
-        def _base_case():
-            return tf.cond(
-                tf.equal(elem_length, 2),
-                _handle_base_case_elem_length_two,
-                _handle_base_case_elem_length_three,
+        def _dynamic_scan_body():
+            at_base_case = tf.logical_or(
+                tf.equal(elem_length, 2), tf.equal(elem_length, 3)
             )
 
-        def _recursive_case():
-            odd_elems = _scan(reduced_elems)
-            # Use symbolic tensor for dynamic length
-            is_even = tf.equal(elem_length % 2, 0)
-            return _process_recursive_result(odd_elems, is_even)
+            def _base_case():
+                return tf.cond(
+                    tf.equal(elem_length, 2),
+                    _handle_base_case_elem_length_two,
+                    _handle_base_case_elem_length_three,
+                )
 
-        return tf.cond(at_base_case, _base_case, _recursive_case)
+            def _recursive_case():
+                odd_elems = _scan(reduced_elems)
+                # Use symbolic tensor for dynamic length
+                is_even = tf.equal(elem_length % 2, 0)
+                return _process_recursive_result(odd_elems, is_even)
+
+            return tf.cond(at_base_case, _base_case, _recursive_case)
+        
+        return tf.cond(
+            tf.less(elem_length, 2), lambda: elems, _dynamic_scan_body
+        )
 
     scans = _scan(elems_flat)
     if reverse:
