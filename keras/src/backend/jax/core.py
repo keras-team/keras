@@ -98,7 +98,7 @@ if config.is_nnx_enabled():
         ):
             # Ensure 'mutable' is in nnx_metadata, but explicit 'mutable'
             # param takes precedence.
-            nnx_metadata["mutable"] = trainable if mutable is None else mutable
+            nnx_metadata["mutable"] = True if mutable is None else mutable
 
             # First, initialize a basic nnx.Variable with a dummy value
             # This sets up the NNX variable structure
