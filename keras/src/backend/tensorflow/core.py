@@ -419,7 +419,22 @@ def associative_scan(f, elems, reverse=False, axis=0):
     def _get_dim(x):
         return shape(x)[axis]
 
-    # TODO add constant dim check
+    # Added constant dim check
+    static_dim = elems_flat[0].shape[0]
+    if static_dim is None:
+        raise ValueError(
+            "Array inputs to associative_scan must have a statically known "
+            "first dimension."
+        )
+
+    for elem in elems_flat[1:]:
+        if elem.shape[0] != static_dim:
+            raise ValueError(
+                "Array inputs to associative_scan must have the same "
+                "first dimension (static). (saw: {})".format(
+                    [e.shape for e in elems_flat]
+                )
+            )
     num_elems = _get_dim(elems_flat[0])
     if not all(_get_dim(elem) == num_elems for elem in elems_flat[1:]):
         raise ValueError(
@@ -479,6 +494,11 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _scan(elems):
         elem_length = _get_dim(elems[0])
+        
+        # Try to get the static value of elem_length to avoid infinite recursion
+        # in tf.function when elem_length is symbolic
+        static_elem_length = tf.get_static_value(elem_length)
+        
         a = [slice_along_axis(elem, 0, -1, step=2, axis=axis) for elem in elems]
         b = [
             slice_along_axis(elem, 1, None, step=2, axis=axis) for elem in elems
@@ -513,6 +533,53 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 )
             ]
 
+        # If we have a static value, use Python conditionals to avoid
+        # tracing the recursive case unnecessarily
+        if static_elem_length is not None:
+            static_elem_length = int(static_elem_length)
+            if static_elem_length == 2:
+                return _handle_base_case_elem_length_two()
+            elif static_elem_length == 3:
+                return _handle_base_case_elem_length_three()
+            else:
+                # Recursive case with static length
+                odd_elems = _scan(reduced_elems)
+                
+                if static_elem_length % 2 == 0:
+                    results = _combine(
+                        [
+                            slice_along_axis(odd_elem, 0, -1, axis=axis)
+                            for odd_elem in odd_elems
+                        ],
+                        [
+                            slice_along_axis(elem, 2, None, 2, axis=axis)
+                            for elem in elems
+                        ],
+                    )
+                else:
+                    results = _combine(
+                        [odd_elem for odd_elem in odd_elems],
+                        [
+                            slice_along_axis(elem, 2, None, 2, axis=axis)
+                            for elem in elems
+                        ],
+                    )
+                
+                even_elems = [
+                    tf.concat(
+                        [slice_along_axis(elem, 0, 1, axis=axis), result], axis=axis
+                    )
+                    for (elem, result) in zip(elems, results)
+                ]
+                return list(
+                    builtins.map(
+                        lambda a, b: _interleave(a, b, axis=axis),
+                        even_elems,
+                        odd_elems,
+                    )
+                )
+        
+        # Fallback for symbolic lengths: use tf.cond
         at_base_case = tf.logical_or(
             tf.equal(elem_length, 2), tf.equal(elem_length, 3)
         )
