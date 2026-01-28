@@ -102,7 +102,7 @@ if config.is_nnx_enabled():
             if mutable is None:
                 mutable = trainable
             nnx_metadata["mutable"] = mutable
-            
+
             # Track the mutable state for later mutation checks
             self._mutable_state = mutable
 
@@ -114,7 +114,9 @@ if config.is_nnx_enabled():
                 dummy_value = jnp.zeros(shape, dtype=standardize_dtype(dtype))
 
             # Initialize nnx.Variable first with explicit mutable flag
-            nnx.Variable.__init__(self, value=dummy_value, mutable=mutable, **nnx_metadata)
+            nnx.Variable.__init__(
+                self, value=dummy_value, mutable=mutable, **nnx_metadata
+            )
 
             # Now we can safely set layout
             self._layout = layout
@@ -182,7 +184,7 @@ if config.is_nnx_enabled():
                 keras_state["_var_metadata"] = nnx_specific_state[
                     "_var_metadata"
                 ]
-            
+
             # Preserve mutable state through serialization
             if hasattr(self, "_mutable_state"):
                 keras_state["_mutable_state"] = self._mutable_state
@@ -333,7 +335,8 @@ if config.is_nnx_enabled():
         # Guard against mutation of immutable variables
         # Allow special internal attributes and state during initialization
         if (
-            name not in (
+            name
+            not in (
                 "_var_metadata",
                 "_raw_value",
                 "_trace_state",
@@ -346,8 +349,11 @@ if config.is_nnx_enabled():
             and hasattr(self, "_var_metadata")
         ):
             raise RuntimeError(
-                f"Cannot modify immutable NNX Variable {getattr(self, 'name', 'unknown')}. "
-                f"This variable was initialized with mutable=False and cannot be modified."
+                f"Cannot modify immutable NNX Variable {
+                    getattr(self, 'name', 'unknown')
+                }. "
+                f"This variable was initialized with mutable=False"
+                f"and cannot be modified."
             )
 
         # Mirror Keras attributes to _var_metadata to ensure persistence
