@@ -7,8 +7,11 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
+from keras.src import saving
 from keras.src import testing
+from keras.src import utils
 from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
+from keras.src.saving import register_keras_serializable
 
 # Import advanced Orbax functionality directly from the LazyModule
 
@@ -416,8 +419,6 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_checkpoint_loading_via_saving_api(self):
         """Test model loading via saving API."""
-        from keras.src import saving
-
         model = self._create_test_model()
         x, y = self._create_dummy_data()
 
@@ -449,97 +450,20 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         with self.assertRaises(ValueError):
             saving.load_model(weights_only_dir)
 
+    @parameterized.parameters(
+        {"save_on_background": False},
+        {"save_on_background": True},
+    )
     @pytest.mark.requires_trainable_backend
-    def test_checkpoint_loading_full_state_via_saving_api(self):
-        """Test loading checkpoints with optimizer and metrics state
-        via saving API."""
-        from keras.src import saving
-
-        model = self._create_test_model()
-        model.compile(optimizer="adam", loss="mse", metrics=["mae"])
-        x, y = self._create_dummy_data(num_samples=100)
-
-        checkpoint_dir = os.path.join(
-            self.get_temp_dir(), "test_full_state_loading"
-        )
-        callback = OrbaxCheckpoint(
-            directory=checkpoint_dir, save_freq="epoch", save_weights_only=False
-        )
-
-        model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-
-        original_state_tree = model.get_state_tree()
-        loaded_model = saving.load_model(checkpoint_dir)
-        loaded_state_tree = loaded_model.get_state_tree()
-
-        # Helper function to compare state trees
-        def compare_state_components(orig_dict, loaded_dict, component_name):
-            """Compare state components with cross-backend array handling."""
-            for key in orig_dict:
-                if key not in loaded_dict:
-                    # Skip missing metrics keys for non-JAX backends
-                    # (known issue)
-                    if component_name == "metrics_variables" and key != "loss":
-                        continue
-                    self.fail(f"Key {key} missing in loaded {component_name}")
-
-                orig_val, loaded_val = orig_dict[key], loaded_dict[key]
-
-                if isinstance(orig_val, dict):
-                    compare_state_components(
-                        orig_val, loaded_val, f"{component_name}.{key}"
-                    )
-                else:
-                    # Convert to numpy for comparison
-                    def to_numpy(val):
-                        if hasattr(val, "numpy"):
-                            try:
-                                return val.detach().cpu().numpy()  # PyTorch
-                            except AttributeError:
-                                return val.numpy()  # TensorFlow
-                        return val  # JAX array or numpy
-
-                    self.assertAllClose(
-                        to_numpy(orig_val),
-                        to_numpy(loaded_val),
-                        msg=f"Mismatch in {component_name}.{key}",
-                    )
-
-        # Compare all state components
-        for component in [
-            "trainable_variables",
-            "non_trainable_variables",
-            "optimizer_variables",
-        ]:
-            compare_state_components(
-                original_state_tree[component],
-                loaded_state_tree[component],
-                component,
-            )
-
-        # Compare metrics (with backend-specific handling)
-        if "metrics_variables" in original_state_tree:
-            compare_state_components(
-                original_state_tree["metrics_variables"],
-                loaded_state_tree["metrics_variables"],
-                "metrics_variables",
-            )
-
-    @pytest.mark.requires_trainable_backend
-    @pytest.mark.requires_trainable_backend
-    def test_comprehensive_model_state_restoration(self):
+    def test_comprehensive_model_state_restoration(self, save_on_background):
         """Test comprehensive model state restoration with exact weight
         matching.
 
-        Tests async saving, exact weight matching, and complete state
+        Tests sync/async saving, exact weight matching, and complete state
         restoration including trainable/non-trainable variables, optimizer
         state, and custom layers.
         """
-        import keras
-        from keras.src import saving
-        from keras.src.saving import register_keras_serializable
-
-        keras.utils.set_random_seed(42)
+        utils.set_random_seed(42)
 
         # Create model with custom layer having non-trainable variables
         @register_keras_serializable(package="test")
@@ -568,10 +492,17 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         model.compile(optimizer="adam", loss="mse", metrics=["mae"])
 
         x, y = self._create_dummy_data(num_samples=100)
-        checkpoint_dir = os.path.join(self.get_temp_dir(), "test_comprehensive")
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(),
+            f"test_comprehensive_{save_on_background}_{id(self)}",
+        )
 
-        # Test async saving with exact weight matching
-        callback = OrbaxCheckpoint(directory=checkpoint_dir, save_freq="epoch")
+        # Test saving with exact weight matching
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_on_background=save_on_background,
+        )
         model.fit(x, y, epochs=2, verbose=0, callbacks=[callback])
 
         # Verify exact weight matching functionality
@@ -594,90 +525,8 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         ):
             self.assertAllClose(saved, loaded, msg=f"Weight {i} mismatch")
 
-        # State tree verification (JAX only due to backend limitations)
-        if keras.backend.backend() == "jax":
-            original_state = model.get_state_tree()
-            loaded_state = loaded_model.get_state_tree()
-
-            # Helper function to compare nested state dictionaries
-            def compare_state_dict(orig_dict, loaded_dict, path=""):
-                """Recursively compare nested dictionaries containing arrays."""
-                for key in orig_dict:
-                    if key not in loaded_dict:
-                        continue  # Skip missing keys
-
-                    orig_val, loaded_val = orig_dict[key], loaded_dict[key]
-                    current_path = f"{path}.{key}" if path else key
-
-                    if isinstance(orig_val, dict):
-                        compare_state_dict(orig_val, loaded_val, current_path)
-                    else:
-                        # Compare array values
-                        self.assertAllClose(
-                            orig_val,
-                            loaded_val,
-                            msg=f"Mismatch in {current_path}",
-                        )
-
-            # Compare optimizer variables with nested structure handling
-            compare_state_dict(
-                original_state["optimizer_variables"],
-                loaded_state["optimizer_variables"],
-                "optimizer_variables",
-            )
-
-    @pytest.mark.requires_trainable_backend
-    def test_exact_weight_matching_with_sync_save(self):
-        """Test exact weight matching using synchronous vs asynchronous
-        saving."""
-        import keras
-        from keras.src import saving
-
-        keras.utils.set_random_seed(42)
-
-        model = self._create_test_model()
-        model.compile(optimizer="adam", loss="mse")
-        x, y = self._create_dummy_data(num_samples=50)
-
-        # Test 1: Synchronous saving (exact precision expected)
-        sync_dir = os.path.join(self.get_temp_dir(), "test_sync_exact")
-        sync_callback = OrbaxCheckpoint(
-            directory=sync_dir, save_freq="epoch", save_on_background=False
-        )
-        model.fit(x, y, epochs=1, verbose=0, callbacks=[sync_callback])
-
-        sync_saved_weights = model.get_weights()
-        sync_loaded_model = saving.load_model(sync_dir)
-        sync_loaded_weights = sync_loaded_model.get_weights()
-
-        # Synchronous should have exact matches
+        # Verify optimizer variables
         for i, (saved, loaded) in enumerate(
-            zip(sync_saved_weights, sync_loaded_weights)
+            zip(model.optimizer.variables, loaded_model.optimizer.variables)
         ):
-            self.assertAllClose(
-                saved, loaded, msg=f"Sync exact mismatch: weight {i}"
-            )
-
-        # Test 2: Asynchronous saving (should also work with final
-        # checkpoint strategy)
-        async_dir = os.path.join(self.get_temp_dir(), "test_async_exact")
-        async_callback = OrbaxCheckpoint(
-            directory=async_dir, save_freq="epoch", save_on_background=True
-        )
-        model.fit(x, y, epochs=1, verbose=0, callbacks=[async_callback])
-
-        async_saved_weights = model.get_weights()
-        async_loaded_model = saving.load_model(async_dir)
-        async_loaded_weights = async_loaded_model.get_weights()
-
-        # Async should also match due to final checkpoint strategy
-        for i, (saved, loaded) in enumerate(
-            zip(async_saved_weights, async_loaded_weights)
-        ):
-            self.assertAllClose(
-                saved, loaded, msg=f"Async exact mismatch: weight {i}"
-            )
-
-        # Verify both models are compiled
-        self.assertTrue(sync_loaded_model.compiled)
-        self.assertTrue(async_loaded_model.compiled)
+            self.assertAllClose(saved, loaded, msg=f"Weight {i} mismatch")

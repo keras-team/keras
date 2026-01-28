@@ -203,6 +203,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             filepath,
             custom_objects=custom_objects,
             compile=compile,
+            safe_mode=safe_mode,
         )
 
     elif str(filepath).endswith(".keras"):
@@ -350,7 +351,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
 
 def _load_model_from_orbax_checkpoint(
-    filepath, custom_objects=None, compile=True
+    filepath, custom_objects=None, compile=True, safe_mode=True
 ):
     """Load a model from an Orbax checkpoint directory."""
 
@@ -381,7 +382,7 @@ def _load_model_from_orbax_checkpoint(
         composite_state["model_config"],
         custom_objects=custom_objects,
         compile=compile,
-        safe_mode=True,
+        safe_mode=safe_mode,
     )
 
     # Prepare state tree with only variable keys for set_state_tree
