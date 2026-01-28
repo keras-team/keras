@@ -2717,7 +2717,37 @@ def round(x, decimals=0):
 
 
 def tile(x, repeats):
-    raise NotImplementedError("`tile` is not supported with openvino backend")
+    x = get_ov_output(x)
+
+    if isinstance(repeats, int):
+        repeats = [repeats]
+
+    if isinstance(repeats, (list, tuple)):
+        repeats = ov_opset.constant(repeats, Type.i64)
+    else:
+        repeats = get_ov_output(repeats)
+        if repeats.get_element_type() != Type.i64:
+            repeats = ov_opset.convert(repeats, Type.i64)
+        repeats = ov_opset.reshape(repeats, [-1], False)
+
+    shape_x = ov_opset.shape_of(x, Type.i64)
+    rank_x = ov_opset.shape_of(shape_x, Type.i64)
+    rank_r = ov_opset.shape_of(repeats, Type.i64)
+
+    one = ov_opset.constant(1, Type.i64)
+    zero = ov_opset.constant(0, Type.i64)
+
+    pad_x = ov_opset.maximum(ov_opset.subtract(rank_r, rank_x), zero)
+    x = ov_opset.reshape(
+        x,
+        ov_opset.concat([ov_opset.broadcast(one, pad_x), shape_x], 0),
+        False,
+    )
+
+    pad_r = ov_opset.maximum(ov_opset.subtract(rank_x, rank_r), zero)
+    repeats = ov_opset.concat([ov_opset.broadcast(one, pad_r), repeats], 0)
+
+    return OpenVINOKerasTensor(ov_opset.tile(x, repeats).output(0))
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
