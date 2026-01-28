@@ -33,11 +33,25 @@ def get_data_adapter(
 
     # Check for multi-process/worker distribution.
     distribution = distribution_lib.distribution()
+    # Allow numpy arrays and torch DataLoader for PyTorch backend in multi-process mode
+    # since PyTorch's torch.distributed.run spawns processes that each handle their own data
+    from keras.src.backend import backend as keras_backend
+
+    is_torch = keras_backend() == "torch"
+    can_convert_arrays = array_data_adapter.can_convert_arrays(
+        (x, y, sample_weight)
+    )
     if (
         distribution is not None
         and getattr(distribution, "_is_multi_process", False)
         and getattr(distribution, "auto_shard_dataset", False)
         and not is_tf_dataset(x)
+        and not is_torch_dataloader(
+            x
+        )  # Allow torch DataLoader for PyTorch backend
+        and not (
+            is_torch and can_convert_arrays
+        )  # Allow numpy arrays for PyTorch backend
     ):
         raise ValueError(
             "When using a multi-worker distribution with auto-sharding enabled, "
