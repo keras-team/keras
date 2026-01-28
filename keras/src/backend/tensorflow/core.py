@@ -528,11 +528,11 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
             Args:
                 odd_elems: Result from _scan(reduced_elems)
-                is_even_length: Boolean or symbolic tensor 
+                is_even_length: Boolean or symbolic tensor
                 indicating if elem_length % 2 == 0
 
             Returns:
-                The final scanned result after interleaving even and odd 
+                The final scanned result after interleaving even and odd
                 elements.
             """
 
@@ -558,7 +558,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 )
 
             # For Python-level conditionals (static), is_even_length is a bool
-            # For symbolic conditionals, is_even_length is a Tensor, 
+            # For symbolic conditionals, is_even_length is a Tensor,
             # handled via tf.cond
             if isinstance(is_even_length, bool):
                 results = (
@@ -608,21 +608,23 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 tf.equal(elem_length, 2), tf.equal(elem_length, 3)
             )
 
-            def _base_case():
-                return tf.cond(
-                    tf.equal(elem_length, 2),
-                    _handle_base_case_elem_length_two,
-                    _handle_base_case_elem_length_three,
-                )
-
             def _recursive_case():
                 odd_elems = _scan(reduced_elems)
                 # Use symbolic tensor for dynamic length
-                is_even = tf.equal(elem_length % 2, 0)
-                return _process_recursive_result(odd_elems, is_even)
+                return _process_recursive_result(
+                    odd_elems, tf.equal(elem_length % 2, 0)
+                )
 
-            return tf.cond(at_base_case, _base_case, _recursive_case)
-        
+            return tf.cond(
+                at_base_case,
+                lambda: tf.cond(
+                    tf.equal(elem_length, 2),
+                    _handle_base_case_elem_length_two,
+                    _handle_base_case_elem_length_three,
+                ),
+                _recursive_case,
+            )
+
         return tf.cond(
             tf.less(elem_length, 2), lambda: elems, _dynamic_scan_body
         )
