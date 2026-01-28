@@ -419,6 +419,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
     def _get_dim(x):
         return shape(x)[axis]
 
+    # TODO add constant dim check
     num_elems = _get_dim(elems_flat[0])
     if not all(_get_dim(elem) == num_elems for elem in elems_flat[1:]):
         raise ValueError(
