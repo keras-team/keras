@@ -603,7 +603,17 @@ def random_seed_dtype():
 
 
 def custom_gradient(fun):
-    return jax.custom_gradient(fun=fun)
+    fun_with_custom_gradient = jax.custom_gradient(fun=fun)
+
+    # Add a wrapper to unwrap variables, otherwise custom_gradient will fail
+    def fun_with_custom_gradient_wrapper(*args, **kwargs):
+        args, kwargs = tree.map_shape_structure(
+            lambda x: x.value if isinstance(x, KerasVariable) else x,
+            (args, kwargs),
+        )
+        return fun_with_custom_gradient(*args, **kwargs)
+
+    return fun_with_custom_gradient_wrapper
 
 
 def remat(f):
