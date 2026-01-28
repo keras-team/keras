@@ -50,7 +50,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=1, batch_size=5, callbacks=[callback], verbose=0)
 
         # Wait for async operations to complete before cleanup
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Check that checkpoint files were created
         # With 50 samples, batch_size=5, and save_freq=10, there are 10 batches.
@@ -91,7 +91,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
         # Wait for async operations to complete before test cleanup
-        callback.wait_until_finished()
+        callback.on_train_end()
 
     @pytest.mark.requires_trainable_backend
     def test_save_best_only(self):
@@ -113,7 +113,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train for multiple epochs - should only save when loss improves
         model.fit(x, y, epochs=5, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Check that checkpoint directory exists and has files
         checkpoint_files = os.listdir(checkpoint_dir)
@@ -134,7 +134,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         )
 
         model.fit(x, y, epochs=3, callbacks=[callback_max], verbose=0)
-        callback_max.wait_until_finished()
+        callback_max.on_train_end()
 
         checkpoint_files_max = os.listdir(checkpoint_dir_max)
         self.assertGreater(
@@ -159,7 +159,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train to create checkpoint
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Get original weights after training
         original_weights = model.get_weights()
@@ -206,7 +206,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train for 3 epochs
         model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Should have only the latest checkpoint (epoch 2) due to max_to_keep=1
         checkpoint_files = os.listdir(checkpoint_dir)
@@ -243,7 +243,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train for 5 epochs
         model.fit(x, y, epochs=5, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Should only keep the 2 most recent checkpoints
         checkpoint_files = os.listdir(checkpoint_dir)
@@ -270,7 +270,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train and ensure it completes (synchronous save should not block)
         model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Check that checkpoints were created
         checkpoint_files = os.listdir(checkpoint_dir)
@@ -303,7 +303,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train - should only save if loss goes below 1.0
         model.fit(x, y, epochs=3, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Check that checkpoint directory exists
         # (may or may not have files depending on loss)
@@ -347,7 +347,7 @@ class OrbaxCheckpointTest(testing.TestCase):
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
 
         if save_on_background:
-            callback.wait_until_finished()
+            callback.on_train_end()
 
         # Get original state
         original_weights = model.get_weights()
@@ -402,7 +402,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
         # Train for 1 epoch
         model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
-        callback.wait_until_finished()
+        callback.on_train_end()
 
         # Check that checkpoint was created
         checkpoint_files = os.listdir(checkpoint_dir)
@@ -476,7 +476,7 @@ class OrbaxCheckpointTest(testing.TestCase):
 
             # Train to create checkpoint
             model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
-            callback.wait_until_finished()
+            callback.on_train_end()
 
             # Get original model predictions and weights
             original_predictions = model.predict(x[:5], verbose=0)

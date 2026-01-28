@@ -136,6 +136,9 @@ class OrbaxCheckpoint(MonitorCallback):
         self._current_epoch = 0  # Keep track of epoch
         self._total_batches_seen = 0  # Global batch counter for step tracking
 
+        # Track pending async saves
+        self._pending_saves = []
+
         # Multi-host support
         self._multihost_initialized = self._is_multihost_initialized()
 
@@ -252,7 +255,10 @@ class OrbaxCheckpoint(MonitorCallback):
         # Context() uses defaults.
         with ocp.Context():
             if self.save_on_background:
-                self.checkpointer.save_pytree_async(step, composite_state)
+                future = self.checkpointer.save_pytree_async(
+                    step, composite_state
+                )
+                self._pending_saves.append(future)
             else:
                 self.checkpointer.save_pytree(step, composite_state)
 
@@ -311,6 +317,17 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
+        # Wait for any pending async saves to complete
+        for future in self._pending_saves:
+            try:
+                future.result()  # Wait for completion
+            except Exception as e:
+                warnings.warn(
+                    f"Failed to complete async checkpoint save: {e}",
+                    stacklevel=2,
+                )
+        self._pending_saves.clear()
+
         # Close the Checkpointer to ensure all pending saves complete
         try:
             self.checkpointer.close()
