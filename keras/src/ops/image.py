@@ -355,8 +355,7 @@ def resize(
             "Expected `size` to be a tuple of 2 integers. "
             f"Received: size={size}"
         )
-    height, width = size[0], size[1]
-    if height <= 0 or width <= 0:
+    if size[0] <= 0 or size[1] <= 0:
         raise ValueError(
             "`size` must have positive height and width. "
             "Zero or negative dimensions would cause division by zero or "
