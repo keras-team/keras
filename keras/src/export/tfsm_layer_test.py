@@ -124,9 +124,7 @@ class TestTFSMLayer(testing.TestCase):
         temp_model_filepath = os.path.join(self.get_temp_dir(), "m.keras")
         model.save(temp_model_filepath, save_format="keras_v3")
         reloaded_model = saving_lib.load_model(
-            temp_model_filepath,
-            custom_objects={"TFSMLayer": tfsm_layer.TFSMLayer},
-            safe_mode=False,
+            temp_model_filepath, safe_mode=False
         )
         self.assertAllClose(reloaded_model(ref_input), ref_output, atol=1e-7)
 
@@ -153,11 +151,7 @@ class TestTFSMLayer(testing.TestCase):
             saving_lib.load_model(model_path)
 
         # Explicit opt-out should allow loading
-        loaded_model = saving_lib.load_model(
-            model_path,
-            custom_objects={"TFSMLayer": tfsm_layer.TFSMLayer},
-            safe_mode=False,
-        )
+        loaded_model = saving_lib.load_model(model_path, safe_mode=False)
 
         x = tf.random.normal((2, 10))
         self.assertAllClose(loaded_model(x), wrapper_model(x))
