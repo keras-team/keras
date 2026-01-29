@@ -193,11 +193,21 @@ class Normalization(DataLayer):
             self.finalize_state()
         else:
             # In the no adapt case, make constant tensors for mean and variance
-            # with proper broadcast shape for use during call.
+
             mean = ops.convert_to_tensor(self.input_mean)
             variance = ops.convert_to_tensor(self.input_variance)
-            mean = ops.broadcast_to(mean, self._broadcast_shape)
-            variance = ops.broadcast_to(variance, self._broadcast_shape)
+
+            # Broadcast scalar mean/variance to the target shape
+
+            if ops.ndim(mean) == 0:
+                mean = ops.broadcast_to(mean, self._broadcast_shape)
+                variance = ops.broadcast_to(variance, self._broadcast_shape)
+            else:
+                # Reshape multi-dimensional mean/variance to match the broadcast
+
+                mean = ops.reshape(mean, self._broadcast_shape)
+                variance = ops.reshape(variance, self._broadcast_shape)
+
             self.mean = ops.cast(mean, dtype=self.compute_dtype)
             self.variance = ops.cast(variance, dtype=self.compute_dtype)
 
