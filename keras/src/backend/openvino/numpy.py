@@ -2721,13 +2721,12 @@ def tile(x, repeats):
 
     if isinstance(repeats, int):
         repeats = [repeats]
+    repeats = get_ov_output(repeats)
 
-    if isinstance(repeats, (list, tuple)):
-        repeats = ov_opset.constant(repeats, Type.i64)
-    else:
-        repeats = get_ov_output(repeats)
-        if repeats.get_element_type() != Type.i64:
-            repeats = ov_opset.convert(repeats, Type.i64)
+    if repeats.get_element_type() != Type.i64:
+        repeats = ov_opset.convert(repeats, Type.i64)
+
+    if len(repeats.get_partial_shape()) != 1:
         repeats = ov_opset.reshape(repeats, [-1], False)
 
     shape_x = ov_opset.shape_of(x, Type.i64)
@@ -2738,14 +2737,15 @@ def tile(x, repeats):
     zero = ov_opset.constant(0, Type.i64)
 
     pad_x = ov_opset.maximum(ov_opset.subtract(rank_r, rank_x), zero)
-    x = ov_opset.reshape(
-        x,
-        ov_opset.concat([ov_opset.broadcast(one, pad_x), shape_x], 0),
-        False,
+    new_x_shape = ov_opset.concat(
+        [ov_opset.broadcast(one, pad_x).output(0), shape_x], 0
     )
+    x = ov_opset.reshape(x, new_x_shape, False)
 
     pad_r = ov_opset.maximum(ov_opset.subtract(rank_x, rank_r), zero)
-    repeats = ov_opset.concat([ov_opset.broadcast(one, pad_r), repeats], 0)
+    repeats = ov_opset.concat(
+        [ov_opset.broadcast(one, pad_r).output(0), repeats], 0
+    )
 
     return OpenVINOKerasTensor(ov_opset.tile(x, repeats).output(0))
 
