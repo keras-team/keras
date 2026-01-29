@@ -366,6 +366,10 @@ def arctan2(x1, x2):
     x1 = ov_opset.convert(x1, result_type)
     x2 = ov_opset.convert(x2, result_type)
 
+    nan_x1 = ov_opset.is_nan(x1)
+    nan_x2 = ov_opset.is_nan(x2)
+    nan_mask = ov_opset.logical_or(nan_x1, nan_x2)
+
     x = ov_opset.divide(x1, x2)
     y = ov_opset.atan(x)
 
@@ -375,12 +379,12 @@ def arctan2(x1, x2):
     neg_half_pi = ov_opset.constant(-float(np.pi / 2), ov_type)
     zero_const = ov_opset.constant(0.0, ov_type)
 
-    cond_x2_gt0 = ov_opset.greater(x2, zero_const).output(0)
-    cond_x2_lt0 = ov_opset.less(x2, zero_const).output(0)
+    cond_x2_gt0 = ov_opset.greater(x2, zero_const)
+    cond_x2_lt0 = ov_opset.less(x2, zero_const)
 
-    cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const).output(0)
-    cond_x1_gt0 = ov_opset.greater(x1, zero_const).output(0)
-    cond_x1_eq0 = ov_opset.equal(x1, zero_const).output(0)
+    cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const)
+    cond_x1_gt0 = ov_opset.greater(x1, zero_const)
+    cond_x1_eq0 = ov_opset.equal(x1, zero_const)
 
     out_x2_lt0 = ov_opset.select(
         cond_x1_ge0,
@@ -393,7 +397,11 @@ def arctan2(x1, x2):
 
     out_not_pos = ov_opset.select(cond_x2_lt0, out_x2_lt0, out_x2_zero)
 
-    final_out = ov_opset.select(cond_x2_gt0, y, out_not_pos)
+    value_out = ov_opset.select(cond_x2_gt0, y, out_not_pos)
+
+    # Generate NaN safely for all floating dtypes (including bf16)
+    nan_value = ov_opset.divide(zero_const, zero_const)
+    final_out = ov_opset.select(nan_mask, nan_value, value_out)
     return OpenVINOKerasTensor(final_out.output(0))
 
 
