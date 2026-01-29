@@ -625,10 +625,13 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 )
             )
 
-        def _process_recursive_result_for_level(odd_elems, elems_level, is_even_length):
+        def _process_recursive_result_for_level(
+            odd_elems, elems_level, is_even_length
+        ):
             """Same as `_process_recursive_result` but operates on an explicit
             `elems_level` instead of closing over `elems`. This enables an
-            iterative unwind when using TF control flow (avoids Python recursion)."""
+            iterative unwind when using TF control flow
+            (avoids Python recursion)."""
 
             def _get_even_results():
                 return _combine(
@@ -786,7 +789,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
             return tf.cond(at_base_case, _handle_small, _iterative_recursive)
 
-        return tf.cond(tf.less(elem_length, 2), lambda: elems, _dynamic_scan_body)
+        return tf.cond(
+            tf.less(elem_length, 2), lambda: elems, _dynamic_scan_body
+        )
 
     scans = _scan(elems_flat)
     if reverse:
