@@ -1,6 +1,18 @@
+import dataclasses
 import warnings
+from pathlib import Path
+from typing import Any
 
 import numpy as np
+import orbax.checkpoint as orbax_cp
+from orbax.checkpoint._src.handlers.composite_checkpoint_handler import (
+    CompositeArgs,
+)
+from orbax.checkpoint._src.handlers.standard_checkpoint_handler import (
+    StandardSaveArgs,
+)
+from orbax.checkpoint.checkpoint_args import CheckpointArgs
+from orbax.checkpoint.checkpoint_args import register_with_handler
 
 from keras.src import backend
 from keras.src import tree
@@ -8,10 +20,8 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
-from keras.src.saving import saving_lib
+from keras.src.saving.saving_lib import _walk_saveable
 from keras.src.utils.module_utils import ocp
-
-# Context and AsyncOptions are accessed through the lazy-loaded ocp module
 
 # JAX monitoring compatibility: ensure record_scalar exists
 # to prevent AttributeError in older JAX versions
@@ -22,6 +32,229 @@ try:
         jax.monitoring.record_scalar = lambda *args, **kwargs: None
 except ImportError:
     pass
+
+
+# ============================================================================
+# Asset Handler Implementation
+# ============================================================================
+
+
+class KerasAssetHandler:
+    """Custom handler for Keras model assets."""
+
+    def __init__(self, primary_host_only: bool = True):
+        """Initialize the asset handler.
+
+        Args:
+            primary_host_only: If True, only save/load assets on the primary
+                host in a distributed setting.
+        """
+        self._primary_host_only = primary_host_only
+        self._asset_metadata = {}
+
+    @classmethod
+    def typestr(cls):
+        """Return the type string for this handler."""
+        return "KerasAssetHandler"
+
+    def _is_primary_host(self):
+        """Check if this is the primary host in distributed training."""
+        if not self._primary_host_only:
+            return True
+        try:
+            # Check if we're in a distributed context
+            if backend.backend() == "jax":
+                import jax
+
+                return jax.process_index() == 0
+            elif backend.backend() == "tensorflow":
+                import tensorflow as tf
+
+                try:
+                    strategy = tf.distribute.get_strategy()
+                    return (
+                        not hasattr(strategy.extended, "_in_multi_worker_mode")
+                        or not strategy.extended._in_multi_worker_mode()
+                        or strategy.extended._task_id == 0
+                    )
+                except Exception:
+                    return True
+            elif backend.backend() == "torch":
+                import torch
+
+                return (
+                    not torch.distributed.is_initialized()
+                    or torch.distributed.get_rank() == 0
+                )
+        except Exception:
+            pass
+        return True
+
+    def _collect_layers_with_assets(self, model):
+        """Recursively collect all layers with assets.
+
+        Args:
+            model: The Keras model to collect assets from.
+
+        Returns:
+            List of (layer_path, layer) tuples where layer has assets.
+        """
+        from keras.src.saving.keras_saveable import KerasSaveable
+
+        layers_with_assets = []
+
+        def collect_from_layer(layer, path):
+            # Check if layer has assets
+            if hasattr(layer, "assets") and callable(layer.assets):
+                assets_list = layer.assets()
+                if assets_list:
+                    layers_with_assets.append((path, layer))
+
+            # Recursively check sublayers
+            # _walk_saveable returns (name, obj) tuples
+            for name, sublayer in _walk_saveable(layer):
+                # Only recurse if it's a KerasSaveable
+                # (not a list or other type)
+                if isinstance(sublayer, KerasSaveable):
+                    sublayer_path = f"{path}/{name}"
+                    collect_from_layer(sublayer, sublayer_path)
+
+        collect_from_layer(model, model.name)
+        return layers_with_assets
+
+    def save(self, directory, args):
+        """Save model assets to the directory.
+
+        Args:
+            directory: Path to save assets to (already points to assets dir).
+            args: AssetArgs containing the model.
+
+        Returns:
+            List of future objects (empty for synchronous saves).
+        """
+        if not self._is_primary_host():
+            return []
+
+        model = args.model
+        if model is None:
+            return []
+
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        # Save model config only if requested (not in weights_only mode)
+        if args.save_model_config:
+            from keras.src.saving import saving_lib
+
+            config_json, _ = saving_lib._serialize_model_as_json(model)
+            config_path = directory / "model_config.json"
+            with open(config_path, "w") as f:
+                f.write(config_json)
+
+        # Collect all layers with assets
+        layers_with_assets = self._collect_layers_with_assets(model)
+
+        # Save each layer's assets
+        for layer_path, layer in layers_with_assets:
+            layer_assets_dir = directory / layer_path
+            layer_assets_dir.mkdir(parents=True, exist_ok=True)
+
+            # Get and save assets
+            assets_list = layer.assets()
+            for i, asset in enumerate(assets_list):
+                asset_path = layer_assets_dir / f"asset_{i}.npy"
+                if hasattr(asset, "numpy"):
+                    # TensorFlow/JAX/PyTorch tensor
+                    asset_data = np.array(asset)
+                elif isinstance(asset, np.ndarray):
+                    asset_data = asset
+                else:
+                    asset_data = np.array(asset)
+
+                np.save(asset_path, asset_data, allow_pickle=False)
+
+        # Store metadata
+        self._asset_metadata[str(directory)] = {
+            "layers_with_assets": [path for path, _ in layers_with_assets]
+        }
+
+        return []
+
+    def restore(self, directory, args):
+        """Restore model assets from the directory.
+
+        Args:
+            directory: Path to restore assets from
+                (already points to assets dir).
+            args: AssetArgs containing the model.
+
+        Returns:
+            The restored model.
+        """
+        model = args.model
+        if model is None:
+            return model
+
+        directory = Path(directory)
+
+        if not directory.exists():
+            return model
+
+        # Collect all layers with assets
+        layers_with_assets = self._collect_layers_with_assets(model)
+
+        # Restore each layer's assets
+        for layer_path, layer in layers_with_assets:
+            layer_assets_dir = directory / layer_path
+            if not layer_assets_dir.exists():
+                continue
+
+            # Load assets
+            asset_files = sorted(layer_assets_dir.glob("asset_*.npy"))
+            if asset_files:
+                restored_assets = [np.load(f) for f in asset_files]
+                # Call the layer's asset setter if it has one
+                if hasattr(layer, "_set_assets"):
+                    layer._set_assets(restored_assets)
+
+        return model
+
+    def metadata(self, directory):
+        """Return metadata about the saved assets.
+
+        Args:
+            directory: Path where assets are saved.
+
+        Returns:
+            Metadata dictionary.
+        """
+        return self._asset_metadata.get(str(directory), {})
+
+    def finalize(self, directory):
+        """Finalize the save operation (no-op for this handler).
+
+        Args:
+            directory: Path where assets are saved.
+        """
+        pass
+
+    def close(self):
+        """Close the handler and release resources (no-op for this handler)."""
+        pass
+
+
+@register_with_handler(KerasAssetHandler, for_save=True, for_restore=True)
+@dataclasses.dataclass
+class AssetArgs(CheckpointArgs):
+    """Arguments for asset checkpointing.
+
+    Attributes:
+        model: The Keras model to save/restore assets for.
+        save_model_config: Whether to save the model configuration.
+    """
+
+    model: Any = None
+    save_model_config: bool = True
 
 
 def _get_state_tree(model):
@@ -123,8 +356,7 @@ class OrbaxCheckpoint(MonitorCallback):
         # Ensure orbax is available
         ocp.initialize()
 
-        # Initialize MonitorCallback for handling 'monitor', 'mode', 'best'
-        # logic
+        # Initialize MonitorCallback for metric monitoring
         super().__init__(monitor, mode, initial_value_threshold)
 
         self.directory = directory
@@ -134,51 +366,46 @@ class OrbaxCheckpoint(MonitorCallback):
         self.max_to_keep = max_to_keep
         self.save_on_background = save_on_background
         self.save_weights_only = save_weights_only
+
+        # Tracking for batch-level saving
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
-        self._current_epoch = 0  # Keep track of epoch
-        self._total_batches_seen = 0  # Global batch counter for step tracking
+        self._current_epoch = 0
+        self._total_batches_seen = 0
         self._async_futures = []  # Track async save futures
 
-        # Multi-host support
-        self._multihost_initialized = self._is_multihost_initialized()
-
+        # Validate save_freq
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
                 f"Unrecognized save_freq: {self.save_freq}. "
-                "Expected save_freq are 'epoch' or integer values"
+                "Expected 'epoch' or integer."
             )
 
-        # --- Orbax Checkpointer Setup (V1 API) ---
-        policies = []
-        if max_to_keep is not None:
-            policies.append(
-                ocp.training.preservation_policies.LatestN(max_to_keep)
-            )
+        # Multi-host detection
+        self._multihost_initialized = self._is_multihost_initialized()
 
-        # Use AnyPreservationPolicy to combine them, or use directly
-        # if single policy
-        preservation_policy = None
-        if policies:
-            if len(policies) == 1:
-                preservation_policy = policies[0]
-            else:
-                preservation_policy = (
-                    ocp.training.preservation_policies.AnyPreservationPolicy(
-                        policies
-                    )
-                )
+        # Create checkpoint handlers
+        state_handler = orbax_cp.StandardCheckpointHandler()
+        asset_handler = KerasAssetHandler()
 
-        # Create the V1 Checkpointer with direct parameter passing
-        # Orbax will handle directory creation on all processes as needed
-        # save_decision_policy is required for proper coordination of
-        # rapid async saves
-        self.checkpointer = ocp.training.Checkpointer(
-            directory=directory,
-            preservation_policy=preservation_policy,
-            save_decision_policy=ocp.training.save_decision_policies.FixedIntervalPolicy(
-                1
-            ),
+        if save_on_background:
+            state_checkpointer = orbax_cp.AsyncCheckpointer(state_handler)
+            asset_checkpointer = orbax_cp.Checkpointer(asset_handler)
+        else:
+            state_checkpointer = orbax_cp.Checkpointer(state_handler)
+            asset_checkpointer = orbax_cp.Checkpointer(asset_handler)
+
+        # Use CheckpointManager with named checkpointers dict
+        options = orbax_cp.CheckpointManagerOptions(
+            max_to_keep=max_to_keep,
+            create=True,
+            save_interval_steps=1,
+        )
+
+        self.manager = orbax_cp.CheckpointManager(
+            directory,
+            {"state": state_checkpointer, "assets": asset_checkpointer},
+            options,
         )
 
     def _is_multihost_initialized(self):
@@ -248,42 +475,36 @@ class OrbaxCheckpoint(MonitorCallback):
         return False
 
     def _save_checkpoint(self, step, logs=None):
-        """Save a checkpoint at the given step with multi-host coordination."""
-
-        # --- Prepare Composite State (Backend-Agnostic) ---
+        """Save checkpoint with state and assets."""
+        # Get model state tree
         state_tree = _get_state_tree(self.model)
 
-        # Save the nested state structures directly (preserving layer
-        # names and structure)
+        # Prepare state dictionary
         if self.save_weights_only:
             composite_state = {
                 "trainable_variables": state_tree["trainable_variables"],
-                "non_trainable_variables": state_tree[
-                    "non_trainable_variables"
-                ],
+                "non_trainable_variables": (
+                    state_tree["non_trainable_variables"]
+                ),
             }
         else:
             composite_state = state_tree
-            # Include model configuration for full model restoration
-            # Use saving_lib helper to properly handle shared objects
-            config_json, _ = saving_lib._serialize_model_as_json(self.model)
-            composite_state["model_config"] = config_json
 
-        # Use a single with statement. If context_options is empty,
-        # Context() uses defaults.
-        with ocp.Context():
-            # Determine sync vs async based on save_on_background setting
-            use_sync = not self.save_on_background
+        # Save using CheckpointManager with Composite args
+        composite_args = CompositeArgs(
+            state=StandardSaveArgs(composite_state),
+            assets=AssetArgs(
+                model=self.model, save_model_config=not self.save_weights_only
+            ),
+        )
 
-            if use_sync:
-                # Synchronous save
-                self.checkpointer.save_pytree(step, composite_state)
-            else:
-                # Async save
-                future = self.checkpointer.save_pytree_async(
-                    step, composite_state
-                )
+        # Track async futures if background saving is enabled
+        if self.save_on_background:
+            future = self.manager.save(step, args=composite_args)
+            if future is not None:
                 self._async_futures.append(future)
+        else:
+            self.manager.save(step, args=composite_args)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -341,7 +562,7 @@ class OrbaxCheckpoint(MonitorCallback):
         # Close the Checkpointer - this waits for any pending async saves
         # to complete before closing
         try:
-            self.checkpointer.close()
+            self.manager.close()
         except Exception:
             pass  # Ignore errors during cleanup
 
@@ -359,7 +580,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self._async_futures.clear()  # Clear completed futures
 
         # Wait for any remaining async operations to complete on this host
-        self.checkpointer.wait()
+        self.manager.wait_until_finished()
 
         # Multi-host synchronization: ensure all hosts complete
         self._sync_processes("checkpoint_wait_complete")
