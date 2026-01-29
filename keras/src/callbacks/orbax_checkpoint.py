@@ -100,10 +100,37 @@ class KerasAssetHandler:
             List of (layer_path, layer) tuples where layer has assets.
         """
         from keras.src.saving.keras_saveable import KerasSaveable
+        from keras.src.utils import naming
 
         layers_with_assets = []
+        visited_saveables = set()
+
+        def _collect_from_container(container, path):
+            if isinstance(container, dict):
+                container = list(container.values())
+
+            used_names = {}
+            for item in container:
+                if isinstance(item, KerasSaveable):
+                    # Use the layer's name if available, otherwise use
+                    # snake_case class name
+                    if hasattr(item, "name") and item.name:
+                        name = item.name
+                    else:
+                        name = naming.to_snake_case(item.__class__.__name__)
+                    if name in used_names:
+                        used_names[name] += 1
+                        name = f"{name}_{used_names[name]}"
+                    else:
+                        used_names[name] = 0
+                    item_path = f"{path}/{name}"
+                    collect_from_layer(item, item_path)
 
         def collect_from_layer(layer, path):
+            if id(layer) in visited_saveables:
+                return
+            visited_saveables.add(id(layer))
+
             # Check if layer has assets
             if hasattr(layer, "assets") and callable(layer.assets):
                 assets_list = layer.assets()
@@ -111,20 +138,12 @@ class KerasAssetHandler:
                     layers_with_assets.append((path, layer))
 
             # Recursively check sublayers
-            # _walk_saveable returns (name, obj) tuples
             for name, sublayer in _walk_saveable(layer):
-                # Handle the special case where sublayer is a list
-                # (e.g., model.layers)
-                if isinstance(sublayer, list):
-                    for idx, item in enumerate(sublayer):
-                        if isinstance(item, KerasSaveable):
-                            item_path = f"{path}/{item.name}"
-                            collect_from_layer(item, item_path)
-                # Only recurse if it's a KerasSaveable
-                # (not a list or other type)
-                elif isinstance(sublayer, KerasSaveable):
-                    sublayer_path = f"{path}/{name}"
+                sublayer_path = f"{path}/{name}"
+                if isinstance(sublayer, KerasSaveable):
                     collect_from_layer(sublayer, sublayer_path)
+                elif isinstance(sublayer, (list, dict, tuple, set)):
+                    _collect_from_container(sublayer, sublayer_path)
 
         collect_from_layer(model, model.name)
         return layers_with_assets

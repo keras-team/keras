@@ -626,9 +626,9 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
 
         # Verify asset files exist
         # The asset handler saves assets at:
-        # assets/{model.name}/{layer_name}
+        # assets/{model.name}/layers/{layer.name}
         asset_layer_dir = os.path.join(
-            assets_dir, "asset_test_model", "asset_layer"
+            assets_dir, "asset_test_model", "layers", "asset_layer"
         )
         self.assertTrue(
             os.path.exists(asset_layer_dir),
