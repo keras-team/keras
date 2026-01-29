@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -9,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import ops
 from keras.src import saving
+from keras.src import testing
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
 from keras.src.quantizers.quantization_config import Int8QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
@@ -48,9 +50,11 @@ class ReversibleEmbeddingTest(test_case.TestCase):
                 activation_quantizer=activation_quantizer,
             )
         elif mode == "int4":
+            # Custom quantizers require per-channel mode (block_size=None)
             config = Int4QuantizationConfig(
                 weight_quantizer=weight_quantizer,
                 activation_quantizer=activation_quantizer,
+                block_size=None,
             )
 
         layer.quantize(mode, config=config)
@@ -156,7 +160,7 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         layer = layers.ReversibleEmbedding(10, 16, tie_weights=tie_weights)
         layer.build()
         x = np.random.randint(0, 9, size=(64, 3))
-        x_reverse = np.random.uniform(size=(64, 16))
+        x_reverse = np.random.uniform(size=(64, 16)).astype("float32")
         y_float = layer(x)
         y_reverse_float = layer(x_reverse, reverse=True)
         layer.quantize(mode)
@@ -271,3 +275,239 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         out = layer(np.array(([[1.0, 2.0], [0.0, 0.0]])), reverse=True)
         mask = backend.get_keras_mask(out)
         self.assertIsNone(mask)
+
+    @parameterized.named_parameters(
+        named_product(
+            block_size=(64, 128, None, -1),
+            tie_weights=(True, False),
+        )
+    )
+    def test_int4_quantization_block_size(self, block_size, tie_weights):
+        """Test int4 quantization with different block_size configurations."""
+
+        input_dim, output_dim = 100, 256
+        layer = layers.ReversibleEmbedding(
+            input_dim=input_dim, output_dim=output_dim, tie_weights=tie_weights
+        )
+        layer.build()
+
+        x = np.random.randint(0, input_dim, size=(4, 8))
+        x_reverse = np.random.random((4, output_dim)).astype("float32")
+        y_float = layer(x)
+        y_reverse_float = layer(x_reverse, reverse=True)
+
+        # Create config with specified block_size
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify block_size is stored
+        self.assertEqual(layer._int4_block_size, block_size)
+
+        # Verify embeddings_scale shape
+        if block_size is None or block_size == -1:
+            expected_scale_shape = (input_dim,)
+        else:
+            n_groups = math.ceil(output_dim / block_size)
+            expected_scale_shape = (input_dim, n_groups)
+
+        self.assertEqual(layer.embeddings_scale.shape, expected_scale_shape)
+
+        # Verify reverse_embeddings_scale shape if not tied
+        if not tie_weights:
+            if block_size is None or block_size == -1:
+                expected_reverse_scale_shape = (input_dim,)
+            else:
+                n_groups = math.ceil(output_dim / block_size)
+                expected_reverse_scale_shape = (n_groups, input_dim)
+
+            self.assertEqual(
+                layer.reverse_embeddings_scale.shape,
+                expected_reverse_scale_shape,
+            )
+
+        # Verify outputs are reasonable
+        y_quantized = layer(x)
+        y_reverse_quantized = layer(x_reverse, reverse=True)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        mse_reverse = ops.mean(
+            ops.square(y_reverse_float - y_reverse_quantized)
+        )
+        self.assertLess(mse, 1e-3)
+        self.assertLess(mse_reverse, 1e-2)
+
+    @parameterized.named_parameters(
+        named_product(
+            block_size=(64, 128, None),
+            tie_weights=(True, False),
+        )
+    )
+    def test_int4_block_size_serialization(self, block_size, tie_weights):
+        """Test that block_size is preserved through serialization."""
+        input_dim, output_dim = 50, 128
+        layer = layers.ReversibleEmbedding(
+            input_dim=input_dim, output_dim=output_dim, tie_weights=tie_weights
+        )
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Get output before serialization
+        x = np.random.randint(0, input_dim, size=(2, 8))
+        y_before = layer(x)
+
+        # Save and load model to test full serialization roundtrip
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(),
+            f"int4_block_size_rev_emb_model_{tie_weights}.keras",
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify block_size is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertIsInstance(
+            loaded_layer.quantization_config, Int4QuantizationConfig
+        )
+        self.assertEqual(
+            loaded_layer.quantization_config.block_size, block_size
+        )
+
+        # Verify reverse_embeddings_zero is preserved for untied grouped
+        if not tie_weights and block_size is not None:
+            self.assertTrue(hasattr(loaded_layer, "reverse_embeddings_zero"))
+            self.assertAllClose(
+                loaded_layer.reverse_embeddings_zero,
+                layer.reverse_embeddings_zero,
+            )
+
+        # Verify outputs match after deserialization
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)
+
+    @parameterized.named_parameters(
+        ("tie_grouped", True, 64),
+        ("tie_perchannel", True, None),
+        ("untie_grouped", False, 64),
+        ("untie_perchannel", False, None),
+    )
+    def test_int4_grouped_vs_perchannel_scale_shapes(
+        self, tie_weights, block_size
+    ):
+        """Test that grouped and per-channel have different scale shapes."""
+
+        input_dim, output_dim = 100, 256
+
+        layer = layers.ReversibleEmbedding(
+            input_dim=input_dim, output_dim=output_dim, tie_weights=tie_weights
+        )
+        layer.build()
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        if block_size is None or block_size == -1:
+            # Per-channel
+            expected_scale_shape = (input_dim,)
+            expected_reverse_scale_shape = (input_dim,)
+        else:
+            # Grouped
+            n_groups = math.ceil(output_dim / block_size)
+            expected_scale_shape = (input_dim, n_groups)
+            expected_reverse_scale_shape = (n_groups, input_dim)
+
+        self.assertEqual(layer.embeddings_scale.shape, expected_scale_shape)
+
+        if not tie_weights:
+            self.assertEqual(
+                layer.reverse_embeddings_scale.shape,
+                expected_reverse_scale_shape,
+            )
+            # Check reverse_embeddings_zero shape for grouped quantization
+            if block_size is not None and block_size != -1:
+                self.assertTrue(hasattr(layer, "reverse_embeddings_zero"))
+                self.assertEqual(
+                    layer.reverse_embeddings_zero.shape,
+                    expected_reverse_scale_shape,
+                )
+            else:
+                self.assertFalse(hasattr(layer, "reverse_embeddings_zero"))
+
+    @parameterized.named_parameters(
+        ("grouped_block_4", 4),
+        ("grouped_block_8", 8),
+    )
+    def test_int4_subchannel_g_idx_created(self, block_size):
+        """Test that g_idx is created for sub-channel int4 quantization."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 10, 16
+        layer = layers.ReversibleEmbedding(
+            input_dim=input_dim, output_dim=output_dim
+        )
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is created
+        self.assertTrue(hasattr(layer, "g_idx"))
+
+        # Verify g_idx shape (output_dim for embedding)
+        self.assertEqual(layer.g_idx.shape, (output_dim,))
+
+        # Verify g_idx values (should map each column to its group)
+        expected_g_idx = np.arange(output_dim) // block_size
+        self.assertAllClose(layer.g_idx, expected_g_idx)
+
+    def test_int4_perchannel_no_g_idx(self):
+        """Test that per-channel int4 does NOT create g_idx."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.ReversibleEmbedding(input_dim=10, output_dim=16)
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=None)  # Per-channel
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is NOT created for per-channel
+        self.assertFalse(hasattr(layer, "g_idx"))
+
+    def test_int4_subchannel_g_idx_serialization(self):
+        """Test that g_idx is properly serialized and deserialized."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 10, 16
+        block_size = 8
+
+        layer = layers.ReversibleEmbedding(
+            input_dim=input_dim, output_dim=output_dim
+        )
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+        y_before = layer(x)
+        g_idx_before = ops.convert_to_numpy(layer.g_idx)
+
+        # Save and load
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "rev_embedding_int4_g_idx_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify g_idx is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertAllClose(loaded_layer.g_idx, g_idx_before)
+
+        # Verify outputs match
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)

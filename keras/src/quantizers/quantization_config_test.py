@@ -37,16 +37,68 @@ class QuantizationConfigTest(testing.TestCase):
         self.assertEqual(config.mode, "int4")
         self.assertIsNone(config.weight_quantizer)
 
-        # Valid weight quantizer
+        # Valid weight quantizer with per-channel mode
+        # (custom quantizers require block_size=None or -1)
         q = AbsMaxQuantizer(axis=0, value_range=(-8, 7))
-        config = Int4QuantizationConfig(weight_quantizer=q)
+        config = Int4QuantizationConfig(weight_quantizer=q, block_size=None)
         self.assertEqual(config.weight_quantizer, q)
 
     def test_int4_quantization_config_invalid(self):
         # Invalid value_range
         q = AbsMaxQuantizer(axis=0, value_range=(-127, 127))
         with self.assertRaisesRegex(ValueError, "value_range"):
-            Int4QuantizationConfig(weight_quantizer=q)
+            Int4QuantizationConfig(weight_quantizer=q, block_size=None)
+
+    def test_int4_quantization_config_subchannel_rejects_custom_quantizer(self):
+        # Sub-channel quantization does not support custom quantizers
+        weight_q = AbsMaxQuantizer(axis=0, value_range=(-8, 7))
+        activation_q = AbsMaxQuantizer(axis=-1)
+
+        # Default block_size=128 is sub-channel, should reject custom quantizer
+        with self.assertRaisesRegex(
+            ValueError, "sub-channel quantization.*does not support"
+        ):
+            Int4QuantizationConfig(weight_quantizer=weight_q)
+
+        # Explicit positive block_size should also reject weight quantizer
+        with self.assertRaisesRegex(
+            ValueError, "sub-channel quantization.*does not support"
+        ):
+            Int4QuantizationConfig(weight_quantizer=weight_q, block_size=64)
+
+        # Sub-channel should also reject activation quantizer
+        with self.assertRaisesRegex(
+            ValueError, "sub-channel quantization.*does not support"
+        ):
+            Int4QuantizationConfig(activation_quantizer=activation_q)
+
+        with self.assertRaisesRegex(
+            ValueError, "sub-channel quantization.*does not support"
+        ):
+            Int4QuantizationConfig(
+                activation_quantizer=activation_q, block_size=64
+            )
+
+        # Per-channel (block_size=None or -1) should accept custom quantizers
+        config = Int4QuantizationConfig(
+            weight_quantizer=weight_q, block_size=None
+        )
+        self.assertEqual(config.weight_quantizer, weight_q)
+
+        config = Int4QuantizationConfig(
+            weight_quantizer=weight_q, block_size=-1
+        )
+        self.assertEqual(config.weight_quantizer, weight_q)
+
+        config = Int4QuantizationConfig(
+            activation_quantizer=activation_q, block_size=None
+        )
+        self.assertEqual(config.activation_quantizer, activation_q)
+
+        config = Int4QuantizationConfig(
+            activation_quantizer=activation_q, block_size=-1
+        )
+        self.assertEqual(config.activation_quantizer, activation_q)
 
     def test_quantization_config_serialization(self):
         config = Int8QuantizationConfig(
@@ -118,10 +170,10 @@ class QuantizationConfigTest(testing.TestCase):
             Int8QuantizationConfig(weight_quantizer=q)
 
     def test_int4_quantization_config_output_dtype_mismatch(self):
-        # Invalid output_dtype
+        # Invalid output_dtype (using per-channel mode to test output_dtype)
         q = AbsMaxQuantizer(axis=0, value_range=(-8, 7), output_dtype="int16")
         with self.assertRaisesRegex(ValueError, "output_dtype='int8'"):
-            Int4QuantizationConfig(weight_quantizer=q)
+            Int4QuantizationConfig(weight_quantizer=q, block_size=None)
 
     def test_model_save_and_load(self):
         """

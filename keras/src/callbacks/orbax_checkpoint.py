@@ -8,6 +8,7 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
+from keras.src.saving import saving_lib
 from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
@@ -117,6 +118,7 @@ class OrbaxCheckpoint(MonitorCallback):
         initial_value_threshold=None,
         max_to_keep=1,
         save_on_background=True,
+        save_weights_only=False,
     ):
         # Ensure orbax is available
         ocp.initialize()
@@ -131,10 +133,12 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_freq = save_freq
         self.max_to_keep = max_to_keep
         self.save_on_background = save_on_background
+        self.save_weights_only = save_weights_only
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
         self._current_epoch = 0  # Keep track of epoch
         self._total_batches_seen = 0  # Global batch counter for step tracking
+        self._async_futures = []  # Track async save futures
 
         # Multi-host support
         self._multihost_initialized = self._is_multihost_initialized()
@@ -167,9 +171,14 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Create the V1 Checkpointer with direct parameter passing
         # Orbax will handle directory creation on all processes as needed
+        # save_decision_policy is required for proper coordination of
+        # rapid async saves
         self.checkpointer = ocp.training.Checkpointer(
             directory=directory,
             preservation_policy=preservation_policy,
+            save_decision_policy=ocp.training.save_decision_policies.FixedIntervalPolicy(
+                1
+            ),
         )
 
     def _is_multihost_initialized(self):
@@ -246,15 +255,35 @@ class OrbaxCheckpoint(MonitorCallback):
 
         # Save the nested state structures directly (preserving layer
         # names and structure)
-        composite_state = state_tree
+        if self.save_weights_only:
+            composite_state = {
+                "trainable_variables": state_tree["trainable_variables"],
+                "non_trainable_variables": state_tree[
+                    "non_trainable_variables"
+                ],
+            }
+        else:
+            composite_state = state_tree
+            # Include model configuration for full model restoration
+            # Use saving_lib helper to properly handle shared objects
+            config_json, _ = saving_lib._serialize_model_as_json(self.model)
+            composite_state["model_config"] = config_json
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
-            if self.save_on_background:
-                self.checkpointer.save_pytree_async(step, composite_state)
-            else:
+            # Determine sync vs async based on save_on_background setting
+            use_sync = not self.save_on_background
+
+            if use_sync:
+                # Synchronous save
                 self.checkpointer.save_pytree(step, composite_state)
+            else:
+                # Async save
+                future = self.checkpointer.save_pytree_async(
+                    step, composite_state
+                )
+                self._async_futures.append(future)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -306,12 +335,11 @@ class OrbaxCheckpoint(MonitorCallback):
 
         if should_save:
             # Use epoch number as the step for Orbax save
-            # Keras has already made the save decision - Checkpointer will
-            # save unconditionally
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        # Close the Checkpointer to ensure all pending saves complete
+        # Close the Checkpointer - this waits for any pending async saves
+        # to complete before closing
         try:
             self.checkpointer.close()
         except Exception:
@@ -325,7 +353,12 @@ class OrbaxCheckpoint(MonitorCallback):
         This method blocks until all asynchronous checkpoint save operations
         have completed across all hosts in a multi-host setup.
         """
-        # Wait for any async operations to complete on this host
+        # Wait for all tracked async futures to complete
+        for future in self._async_futures:
+            future.result()  # Wait for completion
+        self._async_futures.clear()  # Clear completed futures
+
+        # Wait for any remaining async operations to complete on this host
         self.checkpointer.wait()
 
         # Multi-host synchronization: ensure all hosts complete

@@ -12,6 +12,7 @@ from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import get_block_size_for_layer
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
@@ -184,7 +185,10 @@ class Dense(Layer):
 
             # Handle int4 unpacking cases in one place
             if is_int4:
-                kernel = quantizers.unpack_int4(kernel, self._orig_input_dim)
+                # unpack [in, ceil(out/2)] to [in, out]
+                kernel = quantizers.unpack_int4(
+                    kernel, self._orig_output_dim, axis=-1
+                )
             elif is_gptq and gptq_calibrated and gptq_bits == 4:
                 kernel = quantizers.unpack_int4(
                     self.quantized_kernel,
@@ -287,15 +291,27 @@ class Dense(Layer):
         if mode not in self.variable_serialization_spec:
             raise self._quantization_mode_error(mode)
 
-        # Kernel plus optional merged LoRA-aware scale (returns (kernel, None)
-        # for None/gptq)
-        kernel_value, merged_kernel_scale = self._get_kernel_with_merged_lora()
+        # Kernel plus optional merged LoRA-aware scale/zero (returns
+        # (kernel, None, None) for None/gptq/awq)
+        kernel_value, merged_kernel_scale, merged_kernel_zero = (
+            self._get_kernel_with_merged_lora()
+        )
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
                 store[str(idx)] = kernel_value
             elif name == "bias" and self.bias is None:
                 continue
+            elif name == "kernel_zero":
+                if merged_kernel_zero is None:
+                    # kernel_zero only exists for sub-channel int4 quantization
+                    continue
+                store[str(idx)] = merged_kernel_zero
+            elif name == "g_idx":
+                if not hasattr(self, "g_idx"):
+                    # g_idx only exists for sub-channel int4 quantization
+                    continue
+                store[str(idx)] = self.g_idx
             elif name == "kernel_scale" and mode in ("int4", "int8"):
                 # For int4/int8, the merged LoRA scale (if any) comes from
                 # `_get_kernel_with_merged_lora()`
@@ -323,6 +339,12 @@ class Dense(Layer):
             if name == "kernel":
                 self._kernel.assign(store[str(idx)])
             elif name == "bias" and self.bias is None:
+                continue
+            elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
+                # kernel_zero only exists for sub-channel int4 quantization
+                continue
+            elif name == "g_idx" and not hasattr(self, "g_idx"):
+                # g_idx only exists for sub-channel int4 quantization
                 continue
             else:
                 getattr(self, name).assign(store[str(idx)])
@@ -388,6 +410,8 @@ class Dense(Layer):
                 "kernel",
                 "bias",
                 "kernel_scale",
+                "kernel_zero",
+                "g_idx",
             ],
             "float8": [
                 "kernel",
@@ -630,37 +654,75 @@ class Dense(Layer):
     def _int4_build(self, kernel_shape, config=None):
         """Build variables for int4 quantization.
 
-        `kernel_shape` is the *original* float32 kernel shape
-        `(input_dim, units)`. We allocate the stored kernel with rows
-        `ceil(input_dim/2)` because two int4 values are packed into a single
-        int8 byte.
+        The kernel is packed along the last axis,
+        resulting in shape `(input_dim, ceil(units/2))`.
+
+        Args:
+            kernel_shape: The original float32 kernel shape
+                `(input_dim, units)`.
+            config: Optional quantization config specifying block_size.
         """
-        # Per-channel int8 quantizer for the last axis (features).
         self.inputs_quantizer = (
-            QuantizationConfig.activation_quantizer_or_default(
-                config, quantizers.AbsMaxQuantizer()
-            )
+            QuantizationConfig.activation_quantizer_or_default(config, None)
         )
         input_dim, output_dim = kernel_shape
-        packed_rows = (input_dim + 1) // 2  # ceil for odd dims
 
-        # Kernel is stored *packed*: each int8 byte contains two int4 values.
+        # kernel is packed along last axis (output dimension)
+        # Stored shape: [input_dim, ceil(output_dim/2)]
+        packed_cols = (output_dim + 1) // 2
+
         self._kernel = self.add_weight(
             name="kernel",
-            shape=(packed_rows, output_dim),
+            shape=(input_dim, packed_cols),
             initializer="zeros",
             dtype="int8",
             trainable=False,
         )
-        # One scale per output unit (per-channel).
+
+        block_size = get_block_size_for_layer(self, config)
+        self._int4_block_size = block_size
+
+        if block_size is None or block_size == -1:
+            # Per-channel: one scale per output unit
+            scale_shape = (self.units,)
+        else:
+            # Sub-channel: [n_groups, out_features]
+            n_groups = math.ceil(input_dim / block_size)
+            scale_shape = (n_groups, self.units)
+
         self.kernel_scale = self.add_weight(
             name="kernel_scale",
-            shape=(self.units,),
+            shape=scale_shape,
             initializer="ones",
             trainable=False,
         )
-        # Record original input_dim for unpacking at runtime.
+
+        # Sub-channel quantization uses asymmetric quantization
+        if block_size is not None and block_size > 0:
+
+            def idx_initializer(shape, dtype):
+                return ops.floor_divide(
+                    ops.arange(input_dim, dtype=dtype), block_size
+                )
+
+            self.kernel_zero = self.add_weight(
+                name="kernel_zero",
+                shape=scale_shape,
+                initializer="zeros",
+                dtype="int8",
+                trainable=False,
+            )
+            self.g_idx = self.add_weight(
+                name="g_idx",
+                shape=(input_dim,),
+                initializer=idx_initializer,
+                dtype="float32",
+                trainable=False,
+            )
+
+        # Record dimensions for unpacking and reshaping at runtime.
         self._orig_input_dim = input_dim
+        self._orig_output_dim = output_dim
 
     def _float8_build(self):
         from keras.src.dtype_policies import QuantizedFloat8DTypePolicy
@@ -755,57 +817,108 @@ class Dense(Layer):
         return x
 
     def _int4_call(self, inputs, training=None):
-        """Forward pass for int4 quantized Dense layer."""
+        """Forward pass for int4 quantized Dense layer.
 
-        @ops.custom_gradient
-        def matmul_with_inputs_gradient(inputs, kernel, kernel_scale):
-            """Custom gradient function for int4 quantized weights.
+        Uses custom gradients to handle quantized weights since autodiff
+        cannot differentiate through int4 operations.
+        """
+        block_size = getattr(self, "_int4_block_size", None)
 
-            Automatic differentiation will not know how to handle the
-            int4 quantized weights. So a custom gradient function is needed
-            to handle the int4 quantized weights.
-
-            The custom gradient function will use the dequantized kernel to
-            compute the gradient.
-            """
-
-            unpacked_kernel = quantizers.unpack_int4(
-                kernel, self._orig_input_dim
-            )
-
-            def grad_fn(*args, upstream=None):
-                if upstream is None:
-                    (upstream,) = args
-                float_kernel = ops.divide(
-                    ops.cast(unpacked_kernel, dtype=self.compute_dtype),
-                    kernel_scale,
+        if block_size is None or block_size == -1:
+            # Per-channel: symmetric quantization (no zero point needed)
+            @ops.custom_gradient
+            def matmul_per_channel_with_inputs_gradient(
+                inputs, kernel, kernel_scale
+            ):
+                """Per-channel int4 forward pass with custom gradient."""
+                # Unpack: stored as [in, ceil(out/2)], unpack along last axis
+                unpacked_kernel = quantizers.unpack_int4(
+                    kernel, self._orig_output_dim, axis=-1
                 )
-                inputs_grad = ops.matmul(upstream, ops.transpose(float_kernel))
-                return (inputs_grad, None, None)
 
-            output_scale = kernel_scale
+                def grad_fn(*args, upstream=None):
+                    if upstream is None:
+                        (upstream,) = args
+                    # Per-channel: unpacked is [in, out]
+                    float_kernel = ops.divide(
+                        ops.cast(unpacked_kernel, dtype=self.compute_dtype),
+                        kernel_scale,
+                    )
+                    inputs_grad = ops.matmul(
+                        upstream, ops.transpose(float_kernel)
+                    )
+                    return (inputs_grad, None, None)
 
-            if self.inputs_quantizer:
-                inputs, inputs_scale = self.inputs_quantizer(inputs, axis=-1)
-                output_scale = ops.multiply(output_scale, inputs_scale)
+                # Forward pass: per-channel dequantization
+                output_scale = kernel_scale
+                if self.inputs_quantizer:
+                    inputs, inputs_scale = self.inputs_quantizer(
+                        inputs, axis=-1
+                    )
+                    output_scale = ops.multiply(output_scale, inputs_scale)
 
-            x = ops.matmul(inputs, unpacked_kernel)
-            x = ops.cast(x, self.compute_dtype)
-            x = ops.divide(x, output_scale)
-            return x, grad_fn
+                x = ops.matmul(inputs, unpacked_kernel)
+                x = ops.cast(x, self.compute_dtype)
+                x = ops.divide(x, output_scale)
+                return x, grad_fn
 
-        x = matmul_with_inputs_gradient(
-            inputs,
-            ops.convert_to_tensor(self._kernel),
-            ops.convert_to_tensor(self.kernel_scale),
-        )
+            x = matmul_per_channel_with_inputs_gradient(
+                inputs,
+                ops.convert_to_tensor(self._kernel),
+                ops.convert_to_tensor(self.kernel_scale),
+            )
+        else:
+            # Sub-channel: asymmetric quantization (with zero point)
+            @ops.custom_gradient
+            def matmul_sub_channel_with_inputs_gradient(
+                inputs, kernel, kernel_scale, kernel_zero, g_idx
+            ):
+                """Sub-channel int4 forward pass with custom gradient."""
+                # Unpack: stored as [in, ceil(out/2)], unpack along last axis
+                unpacked_kernel = quantizers.unpack_int4(
+                    kernel, self._orig_output_dim, axis=-1
+                )
+
+                def grad_fn(*args, upstream=None):
+                    if upstream is None:
+                        (upstream,) = args
+                    float_kernel = dequantize_with_sz_map(
+                        unpacked_kernel,
+                        kernel_scale,
+                        kernel_zero,
+                        g_idx,
+                        group_axis=0,
+                    )
+                    float_kernel = ops.cast(float_kernel, self.compute_dtype)
+                    inputs_grad = ops.matmul(
+                        upstream, ops.transpose(float_kernel)
+                    )
+                    return (inputs_grad, None, None, None, None)
+
+                float_kernel = dequantize_with_sz_map(
+                    unpacked_kernel,
+                    kernel_scale,
+                    kernel_zero,
+                    g_idx,
+                    group_axis=0,
+                )
+                float_kernel = ops.cast(float_kernel, self.compute_dtype)
+                x = ops.matmul(inputs, float_kernel)
+                return x, grad_fn
+
+            x = matmul_sub_channel_with_inputs_gradient(
+                inputs,
+                ops.convert_to_tensor(self._kernel),
+                ops.convert_to_tensor(self.kernel_scale),
+                ops.convert_to_tensor(self.kernel_zero),
+                ops.convert_to_tensor(self.g_idx),
+            )
 
         if self.lora_enabled:
             lora_x = ops.matmul(inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
             x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
 
-        # Add bias and activation
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -925,26 +1038,49 @@ class Dense(Layer):
             self._kernel.assign(kernel_value)
             self.kernel_scale.assign(kernel_scale)
         elif mode == "int4":
-            # 1. Quantize to int4 values (still int8 dtype, range [-8,7])
-            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                self.quantization_config,
-                quantizers.AbsMaxQuantizer(
-                    axis=0, value_range=(-8, 7), output_dtype="int8"
-                ),
+            from keras.src.quantizers.quantization_config import (
+                Int4QuantizationConfig,
             )
-            kernel_value_int4, kernel_scale = weight_quantizer(
-                self._kernel, to_numpy=True
+
+            block_size = None
+            if isinstance(self.quantization_config, Int4QuantizationConfig):
+                block_size = self.quantization_config.block_size
+
+            if block_size is None or block_size == -1:
+                # Per-channel quantization
+                weight_quantizer = (
+                    QuantizationConfig.weight_quantizer_or_default(
+                        self.quantization_config,
+                        quantizers.AbsMaxQuantizer(
+                            axis=0, value_range=(-8, 7), output_dtype="int8"
+                        ),
+                    )
+                )
+                kernel_value_int4, kernel_scale = weight_quantizer(
+                    self._kernel, to_numpy=True
+                )
+                kernel_scale = ops.squeeze(kernel_scale, axis=0)
+            else:
+                # Sub-channel quantization with asymmetric zero point
+                # Returns kernel [in, out], scale [n_groups, out], zero
+                # [n_groups, out]
+                kernel_value_int4, kernel_scale, kernel_zero = (
+                    quantizers.abs_max_quantize_grouped_with_zero_point(
+                        self._kernel, block_size=block_size, to_numpy=True
+                    )
+                )
+
+            # Pack two int4 values per int8 byte along last axis
+            # Stored as [in, ceil(out/2)]
+            packed_kernel_value, _, _ = quantizers.pack_int4(
+                kernel_value_int4, axis=-1
             )
-            kernel_scale = ops.squeeze(kernel_scale, axis=0)
-            # 2. Pack two int4 values into a single int8 byte.
-            packed_kernel_value, _, _ = quantizers.pack_int4(kernel_value_int4)
             del self._kernel
-            # Build variables using the original kernel shape; _int4_build will
-            # compute the packed shape internally.
             self.quantized_build(kernel_shape, mode, self.quantization_config)
-            # Assign packed values.
             self._kernel.assign(packed_kernel_value)
             self.kernel_scale.assign(kernel_scale)
+            if block_size is not None and block_size > 0:
+                self.kernel_zero.assign(kernel_zero)
         elif mode == "gptq":
             self.quantized_build(kernel_shape, mode, self.quantization_config)
         elif mode == "awq":
@@ -959,10 +1095,14 @@ class Dense(Layer):
             from keras.src import dtype_policies  # local import to avoid cycle
 
             policy_name = mode
-            if mode == "gptq":
+            if mode in ("gptq", "awq"):
                 policy_name = self.quantization_config.dtype_policy_string()
-            elif mode == "awq":
-                policy_name = self.quantization_config.dtype_policy_string()
+            elif mode == "int4":
+                # Include block_size in policy name for sub-channel quantization
+                block_size = get_block_size_for_layer(self, config)
+                # Use -1 for per-channel, otherwise use block_size
+                block_size_value = -1 if block_size is None else block_size
+                policy_name = f"int4/{block_size_value}"
             policy = dtype_policies.get(
                 f"{policy_name}_from_{self.dtype_policy.name}"
             )
@@ -991,32 +1131,49 @@ class Dense(Layer):
         without modification.
 
         Returns:
-            A tuple `(kernel_value, kernel_scale)`:
+            A tuple `(kernel_value, kernel_scale, kernel_zero)`:
                 `kernel_value`: The merged kernel. A quantized tensor if
                     quantization is active, otherwise a high precision tensor.
                 `kernel_scale`: The quantization scale for the merged kernel.
                     This is `None` if the layer is not quantized.
+                `kernel_zero`: The zero point for sub-channel int4 quantization.
+                    This is `None` for per-channel or non-int4 modes.
         """
         if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
-            return self.kernel, None
+            return self.kernel, None, None
 
         kernel_value = self._kernel
         kernel_scale = self.kernel_scale
+        kernel_zero = getattr(self, "kernel_zero", None)
 
         if not self.lora_enabled:
-            return kernel_value, kernel_scale
+            return kernel_value, kernel_scale, kernel_zero
 
         # Dequantize, Merge, and Re-quantize
+        block_size = getattr(self, "_int4_block_size", None)
 
-        # Dequantize kernel to float
+        # Step 1: Dequantize kernel to float
         if self.quantization_mode == "int4":
+            # Unpack along last axis ([in, out])
             unpacked_kernel = quantizers.unpack_int4(
-                kernel_value, self._orig_input_dim
+                kernel_value, self._orig_output_dim, axis=-1
             )
-            float_kernel = ops.divide(
-                ops.cast(unpacked_kernel, self.compute_dtype),
-                kernel_scale,
-            )
+            if block_size is None or block_size == -1:
+                # Per-channel: kernel [in, out], scale [out]
+                float_kernel = ops.divide(
+                    ops.cast(unpacked_kernel, self.compute_dtype),
+                    kernel_scale,
+                )
+            else:
+                # Sub-channel: scale/zero are [n_groups, out]
+                float_kernel = dequantize_with_sz_map(
+                    unpacked_kernel,
+                    kernel_scale,
+                    self.kernel_zero,
+                    self.g_idx,
+                    group_axis=0,
+                )
+                float_kernel = ops.cast(float_kernel, self.compute_dtype)
             quant_range = (-8, 7)
         elif self.quantization_mode == "int8":
             float_kernel = ops.divide(
@@ -1028,25 +1185,51 @@ class Dense(Layer):
                 f"Unsupported quantization mode: {self.quantization_mode}"
             )
 
-        # Merge LoRA weights in float domain
+        # Step 2: Merge LoRA weights in float domain
         lora_delta = (self.lora_alpha / self.lora_rank) * ops.matmul(
             self.lora_kernel_a, self.lora_kernel_b
         )
         merged_float_kernel = ops.add(float_kernel, lora_delta)
 
-        # Requantize
-        requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
-            merged_float_kernel,
-            axis=0,
-            value_range=quant_range,
-            dtype="int8",
-            to_numpy=True,
-        )
-        kernel_scale = ops.squeeze(kernel_scale, axis=0)
+        # Step 3: Re-quantize the merged kernel
+        if (
+            self.quantization_mode == "int4"
+            and block_size is not None
+            and block_size != -1
+        ):
+            # Sub-channel: returns kernel [in, out], scale [n_groups, out]
+            requantized_kernel, kernel_scale, kernel_zero = (
+                quantizers.abs_max_quantize_grouped_with_zero_point(
+                    merged_float_kernel, block_size=block_size, to_numpy=True
+                )
+            )
+        elif self.quantization_mode == "int4":
+            # Per-channel: quantize along input axis (axis=0)
+            requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
+                merged_float_kernel,
+                axis=0,
+                value_range=quant_range,
+                dtype="int8",
+                to_numpy=True,
+            )
+            kernel_scale = ops.squeeze(kernel_scale, axis=0)
+            kernel_zero = None
+        else:
+            requantized_kernel, kernel_scale = quantizers.abs_max_quantize(
+                merged_float_kernel,
+                axis=0,
+                value_range=quant_range,
+                dtype="int8",
+                to_numpy=True,
+            )
+            kernel_scale = ops.squeeze(kernel_scale, axis=0)
+            kernel_zero = None
 
-        # Pack if int4
         if self.quantization_mode == "int4":
-            kernel_value, _, _ = quantizers.pack_int4(requantized_kernel)
+            # Pack along last axis
+            kernel_value, _, _ = quantizers.pack_int4(
+                requantized_kernel, axis=-1
+            )
         else:
             kernel_value = requantized_kernel
-        return kernel_value, kernel_scale
+        return kernel_value, kernel_scale, kernel_zero
