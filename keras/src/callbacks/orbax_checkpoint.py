@@ -197,19 +197,32 @@ AssetArgs = None
 
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
+    # For JAX backend, preserve native arrays for performance
+    # For other backends, convert to numpy arrays
     if backend.backend() == "jax":
-        return model.get_state_tree()
+        state_tree = model.get_state_tree()
+        did_numpy_conversion = False
+    else:
+        state_tree = model.get_state_tree(value_format="numpy_array")
+        did_numpy_conversion = True
 
-    state_tree = model.get_state_tree(value_format="numpy_array")
+    # Convert numpy scalar types to Python types for Orbax compatibility
+    # Only needed when we did numpy conversion
+    if did_numpy_conversion:
 
-    def convert_scalars(obj):
-        if isinstance(obj, (np.ndarray, np.generic)) and (
-            not isinstance(obj, np.ndarray) or obj.ndim == 0
-        ):
-            return obj.item()
-        return obj
+        def convert_scalars(obj):
+            if isinstance(obj, np.ndarray) and obj.ndim == 0:
+                # Convert 0-dimensional numpy arrays (scalars) to Python types
+                return obj.item()
+            elif isinstance(obj, np.generic):
+                # Convert numpy scalar types (like np.float32) to Python types
+                return obj.item()
+            else:
+                return obj
 
-    return tree.map_structure(convert_scalars, state_tree)
+        return tree.map_structure(convert_scalars, state_tree)
+    else:
+        return state_tree
 
 
 @keras_export("keras.callbacks.OrbaxCheckpoint")
