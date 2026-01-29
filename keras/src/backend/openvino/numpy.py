@@ -2122,7 +2122,22 @@ def nanmin(x, axis=None, keepdims=False):
 
 
 def nansum(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nansum` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if not x_type.is_integral() and x_type != Type.boolean:
+        nan_mask = ov_opset.is_nan(x)
+        zero = ov_opset.constant(0, x_type)
+        x = ov_opset.select(nan_mask, zero, x)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x.output(0))
+
+    x = _upcast_type_if_needed(x)
+    result = ov_opset.reduce_sum(x, axis, keepdims).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
