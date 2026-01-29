@@ -9,6 +9,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 @keras_export("keras.layers.TFSMLayer")
 class TFSMLayer(layers.Layer):
     """Reload a Keras model/layer that was saved via SavedModel / ExportArchive.
+
     Arguments:
         filepath: `str` or `pathlib.Path` object. The path to the SavedModel.
         call_endpoint: Name of the endpoint to use as the `call()` method
@@ -16,18 +17,23 @@ class TFSMLayer(layers.Layer):
             via `model.export()`,
             then the default endpoint name is `'serve'`. In other cases
             it may be named `'serving_default'`.
+
     Example:
+
     ```python
     model.export("path/to/artifact")
     reloaded_layer = TFSMLayer("path/to/artifact")
     outputs = reloaded_layer(inputs)
     ```
+
     The reloaded object can be used like a regular Keras layer, and supports
     training/fine-tuning of its trainable weights. Note that the reloaded
     object retains none of the internal structure or custom methods of the
     original object -- it's a brand new layer created around the saved
     function.
+
     **Limitations:**
+
     * Only call endpoints with a single `inputs` tensor argument
     (which may optionally be a dict/tuple/list of tensors) are supported.
     For endpoints with multiple separate input tensor arguments, consider
@@ -39,6 +45,7 @@ class TFSMLayer(layers.Layer):
     saved as a standalone endpoint in the artifact, and provide its name
     to the `TFSMLayer` via the `call_training_endpoint` argument.
     """
+
     def __init__(
         self,
         filepath,
@@ -53,12 +60,16 @@ class TFSMLayer(layers.Layer):
                 "The TFSMLayer is only currently supported with the "
                 "TensorFlow backend."
             )
+
         # Initialize an empty layer, then add_weight() etc. as needed.
         super().__init__(trainable=trainable, name=name, dtype=dtype)
+
         self._reloaded_obj = tf.saved_model.load(filepath)
+
         self.filepath = filepath
         self.call_endpoint = call_endpoint
         self.call_training_endpoint = call_training_endpoint
+
         # Resolve the call function.
         if hasattr(self._reloaded_obj, call_endpoint):
             # Case 1: it's set as an attribute.
@@ -76,6 +87,7 @@ class TFSMLayer(layers.Layer):
                 "this SavedModel: "
                 f"{list(self._reloaded_obj.signatures.keys())}"
             )
+
         # Resolving the training function.
         if call_training_endpoint:
             if hasattr(self._reloaded_obj, call_training_endpoint):
@@ -95,6 +107,7 @@ class TFSMLayer(layers.Layer):
                     "this SavedModel: "
                     f"{list(self._reloaded_obj.signatures.keys())}"
                 )
+
         # Add trainable and non-trainable weights from the call_endpoint_fn.
         all_fns = [self.call_endpoint_fn]
         if call_training_endpoint:
@@ -104,7 +117,9 @@ class TFSMLayer(layers.Layer):
             self._add_existing_weight(v)
         for v in ntvs:
             self._add_existing_weight(v)
+
         self._build_at_init()
+
     def _add_existing_weight(self, weight):
         """Tracks an existing weight."""
         variable = backend.Variable(
@@ -116,11 +131,13 @@ class TFSMLayer(layers.Layer):
             name=weight.name.replace("/", "_"),
         )
         self._track_variable(variable)
+
     def call(self, inputs, training=False, **kwargs):
         if training:
             if self.call_training_endpoint:
                 return self.call_training_endpoint_fn(inputs, **kwargs)
         return self.call_endpoint_fn(inputs, **kwargs)
+
     def get_config(self):
         base_config = super().get_config()
         config = {
@@ -132,7 +149,7 @@ class TFSMLayer(layers.Layer):
         return {**base_config, **config}
 
     @classmethod
-    def from_config(cls, config, custom_objects=None, safe_mode=True):
+    def from_config(cls, config, custom_objects=None, safe_mode=None):
         """Creates a TFSMLayer from its config.
         Args:
             config: A Python dictionary, typically the output of `get_config`.
