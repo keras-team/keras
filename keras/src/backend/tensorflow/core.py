@@ -625,6 +625,57 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 )
             )
 
+        def _process_recursive_result_for_level(odd_elems, elems_level, is_even_length):
+            """Same as `_process_recursive_result` but operates on an explicit
+            `elems_level` instead of closing over `elems`. This enables an
+            iterative unwind when using TF control flow (avoids Python recursion)."""
+
+            def _get_even_results():
+                return _combine(
+                    [
+                        slice_along_axis(odd_elem, 0, -1, axis=axis)
+                        for odd_elem in odd_elems
+                    ],
+                    [
+                        slice_along_axis(elem, 2, None, 2, axis=axis)
+                        for elem in elems_level
+                    ],
+                )
+
+            def _get_odd_results():
+                return _combine(
+                    [odd_elem for odd_elem in odd_elems],
+                    [
+                        slice_along_axis(elem, 2, None, 2, axis=axis)
+                        for elem in elems_level
+                    ],
+                )
+
+            if isinstance(is_even_length, bool):
+                results = (
+                    _get_even_results()
+                    if is_even_length
+                    else _get_odd_results()
+                )
+            else:
+                results = tf.cond(
+                    is_even_length, _get_even_results, _get_odd_results
+                )
+
+            even_elems = [
+                tf.concat(
+                    [slice_along_axis(elem, 0, 1, axis=axis), result], axis=axis
+                )
+                for (elem, result) in zip(elems_level, results)
+            ]
+            return list(
+                builtins.map(
+                    lambda a, b: _interleave(a, b, axis=axis),
+                    even_elems,
+                    odd_elems,
+                )
+            )
+
         # If we have a static value, use Python conditionals to avoid
         # tracing the recursive case unnecessarily
         if static_elem_length is not None:
@@ -642,32 +693,100 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 is_even = static_elem_length % 2 == 0
                 return _process_recursive_result(odd_elems, is_even)
 
-        # Fallback for symbolic lengths: use tf.cond
+        # Fallback for symbolic lengths: use TF control-flow but avoid Python
+        # recursion by implementing an iterative reduction (push levels to
+        # TensorArrays) and then unwinding iteratively.
         def _dynamic_scan_body():
-            at_base_case = tf.logical_or(
-                tf.equal(elem_length, 2), tf.equal(elem_length, 3)
-            )
+            n0 = elem_length
 
-            def _recursive_case():
-                odd_elems = _scan(reduced_elems)
-                # Use symbolic tensor for dynamic length
-                return _process_recursive_result(
-                    odd_elems, tf.equal(elem_length % 2, 0)
-                )
+            # If already at small base case, use existing base handlers.
+            at_base_case = tf.logical_or(tf.equal(n0, 2), tf.equal(n0, 3))
 
-            return tf.cond(
-                at_base_case,
-                lambda: tf.cond(
-                    tf.equal(elem_length, 2),
+            def _handle_small():
+                return tf.cond(
+                    tf.equal(n0, 2),
                     _handle_base_case_elem_length_two,
                     _handle_base_case_elem_length_three,
-                ),
-                _recursive_case,
-            )
+                )
 
-        return tf.cond(
-            tf.less(elem_length, 2), lambda: elems, _dynamic_scan_body
-        )
+            def _iterative_recursive():
+                elems_cur = elems
+                m = len(elems_cur)
+
+                # Create a TensorArray per element to store the `elems` at each
+                # reduction level so we can unwind later.
+                tas = tuple(
+                    tf.TensorArray(
+                        dtype=elems_cur[j].dtype,
+                        size=0,
+                        dynamic_size=True,
+                        element_shape=elems_cur[j].shape[1:],
+                    )
+                    for j in range(m)
+                )
+
+                i0 = tf.constant(0, dtype=tf.int32)
+
+                def _cond_reduce(elems_r, tas_r, i, _n):
+                    return tf.greater(tf.shape(elems_r[0])[axis], 3)
+
+                def _body_reduce(elems_r, tas_r, i, _n):
+                    a_r = [
+                        slice_along_axis(elem, 0, -1, step=2, axis=axis)
+                        for elem in elems_r
+                    ]
+                    b_r = [
+                        slice_along_axis(elem, 1, None, step=2, axis=axis)
+                        for elem in elems_r
+                    ]
+                    reduced = _combine(a_r, b_r)
+                    tas_r = tuple(
+                        ta.write(i, elem) for (ta, elem) in zip(tas_r, elems_r)
+                    )
+                    return reduced, tas_r, i + 1, tf.shape(reduced[0])[axis]
+
+                elems_final, tas_final, i_final, _ = tf.while_loop(
+                    _cond_reduce,
+                    _body_reduce,
+                    (elems_cur, tas, i0, tf.shape(elems_cur[0])[axis]),
+                )
+
+                # Compute the base result on the reduced (small) sequence
+                base_res = tf.cond(
+                    tf.less(tf.shape(elems_final[0])[axis], 2),
+                    lambda: elems_final,
+                    lambda: tf.cond(
+                        tf.equal(tf.shape(elems_final[0])[axis], 2),
+                        _handle_base_case_elem_length_two,
+                        _handle_base_case_elem_length_three,
+                    ),
+                )
+
+                # Unwind iteratively
+                k0 = i_final - 1
+
+                def _cond_unwind(curr_res, tas_r, k):
+                    return tf.greater_equal(k, 0)
+
+                def _body_unwind(curr_res, tas_r, k):
+                    elems_level = [ta.read(k) for ta in tas_r]
+                    n_level = tf.shape(elems_level[0])[axis]
+                    is_even = tf.equal(n_level % 2, 0)
+                    curr_res = _process_recursive_result_for_level(
+                        curr_res, elems_level, is_even
+                    )
+                    return curr_res, tas_r, k - 1
+
+                result, _, _ = tf.while_loop(
+                    _cond_unwind,
+                    _body_unwind,
+                    (base_res, tas_final, k0),
+                )
+                return result
+
+            return tf.cond(at_base_case, _handle_small, _iterative_recursive)
+
+        return tf.cond(tf.less(elem_length, 2), lambda: elems, _dynamic_scan_body)
 
     scans = _scan(elems_flat)
     if reverse:
