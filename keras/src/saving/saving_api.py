@@ -335,14 +335,12 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         if has_step_subdirs:
             # It's a root directory, find the latest checkpoint
             checkpoint_path = find_latest_orbax_checkpoint(filepath)
-            step = int(os.path.basename(checkpoint_path))
         else:
             # It's a step directory, use it directly
             checkpoint_path = filepath
-            step = int(os.path.basename(filepath))
 
         # Check for new multi-item format (with state/ subdirectory)
-        state_dir = os.path.join(filepath, str(step), "state")
+        state_dir = os.path.join(checkpoint_path, "state")
         if os.path.exists(state_dir):
             handler = orbax_cp.StandardCheckpointHandler()
             checkpointer = orbax_cp.Checkpointer(handler)
@@ -376,21 +374,30 @@ def _load_model_from_orbax_checkpoint(
     # Ensure orbax is available
     ocp.initialize()
 
-    checkpoint_path = find_latest_orbax_checkpoint(filepath)
-    step = int(os.path.basename(checkpoint_path))
+    # Determine if filepath is root directory or step directory
+    items = os.listdir(filepath)
+    has_step_subdirs = any(
+        os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
+        for item in items
+    )
+
+    if has_step_subdirs:
+        # It's a root directory, find the latest checkpoint
+        checkpoint_path = find_latest_orbax_checkpoint(filepath)
+    else:
+        # It's a step directory, use it directly
+        checkpoint_path = filepath
 
     # Load state
     handler = orbax_cp.StandardCheckpointHandler()
     checkpointer = orbax_cp.Checkpointer(handler)
     restore_args = standard_checkpoint_handler.StandardRestoreArgs()
     composite_state = checkpointer.restore(
-        os.path.join(filepath, str(step), "state"), args=restore_args
+        os.path.join(checkpoint_path, "state"), args=restore_args
     )
 
     # Load model config
-    config_file = os.path.join(
-        filepath, str(step), "assets", "model_config.json"
-    )
+    config_file = os.path.join(checkpoint_path, "assets", "model_config.json")
     if not os.path.exists(config_file):
         raise ValueError(
             "Checkpoint does not contain model configuration. "
@@ -425,7 +432,7 @@ def _load_model_from_orbax_checkpoint(
     # Restore assets
     asset_handler = KerasAssetHandler()
     asset_handler.restore(
-        os.path.join(filepath, str(step), "assets"), args=AssetArgs(model=model)
+        os.path.join(checkpoint_path, "assets"), args=AssetArgs(model=model)
     )
 
     return model

@@ -4,15 +4,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import orbax.checkpoint as orbax_cp
-from orbax.checkpoint._src.handlers.composite_checkpoint_handler import (
-    CompositeArgs,
-)
-from orbax.checkpoint._src.handlers.standard_checkpoint_handler import (
-    StandardSaveArgs,
-)
-from orbax.checkpoint.checkpoint_args import CheckpointArgs
-from orbax.checkpoint.checkpoint_args import register_with_handler
 
 from keras.src import backend
 from keras.src import tree
@@ -269,18 +260,9 @@ class KerasAssetHandler:
         pass
 
 
-@register_with_handler(KerasAssetHandler, for_save=True, for_restore=True)
-@dataclasses.dataclass
-class AssetArgs(CheckpointArgs):
-    """Arguments for asset checkpointing.
-
-    Attributes:
-        model: The Keras model to save/restore assets for.
-        save_model_config: Whether to save the model configuration.
-    """
-
-    model: Any = None
-    save_model_config: bool = True
+# Placeholder for AssetArgs - will be properly initialized
+# when OrbaxCheckpoint is instantiated
+AssetArgs = None
 
 
 def _get_state_tree(model):
@@ -382,6 +364,30 @@ class OrbaxCheckpoint(MonitorCallback):
         # Ensure orbax is available
         ocp.initialize()
 
+        # Lazy import and setup AssetArgs with CheckpointArgs base
+        import orbax.checkpoint as orbax_cp
+        from orbax.checkpoint.checkpoint_args import CheckpointArgs
+        from orbax.checkpoint.checkpoint_args import register_with_handler
+
+        # Initialize AssetArgs on first use
+        global AssetArgs
+        if AssetArgs is None:
+
+            @register_with_handler(
+                KerasAssetHandler, for_save=True, for_restore=True
+            )
+            @dataclasses.dataclass
+            class AssetArgs(CheckpointArgs):
+                """Arguments for asset checkpointing.
+
+                Attributes:
+                    model: The Keras model to save/restore assets for.
+                    save_model_config: Whether to save the model configuration.
+                """
+
+                model: Any = None
+                save_model_config: bool = True
+
         # Initialize MonitorCallback for metric monitoring
         super().__init__(monitor, mode, initial_value_threshold)
 
@@ -413,12 +419,13 @@ class OrbaxCheckpoint(MonitorCallback):
         state_handler = orbax_cp.StandardCheckpointHandler()
         asset_handler = KerasAssetHandler()
 
-        if save_on_background:
-            state_checkpointer = orbax_cp.AsyncCheckpointer(state_handler)
-            asset_checkpointer = orbax_cp.Checkpointer(asset_handler)
-        else:
-            state_checkpointer = orbax_cp.Checkpointer(state_handler)
-            asset_checkpointer = orbax_cp.Checkpointer(asset_handler)
+        asset_checkpointer = orbax_cp.Checkpointer(asset_handler)
+        checkpointer_class = (
+            orbax_cp.AsyncCheckpointer
+            if save_on_background
+            else orbax_cp.Checkpointer
+        )
+        state_checkpointer = checkpointer_class(state_handler)
 
         # Use CheckpointManager with named checkpointers dict
         options = orbax_cp.CheckpointManagerOptions(
@@ -501,6 +508,12 @@ class OrbaxCheckpoint(MonitorCallback):
 
     def _save_checkpoint(self, step, logs=None):
         """Save checkpoint with state and assets."""
+        from orbax.checkpoint._src.handlers import composite_checkpoint_handler
+        from orbax.checkpoint._src.handlers import standard_checkpoint_handler
+
+        CompositeArgs = composite_checkpoint_handler.CompositeArgs
+        StandardSaveArgs = standard_checkpoint_handler.StandardSaveArgs
+
         # Get model state tree
         state_tree = _get_state_tree(self.model)
 
