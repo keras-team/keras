@@ -1395,40 +1395,26 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             atol=1.0,
         )
 
-    def test_resize_invalid_size_zero_or_negative(self):
+    @parameterized.named_parameters(
+        ("zero_height", (0, 10)),
+        ("zero_width", (10, 0)),
+        ("zero_both", (0, 0)),
+        ("negative_height", (-1, 10)),
+        ("negative_width", (10, -1)),
+    )
+    def test_resize_invalid_size_zero_or_negative(self, invalid_size):
         """Resize rejects zero or negative height/width."""
         x = np.random.random((10, 10, 3)).astype("float32")
         with self.assertRaisesRegex(
             ValueError,
             "`size` must have positive height and width",
         ):
-            kimage.resize(x, size=(0, 10))
+            kimage.resize(x, size=invalid_size)
         with self.assertRaisesRegex(
             ValueError,
             "`size` must have positive height and width",
         ):
-            kimage.resize(x, size=(10, 0))
-        with self.assertRaisesRegex(
-            ValueError,
-            "`size` must have positive height and width",
-        ):
-            kimage.resize(x, size=(0, 0))
-        with self.assertRaisesRegex(
-            ValueError,
-            "`size` must have positive height and width",
-        ):
-            kimage.resize(x, size=(-1, 10))
-        with self.assertRaisesRegex(
-            ValueError,
-            "`size` must have positive height and width",
-        ):
-            kimage.resize(x, size=(10, -1))
-        # Resize class also rejects invalid size when used directly
-        with self.assertRaisesRegex(
-            ValueError,
-            "`size` must have positive height and width",
-        ):
-            kimage.Resize(size=(0, 10))(x)
+            kimage.Resize(size=invalid_size)(x)
 
     @parameterized.named_parameters(
         named_product(
