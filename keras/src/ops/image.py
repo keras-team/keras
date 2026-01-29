@@ -232,7 +232,20 @@ class Resize(Operation):
         name=None,
     ):
         super().__init__(name=name)
-        self.size = tuple(size)
+        size = tuple(size)
+        if len(size) != 2:
+            raise ValueError(
+                "Expected `size` to be a tuple of 2 integers. "
+                f"Received: size={size}"
+            )
+        if size[0] <= 0 or size[1] <= 0:
+            raise ValueError(
+                "`size` must have positive height and width. "
+                "Zero or negative dimensions would cause division by zero or "
+                "invalid output shape. "
+                f"Received: size={size}"
+            )
+        self.size = size
         self.interpolation = interpolation
         self.antialias = antialias
         self.crop_to_aspect_ratio = crop_to_aspect_ratio
@@ -340,6 +353,14 @@ def resize(
     if len(size) != 2:
         raise ValueError(
             "Expected `size` to be a tuple of 2 integers. "
+            f"Received: size={size}"
+        )
+    height, width = size[0], size[1]
+    if height <= 0 or width <= 0:
+        raise ValueError(
+            "`size` must have positive height and width. "
+            "Zero or negative dimensions would cause division by zero or "
+            "invalid output shape. "
             f"Received: size={size}"
         )
     if len(images.shape) < 3 or len(images.shape) > 4:
