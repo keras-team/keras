@@ -591,7 +591,8 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             f"{backend.backend()} backend doesn't support `custom_gradient`."
         ),
     )
-    def test_custom_gradient(self):
+    @parameterized.named_parameters(named_product(use_variable=(False, True)))
+    def test_custom_gradient(self, use_variable):
         # function to test custom_gradient on
         @ops.custom_gradient
         def log1pexp(x):
@@ -608,12 +609,29 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return ops.log(1 + ops.exp(x))
 
         x = ops.convert_to_tensor(100.0)
+        if use_variable:
+
+            class Log1PExpLayer(layers.Layer):
+                def __init__(self):
+                    super().__init__()
+                    self.v = backend.Variable(5.0, trainable=False)
+
+                def call(self, inputs):
+                    # The derivative of this layer is 1 with respect to inputs.
+                    # But on the side, we test passing a variable to a function
+                    # using @custom_gradient
+                    return log1pexp(self.v) + inputs
+
+            to_derive = Log1PExpLayer()
+        else:
+            to_derive = log1pexp
+
         if backend.backend() == "tensorflow":
             import tensorflow as tf
 
             with tf.GradientTape() as tape1:
                 tape1.watch(x)
-                y = log1pexp(x)
+                y = to_derive(x)
             with tf.GradientTape() as tape2:
                 tape2.watch(x)
                 z = log1pexp_nan(x)
@@ -623,7 +641,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         elif backend.backend() == "jax":
             import jax
 
-            dy_dx = jax.grad(log1pexp)(x)
+            dy_dx = jax.grad(to_derive)(x)
             dz_dx = jax.grad(log1pexp_nan)(x)
             self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
             self.assertTrue(ops.isnan(dz_dx))
@@ -631,7 +649,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             import torch
 
             x = torch.tensor(100.0, requires_grad=True)
-            z = log1pexp(x)
+            z = to_derive(x)
             z.sum().backward()
             self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
 
