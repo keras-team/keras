@@ -42,36 +42,24 @@ class KerasAssetHandler:
         return "KerasAssetHandler"
 
     def _is_primary_host(self):
-        """Check if this is the primary host in distributed training."""
+        """Check if this is the primary host in multi-host training.
+
+        Multi-host is only relevant for JAX backend with Orbax.
+        For TensorFlow and PyTorch, this always returns True since
+        multi-host checkpointing is not supported.
+        """
         if not self._primary_host_only:
             return True
+
+        # Multi-host checkpointing is only supported on JAX backend
+        if backend.backend() != "jax":
+            return True
+
         try:
-            if backend.backend() == "jax":
-                import jax
-
-                return jax.process_index() == 0
-            elif backend.backend() == "tensorflow":
-                import tensorflow as tf
-
-                try:
-                    strategy = tf.distribute.get_strategy()
-                    return (
-                        not hasattr(strategy.extended, "_in_multi_worker_mode")
-                        or not strategy.extended._in_multi_worker_mode()
-                        or strategy.extended._task_id == 0
-                    )
-                except Exception:
-                    return True
-            elif backend.backend() == "torch":
-                import torch
-
-                return (
-                    not torch.distributed.is_initialized()
-                    or torch.distributed.get_rank() == 0
-                )
+            multihost = ocp.multihost
+            return multihost.is_primary_host()
         except Exception:
-            pass
-        return True
+            return True
 
     def _collect_layers_with_assets(self, model):
         """Recursively collect all layers with assets."""
