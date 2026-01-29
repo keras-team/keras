@@ -2,6 +2,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src.api_export import keras_export
 from keras.src.export.saved_model import _list_variables_used_by_fns
+from keras.src.saving import serialization_lib
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -146,3 +147,36 @@ class TFSMLayer(layers.Layer):
             "call_training_endpoint": self.call_training_endpoint,
         }
         return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config, custom_objects=None, safe_mode=None):
+        """Creates a TFSMLayer from its config.
+        Args:
+            config: A Python dictionary, typically the output of `get_config`.
+            custom_objects: Optional dictionary mapping names to custom objects.
+            safe_mode: Boolean, whether to disallow loading TFSMLayer.
+                When `safe_mode=True`, loading is disallowed because TFSMLayer
+                loads external SavedModels that may contain attacker-controlled
+                executable graph code. Defaults to `True`.
+        Returns:
+            A TFSMLayer instance.
+        """
+        # Follow the same pattern as Lambda layer for safe_mode handling
+        effective_safe_mode = (
+            safe_mode
+            if safe_mode is not None
+            else serialization_lib.in_safe_mode()
+        )
+
+        if effective_safe_mode is not False:
+            raise ValueError(
+                "Requested the deserialization of a `TFSMLayer`, which "
+                "loads an external SavedModel. This carries a potential risk "
+                "of arbitrary code execution and thus it is disallowed by "
+                "default. If you trust the source of the artifact, you can "
+                "override this error by passing `safe_mode=False` to the "
+                "loading function, or calling "
+                "`keras.config.enable_unsafe_deserialization()."
+            )
+
+        return cls(**config)
