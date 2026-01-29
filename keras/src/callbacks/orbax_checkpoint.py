@@ -34,18 +34,11 @@ class KerasAssetHandler:
     """Custom handler for Keras model assets."""
 
     def __init__(self, primary_host_only: bool = True):
-        """Initialize the asset handler.
-
-        Args:
-            primary_host_only: If True, only save/load assets on the primary
-                host in a distributed setting.
-        """
         self._primary_host_only = primary_host_only
         self._asset_metadata = {}
 
     @classmethod
     def typestr(cls):
-        """Return the type string for this handler."""
         return "KerasAssetHandler"
 
     def _is_primary_host(self):
@@ -53,7 +46,6 @@ class KerasAssetHandler:
         if not self._primary_host_only:
             return True
         try:
-            # Check if we're in a distributed context
             if backend.backend() == "jax":
                 import jax
 
@@ -82,14 +74,7 @@ class KerasAssetHandler:
         return True
 
     def _collect_layers_with_assets(self, model):
-        """Recursively collect all layers with assets.
-
-        Args:
-            model: The Keras model to collect assets from.
-
-        Returns:
-            List of (layer_path, layer) tuples where layer has assets.
-        """
+        """Recursively collect all layers with assets."""
         from keras.src.saving.keras_saveable import KerasSaveable
         from keras.src.utils import naming
 
@@ -103,32 +88,28 @@ class KerasAssetHandler:
             used_names = {}
             for item in container:
                 if isinstance(item, KerasSaveable):
-                    # Use the layer's name if available, otherwise use
-                    # snake_case class name
-                    if hasattr(item, "name") and item.name:
-                        name = item.name
-                    else:
-                        name = naming.to_snake_case(item.__class__.__name__)
+                    name = (
+                        item.name
+                        if hasattr(item, "name") and item.name
+                        else naming.to_snake_case(item.__class__.__name__)
+                    )
                     if name in used_names:
                         used_names[name] += 1
                         name = f"{name}_{used_names[name]}"
                     else:
                         used_names[name] = 0
-                    item_path = f"{path}/{name}"
-                    collect_from_layer(item, item_path)
+                    collect_from_layer(item, f"{path}/{name}")
 
         def collect_from_layer(layer, path):
             if id(layer) in visited_saveables:
                 return
             visited_saveables.add(id(layer))
 
-            # Check if layer has assets
             if hasattr(layer, "assets") and callable(layer.assets):
                 assets_list = layer.assets()
                 if assets_list:
                     layers_with_assets.append((path, layer))
 
-            # Recursively check sublayers
             for name, sublayer in _walk_saveable(layer):
                 sublayer_path = f"{path}/{name}"
                 if isinstance(sublayer, KerasSaveable):
@@ -140,15 +121,7 @@ class KerasAssetHandler:
         return layers_with_assets
 
     def save(self, directory, args):
-        """Save model assets to the directory.
-
-        Args:
-            directory: Path to save assets to (already points to assets dir).
-            args: AssetArgs containing the model.
-
-        Returns:
-            List of future objects (empty for synchronous saves).
-        """
+        """Save model assets to the directory."""
         if not self._is_primary_host():
             return []
 
@@ -159,38 +132,31 @@ class KerasAssetHandler:
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
 
-        # Save model config only if requested (not in weights_only mode)
         if args.save_model_config:
             from keras.src.saving import saving_lib
 
             config_json, _ = saving_lib._serialize_model_as_json(model)
-            config_path = directory / "model_config.json"
-            with open(config_path, "w") as f:
-                f.write(config_json)
+            (directory / "model_config.json").write_text(config_json)
 
-        # Collect all layers with assets
         layers_with_assets = self._collect_layers_with_assets(model)
 
-        # Save each layer's assets
         for layer_path, layer in layers_with_assets:
             layer_assets_dir = directory / layer_path
             layer_assets_dir.mkdir(parents=True, exist_ok=True)
 
-            # Get and save assets
-            assets_list = layer.assets()
-            for i, asset in enumerate(assets_list):
-                asset_path = layer_assets_dir / f"asset_{i}.npy"
-                if hasattr(asset, "numpy"):
-                    # TensorFlow/JAX/PyTorch tensor
-                    asset_data = np.array(asset)
-                elif isinstance(asset, np.ndarray):
-                    asset_data = asset
-                else:
-                    asset_data = np.array(asset)
+            for i, asset in enumerate(layer.assets()):
+                asset_data = (
+                    np.array(asset)
+                    if hasattr(asset, "numpy")
+                    or not isinstance(asset, np.ndarray)
+                    else asset
+                )
+                np.save(
+                    layer_assets_dir / f"asset_{i}.npy",
+                    asset_data,
+                    allow_pickle=False,
+                )
 
-                np.save(asset_path, asset_data, allow_pickle=False)
-
-        # Store metadata
         self._asset_metadata[str(directory)] = {
             "layers_with_assets": [path for path, _ in layers_with_assets]
         }
@@ -198,65 +164,29 @@ class KerasAssetHandler:
         return []
 
     def restore(self, directory, args):
-        """Restore model assets from the directory.
-
-        Args:
-            directory: Path to restore assets from
-                (already points to assets dir).
-            args: AssetArgs containing the model.
-
-        Returns:
-            The restored model.
-        """
+        """Restore model assets from the directory."""
         model = args.model
-        if model is None:
+        if model is None or not (directory := Path(directory)).exists():
             return model
 
-        directory = Path(directory)
-
-        if not directory.exists():
-            return model
-
-        # Collect all layers with assets
         layers_with_assets = self._collect_layers_with_assets(model)
 
-        # Restore each layer's assets
         for layer_path, layer in layers_with_assets:
             layer_assets_dir = directory / layer_path
-            if not layer_assets_dir.exists():
-                continue
-
-            # Load assets
-            asset_files = sorted(layer_assets_dir.glob("asset_*.npy"))
-            if asset_files:
-                restored_assets = [np.load(f) for f in asset_files]
-                # Call the layer's asset setter if it has one
-                if hasattr(layer, "_set_assets"):
-                    layer._set_assets(restored_assets)
+            if layer_assets_dir.exists():
+                asset_files = sorted(layer_assets_dir.glob("asset_*.npy"))
+                if asset_files and hasattr(layer, "_set_assets"):
+                    layer._set_assets([np.load(f) for f in asset_files])
 
         return model
 
     def metadata(self, directory):
-        """Return metadata about the saved assets.
-
-        Args:
-            directory: Path where assets are saved.
-
-        Returns:
-            Metadata dictionary.
-        """
         return self._asset_metadata.get(str(directory), {})
 
     def finalize(self, directory):
-        """Finalize the save operation (no-op for this handler).
-
-        Args:
-            directory: Path where assets are saved.
-        """
         pass
 
     def close(self):
-        """Close the handler and release resources (no-op for this handler)."""
         pass
 
 
@@ -267,32 +197,19 @@ AssetArgs = None
 
 def _get_state_tree(model):
     """Get the complete model state as a nested tree structure."""
-    # For JAX backend, preserve native arrays for performance
-    # For other backends, convert to numpy arrays
     if backend.backend() == "jax":
-        state_tree = model.get_state_tree()
-        did_numpy_conversion = False
-    else:
-        state_tree = model.get_state_tree(value_format="numpy_array")
-        did_numpy_conversion = True
+        return model.get_state_tree()
 
-    # Convert numpy scalar types to Python types for Orbax compatibility
-    # Only needed when we did numpy conversion
-    if did_numpy_conversion:
+    state_tree = model.get_state_tree(value_format="numpy_array")
 
-        def convert_scalars(obj):
-            if isinstance(obj, np.ndarray) and obj.ndim == 0:
-                # Convert 0-dimensional numpy arrays (scalars) to Python types
-                return obj.item()
-            elif isinstance(obj, np.generic):
-                # Convert numpy scalar types (like np.float32) to Python types
-                return obj.item()
-            else:
-                return obj
+    def convert_scalars(obj):
+        if isinstance(obj, (np.ndarray, np.generic)) and (
+            not isinstance(obj, np.ndarray) or obj.ndim == 0
+        ):
+            return obj.item()
+        return obj
 
-        return tree.map_structure(convert_scalars, state_tree)
-    else:
-        return state_tree
+    return tree.map_structure(convert_scalars, state_tree)
 
 
 @keras_export("keras.callbacks.OrbaxCheckpoint")
@@ -364,20 +281,15 @@ class OrbaxCheckpoint(MonitorCallback):
         # Ensure orbax is available
         ocp.initialize()
 
-        # Lazy import and setup AssetArgs with CheckpointArgs base
-        import orbax.checkpoint as orbax_cp
-        from orbax.checkpoint.checkpoint_args import CheckpointArgs
-        from orbax.checkpoint.checkpoint_args import register_with_handler
-
         # Initialize AssetArgs on first use
         global AssetArgs
         if AssetArgs is None:
 
-            @register_with_handler(
+            @ocp.register_with_handler(
                 KerasAssetHandler, for_save=True, for_restore=True
             )
             @dataclasses.dataclass
-            class AssetArgs(CheckpointArgs):
+            class AssetArgs(ocp.CheckpointArgs):
                 """Arguments for asset checkpointing.
 
                 Attributes:
@@ -416,25 +328,23 @@ class OrbaxCheckpoint(MonitorCallback):
         self._multihost_initialized = self._is_multihost_initialized()
 
         # Create checkpoint handlers
-        state_handler = orbax_cp.StandardCheckpointHandler()
+        state_handler = ocp.StandardCheckpointHandler()
         asset_handler = KerasAssetHandler()
 
-        asset_checkpointer = orbax_cp.Checkpointer(asset_handler)
+        asset_checkpointer = ocp.Checkpointer(asset_handler)
         checkpointer_class = (
-            orbax_cp.AsyncCheckpointer
-            if save_on_background
-            else orbax_cp.Checkpointer
+            ocp.AsyncCheckpointer if save_on_background else ocp.Checkpointer
         )
         state_checkpointer = checkpointer_class(state_handler)
 
         # Use CheckpointManager with named checkpointers dict
-        options = orbax_cp.CheckpointManagerOptions(
+        options = ocp.CheckpointManagerOptions(
             max_to_keep=max_to_keep,
             create=True,
             save_interval_steps=1,
         )
 
-        self.manager = orbax_cp.CheckpointManager(
+        self.manager = ocp.CheckpointManager(
             directory,
             {"state": state_checkpointer, "assets": asset_checkpointer},
             options,
@@ -508,11 +418,9 @@ class OrbaxCheckpoint(MonitorCallback):
 
     def _save_checkpoint(self, step, logs=None):
         """Save checkpoint with state and assets."""
-        from orbax.checkpoint._src.handlers import composite_checkpoint_handler
-        from orbax.checkpoint._src.handlers import standard_checkpoint_handler
-
-        CompositeArgs = composite_checkpoint_handler.CompositeArgs
-        StandardSaveArgs = standard_checkpoint_handler.StandardSaveArgs
+        # Access checkpoint args through ocp LazyModule
+        CompositeArgs = ocp.CompositeArgs
+        StandardSaveArgs = ocp.StandardSaveArgs
 
         # Get model state tree
         state_tree = _get_state_tree(self.model)

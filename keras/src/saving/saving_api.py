@@ -318,9 +318,6 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 )
     elif is_orbax_checkpoint(filepath):
         # Load weights from Orbax checkpoint
-        import orbax.checkpoint as orbax_cp
-        from orbax.checkpoint._src.handlers import standard_checkpoint_handler
-
         from keras.src.utils.module_utils import ocp
 
         filepath = str(filepath)
@@ -342,9 +339,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         # Check for new multi-item format (with state/ subdirectory)
         state_dir = os.path.join(checkpoint_path, "state")
         if os.path.exists(state_dir):
-            handler = orbax_cp.StandardCheckpointHandler()
-            checkpointer = orbax_cp.Checkpointer(handler)
-            restore_args = standard_checkpoint_handler.StandardRestoreArgs()
+            handler = ocp.StandardCheckpointHandler()
+            checkpointer = ocp.Checkpointer(handler)
+            restore_args = ocp.StandardRestoreArgs()
             loaded_state = checkpointer.restore(state_dir, args=restore_args)
         else:
             # Fallback to legacy format
@@ -364,9 +361,6 @@ def _load_model_from_orbax_checkpoint(
     filepath, custom_objects=None, compile=True, safe_mode=True
 ):
     """Load a model from an Orbax checkpoint directory."""
-    import orbax.checkpoint as orbax_cp
-    from orbax.checkpoint._src.handlers import standard_checkpoint_handler
-
     from keras.src.callbacks.orbax_checkpoint import AssetArgs
     from keras.src.callbacks.orbax_checkpoint import KerasAssetHandler
     from keras.src.utils.module_utils import ocp
@@ -389,9 +383,9 @@ def _load_model_from_orbax_checkpoint(
         checkpoint_path = filepath
 
     # Load state
-    handler = orbax_cp.StandardCheckpointHandler()
-    checkpointer = orbax_cp.Checkpointer(handler)
-    restore_args = standard_checkpoint_handler.StandardRestoreArgs()
+    handler = ocp.StandardCheckpointHandler()
+    checkpointer = ocp.Checkpointer(handler)
+    restore_args = ocp.StandardRestoreArgs()
     composite_state = checkpointer.restore(
         os.path.join(checkpoint_path, "state"), args=restore_args
     )
