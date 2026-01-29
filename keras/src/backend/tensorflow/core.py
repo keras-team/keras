@@ -67,7 +67,42 @@ class Variable(
             self._initializer = None
 
     def _direct_assign(self, value):
-        self._value.assign(tf.cast(value, self._value.dtype))
+        # Support functional updates for immutable variables by returning a new
+        # `tf.Variable` instead of mutating the underlying TF variable.
+        dtype = (
+            self._dtype
+            if getattr(self, "_value", None) is None
+            else self._value.dtype
+        )
+        casted = tf.cast(value, dtype)
+        if getattr(self, "_immutable", False):
+            return tf.Variable(
+                casted,
+                dtype=self._dtype,
+                trainable=self.trainable,
+                name=self.name + "_functional_copy",
+                aggregation=self._map_aggregation(self.aggregation),
+                synchronization=self._map_synchronization(self.synchronization),
+            )
+        self._value.assign(casted)
+        return None
+
+    def set_immutable(self, immutable=True):
+        """Mark this variable as immutable (read-only).
+
+        If a variable is immutable, backend attempts to perform a functional
+        update (returning a new tf.Variable) instead of mutating in-place.
+        """
+        self._immutable = bool(immutable)
+
+    @property
+    def immutable(self):
+        """Whether this variable is marked immutable.
+
+        Returns:
+            bool: True if the variable is immutable.
+        """
+        return getattr(self, "_immutable", False)
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
@@ -98,7 +133,12 @@ class Variable(
         try:
             return self.value._restore_from_tensors(restored_tensors)
         except NotImplementedError:
-            self.assign(restored_tensors["VARIABLE_VALUE"])
+            result = self.assign(restored_tensors["VARIABLE_VALUE"])
+            # If assign performed a functional update and returned a new
+            # Variable, propagate it; otherwise return the current
+            # underlying value.
+            if isinstance(result, tf.Variable):
+                return result
             return self.value
 
     def _copy_trackable_to_cpu(self, object_map):

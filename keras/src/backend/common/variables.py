@@ -289,8 +289,14 @@ class Variable:
         if in_stateless_scope():
             scope = get_stateless_scope()
             scope.add_update((self, value))
+            return value
         else:
-            self._direct_assign(value)
+            result = self._direct_assign(value)
+            # If the backend returned a new Variable instance
+            # (functional update, propagate it to the caller.
+            # Otherwise return the assigned value.
+            if isinstance(result, tf.Variable):
+                return result
         return value
 
     def assign_add(self, value):
