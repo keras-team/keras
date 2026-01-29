@@ -4,16 +4,21 @@ from keras import layers
 from keras.benchmarks.layer_benchmark.layer_benchmark import LayerBenchmark
 
 
-class RandomRotationBenchmark(LayerBenchmark):
-    def __init__(self):
-        super().__init__(
-            layer=layers.RandomRotation(0.1),
-            input_shape=(256, 224, 224, 3),
-            num_batches=100,
-        )
+def benchmark_random_rotation():
+    benchmark = LayerBenchmark(
+        layer=layers.RandomRotation(0.1),
+        input_shape=(256, 224, 224, 3),
+        num_batches=100,
+    )
 
-    def make_dataset(self):
-        images = tf.random.uniform(self.input_shape, dtype=tf.float32)
-        ds = tf.data.Dataset.from_tensor_slices(images)
-        ds = ds.batch(32)
-        return ds
+    # For preprocessing layers, predict is effectively a no-op,
+    # but we still call it to follow the standard benchmark structure.
+    benchmark.benchmark_predict()
+    benchmark.benchmark_train()
+
+
+BENCHMARK_NAMES = ("random_rotation",)
+
+
+if __name__ == "__main__":
+    benchmark_random_rotation()
