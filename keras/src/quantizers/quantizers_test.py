@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -604,6 +606,217 @@ class QuantizersTest(testing.TestCase):
         )
         self.assertDType(outputs, "float16")
         self.assertAllClose(outputs, expected)
+
+    @parameterized.named_parameters(
+        ("block_32", 32),
+        ("block_64", 64),
+        ("block_128", 128),
+    )
+    def test_grouped_quantize_dequantize_roundtrip(self, block_size):
+        """Test that grouped quantize/dequantize has low error."""
+        input_dim, output_dim = 256, 128
+        kernel = random.uniform(
+            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
+        )
+
+        quantized, scale, zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel,
+                block_size=block_size,
+                value_range=(-8, 7),
+                dtype="int8",
+            )
+        )
+
+        # Use dequantize_with_sz_map with generated g_idx
+        g_idx = ops.arange(input_dim) // block_size
+        dequantized = ops.transpose(
+            quantizers.dequantize_with_sz_map(
+                ops.transpose(ops.cast(quantized, scale.dtype)),
+                ops.transpose(scale),
+                ops.transpose(zero),
+                g_idx,
+            )
+        )
+
+        rmse = ops.sqrt(ops.mean(ops.square(kernel - dequantized)))
+        # Grouped quantization should have reasonable error
+        self.assertLess(rmse, 0.15)
+
+    def test_grouped_quantize_with_padding(self):
+        """Test grouped quantization when input_dim is not divisible."""
+
+        # 500 is not divisible by 128, so padding will be needed
+        input_dim, output_dim, block_size = 500, 256, 128
+        kernel = random.uniform(
+            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
+        )
+
+        quantized, scale, zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel,
+                block_size=block_size,
+                value_range=(-8, 7),
+                dtype="int8",
+            )
+        )
+
+        n_groups = math.ceil(input_dim / block_size)  # 4 groups
+        self.assertEqual(quantized.shape, (input_dim, output_dim))
+        self.assertEqual(scale.shape, (n_groups, output_dim))
+        self.assertEqual(zero.shape, (n_groups, output_dim))
+
+    def test_grouped_vs_perchannel_accuracy(self):
+        """Test that grouped quantization has lower error than per-channel."""
+        input_dim, output_dim, block_size = 512, 256, 128
+        # Use a specific seed for reproducibility
+        kernel = random.uniform(
+            (input_dim, output_dim),
+            minval=-1,
+            maxval=1,
+            dtype="float32",
+            seed=42,
+        )
+
+        # Per-channel quantization (one scale per output channel)
+        quantizer = quantizers.AbsMaxQuantizer(
+            axis=0, value_range=(-8, 7), output_dtype="int8"
+        )
+        pc_quantized, pc_scale = quantizer(kernel)
+        pc_dequantized = ops.cast(pc_quantized, "float32") / pc_scale
+        pc_rmse = ops.sqrt(ops.mean(ops.square(kernel - pc_dequantized)))
+
+        # Grouped (sub-channel) quantization with zero point
+        grouped_quantized, grouped_scale, grouped_zero = (
+            quantizers.abs_max_quantize_grouped_with_zero_point(
+                kernel, block_size=block_size, value_range=(-8, 7), dtype="int8"
+            )
+        )
+
+        # Use dequantize_with_sz_map with generated g_idx
+        g_idx = ops.arange(input_dim) // block_size
+        grouped_dequantized = ops.transpose(
+            quantizers.dequantize_with_sz_map(
+                ops.transpose(ops.cast(grouped_quantized, grouped_scale.dtype)),
+                ops.transpose(grouped_scale),
+                ops.transpose(grouped_zero),
+                g_idx,
+            )
+        )
+
+        grouped_rmse = ops.sqrt(
+            ops.mean(ops.square(kernel - grouped_dequantized))
+        )
+
+        # Grouped should have lower or similar error
+        # (in most cases it should be lower due to finer granularity)
+        self.assertLessEqual(float(grouped_rmse), float(pc_rmse) + 0.01)
+
+    def test_grouped_quantize_various_block_sizes(self):
+        """Test grouped quantization with various block sizes."""
+
+        input_dim, output_dim = 512, 128
+        kernel = random.uniform(
+            (input_dim, output_dim), minval=-1, maxval=1, dtype="float32"
+        )
+
+        for block_size in [32, 64, 128, 256]:
+            quantized, scale, zero = (
+                quantizers.abs_max_quantize_grouped_with_zero_point(
+                    kernel,
+                    block_size=block_size,
+                    value_range=(-8, 7),
+                    dtype="int8",
+                )
+            )
+
+            n_groups = math.ceil(input_dim / block_size)
+            self.assertEqual(quantized.shape, (input_dim, output_dim))
+            self.assertEqual(scale.shape, (n_groups, output_dim))
+            self.assertEqual(zero.shape, (n_groups, output_dim))
+
+
+class Int4QuantizationConfigTest(testing.TestCase):
+    def test_default_block_size(self):
+        """Test that default block_size is 128."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        config = Int4QuantizationConfig()
+        self.assertEqual(config.block_size, 128)
+        self.assertEqual(config.mode, "int4")
+
+    @parameterized.named_parameters(
+        ("block_32", 32),
+        ("block_64", 64),
+        ("block_128", 128),
+        ("block_256", 256),
+    )
+    def test_custom_block_size(self, block_size):
+        """Test setting custom block_size values."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        self.assertEqual(config.block_size, block_size)
+
+    def test_per_channel_mode_with_none(self):
+        """Test per-channel mode with block_size=None."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        config = Int4QuantizationConfig(block_size=None)
+        self.assertIsNone(config.block_size)
+
+    def test_per_channel_mode_with_negative_one(self):
+        """Test per-channel mode with block_size=-1."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        config = Int4QuantizationConfig(block_size=-1)
+        self.assertEqual(config.block_size, -1)
+
+    def test_invalid_block_size_raises(self):
+        """Test that invalid block_size values raise ValueError."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        with self.assertRaisesRegex(ValueError, "block_size must be"):
+            Int4QuantizationConfig(block_size=0)
+
+        with self.assertRaisesRegex(ValueError, "block_size must be"):
+            Int4QuantizationConfig(block_size=-2)
+
+    def test_get_config_includes_block_size(self):
+        """Test that get_config includes block_size."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        config = Int4QuantizationConfig(block_size=64)
+        serialized = config.get_config()
+        self.assertEqual(serialized["block_size"], 64)
+
+    def test_from_config_restores_block_size(self):
+        """Test that from_config restores block_size."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        original = Int4QuantizationConfig(block_size=64)
+        serialized = original.get_config()
+        restored = Int4QuantizationConfig.from_config(serialized)
+        self.assertEqual(restored.block_size, 64)
+
+    def test_serialization_roundtrip(self):
+        """Test full serialization roundtrip."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        config = Int4QuantizationConfig(block_size=128)
+        serialized = quantizers.serialize(config)
+        deserialized = quantizers.deserialize(serialized)
+        self.assertEqual(deserialized.block_size, 128)
+        self.assertEqual(deserialized.mode, "int4")
+
+    def test_serialization_with_per_channel(self):
+        """Test serialization with per-channel mode."""
+        from keras.src.quantizers import Int4QuantizationConfig
+
+        config = Int4QuantizationConfig(block_size=None)
+        serialized = quantizers.serialize(config)
+        deserialized = quantizers.deserialize(serialized)
+        self.assertIsNone(deserialized.block_size)
 
 
 class GPTQQuantizerTest(testing.TestCase):
