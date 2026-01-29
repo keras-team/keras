@@ -2125,6 +2125,47 @@ def moveaxis(x, source, destination):
     return tf.transpose(x, perm)
 
 
+def nanmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not x.dtype.is_floating:
+        dtype = standardize_dtype(x.dtype)
+        if dtype == "bool":
+            return tf.reduce_any(x, axis=axis, keepdims=keepdims)
+        return tf.reduce_max(x, axis=axis, keepdims=keepdims)
+
+    x_clean = tf.where(
+        tf.math.is_nan(x), tf.constant(float("-inf"), dtype=x.dtype), x
+    )
+
+    return tf.where(
+        tf.reduce_all(tf.math.is_nan(x), axis=axis, keepdims=keepdims),
+        tf.constant(float("nan"), dtype=x.dtype),
+        tf.reduce_max(x_clean, axis=axis, keepdims=keepdims),
+    )
+
+
+def nanmean(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return x
+
+    if not x.dtype.is_floating:
+        return tf.reduce_mean(
+            tf.cast(x, "float32"), axis=axis, keepdims=keepdims
+        )
+
+    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    total_sum = cast(nansum(x, axis=axis, keepdims=keepdims), dtype)
+    normalizer = tf.reduce_sum(
+        cast(~tf.math.is_nan(x), dtype),
+        axis=axis,
+        keepdims=keepdims,
+    )
+    return tf.divide(total_sum, normalizer)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 

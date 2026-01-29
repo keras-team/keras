@@ -1,4 +1,5 @@
 import copy
+import math
 
 from keras.src import dtype_policies
 from keras.src import layers
@@ -8,6 +9,8 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import set_keras_mask
 from keras.src.quantizers.quantization_config import QuantizationConfig
+from keras.src.quantizers.quantization_config import get_block_size_for_layer
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 
 
 @keras_export("keras.layers.ReversibleEmbedding")
@@ -125,7 +128,7 @@ class ReversibleEmbedding(layers.Embedding):
             return result
         else:
             if self.tie_weights:
-                kernel = ops.transpose(ops.convert_to_tensor(self.embeddings))
+                kernel = ops.transpose(self.embeddings)
             else:
                 kernel = self.reverse_embeddings
             if self.reverse_dtype is not None:
@@ -180,6 +183,9 @@ class ReversibleEmbedding(layers.Embedding):
                 variable_spec.append("reverse_embeddings")
                 if mode in ("int4", "int8"):
                     variable_spec.append("reverse_embeddings_scale")
+                if mode == "int4":
+                    # reverse_embeddings_zero only exists for sub-channel
+                    variable_spec.append("reverse_embeddings_zero")
         return _spec
 
     def quantized_build(self, embeddings_shape, mode, config=None):
@@ -235,12 +241,33 @@ class ReversibleEmbedding(layers.Embedding):
                 dtype="int8",
                 trainable=False,
             )
+
+            # Determine block_size from config or dtype_policy
+            block_size = get_block_size_for_layer(self, config)
+
+            if block_size is None or block_size == -1:
+                # Per-channel: one scale per output unit (input_dim)
+                reverse_scale_shape = (self.input_dim,)
+            else:
+                # Grouped: scale per group along output_dim (axis=0)
+                n_groups = math.ceil(self.output_dim / block_size)
+                reverse_scale_shape = (n_groups, self.input_dim)
+
             self.reverse_embeddings_scale = self.add_weight(
                 name="reverse_embeddings_scale",
-                shape=(self.input_dim,),
+                shape=reverse_scale_shape,
                 initializer="ones",
                 trainable=False,
             )
+
+            # Zero point for asymmetric grouped quantization
+            if block_size is not None and block_size != -1:
+                self.reverse_embeddings_zero = self.add_weight(
+                    name="reverse_embeddings_zero",
+                    shape=reverse_scale_shape,
+                    initializer="zeros",
+                    trainable=False,
+                )
 
     def _int8_call(self, inputs, reverse=False):
         if not reverse:
@@ -272,23 +299,79 @@ class ReversibleEmbedding(layers.Embedding):
         if not reverse:
             return super()._int4_call(inputs)
         else:
+            block_size = getattr(self, "_int4_block_size", None)
+
             if self.tie_weights:
                 embeddings = ops.transpose(self._embeddings)
-                scale = ops.transpose(self.embeddings_scale)
+                scale = self.embeddings_scale
+                # For tied weights, scale shape is (input_dim,) or
+                # (input_dim, n_groups). For per-channel, transpose scale.
+                if block_size is None or block_size == -1:
+                    scale = ops.transpose(scale)
             else:
                 embeddings = self.reverse_embeddings
                 scale = self.reverse_embeddings_scale
+
             unpacked_embeddings = quantizers.unpack_int4(
                 embeddings, self.output_dim, axis=0
             )
+
             if self.inputs_quantizer:
                 inputs, inputs_scale = self.inputs_quantizer(inputs)
             else:
                 inputs_scale = ops.ones((1,), dtype=self.compute_dtype)
-            logits = ops.matmul(inputs, unpacked_embeddings)
-            # De-scale outputs
-            logits = ops.cast(logits, self.compute_dtype)
-            logits = ops.divide(logits, ops.multiply(inputs_scale, scale))
+
+            if block_size is None or block_size == -1:
+                # Per-channel: do matmul then dequantize
+                logits = ops.matmul(inputs, unpacked_embeddings)
+                logits = ops.cast(logits, self.compute_dtype)
+                logits = ops.divide(logits, ops.multiply(inputs_scale, scale))
+            elif self.tie_weights:
+                # Sub-channel with asymmetric quantization (tied weights)
+                # Must dequantize embeddings before matmul for correctness
+                # unpacked_embeddings shape: (output_dim, input_dim)
+                # scale shape: (input_dim, n_groups)
+                # embeddings_zero shape: (input_dim, n_groups)
+                # g_idx shape: (output_dim,)
+
+                # Transpose scale/zero for dequantization:
+                # [input_dim, n_groups] -> [n_groups, input_dim]
+                scale_t = ops.transpose(scale)
+                zero_t = ops.transpose(self.embeddings_zero)
+
+                float_embeddings = dequantize_with_sz_map(
+                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                    scale_t,
+                    zero_t,
+                    self.g_idx,
+                    group_axis=0,
+                )
+
+                # inputs shape: (batch, output_dim)
+                # float_embeddings shape: (output_dim, input_dim)
+                logits = ops.matmul(inputs, float_embeddings)
+                logits = ops.divide(logits, inputs_scale)
+            else:
+                # Untied weights with asymmetric grouped quantization
+                # Must dequantize embeddings before matmul for correctness
+                # unpacked_embeddings shape: (output_dim, input_dim)
+                # scale shape: (n_groups, input_dim)
+                # reverse_embeddings_zero shape: (n_groups, input_dim)
+                # g_idx shape: (output_dim,) - reuse from forward pass
+
+                float_embeddings = dequantize_with_sz_map(
+                    ops.cast(unpacked_embeddings, self.compute_dtype),
+                    scale,
+                    self.reverse_embeddings_zero,
+                    self.g_idx,
+                    group_axis=0,
+                )
+
+                # inputs shape: (batch, output_dim)
+                # float_embeddings shape: (output_dim, input_dim)
+                logits = ops.matmul(inputs, float_embeddings)
+                logits = ops.divide(logits, inputs_scale)
+
             # Optionally soft-cap logits.
             if self.logit_soft_cap is not None:
                 soft_cap = self.logit_soft_cap
@@ -340,60 +423,119 @@ class ReversibleEmbedding(layers.Embedding):
                 self.reverse_embeddings.assign(reverse_embeddings_value)
                 self.reverse_embeddings_scale.assign(reverse_embeddings_scale)
         elif mode == "int4":
-            # Quantize to int4 values (stored in int8 dtype, range [-8, 7]).
-            weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
-                self.quantization_config,
-                quantizers.AbsMaxQuantizer(
-                    axis=-1,
-                    value_range=(-8, 7),
-                    output_dtype="int8",
-                ),
+            from keras.src.quantizers.quantization_config import (
+                Int4QuantizationConfig,
             )
-            embeddings_value, embeddings_scale = weight_quantizer(
-                self._embeddings, to_numpy=True
-            )
-            embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
-            # 2. Pack two int4 values into a single int8 byte.
-            packed_embeddings_value, _, _ = quantizers.pack_int4(
-                embeddings_value, axis=-1
-            )
-            del self._embeddings
-            if not self.tie_weights:
-                reverse_weight_quantizer = (
+
+            block_size = None
+            if isinstance(self.quantization_config, Int4QuantizationConfig):
+                block_size = self.quantization_config.block_size
+
+            use_grouped = block_size is not None and block_size != -1
+
+            # Quantize forward embeddings
+            if not use_grouped:
+                # Per-channel quantization
+                weight_quantizer = (
                     QuantizationConfig.weight_quantizer_or_default(
                         self.quantization_config,
                         quantizers.AbsMaxQuantizer(
-                            axis=0,
+                            axis=-1,
                             value_range=(-8, 7),
                             output_dtype="int8",
                         ),
                     )
                 )
-                reverse_embeddings_value, reverse_embeddings_scale = (
-                    reverse_weight_quantizer(
-                        self.reverse_embeddings, to_numpy=True
+                embeddings_value, embeddings_scale = weight_quantizer(
+                    self._embeddings, to_numpy=True
+                )
+                embeddings_scale = ops.squeeze(embeddings_scale, axis=-1)
+            else:
+                # Sub-channel quantization with asymmetric zero point
+                embeddings_t = ops.transpose(self._embeddings)
+                embeddings_value_t, scale_t, zero_t = (
+                    quantizers.abs_max_quantize_grouped_with_zero_point(
+                        embeddings_t,
+                        block_size=block_size,
+                        value_range=(-8, 7),
+                        dtype="int8",
+                        to_numpy=True,
                     )
                 )
-                reverse_embeddings_scale = ops.squeeze(
-                    reverse_embeddings_scale, axis=0
-                )
-                # Pack two int4 values into a single int8 byte.
+                # Transpose back to (input_dim, output_dim) layout
+                embeddings_value = ops.transpose(embeddings_value_t)
+                embeddings_scale = ops.transpose(scale_t)
+                embeddings_zero = ops.transpose(zero_t)
+
+            packed_embeddings_value, _, _ = quantizers.pack_int4(
+                embeddings_value, axis=-1
+            )
+            del self._embeddings
+
+            # Quantize reverse embeddings if not tied
+            if not self.tie_weights:
+                if not use_grouped:
+                    reverse_weight_quantizer = (
+                        QuantizationConfig.weight_quantizer_or_default(
+                            self.quantization_config,
+                            quantizers.AbsMaxQuantizer(
+                                axis=0,
+                                value_range=(-8, 7),
+                                output_dtype="int8",
+                            ),
+                        )
+                    )
+                    reverse_embeddings_value, reverse_embeddings_scale = (
+                        reverse_weight_quantizer(
+                            self.reverse_embeddings, to_numpy=True
+                        )
+                    )
+                    reverse_embeddings_scale = ops.squeeze(
+                        reverse_embeddings_scale, axis=0
+                    )
+                else:
+                    reverse_value, reverse_scale, reverse_zero = (
+                        quantizers.abs_max_quantize_grouped_with_zero_point(
+                            self.reverse_embeddings,
+                            block_size=block_size,
+                            value_range=(-8, 7),
+                            dtype="int8",
+                            to_numpy=True,
+                        )
+                    )
+                    reverse_embeddings_value = reverse_value
+                    reverse_embeddings_scale = reverse_scale
+                    reverse_embeddings_zero = reverse_zero
+
                 packed_reverse_embeddings_value, _, _ = quantizers.pack_int4(
                     reverse_embeddings_value, axis=0
                 )
                 del self.reverse_embeddings
+
             self.quantized_build(
                 embeddings_shape, mode, self.quantization_config
             )
             self._embeddings.assign(packed_embeddings_value)
             self.embeddings_scale.assign(embeddings_scale)
+            if use_grouped:
+                self.embeddings_zero.assign(embeddings_zero)
             if not self.tie_weights:
                 self.reverse_embeddings.assign(packed_reverse_embeddings_value)
                 self.reverse_embeddings_scale.assign(reverse_embeddings_scale)
+                if use_grouped:
+                    self.reverse_embeddings_zero.assign(reverse_embeddings_zero)
         else:
             raise self._quantization_mode_error(mode)
 
         # Set new dtype policy.
         if self.dtype_policy.quantization_mode is None:
-            policy = dtype_policies.get(f"{mode}_from_{self.dtype_policy.name}")
+            policy_name = mode
+            if mode == "int4":
+                # Include block_size in policy name for sub-channel quantization
+                block_size = get_block_size_for_layer(self, config)
+                block_size_value = -1 if block_size is None else block_size
+                policy_name = f"int4/{block_size_value}"
+            policy = dtype_policies.get(
+                f"{policy_name}_from_{self.dtype_policy.name}"
+            )
             self.dtype_policy = policy

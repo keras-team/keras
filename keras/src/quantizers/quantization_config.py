@@ -99,14 +99,46 @@ class Int4QuantizationConfig(QuantizationConfig):
         weight_quantizer: Quantizer for weights.
         activation_quantizer: Quantizer for activations. If "default", uses
             AbsMaxQuantizer with axis=-1.
+        block_size: Size of groups along the input dimension for sub-channel
+            quantization. If a positive integer, uses sub-channel quantization
+            with `ceil(input_dim / block_size)` groups. If `None` or `-1`,
+            uses per-channel quantization (one scale per output channel).
+            Default: `128` (sub-channel with 128-element groups).
     """
 
-    def __init__(self, weight_quantizer=None, activation_quantizer="default"):
-        from keras.src.quantizers.quantizers import AbsMaxQuantizer
-
+    def __init__(
+        self,
+        weight_quantizer=None,
+        activation_quantizer="default",
+        block_size=128,
+    ):
         if activation_quantizer == "default":
-            activation_quantizer = AbsMaxQuantizer()
+            # Use weight-only quantization by default for int4
+            activation_quantizer = None
         super().__init__(weight_quantizer, activation_quantizer)
+
+        # Validate block_size
+        if block_size is not None and block_size != -1 and block_size <= 0:
+            raise ValueError(
+                f"block_size must be None, -1, or a positive integer. "
+                f"Received: block_size={block_size}"
+            )
+        self.block_size = block_size
+
+        # Sub-channel quantization does not support custom quantizers
+        is_sub_channel = block_size is not None and block_size > 0
+        has_custom_quantizer = (
+            self.weight_quantizer is not None
+            or self.activation_quantizer is not None
+        )
+        if is_sub_channel and has_custom_quantizer:
+            raise ValueError(
+                "Int4 sub-channel quantization (block_size > 0) does not "
+                "support custom quantizers. Either set block_size to None "
+                "or -1 for per-channel quantization, or remove the custom "
+                f"quantizer arguments. Received: block_size={block_size}"
+            )
+
         if self.weight_quantizer is not None:
             if self.weight_quantizer.value_range != (-8, 7):
                 raise ValueError(
@@ -125,6 +157,28 @@ class Int4QuantizationConfig(QuantizationConfig):
     @property
     def mode(self):
         return "int4"
+
+    def get_config(self):
+        config = super().get_config()
+        config["block_size"] = self.block_size
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        weight_quantizer = serialization_lib.deserialize_keras_object(
+            config.get("weight_quantizer")
+        )
+        activation_quantizer = serialization_lib.deserialize_keras_object(
+            config.get("activation_quantizer")
+        )
+        # Default to None for backwards compatibility with models saved
+        # before block_size was introduced (those used per-channel mode)
+        block_size = config.get("block_size", None)
+        return cls(
+            weight_quantizer=weight_quantizer,
+            activation_quantizer=activation_quantizer,
+            block_size=block_size,
+        )
 
 
 @keras_export("keras.quantizers.Float8QuantizationConfig")
@@ -244,3 +298,43 @@ def _validate_mode(mode):
             "Invalid quantization mode. "
             f"Expected one of {QUANTIZATION_MODES}. Received: mode={mode}"
         )
+
+
+def get_block_size_for_layer(layer, config):
+    """Determine the block size for int4 quantization.
+
+    The block size can be specified either through the `config` argument
+    or through the `dtype_policy` if it is of type `Int4DTypePolicy`.
+
+    The config argument is usually available when quantizing the layer
+    via the `quantize` method. If the layer was deserialized from a
+    saved model, the block size should be specified in the `dtype_policy`.
+
+    Args:
+        layer: The layer being quantized.
+        config: An optional configuration object that may contain the
+            `block_size` attribute.
+    Returns:
+        int or None. The determined block size for int4 quantization.
+        Returns `None` or `-1` for per-channel quantization.
+    """
+    from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
+    from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
+
+    if config and isinstance(config, Int4QuantizationConfig):
+        return config.block_size
+    elif isinstance(layer.dtype_policy, Int4DTypePolicy):
+        block_size = layer.dtype_policy.block_size
+        # Convert -1 to None for consistency
+        return None if block_size == -1 else block_size
+    elif isinstance(layer.dtype_policy, DTypePolicyMap):
+        policy = layer.dtype_policy[layer.path]
+        if isinstance(policy, Int4DTypePolicy):
+            block_size = policy.block_size
+            return None if block_size == -1 else block_size
+        # Fall back to None for legacy QuantizedDTypePolicy
+        return None
+    else:
+        # For backwards compatibility with models that don't have
+        # Int4DTypePolicy (legacy per-channel mode)
+        return None

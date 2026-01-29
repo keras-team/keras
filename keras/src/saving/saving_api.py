@@ -121,10 +121,11 @@ def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
 
 @keras_export(["keras.saving.load_model", "keras.models.load_model"])
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
-    """Loads a model saved via `model.save()`.
+    """Loads a model saved via `model.save()` or from an Orbax checkpoint.
 
     Args:
-        filepath: `str` or `pathlib.Path` object, path to the saved model file.
+        filepath: `str` or `pathlib.Path` object, path to the saved model file
+            or Orbax checkpoint directory.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -195,6 +196,16 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             compile=compile,
             safe_mode=safe_mode,
         )
+
+    # Check for Orbax checkpoint directory using utility function
+    if is_orbax_checkpoint(filepath):
+        return _load_model_from_orbax_checkpoint(
+            filepath,
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
+        )
+
     elif str(filepath).endswith(".keras"):
         raise ValueError(
             f"File not found: filepath={filepath}. "
@@ -337,3 +348,56 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             "`.weights.h5` files, legacy H5 format files "
             "(`.h5` extension), or Orbax checkpoints."
         )
+
+
+def _load_model_from_orbax_checkpoint(
+    filepath, custom_objects=None, compile=True, safe_mode=True
+):
+    """Load a model from an Orbax checkpoint directory."""
+
+    from keras.src.utils.module_utils import ocp
+
+    # Ensure orbax is available
+    ocp.initialize()
+
+    # Find the latest checkpoint step using the utility function
+    checkpoint_path = find_latest_orbax_checkpoint(filepath)
+    step = int(os.path.basename(checkpoint_path))
+
+    # Load the composite state efficiently
+    checkpointer = ocp.training.Checkpointer(directory=filepath)
+    with ocp.Context():
+        composite_state = checkpointer.load_pytree(step)
+
+    # Validate and extract model config
+    if "model_config" not in composite_state:
+        raise ValueError(
+            "Checkpoint does not contain model configuration. "
+            "This checkpoint may have been saved with save_weights_only=True."
+        )
+
+    # Create and build model from config using saving_lib helper
+    # This properly handles shared objects and compile_config
+    model = saving_lib._model_from_config(
+        composite_state["model_config"],
+        custom_objects=custom_objects,
+        compile=compile,
+        safe_mode=safe_mode,
+    )
+
+    # Prepare state tree with only variable keys for set_state_tree
+    variable_keys = [
+        "trainable_variables",
+        "non_trainable_variables",
+        "optimizer_variables",
+        "metrics_variables",
+    ]
+    state_tree = {
+        key: composite_state[key]
+        for key in variable_keys
+        if key in composite_state
+    }
+
+    # Apply the loaded state to the model
+    model.set_state_tree(state_tree)
+    return model

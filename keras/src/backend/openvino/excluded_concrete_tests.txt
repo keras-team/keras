@@ -15,6 +15,8 @@ NumpyDtypeTest::test_exp2
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
+NumpyDtypeTest::test_nanmax
+NumpyDtypeTest::test_nanmean
 NumpyDtypeTest::test_nanmin
 NumpyDtypeTest::test_nansum
 NumpyDtypeTest::test_matmul_
@@ -23,9 +25,7 @@ NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_nextafter
 NumpyDtypeTest::test_power
-NumpyDtypeTest::test_ptp
 NumpyDtypeTest::test_quantile
-NumpyDtypeTest::test_round
 NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_std
@@ -36,7 +36,6 @@ NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_view
-NumpyDtypeTest::test_vstack
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
@@ -49,12 +48,12 @@ NumpyOneInputOpsCorrectnessTest::test_diagflat
 NumpyOneInputOpsCorrectnessTest::test_exp2
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
+NumpyOneInputOpsCorrectnessTest::test_nanmax
+NumpyOneInputOpsCorrectnessTest::test_nanmean
 NumpyOneInputOpsCorrectnessTest::test_nanmin
 NumpyOneInputOpsCorrectnessTest::test_nansum
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
-NumpyOneInputOpsCorrectnessTest::test_round
-NumpyOneInputOpsCorrectnessTest::test_ptp
 NumpyOneInputOpsCorrectnessTest::test_searchsorted
 NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_slogdet
@@ -62,7 +61,6 @@ NumpyOneInputOpsCorrectnessTest::test_tile
 NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_unravel_index
 NumpyOneInputOpsCorrectnessTest::test_vectorize
-NumpyOneInputOpsCorrectnessTest::test_vstack
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_and
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_left_shift
@@ -70,7 +68,6 @@ NumpyTwoInputOpsCorrectnessTest::test_bitwise_or
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_right_shift
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_xor
 NumpyTwoInputOpsCorrectnessTest::test_cross
-NumpyTwoInputOpsCorrectnessTest::test_divide_no_nan
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_gcd
 NumpyTwoInputOpsCorrectnessTest::test_inner

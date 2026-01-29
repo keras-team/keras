@@ -1,3 +1,5 @@
+import math
+
 import ml_dtypes
 import numpy as np
 
@@ -116,6 +118,190 @@ def abs_max_quantize(
     outputs = ops.clip(ops.round(outputs), value_range[0], value_range[1])
     outputs = ops.cast(outputs, dtype)
     return outputs, scale
+
+
+@keras_export("keras.quantizers.abs_max_quantize_grouped_with_zero_point")
+def abs_max_quantize_grouped_with_zero_point(
+    inputs,
+    block_size,
+    value_range=(-8, 7),
+    dtype="int8",
+    epsilon=backend.epsilon(),
+    to_numpy=False,
+):
+    """Quantizes a 2D tensor using grouped asymmetric quantization with
+    zero point.
+
+    Groups are formed along axis 0 (the input/contracting dimension).
+    Each group of `block_size` rows gets its own scale factor and zero point
+    per column. This is useful for weight distributions that are not centered
+    around zero.
+
+    Args:
+        inputs: Input tensor to quantize. Shape: `(input_dim, output_dim)`.
+        block_size: Number of elements per group along axis 0.
+        value_range: Tuple of `(min, max)` quantization range.
+        dtype: Data type of quantized output.
+        epsilon: Small value to avoid division by zero.
+        to_numpy: Whether to perform computation in numpy for memory
+            efficiency.
+
+    Returns:
+        A tuple `(quantized_tensor, scale, zero_point)` where:
+            - `quantized_tensor`: Same shape as inputs, dtype=`dtype`.
+            - `scale`: Shape `(n_groups, output_dim)` where
+              `n_groups = ceil(input_dim / block_size)`.
+            - `zero_point`: Shape `(n_groups, output_dim)`, dtype=`uint8`.
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import abs_max_quantize_grouped_with_zero_point
+    >>> kernel = np.random.randn(512, 256).astype("float32")
+    >>> quantized, scale, zero_point = abs_max_quantize_grouped_with_zero_point(
+    ...     kernel, block_size=128, value_range=(-8, 7)
+    ... )
+    >>> quantized.shape
+    (512, 256)
+    >>> scale.shape  # 512 / 128 = 4 groups
+    (4, 256)
+    >>> zero_point.shape
+    (4, 256)
+    ```
+    """
+    if to_numpy:
+        return _abs_max_quantize_grouped_with_zero_point_numpy(
+            inputs, block_size, value_range, dtype, epsilon
+        )
+    return _abs_max_quantize_grouped_with_zero_point_tensor(
+        inputs, block_size, value_range, dtype, epsilon
+    )
+
+
+def _abs_max_quantize_grouped_with_zero_point_numpy(
+    inputs, block_size, value_range, dtype, epsilon
+):
+    """NumPy implementation of grouped asymmetric quantization.
+
+    Uses NumPy for computation to reduce GPU memory usage during
+    model quantization.
+    """
+    original_dtype = backend.standardize_dtype(inputs.dtype)
+    inputs = ops.convert_to_numpy(inputs)
+
+    input_dim, output_dim = inputs.shape
+    n_groups = math.ceil(input_dim / block_size)
+    qmin, qmax = value_range
+
+    # Zero-pad rows so input_dim is divisible by block_size
+    padded_input_dim = n_groups * block_size
+    if padded_input_dim > input_dim:
+        padding = np.zeros(
+            (padded_input_dim - input_dim, output_dim), dtype=inputs.dtype
+        )
+        inputs_padded = np.concatenate([inputs, padding], axis=0)
+    else:
+        inputs_padded = inputs
+
+    inputs_reshaped = inputs_padded.reshape(n_groups, block_size, output_dim)
+
+    # Compute per-group min/max for asymmetric quantization
+    min_val = np.min(inputs_reshaped, axis=1, keepdims=True)
+    max_val = np.max(inputs_reshaped, axis=1, keepdims=True)
+
+    # Scale maps the [min, max] range to [qmin, qmax]
+    scale = np.divide(np.subtract(max_val, min_val) + epsilon, qmax - qmin)
+
+    # Zero point shifts the quantized range to include the original zero
+    zero_point = np.round(np.divide(-min_val, scale)) + qmin
+    zero_point = np.clip(zero_point, qmin, qmax)
+
+    # Quantize: q = round(input / scale) + zero_point
+    outputs = np.round(np.divide(inputs_reshaped, scale)) + zero_point
+    outputs = np.clip(outputs, qmin, qmax)
+    outputs = outputs.astype(dtype)
+
+    # Remove padding and squeeze to (n_groups, output_dim)
+    outputs = outputs.reshape(padded_input_dim, output_dim)[:input_dim, :]
+    scale = np.squeeze(scale, axis=1)
+    zero_point = np.squeeze(zero_point, axis=1).astype("int8")
+
+    return (
+        ops.convert_to_tensor(outputs),
+        ops.convert_to_tensor(scale, dtype=original_dtype),
+        ops.convert_to_tensor(zero_point),
+    )
+
+
+def _abs_max_quantize_grouped_with_zero_point_tensor(
+    inputs, block_size, value_range, dtype, epsilon
+):
+    """Tensor backend implementation of grouped asymmetric quantization."""
+    original_dtype = backend.standardize_dtype(inputs.dtype)
+    inputs = ops.convert_to_tensor(inputs)
+
+    input_shape = ops.shape(inputs)
+    input_dim = input_shape[0]
+    output_dim = input_shape[1]
+    qmin, qmax = value_range
+
+    # Infer bit-width from quantization range (e.g., [-8, 7] -> 4 bits)
+    num_levels = qmax - qmin + 1
+    bits = int(math.log2(num_levels))
+
+    n_groups = int(math.ceil(int(input_dim) / block_size))
+    padded_input_dim = n_groups * block_size
+
+    # Transpose to [out_features, in_features] for
+    # compute_quantization_parameters
+    inputs_t = ops.transpose(inputs)
+
+    # Compute scale and zero point using the unified quantization function
+    scale_t, zero_point_t, _ = compute_quantization_parameters(
+        inputs_t,
+        bits=bits,
+        symmetric=False,
+        per_channel=True,
+        group_size=block_size,
+        compute_dtype=original_dtype,
+        epsilon=epsilon,
+        signed=True,
+    )
+
+    # Transpose results back to (n_groups, output_dim)
+    scale = ops.transpose(scale_t)
+    zero_point = ops.transpose(zero_point_t)
+
+    # Zero-pad rows so input_dim is divisible by block_size
+    pad_size = padded_input_dim - int(input_dim)
+    if pad_size > 0:
+        padding = ops.zeros((pad_size, output_dim), dtype=inputs.dtype)
+        inputs_padded = ops.concatenate([inputs, padding], axis=0)
+    else:
+        inputs_padded = inputs
+
+    inputs_reshaped = ops.reshape(
+        inputs_padded, (n_groups, block_size, output_dim)
+    )
+
+    # Expand scale and zero_point for broadcasting across block_size
+    scale_expanded = ops.expand_dims(scale, axis=1)
+    zero_point_expanded = ops.expand_dims(zero_point, axis=1)
+
+    # Quantize: q = round(input / scale) + zero_point
+    outputs = ops.add(
+        ops.round(ops.divide(inputs_reshaped, scale_expanded)),
+        zero_point_expanded,
+    )
+    outputs = ops.clip(outputs, qmin, qmax)
+    outputs = ops.cast(outputs, dtype)
+
+    # Remove padding
+    outputs = ops.reshape(outputs, (padded_input_dim, output_dim))
+    outputs = outputs[:input_dim, :]
+
+    return outputs, scale, zero_point
 
 
 @keras_export("keras.quantizers.AbsMaxQuantizer")
@@ -796,6 +982,8 @@ def compute_quantization_parameters(
     per_channel=False,
     group_size=-1,
     compute_dtype="float32",
+    epsilon=0.0,
+    signed=False,
 ):
     """
     Computes the scale and zero-point for quantizing weight tensors.
@@ -816,10 +1004,17 @@ def compute_quantization_parameters(
         per_channel: bool. Whether to quantize per channel.
         group_size: int. The group size for quantization. -1 means no grouping.
         compute_dtype: str. The dtype for computation. Defaults to "float32".
+        epsilon: float. Small value added to (max - min) before computing
+            scale to avoid division by zero. Defaults to 0.0.
+        signed: bool. Whether to use signed quantization range. If True, uses
+            range [-2^(bits-1), 2^(bits-1)-1] (e.g., [-8, 7] for 4-bit).
+            If False, uses range [0, 2^bits-1] (e.g., [0, 15] for 4-bit).
+            Defaults to False.
 
     Returns:
         scale: KerasTensor. The scale tensor for quantization.
-        zero: KerasTensor. The zero tensor for quantization.
+        zero: KerasTensor. The zero tensor for quantization (int8 if signed,
+            uint8 if unsigned).
         maxq: scalar. The maximum quantization value.
     """
     # Input validation
@@ -874,13 +1069,31 @@ def compute_quantization_parameters(
 
     # Compute scale and zero-point
     maxq = ops.cast(ops.subtract(ops.power(2, bits), 1), compute_dtype)
-    scale = ops.divide(ops.subtract(max_values, min_values), maxq)
+    range_values = ops.subtract(max_values, min_values)
+    if epsilon > 0:
+        range_values = ops.add(range_values, epsilon)
+    scale = ops.divide(range_values, maxq)
     scale = ops.where(ops.less_equal(scale, 0), 1e-8, scale)
 
-    if symmetric:
-        zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
+    # Compute zero-point based on signed/unsigned mode
+    if signed:
+        # For signed range [-2^(bits-1), 2^(bits-1)-1], e.g., [-8, 7] for 4-bit
+        qmin = -(2 ** (bits - 1))  # e.g., -8 for 4-bit
+        qmax_signed = 2 ** (bits - 1) - 1  # e.g., 7 for 4-bit
+        if symmetric:
+            zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2) + qmin)
+        else:
+            # zero_signed = round(-min / scale) + qmin
+            zero = ops.add(
+                ops.round(ops.divide(ops.negative(min_values), scale)), qmin
+            )
+        zero = ops.clip(zero, qmin, qmax_signed)
     else:
-        zero = ops.round(ops.divide(ops.negative(min_values), scale))
+        # For unsigned range [0, 2^bits-1], e.g., [0, 15] for 4-bit
+        if symmetric:
+            zero = ops.full_like(scale, ops.divide(ops.add(maxq, 1), 2))
+        else:
+            zero = ops.round(ops.divide(ops.negative(min_values), scale))
 
     # Reshape output to [out_features, n_groups] or [out_features, 1]
     if n_groups > 1:
@@ -893,7 +1106,8 @@ def compute_quantization_parameters(
         scale = ops.tile(ops.reshape(scale, (1, 1)), (out_features, 1))
         zero = ops.tile(ops.reshape(zero, (1, 1)), (out_features, 1))
 
-    return scale, ops.cast(zero, "uint8"), maxq
+    zero_dtype = "int8" if signed else "uint8"
+    return scale, ops.cast(zero, zero_dtype), maxq
 
 
 def quantize_with_zero_point(input_tensor, scale, zero, maxq):
@@ -942,51 +1156,67 @@ def dequantize_with_zero_point(input_tensor, scale, zero):
     )
 
 
-def quantize_with_sz_map(weights_matrix, scale, zero, g_idx, maxq):
+def quantize_with_sz_map(
+    weights_matrix, scale, zero, g_idx, maxq, group_axis=-1
+):
     """Quantize the weight matrix from group params.
 
     This function uses the provided scale and zero tensors to quantize the
-    input weights_matrix according to the group indices. It maps each column
-    of the weights_matrix to its corresponding group parameters and performs
-    the quantization operation.
+    input weights_matrix according to the group indices. It maps each position
+    along group_axis of the weights_matrix to its corresponding group
+    parameters and performs the quantization operation.
 
     Args:
-        weights_matrix: 2D tensor of shape [out_features, in_features].
-        scale: Per-group scale tensor of shape [out_features, n_groups].
-        zero: Per-group zero-point tensor of shape [out_features, n_groups].
-        g_idx: Integer tensor of shape [in_features,] mapping each column to
-            its group index.
+        weights_matrix: Tensor to quantize.
+        scale: Per-group scale tensor with n_groups along group_axis.
+        zero: Per-group zero-point tensor with n_groups along group_axis.
+        g_idx: 1D integer tensor of length equal to the size of
+            `weights_matrix` along the dimension being quantized. Each
+            element specifies which group index (0 to n_groups-1) that
+            position belongs to. For example, with 128 columns and
+            group_size=32, g_idx would be
+            `[0,0,...,0, 1,1,...,1, 2,2,...,2, 3,3,...,3]` (32 of each).
         maxq: Scalar (float) representing the maximum integer quantization
             level (e.g., 2^bits - 1).
+        group_axis: The axis in `scale` and `zero` along which to index
+            using `g_idx`. This determines which dimension of the
+            scale/zero tensors contains the per-group values. Default: -1
+            (last axis).
 
     Returns:
         A tensor with the same shape as `weights_matrix` containing the
         quantized weights produced using the provided group parameters.
     """
     groups = ops.cast(g_idx, "int32")
-    scale_cols = ops.take(scale, groups, axis=1)  # [out_features, in_features]
-    zero_cols = ops.take(zero, groups, axis=1)  # [out_features, in_features]
+    scale_cols = ops.take(scale, groups, axis=group_axis)
+    zero_cols = ops.take(zero, groups, axis=group_axis)
 
     # Quantize elementwise, then cast to int
     return quantize_with_zero_point(weights_matrix, scale_cols, zero_cols, maxq)
 
 
-def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
+def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx, group_axis=-1):
     """Rebuild a dequantized weight matrix from group params.
 
     This function uses the provided scale and zero tensors to dequantize the
-    input weights_matrix according to the group indices. It maps each column
-    of the weights_matrix to its corresponding group parameters and performs
-    the dequantization operation.
+    input weights_matrix according to the group indices. It maps each position
+    along group_axis of the weights_matrix to its corresponding group
+    parameters and performs the dequantization operation.
 
     Args:
-        weights_matrix: 2D tensor of shape [out_features, in_features].
-        scale: Per-group scale tensor of shape [out_features, n_groups].
-        zero: Per-group zero-point tensor of shape [out_features, n_groups].
-        g_idx: Integer tensor of shape [in_features,] mapping each column to
-            its group index.
-        maxq: Scalar (float) representing the maximum integer quantization
-            level (e.g., 2^bits - 1).
+        weights_matrix: Tensor to dequantize.
+        scale: Per-group scale tensor with n_groups along group_axis.
+        zero: Per-group zero-point tensor with n_groups along group_axis.
+        g_idx: 1D integer tensor of length equal to the size of
+            `weights_matrix` along the dimension being dequantized. Each
+            element specifies which group index (0 to n_groups-1) that
+            position belongs to. For example, with 128 columns and
+            group_size=32, g_idx would be
+            `[0,0,...,0, 1,1,...,1, 2,2,...,2, 3,3,...,3]` (32 of each).
+        group_axis: The axis in `scale` and `zero` along which to index
+            using `g_idx`. This determines which dimension of the
+            scale/zero tensors contains the per-group values. Default: -1
+            (last axis).
 
     Returns:
         A tensor with the same shape as `weights_matrix` containing the
@@ -994,12 +1224,12 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx):
     """
     # Map group indices to scales and zeros
     groups = ops.cast(g_idx, "int32")
-    scales_mapped = ops.take(scale, groups, axis=1)
-    zeros_mapped = ops.take(zero, groups, axis=1)
+    scales_mapped = ops.take(scale, groups, axis=group_axis)
+    zeros_mapped = ops.take(zero, groups, axis=group_axis)
     zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
 
-    quantized = ops.multiply(
+    dequantized = ops.multiply(
         ops.subtract(weights_matrix, zeros_mapped), scales_mapped
     )
 
-    return quantized
+    return dequantized

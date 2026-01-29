@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -53,9 +54,11 @@ class DenseTest(testing.TestCase):
                 activation_quantizer=activation_quantizer,
             )
         elif mode == "int4":
+            # Custom quantizers require per-channel mode (block_size=None)
             config = Int4QuantizationConfig(
                 weight_quantizer=weight_quantizer,
                 activation_quantizer=activation_quantizer,
+                block_size=None,
             )
 
         layer.quantize(mode, config=config)
@@ -532,7 +535,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 3),
-        ("int4", "int4_from_float32", 3),  # bias + packed kernel + scale
+        ("int4", "int4_from_float32", 5),  # bias + kernel + scale + zero + gidx
         ("float8", "float8_from_float32", 8),
     )
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
@@ -600,7 +603,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8", 3, 2, 5),
-        ("int4", "int4", 3, 2, 5),
+        ("int4", "int4", 3, 4, 7),  # +2 non-trainable for zero and g_idx
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
@@ -911,9 +914,11 @@ class DenseTest(testing.TestCase):
         layer.build((None, 2))
         layer.quantize("int4")
         packed_kernel = layer._kernel
-        self.assertAllClose(
-            layer.kernel, quantizers.unpack_int4(packed_kernel, 2)
+        # unpack [in, ceil(out/2)] -> [in, out]
+        expected = quantizers.unpack_int4(
+            packed_kernel, layer._orig_output_dim, axis=-1
         )
+        self.assertAllClose(layer.kernel, expected)
 
     def test_legacy_load_own_variables(self):
         # In previous versions, `load_own_variables` accepted a store with
@@ -928,7 +933,8 @@ class DenseTest(testing.TestCase):
             "2": np.random.random((16,)).astype("float32"),  # kernel_scale.
         }
         int4_store = {
-            "0": np.random.randint(-128, 127, size=(4, 16), dtype="int8"),
+            # kernel is [in, ceil(out/2)] = [8, 8]
+            "0": np.random.randint(-128, 127, size=(8, 8), dtype="int8"),
             "1": np.random.random((16,)).astype("float32"),
             "2": np.random.random((16,)).astype("float32"),  # kernel_scale.
         }
@@ -1180,7 +1186,7 @@ class DenseTest(testing.TestCase):
         Test custom quantizer serialization for dense layer with
         int4 quantization.
         """
-        # Setup
+        # Setup - custom quantizers require per-channel mode (block_size=None)
         weight_range = (-8, 7)
         act_range = (-2, 2)
         config = Int4QuantizationConfig(
@@ -1188,6 +1194,7 @@ class DenseTest(testing.TestCase):
             activation_quantizer=AbsMaxQuantizer(
                 axis=-1, value_range=act_range
             ),
+            block_size=None,
         )
 
         # Build & Quantize
@@ -1215,3 +1222,211 @@ class DenseTest(testing.TestCase):
             axis=(-1,),
             value_range=act_range,
         )
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+        ("per_channel_none", None),
+        ("per_channel_neg1", -1),
+    )
+    def test_int4_quantization_block_size(self, block_size):
+        """Test int4 quantization with different block_size configurations."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 256, 64
+        layer = layers.Dense(units=output_dim)
+        layer.build((None, input_dim))
+
+        x = np.random.random((2, input_dim)).astype("float32")
+        y_float = layer(x)
+
+        # Create config with specified block_size
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify block_size is stored
+        self.assertEqual(layer._int4_block_size, block_size)
+
+        # Verify kernel_scale shape
+        if block_size is None or block_size == -1:
+            # Per-channel: one scale per output unit
+            expected_scale_shape = (output_dim,)
+        else:
+            # Sub-channel: (n_groups, out_features)
+            n_groups = math.ceil(input_dim / block_size)
+            expected_scale_shape = (n_groups, output_dim)
+
+        self.assertEqual(layer.kernel_scale.shape, expected_scale_shape)
+
+        # Verify outputs are reasonable
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 0.01)  # Reasonable accuracy
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+        ("per_channel_none", None),
+    )
+    def test_int4_block_size_serialization(self, block_size):
+        """Test that block_size is preserved through serialization."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.Dense(units=32)
+        layer.build((None, 128))
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Get output before serialization
+        x = np.random.random((2, 128)).astype("float32")
+        y_before = layer(x)
+
+        # Save and load model to test full serialization roundtrip
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "int4_block_size_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify block_size is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertIsInstance(
+            loaded_layer.quantization_config, Int4QuantizationConfig
+        )
+        self.assertEqual(
+            loaded_layer.quantization_config.block_size, block_size
+        )
+
+        # Verify outputs match after deserialization
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("per_channel", None),
+    )
+    def test_int4_block_size_with_lora(self, block_size):
+        """Test int4 quantization with LoRA and different block_size."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 128, 64
+        layer = layers.Dense(units=output_dim)
+        layer.build((None, input_dim))
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+        layer.enable_lora(rank=4)
+
+        x = np.random.random((2, input_dim)).astype("float32")
+
+        # Should run without error
+        y = layer(x)
+        self.assertEqual(y.shape, (2, output_dim))
+
+    def test_int4_grouped_vs_perchannel_scale_shapes(self):
+        """Test that grouped and per-channel have different scale shapes."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 256, 64
+        block_size = 64
+
+        # Per-channel layer
+        layer_pc = layers.Dense(units=output_dim)
+        layer_pc.build((None, input_dim))
+        config_pc = Int4QuantizationConfig(block_size=None)
+        layer_pc.quantize("int4", config=config_pc)
+
+        # Grouped layer
+        layer_grouped = layers.Dense(units=output_dim)
+        layer_grouped.build((None, input_dim))
+        config_grouped = Int4QuantizationConfig(block_size=block_size)
+        layer_grouped.quantize("int4", config=config_grouped)
+
+        # Verify different scale shapes
+        self.assertEqual(layer_pc.kernel_scale.shape, (output_dim,))
+        # scale shape is (n_groups, out_features)
+        self.assertEqual(
+            layer_grouped.kernel_scale.shape,
+            (input_dim // block_size, output_dim),
+        )
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+    )
+    def test_int4_subchannel_g_idx_created(self, block_size):
+        """Test that g_idx is created for sub-channel int4 quantization."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 256, 64
+        layer = layers.Dense(units=output_dim)
+        layer.build((None, input_dim))
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is created
+        self.assertTrue(hasattr(layer, "g_idx"))
+
+        # Verify g_idx shape
+        self.assertEqual(layer.g_idx.shape, (input_dim,))
+
+        # Verify g_idx values (should map each row to its group)
+        expected_g_idx = np.arange(input_dim) // block_size
+        self.assertAllClose(layer.g_idx, expected_g_idx)
+
+    def test_int4_perchannel_no_g_idx(self):
+        """Test that per-channel int4 does NOT create g_idx."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        layer = layers.Dense(units=32)
+        layer.build((None, 64))
+
+        config = Int4QuantizationConfig(block_size=None)  # Per-channel
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is NOT created for per-channel
+        self.assertFalse(hasattr(layer, "g_idx"))
+
+    def test_int4_subchannel_g_idx_serialization(self):
+        """Test that g_idx is properly serialized and deserialized."""
+        if testing.tensorflow_uses_gpu():
+            self.skipTest("Segfault on TF GPU")
+
+        input_dim, output_dim = 128, 32
+        block_size = 64
+
+        layer = layers.Dense(units=output_dim)
+        layer.build((None, input_dim))
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        x = np.random.random((2, input_dim)).astype("float32")
+        y_before = layer(x)
+        g_idx_before = layer.g_idx
+
+        # Save and load
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "int4_g_idx_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify g_idx is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertAllClose(loaded_layer.g_idx, g_idx_before)
+
+        # Verify outputs match
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)

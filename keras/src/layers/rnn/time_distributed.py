@@ -71,36 +71,42 @@ class TimeDistributed(Wrapper):
         super().build(child_input_shape)
 
     def call(self, inputs, training=None, mask=None):
-        input_shape = ops.shape(inputs)
-        mask_shape = None if mask is None else ops.shape(mask)
-        batch_size = input_shape[0]
-        timesteps = input_shape[1]
+        # Validate mask shape using static shape info when available
+        if mask is not None:
+            mask_shape = mask.shape
+            input_shape = inputs.shape
 
-        # For TF backend with graph mode and `partial_batch_size`, skip
-        # evaluation of `batch_size` as it can be a `strided_slice` and
-        # not a constant.
-        if backend.backend() == "tensorflow":
-            from keras.src.utils.module_utils import tensorflow as tf
-
-            if (
-                not tf.executing_eagerly
-                and mask_shape is not None
-                and mask_shape[1:2] != (timesteps,)
-            ):
+            # Check if mask has at least 2 dimensions (batch and timesteps)
+            if len(mask_shape) < 2:
                 raise ValueError(
-                    "`TimeDistributed` Layer should be passed a `mask` of "
-                    f"shape ({batch_size}, {timesteps}, ...), "
-                    f"received: mask.shape={mask_shape}"
+                    "The `mask` passed to the `TimeDistributed` layer must be "
+                    "at least 2D (e.g., `(batch_size, timesteps)`), but it has "
+                    f"{len(mask_shape)} dimension(s) with shape {mask_shape}."
                 )
-        elif mask_shape is not None and mask_shape[:2] != (
-            batch_size,
-            timesteps,
-        ):
-            raise ValueError(
-                "`TimeDistributed` Layer should be passed a `mask` of "
-                f"shape ({batch_size}, {timesteps}, ...), "
-                f"received: mask.shape={mask_shape}"
+
+            # Check batch size and timesteps dimensions match
+            batch_mismatch = (
+                input_shape[0] is not None
+                and mask_shape[0] is not None
+                and input_shape[0] != mask_shape[0]
             )
+            time_mismatch = (
+                input_shape[1] is not None
+                and mask_shape[1] is not None
+                and input_shape[1] != mask_shape[1]
+            )
+
+            if batch_mismatch or time_mismatch:
+                raise ValueError(
+                    "The `mask` passed to the `TimeDistributed` layer has a "
+                    f"shape {mask_shape} that is incompatible with the input "
+                    f"shape {input_shape}. The first two dimensions of the "
+                    "mask (batch size and timesteps) must match the input's "
+                    "first two dimensions. Expected mask shape prefix: "
+                    f"({input_shape[0]}, {input_shape[1]})."
+                )
+
+        input_shape = ops.shape(inputs)
 
         def time_distributed_transpose(data):
             """Swaps the timestep and batch dimensions of a tensor."""
@@ -129,5 +135,7 @@ class TimeDistributed(Wrapper):
 
         # Implementation #2: use backend.vectorized_map.
 
-        outputs = backend.vectorized_map(step_function, ops.arange(timesteps))
+        outputs = backend.vectorized_map(
+            step_function, ops.arange(input_shape[0])
+        )
         return time_distributed_transpose(outputs)

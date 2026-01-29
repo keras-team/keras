@@ -2107,6 +2107,16 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nanmax(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nanmax` is not supported with openvino backend")
+
+
+def nanmean(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanmean` is not supported with openvino backend"
+    )
+
+
 def nanmin(x, axis=None, keepdims=False):
     raise NotImplementedError("`nanmin` is not supported with openvino backend")
 
@@ -2266,7 +2276,16 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def ptp(x, axis=None, keepdims=False):
-    raise NotImplementedError("`ptp` is not supported with openvino backend")
+    if axis == ():
+        return zeros_like(x)
+    x = get_ov_output(x)
+
+    x_resolved, resolved_axis = _resolve_axis(x, axis)
+
+    max_val = ov_opset.reduce_max(x_resolved, resolved_axis, keepdims)
+    min_val = ov_opset.reduce_min(x_resolved, resolved_axis, keepdims)
+
+    return OpenVINOKerasTensor(ov_opset.subtract(max_val, min_val).output(0))
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
@@ -2678,7 +2697,23 @@ def tensordot(x1, x2, axes=2):
 
 
 def round(x, decimals=0):
-    raise NotImplementedError("`round` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()])
+
+    if decimals == 0:
+        result = ov_opset.round(x, "half_to_even")
+    else:
+        factor = ov_opset.constant(10.0**decimals, x.get_element_type())
+        scaled = ov_opset.multiply(x, factor)
+        rounded = ov_opset.round(scaled, "half_to_even")
+        result = ov_opset.divide(rounded, factor)
+
+    if x_type.is_integral():
+        result = ov_opset.convert(result, x_type)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def tile(x, repeats):
@@ -2799,7 +2834,17 @@ def vdot(x1, x2):
 
 
 def vstack(xs):
-    raise NotImplementedError("`vstack` is not supported with openvino backend")
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+    elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
+    axis = 0
+    for i in range(1, len(elems)):
+        elems[0], elems[i] = _align_operand_types(
+            elems[0], elems[i], "vstack()"
+        )
+    return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
@@ -2855,9 +2900,20 @@ def divide(x1, x2):
 
 
 def divide_no_nan(x1, x2):
-    raise NotImplementedError(
-        "`divide_no_nan` is not supported with openvino backend"
-    )
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1 = get_ov_output(x1, element_type)
+    x2 = get_ov_output(x2, element_type)
+    x1, x2 = _align_operand_types(x1, x2, "divide_no_nan()")
+
+    zero = ov_opset.constant(0, x2.get_element_type())
+    div = ov_opset.divide(x1, x2)
+    is_zero = ov_opset.equal(x2, zero)
+    result = ov_opset.select(is_zero, zero, div)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def true_divide(x1, x2):
