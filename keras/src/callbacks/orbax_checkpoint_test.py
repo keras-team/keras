@@ -16,6 +16,43 @@ from keras.src.saving import register_keras_serializable
 # Import advanced Orbax functionality directly from the LazyModule
 
 
+# Custom layer with assets for testing
+@register_keras_serializable(package="TestLayers")
+class LayerWithAssets(layers.Layer):
+    """A custom layer that has assets for testing purposes."""
+
+    def __init__(self, units=4, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self._asset_data = None
+
+    def build(self, input_shape):
+        # Create some asset data (e.g., lookup table, vocabulary)
+        self._asset_data = np.arange(self.units * 2, dtype=np.float32)
+        self._asset_data = self._asset_data.reshape((self.units, 2))
+        super().build(input_shape)
+
+    def call(self, inputs):
+        # Simple pass-through for testing
+        return inputs
+
+    def assets(self):
+        """Return list of asset arrays."""
+        if self._asset_data is not None:
+            return [self._asset_data]
+        return []
+
+    def _set_assets(self, assets):
+        """Restore assets from loaded checkpoint."""
+        if assets and len(assets) > 0:
+            self._asset_data = assets[0]
+
+    def get_config(self):
+        config = super().get_config()
+        config["units"] = self.units
+        return config
+
+
 class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
     def _create_test_model(self):
         """Create a simple test model compatible with 2-device sharding."""
@@ -530,3 +567,99 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
             zip(model.optimizer.variables, loaded_model.optimizer.variables)
         ):
             self.assertAllClose(saved, loaded, msg=f"Weight {i} mismatch")
+
+    @parameterized.parameters(
+        {"save_on_background": False},
+        {"save_on_background": True},
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_save_and_load_assets(self, save_on_background):
+        """Test saving and loading model assets with async/sync modes."""
+        # Create model with layer that has assets
+        inputs = layers.Input(shape=(10,), name="input_layer")
+        x = layers.Dense(8, name="dense_layer")(inputs)
+        x = LayerWithAssets(units=4, name="asset_layer")(x)
+        outputs = layers.Dense(2, name="output_layer")(x)
+        model = models.Model(inputs, outputs, name="asset_test_model")
+        model.compile(optimizer="adam", loss="mse")
+
+        # Get the asset layer and verify it has assets
+        asset_layer = model.get_layer("asset_layer")
+        original_assets = asset_layer.assets()
+        self.assertEqual(len(original_assets), 1, "Should have 1 asset")
+        self.assertEqual(
+            original_assets[0].shape, (4, 2), "Asset shape mismatch"
+        )
+        original_asset_values = np.copy(original_assets[0])
+
+        # Train and save
+        x, y = self._create_dummy_data(num_samples=100)
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(),
+            f"test_assets_{save_on_background}_{id(self)}",
+        )
+
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_on_background=save_on_background,
+        )
+
+        model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+        # Wait for async saves to complete
+        callback.wait_until_finished()
+
+        # Capture final weights after training completes
+        final_saved_weights = model.get_weights()
+
+        # Verify checkpoint directory structure
+        checkpoint_files = os.listdir(checkpoint_dir)
+        self.assertGreater(len(checkpoint_files), 0)
+
+        # Check that assets directory exists
+        latest_step = max([int(f) for f in checkpoint_files if f.isdigit()])
+        assets_dir = os.path.join(checkpoint_dir, str(latest_step), "assets")
+        self.assertTrue(
+            os.path.exists(assets_dir), "Assets directory should exist"
+        )
+
+        # Verify asset files exist
+        # The asset handler saves assets at:
+        # assets/{model.name}/{layer_name}
+        asset_layer_dir = os.path.join(
+            assets_dir, "asset_test_model", "asset_layer"
+        )
+        self.assertTrue(
+            os.path.exists(asset_layer_dir),
+            f"Asset layer directory should exist at {asset_layer_dir}",
+        )
+
+        asset_files = os.listdir(asset_layer_dir)
+        self.assertIn("asset_0.npy", asset_files, "Asset file should exist")
+
+        # Load model and verify assets are restored
+        loaded_model = saving.load_model(checkpoint_dir)
+        loaded_asset_layer = loaded_model.get_layer("asset_layer")
+        loaded_assets = loaded_asset_layer.assets()
+
+        # Verify assets were loaded correctly
+        self.assertEqual(len(loaded_assets), 1, "Should have 1 asset")
+        self.assertAllClose(
+            original_asset_values,
+            loaded_assets[0],
+            msg="Asset values should match after loading",
+        )
+
+        # Verify model weights also loaded correctly
+        loaded_weights = loaded_model.get_weights()
+        self.assertEqual(len(final_saved_weights), len(loaded_weights))
+        for i, (orig, loaded) in enumerate(
+            zip(final_saved_weights, loaded_weights)
+        ):
+            self.assertAllClose(orig, loaded, msg=f"Weight {i} mismatch")
+
+        # Verify loaded model has correct structure
+        self.assertEqual(len(model.layers), len(loaded_model.layers))
+        for orig_layer, loaded_layer in zip(model.layers, loaded_model.layers):
+            self.assertEqual(orig_layer.name, loaded_layer.name)

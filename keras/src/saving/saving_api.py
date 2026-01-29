@@ -318,6 +318,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 )
     elif is_orbax_checkpoint(filepath):
         # Load weights from Orbax checkpoint
+        import orbax.checkpoint as orbax_cp
+        from orbax.checkpoint._src.handlers import standard_checkpoint_handler
+
         from keras.src.utils.module_utils import ocp
 
         filepath = str(filepath)
@@ -332,14 +335,23 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         if has_step_subdirs:
             # It's a root directory, find the latest checkpoint
             checkpoint_path = find_latest_orbax_checkpoint(filepath)
+            step = int(os.path.basename(checkpoint_path))
         else:
             # It's a step directory, use it directly
             checkpoint_path = filepath
+            step = int(os.path.basename(filepath))
 
-        # Load checkpoint
-        loaded_state = ocp.load_pytree(checkpoint_path)
+        # Check for new multi-item format (with state/ subdirectory)
+        state_dir = os.path.join(filepath, str(step), "state")
+        if os.path.exists(state_dir):
+            handler = orbax_cp.StandardCheckpointHandler()
+            checkpointer = orbax_cp.Checkpointer(handler)
+            restore_args = standard_checkpoint_handler.StandardRestoreArgs()
+            loaded_state = checkpointer.restore(state_dir, args=restore_args)
+        else:
+            # Fallback to legacy format
+            loaded_state = ocp.load_pytree(checkpoint_path)
 
-        # Set the model state directly from the loaded state
         model.set_state_tree(loaded_state)
     else:
         raise ValueError(
@@ -354,38 +366,48 @@ def _load_model_from_orbax_checkpoint(
     filepath, custom_objects=None, compile=True, safe_mode=True
 ):
     """Load a model from an Orbax checkpoint directory."""
+    import orbax.checkpoint as orbax_cp
+    from orbax.checkpoint._src.handlers import standard_checkpoint_handler
 
+    from keras.src.callbacks.orbax_checkpoint import AssetArgs
+    from keras.src.callbacks.orbax_checkpoint import KerasAssetHandler
     from keras.src.utils.module_utils import ocp
 
     # Ensure orbax is available
     ocp.initialize()
 
-    # Find the latest checkpoint step using the utility function
     checkpoint_path = find_latest_orbax_checkpoint(filepath)
     step = int(os.path.basename(checkpoint_path))
 
-    # Load the composite state efficiently
-    checkpointer = ocp.training.Checkpointer(directory=filepath)
-    with ocp.Context():
-        composite_state = checkpointer.load_pytree(step)
+    # Load state
+    handler = orbax_cp.StandardCheckpointHandler()
+    checkpointer = orbax_cp.Checkpointer(handler)
+    restore_args = standard_checkpoint_handler.StandardRestoreArgs()
+    composite_state = checkpointer.restore(
+        os.path.join(filepath, str(step), "state"), args=restore_args
+    )
 
-    # Validate and extract model config
-    if "model_config" not in composite_state:
+    # Load model config
+    config_file = os.path.join(
+        filepath, str(step), "assets", "model_config.json"
+    )
+    if not os.path.exists(config_file):
         raise ValueError(
             "Checkpoint does not contain model configuration. "
             "This checkpoint may have been saved with save_weights_only=True."
         )
 
-    # Create and build model from config using saving_lib helper
-    # This properly handles shared objects and compile_config
+    with open(config_file, "r", encoding="utf-8") as f:
+        model_config = f.read()
+
     model = saving_lib._model_from_config(
-        composite_state["model_config"],
+        model_config,
         custom_objects=custom_objects,
         compile=compile,
         safe_mode=safe_mode,
     )
 
-    # Prepare state tree with only variable keys for set_state_tree
+    # Prepare state tree
     variable_keys = [
         "trainable_variables",
         "non_trainable_variables",
@@ -398,6 +420,12 @@ def _load_model_from_orbax_checkpoint(
         if key in composite_state
     }
 
-    # Apply the loaded state to the model
     model.set_state_tree(state_tree)
+
+    # Restore assets
+    asset_handler = KerasAssetHandler()
+    asset_handler.restore(
+        os.path.join(filepath, str(step), "assets"), args=AssetArgs(model=model)
+    )
+
     return model
