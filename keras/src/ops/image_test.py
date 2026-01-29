@@ -1396,7 +1396,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_resize_invalid_size_zero_or_negative(self):
-        """Resize rejects zero or negative height/width to avoid division by zero."""
+        """Resize rejects zero or negative height/width."""
         x = np.random.random((10, 10, 3)).astype("float32")
         with self.assertRaisesRegex(
             ValueError,
