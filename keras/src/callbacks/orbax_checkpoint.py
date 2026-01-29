@@ -113,9 +113,16 @@ class KerasAssetHandler:
             # Recursively check sublayers
             # _walk_saveable returns (name, obj) tuples
             for name, sublayer in _walk_saveable(layer):
+                # Handle the special case where sublayer is a list
+                # (e.g., model.layers)
+                if isinstance(sublayer, list):
+                    for idx, item in enumerate(sublayer):
+                        if isinstance(item, KerasSaveable):
+                            item_path = f"{path}/{item.name}"
+                            collect_from_layer(item, item_path)
                 # Only recurse if it's a KerasSaveable
                 # (not a list or other type)
-                if isinstance(sublayer, KerasSaveable):
+                elif isinstance(sublayer, KerasSaveable):
                     sublayer_path = f"{path}/{name}"
                     collect_from_layer(sublayer, sublayer_path)
 
@@ -372,7 +379,6 @@ class OrbaxCheckpoint(MonitorCallback):
         self._last_batch_seen = 0
         self._current_epoch = 0
         self._total_batches_seen = 0
-        self._async_futures = []  # Track async save futures
 
         # Validate save_freq
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
@@ -498,13 +504,7 @@ class OrbaxCheckpoint(MonitorCallback):
             ),
         )
 
-        # Track async futures if background saving is enabled
-        if self.save_on_background:
-            future = self.manager.save(step, args=composite_args)
-            if future is not None:
-                self._async_futures.append(future)
-        else:
-            self.manager.save(step, args=composite_args)
+        self.manager.save(step, args=composite_args)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -571,15 +571,11 @@ class OrbaxCheckpoint(MonitorCallback):
 
     def wait_until_finished(self):
         """Wait for any in-progress checkpoint operations to complete.
-        This method blocks until all asynchronous checkpoint save operations
-        have completed across all hosts in a multi-host setup.
+        This method blocks until all asynchronous checkpoint save
+        operations have completed across all hosts in a multi-host
+        setup.
         """
-        # Wait for all tracked async futures to complete
-        for future in self._async_futures:
-            future.result()  # Wait for completion
-        self._async_futures.clear()  # Clear completed futures
-
-        # Wait for any remaining async operations to complete on this host
+        # Wait for any remaining async operations to complete
         self.manager.wait_until_finished()
 
         # Multi-host synchronization: ensure all hosts complete
