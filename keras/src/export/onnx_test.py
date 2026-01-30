@@ -77,12 +77,7 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
         "backends."
     ),
 )
-@pytest.mark.skipif(
-    testing.jax_uses_gpu()
-    or testing.tensorflow_uses_gpu()
-    or testing.torch_uses_gpu(),
-    reason="Fails on GPU",
-)
+@pytest.mark.skipif(testing.uses_gpu(), reason="Fails on GPU")
 @pytest.mark.skipif(
     np.version.version.startswith("2."),
     reason="ONNX export is currently incompatible with NumPy 2.0",
