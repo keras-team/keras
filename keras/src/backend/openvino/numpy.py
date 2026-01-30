@@ -2128,11 +2128,11 @@ def nansum(x, axis=None, keepdims=False):
     if not x_type.is_integral() and x_type != Type.boolean:
         nan_mask = ov_opset.is_nan(x)
         zero = ov_opset.constant(0, x_type)
-        x = ov_opset.select(nan_mask, zero, x)
+        x = ov_opset.select(nan_mask, zero, x).output(0)
 
     x, axis = _resolve_axis(x, axis)
     if axis is None:
-        return OpenVINOKerasTensor(x.output(0))
+        return OpenVINOKerasTensor(x)
 
     x = _upcast_type_if_needed(x)
     result = ov_opset.reduce_sum(x, axis, keepdims).output(0)
