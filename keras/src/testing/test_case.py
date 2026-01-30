@@ -650,6 +650,10 @@ def uses_gpu():
     return False
 
 
+def jax_uses_tpu():
+    return backend.backend() == "jax" and uses_tpu()
+
+
 def uses_tpu():
     # Condition used to skip tests when using the TPU
     try:
@@ -658,13 +662,6 @@ def uses_tpu():
             return True
     except AttributeError:
         return False
-    return False
-
-
-def uses_cpu():
-    devices = distribution.list_devices()
-    if any(d.startswith("cpu") for d in devices):
-        return True
     return False
 
 
