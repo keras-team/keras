@@ -25,6 +25,7 @@ ALL_OBJECTS = {
     Adagrad,
     Adamax,
     Adafactor,
+    Muon,
     Nadam,
     Ftrl,
     Lion,
