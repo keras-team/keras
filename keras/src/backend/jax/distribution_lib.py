@@ -3,7 +3,6 @@
 import jax
 import numpy as np
 
-from keras.src.backend.common import global_state
 from keras.src.random import seed_generator
 from keras.src.utils import jax_utils
 from keras.src.utils import rng_utils
@@ -156,23 +155,6 @@ def initialize_rng():
         )(local_seed).item(0)
         # Set the global seed.
         rng_utils.set_random_seed(global_seed)
-
-    # Check if the global seed generator is set and ensure it has an initialized
-    # seed.  Otherwise, reset the seed to the global seed.
-    global_seed_generator = global_state.get_global_attribute(
-        seed_generator.GLOBAL_SEED_GENERATOR
-    )
-    if global_seed_generator is not None:
-        seed = global_seed_generator.get_config()["seed"]
-        if seed is None:
-            global_state.set_global_attribute(
-                seed_generator.GLOBAL_SEED_GENERATOR,
-                seed_generator.SeedGenerator(
-                    seed=global_seed,
-                    name=global_seed_generator.name,
-                    backend=global_seed_generator.backend,
-                ),
-            )
 
 
 def initialize(job_addresses, num_processes, process_id):
