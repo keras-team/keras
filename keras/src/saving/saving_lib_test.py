@@ -731,7 +731,7 @@ class SavingTest(testing.TestCase):
         reason="JAX backend doesn't support Python's multiprocessing",
     )
     @pytest.mark.skipif(
-        testing.tensorflow_uses_gpu() or testing.torch_uses_gpu(),
+        testing.uses_gpu(),
         reason="This test doesn't support GPU",
     )
     def test_load_model_concurrently(self):

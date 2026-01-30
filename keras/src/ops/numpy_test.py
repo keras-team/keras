@@ -4235,11 +4235,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_bincount(self, sparse_input, sparse_arg):
         if (sparse_input or sparse_arg) and not backend.SUPPORTS_SPARSE_TENSORS:
             pytest.skip("Backend does not support sparse tensors")
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("bincount does not work in tensorflow gpu")
 
         x = x_np = np.array([1, 1, 2, 3, 2, 4, 4, 6])
         weights = weights_np = np.array([0, 0, 3, 2, 1, 1, 4, 2])

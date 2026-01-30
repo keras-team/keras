@@ -1,6 +1,7 @@
 import builtins
 import math
 
+import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 from jax import export as jax_export
@@ -402,11 +403,9 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    from keras.src.testing.test_case import uses_cpu
-
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or x.ndim == 0 or jax.default_backend() != "cpu":
         return jnp.argmax(x, axis=axis, keepdims=keepdims)
 
     # Fix the flush-to-zero (FTZ) issue based on this issue:
@@ -419,11 +418,9 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
-    from keras.src.testing.test_case import uses_cpu
-
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or x.ndim == 0 or jax.default_backend() != "cpu":
         return jnp.argmin(x, axis=axis, keepdims=keepdims)
 
     # Fix the flush-to-zero (FTZ) issue based on this issue:
