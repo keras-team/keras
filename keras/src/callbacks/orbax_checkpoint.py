@@ -119,6 +119,8 @@ class OrbaxCheckpoint(MonitorCallback):
         max_to_keep=1,
         save_on_background=True,
         save_weights_only=False,
+        initial_batch=0,
+        initial_epoch=0,
     ):
         # Ensure orbax is available
         ocp.initialize()
@@ -135,9 +137,11 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_on_background = save_on_background
         self.save_weights_only = save_weights_only
         self._batches_seen_since_last_saving = 0
-        self._last_batch_seen = 0
-        self._current_epoch = 0  # Keep track of epoch
-        self._total_batches_seen = 0  # Global batch counter for step tracking
+        self._last_batch_seen = initial_batch
+        self._current_epoch = initial_epoch  # Keep track of epoch
+        self._total_batches_seen = (
+            initial_batch  # Global batch counter for step tracking
+        )
         self._async_futures = []  # Track async save futures
 
         # Multi-host support
