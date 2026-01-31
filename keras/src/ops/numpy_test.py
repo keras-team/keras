@@ -2888,6 +2888,11 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.arctan2(m, n), np.arctan2(m, n))
         self.assertAllClose(knp.Arctan2()(m, n), np.arctan2(m, n))
 
+        x = np.array([1.0, 2.0, np.nan])
+        y = np.array([3.0, np.nan, 4.0])
+        self.assertAllClose(knp.arctan2(x, y), np.arctan2(x, y))
+        self.assertAllClose(knp.Arctan2()(x, y), np.arctan2(x, y))
+
     def test_bitwise_and(self):
         x = np.array([2, 5, 255])
         y = np.array([3, 14, 16])
@@ -3821,11 +3826,6 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertTrue(
             standardize_dtype(knp.Digitize()(x, bins).dtype) == "int32"
         )
-
-    def test_arctan2_nan_propagation(self):
-        out = knp.arctan2(1.0, np.nan)
-        out_np = np.asarray(out)
-        self.assertTrue(np.isnan(out_np))
 
 
 class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
