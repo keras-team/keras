@@ -5234,10 +5234,7 @@ def nanmin(x, axis=None, keepdims=False):
 class Nanprod(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
+        self.axis = axis
         self.keepdims = keepdims
 
     def call(self, x):
@@ -5268,11 +5265,35 @@ class Nanprod(Operation):
 
 @keras_export(["keras.ops.nanprod", "keras.ops.numpy.nanprod"])
 def nanprod(x, axis=None, keepdims=False):
-    """Return the product of tensor elements over a given axis,
-    ignoring NaNs."""
+    """Product of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the product is computed. The default is
+            to compute the product of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Returns:
+        Output tensor containing the product, with NaN values ignored.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanprod(x)
+    6.0
+
+    >>> ops.nanprod(x, axis=1)
+    array([3., 2.])
+
+    >>> ops.nanprod(x, axis=1, keepdims=True)
+    array([[3.],
+           [2.]])
+    """
     if any_symbolic_tensors((x,)):
         return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
-
     return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
 
 
