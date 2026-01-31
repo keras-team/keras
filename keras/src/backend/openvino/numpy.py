@@ -2128,7 +2128,22 @@ def nanprod(x, axis=None, keepdims=False):
 
 
 def nansum(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nansum` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if not x_type.is_integral() and x_type != Type.boolean:
+        nan_mask = ov_opset.is_nan(x)
+        zero = ov_opset.constant(0, x_type)
+        x = ov_opset.select(nan_mask, zero, x).output(0)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+
+    x = _upcast_type_if_needed(x)
+    result = ov_opset.reduce_sum(x, axis, keepdims).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
@@ -2723,7 +2738,37 @@ def round(x, decimals=0):
 
 
 def tile(x, repeats):
-    raise NotImplementedError("`tile` is not supported with openvino backend")
+    x = get_ov_output(x)
+
+    if isinstance(repeats, int):
+        repeats = [repeats]
+    repeats = get_ov_output(repeats)
+
+    if repeats.get_element_type() != Type.i64:
+        repeats = ov_opset.convert(repeats, Type.i64)
+
+    if len(repeats.get_partial_shape()) != 1:
+        repeats = ov_opset.reshape(repeats, [-1], False)
+
+    shape_x = ov_opset.shape_of(x, Type.i64)
+    rank_x = ov_opset.shape_of(shape_x, Type.i64)
+    rank_r = ov_opset.shape_of(repeats, Type.i64)
+
+    one = ov_opset.constant(1, Type.i64)
+    zero = ov_opset.constant(0, Type.i64)
+
+    pad_x = ov_opset.maximum(ov_opset.subtract(rank_r, rank_x), zero)
+    new_x_shape = ov_opset.concat(
+        [ov_opset.broadcast(one, pad_x).output(0), shape_x], 0
+    )
+    x = ov_opset.reshape(x, new_x_shape, False)
+
+    pad_r = ov_opset.maximum(ov_opset.subtract(rank_x, rank_r), zero)
+    repeats = ov_opset.concat(
+        [ov_opset.broadcast(one, pad_r).output(0), repeats], 0
+    )
+
+    return OpenVINOKerasTensor(ov_opset.tile(x, repeats).output(0))
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
