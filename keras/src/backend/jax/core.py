@@ -1,3 +1,4 @@
+from jax.debug import print  # noqa
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp

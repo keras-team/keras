@@ -2,6 +2,7 @@ import builtins
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import print  # noqa
 from tensorflow.compiler.tf2xla.python.xla import dynamic_update_slice
 
 from keras.src import tree
