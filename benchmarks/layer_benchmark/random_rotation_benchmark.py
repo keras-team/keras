@@ -3,7 +3,7 @@
 from absl import app
 from absl import flags
 
-from keras.benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
+from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
 
 FLAGS = flags.FLAGS
 
