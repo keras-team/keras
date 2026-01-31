@@ -1277,8 +1277,8 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3, 3))
 
     @pytest.mark.skipif(
-        keras.config.backend() == "openvino" or testing.uses_tpu(),
-        reason="OpenVINO doesn't support this change",
+        keras.config.backend() == "openvino" or testing.jax_uses_tpu(),
+        reason="OpenVINO and JAX TPU don't support this",
     )
     def test_argmax_negative_zero(self):
         input_data = np.array(
@@ -1287,14 +1287,8 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(input_data), 2)
 
     @pytest.mark.skipif(
-        keras.config.backend() == "openvino"
-        or keras.config.backend() == "tensorflow"
-        or testing.uses_tpu(),
-        reason="""
-        OpenVINO and TensorFlow don't support this 
-        change, TensorFlow behavior for this case is under
-        evaluation and may change within this PR
-        """,
+        keras.config.backend() == "openvino" or testing.jax_uses_tpu(),
+        reason="OpenVINO and JAX TPU don't support this",
     )
     def test_argmin_negative_zero(self):
         input_data = np.array(
