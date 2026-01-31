@@ -8,7 +8,6 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import distribution
 from keras.src import ops
 from keras.src import tree
 from keras.src import utils
@@ -627,11 +626,19 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
 
 
 def tensorflow_uses_gpu():
-    return backend.backend() == "tensorflow" and uses_gpu()
+    if backend.backend() != "tensorflow":
+        return False
+    import tensorflow as tf
+
+    return len(tf.config.list_physical_devices("GPU")) > 0
 
 
 def jax_uses_gpu():
-    return backend.backend() == "jax" and uses_gpu()
+    if backend.backend() != "jax":
+        return False
+    import jax
+
+    return jax.default_backend() == "gpu"
 
 
 def torch_uses_gpu():
@@ -642,29 +649,37 @@ def torch_uses_gpu():
     return get_device() == "cuda"
 
 
+def tensorflow_uses_tpu():
+    if backend.backend() != "tensorflow":
+        return False
+    import tensorflow as tf
+
+    return len(tf.config.list_physical_devices("TPU")) > 0
+
+
+def jax_uses_tpu():
+    if backend.backend() != "jax":
+        return False
+    import jax
+
+    return jax.default_backend() == "tpu"
+
+
 def uses_gpu():
-    # Condition used to skip tests when using the GPU
-    devices = distribution.list_devices()
-    if any(d.startswith("gpu") for d in devices):
-        return True
+    if backend.backend() == "tensorflow":
+        return tensorflow_uses_gpu()
+    if backend.backend() == "jax":
+        return jax_uses_gpu()
+    if backend.backend() == "torch":
+        return torch_uses_gpu()
     return False
 
 
 def uses_tpu():
-    # Condition used to skip tests when using the TPU
-    try:
-        devices = distribution.list_devices()
-        if any(d.startswith("tpu") for d in devices):
-            return True
-    except AttributeError:
-        return False
-    return False
-
-
-def uses_cpu():
-    devices = distribution.list_devices()
-    if any(d.startswith("cpu") for d in devices):
-        return True
+    if backend.backend() == "tensorflow":
+        return tensorflow_uses_tpu()
+    if backend.backend() == "jax":
+        return jax_uses_tpu()
     return False
 
 

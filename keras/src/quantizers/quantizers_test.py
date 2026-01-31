@@ -568,7 +568,7 @@ class QuantizersTest(testing.TestCase):
         gradients = test_op(
             inputs, input_min, input_max, num_bits, narrow_range, axis
         )
-        if backend.backend() != "jax" or not testing.jax_uses_gpu():
+        if not testing.jax_uses_gpu():
             # JAX GPU produces less precise numbers, causing the CI to fail.
             # For example, 127.5 / 255.0 results in 0.49999997 instead of 0.5.
             self.assertAllClose(gradients, expected_backprops_wrt_input)

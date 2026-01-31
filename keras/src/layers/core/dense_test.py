@@ -1229,11 +1229,9 @@ class DenseTest(testing.TestCase):
         ("per_channel_none", None),
         ("per_channel_neg1", -1),
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_int4_quantization_block_size(self, block_size):
         """Test int4 quantization with different block_size configurations."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 256, 64
         layer = layers.Dense(units=output_dim)
         layer.build((None, input_dim))
@@ -1269,11 +1267,9 @@ class DenseTest(testing.TestCase):
         ("grouped_block_128", 128),
         ("per_channel_none", None),
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_int4_block_size_serialization(self, block_size):
         """Test that block_size is preserved through serialization."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.Dense(units=32)
         layer.build((None, 128))
 
@@ -1309,11 +1305,9 @@ class DenseTest(testing.TestCase):
         ("grouped_block_64", 64),
         ("per_channel", None),
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_int4_block_size_with_lora(self, block_size):
         """Test int4 quantization with LoRA and different block_size."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 128, 64
         layer = layers.Dense(units=output_dim)
         layer.build((None, input_dim))
@@ -1328,11 +1322,9 @@ class DenseTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(y.shape, (2, output_dim))
 
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_int4_grouped_vs_perchannel_scale_shapes(self):
         """Test that grouped and per-channel have different scale shapes."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 256, 64
         block_size = 64
 
@@ -1360,11 +1352,9 @@ class DenseTest(testing.TestCase):
         ("grouped_block_64", 64),
         ("grouped_block_128", 128),
     )
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_int4_subchannel_g_idx_created(self, block_size):
         """Test that g_idx is created for sub-channel int4 quantization."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 256, 64
         layer = layers.Dense(units=output_dim)
         layer.build((None, input_dim))
@@ -1382,11 +1372,9 @@ class DenseTest(testing.TestCase):
         expected_g_idx = np.arange(input_dim) // block_size
         self.assertAllClose(layer.g_idx, expected_g_idx)
 
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_int4_perchannel_no_g_idx(self):
         """Test that per-channel int4 does NOT create g_idx."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.Dense(units=32)
         layer.build((None, 64))
 
@@ -1396,11 +1384,9 @@ class DenseTest(testing.TestCase):
         # Verify g_idx is NOT created for per-channel
         self.assertFalse(hasattr(layer, "g_idx"))
 
+    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_int4_subchannel_g_idx_serialization(self):
         """Test that g_idx is properly serialized and deserialized."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 128, 32
         block_size = 64
 

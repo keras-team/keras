@@ -949,11 +949,9 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
-    from keras.src.testing.test_case import uses_cpu
-
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or x.ndim == 0:
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
