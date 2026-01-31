@@ -18,7 +18,6 @@ NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_nanmax
 NumpyDtypeTest::test_nanmean
 NumpyDtypeTest::test_nanmin
-NumpyDtypeTest::test_nansum
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
@@ -50,7 +49,6 @@ NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanmax
 NumpyOneInputOpsCorrectnessTest::test_nanmean
 NumpyOneInputOpsCorrectnessTest::test_nanmin
-NumpyOneInputOpsCorrectnessTest::test_nansum
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_searchsorted
