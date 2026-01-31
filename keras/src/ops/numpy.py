@@ -5231,7 +5231,7 @@ def nanmin(x, axis=None, keepdims=False):
     return backend.numpy.nanmin(x, axis=axis, keepdims=keepdims)
 
 
-class NanProd(Operation):
+class Nanprod(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
         if isinstance(axis, int):
@@ -5271,7 +5271,7 @@ def nanprod(x, axis=None, keepdims=False):
     """Return the product of tensor elements over a given axis,
     ignoring NaNs."""
     if any_symbolic_tensors((x,)):
-        return NanProd(axis=axis, keepdims=keepdims).symbolic_call(x)
+        return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
 
     return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
 
