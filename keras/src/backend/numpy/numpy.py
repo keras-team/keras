@@ -983,7 +983,7 @@ def nanprod(x, axis=None, keepdims=False):
         dtype = "int32"
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
-    return np.nanprod(x, axis=axis, keepdims=keepdims).astype(dtype)
+    return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
 def nansum(x, axis=None, keepdims=False):
