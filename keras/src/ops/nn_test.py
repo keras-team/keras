@@ -1324,16 +1324,9 @@ class NNOpsStaticShapeTest(testing.TestCase):
 
 
 class NNOpsCorrectnessTest(testing.TestCase):
-    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+    @pytest.mark.skipif(not testing.jax_uses_tpu(), reason="JAX on TPU only")
     def test_dot_product_attention_inside_scan(self):
         import jax
-
-        try:
-            if jax.devices()[0].platform != "tpu":
-                self.skipTest("TPU-specific test")
-        except:
-            self.skipTest("TPU-specific test")
-
         import jax.numpy as jnp
 
         def attention_scan_body(carry, x):
