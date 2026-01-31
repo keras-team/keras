@@ -53,8 +53,41 @@ class OrbaxLazyModule(LazyModule):
             raise AttributeError
         if self.module is None:
             self.initialize()
+
         if name == "multihost":
             return self.parent_module.multihost
+
+        if name in (
+            "StandardCheckpointHandler",
+            "Checkpointer",
+            "AsyncCheckpointer",
+            "CheckpointManager",
+            "CheckpointManagerOptions",
+        ):
+            return getattr(self.parent_module, name)
+
+        if name in ("CompositeArgs", "StandardSaveArgs", "StandardRestoreArgs"):
+            if not hasattr(self, "_handlers"):
+                from orbax.checkpoint._src.handlers import (
+                    composite_checkpoint_handler,
+                )
+                from orbax.checkpoint._src.handlers import (
+                    standard_checkpoint_handler,
+                )
+
+                self._handlers = {
+                    "composite": composite_checkpoint_handler,
+                    "standard": standard_checkpoint_handler,
+                }
+
+            handler = "composite" if name == "CompositeArgs" else "standard"
+            return getattr(self._handlers[handler], name)
+
+        # Lazy load checkpoint args utilities
+        if name in ("CheckpointArgs", "register_with_handler"):
+            module = importlib.import_module("orbax.checkpoint.checkpoint_args")
+            return getattr(module, name)
+
         return getattr(self.module, name)
 
 

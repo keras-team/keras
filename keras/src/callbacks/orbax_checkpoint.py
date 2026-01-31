@@ -1,4 +1,7 @@
+import dataclasses
 import warnings
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -8,10 +11,8 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
-from keras.src.saving import saving_lib
+from keras.src.saving.saving_lib import _walk_saveable
 from keras.src.utils.module_utils import ocp
-
-# Context and AsyncOptions are accessed through the lazy-loaded ocp module
 
 # JAX monitoring compatibility: ensure record_scalar exists
 # to prevent AttributeError in older JAX versions
@@ -22,6 +23,164 @@ try:
         jax.monitoring.record_scalar = lambda *args, **kwargs: None
 except ImportError:
     pass
+
+
+# ============================================================================
+# Asset Handler Implementation
+# ============================================================================
+
+
+class KerasAssetHandler:
+    """Custom handler for Keras model assets."""
+
+    def __init__(self, primary_host_only: bool = True):
+        self._primary_host_only = primary_host_only
+        self._asset_metadata = {}
+
+    @classmethod
+    def typestr(cls):
+        return "KerasAssetHandler"
+
+    def _is_primary_host(self):
+        """Check if this is the primary host in multi-host training.
+
+        Multi-host is only relevant for JAX backend with Orbax.
+        For TensorFlow and PyTorch, this always returns True since
+        multi-host checkpointing is not supported.
+        """
+        if not self._primary_host_only:
+            return True
+
+        # Multi-host checkpointing is only supported on JAX backend
+        if backend.backend() != "jax":
+            return True
+
+        try:
+            multihost = ocp.multihost
+            return multihost.is_primary_host()
+        except Exception:
+            return True
+
+    def _collect_layers_with_assets(self, model):
+        """Recursively collect all layers with assets."""
+        from keras.src.saving.keras_saveable import KerasSaveable
+        from keras.src.utils import naming
+
+        layers_with_assets = []
+        visited_saveables = set()
+
+        def _collect_from_container(container, path):
+            if isinstance(container, dict):
+                container = list(container.values())
+
+            used_names = {}
+            for item in container:
+                if isinstance(item, KerasSaveable):
+                    name = (
+                        item.name
+                        if hasattr(item, "name") and item.name
+                        else naming.to_snake_case(item.__class__.__name__)
+                    )
+                    if name in used_names:
+                        used_names[name] += 1
+                        name = f"{name}_{used_names[name]}"
+                    else:
+                        used_names[name] = 0
+                    collect_from_layer(item, f"{path}/{name}")
+
+        def collect_from_layer(layer, path):
+            if id(layer) in visited_saveables:
+                return
+            visited_saveables.add(id(layer))
+
+            if hasattr(layer, "assets") and callable(layer.assets):
+                assets_list = layer.assets()
+                if assets_list:
+                    layers_with_assets.append((path, layer))
+
+            for name, sublayer in _walk_saveable(layer):
+                sublayer_path = f"{path}/{name}"
+                if isinstance(sublayer, KerasSaveable):
+                    collect_from_layer(sublayer, sublayer_path)
+                elif isinstance(sublayer, (list, dict, tuple, set)):
+                    _collect_from_container(sublayer, sublayer_path)
+
+        collect_from_layer(model, model.name)
+        return layers_with_assets
+
+    def save(self, directory, args):
+        """Save model assets to the directory."""
+        if not self._is_primary_host():
+            return []
+
+        model = args.model
+        if model is None:
+            return []
+
+        directory = Path(directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        if args.save_model_config:
+            from keras.src.saving import saving_lib
+
+            config_json, _ = saving_lib._serialize_model_as_json(model)
+            (directory / "model_config.json").write_text(config_json)
+
+        layers_with_assets = self._collect_layers_with_assets(model)
+
+        for layer_path, layer in layers_with_assets:
+            layer_assets_dir = directory / layer_path
+            layer_assets_dir.mkdir(parents=True, exist_ok=True)
+
+            for i, asset in enumerate(layer.assets()):
+                asset_data = (
+                    np.array(asset)
+                    if hasattr(asset, "numpy")
+                    or not isinstance(asset, np.ndarray)
+                    else asset
+                )
+                np.save(
+                    layer_assets_dir / f"asset_{i}.npy",
+                    asset_data,
+                    allow_pickle=False,
+                )
+
+        self._asset_metadata[str(directory)] = {
+            "layers_with_assets": [path for path, _ in layers_with_assets]
+        }
+
+        return []
+
+    def restore(self, directory, args):
+        """Restore model assets from the directory."""
+        model = args.model
+        if model is None or not (directory := Path(directory)).exists():
+            return model
+
+        layers_with_assets = self._collect_layers_with_assets(model)
+
+        for layer_path, layer in layers_with_assets:
+            layer_assets_dir = directory / layer_path
+            if layer_assets_dir.exists():
+                asset_files = sorted(layer_assets_dir.glob("asset_*.npy"))
+                if asset_files and hasattr(layer, "_set_assets"):
+                    layer._set_assets([np.load(f) for f in asset_files])
+
+        return model
+
+    def metadata(self, directory):
+        return self._asset_metadata.get(str(directory), {})
+
+    def finalize(self, directory):
+        pass
+
+    def close(self):
+        pass
+
+
+# Placeholder for AssetArgs - will be properly initialized
+# when OrbaxCheckpoint is instantiated
+AssetArgs = None
 
 
 def _get_state_tree(model):
@@ -123,8 +282,26 @@ class OrbaxCheckpoint(MonitorCallback):
         # Ensure orbax is available
         ocp.initialize()
 
-        # Initialize MonitorCallback for handling 'monitor', 'mode', 'best'
-        # logic
+        # Initialize AssetArgs on first use
+        global AssetArgs
+        if AssetArgs is None:
+
+            @ocp.register_with_handler(
+                KerasAssetHandler, for_save=True, for_restore=True
+            )
+            @dataclasses.dataclass
+            class AssetArgs(ocp.CheckpointArgs):
+                """Arguments for asset checkpointing.
+
+                Attributes:
+                    model: The Keras model to save/restore assets for.
+                    save_model_config: Whether to save the model configuration.
+                """
+
+                model: Any = None
+                save_model_config: bool = True
+
+        # Initialize MonitorCallback for metric monitoring
         super().__init__(monitor, mode, initial_value_threshold)
 
         self.directory = directory
@@ -134,51 +311,44 @@ class OrbaxCheckpoint(MonitorCallback):
         self.max_to_keep = max_to_keep
         self.save_on_background = save_on_background
         self.save_weights_only = save_weights_only
+
+        # Tracking for batch-level saving
         self._batches_seen_since_last_saving = 0
         self._last_batch_seen = 0
-        self._current_epoch = 0  # Keep track of epoch
-        self._total_batches_seen = 0  # Global batch counter for step tracking
-        self._async_futures = []  # Track async save futures
+        self._current_epoch = 0
+        self._total_batches_seen = 0
 
-        # Multi-host support
-        self._multihost_initialized = self._is_multihost_initialized()
-
+        # Validate save_freq
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
                 f"Unrecognized save_freq: {self.save_freq}. "
-                "Expected save_freq are 'epoch' or integer values"
+                "Expected 'epoch' or integer."
             )
 
-        # --- Orbax Checkpointer Setup (V1 API) ---
-        policies = []
-        if max_to_keep is not None:
-            policies.append(
-                ocp.training.preservation_policies.LatestN(max_to_keep)
-            )
+        # Multi-host detection
+        self._multihost_initialized = self._is_multihost_initialized()
 
-        # Use AnyPreservationPolicy to combine them, or use directly
-        # if single policy
-        preservation_policy = None
-        if policies:
-            if len(policies) == 1:
-                preservation_policy = policies[0]
-            else:
-                preservation_policy = (
-                    ocp.training.preservation_policies.AnyPreservationPolicy(
-                        policies
-                    )
-                )
+        # Create checkpoint handlers
+        state_handler = ocp.StandardCheckpointHandler()
+        asset_handler = KerasAssetHandler()
 
-        # Create the V1 Checkpointer with direct parameter passing
-        # Orbax will handle directory creation on all processes as needed
-        # save_decision_policy is required for proper coordination of
-        # rapid async saves
-        self.checkpointer = ocp.training.Checkpointer(
-            directory=directory,
-            preservation_policy=preservation_policy,
-            save_decision_policy=ocp.training.save_decision_policies.FixedIntervalPolicy(
-                1
-            ),
+        asset_checkpointer = ocp.Checkpointer(asset_handler)
+        checkpointer_class = (
+            ocp.AsyncCheckpointer if save_on_background else ocp.Checkpointer
+        )
+        state_checkpointer = checkpointer_class(state_handler)
+
+        # Use CheckpointManager with named checkpointers dict
+        options = ocp.CheckpointManagerOptions(
+            max_to_keep=max_to_keep,
+            create=True,
+            save_interval_steps=1,
+        )
+
+        self.manager = ocp.CheckpointManager(
+            directory,
+            {"state": state_checkpointer, "assets": asset_checkpointer},
+            options,
         )
 
     def _is_multihost_initialized(self):
@@ -248,42 +418,34 @@ class OrbaxCheckpoint(MonitorCallback):
         return False
 
     def _save_checkpoint(self, step, logs=None):
-        """Save a checkpoint at the given step with multi-host coordination."""
+        """Save checkpoint with state and assets."""
+        # Access checkpoint args through ocp LazyModule
+        CompositeArgs = ocp.CompositeArgs
+        StandardSaveArgs = ocp.StandardSaveArgs
 
-        # --- Prepare Composite State (Backend-Agnostic) ---
+        # Get model state tree
         state_tree = _get_state_tree(self.model)
 
-        # Save the nested state structures directly (preserving layer
-        # names and structure)
+        # Prepare state dictionary
         if self.save_weights_only:
             composite_state = {
                 "trainable_variables": state_tree["trainable_variables"],
-                "non_trainable_variables": state_tree[
-                    "non_trainable_variables"
-                ],
+                "non_trainable_variables": (
+                    state_tree["non_trainable_variables"]
+                ),
             }
         else:
             composite_state = state_tree
-            # Include model configuration for full model restoration
-            # Use saving_lib helper to properly handle shared objects
-            config_json, _ = saving_lib._serialize_model_as_json(self.model)
-            composite_state["model_config"] = config_json
 
-        # Use a single with statement. If context_options is empty,
-        # Context() uses defaults.
-        with ocp.Context():
-            # Determine sync vs async based on save_on_background setting
-            use_sync = not self.save_on_background
+        # Save using CheckpointManager with Composite args
+        composite_args = CompositeArgs(
+            state=StandardSaveArgs(composite_state),
+            assets=AssetArgs(
+                model=self.model, save_model_config=not self.save_weights_only
+            ),
+        )
 
-            if use_sync:
-                # Synchronous save
-                self.checkpointer.save_pytree(step, composite_state)
-            else:
-                # Async save
-                future = self.checkpointer.save_pytree_async(
-                    step, composite_state
-                )
-                self._async_futures.append(future)
+        self.manager.save(step, args=composite_args)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -341,7 +503,7 @@ class OrbaxCheckpoint(MonitorCallback):
         # Close the Checkpointer - this waits for any pending async saves
         # to complete before closing
         try:
-            self.checkpointer.close()
+            self.manager.close()
         except Exception:
             pass  # Ignore errors during cleanup
 
@@ -350,16 +512,12 @@ class OrbaxCheckpoint(MonitorCallback):
 
     def wait_until_finished(self):
         """Wait for any in-progress checkpoint operations to complete.
-        This method blocks until all asynchronous checkpoint save operations
-        have completed across all hosts in a multi-host setup.
+        This method blocks until all asynchronous checkpoint save
+        operations have completed across all hosts in a multi-host
+        setup.
         """
-        # Wait for all tracked async futures to complete
-        for future in self._async_futures:
-            future.result()  # Wait for completion
-        self._async_futures.clear()  # Clear completed futures
-
-        # Wait for any remaining async operations to complete on this host
-        self.checkpointer.wait()
+        # Wait for any remaining async operations to complete
+        self.manager.wait_until_finished()
 
         # Multi-host synchronization: ensure all hosts complete
         self._sync_processes("checkpoint_wait_complete")
