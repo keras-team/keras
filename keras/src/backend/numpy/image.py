@@ -1018,8 +1018,10 @@ def gaussian_blur(
         kernel_size, sigma, num_channels, input_dtype
     )
 
-    pad_h = kernel_size[0] // 2
-    pad_w = kernel_size[1] // 2
+    pad_h = (kernel_size[0] - 1) // 2
+    pad_h_after = kernel_size[0] - 1 - pad_h
+    pad_w = (kernel_size[1] - 1) // 2
+    pad_w_after = kernel_size[1] - 1 - pad_w
 
     blurred_images = np.empty_like(images)
 
@@ -1027,7 +1029,7 @@ def gaussian_blur(
         for ch in range(num_channels):
             padded = np.pad(
                 images[b, :, :, ch],
-                ((pad_h, pad_h), (pad_w, pad_w)),
+                ((pad_h, pad_h_after), (pad_w, pad_w_after)),
                 mode="constant",
             )
             blurred_images[b, :, :, ch] = scipy.signal.convolve2d(
