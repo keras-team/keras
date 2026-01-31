@@ -973,6 +973,10 @@ def nanmin(x, axis=None, keepdims=False):
     return np.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanprod(x, axis=None, keepdims=False):
+    return np.nanprod(x, axis=axis, keepdims=keepdims)
+
+
 def nansum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)

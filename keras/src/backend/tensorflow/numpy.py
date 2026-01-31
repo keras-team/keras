@@ -2186,6 +2186,16 @@ def nanmin(x, axis=None, keepdims=False):
     )
 
 
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not x.dtype.is_floating:
+        return prod(x, axis=axis, keepdims=keepdims)
+
+    x_safe = tf.where(tf.math.is_nan(x), tf.ones_like(x), x)
+    return prod(x_safe, axis=axis, keepdims=keepdims)
+
+
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
