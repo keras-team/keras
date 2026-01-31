@@ -1321,13 +1321,20 @@ def nanmin(x, axis=None, keepdims=False):
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
+    if axis == () or axis == []:
+        return torch.nan_to_num(x, nan=1)
+
+    if isinstance(axis, (list, tuple)):
+        axis = sorted(axis, reverse=True)
+
     if not torch.is_floating_point(x):
         return prod(x, axis=axis, keepdims=keepdims)
 
-    x_safe = torch.where(torch.isnan(x), torch.ones_like(x), x)
-    out = prod(x_safe, axis=axis, keepdims=keepdims)
-
-    return out
+    return prod(
+        torch.where(torch.isnan(x), torch.ones_like(x), x),
+        axis=axis,
+        keepdims=keepdims,
+    )
 
 
 def nansum(x, axis=None, keepdims=False):
