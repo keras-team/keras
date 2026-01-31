@@ -5231,6 +5231,51 @@ def nanmin(x, axis=None, keepdims=False):
     return backend.numpy.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+class NanProd(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanprod(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+
+        if dtype == "bool":
+            dtype = "int32"
+        elif dtype in ("int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanprod", "keras.ops.numpy.nanprod"])
+def nanprod(x, axis=None, keepdims=False):
+    """Return the product of tensor elements over a given axis,
+    ignoring NaNs."""
+    if any_symbolic_tensors((x,)):
+        return NanProd(axis=axis, keepdims=keepdims).symbolic_call(x)
+
+    return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
+
+
 class Nansum(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
