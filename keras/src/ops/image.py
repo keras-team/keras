@@ -344,8 +344,7 @@ def resize(
         )
     if size[0] <= 0 or size[1] <= 0:
         raise ValueError(
-            "`size` must have positive height and width. "
-            f"Received: size={size}"
+            f"`size` must have positive height and width. Received: size={size}"
         )
     if len(images.shape) < 3 or len(images.shape) > 4:
         raise ValueError(
