@@ -106,14 +106,6 @@ def export_onnx(
     elif backend.backend() == "torch":
         import torch
 
-        # Constants for dimension naming
-        DIM_NAMES = {
-            0: "batch_size",
-            1: "seq_len_or_height",
-            2: "width_or_depth",
-            3: "channels",
-        }
-
         def _get_specs_from_signature(input_signature):
             """Extract specs from input_signature."""
             if len(input_signature) == 1 and isinstance(
@@ -138,7 +130,10 @@ def export_onnx(
 
                 for dim_idx, dim_size in enumerate(shape):
                     if dim_size is None:
-                        dim_name = DIM_NAMES.get(dim_idx, f"dim_{dim_idx}")
+                        if dim_idx == 0:
+                            dim_name = "batch"
+                        else:
+                            dim_name = f"dim_{input_idx}_{dim_idx}"
                         dynamic_dims[dim_idx] = dim_name
 
                 if dynamic_dims:
