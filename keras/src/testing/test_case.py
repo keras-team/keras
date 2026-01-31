@@ -8,7 +8,6 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import distribution
 from keras.src import ops
 from keras.src import tree
 from keras.src import utils
@@ -626,43 +625,74 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                         self.assertEqual(dtype, "float32")
 
 
-def tensorflow_uses_gpu():
-    return backend.backend() == "tensorflow" and uses_gpu()
+def _jax_uses(device_type):
+    import jax
+
+    return jax.default_backend() == device_type
+
+
+def _tensorflow_uses(device_type):
+    import tensorflow as tf
+
+    return len(tf.config.list_physical_devices(device_type.upper())) > 0
+
+
+def _torch_uses(device_type):
+    if device_type == "gpu":
+        from keras.src.backend.torch.core import get_device
+
+        return get_device() == "cuda"
+    return device_type == "cpu"
+
+
+def uses_gpu():
+    if hasattr(uses_gpu, "_value"):
+        return uses_gpu._value
+
+    if backend.backend() == "tensorflow":
+        value = _tensorflow_uses("gpu")
+    if backend.backend() == "jax":
+        value = _jax_uses("gpu")
+    if backend.backend() == "torch":
+        return _torch_uses("gpu")
+    else:
+        value = False
+    uses_gpu._value = value
+    return value
+
+
+def uses_tpu():
+    if hasattr(uses_tpu, "_value"):
+        return uses_tpu._value
+
+    if backend.backend() == "tensorflow":
+        value = _tensorflow_uses("tpu")
+    if backend.backend() == "jax":
+        value = _jax_uses("tpu")
+    else:
+        value = False
+    uses_tpu._value = value
+    return value
 
 
 def jax_uses_gpu():
     return backend.backend() == "jax" and uses_gpu()
 
 
-def torch_uses_gpu():
-    if backend.backend() != "torch":
-        return False
-    from keras.src.backend.torch.core import get_device
-
-    return get_device() == "cuda"
-
-
-def uses_gpu():
-    # Condition used to skip tests when using the GPU
-    devices = distribution.list_devices()
-    if any(d.startswith("gpu") for d in devices):
-        return True
-    return False
-
-
 def jax_uses_tpu():
     return backend.backend() == "jax" and uses_tpu()
 
 
-def uses_tpu():
-    # Condition used to skip tests when using the TPU
-    try:
-        devices = distribution.list_devices()
-        if any(d.startswith("tpu") for d in devices):
-            return True
-    except AttributeError:
-        return False
-    return False
+def tensorflow_uses_gpu():
+    return backend.backend() == "tensorflow" and uses_gpu()
+
+
+def tensorflow_uses_tpu():
+    return backend.backend() == "tensorflow" and uses_tpu()
+
+
+def torch_uses_gpu():
+    return backend.backend() == "torch" and uses_gpu()
 
 
 def create_keras_tensors(input_shape, dtype, sparse, ragged):
