@@ -225,8 +225,34 @@ def _to_backend_mesh(device_mesh):
     return jax.sharding.Mesh(devices, device_mesh.axis_names)
 
 
+def _to_backend_abstract_mesh(device_mesh):
+    """Convert the DeviceMesh to JAX AbstractMesh for JIT-stable cache keys.
+
+    AbstractMesh uses (axis_name, axis_size) pairs instead of concrete devices,
+    so JIT cache keys do not change when devices change (avoids cache misses).
+
+    Args:
+        device_mesh: DeviceMesh instance to convert.
+
+    Returns:
+        A `jax.sharding.AbstractMesh` instance if available, else None.
+    """
+    if not hasattr(jax.sharding, "AbstractMesh"):
+        return None
+    # AbstractMesh(axis_sizes, axis_names) for JIT-stable cache keys.
+    shape = device_mesh.devices.shape
+    axis_names = device_mesh.axis_names
+    axis_sizes = tuple(shape)
+    axis_names_tuple = tuple(axis_names)
+    return jax.sharding.AbstractMesh(axis_sizes, axis_names_tuple)
+
+
 def _to_backend_layout(tensor_layout):
     """Convert the TensorLayout to JAX backend specific Sharding.
+
+    Uses AbstractMesh when inside a JAX tracing scope so JIT cache keys are
+    stable across device changes; uses concrete Mesh for eager placement
+    (device_put, make_array_from_process_local_data).
 
     Args:
         tensor_layout: TensorLayout instance to convert.
@@ -240,5 +266,10 @@ def _to_backend_layout(tensor_layout):
             "for TensorLayout."
         )
     partition_spec = jax.sharding.PartitionSpec(*tensor_layout.axes)
+    # In tracing scope use AbstractMesh for stable JIT cache; else concrete.
+    if jax_utils.is_in_jax_tracing_scope():
+        abstract_mesh = tensor_layout.device_mesh.backend_mesh_abstract
+        if abstract_mesh is not None:
+            return jax.sharding.NamedSharding(abstract_mesh, partition_spec)
     jax_mesh = tensor_layout.device_mesh.backend_mesh
     return jax.sharding.NamedSharding(jax_mesh, partition_spec)

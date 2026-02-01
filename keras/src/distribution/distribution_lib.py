@@ -16,6 +16,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import distribution_lib
 from keras.src.backend.common import global_state
+from keras.src.backend.config import backend
 
 DEFAULT_BATCH_DIM_NAME = "batch"
 GLOBAL_ATTRIBUTE_NAME = "distribution"
@@ -217,6 +218,13 @@ class DeviceMesh:
             self._backend_mesh = distribution_lib._to_backend_mesh(self)
         return self._backend_mesh
 
+    @property
+    def backend_mesh_abstract(self):
+        """Backend mesh for JIT-stable cache keys (e.g. JAX AbstractMesh)."""
+        if hasattr(distribution_lib, "_to_backend_abstract_mesh"):
+            return distribution_lib._to_backend_abstract_mesh(self)
+        return self.backend_mesh
+
     def __repr__(self):
         return (
             f"<{self.__class__.__name__} "
@@ -273,6 +281,9 @@ class TensorLayout:
 
     @property
     def backend_layout(self):
+        # JAX: context-dependent layout (abstract vs concrete mesh).
+        if backend() == "jax":
+            return distribution_lib._to_backend_layout(self)
         if not hasattr(self, "_backend_layout"):
             self._backend_layout = distribution_lib._to_backend_layout(self)
         return self._backend_layout
