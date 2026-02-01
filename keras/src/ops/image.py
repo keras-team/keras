@@ -342,6 +342,10 @@ def resize(
             "Expected `size` to be a tuple of 2 integers. "
             f"Received: size={size}"
         )
+    if size[0] <= 0 or size[1] <= 0:
+        raise ValueError(
+            f"`size` must have positive height and width. Received: size={size}"
+        )
     if len(images.shape) < 3 or len(images.shape) > 4:
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
