@@ -1331,7 +1331,7 @@ def nanprod(x, axis=None, keepdims=False):
         return prod(x, axis=axis, keepdims=keepdims)
 
     return prod(
-        torch.where(torch.isnan(x), torch.ones_like(x), x),
+        torch.where(torch.isnan(x), torch.ones((), dtype=x.dtype), x),
         axis=axis,
         keepdims=keepdims,
     )
