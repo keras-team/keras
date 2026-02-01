@@ -80,6 +80,7 @@ def export_onnx(
                 "The model provided has never called. "
                 "It must be called at least once before export."
             )
+
     input_names = [
         getattr(spec, "name", None) or f"input_{i}"
         for i, spec in enumerate(input_signature)
@@ -105,10 +106,76 @@ def export_onnx(
     elif backend.backend() == "torch":
         import torch
 
+        def _get_specs_from_signature(input_signature):
+            """Extract specs from input_signature."""
+            if len(input_signature) == 1 and isinstance(
+                input_signature[0], list
+            ):
+                # Multi-input case: input_signature = [[spec1, spec2, ...]]
+                return input_signature[0]
+            else:
+                # Single input case: input_signature = [spec]
+                return input_signature
+
+        def _generate_dynamic_dimensions():
+            """Generate dynamic dimension information from input_signature."""
+            specs = _get_specs_from_signature(input_signature)
+
+            for input_idx, spec in enumerate(specs):
+                if not hasattr(spec, "shape"):
+                    continue
+
+                shape = spec.shape
+                dynamic_dims = {}
+
+                for dim_idx, dim_size in enumerate(shape):
+                    if dim_size is None:
+                        if dim_idx == 0:
+                            dim_name = "batch"
+                        else:
+                            dim_name = f"dim_{input_idx}_{dim_idx}"
+                        dynamic_dims[dim_idx] = dim_name
+
+                if dynamic_dims:
+                    yield input_idx, dynamic_dims
+
+        def generate_dynamic_shapes():
+            """Generate PyTorch dynamic_shapes with positional input indices."""
+            dynamic_shapes = {}
+
+            for input_idx, dynamic_dims in _generate_dynamic_dimensions():
+                # Convert to PyTorch Dim objects
+                torch_dims = {
+                    dim_idx: torch.export.Dim(dim_name)
+                    for dim_idx, dim_name in dynamic_dims.items()
+                }
+                dynamic_shapes[input_idx] = torch_dims
+
+            return dynamic_shapes if dynamic_shapes else None
+
+        def generate_dynamic_axes():
+            """Generate legacy dynamic_axes format."""
+            dynamic_axes = {}
+
+            for input_idx, dynamic_dims in _generate_dynamic_dimensions():
+                input_name = (
+                    input_names[input_idx]
+                    if input_idx < len(input_names)
+                    else f"input_{input_idx}"
+                )
+                dynamic_axes[input_name] = dynamic_dims
+
+            return dynamic_axes if dynamic_axes else None
+
+        # Generate both formats
+        dynamic_shapes = generate_dynamic_shapes()
+        dynamic_axes = generate_dynamic_axes()
+
         sample_inputs = tree.map_structure(
             lambda x: convert_spec_to_tensor(x, replace_none_number=1),
             input_signature,
         )
+
         sample_inputs = tuple(sample_inputs)
         # TODO: Make dict model exportable.
         if any(isinstance(x, dict) for x in sample_inputs):
@@ -140,34 +207,109 @@ def export_onnx(
             warnings.filterwarnings(
                 "ignore", message=r".*suppressed about get_attr references.*"
             )
-            try:
-                # Try the TorchDynamo-based ONNX exporter first.
-                onnx_program = torch.onnx.export(
-                    model,
-                    sample_inputs,
-                    verbose=actual_verbose,
-                    opset_version=opset_version,
-                    input_names=input_names,
-                    dynamo=True,
-                )
-                if hasattr(onnx_program, "optimize"):
-                    onnx_program.optimize()  # Only supported by torch>=2.6.0.
-                onnx_program.save(filepath)
-            except:
-                if verbose is None:
-                    # Set to `False` due to file system leakage issue:
-                    # https://github.com/keras-team/keras/issues/20826
-                    actual_verbose = False
+            # Suppress TorchScript tracing warnings
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Converting a tensor to a Python boolean.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Converting a tensor to a Python integer.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Iterating over a tensor.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Using len to get tensor shape.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*torch.tensor results are registered as constants.*",
+                category=torch.jit.TracerWarning,
+            )
 
-                # Fall back to the TorchScript-based ONNX exporter.
-                torch.onnx.export(
-                    model,
-                    sample_inputs,
-                    filepath,
-                    verbose=actual_verbose,
-                    opset_version=opset_version,
-                    input_names=input_names,
-                )
+        def _export_with_torchscript(
+            model,
+            sample_inputs,
+            filepath,
+            verbose,
+            opset_version,
+            input_names,
+            dynamic_axes,
+        ):
+            """Export using TorchScript-based ONNX exporter."""
+            # Set verbose to False for TorchScript due to file system leakage
+            torchscript_verbose = verbose
+            if verbose is None:
+                # Set to `False` due to file system leakage issue:
+                # https://github.com/keras-team/keras/issues/20826
+                torchscript_verbose = False
+
+            export_kwargs = {
+                "verbose": torchscript_verbose,
+                "opset_version": opset_version,
+                "input_names": input_names,
+                "export_params": True,
+                "do_constant_folding": True,
+                "dynamo": False,
+            }
+
+            # For TorchScript (dynamo=False), use dynamic_axes parameter
+            if dynamic_axes:
+                export_kwargs["dynamic_axes"] = dynamic_axes
+
+            torch.onnx.export(model, sample_inputs, filepath, **export_kwargs)
+
+        # When dynamic shapes are present, prefer TorchScript over
+        # TorchDynamo because TorchDynamo has constraint inference issues
+        # with dynamic dimensions
+        if dynamic_shapes:
+            # Use TorchScript path for dynamic shapes
+            _export_with_torchscript(
+                model,
+                sample_inputs,
+                filepath,
+                verbose,
+                opset_version,
+                input_names,
+                dynamic_axes,
+            )
+            return
+
+        try:
+            # Try the TorchDynamo-based ONNX exporter first for static
+            # shapes
+            export_kwargs = {
+                "verbose": actual_verbose,
+                "opset_version": opset_version,
+                "input_names": input_names,
+                "dynamo": True,
+            }
+
+            onnx_program = torch.onnx.export(
+                model, sample_inputs, **export_kwargs
+            )
+            if hasattr(onnx_program, "optimize"):
+                onnx_program.optimize()  # Only supported by torch>=2.6.0.
+            onnx_program.save(filepath)
+
+        except Exception:
+            # Fall back to the TorchScript-based ONNX exporter.
+            _export_with_torchscript(
+                model,
+                sample_inputs,
+                filepath,
+                verbose,
+                opset_version,
+                input_names,
+                dynamic_axes,
+            )
     else:
         raise NotImplementedError(
             "`export_onnx` is only compatible with TensorFlow, JAX and "
