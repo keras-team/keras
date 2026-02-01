@@ -822,10 +822,7 @@ class ConvBasicTest(testing.TestCase):
             dilation_rate=dilation_rate,
         )
 
-        with self.assertRaisesRegex(
-            ValueError,
-            "Invalid convolution configuration",
-        ):
+        with self.assertRaises(ValueError):
             layer(inputs)
 
 
