@@ -807,6 +807,48 @@ class ConvBasicTest(testing.TestCase):
             supports_masking=False,
         )
 
+    def test_conv1d_symbolic_invalid_configuration(self):
+        inputs = layers.Input(shape=(10, 3))
+        layer = layers.Conv1D(
+            filters=1,
+            kernel_size=2,
+            dilation_rate=10,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid convolution configuration",
+        ):
+            layer(inputs)
+
+    def test_conv2d_symbolic_invalid_configuration(self):
+        inputs = layers.Input(shape=(10, 10, 3))
+        layer = layers.Conv2D(
+            filters=1,
+            kernel_size=(2, 2),
+            dilation_rate=(10, 10),
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid convolution configuration",
+        ):
+            layer(inputs)
+
+    def test_conv3d_symbolic_invalid_configuration(self):
+        inputs = layers.Input(shape=(10, 10, 10, 3))
+        layer = layers.Conv3D(
+            filters=1,
+            kernel_size=(2, 2, 2),
+            dilation_rate=(10, 10, 10),
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid convolution configuration",
+        ):
+            layer(inputs)
+
 
 class ConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
