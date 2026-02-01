@@ -101,8 +101,11 @@ def _validate_tensor_size(tensor):
 
     if num_elements > MAX_TENSOR_ELEMENTS:
         raise ValueError(
-            "Refusing to allocate tensor with excessive size "
-            f"({num_elements} > {MAX_TENSOR_ELEMENTS})"
+            f"A tensor of size {num_elements} was created, which is larger "
+            f"than the maximum allowed size of {MAX_TENSOR_ELEMENTS}. "
+            "This is a safeguard to prevent excessive memory allocation. "
+            "If this allocation is intended, you can increase the limit by "
+            "setting the `KERAS_MAX_TENSOR_ELEMENTS` environment variable."
         )
 
 
