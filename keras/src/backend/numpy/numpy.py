@@ -973,6 +973,19 @@ def nanmin(x, axis=None, keepdims=False):
     return np.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanprod(x, axis=None, keepdims=False):
+    axis = standardize_axis_for_numpy(axis)
+
+    x = convert_to_tensor(x)
+
+    dtype = dtypes.result_type(x.dtype)
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
 def nansum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)
