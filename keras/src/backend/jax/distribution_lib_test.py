@@ -266,6 +266,22 @@ class JaxDistributionLibTest(testing.TestCase):
                 ve = tuple(se.values()) if hasattr(se, "values") else se
                 self.assertEqual(va, ve)
 
+    def test_to_abstract_shardings(self):
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(4, 2), ("batch", "model")
+        )
+        spec = jax.sharding.PartitionSpec("batch", None)
+        concrete = jax.sharding.NamedSharding(jax_mesh, spec)
+        out = backend_dlib._to_abstract_shardings(concrete)
+        if getattr(jax_mesh, "abstract_mesh", None) is not None:
+            self.assertIsInstance(out, jax.sharding.NamedSharding)
+            self.assertIs(out.mesh, jax_mesh.abstract_mesh)
+        else:
+            self.assertIs(out, concrete)
+        # Pytree: list of shardings
+        out_list = backend_dlib._to_abstract_shardings([concrete, concrete])
+        self.assertEqual(len(out_list), 2)
+
     def test_to_backend_layout(self):
         axes = ["data", None]
         mesh = distribution_lib.DeviceMesh(

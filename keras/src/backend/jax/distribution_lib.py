@@ -228,8 +228,8 @@ def _to_backend_mesh(device_mesh):
 def _to_backend_abstract_mesh(device_mesh):
     """Convert the DeviceMesh to JAX AbstractMesh for JIT-stable cache keys.
 
-    AbstractMesh uses (axis_name, axis_size) pairs instead of concrete devices,
-    so JIT cache keys do not change when devices change (avoids cache misses).
+    Uses the concrete Mesh's .abstract_mesh when available; otherwise builds
+    AbstractMesh from axis sizes/names for older JAX.
 
     Args:
         device_mesh: DeviceMesh instance to convert.
@@ -237,14 +237,45 @@ def _to_backend_abstract_mesh(device_mesh):
     Returns:
         A `jax.sharding.AbstractMesh` instance if available, else None.
     """
+    jax_mesh = device_mesh.backend_mesh
+    abstract = getattr(jax_mesh, "abstract_mesh", None)
+    if abstract is not None:
+        return abstract
     if not hasattr(jax.sharding, "AbstractMesh"):
         return None
-    # AbstractMesh(axis_sizes, axis_names) for JIT-stable cache keys.
+    # Fallback for older JAX: build AbstractMesh(axis_sizes, axis_names).
     shape = device_mesh.devices.shape
     axis_names = device_mesh.axis_names
     axis_sizes = tuple(shape)
     axis_names_tuple = tuple(axis_names)
     return jax.sharding.AbstractMesh(axis_sizes, axis_names_tuple)
+
+
+def _to_abstract_shardings(shardings):
+    """Convert shardings to use AbstractMesh for JIT-stable cache keys.
+
+    For each NamedSharding(mesh, spec), returns one with mesh.abstract_mesh
+    when available; else unchanged. Used for jit() out_shardings in Trainer.
+
+    Args:
+        shardings: Pytree of Sharding (e.g. list/tuple of NamedSharding).
+
+    Returns:
+        Pytree of Sharding with AbstractMesh where available.
+    """
+    if shardings is None:
+        return None
+
+    def convert_one(s):
+        if not isinstance(s, jax.sharding.NamedSharding):
+            return s
+        mesh = s.mesh
+        abstract = getattr(mesh, "abstract_mesh", None)
+        if abstract is None:
+            return s
+        return jax.sharding.NamedSharding(abstract, s.spec)
+
+    return jax.tree_util.tree_map(convert_one, shardings)
 
 
 def _to_backend_layout(tensor_layout):

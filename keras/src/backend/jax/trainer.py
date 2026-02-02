@@ -265,6 +265,10 @@ class JAXTrainer(base_trainer.Trainer):
             out_shardings = None
             if distribution_lib.distribution() is not None:
                 state_shardings = self._get_state_sharding_spec()
+                # Use AbstractMesh for out_shardings so JIT cache key is stable.
+                state_shardings = jax_distribution_lib._to_abstract_shardings(
+                    state_shardings
+                )
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
                 step_fn = lambda state, data: type(self).train_step(
@@ -300,6 +304,9 @@ class JAXTrainer(base_trainer.Trainer):
                     trainable_shardings,
                     non_trainable_shardings,
                     metrics_shardings,
+                )
+                state_shardings = jax_distribution_lib._to_abstract_shardings(
+                    state_shardings
                 )
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
@@ -340,6 +347,9 @@ class JAXTrainer(base_trainer.Trainer):
                 state_shardings = (
                     trainable_shardings,
                     non_trainable_shardings,
+                )
+                state_shardings = jax_distribution_lib._to_abstract_shardings(
+                    state_shardings
                 )
                 out_shardings = (None, state_shardings)
             predict_step = jit(
