@@ -202,3 +202,58 @@ class NormalizationTest(testing.TestCase):
         sample_input = np.random.rand(1, 32, 32, 3)
         output = normalizer(sample_input)
         self.assertEqual(output.shape, (1, 32, 32, 3))
+
+    def test_broadcast_non_scalar_middle_axis(self):
+        """
+        Tests mean/variance that are not scalars and require
+        expanding dims on non-kept axes (the 'general case').
+        """
+        # Input shape: (Batch=2, Height=4, Width=4, Channels=3)
+        input_shape = (2, 4, 4, 3)
+        # We want to normalize only across the 'Width' (axis 2)
+        # So mean should have shape (4,)
+        axis = 2
+        custom_mean = np.array([10.0, 20.0, 30.0, 40.0], dtype="float32")
+        custom_var = np.array([1.0, 1.0, 1.0, 1.0], dtype="float32")
+
+        layer = layers.Normalization(
+            axis=axis, mean=custom_mean, variance=custom_var
+        )
+        layer.build(input_shape)
+
+        # The expected broadcast shape should be (1, 1, 4, 1)
+        expected_shape = (1, 1, 4, 1)
+
+        assert layer.mean.shape == expected_shape
+        assert layer.variance.shape == expected_shape
+        assert layer.mean[0, 0, 1, 0] == 20.0
+
+    def test_broadcast_multiple_axes(self):
+        """
+        Tests keeping multiple axes, e.g., (Height, Width) but not Channels.
+        """
+        input_shape = (None, 10, 10, 3)
+        axis = (1, 2)
+
+        custom_mean = np.zeros((10, 10), dtype="float32")
+        custom_var = np.ones((10, 10), dtype="float32")
+
+        layer = layers.Normalization(
+            axis=axis, mean=custom_mean, variance=custom_var
+        )
+        layer.build(input_shape)
+
+        # The expected broadcast shape should be (1, 10, 10, 1)
+        assert layer.mean.shape == (1, 10, 10, 1)
+
+    def test_scalar_broadcast(self):
+        """
+        Ensures the scalar case still broadcasts to the full rank.
+        """
+        input_shape = (2, 2)
+        layer = layers.Normalization(axis=-1, mean=5.0, variance=1.0)
+        layer.build(input_shape)
+
+        # The expected broadcast shape should be (1, 2)
+        assert layer.mean.shape == (1, 2)
+        assert np.all(layer.mean == 5.0)

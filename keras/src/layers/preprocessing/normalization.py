@@ -191,25 +191,34 @@ class Normalization(DataLayer):
             )
             self.built = True
             self.finalize_state()
-        else:
-            # In the no adapt case, make constant tensors for mean and variance
 
+        else:
             mean = ops.convert_to_tensor(self.input_mean)
             variance = ops.convert_to_tensor(self.input_variance)
 
-            # Broadcast scalar mean/variance to the target shape
-
             if ops.ndim(mean) == 0:
+                # Case 1: Scalar mean/variance
                 mean = ops.broadcast_to(mean, self._broadcast_shape)
                 variance = ops.broadcast_to(variance, self._broadcast_shape)
             else:
-                # Reshape multi-dimensional mean/variance to match the broadcast
+                # Case 2: General broadcasting (handles partial dimensions).
+                # We need to expand mean/variance so they have 1s on the
+                # _reduce_axis and align with the rank of the input_shape.
+                expanded_shape = [1] * ndim
+                mean_shape = ops.shape(mean)
+                for i, axis_idx in enumerate(self._keep_axis):
+                    expanded_shape[axis_idx] = mean_shape[i]
 
-                mean = ops.reshape(mean, self._broadcast_shape)
-                variance = ops.reshape(variance, self._broadcast_shape)
+                mean = ops.reshape(mean, expanded_shape)
+                variance = ops.reshape(variance, expanded_shape)
+
+                # Finally, broadcast to the full target shape.
+                mean = ops.broadcast_to(mean, self._broadcast_shape)
+                variance = ops.broadcast_to(variance, self._broadcast_shape)
 
             self.mean = ops.cast(mean, dtype=self.compute_dtype)
             self.variance = ops.cast(variance, dtype=self.compute_dtype)
+            self.built = True
 
     def adapt(self, data):
         """Computes the mean and variance of values in a dataset.
