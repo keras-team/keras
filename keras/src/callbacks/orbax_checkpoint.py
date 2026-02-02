@@ -11,7 +11,6 @@ from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import (
     MonitorCallback,  # For metric monitoring logic
 )
-from keras.src.saving.saving_lib import _walk_saveable
 from keras.src.utils.module_utils import ocp
 
 # JAX monitoring compatibility: ensure record_scalar exists
@@ -61,55 +60,8 @@ class KerasAssetHandler:
         except Exception:
             return True
 
-    def _collect_layers_with_assets(self, model):
-        """Recursively collect all layers with assets."""
-        from keras.src.saving.keras_saveable import KerasSaveable
-        from keras.src.utils import naming
-
-        layers_with_assets = []
-        visited_saveables = set()
-
-        def _collect_from_container(container, path):
-            if isinstance(container, dict):
-                container = list(container.values())
-
-            used_names = {}
-            for item in container:
-                if isinstance(item, KerasSaveable):
-                    name = (
-                        item.name
-                        if hasattr(item, "name") and item.name
-                        else naming.to_snake_case(item.__class__.__name__)
-                    )
-                    if name in used_names:
-                        used_names[name] += 1
-                        name = f"{name}_{used_names[name]}"
-                    else:
-                        used_names[name] = 0
-                    collect_from_layer(item, f"{path}/{name}")
-
-        def collect_from_layer(layer, path):
-            if id(layer) in visited_saveables:
-                return
-            visited_saveables.add(id(layer))
-
-            if hasattr(layer, "assets") and callable(layer.assets):
-                assets_list = layer.assets()
-                if assets_list:
-                    layers_with_assets.append((path, layer))
-
-            for name, sublayer in _walk_saveable(layer):
-                sublayer_path = f"{path}/{name}"
-                if isinstance(sublayer, KerasSaveable):
-                    collect_from_layer(sublayer, sublayer_path)
-                elif isinstance(sublayer, (list, dict, tuple, set)):
-                    _collect_from_container(sublayer, sublayer_path)
-
-        collect_from_layer(model, model.name)
-        return layers_with_assets
-
     def save(self, directory, args):
-        """Save model assets to the directory."""
+        """Save model assets using saving_lib._save_state."""
         if not self._is_primary_host():
             return []
 
@@ -117,54 +69,54 @@ class KerasAssetHandler:
         if model is None:
             return []
 
+        from keras.src.saving import saving_lib
+        from keras.src.saving.saving_lib import DirectIOStore
+
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
 
+        # Save model config if requested
         if args.save_model_config:
-            from keras.src.saving import saving_lib
-
             config_json, _ = saving_lib._serialize_model_as_json(model)
             (directory / "model_config.json").write_text(config_json)
 
-        layers_with_assets = self._collect_layers_with_assets(model)
-
-        for layer_path, layer in layers_with_assets:
-            layer_assets_dir = directory / layer_path
-            layer_assets_dir.mkdir(parents=True, exist_ok=True)
-
-            for i, asset in enumerate(layer.assets()):
-                asset_data = (
-                    np.array(asset)
-                    if hasattr(asset, "numpy")
-                    or not isinstance(asset, np.ndarray)
-                    else asset
-                )
-                np.save(
-                    layer_assets_dir / f"asset_{i}.npy",
-                    asset_data,
-                    allow_pickle=False,
-                )
-
-        self._asset_metadata[str(directory)] = {
-            "layers_with_assets": [path for path, _ in layers_with_assets]
-        }
+        # Use saving_lib._save_state to save assets, reusing existing
+        # logic. DirectIOStore writes directly without temp files.
+        assets_store = DirectIOStore(str(directory))
+        saving_lib._save_state(
+            saveable=model,
+            weights_store=None,  # Only save assets, not weights
+            assets_store=assets_store,
+            inner_path=model.name,  # Start with model name
+            visited_saveables=set(),
+        )
+        assets_store.close()
 
         return []
 
     def restore(self, directory, args):
-        """Restore model assets from the directory."""
+        """Restore model assets using saving_lib._load_state."""
         model = args.model
         if model is None or not (directory := Path(directory)).exists():
             return model
 
-        layers_with_assets = self._collect_layers_with_assets(model)
+        from keras.src.saving import saving_lib
+        from keras.src.saving.saving_lib import DirectIOStore
 
-        for layer_path, layer in layers_with_assets:
-            layer_assets_dir = directory / layer_path
-            if layer_assets_dir.exists():
-                asset_files = sorted(layer_assets_dir.glob("asset_*.npy"))
-                if asset_files and hasattr(layer, "_set_assets"):
-                    layer._set_assets([np.load(f) for f in asset_files])
+        # Use saving_lib._load_state to load assets, reusing existing logic
+        # DirectIOStore reads directly from the given directory
+        assets_store = DirectIOStore(str(directory))
+        saving_lib._load_state(
+            saveable=model,
+            weights_store=None,  # Only load assets, not weights
+            assets_store=assets_store,
+            inner_path=model.name,  # Start with model name
+            skip_mismatch=False,
+            visited_saveables=set(),
+            failed_saveables=None,
+            error_msgs={},
+        )
+        assets_store.close()
 
         return model
 

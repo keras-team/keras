@@ -13,44 +13,15 @@ from keras.src import utils
 from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
 from keras.src.saving import register_keras_serializable
 
-# Import advanced Orbax functionality directly from the LazyModule
 
-
-# Custom layer with assets for testing
-@register_keras_serializable(package="TestLayers")
-class LayerWithAssets(layers.Layer):
-    """A custom layer that has assets for testing purposes."""
-
-    def __init__(self, units=4, **kwargs):
-        super().__init__(**kwargs)
-        self.units = units
-        self._asset_data = None
-
-    def build(self, input_shape):
-        # Create some asset data (e.g., lookup table, vocabulary)
-        self._asset_data = np.arange(self.units * 2, dtype=np.float32)
-        self._asset_data = self._asset_data.reshape((self.units, 2))
-        super().build(input_shape)
-
-    def call(self, inputs):
-        # Simple pass-through for testing
-        return inputs
-
-    def assets(self):
-        """Return list of asset arrays."""
-        if self._asset_data is not None:
-            return [self._asset_data]
-        return []
-
-    def _set_assets(self, assets):
-        """Restore assets from loaded checkpoint."""
-        if assets and len(assets) > 0:
-            self._asset_data = assets[0]
-
-    def get_config(self):
-        config = super().get_config()
-        config["units"] = self.units
-        return config
+# Simple test layer that uses real IntegerLookup with adapted vocabulary
+def _create_layer_with_assets():
+    """Create an IntegerLookup layer that will have assets after adaptation."""
+    lookup_layer = layers.IntegerLookup(name="asset_layer")
+    # Adapt it with data so it learns vocabulary and needs to save assets
+    adapt_data = np.array([[1], [2], [3], [4], [1], [2], [3], [4]])
+    lookup_layer.adapt(adapt_data)
+    return lookup_layer
 
 
 class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
@@ -575,20 +546,30 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_save_and_load_assets(self, save_on_background):
         """Test saving and loading model assets with async/sync modes."""
-        inputs = layers.Input(shape=(10,), name="input_layer")
-        x = layers.Dense(8, name="dense_layer")(inputs)
-        x = LayerWithAssets(units=4, name="asset_layer")(x)
+        # Use IntegerLookup with adapted vocabulary (has assets to save)
+        lookup_layer = _create_layer_with_assets()
+
+        # Create a model with the lookup layer
+        inputs = layers.Input(shape=(1,), dtype="int32", name="input_layer")
+        x = lookup_layer(inputs)
+        x = layers.Embedding(
+            input_dim=10, output_dim=8, name="embedding_layer"
+        )(x)
+        x = layers.Flatten()(x)
+        x = layers.Dense(8, name="dense_layer")(x)
         outputs = layers.Dense(2, name="output_layer")(x)
         model = models.Model(inputs, outputs, name="asset_test_model")
         model.compile(optimizer="adam", loss="mse")
 
         asset_layer = model.get_layer("asset_layer")
-        original_assets = asset_layer.assets()
-        self.assertEqual(len(original_assets), 1)
-        self.assertEqual(original_assets[0].shape, (4, 2))
-        original_asset_values = np.copy(original_assets[0])
+        original_vocab = asset_layer.get_vocabulary()
+        # Adapted vocabulary has [UNK] + learned values
+        self.assertGreater(len(original_vocab), 1)
 
-        x, y = self._create_dummy_data(num_samples=100)
+        # Create integer data for the lookup layer
+        x = np.array([[1], [2], [3], [4]] * 25, dtype="int32")
+        y = np.random.randn(100, 2)
+
         checkpoint_dir = os.path.join(
             self.get_temp_dir(),
             f"test_assets_{save_on_background}_{id(self)}",
@@ -614,14 +595,22 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
             assets_dir, "asset_test_model", "layers", "asset_layer"
         )
         self.assertTrue(os.path.exists(asset_layer_dir))
-        self.assertIn("asset_0.npy", os.listdir(asset_layer_dir))
+        # IntegerLookup saves vocabulary.txt when adapted
+        asset_files = os.listdir(asset_layer_dir)
+        self.assertTrue(
+            any("vocabulary" in f for f in asset_files),
+            f"Expected vocabulary file in {asset_files}",
+        )
 
         loaded_model = saving.load_model(checkpoint_dir)
         loaded_asset_layer = loaded_model.get_layer("asset_layer")
-        loaded_assets = loaded_asset_layer.assets()
+        loaded_vocab = loaded_asset_layer.get_vocabulary()
 
-        self.assertEqual(len(loaded_assets), 1)
-        self.assertAllClose(original_asset_values, loaded_assets[0])
+        self.assertEqual(len(loaded_vocab), len(original_vocab))
+        # Vocabularies should match after loading
+        for orig, loaded in zip(original_vocab, loaded_vocab):
+            if isinstance(orig, (int, np.integer)):
+                self.assertEqual(orig, loaded)
 
         loaded_weights = loaded_model.get_weights()
         self.assertEqual(len(final_saved_weights), len(loaded_weights))

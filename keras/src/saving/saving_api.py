@@ -368,6 +368,9 @@ def _load_model_from_orbax_checkpoint(
     # Ensure orbax is available
     ocp.initialize()
 
+    # Ensure orbax is available
+    ocp.initialize()
+
     # Determine if filepath is root directory or step directory
     items = os.listdir(filepath)
     has_step_subdirs = any(
@@ -423,10 +426,11 @@ def _load_model_from_orbax_checkpoint(
 
     model.set_state_tree(state_tree)
 
-    # Restore assets
-    asset_handler = KerasAssetHandler()
-    asset_handler.restore(
-        os.path.join(checkpoint_path, "assets"), args=AssetArgs(model=model)
-    )
+    # Restore assets - handler expects checkpoint directory with assets
+    # subdirectory
+    assets_path = os.path.join(checkpoint_path, "assets")
+    if os.path.exists(assets_path):
+        asset_handler = KerasAssetHandler()
+        asset_handler.restore(assets_path, args=AssetArgs(model=model))
 
     return model
