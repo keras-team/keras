@@ -994,6 +994,12 @@ class MathOpsCorrectnessTest(testing.TestCase):
         with self.assertRaises(ValueError):
             kmath.cdist(x, y)
 
+    def test_cdist_symbolic(self):
+        x = KerasTensor(shape=(None, 2), dtype="float32")
+        y = KerasTensor(shape=(1, 2), dtype="float32")
+        out = kmath.cdist(x, y)
+        self.assertEqual(out.shape, (None, 1))
+
 
 class MathDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""

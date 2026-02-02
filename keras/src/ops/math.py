@@ -4,7 +4,9 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend.common.dtypes import result_type
 from keras.src.ops.operation import Operation
+from keras.src.ops.operation_utils import broadcast_shapes
 from keras.src.ops.operation_utils import reduce_shape
 
 
@@ -263,48 +265,82 @@ def logsumexp(x, axis=None, keepdims=False):
     return backend.math.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
+class Cdist(Operation):
+    def call(self, x, y):
+        diff = backend.numpy.expand_dims(x, -2) - backend.numpy.expand_dims(
+            y, -3
+        )
+        return backend.numpy.sqrt(
+            backend.numpy.sum(backend.numpy.square(diff), axis=-1)
+        )
+
+    def compute_output_spec(self, x, y):
+        if x.ndim < 2 or y.ndim < 2:
+            raise ValueError(
+                "Inputs to `cdist` must have rank >= 2. "
+                f"Received shapes: x.shape={x.shape}, y.shape={y.shape}"
+            )
+
+        if (
+            x.shape[-1] is not None
+            and y.shape[-1] is not None
+            and x.shape[-1] != y.shape[-1]
+        ):
+            raise ValueError(
+                "The last dimension of inputs to `cdist` must match. "
+                f"Received shapes: x.shape={x.shape}, y.shape={y.shape}"
+            )
+
+        try:
+            batch_shape = broadcast_shapes(x.shape[:-2], y.shape[:-2])
+        except ValueError:
+            raise ValueError(
+                "Batch dimensions of inputs to `cdist` must be broadcastable. "
+                f"Received shapes: x.shape={x.shape}, y.shape={y.shape}"
+            )
+
+        output_shape = tuple(batch_shape + [x.shape[-2], y.shape[-2]])
+        dtype = result_type(x.dtype, y.dtype, float)
+        return KerasTensor(shape=output_shape, dtype=dtype)
+
+
 @keras_export("keras.ops.cdist")
 def cdist(x, y):
-    """Computes pairwise Euclidean distances between two tensors.
+    """Computes pairwise distances between two collections of vectors.
 
-    This function computes the batched pairwise Euclidean distance
-    between the rows of `x` and `y`, matching the default behavior of
-    `torch.cdist` with `p=2`.
+    This function computes the Euclidean distance between each pair of the two
+    collections of inputs.
 
     Args:
-        x: A tensor of shape `(..., m, d)`, where `d` is the feature
-            dimension.
-        y: A tensor of shape `(..., n, d)`, where `d` must match the
-            last dimension of `x`.
+        x: Tensor of shape `(..., m, d)`.
+        y: Tensor of shape `(..., n, d)`.
 
     Returns:
-        A tensor of shape `(..., m, n)` containing the pairwise
-        Euclidean distances between rows of `x` and `y`.
-
-    Raises:
-        ValueError: If the inputs have rank < 2.
-        ValueError: If the last dimensions of `x` and `y` do not match.
-        ValueError: If input shapes are not known.
+        A tensor of shape `(..., m, n)` with the pairwise distances.
 
     Example:
-
-    >>> x = keras.ops.convert_to_tensor([[0., 0.], [1., 1.]])
-    >>> y = keras.ops.convert_to_tensor([[1., 0.], [0., 1.]])
+    >>> x = keras.ops.convert_to_tensor([[0.0, 0.0], [1.0, 1.0]])
+    >>> y = keras.ops.convert_to_tensor([[1.0, 0.0], [0.0, 1.0]])
     >>> keras.ops.cdist(x, y)
-    array([[1.        , 1.        ],
-           [1.        , 1.        ]], dtype=float32)
+    array([[1.       , 1.       ],
+           [1.       , 1.4142135]], dtype=float32)
     """
+    if any_symbolic_tensors((x, y)):
+        return Cdist().symbolic_call(x, y)
+
     x = backend.convert_to_tensor(x)
     y = backend.convert_to_tensor(y)
 
-    if x.shape is None or y.shape is None:
-        raise ValueError("cdist requires known shapes for inputs.")
-
-    if len(x.shape) < 2 or len(y.shape) < 2:
-        raise ValueError("cdist expects inputs with rank >=2.")
-
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError(
+            "Inputs to `cdist` must have rank >= 2. "
+            f"Received shapes: x.shape={x.shape}, y.shape={y.shape}"
+        )
     if x.shape[-1] != y.shape[-1]:
-        raise ValueError("Last dimension of inputs to cdist must match.")
+        raise ValueError(
+            "The last dimension of inputs to `cdist` must match. "
+            f"Received shapes: x.shape={x.shape}, y.shape={y.shape}"
+        )
 
     diff = backend.numpy.expand_dims(x, -2) - backend.numpy.expand_dims(y, -3)
     return backend.numpy.sqrt(
