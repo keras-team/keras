@@ -325,17 +325,12 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         # Get the checkpoint path (handles both root and step directories)
         checkpoint_path = find_latest_orbax_checkpoint(filepath)
 
-        # Check for new multi-item format (with state/ subdirectory)
+        # Load state using StandardCheckpointHandler
         state_dir = os.path.join(checkpoint_path, "state")
-        if os.path.exists(state_dir):
-            handler = ocp.StandardCheckpointHandler()
-            checkpointer = ocp.Checkpointer(handler)
-            restore_args = ocp.StandardRestoreArgs()
-            loaded_state = checkpointer.restore(state_dir, args=restore_args)
-        else:
-            # Fallback to legacy format
-            loaded_state = ocp.load_pytree(checkpoint_path)
-
+        handler = ocp.StandardCheckpointHandler()
+        checkpointer = ocp.Checkpointer(handler)
+        restore_args = ocp.StandardRestoreArgs()
+        loaded_state = checkpointer.restore(state_dir, args=restore_args)
         model.set_state_tree(loaded_state)
     else:
         raise ValueError(
