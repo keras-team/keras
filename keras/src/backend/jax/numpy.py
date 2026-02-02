@@ -1037,6 +1037,11 @@ def nanmin(x, axis=None, keepdims=False):
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanprod(x, axis=axis, keepdims=keepdims)
+
+
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nansum(x, axis=axis, keepdims=keepdims)

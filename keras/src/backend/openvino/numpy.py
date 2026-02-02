@@ -2129,6 +2129,12 @@ def nanmin(x, axis=None, keepdims=False):
     raise NotImplementedError("`nanmin` is not supported with openvino backend")
 
 
+def nanprod(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanprod` is not supported with openvino backend"
+    )
+
+
 def nansum(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     x_type = x.get_element_type()
