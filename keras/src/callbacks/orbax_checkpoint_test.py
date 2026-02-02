@@ -591,8 +591,9 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         assets_dir = os.path.join(checkpoint_dir, str(latest_step), "assets")
         self.assertTrue(os.path.exists(assets_dir))
 
+        # Assets are saved using class names (e.g., integer_lookup)
         asset_layer_dir = os.path.join(
-            assets_dir, "asset_test_model", "layers", "asset_layer"
+            assets_dir, "asset_test_model", "layers", "integer_lookup"
         )
         self.assertTrue(os.path.exists(asset_layer_dir))
         # IntegerLookup saves vocabulary.txt when adapted
