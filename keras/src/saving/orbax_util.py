@@ -42,7 +42,29 @@ def is_orbax_checkpoint(filepath):
 
 
 def find_latest_orbax_checkpoint(checkpoint_dir):
-    """Find the latest checkpoint in an Orbax checkpoint directory."""
+    """Find the latest checkpoint in an Orbax checkpoint directory.
+
+    Args:
+        checkpoint_dir: Path to either a root checkpoint directory (containing
+            numbered step subdirectories) or a specific step directory.
+
+    Returns:
+        Path to the step directory. If checkpoint_dir is already a step
+        directory, returns it as-is. If it's a root directory, returns
+        the path to the latest step.
+    """
+    # Check if this is already a step directory or a root directory
+    items = os.listdir(checkpoint_dir)
+    has_step_subdirs = any(
+        os.path.isdir(os.path.join(checkpoint_dir, item)) and item.isdigit()
+        for item in items
+    )
+
+    if not has_step_subdirs:
+        # It's already a step directory, return it as-is
+        return checkpoint_dir
+
+    # It's a root directory, find the latest checkpoint
     checkpointer = ocp.training.Checkpointer(directory=checkpoint_dir)
     latest = checkpointer.latest
     if latest is None:

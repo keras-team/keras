@@ -322,19 +322,8 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
         filepath = str(filepath)
 
-        # Determine if this is a root directory or a step directory
-        items = os.listdir(filepath)
-        has_step_subdirs = any(
-            os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
-            for item in items
-        )
-
-        if has_step_subdirs:
-            # It's a root directory, find the latest checkpoint
-            checkpoint_path = find_latest_orbax_checkpoint(filepath)
-        else:
-            # It's a step directory, use it directly
-            checkpoint_path = filepath
+        # Get the checkpoint path (handles both root and step directories)
+        checkpoint_path = find_latest_orbax_checkpoint(filepath)
 
         # Check for new multi-item format (with state/ subdirectory)
         state_dir = os.path.join(checkpoint_path, "state")
@@ -368,22 +357,8 @@ def _load_model_from_orbax_checkpoint(
     # Ensure orbax is available
     ocp.initialize()
 
-    # Ensure orbax is available
-    ocp.initialize()
-
-    # Determine if filepath is root directory or step directory
-    items = os.listdir(filepath)
-    has_step_subdirs = any(
-        os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
-        for item in items
-    )
-
-    if has_step_subdirs:
-        # It's a root directory, find the latest checkpoint
-        checkpoint_path = find_latest_orbax_checkpoint(filepath)
-    else:
-        # It's a step directory, use it directly
-        checkpoint_path = filepath
+    # Get the checkpoint path (handles both root and step directories)
+    checkpoint_path = find_latest_orbax_checkpoint(filepath)
 
     # Load state
     handler = ocp.StandardCheckpointHandler()
