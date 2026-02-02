@@ -70,7 +70,7 @@ class KerasAssetHandler:
             return []
 
         from keras.src.saving import saving_lib
-        from keras.src.saving.saving_lib import DirectIOStore
+        from keras.src.saving.saving_lib import DiskIOStore
 
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=True)
@@ -80,9 +80,10 @@ class KerasAssetHandler:
             config_json, _ = saving_lib._serialize_model_as_json(model)
             (directory / "model_config.json").write_text(config_json)
 
-        # Use saving_lib._save_state to save assets, reusing existing
-        # logic. DirectIOStore writes directly without temp files.
-        assets_store = DirectIOStore(str(directory))
+        # Use DiskIOStore with use_temp=False to write directly to
+        # Orbax-managed directory. Orbax handles atomicity, so we
+        # don't need temporary directories.
+        assets_store = DiskIOStore(str(directory), use_temp=False)
         saving_lib._save_state(
             saveable=model,
             weights_store=None,  # Only save assets, not weights
@@ -101,10 +102,10 @@ class KerasAssetHandler:
             return model
 
         from keras.src.saving import saving_lib
-        from keras.src.saving.saving_lib import DirectIOStore
+        from keras.src.saving.saving_lib import DiskIOStore
 
-        # Use saving_lib._load_state to load assets
-        assets_store = DirectIOStore(str(directory))
+        # Use DiskIOStore with use_temp=False to read directly from directory
+        assets_store = DiskIOStore(str(directory), use_temp=False)
         saving_lib._load_state(
             saveable=model,
             weights_store=None,  # Only load assets, not weights

@@ -716,12 +716,10 @@ def _save_state(
             "`H5IOStore`, `ShardedH5IOStore`, `NpzIOStore` or `None`. "
             f"Received: {weights_store} of type {type(weights_store)}"
         )
-    if assets_store is not None and not isinstance(
-        assets_store, (DiskIOStore, DirectIOStore)
-    ):
+    if assets_store is not None and not isinstance(assets_store, DiskIOStore):
         raise ValueError(
             "Expected `assets_store` to be an instance of "
-            "`DiskIOStore`, `DirectIOStore` or `None`. "
+            "`DiskIOStore` or `None`. "
             f"Received: {assets_store} of type {type(assets_store)}"
         )
 
@@ -787,12 +785,10 @@ def _load_state(
             "`H5IOStore`, `ShardedH5IOStore`, `NpzIOStore` or `None`. "
             f"Received: {weights_store} of type {type(weights_store)}"
         )
-    if assets_store is not None and not isinstance(
-        assets_store, (DiskIOStore, DirectIOStore)
-    ):
+    if assets_store is not None and not isinstance(assets_store, DiskIOStore):
         raise ValueError(
             "Expected `assets_store` to be an instance of "
-            "`DiskIOStore`, `DirectIOStore` or `None`. "
+            "`DiskIOStore` or `None`. "
             f"Received: {assets_store} of type {type(assets_store)}"
         )
 
@@ -976,7 +972,7 @@ class DiskIOStore:
     the target directory.
     """
 
-    def __init__(self, root_path, archive=None, mode=None):
+    def __init__(self, root_path, archive=None, mode=None, use_temp=True):
         self.mode = mode
         self.root_path = root_path
         self.archive = archive
@@ -991,7 +987,8 @@ class DiskIOStore:
             if self.mode == "w":
                 file_utils.makedirs(self.working_dir)
         else:
-            if mode == "r":
+            if mode == "r" or not use_temp:
+                # Direct path access for reading or when temp is disabled
                 self.working_dir = root_path
             else:
                 self.tmp_dir = get_temp_dir()
@@ -1023,44 +1020,6 @@ class DiskIOStore:
             )
         if self.tmp_dir and file_utils.exists(self.tmp_dir):
             file_utils.rmtree(self.tmp_dir)
-
-
-class DirectIOStore:
-    """Simple asset store that writes directly to a directory.
-
-    This is a lightweight alternative to DiskIOStore that writes directly
-    to the given directory without creating temporary directories. Useful
-    when the target directory is already managed (e.g., by Orbax).
-
-    Args:
-        root_path: The directory path where assets will be stored.
-    """
-
-    def __init__(self, root_path):
-        self.root_path = root_path
-        self.working_dir = root_path
-
-    def make(self, path):
-        """Create and return a path for saving assets."""
-        if not path:
-            return self.working_dir
-        full_path = file_utils.join(self.working_dir, path).replace("\\", "/")
-        if not file_utils.exists(full_path):
-            file_utils.makedirs(full_path)
-        return full_path
-
-    def get(self, path):
-        """Return a path for loading assets."""
-        if not path:
-            return self.working_dir
-        full_path = file_utils.join(self.working_dir, path).replace("\\", "/")
-        if file_utils.exists(full_path):
-            return full_path
-        return None
-
-    def close(self):
-        """No-op for direct writes."""
-        pass
 
 
 class H5IOStore:
