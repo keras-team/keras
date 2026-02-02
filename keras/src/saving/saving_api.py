@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import zipfile
 
 from absl import logging
@@ -388,9 +390,6 @@ def _load_assets_from_dict(model, assets_dict):
     if not assets_dict:
         return
 
-    import shutil
-    import tempfile
-
     temp_assets_dir = tempfile.mkdtemp()
     try:
         # Write assets dictionary to temp directory
@@ -437,9 +436,7 @@ def _load_model_from_orbax_checkpoint(
 
     # Check if checkpoint has assets
     try:
-        import os as _os
-
-        has_assets = _os.path.exists(_os.path.join(checkpoint_path, "assets"))
+        has_assets = os.path.exists(os.path.join(checkpoint_path, "assets"))
     except:
         has_assets = False
 
