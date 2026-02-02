@@ -54,17 +54,12 @@ class OrbaxLazyModule(LazyModule):
         if self.module is None:
             self.initialize()
 
-        if name == "multihost":
-            return self.parent_module.multihost
-
-        if name in (
-            "StandardCheckpointHandler",
-            "Checkpointer",
-            "AsyncCheckpointer",
-            "CheckpointManager",
-            "CheckpointManagerOptions",
-        ):
-            return getattr(self.parent_module, name)
+        # V1 API: Most things from orbax.checkpoint.v1
+        # Exception: Args classes and handler registration from internal modules
+        # These are still needed for custom handler registration compatibility
+        if name in ("CheckpointArgs", "register_with_handler"):
+            module = importlib.import_module("orbax.checkpoint.checkpoint_args")
+            return getattr(module, name)
 
         if name in ("CompositeArgs", "StandardSaveArgs", "StandardRestoreArgs"):
             if not hasattr(self, "_handlers"):
@@ -83,11 +78,18 @@ class OrbaxLazyModule(LazyModule):
             handler = "composite" if name == "CompositeArgs" else "standard"
             return getattr(self._handlers[handler], name)
 
-        # Lazy load checkpoint args utilities
-        if name in ("CheckpointArgs", "register_with_handler"):
-            module = importlib.import_module("orbax.checkpoint.checkpoint_args")
-            return getattr(module, name)
+        # For core classes, use parent_module for better compatibility
+        if name in (
+            "StandardCheckpointHandler",
+            "Checkpointer",
+            "AsyncCheckpointer",
+            "CheckpointManager",
+            "CheckpointManagerOptions",
+            "multihost",
+        ):
+            return getattr(self.parent_module, name)
 
+        # Everything else from v1
         return getattr(self.module, name)
 
 
