@@ -707,6 +707,21 @@ def _save_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
+    if not isinstance(
+        weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore, type(None))
+    ):
+        raise ValueError(
+            "Expected `weights_store` to be an instance of "
+            "`H5IOStore`, `ShardedH5IOStore`, `NpzIOStore`, or `None`. "
+            f"Received: {weights_store} of type {type(weights_store)}"
+        )
+    if not isinstance(assets_store, (DiskIOStore, type(None))):
+        raise ValueError(
+            "Expected `assets_store` to be an instance of "
+            "`DiskIOStore` or `None`. "
+            f"Received: {assets_store} of type {type(assets_store)}"
+        )
+
     # If the saveable has already been saved, skip it.
     if id(saveable) in visited_saveables:
         return
@@ -759,6 +774,21 @@ def _load_state(
     error_msgs=None,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
+
+    if not isinstance(
+        weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore, type(None))
+    ):
+        raise ValueError(
+            "Expected `weights_store` to be an instance of "
+            "`H5IOStore`, `ShardedH5IOStore`, `NpzIOStore`, or `None`. "
+            f"Received: {weights_store} of type {type(weights_store)}"
+        )
+    if not isinstance(assets_store, (DiskIOStore, type(None))):
+        raise ValueError(
+            "Expected `assets_store` to be an instance of "
+            "`DiskIOStore` or `None`. "
+            f"Received: {assets_store} of type {type(assets_store)}"
+        )
 
     if visited_saveables and id(saveable) in visited_saveables:
         return
