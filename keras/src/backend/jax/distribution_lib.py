@@ -246,9 +246,7 @@ def _to_backend_abstract_mesh(device_mesh):
     # Fallback for older JAX: build AbstractMesh(axis_sizes, axis_names).
     shape = device_mesh.devices.shape
     axis_names = device_mesh.axis_names
-    axis_sizes = tuple(shape)
-    axis_names_tuple = tuple(axis_names)
-    return jax.sharding.AbstractMesh(axis_sizes, axis_names_tuple)
+    return jax.sharding.AbstractMesh(tuple(shape), tuple(axis_names))
 
 
 def _to_abstract_shardings(shardings):
