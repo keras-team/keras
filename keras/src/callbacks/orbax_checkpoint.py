@@ -1,5 +1,4 @@
 import warnings
-from pathlib import Path
 
 import numpy as np
 
@@ -138,9 +137,6 @@ class OrbaxCheckpoint(MonitorCallback):
         self._current_epoch = 0
         self._total_batches_seen = 0
 
-        # Track steps that need model_config.json written
-        self._pending_config_steps = set()
-
         # Validate save_freq
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -151,24 +147,29 @@ class OrbaxCheckpoint(MonitorCallback):
         # Multi-host detection
         self._multihost_initialized = self._is_multihost_initialized()
 
-        # Create checkpoint handler for state
-        state_handler = ocp.StandardCheckpointHandler()
-        checkpointer_class = (
-            ocp.AsyncCheckpointer if save_on_background else ocp.Checkpointer
-        )
-        state_checkpointer = checkpointer_class(state_handler)
+        # Setup V1 API training.Checkpointer
+        policies = []
+        if max_to_keep is not None:
+            policies.append(
+                ocp.training.preservation_policies.LatestN(max_to_keep)
+            )
 
-        # Use CheckpointManager with single state checkpointer
-        options = ocp.CheckpointManagerOptions(
-            max_to_keep=max_to_keep,
-            create=True,
-            save_interval_steps=1,
-        )
+        preservation_policy = None
+        if policies:
+            preservation_policy = (
+                policies[0]
+                if len(policies) == 1
+                else ocp.training.preservation_policies.AnyPreservationPolicy(
+                    policies
+                )
+            )
 
-        self.manager = ocp.CheckpointManager(
-            directory,
-            state_checkpointer,
-            options,
+        self.checkpointer = ocp.training.Checkpointer(
+            directory=directory,
+            preservation_policy=preservation_policy,
+            save_decision_policy=ocp.training.save_decision_policies.FixedIntervalPolicy(
+                1
+            ),
         )
 
     def _is_multihost_initialized(self):
@@ -252,13 +253,19 @@ class OrbaxCheckpoint(MonitorCallback):
             }
         else:
             composite_state = state_tree
+            # Include model configuration for full model restoration
+            from keras.src.saving import saving_lib
 
-        # Save using CheckpointManager (async if save_on_background=True)
-        self.manager.save(step, args=ocp.StandardSaveArgs(composite_state))
+            config_json, _ = saving_lib._serialize_model_as_json(self.model)
+            composite_state["model_config"] = config_json
 
-        # Track this step for model config saving
-        if not self.save_weights_only:
-            self._pending_config_steps.add(step)
+        # Use V1 API save_pytree with Context for async control
+        use_sync = not self.save_on_background
+        with ocp.Context():
+            if use_sync:
+                self.checkpointer.save_pytree(step, composite_state)
+            else:
+                self.checkpointer.save_pytree_async(step, composite_state)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -313,25 +320,11 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        # Close the Checkpointer (waits for any pending async saves)
+        # Close the checkpointer (automatically waits for async saves)
         try:
-            self.manager.close()
+            self.checkpointer.close()
         except Exception:
             pass  # Ignore errors during cleanup
-
-        # Write model_config.json for all pending checkpoint steps
-        if self._pending_config_steps:
-            from keras.src.saving import saving_lib
-
-            for step in self._pending_config_steps:
-                step_dir = Path(self.directory) / str(step)
-                if step_dir.exists():
-                    config_json, _ = saving_lib._serialize_model_as_json(
-                        self.model
-                    )
-                    (step_dir / "model_config.json").write_text(config_json)
-
-            self._pending_config_steps.clear()
 
         # Multi-host synchronization: ensure all hosts complete cleanup
         self._sync_processes("checkpoint_cleanup")
@@ -342,8 +335,6 @@ class OrbaxCheckpoint(MonitorCallback):
         operations have completed across all hosts in a multi-host
         setup.
         """
-        # Wait for any remaining async operations to complete
-        self.manager.wait_until_finished()
-
+        # V1 Checkpointer handles async internally, no explicit wait needed
         # Multi-host synchronization: ensure all hosts complete
         self._sync_processes("checkpoint_wait_complete")

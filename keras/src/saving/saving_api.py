@@ -324,15 +324,13 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
         # Get the checkpoint path (handles both root and step directories)
         checkpoint_path = find_latest_orbax_checkpoint(filepath)
+        step = int(os.path.basename(checkpoint_path))
 
-        # Load state using StandardCheckpointHandler
-        # (single-item saves to 'default')
-        default_dir = os.path.join(checkpoint_path, "default")
-        handler = ocp.StandardCheckpointHandler()
-        checkpointer = ocp.Checkpointer(handler)
-        restore_args = ocp.StandardRestoreArgs()
-        loaded_state = checkpointer.restore(default_dir, args=restore_args)
-        model.set_state_tree(loaded_state)
+        # Use V1 API training.Checkpointer to load
+        checkpointer = ocp.training.Checkpointer(directory=filepath)
+        with ocp.Context():
+            composite_state = checkpointer.load_pytree(step)
+        model.set_state_tree(composite_state)
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
@@ -353,45 +351,31 @@ def _load_model_from_orbax_checkpoint(
 
     # Get the checkpoint path (handles both root and step directories)
     checkpoint_path = find_latest_orbax_checkpoint(filepath)
+    step = int(os.path.basename(checkpoint_path))
 
-    # Load model config
-    config_file = os.path.join(checkpoint_path, "model_config.json")
-    if not os.path.exists(config_file):
+    # Use V1 API training.Checkpointer to load
+    checkpointer = ocp.training.Checkpointer(directory=filepath)
+    with ocp.Context():
+        composite_state = checkpointer.load_pytree(step)
+
+    # Validate and extract model config
+    if "model_config" not in composite_state:
         raise ValueError(
             "Checkpoint does not contain model configuration. "
             "This checkpoint may have been saved with save_weights_only=True."
         )
 
-    with open(config_file, "r", encoding="utf-8") as f:
-        model_config = f.read()
-
     model = saving_lib._model_from_config(
-        model_config,
+        composite_state["model_config"],
         custom_objects=custom_objects,
         compile=compile,
         safe_mode=safe_mode,
     )
 
-    # Load state using StandardCheckpointHandler
-    # (single-item saves to 'default')
-    handler = ocp.StandardCheckpointHandler()
-    checkpointer = ocp.Checkpointer(handler)
-    restore_args = ocp.StandardRestoreArgs()
-    loaded_state = checkpointer.restore(
-        os.path.join(checkpoint_path, "default"), args=restore_args
-    )
-
-    # Prepare state tree
-    variable_keys = [
-        "trainable_variables",
-        "non_trainable_variables",
-        "optimizer_variables",
-        "metrics_variables",
-    ]
+    # Remove model_config from state tree before setting
     state_tree = {
-        key: loaded_state[key] for key in variable_keys if key in loaded_state
+        k: v for k, v in composite_state.items() if k != "model_config"
     }
-
     model.set_state_tree(state_tree)
 
     return model
