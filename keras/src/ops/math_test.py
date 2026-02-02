@@ -980,6 +980,20 @@ class MathOpsCorrectnessTest(testing.TestCase):
         out = kmath.logdet(x)
         self.assertAllClose(out, -1.1178946, atol=1e-3)
 
+    def test_cdist_basic(self):
+        x = np.array([[0.0, 0.0], [1.0, 1.0]], dtype="float32")
+        y = np.array([[1.0, 0.0]], dtype="float32")
+        out = kmath.cdist(x, y)
+        expected = np.array([[1.0], [1.0]], dtype="float32")
+        self.assertAllClose(out, expected)
+        self.assertEqual(out.shape, (2, 1))
+
+    def test_cdist_invalid_last_dim(self):
+        x = np.random.rand(3, 4)
+        y = np.random.rand(5, 5)
+        with self.assertRaises(ValueError):
+            kmath.cdist(x, y)
+
 
 class MathDtypeTest(testing.TestCase):
     """Test the floating dtype to verify that the behavior matches JAX."""

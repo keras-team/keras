@@ -263,6 +263,26 @@ def logsumexp(x, axis=None, keepdims=False):
     return backend.math.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
+@keras_export("keras.ops.cdist")
+def cdist(x, y):
+    x = backend.convert_to_tensor(x)
+    y = backend.convert_to_tensor(y)
+
+    if x.shape is None or y.shape is None:
+        raise ValueError("cdist requires known shapes for inputs.")
+
+    if len(x.shape) < 2 or len(y.shape) < 2:
+        raise ValueError("cdist expects inputs with rank >=2.")
+
+    if x.shape[-1] != y.shape[-1]:
+        raise ValueError("Last dimension of inputs to cdist must match.")
+
+    diff = backend.numpy.expand_dims(x, -2) - backend.numpy.expand_dims(y, -3)
+    return backend.numpy.sqrt(
+        backend.numpy.sum(backend.numpy.square(diff), axis=-1)
+    )
+
+
 class ExtractSequences(Operation):
     def __init__(self, sequence_length, sequence_stride, *, name=None):
         super().__init__(name=name)
