@@ -327,25 +327,7 @@ def cdist(x, y):
     """
     if any_symbolic_tensors((x, y)):
         return Cdist().symbolic_call(x, y)
-
-    x = backend.convert_to_tensor(x)
-    y = backend.convert_to_tensor(y)
-
-    if x.ndim < 2 or y.ndim < 2:
-        raise ValueError(
-            "Inputs to `cdist` must have rank >= 2. "
-            f"Received shapes: x.shape={x.shape}, y.shape={y.shape}"
-        )
-    if x.shape[-1] != y.shape[-1]:
-        raise ValueError(
-            "The last dimension of inputs to `cdist` must match. "
-            f"Received shapes: x.shape={x.shape}, y.shape={y.shape}"
-        )
-
-    diff = backend.numpy.expand_dims(x, -2) - backend.numpy.expand_dims(y, -3)
-    return backend.numpy.sqrt(
-        backend.numpy.sum(backend.numpy.square(diff), axis=-1)
-    )
+    return backend.math.cdist(x, y)
 
 
 class ExtractSequences(Operation):
