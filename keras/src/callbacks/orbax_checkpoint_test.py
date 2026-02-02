@@ -598,10 +598,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         x = custom_layer(inputs)
         outputs = layers.Dense(3, activation="relu")(x)
         model = models.Model(inputs, outputs, name="model_with_assets")
-
-        # Disable JIT compilation for JAX and Torch backends for compatibility
-        jit_compile = backend.backend() not in ("jax", "torch")
-        model.compile(optimizer="adam", loss="mse", jit_compile=jit_compile)
+        model.compile(optimizer="adam", loss="mse")
 
         # Create training data
         x_train = np.random.randn(20, 10)

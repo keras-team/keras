@@ -319,33 +319,27 @@ class OrbaxCheckpoint(MonitorCallback):
             # Determine sync vs async based on save_on_background setting
             use_sync = not self.save_on_background
 
+            # Determine payload and save functions based on assets presence
             if assets_dict is not None:
                 # Use checkpointables API for heterogeneous data
-                checkpointables = {
+                payload = {
                     "pytree": composite_state,
                     "assets": assets_dict,
                 }
-
-                if use_sync:
-                    self.checkpointer.save_checkpointables(
-                        step, checkpointables
-                    )
-                else:
-                    future = self.checkpointer.save_checkpointables_async(
-                        step, checkpointables
-                    )
-                    self._async_futures.append(future)
+                save_fn = self.checkpointer.save_checkpointables
+                save_async_fn = self.checkpointer.save_checkpointables_async
             else:
                 # No assets, use simpler pytree API
-                if use_sync:
-                    # Synchronous save
-                    self.checkpointer.save_pytree(step, composite_state)
-                else:
-                    # Async save
-                    future = self.checkpointer.save_pytree_async(
-                        step, composite_state
-                    )
-                    self._async_futures.append(future)
+                payload = composite_state
+                save_fn = self.checkpointer.save_pytree
+                save_async_fn = self.checkpointer.save_pytree_async
+
+            # Execute save based on sync/async mode
+            if use_sync:
+                save_fn(step, payload)
+            else:
+                future = save_async_fn(step, payload)
+                self._async_futures.append(future)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
