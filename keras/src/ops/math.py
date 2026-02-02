@@ -265,6 +265,35 @@ def logsumexp(x, axis=None, keepdims=False):
 
 @keras_export("keras.ops.cdist")
 def cdist(x, y):
+    """Computes pairwise Euclidean distances between two tensors.
+
+    This function computes the batched pairwise Euclidean distance
+    between the rows of `x` and `y`, matching the default behavior of
+    `torch.cdist` with `p=2`.
+
+    Args:
+        x: A tensor of shape `(..., m, d)`, where `d` is the feature
+            dimension.
+        y: A tensor of shape `(..., n, d)`, where `d` must match the
+            last dimension of `x`.
+
+    Returns:
+        A tensor of shape `(..., m, n)` containing the pairwise
+        Euclidean distances between rows of `x` and `y`.
+
+    Raises:
+        ValueError: If the inputs have rank < 2.
+        ValueError: If the last dimensions of `x` and `y` do not match.
+        ValueError: If input shapes are not known.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([[0., 0.], [1., 1.]])
+    >>> y = keras.ops.convert_to_tensor([[1., 0.], [0., 1.]])
+    >>> keras.ops.cdist(x, y)
+    array([[1.        , 1.        ],
+           [1.        , 1.        ]], dtype=float32)
+    """
     x = backend.convert_to_tensor(x)
     y = backend.convert_to_tensor(y)
 
