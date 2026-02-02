@@ -3,6 +3,7 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
+from keras import ops
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
@@ -256,4 +257,6 @@ class NormalizationTest(testing.TestCase):
 
         # The expected broadcast shape should be (1, 2)
         assert layer.mean.shape == (1, 2)
-        assert np.all(layer.mean == 5.0)
+
+        mean_val = ops.convert_to_numpy(layer.mean)
+        assert np.all(mean_val == 5.0)
