@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6.0.1
+        uses: actions/checkout@v6.0.2
       
       - name: Install Dependencies
         run: pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt
