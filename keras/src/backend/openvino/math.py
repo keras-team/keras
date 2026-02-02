@@ -63,6 +63,12 @@ def qr(x, mode="reduced"):
     raise NotImplementedError("`qr` is not supported with openvino backend")
 
 
+def cdist(x, y):
+    raise NotImplementedError(
+        "`cdist` is not supported with the OpenVINO backend"
+    )
+
+
 def extract_sequences(x, sequence_length, sequence_stride):
     raise NotImplementedError(
         "`extract_sequences` is not supported with openvino backend"
