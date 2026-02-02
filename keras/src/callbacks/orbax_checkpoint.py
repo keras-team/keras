@@ -89,6 +89,21 @@ class OrbaxCheckpoint(MonitorCallback):
         save_freq=100)  # Save every 100 batches
 
     model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
+
+    # To load a checkpoint from a previous training run and resume training:
+    # Scan the checkpoint directory to find the latest checkpoint.
+    latest_checkpoint_path = get_latest_checkpoint(checkpoint_dir)
+    # You can get the step numbers from the saved latest checkpoints.
+    # "checkpoint_dir/1000" is the checkpoint saved at step 1000
+    step = get_step_from_checkpoint_path(latest_checkpoint_path)
+    initial_epoch = step // steps_per_epoch
+    initial_batch = step
+    orbax_checkpoint = keras.callbacks.OrbaxCheckpoint(
+        directory=checkpoint_dir,
+        initial_epoch=initial_epoch,
+        initial_batch=initial_batch,
+    )
+    model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint])
     ```
 
     Args:
@@ -99,12 +114,16 @@ class OrbaxCheckpoint(MonitorCallback):
             is considered the "best" based on the monitored quantity.
         mode: one of {'auto', 'min', 'max'}. Used with `save_best_only`.
         save_freq: `'epoch'` or integer. Frequency to save checkpoints.
-        max_to_keep: Integer, maximum number of recent checkpoints to keep.
+        max_to_keep: maximum number of recent checkpoints to keep.
             If None, keeps all. Defaults to 1.
         save_on_background: Boolean, whether to save asynchronously in the
             background. Defaults to True.
         initial_value_threshold: Floating point initial "best" value for the
             monitor, used with `save_best_only`.
+        initial_batch: initial batch count to start from. Useful when
+            resuming training from a checkpoint.
+        initial_epoch: initial epoch count to start from. Useful when
+            resuming training from a checkpoint.
     """
 
     def __init__(
