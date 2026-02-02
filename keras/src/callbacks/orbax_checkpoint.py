@@ -103,8 +103,7 @@ class KerasAssetHandler:
         from keras.src.saving import saving_lib
         from keras.src.saving.saving_lib import DirectIOStore
 
-        # Use saving_lib._load_state to load assets, reusing existing logic
-        # DirectIOStore reads directly from the given directory
+        # Use saving_lib._load_state to load assets
         assets_store = DirectIOStore(str(directory))
         saving_lib._load_state(
             saveable=model,
