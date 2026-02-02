@@ -1,7 +1,5 @@
-import dataclasses
 import warnings
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
@@ -22,117 +20,6 @@ try:
         jax.monitoring.record_scalar = lambda *args, **kwargs: None
 except ImportError:
     pass
-
-
-# ============================================================================
-# Asset Handler Implementation
-# ============================================================================
-
-
-class KerasAssetHandler:
-    """Custom handler for Keras model assets."""
-
-    def __init__(self, primary_host_only: bool = True):
-        self._primary_host_only = primary_host_only
-        self._asset_metadata = {}
-
-    @classmethod
-    def typestr(cls):
-        return "KerasAssetHandler"
-
-    def _is_primary_host(self):
-        """Check if this is the primary host in multi-host training.
-
-        Multi-host is only relevant for JAX backend with Orbax.
-        For TensorFlow and PyTorch, this always returns True since
-        multi-host checkpointing is not supported.
-        """
-        if not self._primary_host_only:
-            return True
-
-        # Multi-host checkpointing is only supported on JAX backend
-        if backend.backend() != "jax":
-            return True
-
-        try:
-            multihost = ocp.multihost
-            return multihost.is_primary_host()
-        except Exception:
-            return True
-
-    def save(self, directory, args):
-        """Save model assets using saving_lib._save_state."""
-        if not self._is_primary_host():
-            return []
-
-        model = args.model
-        if model is None:
-            return []
-
-        from keras.src.saving import saving_lib
-        from keras.src.saving.saving_lib import DiskIOStore
-
-        directory = Path(directory)
-        directory.mkdir(parents=True, exist_ok=True)
-
-        # Save model config if requested
-        if args.save_model_config:
-            config_json, _ = saving_lib._serialize_model_as_json(model)
-            (directory / "model_config.json").write_text(config_json)
-
-        # Use DiskIOStore with use_temp=False to write directly to
-        # Orbax-managed directory. Orbax handles atomicity, so we
-        # don't need temporary directories.
-        assets_store = DiskIOStore(str(directory), use_temp=False)
-        saving_lib._save_state(
-            saveable=model,
-            weights_store=None,  # Only save assets, not weights
-            assets_store=assets_store,
-            inner_path=model.name,  # Start with model name
-            visited_saveables=set(),
-        )
-        assets_store.close()
-
-        return []
-
-    def restore(self, directory, args):
-        """Restore model assets using saving_lib._load_state."""
-        model = args.model
-        if model is None or not (directory := Path(directory)).exists():
-            return model
-
-        from keras.src.saving import saving_lib
-        from keras.src.saving.saving_lib import DiskIOStore
-
-        # Use DiskIOStore with use_temp=False to read directly from directory
-        assets_store = DiskIOStore(str(directory), use_temp=False)
-        saving_lib._load_state(
-            saveable=model,
-            weights_store=None,  # Only load assets, not weights
-            assets_store=assets_store,
-            inner_path=model.name,  # Start with model name
-            skip_mismatch=False,
-            visited_saveables=set(),
-            failed_saveables=None,
-            error_msgs={},
-        )
-        assets_store.close()
-
-        return model
-
-    def metadata(self, directory):
-        return self._asset_metadata.get(str(directory), {})
-
-    def finalize(self, directory):
-        pass
-
-    def close(self):
-        pass
-
-
-# Placeholder for AssetArgs - will be properly initialized
-# when OrbaxCheckpoint is instantiated
-AssetArgs = None
 
 
 def _get_state_tree(model):
@@ -234,25 +121,6 @@ class OrbaxCheckpoint(MonitorCallback):
         # Ensure orbax is available
         ocp.initialize()
 
-        # Initialize AssetArgs on first use
-        global AssetArgs
-        if AssetArgs is None:
-
-            @ocp.register_with_handler(
-                KerasAssetHandler, for_save=True, for_restore=True
-            )
-            @dataclasses.dataclass
-            class AssetArgs(ocp.CheckpointArgs):
-                """Arguments for asset checkpointing.
-
-                Attributes:
-                    model: The Keras model to save/restore assets for.
-                    save_model_config: Whether to save the model configuration.
-                """
-
-                model: Any = None
-                save_model_config: bool = True
-
         # Initialize MonitorCallback for metric monitoring
         super().__init__(monitor, mode, initial_value_threshold)
 
@@ -270,6 +138,9 @@ class OrbaxCheckpoint(MonitorCallback):
         self._current_epoch = 0
         self._total_batches_seen = 0
 
+        # Track steps that need model_config.json written
+        self._pending_config_steps = set()
+
         # Validate save_freq
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -280,17 +151,14 @@ class OrbaxCheckpoint(MonitorCallback):
         # Multi-host detection
         self._multihost_initialized = self._is_multihost_initialized()
 
-        # Create checkpoint handlers
+        # Create checkpoint handler for state
         state_handler = ocp.StandardCheckpointHandler()
-        asset_handler = KerasAssetHandler()
-
-        asset_checkpointer = ocp.Checkpointer(asset_handler)
         checkpointer_class = (
             ocp.AsyncCheckpointer if save_on_background else ocp.Checkpointer
         )
         state_checkpointer = checkpointer_class(state_handler)
 
-        # Use CheckpointManager with named checkpointers dict
+        # Use CheckpointManager with single state checkpointer
         options = ocp.CheckpointManagerOptions(
             max_to_keep=max_to_keep,
             create=True,
@@ -299,7 +167,7 @@ class OrbaxCheckpoint(MonitorCallback):
 
         self.manager = ocp.CheckpointManager(
             directory,
-            {"state": state_checkpointer, "assets": asset_checkpointer},
+            state_checkpointer,
             options,
         )
 
@@ -370,11 +238,7 @@ class OrbaxCheckpoint(MonitorCallback):
         return False
 
     def _save_checkpoint(self, step, logs=None):
-        """Save checkpoint with state and assets."""
-        # Access checkpoint args through ocp LazyModule
-        CompositeArgs = ocp.CompositeArgs
-        StandardSaveArgs = ocp.StandardSaveArgs
-
+        """Save checkpoint with model state."""
         # Get model state tree
         state_tree = _get_state_tree(self.model)
 
@@ -389,15 +253,12 @@ class OrbaxCheckpoint(MonitorCallback):
         else:
             composite_state = state_tree
 
-        # Save using CheckpointManager with Composite args
-        composite_args = CompositeArgs(
-            state=StandardSaveArgs(composite_state),
-            assets=AssetArgs(
-                model=self.model, save_model_config=not self.save_weights_only
-            ),
-        )
+        # Save using CheckpointManager (async if save_on_background=True)
+        self.manager.save(step, args=ocp.StandardSaveArgs(composite_state))
 
-        self.manager.save(step, args=composite_args)
+        # Track this step for model config saving
+        if not self.save_weights_only:
+            self._pending_config_steps.add(step)
 
     def on_train_batch_end(self, batch, logs=None):
         if self._should_save_on_batch(batch):
@@ -452,12 +313,25 @@ class OrbaxCheckpoint(MonitorCallback):
             self._save_checkpoint(step=epoch, logs=logs)
 
     def on_train_end(self, logs=None):
-        # Close the Checkpointer - this waits for any pending async saves
-        # to complete before closing
+        # Close the Checkpointer (waits for any pending async saves)
         try:
             self.manager.close()
         except Exception:
             pass  # Ignore errors during cleanup
+
+        # Write model_config.json for all pending checkpoint steps
+        if self._pending_config_steps:
+            from keras.src.saving import saving_lib
+
+            for step in self._pending_config_steps:
+                step_dir = Path(self.directory) / str(step)
+                if step_dir.exists():
+                    config_json, _ = saving_lib._serialize_model_as_json(
+                        self.model
+                    )
+                    (step_dir / "model_config.json").write_text(config_json)
+
+            self._pending_config_steps.clear()
 
         # Multi-host synchronization: ensure all hosts complete cleanup
         self._sync_processes("checkpoint_cleanup")

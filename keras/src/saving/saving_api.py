@@ -326,11 +326,12 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         checkpoint_path = find_latest_orbax_checkpoint(filepath)
 
         # Load state using StandardCheckpointHandler
-        state_dir = os.path.join(checkpoint_path, "state")
+        # (single-item saves to 'default')
+        default_dir = os.path.join(checkpoint_path, "default")
         handler = ocp.StandardCheckpointHandler()
         checkpointer = ocp.Checkpointer(handler)
         restore_args = ocp.StandardRestoreArgs()
-        loaded_state = checkpointer.restore(state_dir, args=restore_args)
+        loaded_state = checkpointer.restore(default_dir, args=restore_args)
         model.set_state_tree(loaded_state)
     else:
         raise ValueError(
@@ -345,8 +346,6 @@ def _load_model_from_orbax_checkpoint(
     filepath, custom_objects=None, compile=True, safe_mode=True
 ):
     """Load a model from an Orbax checkpoint directory."""
-    from keras.src.callbacks.orbax_checkpoint import AssetArgs
-    from keras.src.callbacks.orbax_checkpoint import KerasAssetHandler
     from keras.src.utils.module_utils import ocp
 
     # Ensure orbax is available
@@ -355,16 +354,8 @@ def _load_model_from_orbax_checkpoint(
     # Get the checkpoint path (handles both root and step directories)
     checkpoint_path = find_latest_orbax_checkpoint(filepath)
 
-    # Load state
-    handler = ocp.StandardCheckpointHandler()
-    checkpointer = ocp.Checkpointer(handler)
-    restore_args = ocp.StandardRestoreArgs()
-    composite_state = checkpointer.restore(
-        os.path.join(checkpoint_path, "state"), args=restore_args
-    )
-
     # Load model config
-    config_file = os.path.join(checkpoint_path, "assets", "model_config.json")
+    config_file = os.path.join(checkpoint_path, "model_config.json")
     if not os.path.exists(config_file):
         raise ValueError(
             "Checkpoint does not contain model configuration. "
@@ -381,6 +372,15 @@ def _load_model_from_orbax_checkpoint(
         safe_mode=safe_mode,
     )
 
+    # Load state using StandardCheckpointHandler
+    # (single-item saves to 'default')
+    handler = ocp.StandardCheckpointHandler()
+    checkpointer = ocp.Checkpointer(handler)
+    restore_args = ocp.StandardRestoreArgs()
+    loaded_state = checkpointer.restore(
+        os.path.join(checkpoint_path, "default"), args=restore_args
+    )
+
     # Prepare state tree
     variable_keys = [
         "trainable_variables",
@@ -389,18 +389,9 @@ def _load_model_from_orbax_checkpoint(
         "metrics_variables",
     ]
     state_tree = {
-        key: composite_state[key]
-        for key in variable_keys
-        if key in composite_state
+        key: loaded_state[key] for key in variable_keys if key in loaded_state
     }
 
     model.set_state_tree(state_tree)
-
-    # Restore assets - handler expects checkpoint directory with assets
-    # subdirectory
-    assets_path = os.path.join(checkpoint_path, "assets")
-    if os.path.exists(assets_path):
-        asset_handler = KerasAssetHandler()
-        asset_handler.restore(assets_path, args=AssetArgs(model=model))
 
     return model
