@@ -277,9 +277,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 "`by_name` only supports loading legacy '.h5' or '.hdf5' "
                 f"files. Received: {filepath}"
             )
-        saving_lib.load_weights_only(
-            model, filepath, skip_mismatch=skip_mismatch
-        )
+        from keras.src.saving import saving_lib as slib
+
+        slib.load_weights_only(model, filepath, skip_mismatch=skip_mismatch)
     elif filepath_str.endswith(".weights.h5") or filepath_str.endswith(
         ".weights.json"
     ):
@@ -288,7 +288,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 "`by_name` only supports loading legacy '.h5' or '.hdf5' "
                 f"files. Received: {filepath}"
             )
-        saving_lib.load_weights_only(
+        slib.load_weights_only(
             model,
             filepath,
             skip_mismatch=skip_mismatch,
@@ -336,8 +336,59 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             # It's a step directory, use it directly
             checkpoint_path = filepath
 
-        # Load checkpoint
-        loaded_state = ocp.load_pytree(checkpoint_path)
+        # Try loading as checkpointables first (handles assets)
+        # If that fails, fallback to pytree (backward compatibility)
+        try:
+            loaded_checkpointables = ocp.load_checkpointables(
+                checkpoint_path, dict(pytree=None, assets=None)
+            )
+            loaded_state = loaded_checkpointables["pytree"]
+
+            # Load assets if present
+            if (
+                "assets" in loaded_checkpointables
+                and loaded_checkpointables["assets"]
+            ):
+                # Assets stored as dict: file paths -> numpy uint8 arrays
+                assets_dict = loaded_checkpointables["assets"]
+                if assets_dict:
+                    import shutil
+                    import tempfile
+
+                    from keras.src.saving import saving_lib
+
+                    temp_assets_dir = tempfile.mkdtemp()
+                    try:
+                        # Write assets dictionary to temp directory
+                        # Convert numpy arrays back to bytes
+                        for rel_path, array_content in assets_dict.items():
+                            file_path = os.path.join(temp_assets_dir, rel_path)
+                            os.makedirs(
+                                os.path.dirname(file_path), exist_ok=True
+                            )
+                            with open(file_path, "wb") as f:
+                                # Convert numpy uint8 array back to bytes
+                                f.write(array_content.tobytes())
+
+                        # Use Keras load_assets mechanism
+                        assets_store = saving_lib.DiskIOStore(
+                            temp_assets_dir, mode="r"
+                        )
+                        saving_lib._load_state(
+                            model,
+                            weights_store=None,  # Only load assets, not weights
+                            assets_store=assets_store,
+                            inner_path="",
+                            visited_saveables=set(),
+                            failed_saveables=set(),
+                            error_msgs={},
+                        )
+                        assets_store.close()
+                    finally:
+                        shutil.rmtree(temp_assets_dir)
+        except Exception:
+            # Fallback to pytree for backward compatibility
+            loaded_state = ocp.load_pytree(checkpoint_path)
 
         # Set the model state directly from the loaded state
         model.set_state_tree(loaded_state)
@@ -367,7 +418,17 @@ def _load_model_from_orbax_checkpoint(
     # Load the composite state efficiently
     checkpointer = ocp.training.Checkpointer(directory=filepath)
     with ocp.Context():
-        composite_state = checkpointer.load_pytree(step)
+        # Try loading as checkpointables first (handles assets)
+        try:
+            loaded_checkpointables = checkpointer.load_checkpointables(
+                step, dict(pytree=None, assets=None)
+            )
+            composite_state = loaded_checkpointables["pytree"]
+            assets_data = loaded_checkpointables.get("assets")
+        except Exception:
+            # Fallback to pytree for backward compatibility
+            composite_state = checkpointer.load_pytree(step)
+            assets_data = None
 
     # Validate and extract model config
     if "model_config" not in composite_state:
@@ -400,4 +461,36 @@ def _load_model_from_orbax_checkpoint(
 
     # Apply the loaded state to the model
     model.set_state_tree(state_tree)
+
+    # Load assets if present
+    if assets_data:
+        import shutil
+        import tempfile
+
+        temp_assets_dir = tempfile.mkdtemp()
+        try:
+            # Write assets dictionary to temp directory
+            # Convert numpy arrays back to bytes
+            for rel_path, array_content in assets_data.items():
+                file_path = os.path.join(temp_assets_dir, rel_path)
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, "wb") as f:
+                    # Convert numpy uint8 array back to bytes
+                    f.write(array_content.tobytes())
+
+            # Use Keras load_assets mechanism
+            assets_store = saving_lib.DiskIOStore(temp_assets_dir, mode="r")
+            saving_lib._load_state(
+                model,
+                weights_store=None,  # Only load assets, not weights
+                assets_store=assets_store,
+                inner_path="",
+                visited_saveables=set(),
+                failed_saveables=set(),
+                error_msgs={},
+            )
+            assets_store.close()
+        finally:
+            shutil.rmtree(temp_assets_dir)
+
     return model

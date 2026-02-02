@@ -16,6 +16,54 @@ from keras.src.saving import register_keras_serializable
 # Import advanced Orbax functionality directly from the LazyModule
 
 
+# Custom layer with assets for testing (JAX-compatible)
+@register_keras_serializable(package="test")
+class LayerWithAssets(layers.Layer):
+    """Test layer that has assets to save/load."""
+
+    def __init__(self, units=10, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self._vocabulary = None
+
+    def build(self, input_shape):
+        self.kernel = self.add_weight(
+            shape=(input_shape[-1], self.units),
+            initializer="glorot_uniform",
+            name="kernel",
+        )
+        super().build(input_shape)
+
+    def call(self, inputs):
+        return inputs @ self.kernel
+
+    def set_vocabulary(self, vocab):
+        """Set vocabulary for testing assets."""
+        self._vocabulary = vocab
+
+    def get_vocabulary(self):
+        """Get vocabulary for testing."""
+        return self._vocabulary if self._vocabulary is not None else []
+
+    def save_assets(self, dir_path):
+        """Save vocabulary as an asset."""
+        if self._vocabulary:
+            import os
+
+            vocab_file = os.path.join(dir_path, "vocabulary.txt")
+            with open(vocab_file, "w") as f:
+                f.write("\n".join(self._vocabulary))
+
+    def load_assets(self, dir_path):
+        """Load vocabulary from assets."""
+        import os
+
+        vocab_file = os.path.join(dir_path, "vocabulary.txt")
+        if os.path.exists(vocab_file):
+            with open(vocab_file, "r") as f:
+                self._vocabulary = [line.strip() for line in f.readlines()]
+
+
 class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
     def _create_test_model(self):
         """Create a simple test model compatible with 2-device sharding."""
@@ -530,3 +578,87 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
             zip(model.optimizer.variables, loaded_model.optimizer.variables)
         ):
             self.assertAllClose(saved, loaded, msg=f"Weight {i} mismatch")
+
+    @parameterized.parameters(
+        {"save_on_background": False},
+        {"save_on_background": True},
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_checkpoint_with_assets(self, save_on_background):
+        """Test checkpoint saving/loading with layers that have assets.
+
+        Tests vocabulary persistence across save/load cycles.
+        """
+        # Use custom layer with assets that is JAX-compatible
+        inputs = layers.Input(shape=(10,))
+        custom_layer = LayerWithAssets(units=8, name="layer_with_assets")
+        custom_layer.set_vocabulary(
+            ["word1", "word2", "word3", "word4", "word5"]
+        )
+        x = custom_layer(inputs)
+        outputs = layers.Dense(3, activation="relu")(x)
+        model = models.Model(inputs, outputs, name="model_with_assets")
+
+        # Disable JIT compilation for JAX and Torch backends for compatibility
+        jit_compile = backend.backend() not in ("jax", "torch")
+        model.compile(optimizer="adam", loss="mse", jit_compile=jit_compile)
+
+        # Create training data
+        x_train = np.random.randn(20, 10)
+        y_train = np.random.random((20, 3))
+
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), f"test_assets_{save_on_background}_{id(self)}"
+        )
+
+        # Train with checkpoint callback
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_on_background=save_on_background,
+        )
+        model.fit(x_train, y_train, epochs=2, callbacks=[callback], verbose=0)
+
+        # Verify checkpoint was created
+        checkpoints = [d for d in os.listdir(checkpoint_dir) if d.isdigit()]
+        self.assertGreater(len(checkpoints), 0, "No checkpoints were saved")
+
+        # Get original vocabulary and weights for comparison
+        original_vocab = custom_layer.get_vocabulary()
+        original_weights = model.get_weights()
+
+        # Load the model from checkpoint
+        loaded_model = saving.load_model(checkpoint_dir)
+
+        # Verify model structure
+        self.assertEqual(model.name, loaded_model.name)
+        self.assertEqual(len(model.layers), len(loaded_model.layers))
+
+        # Verify vocabulary (assets) was restored correctly
+        loaded_custom_layer = loaded_model.get_layer("layer_with_assets")
+        loaded_vocab = loaded_custom_layer.get_vocabulary()
+
+        self.assertEqual(
+            len(original_vocab), len(loaded_vocab), "Vocabulary length mismatch"
+        )
+
+        for i, (orig, loaded) in enumerate(zip(original_vocab, loaded_vocab)):
+            self.assertEqual(orig, loaded, f"Vocabulary mismatch at index {i}")
+
+        # Verify weights match
+        loaded_weights = loaded_model.get_weights()
+        self.assertEqual(len(original_weights), len(loaded_weights))
+        for i, (orig, loaded) in enumerate(
+            zip(original_weights, loaded_weights)
+        ):
+            self.assertAllClose(orig, loaded, msg=f"Weight {i} mismatch")
+
+        # Verify inference produces same results
+        test_input = np.random.randn(5, 10)
+        original_output = model.predict(test_input, verbose=0)
+        loaded_output = loaded_model.predict(test_input, verbose=0)
+        self.assertAllClose(
+            original_output,
+            loaded_output,
+            msg="Model outputs don't match after loading",
+        )
