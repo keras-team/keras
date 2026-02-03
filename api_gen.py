@@ -53,7 +53,7 @@ def create_legacy_directory(package_dir):
     init_file = init_file.replace("from keras import _tf_keras\n", "\n")
     with open(os.path.join(tf_keras_dirpath, "__init__.py"), "w") as f:
         f.write(init_file)
-    for dirname in os.listdir(package_dir):
+    for dirname in sorted(os.listdir(package_dir)):
         dirpath = os.path.join(package_dir, dirname)
         if os.path.isdir(dirpath) and dirname not in (
             "_legacy",
@@ -70,18 +70,22 @@ def create_legacy_directory(package_dir):
             )
 
     # Copy keras/_legacy/ file contents to keras/_tf_keras/keras
-    legacy_submodules = [
-        path[:-3]
-        for path in os.listdir(os.path.join(src_dir, "legacy"))
-        if path.endswith(".py")
-    ]
-    legacy_submodules += [
-        path
-        for path in os.listdir(os.path.join(src_dir, "legacy"))
-        if os.path.isdir(os.path.join(src_dir, "legacy", path))
-    ]
+    legacy_submodules = sorted(
+        [
+            path[:-3]
+            for path in os.listdir(os.path.join(src_dir, "legacy"))
+            if path.endswith(".py")
+        ]
+    )
+    legacy_submodules += sorted(
+        [
+            path
+            for path in os.listdir(os.path.join(src_dir, "legacy"))
+            if os.path.isdir(os.path.join(src_dir, "legacy", path))
+        ]
+    )
     for root, _, fnames in os.walk(os.path.join(package_dir, "_legacy")):
-        for fname in fnames:
+        for fname in sorted(fnames):
             if fname.endswith(".py"):
                 legacy_fpath = os.path.join(root, fname)
                 tf_keras_root = root.replace(
