@@ -802,7 +802,78 @@ def count_nonzero(x, axis=None):
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    raise NotImplementedError("`cross` is not supported with openvino backend")
+    if axis is not None:
+        axisa = axisb = axisc = axis
+
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+
+    x1, x2 = _align_operand_types(x1, x2, "cross()")
+
+    shape1 = x1.get_partial_shape()
+    shape2 = x2.get_partial_shape()
+
+    # Rank Normalization
+    rank1 = shape1.rank.get_length()
+    rank2 = shape2.rank.get_length()
+
+    axisa = canonicalize_axis(axisa, rank1)
+    axisb = canonicalize_axis(axisb, rank2)
+    axisc = canonicalize_axis(axisc, rank1 if rank1 > rank2 else rank2)
+
+    d1 = shape1[axisa].get_length()
+    d2 = shape2[axisb].get_length()
+
+    if d1 not in (2, 3) or d2 not in (2, 3):
+        raise ValueError(
+            "Dimension of vectors for cross product must be 2 or 3. "
+            f"Got dimensions {d1} and {d2} for inputs x1 and x2."
+        )
+
+    # Pad to 3D by adding a zero component.
+    def pad_to_3d(x, dim, ax):
+        if dim == 3:
+            return x
+
+        # Create a slice of zeros with the same type as x
+        slice0 = ov_opset.gather(
+            x,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant(ax, Type.i32),
+        )
+        zeros = ov_opset.multiply(
+            slice0,
+            ov_opset.constant(0, x.get_element_type()),
+        )
+
+        return ov_opset.concat([x, zeros], ax)
+
+    x1_3d = pad_to_3d(x1, d1, axisa)
+    x2_3d = pad_to_3d(x2, d2, axisb)
+
+    # Split Vectors
+    u = ov_opset.split(x1_3d, ov_opset.constant(axisa, Type.i32), 3).outputs()
+    v = ov_opset.split(x2_3d, ov_opset.constant(axisb, Type.i32), 3).outputs()
+
+    # u x v = (u2*v3 - u3*v2, u3*v1 - u1*v3, u1*v2 - u2*v1)
+    res_x = ov_opset.subtract(
+        ov_opset.multiply(u[1], v[2]), ov_opset.multiply(u[2], v[1])
+    )
+    res_y = ov_opset.subtract(
+        ov_opset.multiply(u[2], v[0]), ov_opset.multiply(u[0], v[2])
+    )
+    res_z = ov_opset.subtract(
+        ov_opset.multiply(u[0], v[1]), ov_opset.multiply(u[1], v[0])
+    )
+
+    # If dim was 2D, we remove the padded zero component.
+    if d1 == 2 and d2 == 2:
+        result = res_z
+        result = ov_opset.squeeze(result, ov_opset.constant([axisc], Type.i32))
+    else:
+        result = ov_opset.concat([res_x, res_y, res_z], axisc)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def cumprod(x, axis=None, dtype=None):
