@@ -253,6 +253,10 @@ class MultiOptimizerTest(testing.TestCase):
                 "integration work."
             )
 
+        # Skip NumPy backend - fit is not implemented
+        if backend.backend() == "numpy":
+            self.skipTest("model.fit is not implemented for NumPy backend.")
+
         # Create a simple model
         inputs = layers.Input(shape=(4,))
         x = layers.Dense(8, name="dense1")(inputs)
