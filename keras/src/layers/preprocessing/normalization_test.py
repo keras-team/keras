@@ -202,3 +202,21 @@ class NormalizationTest(testing.TestCase):
         sample_input = np.random.rand(1, 32, 32, 3)
         output = normalizer(sample_input)
         self.assertEqual(output.shape, (1, 32, 32, 3))
+
+    def test_adapt_tf_dataset_with_labels(self):
+        """Normalization.adapt should support supervised tf.data.Dataset."""
+        import tensorflow as tf
+
+        x = np.ones((32, 3), dtype="float32")
+        y = np.ones((32,), dtype="int32")
+
+        dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(8)
+
+        layer = layers.Normalization()
+        layer.adapt(dataset)
+
+        mean = backend.convert_to_numpy(layer.mean).squeeze()
+        var = backend.convert_to_numpy(layer.variance).squeeze()
+
+        np.testing.assert_allclose(mean, np.ones(3))
+        np.testing.assert_allclose(var, np.zeros(3))
