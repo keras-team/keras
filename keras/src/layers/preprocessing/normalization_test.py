@@ -3,7 +3,6 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
-from keras import ops
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
@@ -209,54 +208,74 @@ class NormalizationTest(testing.TestCase):
         Tests mean/variance that are not scalars and require
         expanding dims on non-kept axes (the 'general case').
         """
-        # Input shape: (Batch=2, Height=4, Width=4, Channels=3)
-        input_shape = (2, 4, 4, 3)
+        # (Batch=2, Height=4, Width=5, Channels=3)
+        input_shape = (2, 4, 5, 3)
         # We want to normalize only across the 'Width' (axis 2)
-        # So mean should have shape (4,)
         axis = 2
-        custom_mean = np.array([10.0, 20.0, 30.0, 40.0], dtype="float32")
-        custom_var = np.array([1.0, 1.0, 1.0, 1.0], dtype="float32")
-
+        custom_mean = np.arange(1, 6, dtype="float32")  # shape (5,)
+        custom_var = np.ones((5,), dtype="float32")
         layer = layers.Normalization(
             axis=axis, mean=custom_mean, variance=custom_var
         )
         layer.build(input_shape)
 
-        # The expected broadcast shape should be (1, 1, 4, 1)
-        expected_shape = (1, 1, 4, 1)
-
-        assert layer.mean.shape == expected_shape
-        assert layer.variance.shape == expected_shape
-        assert layer.mean[0, 0, 1, 0] == 20.0
+        # The expected broadcast shape should be (1, 1, 5, 1)
+        self.assertEqual(tuple(layer.mean.shape), (1, 1, 5, 1))
+        self.assertAllClose(layer.mean[0, 0, :, 0], custom_mean)
 
     def test_broadcast_multiple_axes(self):
         """
         Tests keeping multiple axes, e.g., (Height, Width) but not Channels.
         """
-        input_shape = (None, 10, 10, 3)
+        # Batch=None, Height=10, Width=13, Channels=3
+        input_shape = (None, 10, 13, 3)
         axis = (1, 2)
 
-        custom_mean = np.zeros((10, 10), dtype="float32")
-        custom_var = np.ones((10, 10), dtype="float32")
+        custom_mean = np.zeros((10, 13), dtype="float32")
+        custom_var = np.ones((10, 13), dtype="float32")
 
         layer = layers.Normalization(
             axis=axis, mean=custom_mean, variance=custom_var
         )
         layer.build(input_shape)
 
-        # The expected broadcast shape should be (1, 10, 10, 1)
-        assert layer.mean.shape == (1, 10, 10, 1)
+        # The expected broadcast shape should be (1, 10, 13, 1)
+        self.assertEqual(tuple(layer.mean.shape), (1, 10, 13, 1))
+
+    def test_broadcast_partial_keep_axis(self):
+        """
+        Test mean has fewer dims than kept axes (right-to-left alignment).
+
+        This covers the case where axis=(1, 2) but mean is 1D, meaning it
+        should align with axis 2 and broadcast across axis 1.
+        """
+        # Batch=2, H=7, W=5, C=3
+        input_shape = (2, 7, 5, 3)
+        axis = (1, 2)
+
+        custom_mean = np.array([1.0, 2.0, 3.0, 4.0, 5.0], dtype="float32")
+        custom_var = np.ones((5,), dtype="float32")
+
+        layer = layers.Normalization(
+            axis=axis, mean=custom_mean, variance=custom_var
+        )
+        layer.build(input_shape)
+        self.assertEqual(tuple(layer.mean.shape), (1, 7, 5, 1))
+
+        # Verify alignment and broadcasting
+        expected_values = np.reshape(custom_mean, (1, 1, 5, 1))
+
+        self.assertAllClose(layer.mean[:, 0:1, :, :], expected_values)
+        self.assertAllClose(layer.mean[:, 6:7, :, :], expected_values)
 
     def test_scalar_broadcast(self):
         """
         Ensures the scalar case still broadcasts to the full rank.
         """
-        input_shape = (2, 2)
+        input_shape = (3, 7)  # (Batch=3, Features=7)
         layer = layers.Normalization(axis=-1, mean=5.0, variance=1.0)
         layer.build(input_shape)
 
-        # The expected broadcast shape should be (1, 2)
-        assert layer.mean.shape == (1, 2)
-
-        mean_val = ops.convert_to_numpy(layer.mean)
-        assert np.all(mean_val == 5.0)
+        # The expected broadcast shape should be (1, 7)
+        self.assertEqual(tuple(layer.mean.shape), (1, 7))
+        self.assertAllClose(layer.mean, [[5.0] * 7])

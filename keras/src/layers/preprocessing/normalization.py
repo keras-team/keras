@@ -125,6 +125,29 @@ class Normalization(DataLayer):
                 "When setting values directly, both `mean` and `variance` "
                 f"must be set. Received: mean={mean} and variance={variance}"
             )
+        if mean is not None:
+            # Verify mean and variance have the same shape.
+            if np.shape(mean) != np.shape(variance):
+                raise ValueError(
+                    "When setting values directly, `mean` and `variance` "
+                    "must have the same shape. Received: "
+                    f"mean shape {np.shape(mean)} and "
+                    f"variance shape {np.shape(variance)}"
+                )
+            # Verify mean rank <= number of axes.
+            if len(np.shape(mean)) > len(self.axis):
+                raise ValueError(
+                    "The rank of `mean` must be less than or equal to the "
+                    f"number of axes ({len(self.axis)}). Received: "
+                    f"mean shape {np.shape(mean)} for axis {self.axis}"
+                )
+
+        self.input_mean = mean
+        self.input_variance = variance
+        self.invert = invert
+        self.supports_masking = True
+        self._build_input_shape = None
+        self.mean = None
 
     def build(self, input_shape):
         if input_shape is None:
@@ -201,18 +224,22 @@ class Normalization(DataLayer):
                 mean = ops.broadcast_to(mean, self._broadcast_shape)
                 variance = ops.broadcast_to(variance, self._broadcast_shape)
             else:
-                # Case 2: General broadcasting (handles partial dimensions).
-                # We need to expand mean/variance so they have 1s on the
-                # _reduce_axis and align with the rank of the input_shape.
+                # Case 2: General broadcasting. Align mean/variance dims
+                # to the kept axes from right to left.
                 expanded_shape = [1] * ndim
                 mean_shape = ops.shape(mean)
-                for i, axis_idx in enumerate(self._keep_axis):
-                    expanded_shape[axis_idx] = mean_shape[i]
+                mean_ndim = ops.ndim(mean)
+
+                # Map mean dimensions to the correct kept axes (right-to-left).
+                # This handles cases where mean has fewer dims than keep_axis.
+                for i in range(1, mean_ndim + 1):
+                    axis_idx = self._keep_axis[-i]
+                    expanded_shape[axis_idx] = mean_shape[-i]
 
                 mean = ops.reshape(mean, expanded_shape)
                 variance = ops.reshape(variance, expanded_shape)
 
-                # Finally, broadcast to the full target shape.
+                # Broadcast to the full target shape.
                 mean = ops.broadcast_to(mean, self._broadcast_shape)
                 variance = ops.broadcast_to(variance, self._broadcast_shape)
 
