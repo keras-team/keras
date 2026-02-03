@@ -264,7 +264,7 @@ class BaseConv(Layer):
         return outputs
 
     def compute_output_shape(self, input_shape):
-        output_shape = compute_conv_output_shape(
+        return compute_conv_output_shape(
             input_shape,
             self.filters,
             self.kernel_size,
@@ -273,27 +273,6 @@ class BaseConv(Layer):
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
         )
-
-        # Validate spatial dimensions: if any spatial dimension is known
-        # (not None) and <= 0, raise a Keras-level ValueError so symbolic
-        # shape inference fails fast and mirrors eager execution behavior.
-        if self.data_format == "channels_last":
-            spatial_dims = output_shape[1:-1]
-        else:
-            spatial_dims = output_shape[2:]
-
-        for dim in spatial_dims:
-            if dim is not None and dim <= 0:
-                raise ValueError(
-                    "Invalid convolution configuration: "
-                    f"input_shape={input_shape}, "
-                    f"kernel_size={self.kernel_size}, "
-                    f"dilation_rate={self.dilation_rate}, "
-                    f"strides={self.strides}, "
-                    f"padding={self.padding}. "
-                    f"Computed output spatial shape: {spatial_dims}."
-                )
-        return output_shape
 
     def enable_lora(
         self,
