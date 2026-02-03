@@ -813,21 +813,22 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     shape1 = x1.get_partial_shape()
     shape2 = x2.get_partial_shape()
 
-    if shape1.rank.is_dynamic or shape2.rank.is_dynamic:
-        raise ValueError("Input ranks must be static for cross product")
-
     # Rank Normalization
     rank1 = shape1.rank.get_length()
     rank2 = shape2.rank.get_length()
 
-    axisa %= rank1
-    axisb %= rank2
+    axisa = canonicalize_axis(axisa, rank1)
+    axisb = canonicalize_axis(axisb, rank2)
+    axisc = canonicalize_axis(axisc, rank1 if rank1 > rank2 else rank2)
 
     d1 = shape1[axisa].get_length()
     d2 = shape2[axisb].get_length()
 
     if d1 not in (2, 3) or d2 not in (2, 3):
-        raise ValueError("Dimension must be 2 or 3 for cross product")
+        raise ValueError(
+            "Dimension of vectors for cross product must be 2 or 3. "
+            f"Got dimensions {d1} and {d2} for inputs x1 and x2."
+        )
 
     # Pad to 3D by adding a zero component.
     def pad_to_3d(x, dim, ax):
