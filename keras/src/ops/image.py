@@ -2098,8 +2098,11 @@ def _ssim(
         image1 = ops.moveaxis(image1, 1, -1)
         image2 = ops.moveaxis(image2, 1, -1)
 
-    # Get number of channels
+    # Get image dimensions
     shape = ops.shape(image1)
+    batch_size = shape[0]
+    height = shape[1]
+    width = shape[2]
     channels = shape[3]
 
     # Create Gaussian kernel
@@ -2111,44 +2114,38 @@ def _ssim(
     c1 = (k1 * max_val) ** 2
     c2 = (k2 * max_val) ** 2
 
-    # Compute SSIM per channel and average
-    ssim_per_channel = []
-    for c in range(channels if isinstance(channels, int) else 1):
-        # Extract channel - handle dynamic channels
-        if isinstance(channels, int):
-            img1_c = image1[:, :, :, c : c + 1]
-            img2_c = image2[:, :, :, c : c + 1]
-        else:
-            img1_c = image1
-            img2_c = image2
+    # Vectorized implementation: reshape to treat channels as batch items
+    # This avoids Python loops and supports dynamic channel dimensions
+    # Shape: (B, H, W, C) -> (B, C, H, W) -> (B*C, H, W, 1)
+    image1_transposed = ops.transpose(image1, (0, 3, 1, 2))
+    image2_transposed = ops.transpose(image2, (0, 3, 1, 2))
+    image1_ch = ops.reshape(image1_transposed, [-1, height, width, 1])
+    image2_ch = ops.reshape(image2_transposed, [-1, height, width, 1])
 
-        # Compute means using depthwise convolution
-        mu1 = _depthwise_conv(img1_c, kernel)
-        mu2 = _depthwise_conv(img2_c, kernel)
+    # Compute means using depthwise convolution
+    mu1 = _depthwise_conv(image1_ch, kernel)
+    mu2 = _depthwise_conv(image2_ch, kernel)
 
-        mu1_sq = mu1 * mu1
-        mu2_sq = mu2 * mu2
-        mu1_mu2 = mu1 * mu2
+    mu1_sq = mu1 * mu1
+    mu2_sq = mu2 * mu2
+    mu1_mu2 = mu1 * mu2
 
-        # Compute variances and covariance
-        sigma1_sq = _depthwise_conv(img1_c * img1_c, kernel) - mu1_sq
-        sigma2_sq = _depthwise_conv(img2_c * img2_c, kernel) - mu2_sq
-        sigma12 = _depthwise_conv(img1_c * img2_c, kernel) - mu1_mu2
+    # Compute variances and covariance
+    sigma1_sq = _depthwise_conv(image1_ch * image1_ch, kernel) - mu1_sq
+    sigma2_sq = _depthwise_conv(image2_ch * image2_ch, kernel) - mu2_sq
+    sigma12 = _depthwise_conv(image1_ch * image2_ch, kernel) - mu1_mu2
 
-        # SSIM formula
-        numerator = (2.0 * mu1_mu2 + c1) * (2.0 * sigma12 + c2)
-        denominator = (mu1_sq + mu2_sq + c1) * (sigma1_sq + sigma2_sq + c2)
-        ssim_map = numerator / denominator
+    # SSIM formula
+    numerator = (2.0 * mu1_mu2 + c1) * (2.0 * sigma12 + c2)
+    denominator = (mu1_sq + mu2_sq + c1) * (sigma1_sq + sigma2_sq + c2)
+    ssim_map = numerator / denominator
 
-        # Average SSIM over spatial dimensions
-        ssim_val = ops.mean(ssim_map, axis=[1, 2, 3])
-        ssim_per_channel.append(ssim_val)
+    # Average SSIM over spatial dimensions: (B*C, H', W', 1) -> (B*C,)
+    ssim_val = ops.mean(ssim_map, axis=[1, 2, 3])
 
-    # Average over channels if we processed them separately
-    if len(ssim_per_channel) > 1:
-        ssim_result = ops.mean(ops.stack(ssim_per_channel, axis=-1), axis=-1)
-    else:
-        ssim_result = ssim_per_channel[0]
+    # Reshape back to (B, C) and average over channels
+    ssim_per_image = ops.reshape(ssim_val, [batch_size, channels])
+    ssim_result = ops.mean(ssim_per_image, axis=-1)
 
     # Remove batch dimension for unbatched input
     if unbatched:
