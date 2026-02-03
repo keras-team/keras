@@ -77,7 +77,7 @@ class MultiOptimizerTest(testing.TestCase):
     def test_invalid_input_variables_not_list(self):
         var = backend.Variable([1.0])
         with self.assertRaisesRegex(
-            ValueError, "Expected a list of variables"
+            ValueError, "Expected a list or tuple of variables"
         ):
             MultiOptimizer([(SGD(), var)])
 
