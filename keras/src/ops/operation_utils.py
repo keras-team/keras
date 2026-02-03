@@ -219,7 +219,7 @@ def compute_conv_output_shape(
         for i in range(len(output_spatial_shape)):
             if i not in none_dims and output_spatial_shape[i] <= 0:
                 raise ValueError(
-                    "Computed output size would be negative. Received "
+                    "Computed output size would be zero or negative. Received "
                     f"`inputs shape={input_shape}`, "
                     f"`kernel shape={kernel_shape}`, "
                     f"`dilation_rate={dilation_rate}`, "
