@@ -8,11 +8,11 @@ from keras.src.losses import deserialize as deserialize
 from keras.src.losses import get as get
 from keras.src.losses import serialize as serialize
 from keras.src.losses.loss import Loss as Loss
-from keras.src.losses.losses import CTC as CTC
 from keras.src.losses.losses import BinaryCrossentropy as BinaryCrossentropy
 from keras.src.losses.losses import (
     BinaryFocalCrossentropy as BinaryFocalCrossentropy,
 )
+from keras.src.losses.losses import CTC as CTC
 from keras.src.losses.losses import (
     CategoricalCrossentropy as CategoricalCrossentropy,
 )

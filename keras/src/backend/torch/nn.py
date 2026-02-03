@@ -1162,6 +1162,14 @@ def dot_product_attention(
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
+    
+    # Ensure mask is contiguous before using it in scaled_dot_product_attention.
+    # This fixes the RuntimeError "(*bias): last dimension must be contiguous"
+    # when bias is used as mask (issue #20459).
+    # Note: mask.contiguous() was already called in the else branch, but not
+    # in the flash_attention branch, so we call it here for both paths.
+    if mask is not None:
+        mask = mask.contiguous()
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
@@ -1186,8 +1194,6 @@ def dot_product_attention(
                 scale=scale,
             )
     else:
-        if mask is not None:
-            mask = mask.contiguous()
         attention_output = torch.nn.functional.scaled_dot_product_attention(
             query.contiguous(),
             key.contiguous(),
