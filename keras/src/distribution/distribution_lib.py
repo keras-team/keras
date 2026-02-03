@@ -281,9 +281,6 @@ class TensorLayout:
 
     @property
     def backend_layout(self):
-        # JAX: context-dependent layout (abstract vs concrete mesh).
-        if backend() == "jax":
-            return distribution_lib._to_backend_layout(self)
         if not hasattr(self, "_backend_layout"):
             self._backend_layout = distribution_lib._to_backend_layout(self)
         return self._backend_layout

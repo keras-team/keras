@@ -95,10 +95,16 @@ class JaxDistributionLibTest(testing.TestCase):
             return distribution_lib.distribute_tensor(inputs, target_layout)
 
         result = test_function(inputs, target_layout)
-        # Note that the returned tensor has a different sharding implementation
-        # which is GSPMDSharding, but it should be equivalent as the target
-        # layout specified.
-        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
+        # Inside JIT we use AbstractMesh-based sharding when available.
+        self.assertEqual(result.shape, inputs.shape)
+        if hasattr(result.sharding, "spec"):
+            expected_sharding = backend_dlib._to_abstract_shardings(
+                target_layout
+            )
+            self.assertTrue(
+                result.sharding.is_equivalent_to(target_layout, ndim=2)
+                or result.sharding.is_equivalent_to(expected_sharding, ndim=2)
+            )
 
         # Test without jit
         result = distribution_lib.distribute_tensor(inputs, target_layout)

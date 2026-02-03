@@ -80,9 +80,9 @@ def distribute_tensor(tensor, layout):
     if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
 
-    # TODO(scottzhu): This might not be a cheap check, we should consider
-    # have some proper JAX API for doing this check.
+    # In tracing scope use AbstractMesh-based sharding for stable JIT cache.
     if jax_utils.is_in_jax_tracing_scope():
+        layout = _to_abstract_shardings(layout)
         return jax.lax.with_sharding_constraint(tensor, layout)
 
     # Skip relayout if unnecessary.
@@ -279,9 +279,9 @@ def _to_abstract_shardings(shardings):
 def _to_backend_layout(tensor_layout):
     """Convert the TensorLayout to JAX backend specific Sharding.
 
-    Uses AbstractMesh when inside a JAX tracing scope so JIT cache keys are
-    stable across device changes; uses concrete Mesh for eager placement
-    (device_put, make_array_from_process_local_data).
+    Always uses the concrete Mesh. Callers that need AbstractMesh for
+    JIT-stable cache keys (e.g. inside tracing) should use
+    _to_abstract_shardings() on the result.
 
     Args:
         tensor_layout: TensorLayout instance to convert.
@@ -295,10 +295,5 @@ def _to_backend_layout(tensor_layout):
             "for TensorLayout."
         )
     partition_spec = jax.sharding.PartitionSpec(*tensor_layout.axes)
-    # In tracing scope use AbstractMesh for stable JIT cache; else concrete.
-    if jax_utils.is_in_jax_tracing_scope():
-        abstract_mesh = tensor_layout.device_mesh.backend_mesh_abstract
-        if abstract_mesh is not None:
-            return jax.sharding.NamedSharding(abstract_mesh, partition_spec)
     jax_mesh = tensor_layout.device_mesh.backend_mesh
     return jax.sharding.NamedSharding(jax_mesh, partition_spec)
