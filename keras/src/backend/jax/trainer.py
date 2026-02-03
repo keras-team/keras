@@ -4,6 +4,7 @@ import warnings
 from functools import partial
 
 import jax
+import jax.numpy as jnp
 import numpy as np
 
 from keras.src import backend
@@ -36,6 +37,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.test_function = None
         self.predict_function = None
         self._jax_state_synced = True
+        self._initial_trainable_indices = None
 
     def compute_loss_and_updates(
         self,
@@ -129,6 +131,14 @@ class JAXTrainer(base_trainer.Trainer):
             metrics_variables,
         ) = state
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+
+        # Capture trainable variable indices on first training step
+        # This ensures we capture after the model is built
+        if self._initial_trainable_indices is None:
+            self._initial_trainable_indices = frozenset(
+                range(len(trainable_variables))
+            )
+
         grad_fn = jax.value_and_grad(
             self.compute_loss_and_updates, has_aux=True
         )
@@ -145,6 +155,22 @@ class JAXTrainer(base_trainer.Trainer):
         (unscaled_loss, y_pred, non_trainable_variables, metrics_variables) = (
             aux
         )
+
+        # Filter gradients to respect compiled trainable state
+        # Only update variables that were trainable
+        # at first training step (after model was built)
+        if self._initial_trainable_indices is not None:
+            # Apply index-based mask to gradients
+            grads_flat, grads_def = jax.tree_util.tree_flatten(grads)
+            filtered_grads = []
+            for i, g in enumerate(grads_flat):
+                if i in self._initial_trainable_indices:
+                    filtered_grads.append(g)
+                else:
+                    filtered_grads.append(
+                        jnp.zeros_like(g) if g is not None else None
+                    )
+            grads = jax.tree_util.tree_unflatten(grads_def, filtered_grads)
 
         (
             trainable_variables,
@@ -385,7 +411,6 @@ class JAXTrainer(base_trainer.Trainer):
         if max_epochs and max_epochs < epochs:
             warnings.warn("Limiting epochs to %d" % max_epochs)
             epochs = max_epochs
-        # TODO: respect compiled trainable state
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
