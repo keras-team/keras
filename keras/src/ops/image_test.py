@@ -705,7 +705,7 @@ def gaussian_blur_np(
         def _get_gaussian_kernel2d(size, sigma):
             kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
             kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
-            return np.outer(kernel1d_y, kernel1d_x)
+            return np.outer(kernel1d_x, kernel1d_y)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = kernel[:, :, np.newaxis]
@@ -736,12 +736,19 @@ def gaussian_blur_np(
         kernel_size, sigma, num_channels, input_dtype
     )
     batch_size, height, width, _ = images.shape
+
+    # Calculate asymmetric padding for even kernel sizes
+    pad_h = (kernel_size[0] - 1) // 2
+    pad_h_after = kernel_size[0] - 1 - pad_h
+    pad_w = (kernel_size[1] - 1) // 2
+    pad_w_after = kernel_size[1] - 1 - pad_w
+
     padded_images = np.pad(
         images,
         (
             (0, 0),
-            (kernel_size[0] // 2, kernel_size[0] // 2),
-            (kernel_size[1] // 2, kernel_size[1] // 2),
+            (pad_h, pad_h_after),
+            (pad_w, pad_w_after),
             (0, 0),
         ),
         mode="constant",
@@ -1881,6 +1888,62 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             data_format="channels_first",
         )
 
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+    def test_gaussian_blur_even_kernel_size(self):
+        """Test gaussian_blur with even kernel sizes"""
+        # This test is specific to the numpy backend fix
+        if backend.backend() != "numpy":
+            self.skipTest(
+                f"Test is specific to numpy backend, current backend: {backend.backend()}"
+            )
+
+        backend.set_image_data_format("channels_last")
+        np.random.seed(42)
+        x = np.random.uniform(size=(32, 32, 3)).astype("float32")
+        kernel_size = np.array([4, 4])  # Even kernel size
+        sigma = np.array([0.8, 1.2]).astype("float32")
+
+        out = kimage.gaussian_blur(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_last",
+        )
+
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_last",
+        )
+
+        self.assertEqual(tuple(out.shape), (32, 32, 3))
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+        # Test channels_first with different even kernel sizes
+        backend.set_image_data_format("channels_first")
+        x = np.random.uniform(size=(3, 32, 32)).astype("float32")
+        kernel_size = np.array([6, 4])  # Different even kernel sizes
+        sigma = np.array([1.0, 1.5]).astype("float32")
+
+        out = kimage.gaussian_blur(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_first",
+        )
+
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_first",
+        )
+
+        self.assertEqual(tuple(out.shape), (3, 32, 32))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
 
