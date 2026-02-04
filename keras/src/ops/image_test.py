@@ -705,7 +705,7 @@ def gaussian_blur_np(
         def _get_gaussian_kernel2d(size, sigma):
             kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
             kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
-            return np.outer(kernel1d_x, kernel1d_y)
+            return np.outer(kernel1d_y, kernel1d_x)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = kernel[:, :, np.newaxis]
@@ -737,11 +737,11 @@ def gaussian_blur_np(
     )
     batch_size, height, width, _ = images.shape
 
-    # Calculate asymmetric padding for even kernel sizes
-    pad_h = (kernel_size[0] - 1) // 2
-    pad_h_after = kernel_size[0] - 1 - pad_h
-    pad_w = (kernel_size[1] - 1) // 2
-    pad_w_after = kernel_size[1] - 1 - pad_w
+    kernel_h, kernel_w = kernel.shape[0], kernel.shape[1]
+    pad_h = (kernel_h - 1) // 2
+    pad_h_after = kernel_h - 1 - pad_h
+    pad_w = (kernel_w - 1) // 2
+    pad_w_after = kernel_w - 1 - pad_w
 
     padded_images = np.pad(
         images,
@@ -756,7 +756,7 @@ def gaussian_blur_np(
 
     blurred_images = np.zeros_like(images)
     kernel_reshaped = kernel.reshape(
-        (1, kernel.shape[0], kernel.shape[1], num_channels)
+        (1, kernel_h, kernel_w, num_channels)
     )
 
     for b in range(batch_size):
@@ -765,7 +765,7 @@ def gaussian_blur_np(
     for i in range(height):
         for j in range(width):
             patch = image_patch[
-                :, i : i + kernel_size[0], j : j + kernel_size[1], :
+                :, i : i + kernel_h, j : j + kernel_w, :
             ]
             blurred_images[b, i, j, :] = np.sum(
                 patch * kernel_reshaped, axis=(1, 2)
@@ -1896,7 +1896,8 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         # This test is specific to the numpy backend fix
         if backend.backend() != "numpy":
             self.skipTest(
-                f"Test is specific to numpy backend, current backend: {backend.backend()}"
+                "Test is specific to numpy backend, current backend: "
+                f"{backend.backend()}"
             )
 
         backend.set_image_data_format("channels_last")

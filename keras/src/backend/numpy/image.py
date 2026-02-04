@@ -981,7 +981,7 @@ def gaussian_blur(
             size = np.asarray(size, dtype)
             kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
             kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
-            return np.outer(kernel1d_x, kernel1d_y)
+            return np.outer(kernel1d_y, kernel1d_x)
 
         kernel = _get_gaussian_kernel2d(kernel_size, sigma)
         kernel = kernel[:, :, np.newaxis]
@@ -1018,10 +1018,11 @@ def gaussian_blur(
         kernel_size, sigma, num_channels, input_dtype
     )
 
-    pad_h = (kernel_size[0] - 1) // 2
-    pad_h_after = kernel_size[0] - 1 - pad_h
-    pad_w = (kernel_size[1] - 1) // 2
-    pad_w_after = kernel_size[1] - 1 - pad_w
+    kernel_h, kernel_w = kernel.shape[0], kernel.shape[1]
+    pad_h = (kernel_h - 1) // 2
+    pad_h_after = kernel_h - 1 - pad_h
+    pad_w = (kernel_w - 1) // 2
+    pad_w_after = kernel_w - 1 - pad_w
 
     blurred_images = np.empty_like(images)
 
