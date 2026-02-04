@@ -12,7 +12,7 @@ from keras.src.utils.module_utils import tensorflow as tf
 
 
 def _is_iterable_of_batches(data):
-    """True if data is an iterable of batches (e.g. list, generator), not Dataset/array/tensor."""
+    """True if data is an iterable of batches, not Dataset/array/tensor."""
     if isinstance(data, (np.ndarray, str, bytes)):
         return False
     if backend.is_tensor(data):
@@ -25,7 +25,7 @@ def _is_iterable_of_batches(data):
 
 
 def _extract_batch(batch):
-    """Extract the input tensor from a batch; handle (x, y) or (x, y, sample_weight)."""
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
     if isinstance(batch, tuple):
         return batch[0]
     return batch
@@ -363,7 +363,11 @@ class Normalization(DataLayer):
                     for d in self._keep_axis:
                         batch_dim = batch.shape[d]
                         expected = self._build_input_shape[d]
-                        if batch_dim is not None and expected is not None and batch_dim != expected:
+                        if (
+                            batch_dim is not None
+                            and expected is not None
+                            and batch_dim != expected
+                        ):
                             raise ValueError(
                                 "adapt() iterable yielded a batch with "
                                 "incompatible shape. Expected "
