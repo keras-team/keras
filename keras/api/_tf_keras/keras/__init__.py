@@ -27,6 +27,11 @@ from keras import tree as tree
 from keras import utils as utils
 from keras import visualization as visualization
 from keras import wrappers as wrappers
+from keras._tf_keras.keras import backend as backend
+from keras._tf_keras.keras import layers as layers
+from keras._tf_keras.keras import losses as losses
+from keras._tf_keras.keras import metrics as metrics
+from keras._tf_keras.keras import preprocessing as preprocessing
 from keras.src.backend import Variable as Variable
 from keras.src.backend import device as device
 from keras.src.backend import name_scope as name_scope
@@ -56,12 +61,5 @@ from keras.src.ops.operation import Operation as Operation
 from keras.src.optimizers.optimizer import Optimizer as Optimizer
 from keras.src.quantizers.quantizers import Quantizer as Quantizer
 from keras.src.regularizers.regularizers import Regularizer as Regularizer
-from keras.src.version import version as version
 from keras.src.version import __version__ as __version__
-
-
-from keras._tf_keras.keras import backend as backend
-from keras._tf_keras.keras import layers as layers
-from keras._tf_keras.keras import losses as losses
-from keras._tf_keras.keras import metrics as metrics
-from keras._tf_keras.keras import preprocessing as preprocessing
+from keras.src.version import version as version

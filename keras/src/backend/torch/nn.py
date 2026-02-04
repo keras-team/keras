@@ -1162,7 +1162,7 @@ def dot_product_attention(
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
-    
+
     # Ensure mask is contiguous before using it in scaled_dot_product_attention.
     # This fixes the RuntimeError "(*bias): last dimension must be contiguous"
     # when bias is used as mask (issue #20459).

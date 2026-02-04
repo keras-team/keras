@@ -232,7 +232,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
     )
     def test_query_mask_propagation(self):
         """Test automatic propagation of the query's mask.
-        
+
         This test was previously skipped due to a PyTorch backend bug where
         bias tensors used as attention masks were not made contiguous, causing
         a RuntimeError. This has been fixed in PyTorch (issue #20459).
@@ -241,9 +241,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
             num_query_heads=2, num_key_value_heads=2, head_dim=2
         )
         self.assertTrue(layer.supports_masking)
-        query = np.array(
-            [[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]]
-        )
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
         masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
         value = np.random.normal(size=(3, 3, 8))
         output = layer(query=masked_query, value=value)

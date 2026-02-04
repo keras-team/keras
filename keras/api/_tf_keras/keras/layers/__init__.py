@@ -374,12 +374,10 @@ from keras.src.layers.rnn.stacked_rnn_cells import (
 from keras.src.layers.rnn.time_distributed import (
     TimeDistributed as TimeDistributed,
 )
-from keras.src.utils.jax_layer import FlaxLayer as FlaxLayer
-from keras.src.utils.jax_layer import JaxLayer as JaxLayer
-from keras.src.utils.torch_utils import TorchModuleWrapper as TorchModuleWrapper
-
-
 from keras.src.legacy.layers import AlphaDropout as AlphaDropout
 from keras.src.legacy.layers import RandomHeight as RandomHeight
 from keras.src.legacy.layers import RandomWidth as RandomWidth
 from keras.src.legacy.layers import ThresholdedReLU as ThresholdedReLU
+from keras.src.utils.jax_layer import FlaxLayer as FlaxLayer
+from keras.src.utils.jax_layer import JaxLayer as JaxLayer
+from keras.src.utils.torch_utils import TorchModuleWrapper as TorchModuleWrapper
