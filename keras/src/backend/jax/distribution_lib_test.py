@@ -98,7 +98,7 @@ class JaxDistributionLibTest(testing.TestCase):
         # Inside JIT we use AbstractMesh-based sharding when available.
         self.assertEqual(result.shape, inputs.shape)
         if hasattr(result.sharding, "spec"):
-            expected_sharding = backend_dlib._to_abstract_shardings(
+            expected_sharding = backend_dlib._to_abstract_sharding(
                 target_layout
             )
             self.assertTrue(
@@ -233,60 +233,18 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(jax_mesh.devices.shape, shape)
         self.assertEqual(jax_mesh.axis_names, ("batch", "model"))
 
-    def test_to_backend_abstract_mesh(self):
-        devices = [f"cpu:{i}" for i in range(8)]
-        shape = (4, 2)
-        axis_names = ["batch", "model"]
-
-        mesh = distribution_lib.DeviceMesh(shape, axis_names, devices)
-        abstract_mesh = backend_dlib._to_backend_abstract_mesh(mesh)
-
-        if hasattr(jax.sharding, "AbstractMesh"):
-            self.assertIsNotNone(abstract_mesh)
-            self.assertIsInstance(abstract_mesh, jax.sharding.AbstractMesh)
-            if hasattr(abstract_mesh, "axis_names"):
-                self.assertEqual(abstract_mesh.axis_names, ("batch", "model"))
-            # shape may be (4, 2) or an OrderedDict of axis_name -> size
-            if hasattr(abstract_mesh, "shape"):
-                sh = abstract_mesh.shape
-                if hasattr(sh, "values"):
-                    self.assertEqual(tuple(sh.values()), (4, 2))
-                else:
-                    self.assertEqual(sh, (4, 2))
-        else:
-            self.assertIsNone(abstract_mesh)
-
-    def test_device_mesh_backend_mesh_abstract(self):
-        devices = [f"cpu:{i}" for i in range(8)]
-        mesh = distribution_lib.DeviceMesh((4, 2), ["batch", "model"], devices)
-        abstract_mesh = mesh.backend_mesh_abstract
-        expected = backend_dlib._to_backend_abstract_mesh(mesh)
-        # Same type and logical mesh; may be different instances.
-        self.assertEqual(type(abstract_mesh), type(expected))
-        if expected is not None:
-            self.assertEqual(abstract_mesh.axis_names, expected.axis_names)
-            sa = getattr(abstract_mesh, "shape", None)
-            se = getattr(expected, "shape", None)
-            if sa is not None and se is not None:
-                va = tuple(sa.values()) if hasattr(sa, "values") else sa
-                ve = tuple(se.values()) if hasattr(se, "values") else se
-                self.assertEqual(va, ve)
-
-    def test_to_abstract_shardings(self):
+    def test_to_abstract_sharding(self):
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(4, 2), ("batch", "model")
         )
         spec = jax.sharding.PartitionSpec("batch", None)
         concrete = jax.sharding.NamedSharding(jax_mesh, spec)
-        out = backend_dlib._to_abstract_shardings(concrete)
+        out = backend_dlib._to_abstract_sharding(concrete)
         if getattr(jax_mesh, "abstract_mesh", None) is not None:
             self.assertIsInstance(out, jax.sharding.NamedSharding)
             self.assertIs(out.mesh, jax_mesh.abstract_mesh)
         else:
             self.assertIs(out, concrete)
-        # Pytree: list of shardings
-        out_list = backend_dlib._to_abstract_shardings([concrete, concrete])
-        self.assertEqual(len(out_list), 2)
 
     def test_to_backend_layout(self):
         axes = ["data", None]

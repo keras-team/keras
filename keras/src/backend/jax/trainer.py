@@ -265,10 +265,6 @@ class JAXTrainer(base_trainer.Trainer):
             out_shardings = None
             if distribution_lib.distribution() is not None:
                 state_shardings = self._get_state_sharding_spec()
-                # Use AbstractMesh for out_shardings so JIT cache key is stable.
-                state_shardings = jax_distribution_lib._to_abstract_shardings(
-                    state_shardings
-                )
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
                 step_fn = lambda state, data: type(self).train_step(
@@ -304,9 +300,6 @@ class JAXTrainer(base_trainer.Trainer):
                     trainable_shardings,
                     non_trainable_shardings,
                     metrics_shardings,
-                )
-                state_shardings = jax_distribution_lib._to_abstract_shardings(
-                    state_shardings
                 )
                 out_shardings = (None, state_shardings)
             if is_nnx_enabled():
@@ -347,9 +340,6 @@ class JAXTrainer(base_trainer.Trainer):
                 state_shardings = (
                     trainable_shardings,
                     non_trainable_shardings,
-                )
-                state_shardings = jax_distribution_lib._to_abstract_shardings(
-                    state_shardings
                 )
                 out_shardings = (None, state_shardings)
             predict_step = jit(
@@ -911,19 +901,28 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state_synced = True
 
     def _get_state_sharding_spec(self):
+        """
+        Returns state shardings with AbstractMesh for stable JIT out_shardings.
+        """
         trainable_shardings = [
-            v.value.sharding for v in self.trainable_variables
+            jax_distribution_lib._to_abstract_sharding(v.value.sharding)
+            for v in self.trainable_variables
         ]
         non_trainable_shardings = [
-            v.value.sharding for v in self.non_trainable_variables
+            jax_distribution_lib._to_abstract_sharding(v.value.sharding)
+            for v in self.non_trainable_variables
         ]
         if hasattr(self, "optimizer") and self.optimizer is not None:
             optimizer_shardings = [
-                v.value.sharding for v in self.optimizer.variables
+                jax_distribution_lib._to_abstract_sharding(v.value.sharding)
+                for v in self.optimizer.variables
             ]
         else:
             optimizer_shardings = []
-        metrics_shardings = [v.value.sharding for v in self.metrics_variables]
+        metrics_shardings = [
+            jax_distribution_lib._to_abstract_sharding(v.value.sharding)
+            for v in self.metrics_variables
+        ]
         return (
             trainable_shardings,
             non_trainable_shardings,
@@ -1027,9 +1026,9 @@ class JAXEpochIterator(EpochIterator):
         for data in self.data_adapter.get_jax_iterator():
             if layouts is None:
                 layouts = tree.map_structure(
-                    lambda d: distribution.get_data_layout(
-                        d.shape
-                    ).backend_layout,
+                    lambda d: (
+                        distribution.get_data_layout(d.shape).backend_layout
+                    ),
                     data,
                 )
             yield _distribute_data(data, layouts)

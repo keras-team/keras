@@ -217,13 +217,6 @@ class DeviceMesh:
             self._backend_mesh = distribution_lib._to_backend_mesh(self)
         return self._backend_mesh
 
-    @property
-    def backend_mesh_abstract(self):
-        """Backend mesh for JIT-stable cache keys (e.g. JAX AbstractMesh)."""
-        if hasattr(distribution_lib, "_to_backend_abstract_mesh"):
-            return distribution_lib._to_backend_abstract_mesh(self)
-        return self.backend_mesh
-
     def __repr__(self):
         return (
             f"<{self.__class__.__name__} "

@@ -82,7 +82,7 @@ def distribute_tensor(tensor, layout):
 
     # In tracing scope use AbstractMesh-based sharding for stable JIT cache.
     if jax_utils.is_in_jax_tracing_scope():
-        layout = _to_abstract_shardings(layout)
+        layout = _to_abstract_sharding(layout)
         return jax.lax.with_sharding_constraint(tensor, layout)
 
     # Skip relayout if unnecessary.
@@ -225,55 +225,27 @@ def _to_backend_mesh(device_mesh):
     return jax.sharding.Mesh(devices, device_mesh.axis_names)
 
 
-def _to_backend_abstract_mesh(device_mesh):
-    """Convert the DeviceMesh to JAX AbstractMesh for JIT-stable cache keys.
+def _to_abstract_sharding(sharding):
+    """Convert a single sharding to use AbstractMesh for JIT-stable cache keys.
 
-    Uses the concrete Mesh's .abstract_mesh when available; otherwise builds
-    AbstractMesh from axis sizes/names for older JAX.
-
-    Args:
-        device_mesh: DeviceMesh instance to convert.
-
-    Returns:
-        A `jax.sharding.AbstractMesh` instance if available, else None.
-    """
-    jax_mesh = device_mesh.backend_mesh
-    abstract = getattr(jax_mesh, "abstract_mesh", None)
-    if abstract is not None:
-        return abstract
-    if not hasattr(jax.sharding, "AbstractMesh"):
-        return None
-    # Fallback for older JAX: build AbstractMesh(axis_sizes, axis_names).
-    shape = device_mesh.devices.shape
-    axis_names = device_mesh.axis_names
-    return jax.sharding.AbstractMesh(tuple(shape), tuple(axis_names))
-
-
-def _to_abstract_shardings(shardings):
-    """Convert shardings to use AbstractMesh for JIT-stable cache keys.
-
-    For each NamedSharding(mesh, spec), returns one with mesh.abstract_mesh
+    For NamedSharding(mesh, spec), returns one with mesh.abstract_mesh
     when available; else unchanged. Used for jit() out_shardings in Trainer.
 
     Args:
-        shardings: Pytree of Sharding (e.g. list/tuple of NamedSharding).
+        sharding: A single Sharding (e.g. NamedSharding), or None.
 
     Returns:
-        Pytree of Sharding with AbstractMesh where available.
+        Sharding with AbstractMesh where available, or the original sharding.
     """
-    if shardings is None:
+    if sharding is None:
         return None
-
-    def convert_one(s):
-        if not isinstance(s, jax.sharding.NamedSharding):
-            return s
-        mesh = s.mesh
-        abstract = getattr(mesh, "abstract_mesh", None)
-        if abstract is None:
-            return s
-        return jax.sharding.NamedSharding(abstract, s.spec)
-
-    return jax.tree_util.tree_map(convert_one, shardings)
+    if not isinstance(sharding, jax.sharding.NamedSharding):
+        return sharding
+    mesh = sharding.mesh
+    abstract = getattr(mesh, "abstract_mesh", None)
+    if abstract is None:
+        return sharding
+    return jax.sharding.NamedSharding(abstract, sharding.spec)
 
 
 def _to_backend_layout(tensor_layout):
@@ -281,7 +253,7 @@ def _to_backend_layout(tensor_layout):
 
     Always uses the concrete Mesh. Callers that need AbstractMesh for
     JIT-stable cache keys (e.g. inside tracing) should use
-    _to_abstract_shardings() on the result.
+    _to_abstract_sharding() on the result.
 
     Args:
         tensor_layout: TensorLayout instance to convert.
