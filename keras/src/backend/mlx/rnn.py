@@ -4,6 +4,7 @@ import mlx.core as mx
 
 from keras.src import tree
 from keras.src.backend.common import stateless_scope
+from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import reverse_sequence
 from keras.src.backend.mlx.core import scan
 from keras.src.backend.mlx.core import unstack
@@ -215,9 +216,264 @@ def cudnn_ok(*args, **kwargs):
     return False
 
 
-def lstm(*args, **kwargs):
-    raise NotImplementedError("lstm not yet implemented in mlx")
+def lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    time_major=False,
+):
+    """LSTM implementation for MLX backend.
+
+    Args:
+        inputs: Input tensor of shape (batch, timesteps, features) or
+            (timesteps, batch, features) if time_major=True.
+        initial_state_h: Initial hidden state of shape (batch, units).
+        initial_state_c: Initial cell state of shape (batch, units).
+        mask: Optional mask tensor of shape (batch, timesteps).
+        kernel: Input kernel weights of shape (features, units * 4).
+        recurrent_kernel: Recurrent kernel weights of shape (units, units * 4).
+        bias: Bias weights of shape (units * 4,) or None.
+        activation: Activation function for cell state (typically tanh).
+        recurrent_activation: Activation function for gates (typically sigmoid).
+        return_sequences: Whether to return all outputs or just the last.
+        go_backwards: Whether to process the sequence backwards.
+        unroll: Whether to unroll the loop (unused, for API compatibility).
+        time_major: Whether inputs are time-major (timesteps, batch, features).
+
+    Returns:
+        Tuple of (last_output, outputs, [final_h, final_c]).
+    """
+    # Masking requires special handling (zero_output_for_mask, etc.) that
+    # the generic rnn() function handles. Fall back to generic implementation.
+    if mask is not None:
+        raise NotImplementedError(
+            "MLX LSTM does not support masking. "
+            "Use the generic RNN implementation instead."
+        )
+
+    # Convert inputs and weights to MLX tensors
+    inputs = convert_to_tensor(inputs)
+    initial_state_h = convert_to_tensor(initial_state_h)
+    initial_state_c = convert_to_tensor(initial_state_c)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+
+    # Handle time_major format
+    if not time_major:
+        # Convert from (batch, time, features) to (time, batch, features)
+        inputs = mx.transpose(inputs, (1, 0, 2))
+
+    seq_len = inputs.shape[0]
+    hidden = initial_state_h
+    cell = initial_state_c
+
+    # Precompute input projections: (time, batch, 4*units)
+    # kernel is (features, 4*units)
+    x_proj = mx.matmul(inputs, kernel)
+    if bias is not None:
+        x_proj = x_proj + bias
+
+    # Process sequence
+    all_outputs = []
+    indices = range(seq_len)
+    if go_backwards:
+        indices = reversed(indices)
+
+    for t in indices:
+        x_t = x_proj[t]  # (batch, 4*units)
+
+        # Compute gates: x_t + h @ recurrent_kernel
+        gates = x_t + mx.matmul(hidden, recurrent_kernel)
+
+        # Split into i, f, c, o gates
+        units = hidden.shape[-1]
+        i = gates[:, :units]
+        f = gates[:, units : units * 2]
+        c_candidate = gates[:, units * 2 : units * 3]
+        o = gates[:, units * 3 :]
+
+        # Apply activations
+        i = recurrent_activation(i)
+        f = recurrent_activation(f)
+        c_candidate = activation(c_candidate)
+        o = recurrent_activation(o)
+
+        # Update cell and hidden states
+        cell = f * cell + i * c_candidate
+        hidden = o * activation(cell)
+
+        all_outputs.append(hidden)
+
+    # Stack outputs
+    if go_backwards:
+        all_outputs = all_outputs[::-1]
+    outputs = mx.stack(all_outputs, axis=0)  # (time, batch, units)
+
+    # Convert back to batch-major if needed
+    if not time_major:
+        outputs = mx.transpose(outputs, (1, 0, 2))  # (batch, time, units)
+
+    # Get last output
+    if go_backwards:
+        last_output = outputs[:, 0, :] if not time_major else outputs[0]
+    else:
+        last_output = outputs[:, -1, :] if not time_major else outputs[-1]
+
+    if not return_sequences:
+        outputs = last_output
+
+    return last_output, outputs, [hidden, cell]
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError("gru not yet implemented in mlx")
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+    time_major=False,
+):
+    """GRU implementation for MLX backend.
+
+    Args:
+        inputs: Input tensor of shape (batch, timesteps, features) or
+            (timesteps, batch, features) if time_major=True.
+        initial_state: Initial hidden state of shape (batch, units).
+        mask: Optional mask tensor of shape (batch, timesteps).
+        kernel: Input kernel weights of shape (features, units * 3).
+        recurrent_kernel: Recurrent kernel weights of shape (units, units * 3).
+        bias: Bias weights. If reset_after=True, shape is (2, units * 3).
+            If reset_after=False, shape is (units * 3,).
+        activation: Activation function for output (typically tanh).
+        recurrent_activation: Activation function for gates (typically sigmoid).
+        return_sequences: Whether to return all outputs or just the last.
+        go_backwards: Whether to process the sequence backwards.
+        unroll: Whether to unroll the loop (unused, for API compatibility).
+        reset_after: GRU convention. True applies reset gate after matrix
+            multiplication (cuDNN compatible). False applies before.
+        time_major: Whether inputs are time-major (timesteps, batch, features).
+
+    Returns:
+        Tuple of (last_output, outputs, [final_hidden]).
+    """
+    # Masking requires special handling (zero_output_for_mask, etc.) that
+    # the generic rnn() function handles. Fall back to generic implementation.
+    if mask is not None:
+        raise NotImplementedError(
+            "MLX GRU does not support masking. "
+            "Use the generic RNN implementation instead."
+        )
+
+    # Convert inputs and weights to MLX tensors
+    inputs = convert_to_tensor(inputs)
+    initial_state = convert_to_tensor(initial_state)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+
+    # Handle time_major format
+    if not time_major:
+        # Convert from (batch, time, features) to (time, batch, features)
+        inputs = mx.transpose(inputs, (1, 0, 2))
+
+    seq_len = inputs.shape[0]
+    hidden = initial_state
+    units = hidden.shape[-1]
+
+    # Handle bias
+    input_bias = None
+    recurrent_bias = None
+    if bias is not None:
+        if reset_after:
+            # bias shape is (2, 3*units)
+            input_bias = bias[0]  # (3*units,)
+            recurrent_bias = bias[1]  # (3*units,)
+        else:
+            input_bias = bias
+
+    # Precompute input projections: (time, batch, 3*units)
+    x_proj = mx.matmul(inputs, kernel)
+    if input_bias is not None:
+        x_proj = x_proj + input_bias
+
+    # Process sequence
+    all_outputs = []
+    indices = range(seq_len)
+    if go_backwards:
+        indices = reversed(indices)
+
+    for t in indices:
+        x_t = x_proj[t]  # (batch, 3*units)
+
+        # Split input projection into z, r, h gates
+        x_z = x_t[:, :units]
+        x_r = x_t[:, units : units * 2]
+        x_h = x_t[:, units * 2 :]
+
+        # Compute recurrent projection
+        h_proj = mx.matmul(hidden, recurrent_kernel)
+        if reset_after and recurrent_bias is not None:
+            h_proj = h_proj + recurrent_bias
+
+        h_z = h_proj[:, :units]
+        h_r = h_proj[:, units : units * 2]
+        h_h = h_proj[:, units * 2 :]
+
+        # Compute gates
+        z = recurrent_activation(x_z + h_z)  # update gate
+        r = recurrent_activation(x_r + h_r)  # reset gate
+
+        # Compute candidate hidden state
+        if reset_after:
+            # Apply reset gate after matrix multiplication
+            h_candidate = activation(x_h + r * h_h)
+        else:
+            # Apply reset gate before matrix multiplication
+            recurrent_h = mx.matmul(
+                r * hidden, recurrent_kernel[:, units * 2 :]
+            )
+            h_candidate = activation(x_h + recurrent_h)
+
+        # Update hidden state
+        hidden = (1 - z) * h_candidate + z * hidden
+
+        all_outputs.append(hidden)
+
+    # Stack outputs
+    if go_backwards:
+        all_outputs = all_outputs[::-1]
+    outputs = mx.stack(all_outputs, axis=0)  # (time, batch, units)
+
+    # Convert back to batch-major if needed
+    if not time_major:
+        outputs = mx.transpose(outputs, (1, 0, 2))  # (batch, time, units)
+
+    # Get last output
+    if go_backwards:
+        last_output = outputs[:, 0, :] if not time_major else outputs[0]
+    else:
+        last_output = outputs[:, -1, :] if not time_major else outputs[-1]
+
+    if not return_sequences:
+        outputs = last_output
+
+    return last_output, outputs, [hidden]
