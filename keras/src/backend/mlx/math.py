@@ -89,8 +89,13 @@ def logsumexp(x, axis=None, keepdims=False):
 
 
 def qr(x, mode="reduced"):
-    # TODO https://ml-explore.github.io/mlx/build/html/python/linalg.html
-    raise NotImplementedError("QR decomposition not supported in mlx yet")
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "'mode' argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+    return mx.linalg.qr(x, mode=mode)
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
