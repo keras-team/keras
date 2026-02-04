@@ -125,6 +125,22 @@ class Normalization(DataLayer):
                 "When setting values directly, both `mean` and `variance` "
                 f"must be set. Received: mean={mean} and variance={variance}"
             )
+        if mean is not None:
+            # Verify mean and variance have the same shape.
+            if np.shape(mean) != np.shape(variance):
+                raise ValueError(
+                    "When setting values directly, `mean` and `variance` "
+                    "must have the same shape. Received: "
+                    f"mean shape {np.shape(mean)} and "
+                    f"variance shape {np.shape(variance)}"
+                )
+            # Verify mean rank <= number of axes.
+            if len(np.shape(mean)) > len(self.axis):
+                raise ValueError(
+                    "The rank of `mean` must be less than or equal to the "
+                    f"number of axes ({len(self.axis)}). Received: "
+                    f"mean shape {np.shape(mean)} for axis {self.axis}"
+                )
 
     def build(self, input_shape):
         if input_shape is None:
@@ -191,15 +207,38 @@ class Normalization(DataLayer):
             )
             self.built = True
             self.finalize_state()
+
         else:
-            # In the no adapt case, make constant tensors for mean and variance
-            # with proper broadcast shape for use during call.
             mean = ops.convert_to_tensor(self.input_mean)
             variance = ops.convert_to_tensor(self.input_variance)
-            mean = ops.broadcast_to(mean, self._broadcast_shape)
-            variance = ops.broadcast_to(variance, self._broadcast_shape)
+
+            if ops.ndim(mean) == 0:
+                # Case 1: Scalar mean/variance
+                mean = ops.broadcast_to(mean, self._broadcast_shape)
+                variance = ops.broadcast_to(variance, self._broadcast_shape)
+            else:
+                # Case 2: General broadcasting. Align mean/variance dims
+                # to the kept axes from right to left.
+                expanded_shape = [1] * ndim
+                mean_shape = ops.shape(mean)
+                mean_ndim = ops.ndim(mean)
+
+                # Map mean dimensions to the correct kept axes (right-to-left).
+                # This handles cases where mean has fewer dims than keep_axis.
+                for i in range(1, mean_ndim + 1):
+                    axis_idx = self._keep_axis[-i]
+                    expanded_shape[axis_idx] = mean_shape[-i]
+
+                mean = ops.reshape(mean, expanded_shape)
+                variance = ops.reshape(variance, expanded_shape)
+
+                # Broadcast to the full target shape.
+                mean = ops.broadcast_to(mean, self._broadcast_shape)
+                variance = ops.broadcast_to(variance, self._broadcast_shape)
+
             self.mean = ops.cast(mean, dtype=self.compute_dtype)
             self.variance = ops.cast(variance, dtype=self.compute_dtype)
+            self.built = True
 
     def adapt(self, data):
         """Computes the mean and variance of values in a dataset.
