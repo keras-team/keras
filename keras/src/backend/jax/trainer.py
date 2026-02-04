@@ -131,12 +131,20 @@ class JAXTrainer(base_trainer.Trainer):
         ) = state
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
-        # Capture trainable variable indices on first training step
-        # This ensures we capture after the model is built
-        if self._initial_trainable_indices is None:
-            self._initial_trainable_indices = frozenset(
-                range(len(trainable_variables))
-            )
+        # Safety check: detect if trainable variable count changed
+        # between fit calls / epochs
+        if self._initial_trainable_indices is not None:
+            expected_count = len(self._initial_trainable_indices)
+            current_count = len(trainable_variables)
+            if current_count != expected_count:
+                warnings.warn(
+                    "Number of trainable variables changed since "
+                    "training start "
+                    f"({expected_count} → {current_count}). "
+                    "Trainable state filtering may behave "
+                    "unexpectedly. Consider recompiling the model "
+                    "if structural changes were made."
+                )
 
         grad_fn = jax.value_and_grad(
             self.compute_loss_and_updates, has_aux=True
@@ -155,9 +163,9 @@ class JAXTrainer(base_trainer.Trainer):
             aux
         )
 
-        # Filter gradients to respect compiled trainable state
-        # Only update variables that were trainable
-        # at first training step (after model was built)
+        # Filter gradients to respect trainable state captured at start of fit()
+        # Matches TF behavior (post-compile .trainable changes are respected)
+        # Indices are frozen to keep JAX jitting safe/consistent
         if self._initial_trainable_indices is not None:
             # Apply index-based mask to gradients
             grads_flat, grads_def = jax.tree_util.tree_flatten(grads)
@@ -166,9 +174,7 @@ class JAXTrainer(base_trainer.Trainer):
                 if i in self._initial_trainable_indices:
                     filtered_grads.append(g)
                 else:
-                    filtered_grads.append(
-                        jnp.zeros_like(g) if g is not None else None
-                    )
+                    filtered_grads.append(jnp.zeros_like(g))
             grads = jax.tree_util.tree_unflatten(grads_def, filtered_grads)
 
         (
@@ -405,6 +411,8 @@ class JAXTrainer(base_trainer.Trainer):
         validation_freq=1,
     ):
         self._assert_compile_called("fit")
+        # Reset captured trainable state for this fit() call
+        self._initial_trainable_indices = None
         # Possibly cap epochs for debugging runs.
         max_epochs = config.max_epochs()
         if max_epochs and max_epochs < epochs:
@@ -443,6 +451,19 @@ class JAXTrainer(base_trainer.Trainer):
         self._symbolic_build(iterator=epoch_iterator)
         epoch_iterator.reset()
 
+        # Capture trainable indices BEFORE any JIT compilation
+        # This captures the effective trainable state at the moment
+        # training is about to begin.
+        if self.trainable_variables:
+            self._initial_trainable_indices = frozenset(
+                range(len(self.trainable_variables))
+            )
+        else:
+            self._initial_trainable_indices = frozenset()
+
+        # Create the train function exactly once
+        self.make_train_function()
+
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
@@ -455,7 +476,6 @@ class JAXTrainer(base_trainer.Trainer):
                 model=self,
             )
 
-        self.make_train_function()
         self.stop_training = False
         training_logs = {}
         training_finished = False
