@@ -142,13 +142,6 @@ class Normalization(DataLayer):
                     f"mean shape {np.shape(mean)} for axis {self.axis}"
                 )
 
-        self.input_mean = mean
-        self.input_variance = variance
-        self.invert = invert
-        self.supports_masking = True
-        self._build_input_shape = None
-        self.mean = None
-
     def build(self, input_shape):
         if input_shape is None:
             return
