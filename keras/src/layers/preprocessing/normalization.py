@@ -356,7 +356,9 @@ class Normalization(DataLayer):
                 )
                 if self.built and data_is_iterable:
                     for d in self._keep_axis:
-                        if batch.shape[d] != self._build_input_shape[d]:
+                        batch_dim = batch.shape[d]
+                        expected = self._build_input_shape[d]
+                        if batch_dim is not None and expected is not None and batch_dim != expected:
                             raise ValueError(
                                 "adapt() iterable yielded a batch with "
                                 "incompatible shape. Expected "
