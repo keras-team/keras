@@ -807,6 +807,24 @@ class ConvBasicTest(testing.TestCase):
             supports_masking=False,
         )
 
+    @parameterized.parameters(
+        (layers.Conv1D, (10, 3), 2, 10),
+        (layers.Conv2D, (10, 10, 3), (2, 2), (10, 10)),
+        (layers.Conv3D, (10, 10, 10, 3), (2, 2, 2), (10, 10, 10)),
+    )
+    def test_conv_symbolic_invalid_configuration(
+        self, layer_cls, input_shape, kernel_size, dilation_rate
+    ):
+        inputs = layers.Input(shape=input_shape)
+        layer = layer_cls(
+            filters=1,
+            kernel_size=kernel_size,
+            dilation_rate=dilation_rate,
+        )
+
+        with self.assertRaises(ValueError):
+            layer(inputs)
+
 
 class ConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
