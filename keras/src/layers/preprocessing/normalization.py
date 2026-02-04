@@ -306,15 +306,20 @@ class Normalization(DataLayer):
             first_batch = next(data_iter, None)
             if first_batch is None:
                 raise ValueError(
-                    "adapt() received an empty iterable. "
-                    "Provide at least one batch."
+                    "adapt() received an empty iterable (no batches). "
+                    "Expected at least one batch. Pass a non-empty iterable "
+                    "of arrays or tensors, e.g. layer.adapt([x]) or "
+                    "layer.adapt(list_of_batches)."
                 )
             first_batch = _extract_batch(first_batch)
             input_shape = getattr(first_batch, "shape", None)
             if input_shape is None:
                 raise TypeError(
-                    f"Iterable must yield arrays or tensors with a `.shape` "
-                    f"attribute. Got batch type: {type(first_batch)}."
+                    "adapt() expects an iterable that yields arrays or "
+                    "tensors with a `.shape` attribute (e.g. numpy arrays or "
+                    "backend tensors). Got an element of type "
+                    f"{type(first_batch).__name__}. Ensure each yielded "
+                    "element is array-like with a `.shape` attribute."
                 )
             input_shape = tuple(input_shape)
             data = itertools.chain([first_batch], data_iter)
