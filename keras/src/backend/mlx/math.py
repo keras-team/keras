@@ -495,10 +495,9 @@ def erfinv(x):
 
 
 def solve(a, b):
-    raise NotImplementedError(
-        "Linear system solving not yet implemented in mlx"
-    )
-
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    return mx.linalg.solve(a, b)
 
 def logdet(x):
     x = convert_to_tensor(x)
