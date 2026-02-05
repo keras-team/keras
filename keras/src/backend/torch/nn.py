@@ -1190,10 +1190,11 @@ def dot_product_attention(
         )
     # Ensure mask is contiguous after _can_use_flash_attention, as it might
     # create views or check the mask in ways that affect memory layout.
-    # This fixes the RuntimeError "(*bias): last dimension must be
+    # Clone the mask to ensure it's a fresh tensor with proper memory layout
+    # for GPU. This fixes the RuntimeError "(*bias): last dimension must be
     # contiguous" on GPU (issue #20459).
     if mask is not None:
-        mask = mask.contiguous()
+        mask = mask.contiguous().clone()
     if flash_attention:
         # Ensure all tensors are contiguous right before the call, as GPU
         # requires stride[-1] == 1 for scaled_dot_product_attention. This
