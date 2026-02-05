@@ -755,6 +755,31 @@ def gru(
     unroll=False,
     reset_after=True,
 ):
+    """Runs a GRU layer using cuDNN-accelerated PyTorch operations.
+
+    Args:
+        inputs: Input tensor of shape `(batch, timesteps, feature)`.
+        initial_state: Initial hidden state tensor of shape
+            `(batch, units)`.
+        mask: Optional boolean mask tensor of shape `(batch, timesteps)`.
+        kernel: Input kernel weights of shape `(feature, units * 3)`.
+        recurrent_kernel: Recurrent kernel weights of shape
+            `(units, units * 3)`.
+        bias: Optional bias tensor of shape `(2, units * 3)` for
+            `reset_after=True`.
+        activation: Activation function (must be `tanh` for cuDNN).
+        recurrent_activation: Recurrent activation function (must be
+            `sigmoid` for cuDNN).
+        return_sequences: Boolean. Whether to return the full sequence
+            of outputs or only the last output.
+        go_backwards: Boolean. Whether to process the input sequence
+            in reverse.
+        unroll: Boolean. Must be `False` for cuDNN support.
+        reset_after: Boolean. Must be `True` (cuDNN semantics).
+
+    Returns:
+        A tuple of `(last_output, outputs, [last_state])`.
+    """
     # PyTorch GRU only supports reset_after=True (cuDNN semantics)
     if not reset_after:
         raise NotImplementedError(
@@ -851,50 +876,69 @@ def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
     hidden_size = gru_layer.hidden_size
 
     # Split Keras weights by gate: [z, r, h]
-    kernel_np = (
-        kernel if isinstance(kernel, np.ndarray) else kernel.cpu().numpy()
+    kernel_parts = torch.chunk(convert_to_tensor(kernel), 3, dim=1)
+    recurrent_kernel_parts = torch.chunk(
+        convert_to_tensor(recurrent_kernel), 3, dim=1
     )
-    recurrent_kernel_np = (
-        recurrent_kernel
-        if isinstance(recurrent_kernel, np.ndarray)
-        else recurrent_kernel.cpu().numpy()
-    )
-    z_k, r_k, h_k = np.split(kernel_np, 3, axis=1)
-    z_r, r_r, h_r = np.split(recurrent_kernel_np, 3, axis=1)
 
     # Reorder to PyTorch format [r, z, h] and transpose
-    weight_ih_data = np.concatenate([r_k, z_k, h_k], axis=1).T
-    weight_hh_data = np.concatenate([r_r, z_r, h_r], axis=1).T
+    weight_ih = (
+        torch.cat(
+            [kernel_parts[1], kernel_parts[0], kernel_parts[2]], dim=1
+        )
+        .T.contiguous()
+        .to(device)
+    )
+    weight_hh = (
+        torch.cat(
+            [
+                recurrent_kernel_parts[1],
+                recurrent_kernel_parts[0],
+                recurrent_kernel_parts[2],
+            ],
+            dim=1,
+        )
+        .T.contiguous()
+        .to(device)
+    )
 
     if bias is not None:
         # bias shape is (2, 3*units) for reset_after=True
         # Row 0 is input bias, Row 1 is recurrent bias
-        bias_np = bias if isinstance(bias, np.ndarray) else bias.cpu().numpy()
-        input_bias = bias_np[0]  # shape (3*units,)
-        recurrent_bias = bias_np[1]  # shape (3*units,)
-
-        # Split by gate [z, r, h]
-        z_bi, r_bi, h_bi = np.split(input_bias, 3)
-        z_br, r_br, h_br = np.split(recurrent_bias, 3)
+        bias_t = convert_to_tensor(bias)
+        input_bias_parts = torch.chunk(bias_t[0], 3)
+        recurrent_bias_parts = torch.chunk(bias_t[1], 3)
 
         # Reorder to [r, z, h]
-        bias_ih_data = np.concatenate([r_bi, z_bi, h_bi])
-        bias_hh_data = np.concatenate([r_br, z_br, h_br])
+        bias_ih = (
+            torch.cat(
+                [
+                    input_bias_parts[1],
+                    input_bias_parts[0],
+                    input_bias_parts[2],
+                ]
+            )
+            .contiguous()
+            .to(device)
+        )
+        bias_hh = (
+            torch.cat(
+                [
+                    recurrent_bias_parts[1],
+                    recurrent_bias_parts[0],
+                    recurrent_bias_parts[2],
+                ]
+            )
+            .contiguous()
+            .to(device)
+        )
     else:
-        bias_ih_data = np.zeros(3 * hidden_size)
-        bias_hh_data = np.zeros(3 * hidden_size)
-
-    # Create PyTorch tensors for weights
-    weight_ih = convert_to_tensor(weight_ih_data, dtype="float32").contiguous()
-    weight_hh = convert_to_tensor(weight_hh_data, dtype="float32").contiguous()
-    bias_ih = convert_to_tensor(bias_ih_data, dtype="float32").contiguous()
-    bias_hh = convert_to_tensor(bias_hh_data, dtype="float32").contiguous()
-
-    # Ensure the weights are all on the same device
-    weight_ih = weight_ih.to(device)
-    weight_hh = weight_hh.to(device)
-    bias_ih = bias_ih.to(device)
-    bias_hh = bias_hh.to(device)
+        bias_ih = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
 
     # Copy weights into PyTorch GRU layer
     with torch.no_grad():
