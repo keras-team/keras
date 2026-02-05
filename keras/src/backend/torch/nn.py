@@ -1154,9 +1154,19 @@ def dot_product_attention(
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
+        # Ensure mask is contiguous. This fixes the RuntimeError
+        # "(*bias): last dimension must be contiguous" when mask is used
+        # (issue #20459). This is especially important on GPU where memory
+        # layout matters.
+        mask = mask.contiguous()
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
+        # Ensure mask (bias) is contiguous immediately after assignment.
+        # This fixes the RuntimeError "(*bias): last dimension must be
+        # contiguous" when bias is used as mask (issue #20459). This is
+        # especially important on GPU where memory layout matters.
+        mask = mask.contiguous()
 
     axis0, axis1 = 1, 2
     query = torch.transpose(query, axis0, axis1)
@@ -1175,10 +1185,9 @@ def dot_product_attention(
         )
     if flash_attention:
         # Ensure mask is contiguous before using it in
-        # scaled_dot_product_attention. This fixes the RuntimeError
-        # "(*bias): last dimension must be contiguous" when bias is used as
-        # mask (issue #20459). This is especially important on GPU where
-        # memory layout matters.
+        # scaled_dot_product_attention. This is especially important on GPU
+        # where memory layout matters and ensures the mask stays contiguous
+        # after any operations.
         if mask is not None:
             mask = mask.contiguous()
         with torch.nn.attention.sdpa_kernel(
