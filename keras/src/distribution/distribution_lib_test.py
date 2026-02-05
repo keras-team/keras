@@ -412,10 +412,10 @@ class LayoutMapTest(testing.TestCase):
         layout_map["dense/kernel"] = self.sharded_2d
         layout_map["dense/bias"] = self.sharded_1d
 
-        layout_map["dense.*kernel"] = self.replicated_2d
-        layout_map["dense.*bias"] = self.replicated_1d
+        layout_map[".*dense.*kernel"] = self.replicated_2d
+        layout_map[".*dense.*bias"] = self.replicated_1d
 
-        layout_map["bias"] = self.sharded_1d
+        layout_map[".*bias"] = self.sharded_1d
 
         self.assertEqual(layout_map["dense/kernel"], self.sharded_2d)
         self.assertEqual(layout_map["dense/bias"], self.sharded_1d)
