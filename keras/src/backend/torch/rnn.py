@@ -883,9 +883,7 @@ def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
 
     # Reorder to PyTorch format [r, z, h] and transpose
     weight_ih = (
-        torch.cat(
-            [kernel_parts[1], kernel_parts[0], kernel_parts[2]], dim=1
-        )
+        torch.cat([kernel_parts[1], kernel_parts[0], kernel_parts[2]], dim=1)
         .T.contiguous()
         .to(device)
     )
