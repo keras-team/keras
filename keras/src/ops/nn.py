@@ -3356,7 +3356,7 @@ class DepthToSpace(Operation):
 
 
 @keras_export(["keras.ops.depth_to_space", "keras.ops.nn.depth_to_space"])
-def depth_to_space(x, block_size, data_format=None):
+def depth_to_space(x, block_size, data_format="channels_last"):
     """Rearranges data from depth into blocks of spatial data.
 
     This operation is useful for resizing the activations between convolutions
@@ -3377,10 +3377,10 @@ def depth_to_space(x, block_size, data_format=None):
             The depth (number of channels) must be divisible by
             `block_size ** 2`.
         data_format: A string specifying the data format of the input tensor.
-            `"channels_last"` (default) corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            Defaults to `keras.config.image_data_format()`.
+            Defaults to `"channels_last"`.
 
     Returns:
         A tensor with the same dtype as `x`, with shape
@@ -3455,7 +3455,7 @@ class SpaceToDepth(Operation):
 
 
 @keras_export(["keras.ops.space_to_depth", "keras.ops.nn.space_to_depth"])
-def space_to_depth(x, block_size, data_format=None):
+def space_to_depth(x, block_size, data_format="channels_last"):
     """Rearranges blocks of spatial data into depth.
 
     This operation is useful for resizing the activations between convolutions
@@ -3476,10 +3476,10 @@ def space_to_depth(x, block_size, data_format=None):
             The height and width of the input must be divisible by
             `block_size`.
         data_format: A string specifying the data format of the input tensor.
-            `"channels_last"` (default) corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape `(batch, channels, height, width)`.
-            Defaults to `keras.config.image_data_format()`.
+            Defaults to `"channels_last"`.
 
     Returns:
         A tensor with the same dtype as `x`, with shape
