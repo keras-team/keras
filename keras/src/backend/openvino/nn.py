@@ -753,3 +753,75 @@ def dot_product_attention(
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     raise NotImplementedError("`unfold` is not supported with openvino backend")
+
+
+def depth_to_space(x, block_size, data_format="channels_last"):
+    """OpenVINO implementation of depth_to_space (pixel shuffle).
+
+    Rearranges data from depth into blocks of spatial data.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H*block_size, W*block_size, C/block_size**2)
+        for channels_last or (N, C/block_size**2, H*block_size, W*block_size)
+        for channels_first.
+    """
+    x = get_ov_output(x)
+    # OpenVINO depth_to_space uses "blocks_first" mode by default
+    # and expects NCHW format
+    if data_format == "channels_last":
+        # Convert NHWC to NCHW
+        axes = ov_opset.constant([0, 3, 1, 2], Type.i32).output(0)
+        x = ov_opset.transpose(x, axes).output(0)
+        result = ov_opset.depth_to_space(x, "blocks_first", block_size).output(
+            0
+        )
+        # Convert back to NHWC
+        axes_back = ov_opset.constant([0, 2, 3, 1], Type.i32).output(0)
+        result = ov_opset.transpose(result, axes_back).output(0)
+    else:
+        result = ov_opset.depth_to_space(x, "blocks_first", block_size).output(
+            0
+        )
+    return OpenVINOKerasTensor(result)
+
+
+def space_to_depth(x, block_size, data_format="channels_last"):
+    """OpenVINO implementation of space_to_depth (pixel unshuffle).
+
+    Rearranges blocks of spatial data into depth.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H/block_size, W/block_size, C*block_size**2)
+        for channels_last or (N, C*block_size**2, H/block_size, W/block_size)
+        for channels_first.
+    """
+    x = get_ov_output(x)
+    # OpenVINO space_to_depth uses "blocks_first" mode by default
+    # and expects NCHW format
+    if data_format == "channels_last":
+        # Convert NHWC to NCHW
+        axes = ov_opset.constant([0, 3, 1, 2], Type.i32).output(0)
+        x = ov_opset.transpose(x, axes).output(0)
+        result = ov_opset.space_to_depth(x, "blocks_first", block_size).output(
+            0
+        )
+        # Convert back to NHWC
+        axes_back = ov_opset.constant([0, 2, 3, 1], Type.i32).output(0)
+        result = ov_opset.transpose(result, axes_back).output(0)
+    else:
+        result = ov_opset.space_to_depth(x, "blocks_first", block_size).output(
+            0
+        )
+    return OpenVINOKerasTensor(result)
