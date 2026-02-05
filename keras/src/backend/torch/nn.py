@@ -1172,6 +1172,11 @@ def dot_product_attention(
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
+    # Ensure mask is contiguous after transpose operations, as transpose
+    # might affect memory layout alignment with query/key/value tensors.
+    # This is critical on GPU where memory layout must match.
+    if mask is not None:
+        mask = mask.contiguous()
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
@@ -1183,13 +1188,13 @@ def dot_product_attention(
         _can_use_flash_attention(
             query, key, value, mask, is_causal, raise_error=True
         )
+    # Ensure mask is contiguous after _can_use_flash_attention, as it might
+    # create views or check the mask in ways that affect memory layout.
+    # This fixes the RuntimeError "(*bias): last dimension must be
+    # contiguous" on GPU (issue #20459).
+    if mask is not None:
+        mask = mask.contiguous()
     if flash_attention:
-        # Ensure mask is contiguous before using it in
-        # scaled_dot_product_attention. This is especially important on GPU
-        # where memory layout matters and ensures the mask stays contiguous
-        # after any operations.
-        if mask is not None:
-            mask = mask.contiguous()
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
