@@ -248,12 +248,10 @@ class VariablePropertiesTest(test_case.TestCase):
             )
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
-    @parameterized.parameters(
-        *(
-            (
-                dtype
-                for dtype in dtypes.ALLOWED_DTYPES
-                if dtype not in ["string", "complex64", "complex28"]
+    @parameterized.named_parameters(
+        named_product(
+            dtype=(
+                dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"
             )
         )
     )

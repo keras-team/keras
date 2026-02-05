@@ -598,7 +598,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             y = KerasTensor((2, 3, 4))
             knp.matmul(x, y)
 
-    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_matmul_sparse(self):
         x = KerasTensor((2, 3), sparse=True)
         y = KerasTensor((3, 2))
@@ -2799,7 +2798,9 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_matmul_sparse(self, dtype, x_shape, y_shape, x_sparse, y_sparse):
         if backend.backend() == "tensorflow":
             import tensorflow as tf
@@ -4265,11 +4266,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(),
+        reason="bincount not supported on TensorFlow GPU",
+    )
     def test_bincount(self, sparse_input, sparse_arg):
         if (sparse_input or sparse_arg) and not backend.SUPPORTS_SPARSE_TENSORS:
             pytest.skip("Backend does not support sparse tensors")
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("bincount does not work in tensorflow gpu")
 
         x = x_np = np.array([1, 1, 2, 3, 2, 4, 4, 6])
         weights = weights_np = np.array([0, 0, 3, 2, 1, 1, 4, 2])
@@ -9970,10 +9973,10 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_angle(self, dtype):
-        import jax.numpy as jnp
+        if dtype == "bfloat16" and testing.torch_uses_gpu():
+            self.skipTest("Torch cuda does not support bfloat16")
 
-        if dtype == "bfloat16":
-            self.skipTest("Weirdness with numpy")
+        import jax.numpy as jnp
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)

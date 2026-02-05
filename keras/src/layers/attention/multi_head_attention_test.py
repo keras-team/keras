@@ -68,14 +68,13 @@ class MultiHeadAttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+    @pytest.mark.skipif(
+        backend.backend() not in ("jax", "torch"),
+        reason="Flash attention only supported on JAX and Torch",
+    )
     def test_basics_with_flash_attention(self):
         enable_flash_attention()
-        if backend.backend() in ("tensorflow", "numpy"):
-            self.skipTest(
-                "Flash attention is not supported in tensorflow and numpy "
-                "backends."
-            )
-        elif backend.backend() == "torch":
+        if backend.backend() == "torch":
             try:
                 self.run_layer_test(
                     layers.MultiHeadAttention,
