@@ -3316,7 +3316,7 @@ def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
 
 
 class DepthToSpace(Operation):
-    def __init__(self, block_size, data_format=None, *, name=None):
+    def __init__(self, block_size, data_format="channels_last", *, name=None):
         super().__init__(name=name)
         self.block_size = block_size
         self.data_format = standardize_data_format(data_format)
@@ -3410,7 +3410,7 @@ def depth_to_space(x, block_size, data_format="channels_last"):
 
 
 class SpaceToDepth(Operation):
-    def __init__(self, block_size, data_format=None, *, name=None):
+    def __init__(self, block_size, data_format="channels_last", *, name=None):
         super().__init__(name=name)
         self.block_size = block_size
         self.data_format = standardize_data_format(data_format)
