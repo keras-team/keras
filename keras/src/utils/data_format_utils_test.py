@@ -1,6 +1,8 @@
 import numpy as np
+import pytest
 
 import keras
+from keras.src import backend
 from keras.src import testing
 from keras.src.utils.data_format_utils import _convert_axis
 from keras.src.utils.data_format_utils import _permute_shape
@@ -201,6 +203,10 @@ class ConvertDataFormatFunctionalTest(testing.TestCase):
 
 
 class ConvertDataFormatOutputTest(testing.TestCase):
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="TensorFlow CPU does not support channels_first (NCHW) format",
+    )
     def test_output_equivalence(self):
         # Create a simple model
         model = keras.Sequential(
