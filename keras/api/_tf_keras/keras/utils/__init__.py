@@ -55,6 +55,15 @@ from keras.src.utils.audio_dataset_utils import (
     audio_dataset_from_directory as audio_dataset_from_directory,
 )
 from keras.src.utils.config import Config as Config
+from keras.src.utils.data_format_utils import (
+    convert_data_format as convert_data_format,
+)
+from keras.src.utils.data_format_utils import (
+    convert_to_channels_first as convert_to_channels_first,
+)
+from keras.src.utils.data_format_utils import (
+    convert_to_channels_last as convert_to_channels_last,
+)
 from keras.src.utils.dataset_utils import split_dataset as split_dataset
 from keras.src.utils.file_utils import get_file as get_file
 from keras.src.utils.image_dataset_utils import (
