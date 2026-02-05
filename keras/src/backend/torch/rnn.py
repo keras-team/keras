@@ -769,7 +769,16 @@ def gru(
     )
 
     if not cudnn_supported:
-        raise NotImplementedError
+        raise NotImplementedError(
+            "GRU is not supported with this configuration. cuDNN-compatible "
+            "GRU requires `activation='tanh'`, "
+            "`recurrent_activation='sigmoid'`, `unroll=False`, and "
+            "`use_bias=True`. "
+            "Received: activation={}, recurrent_activation={}, unroll={}, "
+            "use_bias={}".format(
+                activation, recurrent_activation, unroll, bias is not None
+            )
+        )
 
     # Get device from inputs
     device = get_device()
@@ -804,21 +813,18 @@ def gru(
     if mask is not None:
         mask = mask.to(device)
 
-    try:
-        return _cudnn_gru(
-            inputs,
-            initial_state,
-            kernel,
-            recurrent_kernel,
-            bias,
-            mask,
-            batch_first,
-            go_backwards,
-            return_sequences,
-            device,
-        )
-    except Exception:
-        raise NotImplementedError
+    return _cudnn_gru(
+        inputs,
+        initial_state,
+        kernel,
+        recurrent_kernel,
+        bias,
+        mask,
+        batch_first,
+        go_backwards,
+        return_sequences,
+        device,
+    )
 
 
 def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
@@ -845,8 +851,16 @@ def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
     hidden_size = gru_layer.hidden_size
 
     # Split Keras weights by gate: [z, r, h]
-    z_k, r_k, h_k = np.split(kernel, 3, axis=1)
-    z_r, r_r, h_r = np.split(recurrent_kernel, 3, axis=1)
+    kernel_np = (
+        kernel if isinstance(kernel, np.ndarray) else kernel.cpu().numpy()
+    )
+    recurrent_kernel_np = (
+        recurrent_kernel
+        if isinstance(recurrent_kernel, np.ndarray)
+        else recurrent_kernel.cpu().numpy()
+    )
+    z_k, r_k, h_k = np.split(kernel_np, 3, axis=1)
+    z_r, r_r, h_r = np.split(recurrent_kernel_np, 3, axis=1)
 
     # Reorder to PyTorch format [r, z, h] and transpose
     weight_ih_data = np.concatenate([r_k, z_k, h_k], axis=1).T
@@ -914,11 +928,7 @@ def _cudnn_gru(
         _assert_valid_mask(mask)
         sequence_lengths = _compute_sequence_length_from_mask(mask, batch_first)
 
-    # Ensure inputs are in batch_first format for consistency
-    if not batch_first:
-        inputs = inputs.permute(1, 0, 2)
-
-    seq_axis, batch_axis = (0, 1) if not batch_first else (1, 0)
+    seq_axis, batch_axis = 1, 0
 
     # If shape is [batch, hidden]; Make [1, batch, hidden]
     if initial_state.dim() == 2:
