@@ -1246,9 +1246,9 @@ def depth_to_space(x, block_size, data_format="channels_last"):
         new_c = c // (block_size**2)
         # Reshape: (N, H, W, C) -> (N, H, W, block_size, block_size, new_C)
         x = x.reshape(n, h, w, block_size, block_size, new_c)
-        # Permute: (N, H, W, bH, bW, C) -> (N, H, bH, W, bW, C)
+        # Permute to (N, H, bH, W, bW, new_C) to interleave spatial blocks.
         x = x.permute(0, 1, 3, 2, 4, 5)
-        # Reshape: (N, H, bH, W, bW, C) -> (N, H*bH, W*bW, C)
+        # Reshape to the final spatial dimensions.
         x = x.reshape(n, h * block_size, w * block_size, new_c)
     else:
         # NCHW format
