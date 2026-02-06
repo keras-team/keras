@@ -843,9 +843,12 @@ class IndexLookup(Layer):
             # TODO: consider unifying both paths.
             return
         vocabulary_filepath = tf.io.gfile.join(dir_path, "vocabulary.txt")
-        # TODO: fix bug with include_special_tokens and set reload from file.
         with open(vocabulary_filepath, "r") as f:
             lines = f.read().split("\n")
+            # Remove trailing empty entries from trailing newlines.
+            # Preserve valid empty-string tokens (e.g., mask token).
+            while lines and lines[-1] == "":
+                lines = lines[:-1]
             if tf.as_dtype(self.vocabulary_dtype) == tf.string:
                 values = [str(line) for line in lines]
             else:
