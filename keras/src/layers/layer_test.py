@@ -1923,9 +1923,6 @@ class LayerTest(testing.TestCase):
                 super().__init__()
                 self.dense = layers.Dense(4)
 
-            def supports_masking(self):
-                return True
-
             def call(self, x, mask=None):
                 y = self.dense(x)
                 if mask is not None:
@@ -1939,7 +1936,6 @@ class LayerTest(testing.TestCase):
                 return (input_shape[0], 4)
 
         layer = MaskingLayer()
-        layer.supports_masking = True
 
         x = np.ones((2, 3), dtype="float32")
 
