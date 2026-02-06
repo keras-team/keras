@@ -131,6 +131,7 @@ class Lion(optimizer.Optimizer):
         return config
 
 
-Lion.__doc__ = Lion.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Lion.__doc__ is not None:
+    Lion.__doc__ = Lion.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )
