@@ -113,8 +113,6 @@ ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
     {to_snake_case(cls.__name__): cls for cls in ALL_OBJECTS}
 )
-# TODO: Align with `tf.keras` and set the name attribute of metrics
-# with the key name. Currently it uses default name of class definitions.
 ALL_OBJECTS_DICT.update(
     {
         "bce": BinaryCrossentropy,
@@ -205,7 +203,13 @@ def get(identifier):
         obj = identifier
     if callable(obj):
         if inspect.isclass(obj):
-            obj = obj()
+            if isinstance(identifier, str):
+                try:
+                    obj = obj(name=identifier)
+                except TypeError:
+                    obj = obj()
+            else:
+                obj = obj()
         return obj
     else:
         raise ValueError(f"Could not interpret metric identifier: {identifier}")
