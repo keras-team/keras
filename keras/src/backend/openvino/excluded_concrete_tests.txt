@@ -105,6 +105,8 @@ CoreOpsCorrectnessTest::test_switch
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
 CoreOpsBehaviorTests::test_vectorized_map_serialization
+MathOpsCorrectnessTest::test_cdist_basic
+MathOpsCorrectnessTest::test_cdist_invalid_last_dim
 ExtractSequencesOpTest::test_extract_sequences_call
 InTopKTest::test_in_top_k_call
 MathOpsCorrectnessTest::test_erfinv_operation_basic
