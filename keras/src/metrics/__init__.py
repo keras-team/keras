@@ -204,9 +204,21 @@ def get(identifier):
     if callable(obj):
         if inspect.isclass(obj):
             if isinstance(identifier, str):
-                try:
+                sig = inspect.signature(obj.__init__)
+                params = sig.parameters
+
+                required_params = [
+                    p
+                    for p in params.values()
+                    if (
+                        p.name not in ("self", "name")
+                        and p.default is inspect.Parameter.empty
+                    )
+                ]
+
+                if "name" in params and not required_params:
                     obj = obj(name=identifier)
-                except TypeError:
+                else:
                     obj = obj()
             else:
                 obj = obj()
