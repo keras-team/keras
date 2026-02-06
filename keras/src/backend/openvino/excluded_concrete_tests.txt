@@ -29,7 +29,6 @@ NumpyDtypeTest::test_searchsorted
 NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
-NumpyDtypeTest::test_tensordot_
 NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_unravel
 NumpyDtypeTest::test_var
@@ -70,7 +69,6 @@ NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
-NumpyTwoInputOpsCorrectnessTest::test_tensordot
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_isreal
