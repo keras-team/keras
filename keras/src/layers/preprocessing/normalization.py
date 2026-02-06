@@ -1,3 +1,4 @@
+import itertools
 import math
 
 import numpy as np
@@ -8,6 +9,26 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.data_layer import DataLayer
 from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils.module_utils import tensorflow as tf
+
+
+def _is_iterable_of_batches(data):
+    """True if data is an iterable of batches, not Dataset/array/tensor."""
+    if isinstance(data, (np.ndarray, str, bytes)):
+        return False
+    if backend.is_tensor(data):
+        return False
+    if tf is not None and isinstance(data, tf.data.Dataset):
+        return False
+    if isinstance(data, PyDataset):
+        return False
+    return hasattr(data, "__iter__") and not hasattr(data, "shape")
+
+
+def _extract_batch(batch):
+    """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
+    if isinstance(batch, tuple):
+        return batch[0]
+    return batch
 
 
 @keras_export("keras.layers.Normalization")
@@ -254,13 +275,15 @@ class Normalization(DataLayer):
         data, simply pass `axis=None` to the layer.
 
         Arg:
-            data: The data to train on. It can be passed either as a
-                `tf.data.Dataset`, as a NumPy array, or as a backend-native
-                eager tensor.
-                If a dataset, *it must be batched*. Keras will assume that the
-                data is batched, and if that assumption doesn't hold, the mean
-                and variance may be incorrectly computed.
+            data: The data to train on. It can be passed as a NumPy array, a
+                backend-native eager tensor, a `tf.data.Dataset`, a
+                `keras.utils.PyDataset`, or an iterable of batches (e.g. a
+                list of arrays or a generator yielding batches). If a dataset
+                or iterable, *it must be batched*. Keras will assume that each
+                element is a batch, and if that assumption doesn't hold, the
+                mean and variance may be incorrectly computed.
         """
+        data_is_iterable = False
         if isinstance(data, np.ndarray) or backend.is_tensor(data):
             input_shape = data.shape
         elif isinstance(data, tf.data.Dataset):
@@ -275,11 +298,37 @@ class Normalization(DataLayer):
                 # handling (x, y) or (x, y, sample_weight)
                 data = data[0]
             input_shape = data.shape
+        elif _is_iterable_of_batches(data):
+            data_is_iterable = True
+            # Consume first batch to infer input_shape; then chain it back for
+            # accumulation so we iterate over (first_batch, *rest).
+            data_iter = iter(data)
+            first_batch = next(data_iter, None)
+            if first_batch is None:
+                raise ValueError(
+                    "adapt() received an empty iterable (no batches). "
+                    "Expected at least one batch. Pass a non-empty iterable "
+                    "of arrays or tensors, e.g. layer.adapt([x]) or "
+                    "layer.adapt(list_of_batches)."
+                )
+            first_batch = _extract_batch(first_batch)
+            input_shape = getattr(first_batch, "shape", None)
+            if input_shape is None:
+                raise TypeError(
+                    "adapt() expects an iterable that yields arrays or "
+                    "tensors with a `.shape` attribute (e.g. numpy arrays or "
+                    "backend tensors). Got an element of type "
+                    f"{type(first_batch).__name__}. Ensure each yielded "
+                    "element is array-like with a `.shape` attribute."
+                )
+            input_shape = tuple(input_shape)
+            data = itertools.chain([first_batch], data_iter)
         else:
             raise TypeError(
                 f"Unsupported data type: {type(data)}. `adapt` supports "
-                f"`np.ndarray`, backend tensors, `tf.data.Dataset`, and "
-                f"`keras.utils.PyDataset`."
+                f"`np.ndarray`, backend tensors, `tf.data.Dataset`, "
+                f"`keras.utils.PyDataset`, and iterables of batches (e.g. "
+                f"list, generator)."
             )
 
         if not self.built:
@@ -300,14 +349,31 @@ class Normalization(DataLayer):
         elif backend.is_tensor(data):
             total_mean = ops.mean(data, axis=self._reduce_axis)
             total_var = ops.var(data, axis=self._reduce_axis)
-        elif isinstance(data, (tf.data.Dataset, PyDataset)):
+        elif isinstance(data, (tf.data.Dataset, PyDataset)) or data_is_iterable:
             total_mean = ops.zeros(self._mean_and_var_shape)
             total_var = ops.zeros(self._mean_and_var_shape)
             total_count = 0
             for batch in data:
+                if data_is_iterable:
+                    batch = _extract_batch(batch)
                 batch = backend.convert_to_tensor(
                     batch, dtype=self.compute_dtype
                 )
+                if self.built and data_is_iterable:
+                    for d in self._keep_axis:
+                        batch_dim = batch.shape[d]
+                        expected = self._build_input_shape[d]
+                        if (
+                            batch_dim is not None
+                            and expected is not None
+                            and batch_dim != expected
+                        ):
+                            raise ValueError(
+                                "adapt() iterable yielded a batch with "
+                                "incompatible shape. Expected "
+                                f"{self._build_input_shape}, got "
+                                f"{tuple(batch.shape)}."
+                            )
                 batch_mean = ops.mean(batch, axis=self._reduce_axis)
                 batch_var = ops.var(batch, axis=self._reduce_axis)
                 if self._reduce_axis:
