@@ -844,11 +844,9 @@ class IndexLookup(Layer):
             return
         vocabulary_filepath = tf.io.gfile.join(dir_path, "vocabulary.txt")
         with open(vocabulary_filepath, "r") as f:
-            lines = f.read().split("\n")
-            # Remove trailing empty entries from trailing newlines.
-            # Preserve valid empty-string tokens (e.g., mask token).
+            lines = f.read().splitlines()
             while lines and lines[-1] == "":
-                lines = lines[:-1]
+                lines.pop()
             if tf.as_dtype(self.vocabulary_dtype) == tf.string:
                 values = [str(line) for line in lines]
             else:
