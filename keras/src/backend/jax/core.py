@@ -1,3 +1,5 @@
+import math
+
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
@@ -316,12 +318,12 @@ def should_shard_at_init(init_layout, shape):
     if not isinstance(init_layout, jax.sharding.NamedSharding):
         return False
 
-    if all(dim is None for dim in init_layout.spec):
-        return False
-
     size_threshold = 250 * 1024 * 1024
-    array_size = np.prod(shape) * 4
-    return array_size >= size_threshold
+    # We multiply by the mesh size here to take into account the worst case
+    # scenario of the array being first duplicated in the memory of one device
+    # before being transferred to the other devices.
+    size = math.prod(shape) * 4 * init_layout.mesh.devices.size
+    return size >= size_threshold
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
