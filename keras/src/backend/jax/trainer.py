@@ -902,27 +902,24 @@ class JAXTrainer(base_trainer.Trainer):
 
     def _get_state_sharding_spec(self):
         """
-        Returns state shardings with AbstractMesh for stable JIT out_shardings.
+        Returns concrete state shardings for JIT out_shardings.
+
+        JAX does not allow AbstractMesh in in_shardings/out_shardings during
+        compilation, so we use the variables' concrete shardings.
         """
         trainable_shardings = [
-            jax_distribution_lib._to_abstract_sharding(v.value.sharding)
-            for v in self.trainable_variables
+            v.value.sharding for v in self.trainable_variables
         ]
         non_trainable_shardings = [
-            jax_distribution_lib._to_abstract_sharding(v.value.sharding)
-            for v in self.non_trainable_variables
+            v.value.sharding for v in self.non_trainable_variables
         ]
         if hasattr(self, "optimizer") and self.optimizer is not None:
             optimizer_shardings = [
-                jax_distribution_lib._to_abstract_sharding(v.value.sharding)
-                for v in self.optimizer.variables
+                v.value.sharding for v in self.optimizer.variables
             ]
         else:
             optimizer_shardings = []
-        metrics_shardings = [
-            jax_distribution_lib._to_abstract_sharding(v.value.sharding)
-            for v in self.metrics_variables
-        ]
+        metrics_shardings = [v.value.sharding for v in self.metrics_variables]
         return (
             trainable_shardings,
             non_trainable_shardings,
