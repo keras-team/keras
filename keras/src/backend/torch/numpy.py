@@ -765,6 +765,11 @@ def dot(x1, x2):
     return cast(torch.matmul(x1, x2), result_dtype)
 
 
+def dstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
