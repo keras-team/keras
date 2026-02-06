@@ -260,8 +260,6 @@ def save_weights(
 
 @keras_export("keras.saving.load_weights")
 def load_weights(model, filepath, skip_mismatch=False, **kwargs):
-    from keras.src.saving import saving_lib as slib
-
     filepath_str = str(filepath)
 
     # Get the legacy kwargs.
@@ -282,7 +280,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 f"files. Received: {filepath}"
             )
 
-        slib.load_weights_only(model, filepath, skip_mismatch=skip_mismatch)
+        saving_lib.load_weights_only(
+            model, filepath, skip_mismatch=skip_mismatch
+        )
     elif filepath_str.endswith(".weights.h5") or filepath_str.endswith(
         ".weights.json"
     ):
@@ -291,7 +291,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 "`by_name` only supports loading legacy '.h5' or '.hdf5' "
                 f"files. Received: {filepath}"
             )
-        slib.load_weights_only(
+        saving_lib.load_weights_only(
             model,
             filepath,
             skip_mismatch=skip_mismatch,
@@ -339,15 +339,11 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             # It's a step directory, use it directly
             checkpoint_path = filepath
 
-        # Check if checkpoint has assets by inspecting metadata
+        # Check if checkpoint has assets using Orbax metadata API
         try:
-            # Try to peek at the checkpoint structure without full loading
-            import os as _os
-
-            has_assets = _os.path.exists(
-                _os.path.join(checkpoint_path, "assets")
-            )
-        except:
+            checkpoint_metadata = ocp.checkpointables_metadata(checkpoint_path)
+            has_assets = "assets" in checkpoint_metadata.metadata
+        except Exception:
             has_assets = False
 
         # Load checkpointables - request assets only if they exist
@@ -434,10 +430,11 @@ def _load_model_from_orbax_checkpoint(
     # Load the composite state efficiently
     checkpointer = ocp.training.Checkpointer(directory=filepath)
 
-    # Check if checkpoint has assets
+    # Check if checkpoint has assets using Orbax metadata API
     try:
-        has_assets = os.path.exists(os.path.join(checkpoint_path, "assets"))
-    except:
+        checkpoint_metadata = ocp.checkpointables_metadata(checkpoint_path)
+        has_assets = "assets" in checkpoint_metadata.metadata
+    except Exception:
         has_assets = False
 
     with ocp.Context():

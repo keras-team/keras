@@ -1,4 +1,6 @@
 import os
+import tempfile
+import time
 import warnings
 
 import numpy as np
@@ -275,9 +277,12 @@ class OrbaxCheckpoint(MonitorCallback):
         # asset collection
         assets_dict = None
         if not self.save_weights_only:
-            # Let DiskIOStore create its own temp directory structure
-            # Pass a simple name, not a full path
-            assets_root = f"keras_assets_{id(self)}_{step}"
+            # Create a unique path in temp directory for assets
+            # Use timestamp to ensure uniqueness across multiple saves
+            assets_root = os.path.join(
+                tempfile.gettempdir(),
+                f"keras_assets_{step}_{id(self)}_{int(time.time() * 1e9)}",
+            )
             assets_store = saving_lib.DiskIOStore(assets_root, mode="w")
 
             try:
@@ -291,15 +296,12 @@ class OrbaxCheckpoint(MonitorCallback):
                     visited_saveables=set(),
                 )
 
-                # Get the working directory where assets were saved
-                working_dir = assets_store.working_dir
-
                 # Check if any assets were actually saved
                 assets_dict = {}
-                for root, dirs, files in os.walk(working_dir):
+                for root, dirs, files in os.walk(assets_root):
                     for file in files:
                         file_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(file_path, working_dir)
+                        rel_path = os.path.relpath(file_path, assets_root)
                         with open(file_path, "rb") as f:
                             # Convert bytes to numpy uint8 array for Orbax
                             assets_dict[rel_path] = np.frombuffer(
@@ -319,26 +321,25 @@ class OrbaxCheckpoint(MonitorCallback):
             # Determine sync vs async based on save_on_background setting
             use_sync = not self.save_on_background
 
-            # Determine payload and save functions based on assets presence
+            # Always use checkpointables API for consistency
+            # If no assets, just pass pytree alone
             if assets_dict is not None:
-                # Use checkpointables API for heterogeneous data
                 payload = {
                     "pytree": composite_state,
                     "assets": assets_dict,
                 }
-                save_fn = self.checkpointer.save_checkpointables
-                save_async_fn = self.checkpointer.save_checkpointables_async
             else:
-                # No assets, use simpler pytree API
-                payload = composite_state
-                save_fn = self.checkpointer.save_pytree
-                save_async_fn = self.checkpointer.save_pytree_async
+                payload = {
+                    "pytree": composite_state,
+                }
 
             # Execute save based on sync/async mode
             if use_sync:
-                save_fn(step, payload)
+                self.checkpointer.save_checkpointables(step, payload)
             else:
-                future = save_async_fn(step, payload)
+                future = self.checkpointer.save_checkpointables_async(
+                    step, payload
+                )
                 self._async_futures.append(future)
 
     def on_train_batch_end(self, batch, logs=None):
