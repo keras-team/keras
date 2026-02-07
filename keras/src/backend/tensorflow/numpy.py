@@ -1479,14 +1479,14 @@ def dot(x1, x2):
 
 
 def dstack(xs):
-    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
-    if len(dtype_set) > 1:
-        dtype = dtypes.result_type(*dtype_set)
-        xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
-
+    xs = [convert_to_tensor(x) for x in xs]
+    if len(xs) > 1:
+        unique_dtypes = {x.dtype for x in xs}
+        if len(unique_dtypes) > 1:
+            dtype = dtypes.result_type(*[x.dtype for x in xs])
+            xs = [cast(x, dtype) for x in xs]
     xs_reshaped = []
     for x in xs:
-        x = convert_to_tensor(x)
         shape = x.shape
         if len(shape) == 0:
             x = tf.reshape(x, (1, 1, 1))

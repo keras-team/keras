@@ -2889,6 +2889,22 @@ def dstack(xs):
 
     Returns:
         The tensor formed by stacking the given tensors.
+
+    Examples:
+    >>> import keras
+    >>> x = keras.ops.array([1, 2, 3])
+    >>> y = keras.ops.array([4, 5, 6])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4],
+            [2, 5],
+            [3, 6]]])
+
+    >>> x = keras.ops.array([[1], [2], [3]])
+    >>> y = keras.ops.array([[4], [5], [6]])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4]],
+           [[2, 5]],
+           [[3, 6]]])
     """
     if any_symbolic_tensors((xs,)):
         return Dstack().symbolic_call(xs)
