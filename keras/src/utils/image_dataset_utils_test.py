@@ -590,7 +590,6 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         ("grain", "grain"),
     )
     def test_image_dataset_from_directory_shuffle(self, format):
-        # TODO: add same test for train/val
         directory = self._prepare_directory(
             num_classes=2, count=25, nested_dirs=True
         )
@@ -653,3 +652,44 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             batches_1_alt.append(ops.convert_to_numpy(b))
         batches_1_alt = np.concatenate(batches_1_alt, axis=0)
         self.assertAllClose(batches_1, batches_1_alt, atol=1e-6)
+
+        # Test train/val split with shuffle
+        common_args = {
+            "batch_size": 8,
+            "image_size": (18, 18),
+            "label_mode": None,
+            "follow_links": True,
+            "shuffle": True,
+            "seed": 1337,
+            "format": format,
+        }
+        train_dataset, val_dataset = (
+            image_dataset_utils.image_dataset_from_directory(
+                directory,
+                validation_split=0.2,
+                subset="both",
+                **common_args,
+            )
+        )
+        train_paths = train_dataset.file_paths
+        val_paths = val_dataset.file_paths
+        self.assertEqual(len(set(train_paths) & set(val_paths)), 0)
+
+        full_dataset = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            **common_args,
+        )
+        self.assertEqual(
+            len(train_paths) + len(val_paths), len(full_dataset.file_paths)
+        )
+
+        train_dataset_alt, val_dataset_alt = (
+            image_dataset_utils.image_dataset_from_directory(
+                directory,
+                validation_split=0.2,
+                subset="both",
+                **common_args,
+            )
+        )
+        self.assertEqual(train_paths, train_dataset_alt.file_paths)
+        self.assertEqual(val_paths, val_dataset_alt.file_paths)
