@@ -77,6 +77,7 @@ from keras.src.ops.nn import conv as conv
 from keras.src.ops.nn import conv_transpose as conv_transpose
 from keras.src.ops.nn import ctc_decode as ctc_decode
 from keras.src.ops.nn import ctc_loss as ctc_loss
+from keras.src.ops.nn import depth_to_space as depth_to_space
 from keras.src.ops.nn import depthwise_conv as depthwise_conv
 from keras.src.ops.nn import dot_product_attention as dot_product_attention
 from keras.src.ops.nn import elu as elu
@@ -110,6 +111,7 @@ from keras.src.ops.nn import soft_shrink as soft_shrink
 from keras.src.ops.nn import softmax as softmax
 from keras.src.ops.nn import softplus as softplus
 from keras.src.ops.nn import softsign as softsign
+from keras.src.ops.nn import space_to_depth as space_to_depth
 from keras.src.ops.nn import (
     sparse_categorical_crossentropy as sparse_categorical_crossentropy,
 )
