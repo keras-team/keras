@@ -1,0 +1,64 @@
+name: Keras GPU Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [unlabeled]
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+
+  test-in-container:
+    name: Run tests on GPU
+    runs-on: linux-x86-g2-16-l4-1gpu
+    # Only run on pushes to master, releases or "kokoro:force-run" unlabel
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      (github.event_name == 'pull_request' && github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [jax, tensorflow, torch]
+
+    container:
+      image: python:3.11-slim
+      options: --privileged --network host
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check CUDA Version
+        run: nvidia-smi
+
+      - name: Install Dependencies
+        run: pip install --no-cache-dir -r requirements-${{ matrix.backend }}-cuda.txt
+      
+      - name: Set Keras Backend
+        run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
+
+      - name: Verify TF Installation
+        if: ${{ matrix.backend == 'tensorflow'}}
+        run: python3 -c "import tensorflow as tf; print('Tensorflow devices:', tf.config.list_logical_devices()); assert len(tf.config.list_physical_devices('GPU')) > 0"
+
+      - name: Verify JAX Installation
+        if: ${{ matrix.backend == 'jax'}}
+        run: python3 -c "import jax; print('JAX devices:', jax.devices()); assert jax.default_backend() == 'gpu'"
+
+      - name: Verify Torch Installation
+        if: ${{ matrix.backend == 'torch'}}
+        run: python3 -c "import torch; print('Torch devices:', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]); assert torch.cuda.device_count() > 0"
+
+      - name: Run Tests
+        run: pytest -s keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+
+      - name: Run Distribution Tests
+        if: ${{ matrix.backend == 'jax'}}
+        run: pytest keras/src/distribution/distribution_lib_test.py --cov=keras --cov-config=pyproject.toml
