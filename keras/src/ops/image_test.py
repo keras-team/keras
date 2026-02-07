@@ -540,6 +540,26 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         )
         self.assertEqual(out.shape, output_shape)
 
+    def test_ssim(self):
+        # Test unbatched channels_last
+        x1 = KerasTensor([32, 32, 3])
+        x2 = KerasTensor([32, 32, 3])
+        out = kimage.ssim(x1, x2, max_val=1.0)
+        self.assertEqual(out.shape, ())
+
+        # Test batched channels_last
+        x1 = KerasTensor([None, 32, 32, 3])
+        x2 = KerasTensor([None, 32, 32, 3])
+        out = kimage.ssim(x1, x2, max_val=1.0)
+        self.assertEqual(out.shape, (None,))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x1 = KerasTensor([None, 3, 32, 32])
+        x2 = KerasTensor([None, 3, 32, 32])
+        out = kimage.ssim(x1, x2, max_val=1.0)
+        self.assertEqual(out.shape, (None,))
+
 
 AFFINE_TRANSFORM_INTERPOLATIONS = {  # map to order
     "nearest": 0,
@@ -2835,3 +2855,63 @@ class ExtractPatches3DTest(testing.TestCase):
             volume, size=(2, 3, 4), strides=(2, 3, 4), data_format=data_format
         )
         self.assertEqual(patches.shape, expected_shape)
+
+    def test_ssim_identical_images(self):
+        # Identical images should have SSIM close to 1.0
+        x = np.random.random((32, 32, 3)).astype("float32")
+        out = kimage.ssim(x, x, max_val=1.0)
+        self.assertAllClose(out, 1.0, atol=1e-4)
+
+        # Batched case
+        x = np.random.random((2, 32, 32, 3)).astype("float32")
+        out = kimage.ssim(x, x, max_val=1.0)
+        self.assertEqual(out.shape, (2,))
+        self.assertAllClose(out, [1.0, 1.0], atol=1e-4)
+
+    def test_ssim_different_images(self):
+        # Different random images should have lower SSIM
+        np.random.seed(42)
+        x1 = np.random.random((32, 32, 3)).astype("float32")
+        x2 = np.random.random((32, 32, 3)).astype("float32")
+        out = kimage.ssim(x1, x2, max_val=1.0)
+        # SSIM of different images should be less than 1
+        self.assertTrue(float(out) < 0.5)
+
+    def test_ssim_vs_tensorflow(self):
+        # Compare with TensorFlow's implementation
+        np.random.seed(123)
+        x1 = np.random.random((2, 32, 32, 3)).astype("float32")
+        x2 = np.random.random((2, 32, 32, 3)).astype("float32")
+
+        out = kimage.ssim(x1, x2, max_val=1.0)
+        ref_out = tf.image.ssim(x1, x2, max_val=1.0)
+
+        self.assertEqual(out.shape, ref_out.shape)
+        self.assertAllClose(out, ref_out, atol=0.01)
+
+    def test_ssim_channels_first(self):
+        backend.set_image_data_format("channels_first")
+        # Identical images should have SSIM close to 1.0
+        x = np.random.random((3, 32, 32)).astype("float32")
+        out = kimage.ssim(x, x, max_val=1.0)
+        self.assertAllClose(out, 1.0, atol=1e-4)
+
+        # Batched case
+        x = np.random.random((2, 3, 32, 32)).astype("float32")
+        out = kimage.ssim(x, x, max_val=1.0)
+        self.assertEqual(out.shape, (2,))
+        self.assertAllClose(out, [1.0, 1.0], atol=1e-4)
+
+    def test_ssim_max_val_255(self):
+        # Test with max_val=255 for uint8-like images
+        x = (np.random.random((32, 32, 3)) * 255).astype("float32")
+        out = kimage.ssim(x, x, max_val=255.0)
+        self.assertAllClose(out, 1.0, atol=1e-4)
+
+    def test_ssim_custom_parameters(self):
+        # Test with custom filter_size and k values
+        x = np.random.random((32, 32, 3)).astype("float32")
+        out = kimage.ssim(
+            x, x, max_val=1.0, filter_size=7, filter_sigma=1.0, k1=0.02, k2=0.06
+        )
+        self.assertAllClose(out, 1.0, atol=1e-4)
