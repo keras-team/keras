@@ -682,6 +682,10 @@ def dot(x1, x2):
     return jnp.dot(x1, x2)
 
 
+def dstack(xs):
+    return jnp.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = dtype or config.floatx()
     return jnp.empty(shape, dtype=dtype)
