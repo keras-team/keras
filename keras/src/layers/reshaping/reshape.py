@@ -61,6 +61,36 @@ class Reshape(Layer):
         )
 
     def call(self, inputs):
+        from keras.src import backend
+
+        # Use PyTorch operations during tracing for better compatibility
+        if backend.backend() == "torch" and self._is_tracing():
+            import torch
+
+            batch_size = inputs.shape[0]
+
+            if -1 in self.target_shape:
+                # Calculate unknown dimension
+                total_elements = 1
+                for dim in inputs.shape[1:]:
+                    total_elements *= dim
+
+                known_elements = 1
+                for dim in self.target_shape:
+                    if dim != -1:
+                        known_elements *= dim
+
+                unknown_dim = total_elements // known_elements
+                resolved_shape = [
+                    unknown_dim if dim == -1 else dim
+                    for dim in self.target_shape
+                ]
+            else:
+                resolved_shape = list(self.target_shape)
+
+            return torch.reshape(inputs, [batch_size] + resolved_shape)
+
+        # Fall back to original Keras implementation
         potentially_resolved_target_shape = (
             operation_utils.compute_reshape_output_shape(
                 tuple(inputs.shape)[1:], self.target_shape, "target_shape"
@@ -72,6 +102,39 @@ class Reshape(Layer):
         return ops.reshape(
             inputs, (ops.shape(inputs)[0],) + potentially_resolved_target_shape
         )
+
+    def _is_tracing(self):
+        """Check if we're in PyTorch tracing/export mode."""
+        try:
+            import inspect
+
+            import torch
+
+            # Check PyTorch tracing states
+            if (
+                hasattr(torch.jit, "is_tracing")
+                and torch.jit.is_tracing()
+                or hasattr(torch, "compiler")
+                and hasattr(torch.compiler, "is_compiling")
+                and torch.compiler.is_compiling()
+                or hasattr(torch, "_C")
+                and hasattr(torch._C, "_get_tracing_state")
+                and torch._C._get_tracing_state()
+            ):
+                return True
+
+            # Check call stack for export functions
+            frame_names = [frame.function for frame in inspect.stack()]
+            export_functions = [
+                "export",
+                "_export",
+                "export_compat",
+                "_capture",
+                "trace",
+            ]
+            return any(func in frame_names for func in export_functions)
+        except:
+            return False
 
     def get_config(self):
         config = {"target_shape": self.target_shape}

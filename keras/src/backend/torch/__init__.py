@@ -43,3 +43,14 @@ from keras.src.backend.torch.rnn import cudnn_ok
 from keras.src.backend.torch.rnn import gru
 from keras.src.backend.torch.rnn import lstm
 from keras.src.backend.torch.rnn import rnn
+
+# Apply ONNX export patch to handle dynamic shape conflicts (Issue #22102)
+try:
+    from keras.src.backend.torch.onnx_export_patch import (
+        apply_onnx_export_patch,
+    )
+
+    apply_onnx_export_patch()
+except ImportError:
+    # Patch not available, continue without it
+    pass
