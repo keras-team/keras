@@ -1154,14 +1154,47 @@ def dot_product_attention(
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
+        # Expand mask from 3D [B, T, S] to 4D [B, 1, T, S] to match the
+        # shape of query/key/value after transpose [B, num_heads, T, head_dim].
+        # PyTorch's scaled_dot_product_attention expects 4D mask format
+        # (N, 1, L, S) when query/key/value are 4D. This fixes the
+        # RuntimeError "(*bias): last dimension must be contiguous" on GPU
+        # (issue #20459).
+        if len(mask.shape) == 3:
+            # mask is [B, T, S], expand to [B, 1, T, S]
+            mask = mask.unsqueeze(1)
+        # Ensure mask is contiguous. This fixes the RuntimeError
+        # "(*bias): last dimension must be contiguous" when mask is used
+        # (issue #20459). This is especially important on GPU where memory
+        # layout matters.
+        mask = mask.contiguous()
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
+        # Expand bias from 3D [B, T, S] to 4D [B, 1, T, S] to match the
+        # shape of query/key/value after transpose [B, num_heads, T, head_dim].
+        # PyTorch's scaled_dot_product_attention expects 4D mask format
+        # (N, 1, L, S) when query/key/value are 4D. This fixes the
+        # RuntimeError "(*bias): last dimension must be contiguous" on GPU
+        # (issue #20459).
+        if len(mask.shape) == 3:
+            # mask (bias) is [B, T, S], expand to [B, 1, T, S]
+            mask = mask.unsqueeze(1)
+        # Ensure mask (bias) is contiguous immediately after assignment.
+        # This fixes the RuntimeError "(*bias): last dimension must be
+        # contiguous" when bias is used as mask (issue #20459). This is
+        # especially important on GPU where memory layout matters.
+        mask = mask.contiguous()
 
     axis0, axis1 = 1, 2
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
+    # Ensure mask is contiguous after transpose operations, as transpose
+    # might affect memory layout alignment with query/key/value tensors.
+    # This is critical on GPU where memory layout must match.
+    if mask is not None:
+        mask = mask.contiguous()
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
@@ -1173,21 +1206,40 @@ def dot_product_attention(
         _can_use_flash_attention(
             query, key, value, mask, is_causal, raise_error=True
         )
+    # Ensure mask is contiguous after _can_use_flash_attention, as it might
+    # create views or check the mask in ways that affect memory layout.
+    # Clone the mask to ensure it's a fresh tensor with proper memory layout
+    # for GPU. This fixes the RuntimeError "(*bias): last dimension must be
+    # contiguous" on GPU (issue #20459).
+    if mask is not None:
+        mask = mask.contiguous().clone()
     if flash_attention:
+        # Ensure all tensors are contiguous right before the call, as GPU
+        # requires stride[-1] == 1 for scaled_dot_product_attention. Clone
+        # the mask to ensure it's a fresh tensor with proper memory layout.
+        # This fixes the RuntimeError "(*bias): last dimension must be
+        # contiguous" on GPU (issue #20459).
+        if mask is not None:
+            mask = mask.contiguous().clone()
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
             attention_output = torch.nn.functional.scaled_dot_product_attention(
-                query,
-                key,
-                value,
+                query.contiguous(),
+                key.contiguous(),
+                value.contiguous(),
                 attn_mask=mask,
                 is_causal=is_causal,
                 scale=scale,
             )
     else:
+        # Ensure mask is contiguous and cloned before using it in
+        # scaled_dot_product_attention. This fixes the RuntimeError
+        # "(*bias): last dimension must be contiguous" when bias is used as
+        # mask (issue #20459). GPU requires stride[-1] == 1. Cloning ensures
+        # a fresh tensor with proper memory layout.
         if mask is not None:
-            mask = mask.contiguous()
+            mask = mask.contiguous().clone()
         attention_output = torch.nn.functional.scaled_dot_product_attention(
             query.contiguous(),
             key.contiguous(),
