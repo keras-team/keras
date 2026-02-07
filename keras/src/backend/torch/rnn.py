@@ -741,5 +741,308 @@ def _cudnn_lstm(
     return last_output, outputs, [h_n, c_n]
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+):
+    """Runs a GRU layer using cuDNN-accelerated PyTorch operations.
+
+    Args:
+        inputs: Input tensor of shape `(batch, timesteps, feature)`.
+        initial_state: Initial hidden state tensor of shape
+            `(batch, units)`.
+        mask: Optional boolean mask tensor of shape `(batch, timesteps)`.
+        kernel: Input kernel weights of shape `(feature, units * 3)`.
+        recurrent_kernel: Recurrent kernel weights of shape
+            `(units, units * 3)`.
+        bias: Optional bias tensor of shape `(2, units * 3)` for
+            `reset_after=True`.
+        activation: Activation function (must be `tanh` for cuDNN).
+        recurrent_activation: Recurrent activation function (must be
+            `sigmoid` for cuDNN).
+        return_sequences: Boolean. Whether to return the full sequence
+            of outputs or only the last output.
+        go_backwards: Boolean. Whether to process the input sequence
+            in reverse.
+        unroll: Boolean. Must be `False` for cuDNN support.
+        reset_after: Boolean. Must be `True` (cuDNN semantics).
+
+    Returns:
+        A tuple of `(last_output, outputs, [last_state])`.
+    """
+    # PyTorch GRU only supports reset_after=True (cuDNN semantics)
+    if not reset_after:
+        raise NotImplementedError(
+            "PyTorch GRU backend only supports reset_after=True"
+        )
+
+    cudnn_supported = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    )
+
+    if not cudnn_supported:
+        raise NotImplementedError(
+            "GRU is not supported with this configuration. cuDNN-compatible "
+            "GRU requires `activation='tanh'`, "
+            "`recurrent_activation='sigmoid'`, `unroll=False`, and "
+            "`use_bias=True`. "
+            "Received: activation={}, recurrent_activation={}, unroll={}, "
+            "use_bias={}".format(
+                activation, recurrent_activation, unroll, bias is not None
+            )
+        )
+
+    # Get device from inputs
+    device = get_device()
+
+    from keras.src.backend.torch import Variable
+
+    if isinstance(kernel, Variable):
+        kernel = kernel.value
+    if isinstance(recurrent_kernel, Variable):
+        recurrent_kernel = recurrent_kernel.value
+    if isinstance(bias, Variable):
+        bias = bias.value
+
+    # Convert to torch tensors
+    inputs = convert_to_tensor(inputs, dtype="float32")
+    initial_state = convert_to_tensor(initial_state, dtype="float32")
+    if mask is not None:
+        mask = convert_to_tensor(mask, dtype="bool")
+
+    # Preprocess for go_backwards by flipping the sequence
+    # GRU uses batch_first=True
+    batch_first = True
+    if go_backwards:
+        seq_dim = 1 if batch_first else 0
+        inputs = torch.flip(inputs, dims=[seq_dim])
+        if mask is not None:
+            mask = torch.flip(mask, dims=[seq_dim])
+
+    # Move all tensors to the same device
+    inputs = inputs.to(device)
+    initial_state = initial_state.to(device)
+    if mask is not None:
+        mask = mask.to(device)
+
+    return _cudnn_gru(
+        inputs,
+        initial_state,
+        kernel,
+        recurrent_kernel,
+        bias,
+        mask,
+        batch_first,
+        go_backwards,
+        return_sequences,
+        device,
+    )
+
+
+def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
+    """Copies kernel and recurrent kernel weights into the PyTorch GRU format.
+
+    Keras GRU uses gate order [z, r, h] (update, reset, hidden).
+    PyTorch GRU uses gate order [r, z, h] (reset, update, hidden).
+    This function handles the reordering.
+
+    For reset_after=True, Keras bias shape is (2, 3*units):
+    - Row 0: input bias [z, r, h]
+    - Row 1: recurrent bias [z, r, h]
+
+    Args:
+        gru_layer: The PyTorch GRU layer to prepare weights for.
+        kernel: The kernel weights tensor with shape (input_dim, 3*units).
+        recurrent_kernel: The recurrent kernel weights tensor
+            with shape (units, 3*units).
+        bias: The bias tensor with shape (2, 3*units) for reset_after=True.
+        device: The device to place the tensors on.
+    """
+
+    gru_layer = gru_layer.to(device)
+    hidden_size = gru_layer.hidden_size
+
+    # Split Keras weights by gate: [z, r, h]
+    kernel_parts = torch.chunk(convert_to_tensor(kernel), 3, dim=1)
+    recurrent_kernel_parts = torch.chunk(
+        convert_to_tensor(recurrent_kernel), 3, dim=1
+    )
+
+    # Reorder to PyTorch format [r, z, h] and transpose
+    weight_ih = (
+        torch.cat([kernel_parts[1], kernel_parts[0], kernel_parts[2]], dim=1)
+        .T.contiguous()
+        .to(device)
+    )
+    weight_hh = (
+        torch.cat(
+            [
+                recurrent_kernel_parts[1],
+                recurrent_kernel_parts[0],
+                recurrent_kernel_parts[2],
+            ],
+            dim=1,
+        )
+        .T.contiguous()
+        .to(device)
+    )
+
+    if bias is not None:
+        # bias shape is (2, 3*units) for reset_after=True
+        # Row 0 is input bias, Row 1 is recurrent bias
+        bias_t = convert_to_tensor(bias)
+        input_bias_parts = torch.chunk(bias_t[0], 3)
+        recurrent_bias_parts = torch.chunk(bias_t[1], 3)
+
+        # Reorder to [r, z, h]
+        bias_ih = (
+            torch.cat(
+                [
+                    input_bias_parts[1],
+                    input_bias_parts[0],
+                    input_bias_parts[2],
+                ]
+            )
+            .contiguous()
+            .to(device)
+        )
+        bias_hh = (
+            torch.cat(
+                [
+                    recurrent_bias_parts[1],
+                    recurrent_bias_parts[0],
+                    recurrent_bias_parts[2],
+                ]
+            )
+            .contiguous()
+            .to(device)
+        )
+    else:
+        bias_ih = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+
+    # Copy weights into PyTorch GRU layer
+    with torch.no_grad():
+        gru_layer.weight_ih_l0.copy_(weight_ih)
+        gru_layer.weight_hh_l0.copy_(weight_hh)
+        gru_layer.bias_ih_l0.copy_(bias_ih)
+        gru_layer.bias_hh_l0.copy_(bias_hh)
+
+    # Optimize the layout for cuDNN
+    gru_layer.flatten_parameters()
+
+    # Force all GRU parameters to be on the correct device
+    for param in gru_layer.parameters():
+        if param.device != device:
+            param.data = param.data.to(device)
+
+
+def _cudnn_gru(
+    inputs,
+    initial_state,
+    kernel,
+    recurrent_kernel,
+    bias,
+    mask,
+    batch_first,
+    go_backwards,
+    return_sequences,
+    device,
+):
+    if mask is not None:
+        _assert_valid_mask(mask)
+        sequence_lengths = _compute_sequence_length_from_mask(mask, batch_first)
+
+    seq_axis, batch_axis = 1, 0
+
+    # If shape is [batch, hidden]; Make [1, batch, hidden]
+    if initial_state.dim() == 2:
+        initial_state = initial_state.unsqueeze(0)
+    # If shape is [batch, 1, hidden]
+    elif initial_state.dim() == 3 and initial_state.shape[1] == 1:
+        initial_state = initial_state.permute(1, 0, 2)
+
+    input_size = kernel.shape[0]
+    hidden_size = recurrent_kernel.shape[0]
+
+    # Configure GRU with the provided parameters
+    gru_layer = torch.nn.GRU(
+        input_size=input_size,
+        hidden_size=hidden_size,
+        num_layers=1,
+        batch_first=batch_first,
+        bidirectional=False,
+    )
+
+    prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device)
+
+    if mask is not None:
+        # Sort and pack
+        sorted_lengths, sorted_indices = torch.sort(
+            sequence_lengths, descending=True
+        )
+        sorted_inputs = inputs[sorted_indices]
+        sorted_initial_h = initial_state[:, sorted_indices]
+
+        # Create the packed sequence
+        packed_inputs = torch.nn.utils.rnn.pack_padded_sequence(
+            sorted_inputs, sorted_lengths.cpu(), batch_first
+        )
+
+        # Process with GRU (which handles the packed sequence correctly)
+        packed_outputs, h_n = gru_layer(packed_inputs, sorted_initial_h)
+
+        # Unpack back to padded tensor
+        outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(
+            packed_outputs, batch_first
+        )
+
+        # Unsort outputs back to original batch order
+        _, unsort_indices = torch.sort(sorted_indices)
+        outputs = outputs[unsort_indices]
+        h_n = h_n[:, unsort_indices]
+
+    else:
+        # Run GRU without packing for fixed-length sequences
+        outputs, h_n = gru_layer(inputs, initial_state)
+
+    outputs = outputs.detach().clone().cpu()
+    h_n = h_n.detach().clone().cpu()
+
+    # Reshape hidden state for return
+    h_n = h_n.squeeze(batch_axis)
+
+    # Return appropriate outputs based on return_sequences flag
+    if mask is not None:
+        last_output = h_n
+    else:
+        last_output = outputs[:, -1] if batch_first else outputs[-1]
+
+    if not return_sequences:
+        outputs = (
+            last_output.unsqueeze(1)
+            if batch_first
+            else last_output.unsqueeze(0)
+        )
+
+    if go_backwards and return_sequences:
+        outputs = torch.flip(outputs, dims=[seq_axis])
+
+    return last_output, outputs, [h_n]
