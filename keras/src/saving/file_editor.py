@@ -272,12 +272,11 @@ class KerasFileEditor:
             )
         else:
             # Ensure unicity
-            def count_occurrences(d, name, count=0):
-                for k in d:
-                    if isinstance(d[k], dict):
-                        count += count_occurrences(d[k], name, count)
-                if name in d:
-                    count += 1
+            def count_occurrences(d, name):
+                count = 1 if name in d else 0
+                for value in d.values():
+                    if isinstance(value, dict):
+                        count += count_occurrences(value, name)
                 return count
 
             occurrences = count_occurrences(self.weights_dict, source_name)
