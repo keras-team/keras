@@ -1581,6 +1581,22 @@ class Layer(BackendLayer, Operation):
         if name != "_tracker":
             if not hasattr(self, "_tracker"):
                 self._initialize_tracker()
+            # Handle reassignment of tracked values when tracker is locked.
+            # This allows replacing sublayers/variables after build().
+            if self._tracker.locked and hasattr(self, name):
+                old_value = getattr(self, name)
+                for store_name, (is_attr_type, _) in self._tracker.config.items():
+                    if (
+                        is_attr_type(old_value)
+                        and is_attr_type(value)
+                        and self._tracker.is_in_store(store_name, old_value)
+                    ):
+                        self._tracker.replace_tracked_value(
+                            store_name, old_value, value
+                        )
+                        # Skip normal tracking since we've handled it
+                        super().__setattr__(name, value)
+                        return
             value = self._tracker.track(value)
 
         # NNX-specific bypass for `_called` and `built` attributes

@@ -1853,3 +1853,127 @@ class LayerTest(testing.TestCase):
         # foo_mode omitted -> foo_mode defaults to False -> no change
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)
+
+    def test_sublayer_reassignment_after_build(self):
+        """Test that sublayers can be reassigned after build()."""
+
+        class ParentLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.sublayer = layers.Dense(10)
+
+            def call(self, x):
+                return self.sublayer(x)
+
+        parent = ParentLayer()
+        x = np.random.rand(2, 5).astype("float32")
+        # This triggers build() which locks the tracker
+        _ = parent(x)
+
+        # Verify the layer is built and tracker is locked
+        self.assertTrue(parent.built)
+        self.assertTrue(parent._tracker.locked)
+
+        # Reassign the sublayer - this should work now
+        old_sublayer = parent.sublayer
+        parent.sublayer = layers.Dense(20)
+
+        # Verify the reassignment worked
+        self.assertIsNot(parent.sublayer, old_sublayer)
+        self.assertEqual(parent.sublayer.units, 20)
+
+        # Verify tracking is correct - old sublayer removed, new one added
+        self.assertNotIn(old_sublayer, parent._layers)
+        self.assertIn(parent.sublayer, parent._layers)
+
+    def test_variable_reassignment_after_build(self):
+        """Test that variables can be reassigned after build()."""
+
+        class TestLayer(layers.Layer):
+            def build(self, input_shape):
+                self.my_var = self.add_weight(
+                    shape=(input_shape[-1],),
+                    initializer="ones",
+                    name="my_var",
+                )
+                super().build(input_shape)
+
+            def call(self, x):
+                return x * self.my_var
+
+        layer = TestLayer()
+        x = np.random.rand(2, 5).astype("float32")
+        # This triggers build() which locks the tracker
+        _ = layer(x)
+
+        # Verify the layer is built and tracker is locked
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._tracker.locked)
+
+        # Reassign the variable - this should work now
+        old_var = layer.my_var
+        old_var_id = id(old_var)
+        new_var = backend.Variable(
+            initializer="zeros", shape=(5,), dtype="float32", name="new_var"
+        )
+        layer.my_var = new_var
+
+        # Verify the reassignment worked
+        self.assertIsNot(layer.my_var, old_var)
+        self.assertEqual(layer.my_var.name, "new_var")
+
+        # Verify tracking is correct - use id() to avoid tensor comparison issues
+        tracked_var_ids = {id(v) for v in layer._trainable_variables}
+        self.assertNotIn(old_var_id, tracked_var_ids)
+        self.assertIn(id(layer.my_var), tracked_var_ids)
+
+    def test_metric_reassignment_after_build(self):
+        """Test that metrics can be reassigned after build()."""
+
+        class TestLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.my_metric = metrics.Mean(name="mean1")
+
+            def call(self, x):
+                self.my_metric.update_state(x)
+                return x
+
+        layer = TestLayer()
+        x = np.random.rand(2, 5).astype("float32")
+        _ = layer(x)
+
+        # Verify the layer is built and tracker is locked
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._tracker.locked)
+
+        # Reassign the metric
+        old_metric = layer.my_metric
+        layer.my_metric = metrics.Mean(name="mean2")
+
+        # Verify the reassignment worked
+        self.assertIsNot(layer.my_metric, old_metric)
+        self.assertEqual(layer.my_metric.name, "mean2")
+
+        # Verify tracking is correct
+        self.assertNotIn(old_metric, layer._metrics)
+        self.assertIn(layer.my_metric, layer._metrics)
+
+    def test_adding_new_sublayer_after_build_raises(self):
+        """Test that adding NEW sublayers after build() still raises."""
+
+        class ParentLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.sublayer1 = layers.Dense(10)
+
+            def call(self, x):
+                return self.sublayer1(x)
+
+        parent = ParentLayer()
+        x = np.random.rand(2, 5).astype("float32")
+        _ = parent(x)
+
+        # Adding a completely new sublayer should still fail
+        with self.assertRaises(ValueError):
+            parent.sublayer2 = layers.Dense(20)
