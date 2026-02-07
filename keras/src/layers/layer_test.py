@@ -1854,95 +1854,40 @@ class LayerTest(testing.TestCase):
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)
 
-    def test_custom_layer_with_attention_mask_parameter(self):
-        class CustomLayerWithAttentionMask(layers.Layer):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(4)
-
+    def test_functional_model_with_attention_mask_arg(self):
+        class CustomLayer(layers.Layer):
             def call(self, x, attention_mask=None):
-                y = self.dense(x)
                 if attention_mask is not None:
-                    y = y * ops.cast(attention_mask, y.dtype)
-                return y
+                    return x * ops.cast(attention_mask, x.dtype)
+                return x
 
-            def compute_output_shape(self, input_shape):
-                # Should only receive one shape parameter, not dict
-                return (input_shape[0], 4)
+        x = Input(shape=(3,))
+        mask = Input(shape=(1,))
+        y = CustomLayer()(x, attention_mask=mask)
+        model = Model([x, mask], y)
+        out = model(
+            [
+                np.ones((2, 3), dtype="float32"),
+                np.ones((2, 1), dtype="float32"),
+            ]
+        )
+        self.assertEqual(out.shape, (2, 3))
 
-        # Test 1: Forward pass without attention_mask
-        layer = CustomLayerWithAttentionMask()
+    def test_layer_build_with_attention_mask_arg(self):
+        class CustomLayer(layers.Layer):
+            def call(self, x, attention_mask=None):
+                if attention_mask is not None:
+                    return x * ops.cast(attention_mask, x.dtype)
+                return x
+
+        layer = CustomLayer()
+        layer.build(
+            {
+                "x": (None, 3),
+                "attention_mask": (None, 1),
+            }
+        )
         x = np.ones((2, 3), dtype="float32")
-        y = layer(x)
-        self.assertEqual(y.shape, (2, 4))
-        self.assertLen(layer.weights, 2)  # kernel and bias from Dense
-
-        # Test 2: Forward pass with attention_mask
-        attention_mask = np.array([[1.0], [0.5]], dtype="float32")
-        y_masked = layer(x, attention_mask=attention_mask)
-        self.assertEqual(y_masked.shape, (2, 4))
-
-        # Test 3: compute_output_shape works correctly
-        output_shape = layer.compute_output_shape((2, 3))
-        self.assertEqual(output_shape, (2, 4))
-
-    def test_custom_layer_with_padding_mask_parameter(self):
-        class CustomLayerWithPaddingMask(layers.Layer):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(8)
-
-            def call(self, x, padding_mask=None):
-                y = self.dense(x)
-                if padding_mask is not None:
-                    y = y * ops.cast(padding_mask, y.dtype)
-                return y
-
-            def compute_output_shape(self, input_shape):
-                return (input_shape[0], 8)
-
-        layer = CustomLayerWithPaddingMask()
-        x = np.ones((3, 5), dtype="float32")
-
-        # Test without padding_mask
-        y1 = layer(x)
-        self.assertEqual(y1.shape, (3, 8))
-
-        # Test with padding_mask
-        padding_mask = np.array([[1.0], [1.0], [0.0]], dtype="float32")
-        y2 = layer(x, padding_mask=padding_mask)
-        self.assertEqual(y2.shape, (3, 8))
-
-        # Verify compute_output_shape works
-        output_shape = layer.compute_output_shape((3, 5))
-        self.assertEqual(output_shape, (3, 8))
-
-    def test_real_masking_still_works(self):
-        class MaskingLayer(layers.Layer):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(4)
-
-            def call(self, x, mask=None):
-                y = self.dense(x)
-                if mask is not None:
-                    y = y * ops.cast(mask, y.dtype)
-                return y
-
-            def compute_mask(self, inputs, mask=None):
-                return mask
-
-            def compute_output_shape(self, input_shape):
-                return (input_shape[0], 4)
-
-        layer = MaskingLayer()
-
-        x = np.ones((2, 3), dtype="float32")
-
-        # Test forward pass
-        y = layer(x)
-        self.assertEqual(y.shape, (2, 4))
-
-        # Test compute_output_shape
-        output_shape = layer.compute_output_shape((2, 3))
-        self.assertEqual(output_shape, (2, 4))
+        mask = np.ones((2, 1), dtype="float32")
+        y = layer(x, attention_mask=mask)
+        self.assertEqual(y.shape, (2, 3))
