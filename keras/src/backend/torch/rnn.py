@@ -592,16 +592,11 @@ def lstm(
     # Get device from inputs
     device = get_device()
 
-    from keras.src.backend.torch import Variable
-
-    if isinstance(kernel, Variable):
-        kernel = kernel.value
-    if isinstance(recurrent_kernel, Variable):
-        recurrent_kernel = recurrent_kernel.value
-    if isinstance(bias, Variable):
-        bias = bias.value
-
-    # Convert to torch tensors
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
     inputs = convert_to_tensor(inputs, dtype="float32")
     initial_state_h = convert_to_tensor(initial_state_h, dtype="float32")
     initial_state_c = convert_to_tensor(initial_state_c, dtype="float32")
@@ -808,16 +803,11 @@ def gru(
     # Get device from inputs
     device = get_device()
 
-    from keras.src.backend.torch import Variable
-
-    if isinstance(kernel, Variable):
-        kernel = kernel.value
-    if isinstance(recurrent_kernel, Variable):
-        recurrent_kernel = recurrent_kernel.value
-    if isinstance(bias, Variable):
-        bias = bias.value
-
-    # Convert to torch tensors
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
     inputs = convert_to_tensor(inputs, dtype="float32")
     initial_state = convert_to_tensor(initial_state, dtype="float32")
     if mask is not None:
