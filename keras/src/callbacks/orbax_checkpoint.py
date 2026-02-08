@@ -1,3 +1,6 @@
+import os
+import tempfile
+import time
 import warnings
 
 import numpy as np
@@ -269,19 +272,73 @@ class OrbaxCheckpoint(MonitorCallback):
             config_json, _ = saving_lib._serialize_model_as_json(self.model)
             composite_state["model_config"] = config_json
 
+        # Collect assets if saving full model (not just weights)
+        # Use saving_lib._save_state to properly handle recursive
+        # asset collection
+        assets_dict = None
+        if not self.save_weights_only:
+            # Create a unique path in temp directory for assets
+            # Use timestamp to ensure uniqueness across multiple saves
+            assets_root = os.path.join(
+                tempfile.gettempdir(),
+                f"keras_assets_{step}_{id(self)}_{int(time.time() * 1e9)}",
+            )
+            assets_store = saving_lib.DiskIOStore(assets_root, mode="w")
+
+            try:
+                # Save assets using Keras _save_state (preserves hierarchy)
+                # This properly handles recursive asset discovery
+                saving_lib._save_state(
+                    self.model,
+                    weights_store=None,  # Only save assets, not weights
+                    assets_store=assets_store,
+                    inner_path="",
+                    visited_saveables=set(),
+                )
+
+                # Check if any assets were actually saved
+                assets_dict = {}
+                for root, dirs, files in os.walk(assets_root):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(file_path, assets_root)
+                        with open(file_path, "rb") as f:
+                            # Convert bytes to numpy uint8 array for Orbax
+                            assets_dict[rel_path] = np.frombuffer(
+                                f.read(), dtype=np.uint8
+                            )
+
+                # If no assets were found, set to None
+                if not assets_dict:
+                    assets_dict = None
+            finally:
+                # Close store (cleans up temp directory)
+                assets_store.close()
+
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
             # Determine sync vs async based on save_on_background setting
             use_sync = not self.save_on_background
 
-            if use_sync:
-                # Synchronous save
-                self.checkpointer.save_pytree(step, composite_state)
+            # Always use checkpointables API for consistency
+            # If no assets, just pass pytree alone
+            if assets_dict is not None:
+                payload = {
+                    "pytree": composite_state,
+                    "assets": assets_dict,
+                }
             else:
-                # Async save
-                future = self.checkpointer.save_pytree_async(
-                    step, composite_state
+                payload = {
+                    "pytree": composite_state,
+                }
+
+            # Execute save based on sync/async mode
+            if use_sync:
+                self.checkpointer.save_checkpointables(step, payload)
+            else:
+                future = self.checkpointer.save_checkpointables_async(
+                    step, payload
                 )
                 self._async_futures.append(future)
 
