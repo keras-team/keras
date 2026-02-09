@@ -119,10 +119,9 @@ def draw_bounding_boxes(
 
     # To numpy array
     images = ops.convert_to_numpy(images)
-    if images.dtype.kind == "f" and images.max() <= 1.0:
-        images = (ops.clip(images, 0, 1) * 255).astype("uint8")
-    else:
-        images = images.astype("uint8")
+    if images.dtype.kind == "f" and images.size > 0 and images.max() <= 1.0:
+        images = ops.clip(images, 0, 1) * 255
+    images = images.astype("uint8")
     boxes = ops.convert_to_numpy(bounding_boxes["boxes"])
     labels = ops.convert_to_numpy(bounding_boxes["labels"])
     if "confidences" in bounding_boxes:
