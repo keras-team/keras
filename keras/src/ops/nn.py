@@ -3316,6 +3316,27 @@ def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
 
 
 class Fold(Operation):
+    """Combine an array of sliding local blocks into a larger tensor.
+
+    This operation is the inverse of `unfold` and is also known as **col2im**.
+    It reconstructs a tensor from overlapping patches by summing the
+    contributions where patches overlap.
+
+    Arguments:
+        output_size: tuple of two ints `(H, W)`, the spatial size of the
+            output tensor (without padding).
+        kernel_size: int or tuple of two ints, the size of the sliding window
+            `(kH, kW)`. If a single int is given, it is used for both
+            dimensions.
+        dilation: int or tuple of two ints, the spacing between kernel points.
+            Default: 1.
+        padding: int or tuple of two ints, the amount of zero-padding that was
+            applied when extracting the patches. Default: 0.
+        stride: int or tuple of two ints, the step size of the sliding window.
+            Default: 1.
+        name: A name for the operation (optional).
+    """
+
     def __init__(
         self,
         output_size,
