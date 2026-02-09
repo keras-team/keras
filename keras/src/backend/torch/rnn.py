@@ -761,7 +761,7 @@ def gru(
         recurrent_kernel: Recurrent kernel weights of shape
             `(units, units * 3)`.
         bias: Optional bias tensor of shape `(2, units * 3)` for
-            `reset_after=True`.
+            `reset_after=True` or `(units * 3,)` for `reset_after=False`.
         activation: Activation function (must be `tanh` for cuDNN).
         recurrent_activation: Recurrent activation function (must be
             `sigmoid` for cuDNN).
@@ -769,37 +769,13 @@ def gru(
             of outputs or only the last output.
         go_backwards: Boolean. Whether to process the input sequence
             in reverse.
-        unroll: Boolean. Must be `False` for cuDNN support.
-        reset_after: Boolean. Must be `True` (cuDNN semantics).
+        unroll: Boolean. Whether to unroll the RNN.
+        reset_after: Boolean. GRU convention (whether to apply reset gate
+            after or before matrix multiplication). `True` enables cuDNN.
 
     Returns:
         A tuple of `(last_output, outputs, [last_state])`.
     """
-    # PyTorch GRU only supports reset_after=True (cuDNN semantics)
-    if not reset_after:
-        raise NotImplementedError(
-            "PyTorch GRU backend only supports reset_after=True"
-        )
-
-    cudnn_supported = cudnn_ok(
-        activation,
-        recurrent_activation,
-        unroll,
-        use_bias=bias is not None,
-    )
-
-    if not cudnn_supported:
-        raise NotImplementedError(
-            "GRU is not supported with this configuration. cuDNN-compatible "
-            "GRU requires `activation='tanh'`, "
-            "`recurrent_activation='sigmoid'`, `unroll=False`, and "
-            "`use_bias=True`. "
-            "Received: activation={}, recurrent_activation={}, unroll={}, "
-            "use_bias={}".format(
-                activation, recurrent_activation, unroll, bias is not None
-            )
-        )
-
     # Get device from inputs
     device = get_device()
 
@@ -813,33 +789,61 @@ def gru(
     if mask is not None:
         mask = convert_to_tensor(mask, dtype="bool")
 
-    # Preprocess for go_backwards by flipping the sequence
-    # GRU uses batch_first=True
-    batch_first = True
-    if go_backwards:
-        seq_dim = 1 if batch_first else 0
-        inputs = torch.flip(inputs, dims=[seq_dim])
-        if mask is not None:
-            mask = torch.flip(mask, dims=[seq_dim])
-
     # Move all tensors to the same device
     inputs = inputs.to(device)
     initial_state = initial_state.to(device)
+    kernel = kernel.to(device)
+    recurrent_kernel = recurrent_kernel.to(device)
+    if bias is not None:
+        bias = bias.to(device)
     if mask is not None:
         mask = mask.to(device)
 
-    return _cudnn_gru(
-        inputs,
-        initial_state,
-        kernel,
-        recurrent_kernel,
-        bias,
-        mask,
-        batch_first,
-        go_backwards,
-        return_sequences,
-        device,
+    # Try cuDNN path if reset_after=True and conditions are met
+    cudnn_supported = reset_after and cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
     )
+
+    if cudnn_supported:
+        # Preprocess for go_backwards by flipping the sequence
+        batch_first = True
+        if go_backwards:
+            seq_dim = 1
+            inputs = torch.flip(inputs, dims=[seq_dim])
+            if mask is not None:
+                mask = torch.flip(mask, dims=[seq_dim])
+
+        return _cudnn_gru(
+            inputs,
+            initial_state,
+            kernel,
+            recurrent_kernel,
+            bias,
+            mask,
+            batch_first,
+            go_backwards,
+            return_sequences,
+            device,
+        )
+    else:
+        # Fallback to manual GRU implementation
+        return _standard_gru(
+            inputs,
+            initial_state,
+            kernel,
+            recurrent_kernel,
+            bias,
+            mask,
+            activation,
+            recurrent_activation,
+            return_sequences,
+            go_backwards,
+            unroll,
+            reset_after,
+        )
 
 
 def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
@@ -1036,3 +1040,120 @@ def _cudnn_gru(
         outputs = torch.flip(outputs, dims=[seq_axis])
 
     return last_output, outputs, [h_n]
+
+
+def _standard_gru(
+    inputs,
+    initial_state,
+    kernel,
+    recurrent_kernel,
+    bias,
+    mask,
+    activation,
+    recurrent_activation,
+    return_sequences,
+    go_backwards,
+    unroll,
+    reset_after,
+):
+    """Standard (non-cuDNN) GRU implementation supporting reset_after=False.
+
+    This implementation uses the RNN loop infrastructure to manually compute
+    GRU cell operations, supporting both reset_after=True and reset_after=False.
+    """
+    from keras.src import activations as keras_activations
+
+    # Get activation functions
+    if activation == "tanh" or activation is keras_activations.tanh:
+        activation_fn = torch.tanh
+    else:
+        raise ValueError(f"Unsupported activation: {activation}")
+
+    if (
+        recurrent_activation == "sigmoid"
+        or recurrent_activation is keras_activations.sigmoid
+    ):
+        recurrent_activation_fn = torch.sigmoid
+    else:
+        raise ValueError(
+            f"Unsupported recurrent_activation: {recurrent_activation}"
+        )
+
+    units = recurrent_kernel.shape[0]
+
+    # Split weights by gate: [z, r, h] (Keras convention)
+    kernel_z, kernel_r, kernel_h = torch.split(kernel, units, dim=1)
+    recurrent_kernel_z, recurrent_kernel_r, recurrent_kernel_h = torch.split(
+        recurrent_kernel, units, dim=1
+    )
+
+    # Handle bias
+    if bias is not None:
+        if reset_after:
+            # bias shape: (2, 3*units) - input and recurrent biases
+            bias_z_i, bias_r_i, bias_h_i = torch.split(bias[0], units)
+            bias_z_r, bias_r_r, bias_h_r = torch.split(bias[1], units)
+        else:
+            # bias shape: (3*units,) - only input bias
+            bias_z_i, bias_r_i, bias_h_i = torch.split(bias, units)
+            bias_z_r, bias_r_r, bias_h_r = None, None, None
+    else:
+        bias_z_i = bias_r_i = bias_h_i = None
+        bias_z_r = bias_r_r = bias_h_r = None
+
+    def step_function(inputs_t, states):
+        """GRU step function."""
+        h_tm1 = states[0]
+
+        # Compute update gate (z) and reset gate (r)
+        x_z = torch.matmul(inputs_t, kernel_z)
+        x_r = torch.matmul(inputs_t, kernel_r)
+        x_h = torch.matmul(inputs_t, kernel_h)
+
+        if bias_z_i is not None:
+            x_z = x_z + bias_z_i
+            x_r = x_r + bias_r_i
+            x_h = x_h + bias_h_i
+
+        recurrent_z = torch.matmul(h_tm1, recurrent_kernel_z)
+        recurrent_r = torch.matmul(h_tm1, recurrent_kernel_r)
+
+        if reset_after and bias_z_r is not None:
+            recurrent_z = recurrent_z + bias_z_r
+            recurrent_r = recurrent_r + bias_r_r
+
+        z = recurrent_activation_fn(x_z + recurrent_z)
+        r = recurrent_activation_fn(x_r + recurrent_r)
+
+        # Compute candidate hidden state
+        if reset_after:
+            recurrent_h = torch.matmul(h_tm1, recurrent_kernel_h)
+            if bias_h_r is not None:
+                recurrent_h = recurrent_h + bias_h_r
+            recurrent_h = r * recurrent_h
+        else:
+            recurrent_h = torch.matmul(r * h_tm1, recurrent_kernel_h)
+
+        hh = activation_fn(x_h + recurrent_h)
+
+        # Compute new hidden state
+        h = (1 - z) * hh + z * h_tm1
+
+        return h, [h]
+
+    # Use the generic RNN loop
+    last_output, outputs, new_states = rnn(
+        step_function=step_function,
+        inputs=inputs,
+        initial_states=[initial_state],
+        go_backwards=go_backwards,
+        mask=mask,
+        unroll=unroll,
+        input_length=inputs.shape[1],
+        return_all_outputs=return_sequences,
+    )
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, new_states
