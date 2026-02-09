@@ -151,7 +151,8 @@ class BaseConvTranspose(Layer):
                         "All values in `output_padding` must be strictly "
                         "less than the corresponding `strides` values. "
                         f"At index {i}, `output_padding` is {op} but `strides` "
-                        f"is {s}. Received: output_padding={self.output_padding}, "
+                        f"is {s}. Received: "
+                        f"output_padding={self.output_padding}, "
                         f"strides={self.strides}"
                     )
 
