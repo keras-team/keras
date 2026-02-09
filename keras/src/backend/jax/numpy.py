@@ -1,6 +1,7 @@
 import builtins
 import math
 
+import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
 from jax import export as jax_export
@@ -14,6 +15,18 @@ from keras.src.backend.jax import nn
 from keras.src.backend.jax import sparse
 from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
+
+
+def _uses_cpu(x):
+    if hasattr(x, "device"):
+        device = x.device
+        if not isinstance(device, jax.Device):
+            # Array is sharded.
+            return False
+        return device.platform == "cpu"
+    else:
+        # This is a Tracer, not a concrete Array.
+        return jax.default_backend() == "cpu"
 
 
 def rot90(array, k=1, axes=(0, 1)):
@@ -402,11 +415,9 @@ def arctanh(x):
 
 
 def argmax(x, axis=None, keepdims=False):
-    from keras.src.testing.test_case import uses_cpu
-
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or x.ndim == 0 or not _uses_cpu(x):
         return jnp.argmax(x, axis=axis, keepdims=keepdims)
 
     # Fix the flush-to-zero (FTZ) issue based on this issue:
@@ -419,11 +430,9 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
-    from keras.src.testing.test_case import uses_cpu
-
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or x.ndim == 0 or not _uses_cpu(x):
         return jnp.argmin(x, axis=axis, keepdims=keepdims)
 
     # Fix the flush-to-zero (FTZ) issue based on this issue:
@@ -1026,6 +1035,11 @@ def nanmean(x, axis=None, keepdims=False):
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
+
+
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanprod(x, axis=axis, keepdims=keepdims)
 
 
 def nansum(x, axis=None, keepdims=False):

@@ -736,30 +736,33 @@ def gaussian_blur_np(
         kernel_size, sigma, num_channels, input_dtype
     )
     batch_size, height, width, _ = images.shape
+
+    kernel_h, kernel_w = kernel.shape[0], kernel.shape[1]
+    pad_h = (kernel_h - 1) // 2
+    pad_h_after = kernel_h - 1 - pad_h
+    pad_w = (kernel_w - 1) // 2
+    pad_w_after = kernel_w - 1 - pad_w
+
     padded_images = np.pad(
         images,
         (
             (0, 0),
-            (kernel_size[0] // 2, kernel_size[0] // 2),
-            (kernel_size[1] // 2, kernel_size[1] // 2),
+            (pad_h, pad_h_after),
+            (pad_w, pad_w_after),
             (0, 0),
         ),
         mode="constant",
     )
 
     blurred_images = np.zeros_like(images)
-    kernel_reshaped = kernel.reshape(
-        (1, kernel.shape[0], kernel.shape[1], num_channels)
-    )
+    kernel_reshaped = kernel.reshape((1, kernel_h, kernel_w, num_channels))
 
     for b in range(batch_size):
         image_patch = padded_images[b : b + 1, :, :, :]
 
     for i in range(height):
         for j in range(width):
-            patch = image_patch[
-                :, i : i + kernel_size[0], j : j + kernel_size[1], :
-            ]
+            patch = image_patch[:, i : i + kernel_h, j : j + kernel_w, :]
             blurred_images[b, i, j, :] = np.sum(
                 patch * kernel_reshaped, axis=(1, 2)
             )
@@ -1396,6 +1399,22 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
+        ("zero_height", (0, 10)),
+        ("zero_width", (10, 0)),
+        ("zero_both", (0, 0)),
+        ("negative_height", (-1, 10)),
+        ("negative_width", (10, -1)),
+    )
+    def test_resize_invalid_size_zero_or_negative(self, invalid_size):
+        """Resize rejects zero or negative height/width."""
+        x = np.random.random((10, 10, 3)).astype("float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "`size` must have positive height and width",
+        ):
+            kimage.resize(x, size=invalid_size)
+
+    @parameterized.named_parameters(
         named_product(
             interpolation=["bilinear", "nearest"],
             fill_mode=["constant", "nearest", "wrap", "mirror", "reflect"],
@@ -1881,6 +1900,63 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             data_format="channels_first",
         )
 
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+    def test_gaussian_blur_even_kernel_size(self):
+        """Test gaussian_blur with even kernel sizes"""
+        # This test is specific to the numpy backend fix
+        if backend.backend() != "numpy":
+            self.skipTest(
+                "Test is specific to numpy backend, current backend: "
+                f"{backend.backend()}"
+            )
+
+        backend.set_image_data_format("channels_last")
+        np.random.seed(42)
+        x = np.random.uniform(size=(32, 32, 3)).astype("float32")
+        kernel_size = np.array([4, 4])  # Even kernel size
+        sigma = np.array([0.8, 1.2]).astype("float32")
+
+        out = kimage.gaussian_blur(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_last",
+        )
+
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_last",
+        )
+
+        self.assertEqual(tuple(out.shape), (32, 32, 3))
+        self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
+        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+        # Test channels_first with different even kernel sizes
+        backend.set_image_data_format("channels_first")
+        x = np.random.uniform(size=(3, 32, 32)).astype("float32")
+        kernel_size = np.array([6, 4])  # Different even kernel sizes
+        sigma = np.array([1.0, 1.5]).astype("float32")
+
+        out = kimage.gaussian_blur(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_first",
+        )
+
+        ref_out = gaussian_blur_np(
+            x,
+            kernel_size,
+            sigma,
+            data_format="channels_first",
+        )
+
+        self.assertEqual(tuple(out.shape), (3, 32, 32))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
 

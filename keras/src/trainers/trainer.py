@@ -12,7 +12,6 @@ from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.trainers.data_adapters import data_adapter_utils
-from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
@@ -507,7 +506,7 @@ class Trainer:
                 return_metrics.update(result)
             else:
                 return_metrics[metric.name] = result
-        return python_utils.pythonify_logs(return_metrics)
+        return return_metrics
 
     def fit(
         self,

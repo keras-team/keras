@@ -949,11 +949,9 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
-    from keras.src.testing.test_case import uses_cpu
-
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if "float" not in dtype or not uses_cpu() or x.ndim == 0:
+    if "float" not in dtype or x.ndim == 0:
         _x = x
         if axis is None:
             x = tf.reshape(x, [-1])
@@ -2184,6 +2182,16 @@ def nanmin(x, axis=None, keepdims=False):
         tf.constant(float("nan"), dtype=x.dtype),
         tf.reduce_min(x_clean, axis=axis, keepdims=keepdims),
     )
+
+
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not x.dtype.is_floating:
+        return prod(x, axis=axis, keepdims=keepdims)
+
+    x_safe = tf.where(tf.math.is_nan(x), tf.ones((), dtype=x.dtype), x)
+    return prod(x_safe, axis=axis, keepdims=keepdims)
 
 
 def nansum(x, axis=None, keepdims=False):

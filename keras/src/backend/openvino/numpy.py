@@ -366,6 +366,10 @@ def arctan2(x1, x2):
     x1 = ov_opset.convert(x1, result_type)
     x2 = ov_opset.convert(x2, result_type)
 
+    nan_x1 = ov_opset.is_nan(x1)
+    nan_x2 = ov_opset.is_nan(x2)
+    nan_mask = ov_opset.logical_or(nan_x1, nan_x2)
+
     x = ov_opset.divide(x1, x2)
     y = ov_opset.atan(x)
 
@@ -375,12 +379,12 @@ def arctan2(x1, x2):
     neg_half_pi = ov_opset.constant(-float(np.pi / 2), ov_type)
     zero_const = ov_opset.constant(0.0, ov_type)
 
-    cond_x2_gt0 = ov_opset.greater(x2, zero_const).output(0)
-    cond_x2_lt0 = ov_opset.less(x2, zero_const).output(0)
+    cond_x2_gt0 = ov_opset.greater(x2, zero_const)
+    cond_x2_lt0 = ov_opset.less(x2, zero_const)
 
-    cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const).output(0)
-    cond_x1_gt0 = ov_opset.greater(x1, zero_const).output(0)
-    cond_x1_eq0 = ov_opset.equal(x1, zero_const).output(0)
+    cond_x1_ge0 = ov_opset.greater_equal(x1, zero_const)
+    cond_x1_gt0 = ov_opset.greater(x1, zero_const)
+    cond_x1_eq0 = ov_opset.equal(x1, zero_const)
 
     out_x2_lt0 = ov_opset.select(
         cond_x1_ge0,
@@ -393,7 +397,11 @@ def arctan2(x1, x2):
 
     out_not_pos = ov_opset.select(cond_x2_lt0, out_x2_lt0, out_x2_zero)
 
-    final_out = ov_opset.select(cond_x2_gt0, y, out_not_pos)
+    value_out = ov_opset.select(cond_x2_gt0, y, out_not_pos)
+
+    # Generate NaN safely for all floating dtypes (including bf16)
+    nan_value = ov_opset.divide(zero_const, zero_const)
+    final_out = ov_opset.select(nan_mask, nan_value, value_out)
     return OpenVINOKerasTensor(final_out.output(0))
 
 
@@ -794,7 +802,78 @@ def count_nonzero(x, axis=None):
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    raise NotImplementedError("`cross` is not supported with openvino backend")
+    if axis is not None:
+        axisa = axisb = axisc = axis
+
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+
+    x1, x2 = _align_operand_types(x1, x2, "cross()")
+
+    shape1 = x1.get_partial_shape()
+    shape2 = x2.get_partial_shape()
+
+    # Rank Normalization
+    rank1 = shape1.rank.get_length()
+    rank2 = shape2.rank.get_length()
+
+    axisa = canonicalize_axis(axisa, rank1)
+    axisb = canonicalize_axis(axisb, rank2)
+    axisc = canonicalize_axis(axisc, rank1 if rank1 > rank2 else rank2)
+
+    d1 = shape1[axisa].get_length()
+    d2 = shape2[axisb].get_length()
+
+    if d1 not in (2, 3) or d2 not in (2, 3):
+        raise ValueError(
+            "Dimension of vectors for cross product must be 2 or 3. "
+            f"Got dimensions {d1} and {d2} for inputs x1 and x2."
+        )
+
+    # Pad to 3D by adding a zero component.
+    def pad_to_3d(x, dim, ax):
+        if dim == 3:
+            return x
+
+        # Create a slice of zeros with the same type as x
+        slice0 = ov_opset.gather(
+            x,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant(ax, Type.i32),
+        )
+        zeros = ov_opset.multiply(
+            slice0,
+            ov_opset.constant(0, x.get_element_type()),
+        )
+
+        return ov_opset.concat([x, zeros], ax)
+
+    x1_3d = pad_to_3d(x1, d1, axisa)
+    x2_3d = pad_to_3d(x2, d2, axisb)
+
+    # Split Vectors
+    u = ov_opset.split(x1_3d, ov_opset.constant(axisa, Type.i32), 3).outputs()
+    v = ov_opset.split(x2_3d, ov_opset.constant(axisb, Type.i32), 3).outputs()
+
+    # u x v = (u2*v3 - u3*v2, u3*v1 - u1*v3, u1*v2 - u2*v1)
+    res_x = ov_opset.subtract(
+        ov_opset.multiply(u[1], v[2]), ov_opset.multiply(u[2], v[1])
+    )
+    res_y = ov_opset.subtract(
+        ov_opset.multiply(u[2], v[0]), ov_opset.multiply(u[0], v[2])
+    )
+    res_z = ov_opset.subtract(
+        ov_opset.multiply(u[0], v[1]), ov_opset.multiply(u[1], v[0])
+    )
+
+    # If dim was 2D, we remove the padded zero component.
+    if d1 == 2 and d2 == 2:
+        result = res_z
+        result = ov_opset.squeeze(result, ov_opset.constant([axisc], Type.i32))
+    else:
+        result = ov_opset.concat([res_x, res_y, res_z], axisc)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -2121,8 +2200,29 @@ def nanmin(x, axis=None, keepdims=False):
     raise NotImplementedError("`nanmin` is not supported with openvino backend")
 
 
+def nanprod(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanprod` is not supported with openvino backend"
+    )
+
+
 def nansum(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nansum` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if not x_type.is_integral() and x_type != Type.boolean:
+        nan_mask = ov_opset.is_nan(x)
+        zero = ov_opset.constant(0, x_type)
+        x = ov_opset.select(nan_mask, zero, x).output(0)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+
+    x = _upcast_type_if_needed(x)
+    result = ov_opset.reduce_sum(x, axis, keepdims).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
@@ -2691,9 +2791,82 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    raise NotImplementedError(
-        "`tensordot` is not supported with openvino backend"
+    a = get_ov_output(x1)
+    b = get_ov_output(x2)
+    a, b = _align_operand_types(a, b, "tensordot()")
+
+    rank_a = a.get_partial_shape().rank.get_length()
+    rank_b = b.get_partial_shape().rank.get_length()
+
+    if isinstance(axes, int):
+        axes_a = list(range(rank_a - axes, rank_a))
+        axes_b = list(range(axes))
+    else:
+        axes_a, axes_b = [
+            list(ax) if isinstance(ax, (list, tuple)) else [ax] for ax in axes
+        ]
+        axes_a = [canonicalize_axis(i, rank_a) for i in axes_a]
+        axes_b = [canonicalize_axis(i, rank_b) for i in axes_b]
+
+    notin_a = [i for i in range(rank_a) if i not in axes_a]
+    notin_b = [i for i in range(rank_b) if i not in axes_b]
+
+    # Transpose so contraction axes are at the end of A and beginning of B
+    a_transpose = ov_opset.transpose(
+        a, ov_opset.constant(notin_a + axes_a, Type.i32)
     )
+    b_transpose = ov_opset.transpose(
+        b, ov_opset.constant(axes_b + notin_b, Type.i32)
+    )
+
+    # Calculate the product of the contraction dimensions
+    shape_a = ov_opset.shape_of(a, Type.i32)
+    contract_dims = ov_opset.gather(
+        shape_a, ov_opset.constant(axes_a, Type.i32), 0
+    )
+    contract_size = ov_opset.reduce_prod(contract_dims, 0, keep_dims=True)
+
+    # Reshape A to [-1, contract_size] and B to [contract_size, -1]
+    a_2d = ov_opset.reshape(
+        a_transpose,
+        ov_opset.concat([ov_opset.constant([-1], Type.i32), contract_size], 0),
+        False,
+    )
+    b_2d = ov_opset.reshape(
+        b_transpose,
+        ov_opset.concat([contract_size, ov_opset.constant([-1], Type.i32)], 0),
+        False,
+    )
+
+    result = ov_opset.matmul(a_2d, b_2d, False, False)
+
+    # Reconstruct final shape from free dimensions
+    if not notin_a and not notin_b:
+        # Scalar output case
+        result = ov_opset.reshape(
+            result, ov_opset.constant([], Type.i32), False
+        )
+    else:
+        shape_b = ov_opset.shape_of(b, Type.i32)
+        final_parts = []
+        if notin_a:
+            final_parts.append(
+                ov_opset.gather(
+                    shape_a, ov_opset.constant(notin_a, Type.i32), 0
+                )
+            )
+        if notin_b:
+            final_parts.append(
+                ov_opset.gather(
+                    shape_b, ov_opset.constant(notin_b, Type.i32), 0
+                )
+            )
+
+        result = ov_opset.reshape(
+            result, ov_opset.concat(final_parts, 0), False
+        )
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def round(x, decimals=0):
@@ -2717,7 +2890,37 @@ def round(x, decimals=0):
 
 
 def tile(x, repeats):
-    raise NotImplementedError("`tile` is not supported with openvino backend")
+    x = get_ov_output(x)
+
+    if isinstance(repeats, int):
+        repeats = [repeats]
+    repeats = get_ov_output(repeats)
+
+    if repeats.get_element_type() != Type.i64:
+        repeats = ov_opset.convert(repeats, Type.i64)
+
+    if len(repeats.get_partial_shape()) != 1:
+        repeats = ov_opset.reshape(repeats, [-1], False)
+
+    shape_x = ov_opset.shape_of(x, Type.i64)
+    rank_x = ov_opset.shape_of(shape_x, Type.i64)
+    rank_r = ov_opset.shape_of(repeats, Type.i64)
+
+    one = ov_opset.constant(1, Type.i64)
+    zero = ov_opset.constant(0, Type.i64)
+
+    pad_x = ov_opset.maximum(ov_opset.subtract(rank_r, rank_x), zero)
+    new_x_shape = ov_opset.concat(
+        [ov_opset.broadcast(one, pad_x).output(0), shape_x], 0
+    )
+    x = ov_opset.reshape(x, new_x_shape, False)
+
+    pad_r = ov_opset.maximum(ov_opset.subtract(rank_x, rank_r), zero)
+    repeats = ov_opset.concat(
+        [ov_opset.broadcast(one, pad_r).output(0), repeats], 0
+    )
+
+    return OpenVINOKerasTensor(ov_opset.tile(x, repeats).output(0))
 
 
 def trace(x, offset=0, axis1=0, axis2=1):

@@ -598,7 +598,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             y = KerasTensor((2, 3, 4))
             knp.matmul(x, y)
 
-    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
     def test_matmul_sparse(self):
         x = KerasTensor((2, 3), sparse=True)
         y = KerasTensor((3, 2))
@@ -1277,8 +1276,8 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 3, 3))
 
     @pytest.mark.skipif(
-        keras.config.backend() == "openvino" or testing.uses_tpu(),
-        reason="OpenVINO doesn't support this change",
+        keras.config.backend() == "openvino" or testing.jax_uses_tpu(),
+        reason="OpenVINO and JAX TPU don't support this",
     )
     def test_argmax_negative_zero(self):
         input_data = np.array(
@@ -1287,14 +1286,8 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.argmax(input_data), 2)
 
     @pytest.mark.skipif(
-        keras.config.backend() == "openvino"
-        or keras.config.backend() == "tensorflow"
-        or testing.uses_tpu(),
-        reason="""
-        OpenVINO and TensorFlow don't support this 
-        change, TensorFlow behavior for this case is under
-        evaluation and may change within this PR
-        """,
+        keras.config.backend() == "openvino" or testing.jax_uses_tpu(),
+        reason="OpenVINO and JAX TPU don't support this",
     )
     def test_argmin_negative_zero(self):
         input_data = np.array(
@@ -1755,6 +1748,29 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x4 = KerasTensor((None, 2, 3, 4))
         self.assertEqual(knp.nanmin(x4, axis=2).shape, (None, 2, 4))
         self.assertEqual(knp.nanmin(x4, axis=(1, 3)).shape, (None, 3))
+
+    def test_nanprod(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.nanprod(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.nanprod(x, axis=1).shape, (None, 3))
+        self.assertEqual(
+            knp.nanprod(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
+
+        self.assertEqual(knp.nanprod(x, axis=(1,)).shape, (None, 3))
+
+        self.assertEqual(knp.nanprod(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(
+            knp.nanprod(x, axis=(1, 2), keepdims=True).shape, (None, 1, 1)
+        )
+
+        self.assertEqual(knp.nanprod(x, axis=()).shape, (None, 3, 3))
+
+        x4 = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nanprod(x4, axis=2).shape, (None, 2, 4))
+        self.assertEqual(knp.nanprod(x4, axis=(1, 3)).shape, (None, 3))
 
     def test_nansum(self):
         x = KerasTensor((None, 3))
@@ -2448,6 +2464,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.nanmin(x, axis=1).shape, (2,))
         self.assertEqual(knp.nanmin(x, axis=1, keepdims=True).shape, (2, 1))
 
+    def test_nanprod_(self):
+        x = KerasTensor((2, 3))
+
+        self.assertEqual(knp.nanprod(x).shape, ())
+        self.assertEqual(knp.nanprod(x, axis=0).shape, (3,))
+        self.assertEqual(knp.nanprod(x, axis=1).shape, (2,))
+        self.assertEqual(knp.nanprod(x, axis=1, keepdims=True).shape, (2, 1))
+
     def test_nansum_(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.nansum(x).shape, ())
@@ -2774,7 +2798,9 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
     )
-    @pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="Segfault")
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_matmul_sparse(self, dtype, x_shape, y_shape, x_sparse, y_sparse):
         if backend.backend() == "tensorflow":
             import tensorflow as tf
@@ -2887,6 +2913,11 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.arctan2(m, n), np.arctan2(m, n))
         self.assertAllClose(knp.Arctan2()(m, n), np.arctan2(m, n))
+
+        x = np.array([1.0, 2.0, np.nan])
+        y = np.array([3.0, np.nan, 4.0])
+        self.assertAllClose(knp.arctan2(x, y), np.arctan2(x, y))
+        self.assertAllClose(knp.Arctan2()(x, y), np.arctan2(x, y))
 
     def test_bitwise_and(self):
         x = np.array([2, 5, 255])
@@ -4235,11 +4266,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(),
+        reason="bincount not supported on TensorFlow GPU",
+    )
     def test_bincount(self, sparse_input, sparse_arg):
         if (sparse_input or sparse_arg) and not backend.SUPPORTS_SPARSE_TENSORS:
             pytest.skip("Backend does not support sparse tensors")
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("bincount does not work in tensorflow gpu")
 
         x = x_np = np.array([1, 1, 2, 3, 2, 4, 4, 6])
         weights = weights_np = np.array([0, 0, 3, 2, 1, 1, 4, 2])
@@ -5675,6 +5708,44 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.nanmin(x_3d, axis=(1, 2)),
             np.nanmin(x_3d, axis=(1, 2)),
+        )
+
+    def test_nanprod(self):
+        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]])
+
+        self.assertAllClose(knp.nanprod(x), np.nanprod(x))
+        self.assertAllClose(knp.nanprod(x, axis=()), np.nanprod(x, axis=()))
+        self.assertAllClose(knp.nanprod(x, axis=1), np.nanprod(x, axis=1))
+        self.assertAllClose(knp.nanprod(x, axis=(1,)), np.nanprod(x, axis=(1,)))
+        self.assertAllClose(
+            knp.nanprod(x, axis=1, keepdims=True),
+            np.nanprod(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(knp.Nanprod()(x), np.nanprod(x))
+        self.assertAllClose(knp.Nanprod(axis=1)(x), np.nanprod(x, axis=1))
+        self.assertAllClose(
+            knp.Nanprod(axis=1, keepdims=True)(x),
+            np.nanprod(x, axis=1, keepdims=True),
+        )
+
+        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+        self.assertAllClose(knp.nanprod(x_all_nan), np.nanprod(x_all_nan))
+        self.assertAllClose(
+            knp.nanprod(x_all_nan, axis=1),
+            np.nanprod(x_all_nan, axis=1),
+        )
+
+        x_3d = np.array(
+            [
+                [[1.0, np.nan], [2.0, 3.0]],
+                [[np.nan, 4.0], [5.0, np.nan]],
+            ]
+        )
+        self.assertAllClose(knp.nanprod(x_3d), np.nanprod(x_3d))
+        self.assertAllClose(
+            knp.nanprod(x_3d, axis=(1, 2)),
+            np.nanprod(x_3d, axis=(1, 2)),
         )
 
     def test_nansum(self):
@@ -8869,6 +8940,26 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nanprod(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 1, 1), dtype=dtype)
+        x_jax = jnp.ones((1, 1, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.nanprod(x_jax).dtype)
+
+        if backend.backend() == "torch" and expected_dtype == "uint32":
+            expected_dtype = "int32"
+
+        self.assertEqual(
+            standardize_dtype(knp.nanprod(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Nanprod().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nansum(self, dtype):
         import jax.numpy as jnp
 
@@ -9882,10 +9973,10 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_angle(self, dtype):
-        import jax.numpy as jnp
+        if dtype == "bfloat16" and testing.torch_uses_gpu():
+            self.skipTest("Torch cuda does not support bfloat16")
 
-        if dtype == "bfloat16":
-            self.skipTest("Weirdness with numpy")
+        import jax.numpy as jnp
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
@@ -10084,10 +10175,6 @@ class HistogramTest(testing.TestCase):
 
 
 class TileTest(testing.TestCase):
-    @pytest.mark.skipif(
-        keras.config.backend() == "openvino",
-        reason="`tile` is not supported with openvino backend",
-    )
     def test_tile_shape_inference_in_layer(self):
         class TileLayer(keras.layers.Layer):
             def call(self, x):

@@ -3313,3 +3313,196 @@ def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
         padding=padding,
         stride=stride,
     )
+
+
+class DepthToSpace(Operation):
+    def __init__(self, block_size, data_format="channels_last", *, name=None):
+        super().__init__(name=name)
+        self.block_size = block_size
+        self.data_format = standardize_data_format(data_format)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) != 4:
+            raise ValueError(
+                "`depth_to_space` requires a 4D input tensor. "
+                f"Received: x.shape={x.shape}"
+            )
+        if self.data_format == "channels_last":
+            b, h, w, c = x.shape
+        else:
+            b, c, h, w = x.shape
+
+        if c is not None and c % (self.block_size**2) != 0:
+            raise ValueError(
+                f"The number of channels ({c}) must be divisible by "
+                f"block_size**2 ({self.block_size**2})."
+            )
+
+        new_c = c // (self.block_size**2) if c is not None else None
+        new_h = h * self.block_size if h is not None else None
+        new_w = w * self.block_size if w is not None else None
+
+        if self.data_format == "channels_last":
+            output_shape = (b, new_h, new_w, new_c)
+        else:
+            output_shape = (b, new_c, new_h, new_w)
+
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.nn.depth_to_space(
+            x, self.block_size, data_format=self.data_format
+        )
+
+
+@keras_export(["keras.ops.depth_to_space", "keras.ops.nn.depth_to_space"])
+def depth_to_space(x, block_size, data_format="channels_last"):
+    """Rearranges data from depth into blocks of spatial data.
+
+    This operation is useful for resizing the activations between convolutions
+    (but keeping all data), e.g., instead of pooling. It is also useful for
+    training purely convolutional models.
+
+    Also known as pixel shuffle, this operation rearranges elements in a tensor
+    of shape `(N, H, W, C * r^2)` to `(N, H * r, W * r, C)` where `r` is the
+    `block_size` for `data_format="channels_last"`, or from
+    `(N, C * r^2, H, W)` to `(N, C, H * r, W * r)` for
+    `data_format="channels_first"`.
+
+    This is the reverse transformation of `space_to_depth`.
+
+    Args:
+        x: Input tensor. Must be 4D.
+        block_size: An integer specifying the size of the spatial block.
+            The depth (number of channels) must be divisible by
+            `block_size ** 2`.
+        data_format: A string specifying the data format of the input tensor.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            Defaults to `"channels_last"`.
+
+    Returns:
+        A tensor with the same dtype as `x`, with shape
+        `(N, H * block_size, W * block_size, C // block_size ** 2)` for
+        `data_format="channels_last"` or
+        `(N, C // block_size ** 2, H * block_size, W * block_size)` for
+        `data_format="channels_first"`.
+
+    Example:
+
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 2 * 2 * 12), (1, 2, 2, 12))
+    >>> keras.ops.depth_to_space(x, block_size=2).shape
+    (1, 4, 4, 3)
+
+    >>> # channels_first example
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 12 * 2 * 2), (1, 12, 2, 2))
+    >>> keras.ops.depth_to_space(x, block_size=2,
+    ...                          data_format="channels_first").shape
+    (1, 3, 4, 4)
+    """
+    data_format = standardize_data_format(data_format)
+    if any_symbolic_tensors((x,)):
+        return DepthToSpace(block_size, data_format=data_format).symbolic_call(
+            x
+        )
+    return backend.nn.depth_to_space(x, block_size, data_format=data_format)
+
+
+class SpaceToDepth(Operation):
+    def __init__(self, block_size, data_format="channels_last", *, name=None):
+        super().__init__(name=name)
+        self.block_size = block_size
+        self.data_format = standardize_data_format(data_format)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) != 4:
+            raise ValueError(
+                "`space_to_depth` requires a 4D input tensor. "
+                f"Received: x.shape={x.shape}"
+            )
+        if self.data_format == "channels_last":
+            b, h, w, c = x.shape
+        else:
+            b, c, h, w = x.shape
+
+        if h is not None and h % self.block_size != 0:
+            raise ValueError(
+                f"Height ({h}) must be divisible by block_size "
+                f"({self.block_size})."
+            )
+        if w is not None and w % self.block_size != 0:
+            raise ValueError(
+                f"Width ({w}) must be divisible by block_size "
+                f"({self.block_size})."
+            )
+
+        new_c = c * (self.block_size**2) if c is not None else None
+        new_h = h // self.block_size if h is not None else None
+        new_w = w // self.block_size if w is not None else None
+
+        if self.data_format == "channels_last":
+            output_shape = (b, new_h, new_w, new_c)
+        else:
+            output_shape = (b, new_c, new_h, new_w)
+
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.nn.space_to_depth(
+            x, self.block_size, data_format=self.data_format
+        )
+
+
+@keras_export(["keras.ops.space_to_depth", "keras.ops.nn.space_to_depth"])
+def space_to_depth(x, block_size, data_format="channels_last"):
+    """Rearranges blocks of spatial data into depth.
+
+    This operation is useful for resizing the activations between convolutions
+    (but keeping all data). It is also useful for training purely convolutional
+    models.
+
+    This operation rearranges elements in a tensor of shape
+    `(N, H * block_size, W * block_size, C)` to a tensor of shape
+    `(N, H, W, C * block_size ** 2)` (for `data_format="channels_last"`)
+    or `(N, C, H * block_size, W * block_size)` to
+    `(N, C * block_size ** 2, H, W)` (for `data_format="channels_first"`).
+
+    This is the reverse transformation of `depth_to_space`.
+
+    Args:
+        x: Input tensor. Must be 4D.
+        block_size: An integer specifying the size of the spatial block.
+            The height and width of the input must be divisible by
+            `block_size`.
+        data_format: A string specifying the data format of the input tensor.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            Defaults to `"channels_last"`.
+
+    Returns:
+        A tensor with the same dtype as `x`, with shape
+        `(N, H // block_size, W // block_size, C * block_size ** 2)` for
+        `data_format="channels_last"` or
+        `(N, C * block_size ** 2, H // block_size, W // block_size)` for
+        `data_format="channels_first"`.
+
+    Example:
+
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 4 * 4 * 3), (1, 4, 4, 3))
+    >>> keras.ops.space_to_depth(x, block_size=2).shape
+    (1, 2, 2, 12)
+
+    >>> # channels_first example
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 3 * 4 * 4), (1, 3, 4, 4))
+    >>> keras.ops.space_to_depth(x, block_size=2,
+    ...                          data_format="channels_first").shape
+    (1, 12, 2, 2)
+    """
+    data_format = standardize_data_format(data_format)
+    if any_symbolic_tensors((x,)):
+        return SpaceToDepth(block_size, data_format=data_format).symbolic_call(
+            x
+        )
+    return backend.nn.space_to_depth(x, block_size, data_format=data_format)
