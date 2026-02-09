@@ -3318,6 +3318,11 @@ def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
 class DepthToSpace(Operation):
     def __init__(self, block_size, data_format="channels_last", *, name=None):
         super().__init__(name=name)
+        if block_size < 2:
+            raise ValueError(
+                "`block_size` must be at least 2. "
+                f"Received: block_size={block_size}"
+            )
         self.block_size = block_size
         self.data_format = standardize_data_format(data_format)
 
@@ -3402,6 +3407,11 @@ def depth_to_space(x, block_size, data_format="channels_last"):
     (1, 3, 4, 4)
     """
     data_format = standardize_data_format(data_format)
+    if block_size < 2:
+        raise ValueError(
+            "`block_size` must be at least 2. "
+            f"Received: block_size={block_size}"
+        )
     if any_symbolic_tensors((x,)):
         return DepthToSpace(block_size, data_format=data_format).symbolic_call(
             x
@@ -3412,6 +3422,11 @@ def depth_to_space(x, block_size, data_format="channels_last"):
 class SpaceToDepth(Operation):
     def __init__(self, block_size, data_format="channels_last", *, name=None):
         super().__init__(name=name)
+        if block_size < 2:
+            raise ValueError(
+                "`block_size` must be at least 2. "
+                f"Received: block_size={block_size}"
+            )
         self.block_size = block_size
         self.data_format = standardize_data_format(data_format)
 
@@ -3501,6 +3516,11 @@ def space_to_depth(x, block_size, data_format="channels_last"):
     (1, 12, 2, 2)
     """
     data_format = standardize_data_format(data_format)
+    if block_size < 2:
+        raise ValueError(
+            "`block_size` must be at least 2. "
+            f"Received: block_size={block_size}"
+        )
     if any_symbolic_tensors((x,)):
         return SpaceToDepth(block_size, data_format=data_format).symbolic_call(
             x
