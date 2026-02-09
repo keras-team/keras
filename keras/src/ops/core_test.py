@@ -1084,6 +1084,50 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             np.array([[0, 20], [10, 0]]),
         )
 
+    def test_scatter_update_with_reduction(self):
+        # Test add reduction with duplicate indices
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
+
+        # Test add reduction 2D
+        inputs = np.zeros((3, 3))
+        indices = [[0, 0], [1, 1], [0, 0]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result[0, 0], 4.0)
+        self.assertAllClose(result[1, 1], 2.0)
+
+        # Test max reduction with duplicates
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="max")
+        self.assertAllClose(result, [5.0, 2.0, 0.0, 0.0])
+
+        # Test min reduction
+        inputs = np.array([10.0, 10.0, 10.0, 10.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="min")
+        self.assertAllClose(result, [3.0, 2.0, 10.0, 10.0])
+
+        # Test mul reduction
+        inputs = np.array([2.0, 3.0, 1.0, 1.0])
+        indices = [[0], [1]]
+        updates = np.array([3.0, 4.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="mul")
+        self.assertAllClose(result, [6.0, 12.0, 1.0, 1.0])
+
+        # Test Operation call with reduction
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.ScatterUpdate(reduction="add")(inputs, indices, updates)
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
+
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
         self.assertEqual(core.shape(x).__class__, tuple)

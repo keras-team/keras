@@ -581,8 +581,25 @@ def scatter(indices, values, shape):
     return tf.scatter_nd(indices, values, shape)
 
 
-def scatter_update(inputs, indices, updates):
-    return tf.tensor_scatter_nd_update(inputs, indices, updates)
+def scatter_update(inputs, indices, updates, reduction=None):
+    if reduction is None:
+        return tf.tensor_scatter_nd_update(inputs, indices, updates)
+    elif reduction == "add":
+        return tf.tensor_scatter_nd_add(inputs, indices, updates)
+    elif reduction == "max":
+        return tf.tensor_scatter_nd_max(inputs, indices, updates)
+    elif reduction == "min":
+        return tf.tensor_scatter_nd_min(inputs, indices, updates)
+    elif reduction == "mul":
+        # TensorFlow doesn't have tensor_scatter_nd_mul, implement manually
+        # Get current values at indices
+        gathered = tf.gather_nd(inputs, indices)
+        # Multiply with updates
+        multiplied = gathered * updates
+        # Scatter the result back
+        return tf.tensor_scatter_nd_update(inputs, indices, multiplied)
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
 
 
 def slice(inputs, start_indices, shape):

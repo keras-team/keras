@@ -572,15 +572,56 @@ def scatter(indices, values, shape):
     return zeros
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices, dtype="int64")
     updates = convert_to_tensor(updates, dtype=inputs.dtype)
     indices = torch.transpose(indices, 0, 1)
+    idx = tuple(indices)
 
     outputs = torch.clone(inputs)
-    outputs[tuple(indices)] = updates
+    if reduction is None:
+        outputs[idx] = updates
+    elif reduction == "add":
+        # Use index_put_ with accumulate=True for proper accumulation
+        outputs.index_put_(idx, updates, accumulate=True)
+    elif reduction == "max":
+        # For max/min/mul, we need to handle duplicates manually
+        # Flatten to 1D for scatter_reduce
+        flat_idx = _compute_flat_indices(indices.T, inputs.shape)
+        flat_out = outputs.flatten()
+        flat_out.scatter_reduce_(
+            0, flat_idx, updates.flatten(), reduce="amax", include_self=True
+        )
+        outputs = flat_out.reshape(inputs.shape)
+    elif reduction == "min":
+        flat_idx = _compute_flat_indices(indices.T, inputs.shape)
+        flat_out = outputs.flatten()
+        flat_out.scatter_reduce_(
+            0, flat_idx, updates.flatten(), reduce="amin", include_self=True
+        )
+        outputs = flat_out.reshape(inputs.shape)
+    elif reduction == "mul":
+        flat_idx = _compute_flat_indices(indices.T, inputs.shape)
+        flat_out = outputs.flatten()
+        flat_out.scatter_reduce_(
+            0, flat_idx, updates.flatten(), reduce="prod", include_self=True
+        )
+        outputs = flat_out.reshape(inputs.shape)
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
     return outputs
+
+
+def _compute_flat_indices(indices, shape):
+    """Convert ND indices to flat 1D indices."""
+    # indices shape: (num_updates, ndim)
+    flat_idx = torch.zeros(indices.shape[0], dtype=torch.int64)
+    stride = 1
+    for i in range(len(shape) - 1, -1, -1):
+        flat_idx += indices[:, i] * stride
+        stride *= shape[i]
+    return flat_idx
 
 
 def slice(inputs, start_indices, shape):
