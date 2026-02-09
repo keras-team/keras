@@ -828,10 +828,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     ):
         target = torch.squeeze(target, dim=positive_axis)
 
-    output_shape_without_class_dim = list(output.shape)
-    del output_shape_without_class_dim[positive_axis]
+    output_shape_without_class = list(output.shape)
+    del output_shape_without_class[positive_axis]
 
-    if list(target.shape) != output_shape_without_class_dim:
+    if list(target.shape) != output_shape_without_class:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape "
             f"except for the class dimension at axis={axis}: "
