@@ -592,26 +592,21 @@ def scatter_update(inputs, indices, updates, reduction=None):
         return tf.tensor_scatter_nd_min(inputs, indices, updates)
     elif reduction == "mul":
         # TensorFlow doesn't have tensor_scatter_nd_mul, implement manually
-        # Handle duplicate indices by computing product of all updates per index
-        shape = tf.shape(inputs)
-        flat_size = tf.reduce_prod(shape)
+        # Use while_loop to handle both scalar and slice updates correctly
+        num_updates = tf.shape(indices)[0]
 
-        # Convert ND indices to flat 1D indices
-        indices = tf.cast(indices, tf.int32)
-        strides = tf.math.cumprod(shape, exclusive=True, reverse=True)
-        flat_indices = tf.reduce_sum(indices * strides, axis=1)
+        def body(i, result):
+            idx = indices[i : i + 1]  # Shape (1, index_depth)
+            current = tf.gather_nd(result, idx)  # Shape (1, *slice_shape)
+            new_value = current * updates[i]  # Maintains shape (1, *slice_shape)
+            return i + 1, tf.tensor_scatter_nd_update(result, idx, new_value)
 
-        # Compute product of updates for each unique flat index
-        # unsorted_segment_prod multiplies all updates targeting the same index
-        update_products = tf.math.unsorted_segment_prod(
-            updates, flat_indices, flat_size
+        _, result = tf.while_loop(
+            lambda i, _: i < num_updates,
+            body,
+            [0, inputs],
         )
-
-        # Multiply original values by the update products
-        flat_inputs = tf.reshape(inputs, [-1])
-        flat_result = flat_inputs * update_products
-
-        return tf.reshape(flat_result, shape)
+        return result
     else:
         raise ValueError(f"Unsupported reduction: {reduction}")
 
