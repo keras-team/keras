@@ -1638,14 +1638,14 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
     Returns:
         4-D tensor, shape (N, C, H, W)
     """
-    k = (
-        (kernel_size, kernel_size)
-        if isinstance(kernel_size, int)
-        else kernel_size
-    )
-    d = (dilation, dilation) if isinstance(dilation, int) else dilation
-    p = (padding, padding) if isinstance(padding, int) else padding
-    s = (stride, stride) if isinstance(stride, int) else stride
+
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
 
     kH, kW = k
     dH, dW = d
