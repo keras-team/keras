@@ -3541,12 +3541,19 @@ class NNOpsBehaviorTest(testing.TestCase):
         )
         # Check shape is correct
         self.assertEqual(reconstructed.shape, (1, 2, 4, 4))
-        # Check that the dilated positions are recovered correctly
-        # With dilation=2, positions (0,0), (0,2), (2,0), (2,2) are sampled
-        self.assertAllClose(reconstructed[:, :, 0, 0], x[:, :, 0, 0])
-        self.assertAllClose(reconstructed[:, :, 0, 2], x[:, :, 0, 2])
-        self.assertAllClose(reconstructed[:, :, 2, 0], x[:, :, 2, 0])
-        self.assertAllClose(reconstructed[:, :, 2, 2], x[:, :, 2, 2])
+        # Check that the dilated positions are recovered correctly and
+        # others are 0. With kernel_size=2, dilation=2, stride=2 on a 4x4
+        # input, unfold extracts one patch from the top-left. The patch
+        # consists of elements at (0,0), (0,2), (2,0), (2,2) within the
+        # 4x4 grid. fold should place these values back.
+        expected_np = np.zeros_like(ops.convert_to_numpy(x))
+        x_np = ops.convert_to_numpy(x)
+        expected_np[:, :, 0, 0] = x_np[:, :, 0, 0]
+        expected_np[:, :, 0, 2] = x_np[:, :, 0, 2]
+        expected_np[:, :, 2, 0] = x_np[:, :, 2, 0]
+        expected_np[:, :, 2, 2] = x_np[:, :, 2, 2]
+        expected = ops.convert_to_tensor(expected_np, dtype=x.dtype)
+        self.assertAllClose(reconstructed, expected)
 
         # test 5: fold output shape check with overlapping patches
         # When stride < kernel_size, patches overlap and values are summed
