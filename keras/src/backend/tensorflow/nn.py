@@ -1623,6 +1623,89 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches
 
 
+def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """TensorFlow implementation of Fold.
+    Combine sliding local blocks into a large containing tensor (col2im).
+
+    Args:
+        input: 3-D tensor, shape (N, C*kH*kW, L)
+        output_size: (H, W) the spatial size of the output tensor
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, H, W)
+    """
+    k = (
+        (kernel_size, kernel_size)
+        if isinstance(kernel_size, int)
+        else kernel_size
+    )
+    d = (dilation, dilation) if isinstance(dilation, int) else dilation
+    p = (padding, padding) if isinstance(padding, int) else padding
+    s = (stride, stride) if isinstance(stride, int) else stride
+
+    kH, kW = k
+    dH, dW = d
+    pH, pW = p
+    sH, sW = s
+    H_out, W_out = output_size
+
+    N = tf.shape(input)[0]
+    CkHkW = input.shape[1]
+    C = CkHkW // (kH * kW)
+
+    H_padded = H_out + 2 * pH
+    W_padded = W_out + 2 * pW
+
+    # Calculate number of patches
+    nH = (H_padded - dH * (kH - 1) - 1) // sH + 1
+    nW = (W_padded - dW * (kW - 1) - 1) // sW + 1
+
+    # Reshape input: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
+    x = tf.reshape(input, [N, C, kH, kW, nH, nW])
+
+    # Initialize output with zeros
+    output = tf.zeros([N, C, H_padded, W_padded], dtype=input.dtype)
+
+    # Build indices for scatter
+    batch_idx = tf.range(N)
+    channel_idx = tf.range(C)
+
+    for i in range(kH):
+        for j in range(kW):
+            # Compute the starting positions for this kernel element
+            h_positions = tf.range(nH) * sH + i * dH
+            w_positions = tf.range(nW) * sW + j * dW
+
+            # Get values for this kernel position: (N, C, nH, nW)
+            vals = x[:, :, i, j, :, :]
+
+            # Create scatter indices
+            n_idx, c_idx, h_idx, w_idx = tf.meshgrid(
+                batch_idx, channel_idx, h_positions, w_positions, indexing="ij"
+            )
+            indices = tf.stack(
+                [
+                    tf.reshape(n_idx, [-1]),
+                    tf.reshape(c_idx, [-1]),
+                    tf.reshape(h_idx, [-1]),
+                    tf.reshape(w_idx, [-1]),
+                ],
+                axis=1,
+            )
+            updates = tf.reshape(vals, [-1])
+            output = tf.tensor_scatter_nd_add(output, indices, updates)
+
+    # Remove padding
+    if pH > 0 or pW > 0:
+        output = output[:, :, pH : H_padded - pH, pW : W_padded - pW]
+
+    return output
+
+
 def depth_to_space(x, block_size, data_format="channels_last"):
     """TensorFlow implementation of depth_to_space.
 
