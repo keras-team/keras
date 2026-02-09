@@ -65,6 +65,9 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 def add(x1, x2):
+    # Fast path: both already torch tensors
+    if isinstance(x1, torch.Tensor) and isinstance(x2, torch.Tensor):
+        return torch.add(x1, x2)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return torch.add(x1, x2)
@@ -98,6 +101,10 @@ def subtract(x1, x2):
 
 
 def matmul(x1, x2):
+    # Fast path: both already torch tensors with same float dtype
+    if isinstance(x1, torch.Tensor) and isinstance(x2, torch.Tensor):
+        if x1.dtype == x2.dtype and x1.dtype.is_floating_point:
+            return torch.matmul(x1, x2)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     x1_dtype = standardize_dtype(x1.dtype)
@@ -157,6 +164,8 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
+    if isinstance(x1, torch.Tensor) and isinstance(x2, torch.Tensor):
+        return torch.multiply(x1, x2)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return torch.multiply(x1, x2)
@@ -814,7 +823,8 @@ def exp2(x):
 
 
 def expand_dims(x, axis):
-    x = convert_to_tensor(x)
+    if not isinstance(x, torch.Tensor):
+        x = convert_to_tensor(x)
     axis = to_tuple_or_list(axis)
     out_ndim = len(x.shape) + len(axis)
     axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
@@ -2064,12 +2074,20 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
 
 
 def where(condition, x1=None, x2=None):
-    condition = convert_to_tensor(condition, dtype=bool)
     if x1 is not None and x2 is not None:
+        # Fast path: all torch tensors
+        if (
+            isinstance(condition, torch.Tensor)
+            and isinstance(x1, torch.Tensor)
+            and isinstance(x2, torch.Tensor)
+        ):
+            return torch.where(condition, x1, x2)
+        condition = convert_to_tensor(condition, dtype=bool)
         x1 = convert_to_tensor(x1)
         x2 = convert_to_tensor(x2)
         return torch.where(condition, x1, x2)
     else:
+        condition = convert_to_tensor(condition, dtype=bool)
         return torch.where(condition)
 
 

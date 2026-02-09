@@ -400,11 +400,25 @@ class KerasTensor:
 
 
 def any_symbolic_tensors(args=None, kwargs=None):
-    args = args or ()
-    kwargs = kwargs or {}
-    for x in tree.flatten((args, kwargs)):
-        if isinstance(x, KerasTensor):
-            return True
+    # Fast path: check args directly without tree.flatten when possible.
+    # During eager execution (the common case), there are never KerasTensors,
+    # so avoid the expensive tree.flatten + _dict_to_ordered_dict overhead.
+    if args:
+        for x in args:
+            if isinstance(x, KerasTensor):
+                return True
+            # Check nested structures (tuples/lists of tensors)
+            if isinstance(x, (list, tuple)):
+                for item in x:
+                    if isinstance(x, KerasTensor):
+                        return True
+                    # Only go one level deep for fast path
+                    if isinstance(item, KerasTensor):
+                        return True
+    if kwargs:
+        for x in kwargs.values():
+            if isinstance(x, KerasTensor):
+                return True
     return False
 
 
