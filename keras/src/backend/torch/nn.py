@@ -119,7 +119,8 @@ def selu(x):
 
 def gelu(x, approximate=True):
     # TODO: torch.nn.gelu expects string approximate of `"none"` or `"tanh"`
-    x = convert_to_tensor(x)
+    if not isinstance(x, torch.Tensor):
+        x = convert_to_tensor(x)
     if approximate:
         return tnn.gelu(x, approximate="tanh")
     return tnn.gelu(x)
@@ -151,6 +152,13 @@ def threshold(x, threshold, default_value):
 
 
 def softmax(x, axis=-1):
+    # Fast path: float32 torch tensor (most common inference case)
+    if isinstance(x, torch.Tensor) and x.dtype.is_floating_point and x.dtype != torch.float16:
+        if axis is None:
+            output = torch.reshape(x, [-1])
+            output = tnn.softmax(output, dim=-1)
+            return torch.reshape(output, x.shape)
+        return tnn.softmax(x, dim=axis)
     x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
     # TODO: tnn.softmax doesn't support float16 using cpu
@@ -1076,14 +1084,27 @@ def _get_large_negative(dtype):
     return convert_to_tensor(val * -0.7, dtype=dtype)
 
 
+_flash_attention_available = None
+
+
 def _can_use_flash_attention(
     query, key, value, mask=None, is_causal=False, raise_error=False
 ):
     """Verify the availability of flash attention."""
+    global _flash_attention_available
+    if _flash_attention_available is False:
+        if raise_error:
+            raise ImportError(
+                "Flash attention is not supported in your current PyTorch "
+                "version. Please update it by following the official guide: "
+                "https://pytorch.org/get-started/locally/"
+            )
+        return False
     try:
         from torch.backends.cuda import SDPAParams
         from torch.backends.cuda import can_use_flash_attention
     except ImportError:
+        _flash_attention_available = False
         if raise_error:
             raise ImportError(
                 "Flash attention is not supported in your current PyTorch "
@@ -1131,9 +1152,13 @@ def dot_product_attention(
     flash_attention=None,
     attn_logits_soft_cap=None,
 ):
-    query = convert_to_tensor(query)
-    key = convert_to_tensor(key)
-    value = convert_to_tensor(value)
+    # Fast path: skip convert_to_tensor when inputs are already torch tensors
+    if not isinstance(query, torch.Tensor):
+        query = convert_to_tensor(query)
+    if not isinstance(key, torch.Tensor):
+        key = convert_to_tensor(key)
+    if not isinstance(value, torch.Tensor):
+        value = convert_to_tensor(value)
     if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "
@@ -1144,18 +1169,24 @@ def dot_product_attention(
         raise ValueError(
             "Only one of `bias` and `mask` can be provided. Received both."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
-    query = cast(query, compute_dtype)
-    key = cast(key, compute_dtype)
-    value = cast(value, compute_dtype)
+    # Skip dtype casting when all inputs have the same dtype (common case)
+    if not (query.dtype == key.dtype == value.dtype):
+        compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+        query = cast(query, compute_dtype)
+        key = cast(key, compute_dtype)
+        value = cast(value, compute_dtype)
 
-    mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
+        if not isinstance(mask, torch.Tensor):
+            mask = convert_to_tensor(mask, dtype="bool")
+        elif mask.dtype != torch.bool:
+            mask = mask.to(torch.bool)
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
-        bias = convert_to_tensor(bias, dtype=compute_dtype)
+        if not isinstance(bias, torch.Tensor):
+            bias = convert_to_tensor(bias, dtype=query.dtype)
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
 
     axis0, axis1 = 1, 2

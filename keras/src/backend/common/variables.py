@@ -567,12 +567,25 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
+_TORCH_DTYPE_CACHE = {}
+
+
 @keras_export(
     ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
 )
 def standardize_dtype(dtype):
+    # Fast path: already a standardized string
+    if isinstance(dtype, str):
+        if dtype in dtypes.ALLOWED_DTYPES:
+            return dtype
+        # Fall through for mapped strings or invalid
     if dtype is None:
         return config.floatx()
+    # Fast path: cache torch dtype conversions (immutable objects)
+    cached = _TORCH_DTYPE_CACHE.get(dtype)
+    if cached is not None:
+        return cached
+    original_dtype = dtype
     dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
     if hasattr(dtype, "name"):
         dtype = dtype.name
@@ -585,6 +598,8 @@ def standardize_dtype(dtype):
 
     if dtype not in dtypes.ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
+    # Cache the result for non-string, non-None dtypes
+    _TORCH_DTYPE_CACHE[original_dtype] = dtype
     return dtype
 
 
@@ -664,7 +679,9 @@ def is_int_dtype(dtype):
 
 
 def get_autocast_scope():
-    return global_state.get_global_attribute("autocast_scope")
+    return getattr(
+        global_state.GLOBAL_STATE_TRACKER, "autocast_scope", None
+    )
 
 
 class AutocastScope:
