@@ -1196,7 +1196,14 @@ def dot_product_attention(
     if mask is not None:
         mask = mask.contiguous()
 
-    if flash_attention is None:
+    # Disable flash attention when mask is present, as PyTorch's flash attention
+    # and memory-efficient kernels have known GPU issues with masks (see PyTorch
+    # issues #127523, #128119). The math kernel is the only reliable fallback.
+    # This fixes the RuntimeError "(*bias): last dimension must be contiguous"
+    # on GPU (issue #20459).
+    if mask is not None:
+        flash_attention = False
+    elif flash_attention is None:
         flash_attention = _can_use_flash_attention(
             query, key, value, mask, is_causal
         )
