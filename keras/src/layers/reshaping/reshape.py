@@ -61,6 +61,29 @@ class Reshape(Layer):
         )
 
     def call(self, inputs):
+        from keras.src import backend
+
+        # For PyTorch backend during tracing/export, use target_shape directly
+        # to let PyTorch's ONNX exporter handle -1 dynamically
+        if backend.backend() == "torch":
+            import torch
+
+            # Check if we're in tracing mode (for ONNX export)
+            # During tracing, inputs.shape contains SymInt objects
+            is_tracing = any(isinstance(d, torch.SymInt) for d in inputs.shape)
+
+            if is_tracing:
+                # Don't extract batch_size separately - build shape directly
+                # This mimics what pure PyTorch does: x.reshape(n, -1, c)
+                # where n and c come from x.shape
+
+                # Build output shape using inputs.shape[0] directly in the list
+                output_shape = [inputs.shape[0]] + list(self.target_shape)
+
+                # Use torch.reshape
+                return torch.reshape(inputs, output_shape)
+
+        # For non-tracing mode or other backends, use the original logic
         potentially_resolved_target_shape = (
             operation_utils.compute_reshape_output_shape(
                 tuple(inputs.shape)[1:], self.target_shape, "target_shape"

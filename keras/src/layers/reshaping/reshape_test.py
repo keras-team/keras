@@ -136,3 +136,43 @@ class ReshapeTest(testing.TestCase):
         model = Sequential([layer])
         model.compile(loss="mean_squared_error")
         model.fit(generator(), steps_per_epoch=2, epochs=1)
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Test for torch.SymInt detection during ONNX export",
+    )
+    @parameterized.named_parameters(
+        ("flatten_spatial", (None, None, 64), (-1, 64)),
+        ("reshape_3d", (None, None, 128), (-1, 128)),
+    )
+    def test_reshape_with_torch_tracing(self, input_shape, target_shape):
+        """Test Reshape layer during torch.export tracing.
+
+        Fix for issue #22102. Validates that -1 dimensions are passed
+        directly to torch.reshape during tracing, allowing ONNX export
+        with dynamic shapes.
+        """
+        import torch
+
+        from keras.src import models
+
+        # Create model with dynamic input shape
+        input_layer = layers.Input(shape=input_shape)
+        reshaped = layers.Reshape(target_shape)(input_layer)
+        model = models.Model(inputs=input_layer, outputs=reshaped)
+
+        # Determine test input shape
+        test_shape = (1, 4, 4, input_shape[-1])
+
+        # Test regular inference (non-tracing)
+        x_regular = torch.randn(*test_shape)
+        output = model(x_regular)
+        self.assertIsNotNone(output)
+
+        # Test with varying shapes to ensure -1 works dynamically
+        for h, w in [(4, 4), (8, 8), (6, 6)]:
+            x_test = torch.randn(1, h, w, input_shape[-1])
+            output = model(x_test)
+            # Verify output shape is correct
+            expected_seq_len = h * w
+            self.assertEqual(output.shape[1], expected_seq_len)

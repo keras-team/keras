@@ -608,6 +608,13 @@ def standardize_shape(shape):
             None if jax_export.is_symbolic_dim(d) else d for d in shape
         )
 
+    if config.backend() == "torch":
+        # Replace symbolic dimensions with None to preserve dynamic shapes
+        # during torch.export tracing
+        import torch
+
+        shape = tuple(None if isinstance(d, torch.SymInt) else d for d in shape)
+
     # Handle dimensions that are not ints and not None, verify they're >= 0.
     standardized_shape = []
     for d in shape:
