@@ -145,13 +145,15 @@ class BaseConvTranspose(Layer):
             )
 
         if self.output_padding is not None:
-            if any(op >= s for op, s in zip(self.output_padding, self.strides)):
-                raise ValueError(
-                    "`output_padding` must be strictly less than "
-                    "`strides` for each dimension. "
-                    f"Received: output_padding={self.output_padding}, "
-                    f"strides={self.strides}"
-                )
+            for i, (op, s) in enumerate(zip(self.output_padding, self.strides)):
+                if op >= s:
+                    raise ValueError(
+                        "All values in `output_padding` must be strictly "
+                        "less than the corresponding `strides` values. "
+                        f"At index {i}, `output_padding` is {op} but `strides` "
+                        f"is {s}. Received: output_padding={self.output_padding}, "
+                        f"strides={self.strides}"
+                    )
 
         if max(self.strides) > 1 and max(self.dilation_rate) > 1:
             raise ValueError(
