@@ -2119,16 +2119,27 @@ class SparseCategoricalCrossentropy(Operation):
                 "Received: "
                 f"output.shape={output.shape}"
             )
-        target_shape = target.shape
-        if len(target_shape) == len(output.shape) and target_shape[-1] == 1:
-            target_shape = target_shape[:-1]
-        if target_shape != output.shape[:-1]:
+        # Normalize axis to positive index
+        axis = self.axis
+        if axis < 0:
+            axis = len(output.shape) + axis
+
+        target_shape = list(target.shape)
+        # Squeeze target if it has an extra dimension of size 1 at the axis
+        if len(target_shape) == len(output.shape) and target_shape[axis] == 1:
+            del target_shape[axis]
+
+        # Compute expected shape by removing the class dimension from output
+        output_shape_without_class = list(output.shape)
+        del output_shape_without_class[axis]
+
+        if target_shape != output_shape_without_class:
             raise ValueError(
                 "Arguments `target` and `output` must have the same shape "
-                "up until the last dimension: "
+                f"except for the class dimension at axis={self.axis}: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+        return KerasTensor(output_shape_without_class, dtype=output.dtype)
 
 
 @keras_export(
