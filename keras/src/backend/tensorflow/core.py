@@ -592,12 +592,26 @@ def scatter_update(inputs, indices, updates, reduction=None):
         return tf.tensor_scatter_nd_min(inputs, indices, updates)
     elif reduction == "mul":
         # TensorFlow doesn't have tensor_scatter_nd_mul, implement manually
-        # Get current values at indices
-        gathered = tf.gather_nd(inputs, indices)
-        # Multiply with updates
-        multiplied = gathered * updates
-        # Scatter the result back
-        return tf.tensor_scatter_nd_update(inputs, indices, multiplied)
+        # Handle duplicate indices by computing product of all updates per index
+        shape = tf.shape(inputs)
+        flat_size = tf.reduce_prod(shape)
+
+        # Convert ND indices to flat 1D indices
+        indices = tf.cast(indices, tf.int32)
+        strides = tf.math.cumprod(shape, exclusive=True, reverse=True)
+        flat_indices = tf.reduce_sum(indices * strides, axis=1)
+
+        # Compute product of updates for each unique flat index
+        # unsorted_segment_prod multiplies all updates targeting the same index
+        update_products = tf.math.unsorted_segment_prod(
+            updates, flat_indices, flat_size
+        )
+
+        # Multiply original values by the update products
+        flat_inputs = tf.reshape(inputs, [-1])
+        flat_result = flat_inputs * update_products
+
+        return tf.reshape(flat_result, shape)
     else:
         raise ValueError(f"Unsupported reduction: {reduction}")
 
