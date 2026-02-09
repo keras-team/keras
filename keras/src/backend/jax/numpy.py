@@ -1354,6 +1354,10 @@ def vstack(xs):
     return jnp.vstack(xs)
 
 
+def vsplit(x, indices_or_sections):
+    return jnp.vsplit(x, indices_or_sections)
+
+
 def vectorize(pyfunc, *, excluded=None, signature=None):
     if excluded is None:
         excluded = set()
