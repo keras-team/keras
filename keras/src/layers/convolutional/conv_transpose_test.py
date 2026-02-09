@@ -915,6 +915,12 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
     def test_shape_inference_static_unknown_shape(
         self, kernel_size, strides, padding, output_padding
     ):
+        # output_padding cannot be greater than or equal to strides
+        if isinstance(output_padding, int) and output_padding >= strides:
+            pytest.skip(
+                "`output_padding` greater than `strides` is not supported"
+            )
+
         if backend.config.image_data_format() == "channels_last":
             input_shape = (None, None, 3)
             output_tensor_shape = (None, None, None, 2)
