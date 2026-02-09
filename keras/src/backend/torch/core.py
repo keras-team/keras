@@ -586,8 +586,8 @@ def scatter_update(inputs, indices, updates, reduction=None):
         # Use index_put_ with accumulate=True for proper accumulation
         outputs.index_put_(idx, updates, accumulate=True)
     elif reduction == "max":
-        # Loop-based approach handles both scalar and slice updates
-        # max is associative so sequential application handles duplicates correctly
+        # Loop-based approach handles both scalar and slice updates.
+        # Associative, so sequential application handles duplicates.
         indices_t = indices.T
         for i in range(indices_t.shape[0]):
             idx = tuple(indices_t[i])

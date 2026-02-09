@@ -598,7 +598,9 @@ def scatter_update(inputs, indices, updates, reduction=None):
         def body(i, result):
             idx = indices[i : i + 1]  # Shape (1, index_depth)
             current = tf.gather_nd(result, idx)  # Shape (1, *slice_shape)
-            new_value = current * updates[i]  # Maintains shape (1, *slice_shape)
+            new_value = (
+                current * updates[i]
+            )  # Maintains shape (1, *slice_shape)
             return i + 1, tf.tensor_scatter_nd_update(result, idx, new_value)
 
         _, result = tf.while_loop(
