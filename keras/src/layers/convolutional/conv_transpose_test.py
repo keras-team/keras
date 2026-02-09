@@ -916,10 +916,8 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
         self, kernel_size, strides, padding, output_padding
     ):
         # output_padding cannot be greater than or equal to strides
-        if isinstance(output_padding, int) and output_padding >= strides:
-            pytest.skip(
-                "`output_padding` greater than `strides` is not supported"
-            )
+        if output_padding is not None and output_padding >= strides:
+            pytest.skip("`output_padding` must be less than `strides`")
 
         if backend.config.image_data_format() == "channels_last":
             input_shape = (None, None, 3)
