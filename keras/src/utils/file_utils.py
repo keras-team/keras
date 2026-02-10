@@ -158,7 +158,7 @@ def extract_archive(file_path, path=".", archive_format="auto"):
             with open_fn(file_path) as archive:
                 try:
                     extract_open_archive(archive, path)
-                except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
+                except (tarfile.TarError, RuntimeError, KeyboardInterrupt, OSError):
                     if os.path.exists(path):
                         if os.path.isfile(path):
                             os.remove(path)
