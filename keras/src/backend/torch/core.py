@@ -197,8 +197,6 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
     if ragged:
-        raise ValueError("`sparse=True` is not supported with torch backend")
-    if ragged:
         raise ValueError("`ragged=True` is not supported with torch backend")
     # Ultra-fast path: torch.Tensor with no dtype conversion needed.
     # This is the most common case during inference.
