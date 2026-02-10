@@ -226,7 +226,7 @@ class TrackedDict(dict):
             if hasattr(values, "items"):
                 items_iter = values.items()
             else:
-                items_iter = dict(values).items()
+                items_iter = values
             values = {k: tracker.track(v) for k, v in items_iter}
         super().__init__(values or {})
 
