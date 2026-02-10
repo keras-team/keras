@@ -156,19 +156,45 @@ def extract_archive(file_path, path=".", archive_format="auto"):
 
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:
-                # Create a temporary directory for safe extraction
-                tmp_dir = tempfile.mkdtemp(dir=os.path.dirname(path))
+                base_dir = os.path.dirname(path) or "."
+                os.makedirs(base_dir, exist_ok=True)
+                tmp_dir = tempfile.mkdtemp(dir=base_dir)
+                backup_path = None
                 try:
                     extract_open_archive(archive, tmp_dir)
-                    # Move contents to target path if successful
                     if os.path.exists(path):
-                        if os.path.isdir(path):
-                            shutil.rmtree(path)
-                        else:
-                            os.remove(path)
-                    os.rename(tmp_dir, path)
+                        backup_path = f"{path}.bak"
+                        if os.path.lexists(backup_path):
+                            if os.path.isdir(backup_path) and not os.path.islink(
+                                backup_path
+                            ):
+                                shutil.rmtree(backup_path)
+                            else:
+                                os.remove(backup_path)
+                        os.rename(path, backup_path)
+                    try:
+                        os.rename(tmp_dir, path)
+                        if backup_path and os.path.lexists(backup_path):
+                            if os.path.isdir(backup_path) and not os.path.islink(
+                                backup_path
+                            ):
+                                shutil.rmtree(backup_path)
+                            else:
+                                os.remove(backup_path)
+                    except Exception:
+                        if backup_path and not os.path.exists(path):
+                            os.rename(backup_path, path)
+                        raise
+                except (
+                    tarfile.TarError,
+                    RuntimeError,
+                    KeyboardInterrupt,
+                    OSError,
+                ):
+                    if os.path.exists(tmp_dir):
+                        shutil.rmtree(tmp_dir)
+                    raise
             return True
-    return False
 
 
 @keras_export("keras.utils.get_file")
