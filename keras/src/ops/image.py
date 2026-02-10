@@ -1928,11 +1928,7 @@ class SobelEdges(Operation):
                 f"Received: images.shape={images_shape}"
             )
         # Output adds an extra dimension of size 2 for [dy, dx]
-        if self.data_format == "channels_last":
-            output_shape = images_shape + [2]
-        else:
-            # channels_first: (N, C, H, W) -> (N, C, H, W, 2)
-            output_shape = images_shape + [2]
+        output_shape = images_shape + [2]
         return KerasTensor(shape=output_shape, dtype=images.dtype)
 
 
