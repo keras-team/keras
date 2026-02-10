@@ -1194,10 +1194,14 @@ def scale_and_translate(
 
 def sobel_edges(images, data_format=None):
     images = convert_to_tensor(images)
-    if data_format == "channels_first":
-        images = images.permute(0, 2, 3, 1)
 
-    batch, height, width, channels = images.shape
+    # Ensure images are in NCHW format for convolution
+    if data_format == "channels_last":
+        images_nchw = images.permute(0, 3, 1, 2)
+    else:
+        images_nchw = images
+
+    channels = images_nchw.shape[1]
     device = images.device
 
     # Sobel kernels
@@ -1213,25 +1217,18 @@ def sobel_edges(images, data_format=None):
     )
 
     # Reshape for depthwise conv: (out_channels, in_channels/groups, H, W)
-    # For depthwise, out_channels = in_channels, groups = in_channels
-    kernel_x = sobel_x.unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
-    kernel_y = sobel_y.unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
-
-    # Convert to channels_first for conv2d: (N, C, H, W)
-    images_nchw = images.permute(0, 3, 1, 2)
+    kernel_x = sobel_x.view(1, 1, 3, 3).repeat(channels, 1, 1, 1)
+    kernel_y = sobel_y.view(1, 1, 3, 3).repeat(channels, 1, 1, 1)
 
     # Apply depthwise convolutions
     edges_x = F.conv2d(images_nchw, kernel_x, padding=1, groups=channels)
     edges_y = F.conv2d(images_nchw, kernel_y, padding=1, groups=channels)
 
-    # Convert back to channels_last: (N, H, W, C)
-    edges_x = edges_x.permute(0, 2, 3, 1)
-    edges_y = edges_y.permute(0, 2, 3, 1)
-
-    # Stack to get (batch, height, width, channels, 2)
+    # Stack to get (N, C, H, W, 2)
     edges = torch.stack([edges_y, edges_x], dim=-1)
 
-    if data_format == "channels_first":
-        edges = edges.permute(0, 3, 1, 2, 4)
+    if data_format == "channels_last":
+        # Convert to NHWC format: (N, C, H, W, 2) -> (N, H, W, C, 2)
+        edges = edges.permute(0, 2, 3, 1, 4)
 
     return edges
