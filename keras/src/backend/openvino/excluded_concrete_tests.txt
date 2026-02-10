@@ -5,7 +5,6 @@ NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
 NumpyDtypeTest::test_kaiser
-
 NumpyDtypeTest::test_bitwise_left_shift
 NumpyDtypeTest::test_bitwise_right_shift
 NumpyDtypeTest::test_concatenate

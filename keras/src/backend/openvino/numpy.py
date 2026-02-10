@@ -678,25 +678,15 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 
 def bitwise_and(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
     x1, x2 = _align_operand_types(x1, x2, "bitwise_and()")
     return OpenVINOKerasTensor(ov_opset.bitwise_and(x1, x2).output(0))
 
 
 def bitwise_xor(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
     x1, x2 = _align_operand_types(x1, x2, "bitwise_xor()")
     return OpenVINOKerasTensor(ov_opset.bitwise_xor(x1, x2).output(0))
 
@@ -706,14 +696,13 @@ def bitwise_invert(x):
     return OpenVINOKerasTensor(ov_opset.bitwise_not(x).output(0))
 
 
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
 def bitwise_or(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
     x1, x2 = _align_operand_types(x1, x2, "bitwise_or()")
     return OpenVINOKerasTensor(ov_opset.bitwise_or(x1, x2).output(0))
 
