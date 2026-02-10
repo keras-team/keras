@@ -156,14 +156,21 @@ def extract_archive(file_path, path=".", archive_format="auto"):
 
         if is_match_fn(file_path):
             with open_fn(file_path) as archive:
+                # Create a temporary directory for safe extraction
+                tmp_dir = tempfile.mkdtemp(dir=os.path.dirname(path))
                 try:
-                    extract_open_archive(archive, path)
-                except (tarfile.TarError, RuntimeError, KeyboardInterrupt, OSError):
+                    extract_open_archive(archive, tmp_dir)
+                    # If extraction is successful, move contents to the target path
                     if os.path.exists(path):
-                        if os.path.isfile(path):
-                            os.remove(path)
-                        else:
+                        if os.path.isdir(path):
                             shutil.rmtree(path)
+                        else:
+                            os.remove(path)
+                    os.rename(tmp_dir, path)
+                except (tarfile.TarError, RuntimeError, KeyboardInterrupt, OSError):
+                    # Only the temporary directory is deleted on failure
+                    if os.path.exists(tmp_dir):
+                        shutil.rmtree(tmp_dir)
                     raise
             return True
     return False
