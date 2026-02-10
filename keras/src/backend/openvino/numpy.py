@@ -1926,6 +1926,15 @@ def logical_not(x):
     x = get_ov_output(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
     return OpenVINOKerasTensor(ov_opset.logical_not(x).output(0))
+def bitwise_not(x):
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(
+        ov_opset.bitwise_not(x).output(0)
+    )
+
+
+def bitwise_invert(x):
+    return bitwise_not(x)
 
 
 def logical_or(x1, x2):
