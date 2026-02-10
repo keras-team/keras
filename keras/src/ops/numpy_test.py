@@ -6319,13 +6319,18 @@ class SparseTest(testing.TestCase):
             x = create_sparse_tensor(x)
         x_np = backend.convert_to_numpy(x)
 
+        # `newshape` was renamed `shape` in Numpy.
+        np_init_kwargs = init_kwargs.copy()
+        if "newshape" in init_kwargs:
+            np_init_kwargs["shape"] = np_init_kwargs.pop("newshape")
+
         self.assertAllClose(
             op_function(x, **init_kwargs, **op_kwargs),
-            np_op(x_np, **init_kwargs, **op_kwargs),
+            np_op(x_np, **np_init_kwargs, **op_kwargs),
         )
         self.assertAllClose(
             op_class(**init_kwargs)(x, **op_kwargs),
-            np_op(x_np, **init_kwargs, **op_kwargs),
+            np_op(x_np, **np_init_kwargs, **op_kwargs),
         )
         # Reduction operations have complex and backend dependent rules about
         # when the result is sparse and it is dense.
