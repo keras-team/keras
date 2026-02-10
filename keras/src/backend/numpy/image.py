@@ -1223,7 +1223,7 @@ def euclidean_distance_transform(images, sampling=None):
     if original_ndim not in (2, 3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 2 (single grayscale image), "
-            "rank 3 (single image or batch of grayscale images), "
+            "rank 3 (single image with channels), "
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
@@ -1239,17 +1239,12 @@ def euclidean_distance_transform(images, sampling=None):
     # For 4D input: (B, H, W, C) batch of images
     # Process each 2D slice (each channel of each batch item) independently
 
+    # 3D input is interpreted as (H, W, C) - single image with channels
     if original_ndim == 3:
-        # Assume (H, W, C) single image - add batch dimension
         images = np.expand_dims(images, axis=0)
 
     batch_size = images.shape[0]
-    num_channels = images.shape[3] if len(images.shape) == 4 else 1
-
-    if len(images.shape) == 3:
-        # (B, H, W) grayscale batch
-        images = np.expand_dims(images, axis=-1)
-        num_channels = 1
+    num_channels = images.shape[3]
 
     # Prepare output array
     result = np.zeros_like(images, dtype=np.float32)
@@ -1264,11 +1259,6 @@ def euclidean_distance_transform(images, sampling=None):
 
     # Restore original shape
     if original_ndim == 3:
-        if original_shape[-1] == num_channels:
-            # Was (H, W, C)
-            result = np.squeeze(result, axis=0)
-        else:
-            # Was (B, H, W) grayscale
-            result = np.squeeze(result, axis=-1)
+        result = np.squeeze(result, axis=0)
 
     return result

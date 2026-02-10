@@ -1213,7 +1213,7 @@ def euclidean_distance_transform(images, sampling=None):
     if original_ndim not in (2, 3, 4):
         raise ValueError(
             "Invalid images rank: expected rank 2 (single grayscale image), "
-            "rank 3 (single image or batch of grayscale images), "
+            "rank 3 (single image with channels), "
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
@@ -1228,14 +1228,12 @@ def euclidean_distance_transform(images, sampling=None):
         return torch.tensor(result, dtype=torch.float32, device=device)
 
     # Handle 3D and 4D cases
+    # 3D input is interpreted as (H, W, C) - single image with channels
     if original_ndim == 3:
         images_np = np.expand_dims(images_np, axis=0)
 
     batch_size = images_np.shape[0]
-    num_channels = images_np.shape[3] if images_np.ndim == 4 else 1
-
-    if images_np.ndim == 3:
-        images_np = np.expand_dims(images_np, axis=-1)
+    num_channels = images_np.shape[3]
 
     result = np.zeros_like(images_np, dtype=np.float32)
 
@@ -1248,9 +1246,6 @@ def euclidean_distance_transform(images, sampling=None):
 
     # Restore original ndim
     if original_ndim == 3:
-        if len(original_shape) == 3 and original_shape[-1] == num_channels:
-            result = np.squeeze(result, axis=0)
-        else:
-            result = np.squeeze(result, axis=-1)
+        result = np.squeeze(result, axis=0)
 
     return torch.tensor(result, dtype=torch.float32, device=device)
