@@ -2,6 +2,7 @@ import functools
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from keras.src import backend
 from keras.src.backend.jax.core import convert_to_tensor
@@ -923,8 +924,6 @@ def euclidean_distance_transform(images, sampling=None):
 
     def _edt_impl(images_np):
         """Apply EDT using scipy."""
-        import numpy as np
-
         if images_np.ndim == 2:
             binary = images_np != 0
             return scipy.ndimage.distance_transform_edt(
