@@ -13,6 +13,7 @@ from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.core import to_torch_dtype
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = {
     "bilinear": "bilinear",
@@ -1202,8 +1203,6 @@ def euclidean_distance_transform(images, sampling=None):
     Returns:
         Distance transform with the same shape as input.
     """
-    from scipy import ndimage
-
     images = convert_to_tensor(images)
     original_shape = images.shape
     original_ndim = len(original_shape)
@@ -1224,7 +1223,7 @@ def euclidean_distance_transform(images, sampling=None):
     # For 2D input, process directly
     if original_ndim == 2:
         binary = images_np != 0
-        result = ndimage.distance_transform_edt(binary, sampling=sampling)
+        result = scipy.ndimage.distance_transform_edt(binary, sampling=sampling)
         return torch.tensor(result, dtype=torch.float32, device=device)
 
     # Handle 3D and 4D cases
@@ -1240,7 +1239,7 @@ def euclidean_distance_transform(images, sampling=None):
     for b in range(batch_size):
         for c in range(num_channels):
             binary = images_np[b, :, :, c] != 0
-            result[b, :, :, c] = ndimage.distance_transform_edt(
+            result[b, :, :, c] = scipy.ndimage.distance_transform_edt(
                 binary, sampling=sampling
             )
 

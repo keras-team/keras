@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.numpy import moveaxis
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -1086,8 +1087,6 @@ def euclidean_distance_transform(images, sampling=None):
     Returns:
         Distance transform with the same shape as input.
     """
-    from scipy import ndimage
-
     images = convert_to_tensor(images)
     original_shape = images.shape
     original_ndim = len(original_shape)
@@ -1104,9 +1103,9 @@ def euclidean_distance_transform(images, sampling=None):
     def _edt_2d(image, sampling):
         """Apply EDT to a single 2D image."""
         binary = image != 0
-        return ndimage.distance_transform_edt(binary, sampling=sampling).astype(
-            np.float32
-        )
+        return scipy.ndimage.distance_transform_edt(
+            binary, sampling=sampling
+        ).astype(np.float32)
 
     def _edt_batch(images_np, sampling):
         """Apply EDT to a batch of images."""
@@ -1125,7 +1124,7 @@ def euclidean_distance_transform(images, sampling=None):
         for b in range(batch_size):
             for c in range(num_channels):
                 binary = images_np[b, :, :, c] != 0
-                result[b, :, :, c] = ndimage.distance_transform_edt(
+                result[b, :, :, c] = scipy.ndimage.distance_transform_edt(
                     binary, sampling=sampling
                 )
 

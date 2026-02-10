@@ -6,6 +6,7 @@ import jax.numpy as jnp
 from keras.src import backend
 from keras.src.backend.jax.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -907,8 +908,6 @@ def euclidean_distance_transform(images, sampling=None):
     Returns:
         Distance transform with the same shape as input.
     """
-    from scipy import ndimage
-
     images = convert_to_tensor(images)
     original_shape = images.shape
     original_ndim = len(original_shape)
@@ -928,7 +927,7 @@ def euclidean_distance_transform(images, sampling=None):
 
         if images_np.ndim == 2:
             binary = images_np != 0
-            return ndimage.distance_transform_edt(
+            return scipy.ndimage.distance_transform_edt(
                 binary, sampling=sampling
             ).astype(np.float32)
 
@@ -945,7 +944,7 @@ def euclidean_distance_transform(images, sampling=None):
         for b in range(batch_size):
             for c in range(num_channels):
                 binary = images_np[b, :, :, c] != 0
-                result[b, :, :, c] = ndimage.distance_transform_edt(
+                result[b, :, :, c] = scipy.ndimage.distance_transform_edt(
                     binary, sampling=sampling
                 )
 
