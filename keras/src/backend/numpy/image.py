@@ -1203,3 +1203,72 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_distance_transform(images, sampling=None):
+    """Computes the Euclidean distance transform of binary images.
+
+    Args:
+        images: Input binary image or batch of images.
+        sampling: Spacing of elements along each dimension.
+
+    Returns:
+        Distance transform with the same shape as input.
+    """
+    images = convert_to_tensor(images)
+    original_shape = images.shape
+    original_ndim = len(original_shape)
+
+    # Validate input rank
+    if original_ndim not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single grayscale image), "
+            "rank 3 (single image or batch of grayscale images), "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    # For 2D input, process directly
+    if original_ndim == 2:
+        # Convert to binary: non-zero values become True (foreground)
+        binary = images != 0
+        result = scipy.ndimage.distance_transform_edt(binary, sampling=sampling)
+        return result.astype(np.float32)
+
+    # For 3D input: could be (H, W, C) single image or (B, H, W) grayscale batch
+    # For 4D input: (B, H, W, C) batch of images
+    # Process each 2D slice (each channel of each batch item) independently
+
+    if original_ndim == 3:
+        # Assume (H, W, C) single image - add batch dimension
+        images = np.expand_dims(images, axis=0)
+
+    batch_size = images.shape[0]
+    num_channels = images.shape[3] if len(images.shape) == 4 else 1
+
+    if len(images.shape) == 3:
+        # (B, H, W) grayscale batch
+        images = np.expand_dims(images, axis=-1)
+        num_channels = 1
+
+    # Prepare output array
+    result = np.zeros_like(images, dtype=np.float32)
+
+    # Process each channel of each image independently
+    for b in range(batch_size):
+        for c in range(num_channels):
+            binary = images[b, :, :, c] != 0
+            result[b, :, :, c] = scipy.ndimage.distance_transform_edt(
+                binary, sampling=sampling
+            )
+
+    # Restore original shape
+    if original_ndim == 3:
+        if original_shape[-1] == num_channels:
+            # Was (H, W, C)
+            result = np.squeeze(result, axis=0)
+        else:
+            # Was (B, H, W) grayscale
+            result = np.squeeze(result, axis=-1)
+
+    return result

@@ -895,3 +895,75 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+def euclidean_distance_transform(images, sampling=None):
+    """Computes the Euclidean distance transform of binary images.
+
+    Args:
+        images: Input binary image or batch of images.
+        sampling: Spacing of elements along each dimension.
+
+    Returns:
+        Distance transform with the same shape as input.
+    """
+    from scipy import ndimage
+
+    images = convert_to_tensor(images)
+    original_shape = images.shape
+    original_ndim = len(original_shape)
+
+    # Validate input rank
+    if original_ndim not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single grayscale image), "
+            "rank 3 (single image or batch of grayscale images), "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    def _edt_impl(images_np):
+        """Apply EDT using scipy."""
+        import numpy as np
+
+        if images_np.ndim == 2:
+            binary = images_np != 0
+            return ndimage.distance_transform_edt(
+                binary, sampling=sampling
+            ).astype(np.float32)
+
+        # Handle 3D and 4D cases
+        if images_np.ndim == 3:
+            images_np = np.expand_dims(images_np, axis=0)
+
+        batch_size = images_np.shape[0]
+        num_channels = images_np.shape[3] if images_np.ndim == 4 else 1
+
+        if images_np.ndim == 3:
+            images_np = np.expand_dims(images_np, axis=-1)
+
+        result = np.zeros_like(images_np, dtype=np.float32)
+
+        for b in range(batch_size):
+            for c in range(num_channels):
+                binary = images_np[b, :, :, c] != 0
+                result[b, :, :, c] = ndimage.distance_transform_edt(
+                    binary, sampling=sampling
+                )
+
+        # Restore original ndim
+        if original_ndim == 3:
+            if len(original_shape) == 3 and original_shape[-1] == num_channels:
+                result = np.squeeze(result, axis=0)
+            else:
+                result = np.squeeze(result, axis=-1)
+
+        return result.astype(np.float32)
+
+    # Use pure_callback to call scipy from JAX
+    result = jax.pure_callback(
+        _edt_impl,
+        jax.ShapeDtypeStruct(original_shape, jnp.float32),
+        images,
+    )
+    return result
