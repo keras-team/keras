@@ -1948,8 +1948,7 @@ def euclidean_distance_transform(images, sampling=None):
     Args:
         images: Input binary image or batch of binary images. Must be 2D, 3D,
             or 4D. For 2D input, shape is `(height, width)`. For 3D input,
-            shape is `(height, width, channels)` or
-            `(batch, height, width)` for grayscale batches. For 4D input,
+            shape is `(height, width, channels)`. For 4D input,
             shape is `(batch, height, width, channels)`. Non-zero values are
             treated as foreground (1), zero values as background (0).
         sampling: Spacing of elements along each dimension. If a sequence,
