@@ -877,7 +877,7 @@ class Layer(BackendLayer, Operation):
                 if is_backend_tensor_or_symbolic(arg, allow_none=True):
                     continue
                 # For nested structures, flatten and check
-                if isinstance(arg, (list, tuple)):
+                if isinstance(arg, (list, tuple, dict)):
                     for item in tree.flatten(arg):
                         if not is_backend_tensor_or_symbolic(
                             item, allow_none=True

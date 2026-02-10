@@ -407,16 +407,25 @@ def any_symbolic_tensors(args=None, kwargs=None):
         for x in args:
             if isinstance(x, KerasTensor):
                 return True
-            # Check nested structures (tuples/lists of tensors)
+            # Check nested structures (tuples/lists/dicts of tensors)
             if isinstance(x, (list, tuple)):
                 for item in x:
                     # Only go one level deep for fast path
+                    if isinstance(item, KerasTensor):
+                        return True
+            elif isinstance(x, dict):
+                for item in x.values():
                     if isinstance(item, KerasTensor):
                         return True
     if kwargs:
         for x in kwargs.values():
             if isinstance(x, KerasTensor):
                 return True
+            # Check nested dicts in kwargs
+            if isinstance(x, dict):
+                for item in x.values():
+                    if isinstance(item, KerasTensor):
+                        return True
     return False
 
 
