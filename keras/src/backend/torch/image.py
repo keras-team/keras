@@ -1190,3 +1190,48 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    images = convert_to_tensor(images)
+    if data_format == "channels_first":
+        images = images.permute(0, 2, 3, 1)
+
+    batch, height, width, channels = images.shape
+    device = images.device
+
+    # Sobel kernels
+    sobel_x = torch.tensor(
+        [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]],
+        dtype=images.dtype,
+        device=device,
+    )
+    sobel_y = torch.tensor(
+        [[-1, -2, -1], [0, 0, 0], [1, 2, 1]],
+        dtype=images.dtype,
+        device=device,
+    )
+
+    # Reshape for depthwise conv: (out_channels, in_channels/groups, H, W)
+    # For depthwise, out_channels = in_channels, groups = in_channels
+    kernel_x = sobel_x.unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
+    kernel_y = sobel_y.unsqueeze(0).unsqueeze(0).repeat(channels, 1, 1, 1)
+
+    # Convert to channels_first for conv2d: (N, C, H, W)
+    images_nchw = images.permute(0, 3, 1, 2)
+
+    # Apply depthwise convolutions
+    edges_x = F.conv2d(images_nchw, kernel_x, padding=1, groups=channels)
+    edges_y = F.conv2d(images_nchw, kernel_y, padding=1, groups=channels)
+
+    # Convert back to channels_last: (N, H, W, C)
+    edges_x = edges_x.permute(0, 2, 3, 1)
+    edges_y = edges_y.permute(0, 2, 3, 1)
+
+    # Stack to get (batch, height, width, channels, 2)
+    edges = torch.stack([edges_y, edges_x], dim=-1)
+
+    if data_format == "channels_first":
+        edges = edges.permute(0, 3, 1, 2, 4)
+
+    return edges
