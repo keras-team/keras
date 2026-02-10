@@ -172,29 +172,24 @@ def extract_archive(file_path, path=".", archive_format="auto"):
                             else:
                                 os.remove(backup_path)
                         os.rename(path, backup_path)
-                    try:
-                        os.rename(tmp_dir, path)
-                        if backup_path and os.path.lexists(backup_path):
-                            if os.path.isdir(backup_path) and not os.path.islink(
-                                backup_path
-                            ):
-                                shutil.rmtree(backup_path)
-                            else:
-                                os.remove(backup_path)
-                    except Exception:
-                        if backup_path and not os.path.exists(path):
-                            os.rename(backup_path, path)
-                        raise
-                except (
-                    tarfile.TarError,
-                    RuntimeError,
-                    KeyboardInterrupt,
-                    OSError,
-                ):
+
+                    os.rename(tmp_dir, path)
+
+                    if backup_path and os.path.lexists(backup_path):
+                        if os.path.isdir(backup_path) and not os.path.islink(
+                            backup_path
+                        ):
+                            shutil.rmtree(backup_path)
+                        else:
+                            os.remove(backup_path)
+                except Exception:
+                    if backup_path and not os.path.exists(path):
+                        os.rename(backup_path, path)
                     if os.path.exists(tmp_dir):
                         shutil.rmtree(tmp_dir)
                     raise
             return True
+    return False
 
 
 @keras_export("keras.utils.get_file")
@@ -227,7 +222,7 @@ def get_file(
 
     ```python
     path_to_downloaded_file = get_file(
-        origin="https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
+        origin="[https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz](https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz)",
         extract=True
     )
     ```
@@ -251,12 +246,12 @@ def get_file(
             saved. If an absolute path, e.g. `"/path/to/folder"` is
             specified, the file will be saved at that location.
         hash_algorithm: Select the hash algorithm to verify the file.
-            options are `"md5'`, `"sha256'`, and `"auto'`.
+            options are `"md5"`, `"sha256"`, and `"auto"`.
             The default 'auto' detects the hash algorithm in use.
         extract: If `True`, extracts the archive. Only applicable to compressed
             archive files like tar or zip.
         archive_format: Archive format to try for extracting the file.
-            Options are `"auto'`, `"tar'`, `"zip'`, and `None`.
+            Options are `"auto"`, `"tar"`, `"zip"`, and `None`.
             `"tar"` includes tar, tar.gz, and tar.bz files.
             The default `"auto"` corresponds to `["tar", "zip"]`.
             None or an empty list will return no matches found.
@@ -269,7 +264,7 @@ def get_file(
     Returns:
         Path to the downloaded file.
 
-    **⚠️ Warning on malicious downloads ⚠️**
+    ** Warning on malicious downloads **
 
     Downloading something from the Internet carries a risk.
     NEVER download a file/archive if you do not trust the source.
@@ -591,6 +586,3 @@ def makedirs(path):
         else:
             _raise_if_no_gfile(path)
     return os.makedirs(path)
-
-
-"/fo"
