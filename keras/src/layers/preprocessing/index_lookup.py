@@ -581,6 +581,24 @@ class IndexLookup(Layer):
         return backend.KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, steps=None):
+        """Computes a vocabulary from tokens in a dataset.
+
+        Calling `adapt()` on an IndexLookup layer is an alternative to passing
+        in a precomputed vocabulary on construction via the `vocabulary` argument.
+
+        During `adapt()`, the layer will build a vocabulary of all tokens seen
+        in the dataset, sorted by occurrence count.
+
+        Args:
+            data: The data to train on. Can be:
+                - A `tf.data.Dataset`
+                - A NumPy array
+                - A list or any iterable of tokens
+                If a dataset, it can be batched or unbatched.
+            steps: Integer or `None`. Total number of steps (batches of samples)
+                to process. Only applicable when `data` is a `tf.data.Dataset`.
+                If `steps` is `None`, `adapt()` will process the entire dataset.
+        """
         self.reset_state()
         if isinstance(data, tf.data.Dataset):
             if steps is not None:
@@ -588,12 +606,30 @@ class IndexLookup(Layer):
             for batch in data:
                 self.update_state(batch)
         else:
-            data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
-            if data.shape.rank == 1:
-                # A plain list of strings
-                # is treated as as many documents
-                data = tf.expand_dims(data, -1)
-            self.update_state(data)
+            try:
+                data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
+                if data.shape.rank == 1:
+                    data = tf.expand_dims(data, -1)
+                self.update_state(data)
+            except (ValueError, TypeError) as e:
+                # If direct conversion fails, try iterating
+                try:
+                    iterator = iter(data)
+                    for batch in iterator:
+                        batch_tensor = tf_utils.ensure_tensor(
+                            batch, dtype=self.vocabulary_dtype
+                        )
+                        if batch_tensor.shape.rank == 0:
+                            batch_tensor = tf.expand_dims(batch_tensor, 0)
+                        if batch_tensor.shape.rank == 1:
+                            batch_tensor = tf.expand_dims(batch_tensor, -1)
+                        self.update_state(batch_tensor)
+                except TypeError:
+                    raise ValueError(
+                        f"`adapt()` requires data to be a tf.data.Dataset, "
+                        f"a NumPy array, a list, or any iterable of tokens. "
+                        f"Received: {type(data)}. Original error: {e}"
+                    )
         self.finalize_state()
 
     def update_state(self, data):
