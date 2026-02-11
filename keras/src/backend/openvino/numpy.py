@@ -206,36 +206,25 @@ def all(x, axis=None, keepdims=False):
 
 def angle(x):
     """Returns the angle of a complex tensor.
-
     The angle is computed as `atan2(imaginary_part, real_part)`.
 
-    Note: OpenVINO does not support native complex types. This function works by
-    extracting the real and imaginary parts of the input tensor and processing
-    them as separate OpenVINO tensors. Also OpenVINO
+    Note: Uses existing `arctan2` implementation.
 
     Args:
         x: Input tensor. Can be a Python scalar, list, or a NumPy array.
 
     Returns:
         A tensor containing the angle of each element in `x`.
-
-    Example:
-    >>> import keras
-    >>> x = keras.ops.convert_to_tensor([1 + 1j, -1 - 1j])
-    >>> keras.ops.numpy.angle(x)
-    <KerasTensor: shape=(2,), dtype=float32, value=[0.7853982, -2.3561945]>
     """
+    # Extract real and imaginary parts
     if np.iscomplexobj(x):
-        real = get_ov_output(np.real(x))
-        imag = get_ov_output(np.imag(x))
+        real = np.real(x)
+        imag = np.imag(x)
     else:
-        real = get_ov_output(x)
-        imag = get_ov_output(0, real.get_element_type())
+        real = x
+        imag = 0
 
-    real, imag = _align_operand_types(real, imag, "angle()")
-
-    theta = arctan2(imag, real).output(0)
-    return OpenVINOKerasTensor(theta)
+    return arctan2(imag, real)
 
 
 def any(x, axis=None, keepdims=False):
