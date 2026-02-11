@@ -1348,9 +1348,12 @@ def gcd(x1, x2):
 
         shape_b = ov_opset.shape_of(b, Type.i64).output(0)
         rank_b = ov_opset.shape_of(shape_b, Type.i64).output(0)
+        rank_b_scalar = ov_opset.squeeze(
+            rank_b, ov_opset.constant(0, Type.i32)
+        ).output(0)
         axes = ov_opset.range(
             ov_opset.constant(0, Type.i64).output(0),
-            rank_b,
+            rank_b_scalar,
             ov_opset.constant(1, Type.i64).output(0),
             Type.i64,
         ).output(0)
