@@ -1,7 +1,6 @@
-"""Tests for arbitrary iterable support in preprocessing layer adapt() methods."""
+"""Tests for arbitrary iterable support in preprocessing adapt() methods."""
 
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras import utils

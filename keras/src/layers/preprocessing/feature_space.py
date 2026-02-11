@@ -545,13 +545,15 @@ class FeatureSpace(Layer):
                     else:
                         raise ValueError(
                             "`adapt()` requires data to be dicts of features. "
-                            f"Received iterable with elements of type {type(samples[0])}"
+                            "Received iterable with elements of type "
+                            f"{type(samples[0])}."
                         )
                 except TypeError:
                     raise ValueError(
-                        "`adapt()` can be called on a tf.data.Dataset, a dict of "
-                        "arrays/lists, or any iterable yielding dicts of features. "
-                        f"Received instead: {dataset} (of type {type(dataset)})"
+                        "`adapt()` can be called on a tf.data.Dataset, a dict "
+                        "of arrays/lists, or any iterable yielding dicts of "
+                        "features. Received instead: "
+                        f"{dataset} (of type {type(dataset)})"
                     )
 
         for name in self._list_adaptable_preprocessors():
