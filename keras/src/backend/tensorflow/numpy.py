@@ -2212,6 +2212,9 @@ def nansum(x, axis=None, keepdims=False):
 
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, result_dtype)
+
     mean = nanmean(x, axis=axis, keepdims=True)
 
     valid = ~tf.math.is_nan(x)

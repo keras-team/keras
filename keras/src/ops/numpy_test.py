@@ -1795,6 +1795,29 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.nansum(x4, axis=2).shape, (None, 2, 4))
         self.assertEqual(knp.nansum(x4, axis=(1, 3)).shape, (None, 3))
 
+    def test_nanvar(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.nanvar(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.nanvar(x, axis=1).shape, (None, 3))
+        self.assertEqual(
+            knp.nanvar(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
+
+        self.assertEqual(knp.nanvar(x, axis=(1,)).shape, (None, 3))
+
+        self.assertEqual(knp.nanvar(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(
+            knp.nanvar(x, axis=(1, 2), keepdims=True).shape, (None, 1, 1)
+        )
+
+        self.assertEqual(knp.nanvar(x, axis=()).shape, (None, 3, 3))
+
+        x4 = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nanvar(x4, axis=2).shape, (None, 2, 4))
+        self.assertEqual(knp.nanvar(x4, axis=(1, 3)).shape, (None, 3))
+
     def test_ndim(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ndim(x).shape, (2,))
@@ -2478,6 +2501,13 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.nansum(x, axis=0).shape, (3,))
         self.assertEqual(knp.nansum(x, axis=1).shape, (2,))
         self.assertEqual(knp.nansum(x, axis=1, keepdims=True).shape, (2, 1))
+
+    def test_nanvar_(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.nanvar(x).shape, ())
+        self.assertEqual(knp.nanvar(x, axis=0).shape, (3,))
+        self.assertEqual(knp.nanvar(x, axis=1).shape, (2,))
+        self.assertEqual(knp.nanvar(x, axis=1, keepdims=True).shape, (2, 1))
 
     def test_ndim(self):
         x = KerasTensor((2, 3))
@@ -5786,6 +5816,44 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.nansum(x_3d, axis=(1, 2)),
         )
 
+    def test_nanvar(self):
+        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]])
+
+        self.assertAllClose(knp.nanvar(x), np.nanvar(x))
+        self.assertAllClose(knp.nanvar(x, axis=()), np.nanvar(x, axis=()))
+        self.assertAllClose(knp.nanvar(x, axis=1), np.nanvar(x, axis=1))
+        self.assertAllClose(knp.nanvar(x, axis=(1,)), np.nanvar(x, axis=(1,)))
+        self.assertAllClose(
+            knp.nanvar(x, axis=1, keepdims=True),
+            np.nanvar(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(knp.Nanvar()(x), np.nanvar(x))
+        self.assertAllClose(knp.Nanvar(axis=1)(x), np.nanvar(x, axis=1))
+        self.assertAllClose(
+            knp.Nanvar(axis=1, keepdims=True)(x),
+            np.nanvar(x, axis=1, keepdims=True),
+        )
+
+        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+        self.assertAllClose(knp.nanvar(x_all_nan), np.nanvar(x_all_nan))
+        self.assertAllClose(
+            knp.nanvar(x_all_nan, axis=1),
+            np.nanvar(x_all_nan, axis=1),
+        )
+
+        x_3d = np.array(
+            [
+                [[1.0, np.nan], [2.0, 3.0]],
+                [[np.nan, 4.0], [5.0, np.nan]],
+            ]
+        )
+        self.assertAllClose(knp.nanvar(x_3d), np.nanvar(x_3d))
+        self.assertAllClose(
+            knp.nanvar(x_3d, axis=(1, 2)),
+            np.nanvar(x_3d, axis=(1, 2)),
+        )
+
     def test_nan_to_num(self):
         x = knp.array([1.0, np.nan, np.inf, -np.inf])
         self.assertAllClose(
@@ -8978,6 +9046,25 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.nansum(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Nansum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nanvar(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.nanvar(x_jax).dtype)
+
+        if backend.backend() == "torch" and expected_dtype == "uint32":
+            expected_dtype = "int32"
+
+        self.assertEqual(standardize_dtype(knp.nanvar(x).dtype), expected_dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.Nanvar().symbolic_call(x).dtype),
             expected_dtype,
         )
 
