@@ -203,9 +203,9 @@ class Discretization(DataLayer):
                         self.update_state(batch)
                 except TypeError:
                     raise ValueError(
-                        f"`adapt()` requires data to be a tf.data.Dataset, "
-                        f"a NumPy array, a list, or any iterable of numerical values. "
-                        f"Received: {type(data)}. Original error: {e}"
+                        "`adapt()` requires data to be a tf.data.Dataset, "
+                        "a NumPy array, a list, or any iterable of numerical "
+                        f"values. Received: {type(data)}. Original error: {e}"
                     )
         self.finalize_state()
 

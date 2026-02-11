@@ -584,7 +584,8 @@ class IndexLookup(Layer):
         """Computes a vocabulary from tokens in a dataset.
 
         Calling `adapt()` on an IndexLookup layer is an alternative to passing
-        in a precomputed vocabulary on construction via the `vocabulary` argument.
+        in a precomputed vocabulary on construction via the `vocabulary`
+        argument.
 
         During `adapt()`, the layer will build a vocabulary of all tokens seen
         in the dataset, sorted by occurrence count.
