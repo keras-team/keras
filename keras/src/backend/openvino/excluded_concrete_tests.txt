@@ -1,7 +1,6 @@
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
-NumpyDtypeTest::test_gcd
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
 NumpyDtypeTest::test_kaiser
@@ -64,7 +63,6 @@ NumpyTwoInputOpsCorrectnessTest::test_bitwise_or
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_right_shift
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_xor
 NumpyTwoInputOpsCorrectnessTest::test_einsum
-NumpyTwoInputOpsCorrectnessTest::test_gcd
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
@@ -77,10 +75,8 @@ NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_isreal
 NumpyOneInputOpsStaticShapeTest::test_view
-NumpyTwoInputOpsDynamicShapeTest::test_gcd
 NumpyTwoInputOpsDynamicShapeTest::test_lcm
 NumpyTwoInputOpsDynamicShapeTest::test_nextafter
-NumpyTwoInputOpsStaticShapeTest::test_gcd
 NumpyTwoInputOpsStaticShapeTest::test_lcm
 NumpyTwoInputOpsStaticShapeTest::test_nextafter
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
