@@ -234,7 +234,7 @@ def angle(x):
 
     real, imag = _align_operand_types(real, imag, "angle()")
 
-    result = ov_opset.atan(imag, real).output(0)
+    result = ov_opset.atan(imag / real).output(0)
 
     return OpenVINOKerasTensor(result)
 
