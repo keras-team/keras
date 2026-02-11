@@ -997,6 +997,11 @@ def nansum(x, axis=None, keepdims=False):
     return np.nansum(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
+def nanvar(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return np.nanvar(x, axis=axis, keepdims=keepdims)
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     return np.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 

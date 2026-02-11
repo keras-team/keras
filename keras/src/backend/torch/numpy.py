@@ -1351,6 +1351,24 @@ def nansum(x, axis=None, keepdims=False):
     return cast(torch.nansum(x, dim=axis, keepdim=keepdims), dtype)
 
 
+def nanvar(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    mean = nanmean(x, axis=axis, keepdims=True)
+
+    valid = ~torch.isnan(x)
+    centered = torch.where(valid, x - mean, torch.zeros_like(x))
+
+    if torch.is_complex(centered):
+        centered = centered.real * centered.real + centered.imag * centered.imag
+    else:
+        centered = centered.square()
+
+    count = valid.sum(dim=axis, keepdim=keepdims).clamp(min=1)
+    var = centered.sum(dim=axis, keepdim=keepdims) / count
+
+    return var
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
     return torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)

@@ -2210,6 +2210,31 @@ def nansum(x, axis=None, keepdims=False):
     return tf.reduce_sum(x_clean, axis=axis, keepdims=keepdims)
 
 
+def nanvar(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    mean = nanmean(x, axis=axis, keepdims=True)
+
+    valid = ~tf.math.is_nan(x)
+
+    centered = tf.where(valid, x - mean, tf.zeros_like(x))
+
+    if centered.dtype.is_complex:
+        centered = tf.math.real(centered * tf.math.conj(centered))
+    else:
+        centered = tf.square(centered)
+
+    count = tf.maximum(
+        tf.reduce_sum(
+            tf.cast(valid, centered.dtype), axis=axis, keepdims=keepdims
+        ),
+        1.0,
+    )
+
+    var = tf.reduce_sum(centered, axis=axis, keepdims=keepdims) / count
+
+    return var
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
 
