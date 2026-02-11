@@ -211,7 +211,7 @@ def angle(x):
 
     Note: OpenVINO does not support native complex types. This function works by
     extracting the real and imaginary parts of the input tensor and processing
-    them as separate OpenVINO tensors.
+    them as separate OpenVINO tensors. Also OpenVINO
 
     Args:
         x: Input tensor. Can be a Python scalar, list, or a NumPy array.
@@ -234,9 +234,8 @@ def angle(x):
 
     real, imag = _align_operand_types(real, imag, "angle()")
 
-    result = ov_opset.atan(imag / real).output(0)
-
-    return OpenVINOKerasTensor(result)
+    theta = arctan2(imag, real).output(0)
+    return OpenVINOKerasTensor(theta)
 
 
 def any(x, axis=None, keepdims=False):
