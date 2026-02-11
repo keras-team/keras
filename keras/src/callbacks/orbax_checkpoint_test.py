@@ -539,42 +539,53 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
 
         Tests that models with preprocessing layers that have vocab assets
         can be saved and loaded correctly through Orbax checkpoints.
+
+        Passing a vocabulary *file path* (not an inline list) to
+        StringLookup causes the vocabulary to be stored via
+        save_assets / load_assets rather than inlined in get_config.
+        This test verifies the Orbax round-trip for that code path.
         """
-        # Create a model with StringLookup which has vocabulary assets
-        # StringLookup stores its vocabulary as an asset file
+        # Write a vocabulary file so StringLookup stores it as an asset
+        # (inline lists are serialized in get_config, not via assets).
+        vocab_dir = self.get_temp_dir()
+        vocab_file = os.path.join(vocab_dir, "vocab.txt")
+        vocab_words = ["cat", "dog", "bird", "fish"]
+        with open(vocab_file, "w") as f:
+            f.write("\n".join(vocab_words))
+
         string_lookup = layers.StringLookup(
-            vocabulary=["cat", "dog", "bird", "fish"],
+            vocabulary=vocab_file,
             output_mode="int",
             name="string_lookup_layer",
         )
 
-        # Since we can't train with string inputs easily, we'll just create
-        # a model, save it, and verify the vocabulary is preserved
         inputs = layers.Input(shape=(1,), dtype="string")
         x = string_lookup(inputs)
         outputs = layers.Embedding(input_dim=10, output_dim=8)(x)
         model = models.Model(inputs, outputs, name="model_with_assets")
+        model.compile(optimizer="adam", loss="mse")
 
-        # Get original vocabulary
         original_vocab = string_lookup.get_vocabulary()
 
-        checkpoint_dir = os.path.join(
-            self.get_temp_dir(), f"test_assets_{save_on_background}_{id(self)}"
+        # Save through OrbaxCheckpoint (the actual Orbax path)
+        checkpoint_dir = self.get_temp_dir()
+        callback = OrbaxCheckpoint(
+            directory=checkpoint_dir,
+            save_freq="epoch",
+            save_on_background=save_on_background,
+            save_weights_only=False,
         )
-        os.makedirs(checkpoint_dir, exist_ok=True)
 
-        # Save the model (simulate training checkpoint)
-        model.save(os.path.join(checkpoint_dir, "1.keras"))
+        # We can't easily train with string inputs, so invoke the
+        # save path directly.
+        callback.set_model(model)
+        callback._save_checkpoint(step=0)
+        callback.checkpointer.close()
 
-        # Verify checkpoint was created
-        self.assertTrue(os.path.exists(os.path.join(checkpoint_dir, "1.keras")))
-
-        # Load the model from checkpoint file
+        # Load the model back through the Orbax load path
         from keras.src.saving import saving_api
 
-        loaded_model = saving_api.load_model(
-            os.path.join(checkpoint_dir, "1.keras")
-        )
+        loaded_model = saving_api.load_model(checkpoint_dir)
 
         # Verify model structure
         self.assertEqual(model.name, loaded_model.name)
@@ -584,9 +595,4 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         loaded_string_lookup = loaded_model.get_layer("string_lookup_layer")
         loaded_vocab = loaded_string_lookup.get_vocabulary()
 
-        self.assertEqual(
-            len(original_vocab), len(loaded_vocab), "Vocabulary length mismatch"
-        )
-
-        for i, (orig, loaded) in enumerate(zip(original_vocab, loaded_vocab)):
-            self.assertEqual(orig, loaded, f"Vocabulary mismatch at index {i}")
+        self.assertEqual(original_vocab, loaded_vocab)

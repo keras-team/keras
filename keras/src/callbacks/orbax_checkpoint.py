@@ -1,6 +1,3 @@
-import os
-import tempfile
-import time
 import warnings
 
 import numpy as np
@@ -273,47 +270,11 @@ class OrbaxCheckpoint(MonitorCallback):
             composite_state["model_config"] = config_json
 
         # Collect assets if saving full model (not just weights)
-        # Use saving_lib._save_state to properly handle recursive
-        # asset collection
         assets_dict = None
         if not self.save_weights_only:
-            # Create a unique path in temp directory for assets
-            # Use timestamp to ensure uniqueness across multiple saves
-            assets_root = os.path.join(
-                tempfile.gettempdir(),
-                f"keras_assets_{step}_{id(self)}_{int(time.time() * 1e9)}",
-            )
-            assets_store = saving_lib.DiskIOStore(assets_root, mode="w")
+            from keras.src.saving.saving_lib import _save_assets_to_dict
 
-            try:
-                # Save assets using Keras _save_state (preserves hierarchy)
-                # This properly handles recursive asset discovery
-                saving_lib._save_state(
-                    self.model,
-                    weights_store=None,  # Only save assets, not weights
-                    assets_store=assets_store,
-                    inner_path="",
-                    visited_saveables=set(),
-                )
-
-                # Check if any assets were actually saved
-                assets_dict = {}
-                for root, dirs, files in os.walk(assets_root):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        rel_path = os.path.relpath(file_path, assets_root)
-                        with open(file_path, "rb") as f:
-                            # Convert bytes to numpy uint8 array for Orbax
-                            assets_dict[rel_path] = np.frombuffer(
-                                f.read(), dtype=np.uint8
-                            )
-
-                # If no assets were found, set to None
-                if not assets_dict:
-                    assets_dict = None
-            finally:
-                # Close store (cleans up temp directory)
-                assets_store.close()
+            assets_dict = _save_assets_to_dict(self.model)
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.

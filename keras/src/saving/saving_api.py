@@ -1,6 +1,4 @@
 import os
-import shutil
-import tempfile
 import zipfile
 
 from absl import logging
@@ -339,30 +337,12 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             # It's a step directory, use it directly
             checkpoint_path = filepath
 
-        # Check if checkpoint has assets using Orbax metadata API
-        try:
-            checkpoint_metadata = ocp.checkpointables_metadata(checkpoint_path)
-            has_assets = "assets" in checkpoint_metadata.metadata
-        except Exception:
-            has_assets = False
-
-        # Load checkpointables - request assets only if they exist
-        if has_assets:
-            loaded_checkpointables = ocp.load_checkpointables(
-                checkpoint_path, dict(pytree=None, assets=None)
-            )
-            assets_dict = loaded_checkpointables.get("assets")
-        else:
-            loaded_checkpointables = ocp.load_checkpointables(
-                checkpoint_path, dict(pytree=None)
-            )
-            assets_dict = None
+        # Load weights only (no assets) from Orbax checkpoint
+        loaded_checkpointables = ocp.load_checkpointables(
+            checkpoint_path, dict(pytree=None)
+        )
 
         loaded_state = loaded_checkpointables["pytree"]
-
-        # Load assets if present
-        if assets_dict:
-            _load_assets_from_dict(model, assets_dict)
 
         # Set the model state directly from the loaded state
         model.set_state_tree(loaded_state)
@@ -373,44 +353,6 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             "`.weights.h5` files, legacy H5 format files "
             "(`.h5` extension), or Orbax checkpoints."
         )
-
-
-def _load_assets_from_dict(model, assets_dict):
-    """Load assets from a dictionary into the model.
-
-    Args:
-        model: The model to load assets into.
-        assets_dict: Dictionary mapping relative paths to numpy uint8 arrays
-            containing asset file contents.
-    """
-    if not assets_dict:
-        return
-
-    temp_assets_dir = tempfile.mkdtemp()
-    try:
-        # Write assets dictionary to temp directory
-        # Convert numpy arrays back to bytes
-        for rel_path, array_content in assets_dict.items():
-            file_path = os.path.join(temp_assets_dir, rel_path)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            with open(file_path, "wb") as f:
-                # Convert numpy uint8 array back to bytes
-                f.write(array_content.tobytes())
-
-        # Use Keras load_assets mechanism
-        assets_store = saving_lib.DiskIOStore(temp_assets_dir, mode="r")
-        saving_lib._load_state(
-            model,
-            weights_store=None,  # Only load assets, not weights
-            assets_store=assets_store,
-            inner_path="",
-            visited_saveables=set(),
-            failed_saveables=set(),
-            error_msgs={},
-        )
-        assets_store.close()
-    finally:
-        shutil.rmtree(temp_assets_dir)
 
 
 def _load_model_from_orbax_checkpoint(
@@ -430,27 +372,21 @@ def _load_model_from_orbax_checkpoint(
     # Load the composite state efficiently
     checkpointer = ocp.training.Checkpointer(directory=filepath)
 
-    # Check if checkpoint has assets using Orbax metadata API
-    try:
-        checkpoint_metadata = ocp.checkpointables_metadata(checkpoint_path)
-        has_assets = "assets" in checkpoint_metadata.metadata
-    except Exception:
-        has_assets = False
-
     with ocp.Context():
-        # Load checkpointables - request assets only if they exist
-        if has_assets:
-            loaded_checkpointables = checkpointer.load_checkpointables(
-                step, dict(pytree=None, assets=None)
-            )
-            assets_data = loaded_checkpointables.get("assets")
-        else:
-            loaded_checkpointables = checkpointer.load_checkpointables(
-                step, dict(pytree=None)
-            )
-            assets_data = None
+        # Check which checkpointables were saved so we only request
+        # keys that actually exist (Orbax raises KeyError otherwise).
+        saved_keys = set(
+            checkpointer.checkpointables_metadata(step).metadata.keys()
+        )
+        request = {"pytree": None}
+        if "assets" in saved_keys:
+            request["assets"] = None
 
+        loaded_checkpointables = checkpointer.load_checkpointables(
+            step, request
+        )
         composite_state = loaded_checkpointables["pytree"]
+        assets_data = loaded_checkpointables.get("assets")
 
     # Validate and extract model config
     if "model_config" not in composite_state:
@@ -485,6 +421,6 @@ def _load_model_from_orbax_checkpoint(
     model.set_state_tree(state_tree)
 
     # Load assets if present
-    _load_assets_from_dict(model, assets_data)
+    saving_lib._load_assets_from_dict(model, assets_data)
 
     return model
