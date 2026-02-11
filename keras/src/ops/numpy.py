@@ -5358,6 +5358,40 @@ def nansum(x, axis=None, keepdims=False):
     return backend.numpy.nansum(x, axis=axis, keepdims=keepdims)
 
 
+class Nanvar(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanvar(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanvar", "keras.ops.numpy.nanvar"])
+def nanvar(x, axis=None, keepdims=False):
+    """Compute the variance along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the variance is computed.
+        keepdims: If True, reduced axes are kept as size-1 dims.
+
+    Returns:
+        Output tensor containing the variance ignoring NaNs.
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanvar(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanvar(x, axis=axis, keepdims=keepdims)
+
+
 class NanToNum(Operation):
     def __init__(self, nan=0.0, posinf=None, neginf=None, *, name=None):
         super().__init__(name=name)
