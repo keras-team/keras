@@ -538,7 +538,9 @@ class FeatureSpace(Layer):
                                 if key not in combined_dict:
                                     combined_dict[key] = []
                                 combined_dict[key].append(value)
-                        dataset = tf.data.Dataset.from_tensor_slices(combined_dict)
+                        dataset = tf.data.Dataset.from_tensor_slices(
+                            combined_dict
+                        )
                     else:
                         raise ValueError(
                             "`adapt()` requires data to be dicts of features. "

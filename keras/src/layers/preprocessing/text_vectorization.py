@@ -435,7 +435,7 @@ class TextVectorization(Layer):
                     iterator = iter(data)
                     batch_size = batch_size or 32
                     batch = []
-                    
+
                     for item in iterator:
                         batch.append(item)
                         if len(batch) >= batch_size:
@@ -446,14 +446,16 @@ class TextVectorization(Layer):
                                 batch_tensor = tf.expand_dims(batch_tensor, -1)
                             self.update_state(batch_tensor)
                             batch = []
-                    
+
                     # Process remaining items
                     if batch:
-                        batch_tensor = tf_utils.ensure_tensor(batch, dtype="string")
+                        batch_tensor = tf_utils.ensure_tensor(
+                            batch, dtype="string"
+                        )
                         if batch_tensor.shape.rank == 1:
                             batch_tensor = tf.expand_dims(batch_tensor, -1)
                         self.update_state(batch_tensor)
-                        
+
                 except TypeError:
                     raise ValueError(
                         f"`adapt()` requires data to be a tf.data.Dataset, "
