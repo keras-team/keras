@@ -515,7 +515,8 @@ class FeatureSpace(Layer):
             dataset: The data to adapt on. Can be:
                 - A `tf.data.Dataset` (must yield dicts of features)
                 - A dict of arrays/lists
-                - Any iterable that yields dicts of features
+                - Any iterable that yields dicts of features. Note: for
+                  iterables, the entire dataset will be loaded into memory.
         """
         if not isinstance(dataset, tf.data.Dataset):
             if isinstance(dataset, dict):

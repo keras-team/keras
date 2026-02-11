@@ -434,27 +434,25 @@ class TextVectorization(Layer):
                 try:
                     iterator = iter(data)
                     batch_size = batch_size or 32
-                    batch = []
 
-                    for item in iterator:
-                        batch.append(item)
-                        if len(batch) >= batch_size:
-                            batch_tensor = tf_utils.ensure_tensor(
-                                batch, dtype="string"
-                            )
-                            if batch_tensor.shape.rank == 1:
-                                batch_tensor = tf.expand_dims(batch_tensor, -1)
-                            self.update_state(batch_tensor)
-                            batch = []
-
-                    # Process remaining items
-                    if batch:
+                    def process_batch(batch_to_process):
+                        if not batch_to_process:
+                            return
                         batch_tensor = tf_utils.ensure_tensor(
-                            batch, dtype="string"
+                            batch_to_process, dtype="string"
                         )
                         if batch_tensor.shape.rank == 1:
                             batch_tensor = tf.expand_dims(batch_tensor, -1)
                         self.update_state(batch_tensor)
+
+                    batch = []
+                    for item in iterator:
+                        batch.append(item)
+                        if len(batch) >= batch_size:
+                            process_batch(batch)
+                            batch = []
+
+                    process_batch(batch)
 
                 except TypeError:
                     raise ValueError(
