@@ -205,7 +205,35 @@ def all(x, axis=None, keepdims=False):
 
 
 def angle(x):
-    raise NotImplementedError("`angle` is not supported with openvino backend")
+    """
+    Returns the angle of a complex tensor. The angle is computed as atan2
+    (imaginary part, real part).
+
+    Note: OpenVINO does not support native complex, thus real and imaginary
+    parts are extracted seperately and converted to OpenVINO tensors.
+
+    :param x: Input, can be a Python array or nd.array
+    """
+    if isinstance(x, complex):  # If an array of complex numbers
+        real = get_ov_output(x.real)
+        imag = get_ov_output(x.imag)
+
+    elif isinstance(x, np.ndarray) and np.iscomplexobj(
+        x
+    ):  # If a numpy array of complex numbers
+        real = get_ov_output(np.real(x))
+        imag = get_ov_output(np.imag(x))
+
+    else:
+        # treat as purely real
+        real = get_ov_output(x)
+        imag = get_ov_output(0, real.get_element_type())
+
+    real, imag = _align_operand_types(real, imag, "angle()")
+
+    result = ov_opset.atan(imag, real).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def any(x, axis=None, keepdims=False):
