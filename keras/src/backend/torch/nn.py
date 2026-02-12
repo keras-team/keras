@@ -153,7 +153,11 @@ def threshold(x, threshold, default_value):
 
 def softmax(x, axis=-1):
     # Fast path: float32 torch tensor (most common inference case)
-    if isinstance(x, torch.Tensor) and x.dtype.is_floating_point and x.dtype != torch.float16:
+    if (
+        isinstance(x, torch.Tensor)
+        and x.dtype.is_floating_point
+        and x.dtype != torch.float16
+    ):
         if axis is None:
             output = torch.reshape(x, [-1])
             output = tnn.softmax(output, dim=-1)
