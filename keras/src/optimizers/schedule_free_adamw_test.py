@@ -43,7 +43,6 @@ class ScheduleFreeAdamWTest(testing.TestCase):
         # var2 should be unchanged since it's excluded from weight decay
         self.assertAlmostEqual(var2.numpy(), 2.0, decimal=6)
 
-
     def test_warmup(self):
         """Test that warmup affects the learning rate."""
         optimizer_no_warmup = ScheduleFreeAdamW(
@@ -81,7 +80,6 @@ class ScheduleFreeAdamWTest(testing.TestCase):
         # Parameters should have decreased
         final_values = var.numpy()
         self.assertTrue(np.all(final_values < [1.0, 2.0, 3.0]))
-
 
     @pytest.mark.requires_trainable_backend
     def test_with_model(self):
