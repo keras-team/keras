@@ -36,3 +36,15 @@ class LeakyReLUTest(testing.TestCase):
                 input_shape=(2, 3, 4),
                 supports_masking=True,
             )
+
+    def test_negative_slope_nan_value(self):
+        with self.assertRaisesRegex(
+                ValueError,
+                "The `negative_slope` argument for LeakyReLU cannot be NaN",
+        ):
+            self.run_layer_test(
+                leaky_relu.LeakyReLU,
+                init_kwargs={"negative_slope": float("nan")},
+                input_shape=(2, 3, 4),
+                supports_masking=True,
+            )
