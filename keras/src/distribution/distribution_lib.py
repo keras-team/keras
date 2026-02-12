@@ -512,6 +512,27 @@ class DataParallel(Distribution):
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
+        from torch.utils.data import DataLoader
+        from torch.utils.data import DistributedSampler
+
+        if isinstance(dataset, DataLoader):
+            sampler = DistributedSampler(
+                dataset.dataset,
+                num_replicas=self._num_process,
+                rank=self._process_id,
+                shuffle=dataset.shuffle,
+                drop_last=dataset.drop_last,
+            )
+            return DataLoader(
+                dataset.dataset,
+                batch_size=dataset.batch_size,
+                sampler=sampler,
+                num_workers=dataset.num_workers,
+                pin_memory=dataset.pin_memory,
+                drop_last=dataset.drop_last,
+                persistent_workers=dataset.persistent_workers,
+            )
+
         # Try to distribute a global tf.data.Dataset.
         from keras.src.utils.module_utils import tensorflow as tf
 
@@ -682,6 +703,27 @@ class ModelParallel(Distribution):
     def distribute_dataset(self, dataset):
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
+
+        from torch.utils.data import DataLoader
+        from torch.utils.data import DistributedSampler
+
+        if isinstance(dataset, DataLoader):
+            sampler = DistributedSampler(
+                dataset.dataset,
+                num_replicas=self._num_process,
+                rank=self._process_id,
+                shuffle=dataset.shuffle,
+                drop_last=dataset.drop_last,
+            )
+            return DataLoader(
+                dataset.dataset,
+                batch_size=dataset.batch_size,
+                sampler=sampler,
+                num_workers=dataset.num_workers,
+                pin_memory=dataset.pin_memory,
+                drop_last=dataset.drop_last,
+                persistent_workers=dataset.persistent_workers,
+            )
 
         # Try to distribute a global tf.data.Dataset.
         from keras.src.utils.module_utils import tensorflow as tf
