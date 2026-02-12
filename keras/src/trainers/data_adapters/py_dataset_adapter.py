@@ -21,7 +21,7 @@ class PyDataset:
     Every `PyDataset` must implement the `__getitem__()` and the `__len__()`
     methods. If you want to modify your dataset between epochs,
     you may additionally implement `on_epoch_end()`,
-    or `on_epoch_begin` to be called at the start of each epoch.
+    or `on_epoch_begin()` to be called at the start of each epoch.
     The `__getitem__()` method should return a complete batch
     (not a single sample), and the `__len__` method should return
     the number of batches in the dataset (rather than the number of samples).
@@ -49,9 +49,15 @@ class PyDataset:
         with Python generators.
     - The arguments `workers`, `use_multiprocessing`, and `max_queue_size`
         exist to configure how `fit()` uses parallelism to iterate
-        over the dataset. They are not being used by the `PyDataset` class
-        directly. When you are manually iterating over a `PyDataset`,
+        over the dataset. They are not used by the `PyDataset` class
+        directly. When you manually iterate over a `PyDataset`,
         no parallelism is applied.
+    - Shuffling is controlled via the `shuffle` argument in
+        `model.fit(..., shuffle=...)`. When enabled, the
+        `PyDatasetAdapter` (and `OrderedEnqueuer`, if used)
+        handle batch index shuffling at the training loop level.
+        Custom datasets should not rely on a `shuffle` argument
+        in `PyDataset.__init__`.
 
     Example:
 
@@ -61,7 +67,7 @@ class PyDataset:
     import numpy as np
     import math
 
-    # Here, `x_set` is list of path to the images
+    # Here, `x_set` is list of paths to the images
     # and `y_set` are the associated classes.
 
     class CIFAR10PyDataset(keras.utils.PyDataset):
@@ -78,15 +84,19 @@ class PyDataset:
         def __getitem__(self, idx):
             # Return x, y for batch idx.
             low = idx * self.batch_size
-            # Cap upper bound at array length; the last batch may be smaller
-            # if the total number of items is not a multiple of batch size.
             high = min(low + self.batch_size, len(self.x))
+
             batch_x = self.x[low:high]
             batch_y = self.y[low:high]
 
             return np.array([
                 resize(imread(file_name), (200, 200))
-                   for file_name in batch_x]), np.array(batch_y)
+                for file_name in batch_x
+            ]), np.array(batch_y)
+
+        def on_epoch_end(self):
+            # Optional: implement custom logic at epoch end.
+            pass
     ```
     """
 
