@@ -17,12 +17,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
     - `x`: The averaged sequence used for evaluation
 
     During training, the model parameters are set to an interpolation between
-    `momentum` and `x`. During evaluation, parameters should be set to `x` for
-    optimal performance.
-
-    **Important**: You should call `optimizer.swap_to_train()` before training
-    and `optimizer.swap_to_eval()` before evaluation/inference to switch between
-    parameter states. The methods `train()` and `eval()` are aliases.
+    `momentum` and `x`.
 
     Args:
         learning_rate: A float, a
@@ -53,12 +48,8 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
     Example:
 
     >>> optimizer = keras.optimizers.ScheduleFreeAdamW(learning_rate=0.0025)
-    >>> # Training loop
-    >>> optimizer.swap_to_train()
+    >>> model.compile(optimizer=optimizer, loss="mse")
     >>> model.fit(x_train, y_train)
-    >>> # Evaluation
-    >>> optimizer.swap_to_eval()
-    >>> model.evaluate(x_test, y_test)
 
     """
 
@@ -188,64 +179,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         )
 
         self.assign(variable, y_new)
-
-    def swap_to_train(self):
-        """Switch parameters to training mode (y = interpolation of momentum and x).
-
-        Call this before training. During training, model parameters are set
-        to y = (1 - beta_1) * momentum + beta_1 * x, which is the point where
-        gradients are computed.
-        """
-        if not self.built:
-            return
-
-        for i, var in enumerate(self._trainable_variables):
-            momentum = self._momentums[i]
-            if momentum is None:
-                continue
-
-            beta_1 = ops.cast(self.beta_1, var.dtype)
-            # Current variable holds x (eval mode)
-            x = var
-            # Compute y = (1 - beta_1) * momentum + beta_1 * x
-            y = ops.add(
-                ops.multiply(1 - beta_1, momentum), ops.multiply(beta_1, x)
-            )
-            self.assign(var, y)
-
-    def swap_to_eval(self):
-        """Switch parameters to evaluation mode (x = averaged sequence).
-
-        Call this before evaluation/inference. During evaluation, model
-        parameters are set to x, which is the Polyak-averaged sequence that
-        typically provides better generalization.
-        """
-        if not self.built:
-            return
-
-        for i, var in enumerate(self._trainable_variables):
-            momentum = self._momentums[i]
-            if momentum is None:
-                continue
-
-            beta_1 = ops.cast(self.beta_1, var.dtype)
-            # Current variable holds y (training mode)
-            y = var
-            # Recover x from y: x = (y - (1 - beta_1) * momentum) / beta_1
-            x = ops.divide(
-                ops.subtract(y, ops.multiply(1 - beta_1, momentum)),
-                beta_1,
-            )
-            self.assign(var, x)
-
-    # Aliases for train/eval
-    def train(self):
-        """Alias for swap_to_train()."""
-        self.swap_to_train()
-
-    def eval(self):
-        """Alias for swap_to_eval()."""
-        self.swap_to_eval()
 
     def get_config(self):
         config = super().get_config()

@@ -43,34 +43,6 @@ class ScheduleFreeAdamWTest(testing.TestCase):
         # var2 should be unchanged since it's excluded from weight decay
         self.assertAlmostEqual(var2.numpy(), 2.0, decimal=6)
 
-    def test_train_eval_mode_switching(self):
-        """Test that train/eval mode switching works correctly."""
-        optimizer = ScheduleFreeAdamW(learning_rate=0.1, beta_1=0.9)
-        var = backend.Variable([1.0, 2.0, 3.0])
-        grads = ops.array([0.1, 0.2, 0.3])
-
-        # Initial state
-        initial_values = var.numpy().copy()
-
-        # Apply multiple gradient steps so x and z diverge
-        for _ in range(5):
-            optimizer.apply_gradients(zip([grads], [var]))
-
-        # Values should have changed
-        after_train_steps = var.numpy().copy()
-        self.assertFalse(np.allclose(initial_values, after_train_steps))
-
-        # Switch to eval mode
-        optimizer.swap_to_eval()
-        eval_values = var.numpy().copy()
-
-        # Switch back to train mode
-        optimizer.swap_to_train()
-        train_values = var.numpy().copy()
-
-        # After multiple steps, x and z should have diverged,
-        # making y (train) different from x (eval)
-        self.assertFalse(np.allclose(eval_values, train_values))
 
     def test_warmup(self):
         """Test that warmup affects the learning rate."""
@@ -110,16 +82,6 @@ class ScheduleFreeAdamWTest(testing.TestCase):
         final_values = var.numpy()
         self.assertTrue(np.all(final_values < [1.0, 2.0, 3.0]))
 
-    def test_train_eval_aliases(self):
-        """Test that train() and eval() are aliases."""
-        optimizer = ScheduleFreeAdamW(learning_rate=0.1)
-        var = backend.Variable([1.0, 2.0])
-        grads = ops.array([0.1, 0.1])
-        optimizer.apply_gradients(zip([grads], [var]))
-
-        # Test that swap methods work without error
-        optimizer.eval()
-        optimizer.train()
 
     @pytest.mark.requires_trainable_backend
     def test_with_model(self):
@@ -132,11 +94,9 @@ class ScheduleFreeAdamWTest(testing.TestCase):
         y = keras.ops.zeros((4, 10))
 
         # Training
-        optimizer.swap_to_train()
         model.fit(x, y, epochs=2, verbose=0)
 
         # Evaluation
-        optimizer.swap_to_eval()
         loss = model.evaluate(x, y, verbose=0)
         self.assertIsNotNone(loss)
 
