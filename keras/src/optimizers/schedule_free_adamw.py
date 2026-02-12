@@ -99,7 +99,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         self.beta_2 = beta_2
         self.epsilon = epsilon
         self.warmup_steps = warmup_steps
-        self._is_training_mode = True
 
     def build(self, var_list):
         """Initialize optimizer variables.
@@ -116,7 +115,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         super().build(var_list)
         # z: auxiliary variable (gradient steps applied here)
         # v: second moment estimate (velocity)
-        # The model variables act as 'y' during training and 'x' during eval
         self._z = []
         self._v = []
 
@@ -216,9 +214,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         to y = (1 - beta_1) * z + beta_1 * x, which is the point where
         gradients are computed.
         """
-        if self._is_training_mode:
-            return
-
         if not self.built:
             return
 
@@ -234,8 +229,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
             y = ops.add(ops.multiply(1 - beta_1, z), ops.multiply(beta_1, x))
             self.assign(var, y)
 
-        self._is_training_mode = True
-
     def swap_to_eval(self):
         """Switch parameters to evaluation mode (x = averaged sequence).
 
@@ -243,9 +236,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         parameters are set to x, which is the Polyak-averaged sequence that
         typically provides better generalization.
         """
-        if not self._is_training_mode:
-            return
-
         if not self.built:
             return
 
@@ -264,8 +254,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
             )
             self.assign(var, x)
 
-        self._is_training_mode = False
-
     # Aliases for train/eval
     def train(self):
         """Alias for swap_to_train()."""
@@ -274,11 +262,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
     def eval(self):
         """Alias for swap_to_eval()."""
         self.swap_to_eval()
-
-    @property
-    def is_training_mode(self):
-        """Returns True if optimizer is in training mode."""
-        return self._is_training_mode
 
     def get_config(self):
         config = super().get_config()
