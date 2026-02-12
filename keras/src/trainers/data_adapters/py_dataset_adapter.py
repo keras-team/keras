@@ -304,8 +304,7 @@ class PyDatasetAdapter(DataAdapter):
             if num_batches is not None:
                 num_samples = min(num_samples, num_batches)
             batches = [
-                self._standardize_batch(self.py_dataset[i])
-                for i in range(num_samples)
+                self._standardize_batch(self.py_dataset[i]) for i in range(num_samples)
             ]
             if len(batches) == 0:
                 raise ValueError("The PyDataset has length 0")
@@ -580,9 +579,7 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         max_queue_size=10,
         shuffle=False,
     ):
-        super().__init__(
-            py_dataset, workers, use_multiprocessing, max_queue_size
-        )
+        super().__init__(py_dataset, workers, use_multiprocessing, max_queue_size)
         self.shuffle = shuffle
         if self.py_dataset.num_batches is None:
             # For infinite datasets, `self.indices` is created here once for all
