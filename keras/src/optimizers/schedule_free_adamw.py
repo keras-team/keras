@@ -118,7 +118,6 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         )
 
         # Initialize momentum to match the initial parameter values
-        # We use ops.copy to ensure no aliasing issues with JAX
         for momentum, var in zip(self._momentums, var_list):
             if momentum is not None:
                 self.assign(momentum, ops.copy(var))
@@ -143,7 +142,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         momentum = self._momentums[var_index]
         velocity = self._velocities[var_index]
 
-        # Store momentum_old before any updates (use copy to avoid aliasing in JAX)
+        # Store momentum_old before any updates
         momentum_old = ops.copy(momentum)
 
         # Bias correction for Adam's second moment
