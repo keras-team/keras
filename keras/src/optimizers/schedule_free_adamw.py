@@ -13,12 +13,12 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
     and typically matches or outperforms cosine and linear decay schedules.
 
     The optimizer maintains two sets of variables internally:
-    - `z`: The sequence where gradient updates are applied
+    - `momentum`: The sequence where gradient updates are applied
     - `x`: The averaged sequence used for evaluation
 
     During training, the model parameters are set to an interpolation between
-    `z` and `x`. During evaluation, parameters should be set to `x` for optimal
-    performance.
+    `momentum` and `x`. During evaluation, parameters should be set to `x` for
+    optimal performance.
 
     **Important**: You should call `optimizer.swap_to_train()` before training
     and `optimizer.swap_to_eval()` before evaluation/inference to switch between
@@ -32,7 +32,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         beta_1: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use. The
             exponential decay rate for the 1st moment estimates and controls
-            the interpolation between `z` and `x`. Defaults to `0.9`.
+            the interpolation between `momentum` and `x`. Defaults to `0.9`.
         beta_2: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use. The
             exponential decay rate for the 2nd moment estimates.
@@ -104,8 +104,8 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         """Initialize optimizer variables.
 
         ScheduleFreeAdamW optimizer has the following variables:
-        - `z`: Auxiliary variable where gradient updates are applied
-        - `v`: Exponential moving average of squared gradients (Adam)
+        - `momentum`: Auxiliary variable where gradient updates are applied
+        - `velocity`: Exponential moving average of squared gradients (Adam)
 
         Args:
             var_list: list of model variables to build optimizer variables on.
@@ -113,37 +113,15 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        # z: auxiliary variable (gradient steps applied here)
-        # v: second moment estimate (velocity)
-        self._z = []
-        self._v = []
+        self._momentums, self._velocities = self.add_optimizer_variables(
+            var_list, ["momentum", "velocity"]
+        )
 
-        for var in var_list:
-            if not self._overwrite_variable_with_gradient(var):
-                self._z.append(
-                    self.add_variable_from_reference(
-                        reference_variable=var,
-                        name="z",
-                        initializer="zeros",
-                    )
-                )
-                self._v.append(
-                    self.add_variable_from_reference(
-                        reference_variable=var,
-                        name="velocity",
-                        initializer="zeros",
-                    )
-                )
-            else:
-                self._z.append(None)
-                self._v.append(None)
-
-        # Initialize z to match the initial parameter values
+        # Initialize momentum to match the initial parameter values
         # We use ops.copy to ensure no aliasing issues with JAX
-        for i, var in enumerate(var_list):
-            z = self._z[i]
-            if z is not None:
-                self.assign(z, ops.copy(var))
+        for momentum, var in zip(self._momentums, var_list):
+            if momentum is not None:
+                self.assign(momentum, ops.copy(var))
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
@@ -162,71 +140,78 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
             lr = lr * warmup_factor
 
         var_index = self._get_variable_index(variable)
-        z = self._z[var_index]
-        v = self._v[var_index]
+        momentum = self._momentums[var_index]
+        velocity = self._velocities[var_index]
 
-        # Store z_old before any updates (use copy to avoid aliasing in JAX)
-        z_old = ops.copy(z)
+        # Store momentum_old before any updates (use copy to avoid aliasing in JAX)
+        momentum_old = ops.copy(momentum)
 
         # Bias correction for Adam's second moment
         bias_correction_2 = 1 - ops.power(beta_2, local_step)
 
         # Update velocity (second moment estimate)
-        # v = beta_2 * v + (1 - beta_2) * gradient^2
+        # velocity = beta_2 * velocity + (1 - beta_2) * gradient^2
         self.assign_add(
-            v,
-            ops.multiply(ops.subtract(ops.square(gradient), v), 1 - beta_2),
+            velocity,
+            ops.multiply(
+                ops.subtract(ops.square(gradient), velocity), 1 - beta_2
+            ),
         )
 
         # Compute the denominator (RMSprop-style with bias correction)
-        denom = ops.add(ops.sqrt(v / bias_correction_2), epsilon)
+        denom = ops.add(ops.sqrt(velocity / bias_correction_2), epsilon)
 
-        # Update z: z = z - lr * gradient / denom
+        # Update momentum: momentum = momentum - lr * gradient / denom
         grad_scaled = ops.divide(ops.multiply(lr, gradient), denom)
-        self.assign_sub(z, grad_scaled)
+        self.assign_sub(momentum, grad_scaled)
 
         # Compute weight for averaging: weight = 1 / step
         weight = 1.0 / local_step
 
-        # Recover x_old from y_old and z_old
-        # x_old = (y_old - (1 - beta_1) * z_old) / beta_1
+        # Recover x_old from y_old and momentum_old
+        # x_old = (y_old - (1 - beta_1) * momentum_old) / beta_1
         y_old = variable
         x_old = ops.divide(
-            ops.subtract(y_old, ops.multiply(1 - beta_1, z_old)), beta_1
+            ops.subtract(y_old, ops.multiply(1 - beta_1, momentum_old)),
+            beta_1,
         )
 
-        # x_new = lerp(x_old, z, weight) = (1 - weight) * x_old + weight * z
+        # x_new = lerp(x_old, momentum, weight)
+        # x_new = (1 - weight) * x_old + weight * momentum
         x_new = ops.add(
-            ops.multiply(1 - weight, x_old), ops.multiply(weight, z)
+            ops.multiply(1 - weight, x_old), ops.multiply(weight, momentum)
         )
 
-        # y_new = lerp(z, x_new, beta_1) = (1 - beta_1) * z + beta_1 * x_new
+        # y_new = lerp(momentum, x_new, beta_1)
+        # y_new = (1 - beta_1) * momentum + beta_1 * x_new
         y_new = ops.add(
-            ops.multiply(1 - beta_1, z), ops.multiply(beta_1, x_new)
+            ops.multiply(1 - beta_1, momentum), ops.multiply(beta_1, x_new)
         )
 
         self.assign(variable, y_new)
 
     def swap_to_train(self):
-        """Switch parameters to training mode (y = interpolation of z and x).
+        """Switch parameters to training mode (y = interpolation of momentum and x).
 
         Call this before training. During training, model parameters are set
-        to y = (1 - beta_1) * z + beta_1 * x, which is the point where
+        to y = (1 - beta_1) * momentum + beta_1 * x, which is the point where
         gradients are computed.
         """
         if not self.built:
             return
 
         for i, var in enumerate(self._trainable_variables):
-            z = self._z[i]
-            if z is None:
+            momentum = self._momentums[i]
+            if momentum is None:
                 continue
 
             beta_1 = ops.cast(self.beta_1, var.dtype)
             # Current variable holds x (eval mode)
             x = var
-            # Compute y = (1 - beta_1) * z + beta_1 * x
-            y = ops.add(ops.multiply(1 - beta_1, z), ops.multiply(beta_1, x))
+            # Compute y = (1 - beta_1) * momentum + beta_1 * x
+            y = ops.add(
+                ops.multiply(1 - beta_1, momentum), ops.multiply(beta_1, x)
+            )
             self.assign(var, y)
 
     def swap_to_eval(self):
@@ -240,16 +225,16 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
             return
 
         for i, var in enumerate(self._trainable_variables):
-            z = self._z[i]
-            if z is None:
+            momentum = self._momentums[i]
+            if momentum is None:
                 continue
 
             beta_1 = ops.cast(self.beta_1, var.dtype)
             # Current variable holds y (training mode)
             y = var
-            # Recover x from y: x = (y - (1 - beta_1) * z) / beta_1
+            # Recover x from y: x = (y - (1 - beta_1) * momentum) / beta_1
             x = ops.divide(
-                ops.subtract(y, ops.multiply(1 - beta_1, z)),
+                ops.subtract(y, ops.multiply(1 - beta_1, momentum)),
                 beta_1,
             )
             self.assign(var, x)
