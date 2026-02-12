@@ -143,7 +143,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         velocity = self._velocities[var_index]
 
         # Store momentum_old before any updates
-        momentum_old = ops.copy(momentum)
+        momentum_old = momentum.value
 
         # Bias correction for Adam's second moment
         bias_correction_2 = 1 - ops.power(beta_2, local_step)
