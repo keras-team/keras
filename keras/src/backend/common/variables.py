@@ -679,9 +679,7 @@ def is_int_dtype(dtype):
 
 
 def get_autocast_scope():
-    return getattr(
-        global_state.GLOBAL_STATE_TRACKER, "autocast_scope", None
-    )
+    return getattr(global_state.GLOBAL_STATE_TRACKER, "autocast_scope", None)
 
 
 class AutocastScope:

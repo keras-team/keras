@@ -56,16 +56,13 @@ class Operation(KerasSaveable):
                         # overhead per call.
                         try:
                             return self.call(*args, **kwargs)
-                        except Exception as e:
+                        except Exception:
                             # On error, re-raise with argument info
-                            wrapped = (
-                                traceback_utils
-                                .inject_argument_info_in_traceback(
-                                    self.call,
-                                    object_name=(
-                                        f"{self.__class__.__name__}.call()"
-                                    ),
-                                )
+                            wrapped = traceback_utils.inject_argument_info_in_traceback(  # noqa: E501
+                                self.call,
+                                object_name=(
+                                    f"{self.__class__.__name__}.call()"
+                                ),
                             )
                             return wrapped(*args, **kwargs)
             call_fn = traceback_utils.inject_argument_info_in_traceback(

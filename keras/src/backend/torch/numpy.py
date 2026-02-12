@@ -698,6 +698,9 @@ def cumprod(x, axis=None, dtype=None):
 
 
 def cumsum(x, axis=None, dtype=None):
+    # Fast path: if already torch tensor with matching dtype and axis specified
+    if type(x) is torch.Tensor and axis is not None and dtype is None:
+        return torch.cumsum(x, dim=axis)
     x = convert_to_tensor(x)
     if axis is None:
         x = x.flatten()
@@ -786,6 +789,9 @@ def empty_like(x, dtype=None):
 
 
 def equal(x1, x2):
+    # Fast path: if both are already torch tensors, skip conversion
+    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
+        return torch.eq(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.eq(x1, x2)
 
@@ -1105,16 +1111,25 @@ def logaddexp2(x1, x2):
 
 
 def logical_and(x1, x2):
+    # Fast path: if both are already torch tensors
+    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
+        return torch.logical_and(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_and(x1, x2)
 
 
 def logical_not(x):
+    # Fast path: if already a torch tensor, skip conversion
+    if type(x) is torch.Tensor:
+        return torch.logical_not(x)
     x = convert_to_tensor(x)
     return torch.logical_not(x)
 
 
 def logical_or(x1, x2):
+    # Fast path: if both are already torch tensors
+    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
+        return torch.logical_or(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_or(x1, x2)
 
@@ -1377,11 +1392,17 @@ def nonzero(x):
 
 
 def not_equal(x1, x2):
+    # Fast path: if both are already torch tensors
+    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
+        return torch.not_equal(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.not_equal(x1, x2)
 
 
 def ones_like(x, dtype=None):
+    # Fast path: if already torch tensor with matching dtype
+    if type(x) is torch.Tensor and dtype is None:
+        return torch.ones_like(x)
     x = convert_to_tensor(x)
     dtype = to_torch_dtype(dtype or x.dtype)
     return torch.ones_like(x, dtype=dtype)
@@ -1862,6 +1883,8 @@ def where(condition, x1=None, x2=None):
             and isinstance(x1, torch.Tensor)
             and isinstance(x2, torch.Tensor)
         ):
+            if condition.dtype != torch.bool:
+                condition = condition.bool()
             return torch.where(condition, x1, x2)
         condition = convert_to_tensor(condition, dtype=bool)
         x1 = convert_to_tensor(x1)

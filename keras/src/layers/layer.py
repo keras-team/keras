@@ -854,11 +854,8 @@ class Layer(BackendLayer, Operation):
             or backend.standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
             # Fast path: single tensor arg (with or without kwargs)
-            if (
-                len(args) == 1
-                and is_backend_tensor_or_symbolic(
-                    args[0], allow_none=False
-                )
+            if len(args) == 1 and is_backend_tensor_or_symbolic(
+                args[0], allow_none=False
             ):
                 # Only convert the tensor arg if dtype differs
                 if backend.standardize_dtype(args[0].dtype) != self.input_dtype:
@@ -1030,9 +1027,8 @@ class Layer(BackendLayer, Operation):
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif (
-                previous_mask is not None
-                and any(m is not None for m in tree.flatten(previous_mask))
+            elif previous_mask is not None and any(
+                m is not None for m in tree.flatten(previous_mask)
             ):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
@@ -1618,9 +1614,13 @@ class Layer(BackendLayer, Operation):
 
     # Pre-computed set of attribute names that never need tracking.
     # These are simple scalars (bool, None, int) set during __call__.
-    _UNTRACKED_ATTRS = frozenset({
-        "_called", "built", "_lock",
-    })
+    _UNTRACKED_ATTRS = frozenset(
+        {
+            "_called",
+            "built",
+            "_lock",
+        }
+    )
 
     def __setattr__(self, name, value):
         # Fast path: skip tracking for known scalar internal attrs
@@ -1926,11 +1926,7 @@ class CallSpec:
         # single positional tensor argument, no kwargs except context args
         # (like training). This avoids expensive inspect._bind and
         # apply_defaults.
-        if (
-            len(args) == 1
-            and backend.is_tensor(args[0])
-            and not kwargs
-        ):
+        if len(args) == 1 and backend.is_tensor(args[0]) and not kwargs:
             first_arg = args[0]
             params = signature.parameters
             param_names = list(params.keys())
@@ -1957,11 +1953,7 @@ class CallSpec:
         # Extended fast path: single positional tensor arg + kwargs
         # (common for transformer layers called with cache kwargs).
         # Still avoids inspect._bind / apply_defaults.
-        if (
-            len(args) == 1
-            and backend.is_tensor(args[0])
-            and kwargs
-        ):
+        if len(args) == 1 and backend.is_tensor(args[0]) and kwargs:
             # Pop context args not in signature
             call_args = {}
             pop_keys = []
@@ -2001,7 +1993,11 @@ class CallSpec:
                         arg_names.append(name)
 
             self.first_arg = first_arg
-            self.user_arguments_dict = {**call_args, first_name: first_arg, **kwargs}
+            self.user_arguments_dict = {
+                **call_args,
+                first_name: first_arg,
+                **kwargs,
+            }
             self.arguments_dict = arg_dict
             self.argument_names = arg_names
             self.tensor_arguments_dict = tensor_arg_dict
