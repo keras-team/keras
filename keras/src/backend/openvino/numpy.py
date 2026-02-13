@@ -2278,6 +2278,10 @@ def nansum(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
+def nanvar(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nanvar` is not supported with openvino backend")
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = get_ov_output(x)
     dtype = x.get_element_type()
