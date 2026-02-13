@@ -16,6 +16,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import while_loop
 
 
 def add(x1, x2):
@@ -1380,7 +1381,61 @@ def full_like(x, fill_value, dtype=None):
 
 
 def gcd(x1, x2):
-    raise NotImplementedError("`gcd` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "gcd()")
+
+    x1 = ov_opset.abs(x1).output(0)
+    x2 = ov_opset.abs(x2).output(0)
+
+    # Broadcast to common shape
+    temp_sum = ov_opset.add(x1, x2).output(0)
+    target_shape = ov_opset.shape_of(temp_sum, Type.i32).output(0)
+    x1 = ov_opset.broadcast(x1, target_shape).output(0)
+    x2 = ov_opset.broadcast(x2, target_shape).output(0)
+
+    def cond(a, b):
+        b = get_ov_output(b)
+        zero = ov_opset.constant(0, b.get_element_type()).output(0)
+        not_zero = ov_opset.not_equal(b, zero).output(0)
+
+        shape_b = ov_opset.shape_of(b, Type.i64).output(0)
+        rank_b = ov_opset.shape_of(shape_b, Type.i64).output(0)
+        rank_b_scalar = ov_opset.squeeze(
+            rank_b, ov_opset.constant(0, Type.i32)
+        ).output(0)
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i64).output(0),
+            rank_b_scalar,
+            ov_opset.constant(1, Type.i64).output(0),
+            Type.i64,
+        ).output(0)
+
+        return ov_opset.reduce_logical_or(not_zero, axes, False).output(0)
+
+    def body(a, b):
+        a = get_ov_output(a)
+        b = get_ov_output(b)
+
+        zero = ov_opset.constant(0, b.get_element_type()).output(0)
+        mask = ov_opset.not_equal(b, zero).output(0)
+
+        one = ov_opset.constant(1, b.get_element_type()).output(0)
+        safe_b = ov_opset.select(mask, b, one).output(0)
+
+        mod_val = ov_opset.floor_mod(a, safe_b).output(0)
+
+        next_a = ov_opset.select(mask, b, a).output(0)
+        next_b = ov_opset.select(mask, mod_val, b).output(0)
+
+        return OpenVINOKerasTensor(next_a), OpenVINOKerasTensor(next_b)
+
+    x1_kt = OpenVINOKerasTensor(x1)
+    x2_kt = OpenVINOKerasTensor(x2)
+
+    results = while_loop(cond, body, (x1_kt, x2_kt))
+
+    return results[0]
 
 
 def greater(x1, x2):
