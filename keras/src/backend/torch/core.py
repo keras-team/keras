@@ -736,42 +736,18 @@ class CustomGradientFunction(torch.autograd.Function):
             grads = (grads,)
         return (None,) + grads
 
-if hasattr(torch, "compiler") and hasattr(torch.compiler, "disable"):
-    _orig_flatten = tree.flatten
-    _orig_pack_sequence_as = tree.pack_sequence_as
-    _orig_map_structure = tree.map_structure
-    _orig_is_nested = tree.is_nested
-    _orig_assert_same_structure = tree.assert_same_structure
+if hasattr(torch, "compiler"):
+    import torch.utils._pytree as pytree
 
-    @torch.compiler.disable
-    def _flatten(*args, **kwargs):
-        return _orig_flatten(*args, **kwargs)
+    def _is_nested(x):
+        return isinstance(x, (list, tuple, dict))
 
-    @torch.compiler.disable
-    def _pack_sequence_as(*args, **kwargs):
-        return _orig_pack_sequence_as(*args, **kwargs)
+    def _flatten(x):
+        return pytree.tree_flatten(x)[0]
 
-    @torch.compiler.disable
-    def _map_structure(*args, **kwargs):
-        return _orig_map_structure(*args, **kwargs)
-
-    @torch.compiler.disable
-    def _is_nested(*args, **kwargs):
-        return _orig_is_nested(*args, **kwargs)
-
-    @torch.compiler.disable
-    def _assert_same_structure(*args, **kwargs):
-        return _orig_assert_same_structure(*args, **kwargs)
-
-    tree.flatten = _flatten
-    tree.pack_sequence_as = _pack_sequence_as
-    tree.map_structure = _map_structure
+    def _map_structure(func, *structures):
+        return pytree.tree_map(func, *structures)
+    
     tree.is_nested = _is_nested
-    tree.assert_same_structure = _assert_same_structure
-
-    if hasattr(tree, "map_shape_structure"):
-        _orig_map_shape_structure = tree.map_shape_structure
-        @torch.compiler.disable
-        def _map_shape_structure(*args, **kwargs):
-            return _orig_map_shape_structure(*args, **kwargs)
-        tree.map_shape_structure = _map_shape_structure
+    tree.flatten = _flatten
+    tree.map_structure = _map_structure
