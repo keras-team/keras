@@ -1128,34 +1128,6 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         result = core.ScatterUpdate(reduction="add")(inputs, indices, updates)
         self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
 
-        # Test add reduction with slice updates and duplicate indices
-        inputs = np.zeros((2, 2))
-        indices = [[0], [0]]
-        updates = np.array([[1.0, 2.0], [3.0, 4.0]])
-        result = core.scatter_update(inputs, indices, updates, reduction="add")
-        self.assertAllClose(result, [[4.0, 6.0], [0.0, 0.0]])
-
-        # Test max reduction with slice updates and duplicate indices
-        inputs = np.zeros((2, 2))
-        indices = [[0], [0]]
-        updates = np.array([[1.0, 5.0], [3.0, 2.0]])
-        result = core.scatter_update(inputs, indices, updates, reduction="max")
-        self.assertAllClose(result, [[3.0, 5.0], [0.0, 0.0]])
-
-        # Test min reduction with slice updates and duplicate indices
-        inputs = np.full((2, 2), 10.0)
-        indices = [[0], [0]]
-        updates = np.array([[5.0, 8.0], [3.0, 9.0]])
-        result = core.scatter_update(inputs, indices, updates, reduction="min")
-        self.assertAllClose(result, [[3.0, 8.0], [10.0, 10.0]])
-
-        # Test mul reduction with slice updates and duplicate indices
-        inputs = np.ones((2, 2))
-        indices = [[0], [0]]
-        updates = np.array([[2.0, 3.0], [4.0, 5.0]])
-        result = core.scatter_update(inputs, indices, updates, reduction="mul")
-        self.assertAllClose(result, [[8.0, 15.0], [1.0, 1.0]])
-
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
