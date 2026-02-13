@@ -2942,6 +2942,18 @@ def round(x, decimals=0):
     return OpenVINOKerasTensor(result.output(0))
 
 
+def trunc(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        return OpenVINOKerasTensor(x)
+    sign_x = ov_opset.sign(x)
+    abs_x = ov_opset.abs(x)
+    floor_abs_x = ov_opset.floor(abs_x)
+    result = ov_opset.multiply(sign_x, floor_abs_x)
+    return OpenVINOKerasTensor(result.output(0))
+
+
 def tile(x, repeats):
     x = get_ov_output(x)
 
