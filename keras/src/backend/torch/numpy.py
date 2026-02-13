@@ -765,6 +765,11 @@ def dot(x1, x2):
     return cast(torch.matmul(x1, x2), result_dtype)
 
 
+def dstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
@@ -1315,6 +1320,25 @@ def nanmin(x, axis=None, keepdims=False):
         torch.isnan(x).all(dim=axis, keepdim=keepdims),
         torch.tensor(float("nan"), dtype=x.dtype, device=get_device()),
         out,
+    )
+
+
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return torch.nan_to_num(x, nan=1)
+
+    if isinstance(axis, (list, tuple)):
+        axis = sorted(axis, reverse=True)
+
+    if not torch.is_floating_point(x):
+        return prod(x, axis=axis, keepdims=keepdims)
+
+    return prod(
+        torch.where(torch.isnan(x), torch.ones((), dtype=x.dtype), x),
+        axis=axis,
+        keepdims=keepdims,
     )
 
 

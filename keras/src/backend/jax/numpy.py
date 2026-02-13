@@ -682,6 +682,10 @@ def dot(x1, x2):
     return jnp.dot(x1, x2)
 
 
+def dstack(xs):
+    return jnp.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = dtype or config.floatx()
     return jnp.empty(shape, dtype=dtype)
@@ -1035,6 +1039,11 @@ def nanmean(x, axis=None, keepdims=False):
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
+
+
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanprod(x, axis=axis, keepdims=keepdims)
 
 
 def nansum(x, axis=None, keepdims=False):

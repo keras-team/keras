@@ -31,7 +31,7 @@ jobs:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
       - name: Check for changes in keras/src/applications
         uses: dorny/paths-filter@v3
         id: filter
@@ -127,7 +127,7 @@ jobs:
     name: Check the code format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.1
+      - uses: actions/checkout@v6.0.2
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:

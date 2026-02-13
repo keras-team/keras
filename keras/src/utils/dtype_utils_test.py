@@ -102,7 +102,7 @@ class CastToCommonDtype(test_case.TestCase):
         tensor2 = KerasTensor([4, 5, 6], dtype="bfloat16")
         casted_tensors = dtype_utils.cast_to_common_dtype([tensor1, tensor2])
         for tensor in casted_tensors:
-            self.assertEqual(tensor.dtype, "float16")
+            self.assertEqual(tensor.dtype, "float32")
 
     def test_cast_to_common_dtype_float16_uint8(self):
         tensor1 = KerasTensor([1, 2, 3], dtype="float16")
@@ -135,12 +135,17 @@ class CastToCommonDtype(test_case.TestCase):
         for tensor in casted_tensors:
             self.assertEqual(tensor.dtype, "float32")
 
-    # TODO failed AssertionError: 'float16' != 'float32'
-    #  The order of the tensors matters in the current logic
-    #  of the cast_to_common_dtype function
-    # def test_cast_to_common_dtype_bfloat16_float16_promotion(self):
-    #     tensor1 = KerasTensor([1, 2, 3], dtype="float16")
-    #     tensor2 = KerasTensor([4, 5, 6], dtype="bfloat16")
-    #     casted_tensors = dtype_utils.cast_to_common_dtype([tensor1, tensor2])
-    #     for tensor in casted_tensors:
-    #         self.assertEqual(tensor.dtype, "float32")
+    def test_cast_to_common_dtype_bfloat16_float16_promotion(self):
+        tensor1 = KerasTensor([1, 2, 3], dtype="float16")
+        tensor2 = KerasTensor([4, 5, 6], dtype="bfloat16")
+        casted_tensors = dtype_utils.cast_to_common_dtype([tensor1, tensor2])
+        for tensor in casted_tensors:
+            self.assertEqual(tensor.dtype, "float32")
+
+    def test_cast_to_common_dtype_f16_bf16_f64_preservation(self):
+        t1 = KerasTensor([1], dtype="float16")
+        t2 = KerasTensor([2], dtype="bfloat16")
+        t3 = KerasTensor([3], dtype="float64")
+        casted = dtype_utils.cast_to_common_dtype([t1, t2, t3])
+        for tensor in casted:
+            self.assertEqual(tensor.dtype, "float64")

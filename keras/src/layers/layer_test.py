@@ -16,7 +16,6 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
-from keras.src.utils import traceback_utils
 
 
 class MockRemat:
@@ -243,12 +242,11 @@ class LayerTest(testing.TestCase):
             layer.build((2, 4))
             layer.dtype_policy = "gptq/4/-1_from_float32"
 
+    @pytest.mark.skipif(
+        backend.backend() in ("openvino", "numpy"),
+        reason="remat not supported on OpenVino and Numpy",
+    )
     def test_functional_model_with_remat(self):
-        if backend.backend() in ("openvino", "numpy"):
-            self.skipTest(
-                "remat is not supported in openvino and numpy backends."
-            )
-        traceback_utils.enable_traceback_filtering()
         mock_remat = MockRemat()
         with mock.patch(
             "keras.src.backend.common.remat.remat", wraps=mock_remat

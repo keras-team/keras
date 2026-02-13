@@ -309,11 +309,38 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         shape = (-1, -1)
         self.assertEqual(core.slice(inputs, start_indices, shape).shape, (2, 2))
 
-    def test_slice_negative_one_shape_raises(self):
+    def test_slice_negative_one_shape_tensor_indices(self):
         inputs = KerasTensor(shape=(3, 3), dtype="float32")
         start_indices = KerasTensor(shape=(2,), dtype="int32")
         shape = (-1, -1)
-        with self.assertRaises(ValueError):
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, None)
+        )
+
+    def test_slice_negative_one_shape_dynamic_input_shape(self):
+        inputs = KerasTensor(shape=(None, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (-1, -1)
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, 2)
+        )
+
+    def test_slice_invalid_inputs(self):
+        inputs = KerasTensor(shape=(3, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (2, 2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `inputs` must match.* dimensions in `shape`",
+        ):
+            core.slice(inputs, start_indices, shape)
+
+        start_indices = (1, 1, 1)
+        shape = (2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `start_indices` must match.* dimensions in `inputs`",
+        ):
             core.slice(inputs, start_indices, shape)
 
     def test_slice_update(self):

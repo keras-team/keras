@@ -19,6 +19,7 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from keras.src.utils.python_utils import pythonify_logs
 
 if is_nnx_enabled():
     from flax import nnx
@@ -641,9 +642,10 @@ class JAXTrainer(base_trainer.Trainer):
         # Reattach state back to model (if not already done by a callback).
         self.jax_state_sync()
 
-        logs = self._get_metrics_result_or_logs(logs)
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
         self._jax_state = None
+
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -800,7 +802,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.jax_state_sync()
 
         # Format return values
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -841,7 +843,7 @@ class JAXTrainer(base_trainer.Trainer):
         self.jax_state_sync()
 
         # Format return values.
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)

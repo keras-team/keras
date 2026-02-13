@@ -2837,6 +2837,80 @@ def dot(x1, x2):
     return backend.numpy.dot(x1, x2)
 
 
+class Dstack(Operation):
+    def call(self, xs):
+        return backend.numpy.dstack(xs)
+
+    def compute_output_spec(self, xs):
+        dtypes_to_resolve = []
+        out_shapes = []
+        for x in xs:
+            shape = list(x.shape)
+            if len(shape) == 0:
+                shape = [1, 1, 1]
+            elif len(shape) == 1:
+                shape = [1, shape[0], 1]
+            elif len(shape) == 2:
+                shape = shape + [1]
+            out_shapes.append(shape)
+            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+
+        first_shape = out_shapes[0]
+        total_depth = 0
+        for shape in out_shapes:
+            if not shape_equal(shape, first_shape, axis=[2], allow_none=True):
+                raise ValueError(
+                    "Every value in `xs` must have the same shape except on "
+                    f"the `axis` dim. But found element of shape {shape}, "
+                    f"which is different from the first element's "
+                    f"shape {first_shape}."
+                )
+            if total_depth is None or shape[2] is None:
+                total_depth = None
+            else:
+                total_depth += shape[2]
+
+        output_shape = list(first_shape)
+        output_shape[2] = total_depth
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.dstack", "keras.ops.numpy.dstack"])
+def dstack(xs):
+    """Stack tensors in sequence depth wise (along third axis).
+
+    This is equivalent to concatenation along the third axis after 2-D tensors
+    of shape `(M, N)` have been reshaped to `(M, N, 1)` and 1-D tensors of shape
+    `(N,)` have been reshaped to `(1, N, 1)`.
+
+    Args:
+        xs: Sequence of tensors.
+
+    Returns:
+        The tensor formed by stacking the given tensors.
+
+    Examples:
+    >>> import keras
+    >>> x = keras.ops.array([1, 2, 3])
+    >>> y = keras.ops.array([4, 5, 6])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4],
+            [2, 5],
+            [3, 6]]])
+
+    >>> x = keras.ops.array([[1], [2], [3]])
+    >>> y = keras.ops.array([[4], [5], [6]])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4]],
+           [[2, 5]],
+           [[3, 6]]])
+    """
+    if any_symbolic_tensors((xs,)):
+        return Dstack().symbolic_call(xs)
+    return backend.numpy.dstack(xs)
+
+
 class Einsum(Operation):
     def __init__(self, subscripts, *, name=None):
         super().__init__(name=name)
@@ -5229,6 +5303,72 @@ def nanmin(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nanmin(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.nanmin(x, axis=axis, keepdims=keepdims)
+
+
+class Nanprod(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanprod(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+
+        if dtype == "bool":
+            dtype = "int32"
+        elif dtype in ("int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanprod", "keras.ops.numpy.nanprod"])
+def nanprod(x, axis=None, keepdims=False):
+    """Product of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the product is computed. The default is
+            to compute the product of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Returns:
+        Output tensor containing the product, with NaN values ignored.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanprod(x)
+    6.0
+
+    >>> ops.nanprod(x, axis=1)
+    array([3., 2.])
+
+    >>> ops.nanprod(x, axis=1, keepdims=True)
+    array([[3.],
+           [2.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
 
 
 class Nansum(Operation):

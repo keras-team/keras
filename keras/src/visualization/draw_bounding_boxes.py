@@ -44,7 +44,9 @@ def draw_bounding_boxes(
                `(batch_size, num_boxes)` containing the confidence scores for
                each bounding box.
         bounding_box_format: A string specifying the format of the bounding
-            boxes. Refer [keras-io](TODO)
+            boxes. See `keras.utils.bounding_boxes.convert_format` for
+            supported formats (e.g., "xyxy", "yxyx", "xywh",
+            "center_xywh", "center_yxhw", and the "rel_*" variants).
         class_mapping: A dictionary mapping class IDs (integers) to class labels
             (strings).  Used to display class labels next to the bounding boxes.
             Defaults to None (no labels displayed).
@@ -116,7 +118,13 @@ def draw_bounding_boxes(
     )
 
     # To numpy array
-    images = ops.convert_to_numpy(images).astype("uint8")
+    images = ops.convert_to_numpy(images)
+    if images.dtype.kind == "f" and images.size > 0:
+        if images.max() <= 1.0:
+            images = ops.clip(images, 0, 1) * 255
+        else:
+            images = ops.clip(images, 0, 255)
+    images = images.astype("uint8")
     boxes = ops.convert_to_numpy(bounding_boxes["boxes"])
     labels = ops.convert_to_numpy(bounding_boxes["labels"])
     if "confidences" in bounding_boxes:

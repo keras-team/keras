@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.opset14 as ov_opset
+import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
@@ -16,6 +16,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import while_loop
 
 
 def add(x1, x2):
@@ -802,7 +803,78 @@ def count_nonzero(x, axis=None):
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    raise NotImplementedError("`cross` is not supported with openvino backend")
+    if axis is not None:
+        axisa = axisb = axisc = axis
+
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+
+    x1, x2 = _align_operand_types(x1, x2, "cross()")
+
+    shape1 = x1.get_partial_shape()
+    shape2 = x2.get_partial_shape()
+
+    # Rank Normalization
+    rank1 = shape1.rank.get_length()
+    rank2 = shape2.rank.get_length()
+
+    axisa = canonicalize_axis(axisa, rank1)
+    axisb = canonicalize_axis(axisb, rank2)
+    axisc = canonicalize_axis(axisc, rank1 if rank1 > rank2 else rank2)
+
+    d1 = shape1[axisa].get_length()
+    d2 = shape2[axisb].get_length()
+
+    if d1 not in (2, 3) or d2 not in (2, 3):
+        raise ValueError(
+            "Dimension of vectors for cross product must be 2 or 3. "
+            f"Got dimensions {d1} and {d2} for inputs x1 and x2."
+        )
+
+    # Pad to 3D by adding a zero component.
+    def pad_to_3d(x, dim, ax):
+        if dim == 3:
+            return x
+
+        # Create a slice of zeros with the same type as x
+        slice0 = ov_opset.gather(
+            x,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant(ax, Type.i32),
+        )
+        zeros = ov_opset.multiply(
+            slice0,
+            ov_opset.constant(0, x.get_element_type()),
+        )
+
+        return ov_opset.concat([x, zeros], ax)
+
+    x1_3d = pad_to_3d(x1, d1, axisa)
+    x2_3d = pad_to_3d(x2, d2, axisb)
+
+    # Split Vectors
+    u = ov_opset.split(x1_3d, ov_opset.constant(axisa, Type.i32), 3).outputs()
+    v = ov_opset.split(x2_3d, ov_opset.constant(axisb, Type.i32), 3).outputs()
+
+    # u x v = (u2*v3 - u3*v2, u3*v1 - u1*v3, u1*v2 - u2*v1)
+    res_x = ov_opset.subtract(
+        ov_opset.multiply(u[1], v[2]), ov_opset.multiply(u[2], v[1])
+    )
+    res_y = ov_opset.subtract(
+        ov_opset.multiply(u[2], v[0]), ov_opset.multiply(u[0], v[2])
+    )
+    res_z = ov_opset.subtract(
+        ov_opset.multiply(u[0], v[1]), ov_opset.multiply(u[1], v[0])
+    )
+
+    # If dim was 2D, we remove the padded zero component.
+    if d1 == 2 and d2 == 2:
+        result = res_z
+        result = ov_opset.squeeze(result, ov_opset.constant([axisc], Type.i32))
+    else:
+        result = ov_opset.concat([res_x, res_y, res_z], axisc)
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -1074,6 +1146,48 @@ def dot(x1, x2):
     return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
 
+def dstack(xs):
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+    elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
+
+    processed_elems = []
+    for elem in elems:
+        shape = elem.get_partial_shape()
+        rank = shape.rank
+        shape_len = rank.get_length()
+        if shape_len == 0:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        elif shape_len == 1:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        elif shape_len == 2:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        processed_elems.append(elem)
+
+    for i in range(1, len(processed_elems)):
+        processed_elems[0], processed_elems[i] = _align_operand_types(
+            processed_elems[0], processed_elems[i], "dstack()"
+        )
+    return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 2).output(0))
+
+
 def empty(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
@@ -1110,6 +1224,17 @@ def exp(x):
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, ov_type)
     return OpenVINOKerasTensor(ov_opset.exp(x).output(0))
+
+
+def exp2(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
+    two = ov_opset.constant(2.0, x.get_element_type()).output(0)
+    result = ov_opset.power(two, x).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def expand_dims(x, axis):
@@ -1256,7 +1381,61 @@ def full_like(x, fill_value, dtype=None):
 
 
 def gcd(x1, x2):
-    raise NotImplementedError("`gcd` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "gcd()")
+
+    x1 = ov_opset.abs(x1).output(0)
+    x2 = ov_opset.abs(x2).output(0)
+
+    # Broadcast to common shape
+    temp_sum = ov_opset.add(x1, x2).output(0)
+    target_shape = ov_opset.shape_of(temp_sum, Type.i32).output(0)
+    x1 = ov_opset.broadcast(x1, target_shape).output(0)
+    x2 = ov_opset.broadcast(x2, target_shape).output(0)
+
+    def cond(a, b):
+        b = get_ov_output(b)
+        zero = ov_opset.constant(0, b.get_element_type()).output(0)
+        not_zero = ov_opset.not_equal(b, zero).output(0)
+
+        shape_b = ov_opset.shape_of(b, Type.i64).output(0)
+        rank_b = ov_opset.shape_of(shape_b, Type.i64).output(0)
+        rank_b_scalar = ov_opset.squeeze(
+            rank_b, ov_opset.constant(0, Type.i32)
+        ).output(0)
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i64).output(0),
+            rank_b_scalar,
+            ov_opset.constant(1, Type.i64).output(0),
+            Type.i64,
+        ).output(0)
+
+        return ov_opset.reduce_logical_or(not_zero, axes, False).output(0)
+
+    def body(a, b):
+        a = get_ov_output(a)
+        b = get_ov_output(b)
+
+        zero = ov_opset.constant(0, b.get_element_type()).output(0)
+        mask = ov_opset.not_equal(b, zero).output(0)
+
+        one = ov_opset.constant(1, b.get_element_type()).output(0)
+        safe_b = ov_opset.select(mask, b, one).output(0)
+
+        mod_val = ov_opset.floor_mod(a, safe_b).output(0)
+
+        next_a = ov_opset.select(mask, b, a).output(0)
+        next_b = ov_opset.select(mask, mod_val, b).output(0)
+
+        return OpenVINOKerasTensor(next_a), OpenVINOKerasTensor(next_b)
+
+    x1_kt = OpenVINOKerasTensor(x1)
+    x2_kt = OpenVINOKerasTensor(x2)
+
+    results = while_loop(cond, body, (x1_kt, x2_kt))
+
+    return results[0]
 
 
 def greater(x1, x2):
@@ -2129,6 +2308,12 @@ def nanmin(x, axis=None, keepdims=False):
     raise NotImplementedError("`nanmin` is not supported with openvino backend")
 
 
+def nanprod(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanprod` is not supported with openvino backend"
+    )
+
+
 def nansum(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     x_type = x.get_element_type()
@@ -2714,9 +2899,82 @@ def tanh(x):
 
 
 def tensordot(x1, x2, axes=2):
-    raise NotImplementedError(
-        "`tensordot` is not supported with openvino backend"
+    a = get_ov_output(x1)
+    b = get_ov_output(x2)
+    a, b = _align_operand_types(a, b, "tensordot()")
+
+    rank_a = a.get_partial_shape().rank.get_length()
+    rank_b = b.get_partial_shape().rank.get_length()
+
+    if isinstance(axes, int):
+        axes_a = list(range(rank_a - axes, rank_a))
+        axes_b = list(range(axes))
+    else:
+        axes_a, axes_b = [
+            list(ax) if isinstance(ax, (list, tuple)) else [ax] for ax in axes
+        ]
+        axes_a = [canonicalize_axis(i, rank_a) for i in axes_a]
+        axes_b = [canonicalize_axis(i, rank_b) for i in axes_b]
+
+    notin_a = [i for i in range(rank_a) if i not in axes_a]
+    notin_b = [i for i in range(rank_b) if i not in axes_b]
+
+    # Transpose so contraction axes are at the end of A and beginning of B
+    a_transpose = ov_opset.transpose(
+        a, ov_opset.constant(notin_a + axes_a, Type.i32)
     )
+    b_transpose = ov_opset.transpose(
+        b, ov_opset.constant(axes_b + notin_b, Type.i32)
+    )
+
+    # Calculate the product of the contraction dimensions
+    shape_a = ov_opset.shape_of(a, Type.i32)
+    contract_dims = ov_opset.gather(
+        shape_a, ov_opset.constant(axes_a, Type.i32), 0
+    )
+    contract_size = ov_opset.reduce_prod(contract_dims, 0, keep_dims=True)
+
+    # Reshape A to [-1, contract_size] and B to [contract_size, -1]
+    a_2d = ov_opset.reshape(
+        a_transpose,
+        ov_opset.concat([ov_opset.constant([-1], Type.i32), contract_size], 0),
+        False,
+    )
+    b_2d = ov_opset.reshape(
+        b_transpose,
+        ov_opset.concat([contract_size, ov_opset.constant([-1], Type.i32)], 0),
+        False,
+    )
+
+    result = ov_opset.matmul(a_2d, b_2d, False, False)
+
+    # Reconstruct final shape from free dimensions
+    if not notin_a and not notin_b:
+        # Scalar output case
+        result = ov_opset.reshape(
+            result, ov_opset.constant([], Type.i32), False
+        )
+    else:
+        shape_b = ov_opset.shape_of(b, Type.i32)
+        final_parts = []
+        if notin_a:
+            final_parts.append(
+                ov_opset.gather(
+                    shape_a, ov_opset.constant(notin_a, Type.i32), 0
+                )
+            )
+        if notin_b:
+            final_parts.append(
+                ov_opset.gather(
+                    shape_b, ov_opset.constant(notin_b, Type.i32), 0
+                )
+            )
+
+        result = ov_opset.reshape(
+            result, ov_opset.concat(final_parts, 0), False
+        )
+
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def round(x, decimals=0):
@@ -2736,6 +2994,18 @@ def round(x, decimals=0):
     if x_type.is_integral():
         result = ov_opset.convert(result, x_type)
 
+    return OpenVINOKerasTensor(result.output(0))
+
+
+def trunc(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        return OpenVINOKerasTensor(x)
+    sign_x = ov_opset.sign(x)
+    abs_x = ov_opset.abs(x)
+    floor_abs_x = ov_opset.floor(abs_x)
+    result = ov_opset.multiply(sign_x, floor_abs_x)
     return OpenVINOKerasTensor(result.output(0))
 
 

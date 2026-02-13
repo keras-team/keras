@@ -607,6 +607,16 @@ def dot(x1, x2):
     return np.dot(x1, x2)
 
 
+def dstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
+    return np.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = dtype or config.floatx()
     return np.empty(shape, dtype=dtype)
@@ -971,6 +981,19 @@ def nanmean(x, axis=None, keepdims=False):
 
 def nanmin(x, axis=None, keepdims=False):
     return np.nanmin(x, axis=axis, keepdims=keepdims)
+
+
+def nanprod(x, axis=None, keepdims=False):
+    axis = standardize_axis_for_numpy(axis)
+
+    x = convert_to_tensor(x)
+
+    dtype = dtypes.result_type(x.dtype)
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
 def nansum(x, axis=None, keepdims=False):

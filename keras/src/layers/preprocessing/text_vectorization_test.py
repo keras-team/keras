@@ -314,3 +314,195 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         # after custom split, the outputted index should be the last
         # token in the vocab.
         self.assertAllEqual(output, [[4]])
+
+    def test_strip_punctuation_standardization(self):
+        layer = layers.TextVectorization(
+            standardize="strip_punctuation",
+            vocabulary=["Hello", "World", "Test"],
+        )
+        output = layer(["Hello, World! Test."])
+        self.assertTrue(backend.is_tensor(output))
+        # Case is preserved, punctuation stripped
+        self.assertAllEqual(output, [[2, 3, 4]])
+
+    def test_no_standardization(self):
+        layer = layers.TextVectorization(
+            standardize=None,
+            vocabulary=["Hello", "world"],
+        )
+        # "Hello" matches, "hello" does not (case-sensitive)
+        output = layer(["Hello hello"])
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllEqual(output, [[2, 1]])
+
+    def test_custom_standardize_callable(self):
+        def custom_standardize(text):
+            return tf.strings.regex_replace(text, "-", " ")
+
+        layer = layers.TextVectorization(
+            standardize=custom_standardize,
+            split="whitespace",
+            vocabulary=["foo", "bar"],
+        )
+        output = layer(["foo-bar"])
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllEqual(output, [[2, 3]])
+
+    def test_no_split(self):
+        layer = layers.TextVectorization(
+            split=None,
+            vocabulary=["foo", "bar", "baz"],
+            output_mode="int",
+        )
+        # Each element is looked up as a whole string (no splitting)
+        output = layer([["foo"], ["bar"], ["unknown"]])
+        self.assertTrue(backend.is_tensor(output))
+        self.assertAllEqual(output, [[2], [3], [1]])
+
+    def test_ngrams_integer(self):
+        layer = layers.TextVectorization(
+            ngrams=2,
+            output_mode="int",
+        )
+        layer.adapt(["foo bar baz"])
+        vocab = layer.get_vocabulary()
+        # ngrams=2 produces unigrams and bigrams
+        # Verify bigrams are in the vocabulary
+        self.assertIn("foo bar", vocab)
+        self.assertIn("bar baz", vocab)
+
+    def test_ngrams_tuple(self):
+        layer = layers.TextVectorization(
+            ngrams=(1, 3),
+            output_mode="int",
+        )
+        layer.adapt(["foo bar baz"])
+        vocab = layer.get_vocabulary()
+        # Should have unigrams and trigrams but not bigrams
+        self.assertIn("foo", vocab)
+        self.assertIn("foo bar baz", vocab)
+        self.assertNotIn("foo bar", vocab)
+
+    def test_max_tokens(self):
+        layer = layers.TextVectorization(
+            output_mode="int",
+            max_tokens=5,
+        )
+        layer.adapt(["a b c d e f g h i j"])
+        vocab = layer.get_vocabulary()
+        self.assertEqual(len(vocab), 5)
+
+    def test_pad_to_max_tokens(self):
+        layer = layers.TextVectorization(
+            output_mode="multi_hot",
+            vocabulary=["foo", "bar"],
+            max_tokens=8,
+            pad_to_max_tokens=True,
+        )
+        output = layer(["foo bar"])
+        self.assertEqual(output.shape[-1], 8)
+
+    def test_get_vocabulary(self):
+        layer = layers.TextVectorization(
+            output_mode="int",
+            vocabulary=["foo", "bar", "baz"],
+        )
+        vocab = layer.get_vocabulary()
+        self.assertEqual(vocab[0], "")
+        self.assertEqual(vocab[1], "[UNK]")
+        self.assertIn("foo", vocab)
+        self.assertIn("bar", vocab)
+        self.assertIn("baz", vocab)
+
+    def test_get_vocabulary_no_special_tokens(self):
+        layer = layers.TextVectorization(
+            output_mode="int",
+            vocabulary=["foo", "bar", "baz"],
+        )
+        vocab = layer.get_vocabulary(include_special_tokens=False)
+        self.assertNotIn("", vocab)
+        self.assertNotIn("[UNK]", vocab)
+        self.assertEqual(len(vocab), 3)
+
+    def test_vocabulary_size(self):
+        layer = layers.TextVectorization(
+            output_mode="int",
+            vocabulary=["foo", "bar", "baz"],
+        )
+        # 3 vocab + mask + OOV = 5
+        self.assertEqual(layer.vocabulary_size(), 5)
+
+    def test_vocabulary_from_file(self):
+        tmp_dir = self.get_temp_dir()
+        vocab_file = os.path.join(tmp_dir, "vocab.txt")
+        with open(vocab_file, "w") as f:
+            f.write("foo\nbar\nbaz\n")
+        layer = layers.TextVectorization(
+            vocabulary=vocab_file,
+            output_mode="int",
+        )
+        output = layer(["foo bar baz unknown"])
+        self.assertAllClose(output, np.array([[2, 3, 4, 1]]))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="one_hot output only supported on TensorFlow",
+    )
+    def test_one_hot_output(self):
+        layer = layers.TextVectorization(
+            output_mode="one_hot",
+            vocabulary=["foo", "bar", "baz"],
+        )
+        output = layer(["foo bar"])
+        self.assertTrue(backend.is_tensor(output))
+        # one_hot on a split sentence produces shape (1, num_tokens, vocab_size)
+        self.assertEqual(output.shape[-1], 4)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="sparse=True only supported on TensorFlow",
+    )
+    def test_sparse_output(self):
+        layer = layers.TextVectorization(
+            output_mode="multi_hot",
+            vocabulary=["foo", "bar", "baz"],
+            sparse=True,
+        )
+        output = layer(["foo bar"])
+        self.assertTrue(hasattr(output, "indices"))
+
+    def test_adapt_with_tf_dataset(self):
+        ds = tf_data.Dataset.from_tensor_slices(
+            ["foo bar", "bar baz", "baz foo"]
+        ).batch(2)
+        layer = layers.TextVectorization(output_mode="int")
+        layer.adapt(ds)
+        vocab = layer.get_vocabulary()
+        self.assertIn("foo", vocab)
+        self.assertIn("bar", vocab)
+        self.assertIn("baz", vocab)
+
+    def test_adapt_with_steps(self):
+        ds = tf_data.Dataset.from_tensor_slices(
+            ["foo bar", "bar baz", "unique_word"]
+        ).batch(1)
+        layer = layers.TextVectorization(output_mode="int")
+        # Only process first 2 batches, so "unique_word" should not be adapted
+        layer.adapt(ds, steps=2)
+        vocab = layer.get_vocabulary()
+        self.assertIn("bar", vocab)
+        self.assertNotIn("unique_word", vocab)
+
+    def test_invalid_ngrams(self):
+        with self.assertRaises(ValueError):
+            layers.TextVectorization(ngrams="invalid")
+
+    def test_output_sequence_length_with_non_int_mode(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "`output_sequence_length` must not be set if `output_mode` is not",
+        ):
+            layers.TextVectorization(
+                output_mode="multi_hot",
+                output_sequence_length=5,
+            )
