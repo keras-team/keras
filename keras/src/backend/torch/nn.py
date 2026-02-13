@@ -839,10 +839,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         squeeze = True
     else:
         squeeze = False
-
-    class_axis = axis % output.dim()
-    if class_axis != 1:
-        output = output.movedim(class_axis, 1)
+        class_axis = axis % output.dim()
+        if class_axis != 1:
+            output = output.movedim(class_axis, 1)
 
     if from_logits:
         result = tnn.cross_entropy(output, target, reduction="none")
