@@ -3389,6 +3389,8 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
 
 def unravel_index(indices, shape):
     indices = get_ov_output(indices)
+    if not indices.get_element_type().is_integral():
+        indices = ov_opset.convert(indices, Type.i64).output(0)
     indices_dtype = indices.get_element_type()
 
     if None in shape:
