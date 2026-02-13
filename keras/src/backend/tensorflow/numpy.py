@@ -3031,7 +3031,7 @@ def vstack(xs):
 
 
 def vsplit(x, indices_or_sections):
-    return tf.experimental.numpy.vsplit(x, indices_or_sections)
+    return split(x, indices_or_sections, axis=0)
 
 
 def _vmap_fn(fn, in_axes=0):

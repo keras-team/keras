@@ -1355,6 +1355,7 @@ def vstack(xs):
 
 
 def vsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
     return jnp.vsplit(x, indices_or_sections)
 
 
