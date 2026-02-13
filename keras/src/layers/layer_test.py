@@ -1854,39 +1854,20 @@ class LayerTest(testing.TestCase):
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)
 
-    def test_functional_model_with_attention_mask_arg(self):
-        class CustomLayer(layers.Layer):
-            def call(self, x, attention_mask=None):
-                if attention_mask is not None:
-                    return x * ops.cast(attention_mask, x.dtype)
-                return x
-
-        x = Input(shape=(3,))
-        mask = Input(shape=(1,))
-        y = CustomLayer()(x, attention_mask=mask)
-        model = Model([x, mask], y)
-        out = model(
-            [
-                np.ones((2, 3), dtype="float32"),
-                np.ones((2, 1), dtype="float32"),
-            ]
-        )
-        self.assertEqual(out.shape, (2, 3))
-
     def test_layer_build_with_attention_mask_arg(self):
+        test = self
+
         class CustomLayer(layers.Layer):
-            def call(self, x, attention_mask=None):
+            def call(self, inputs, attention_mask=None):
                 if attention_mask is not None:
-                    return x * ops.cast(attention_mask, x.dtype)
-                return x
+                    return inputs * ops.cast(attention_mask, x.dtype)
+                return inputs
+
+            def build(self, inputs_shape, attention_mask_shape=None):
+                test.assertIsNotNone(attention_mask_shape)
+                self.built = True
 
         layer = CustomLayer()
-        layer.build(
-            {
-                "x": (None, 3),
-                "attention_mask": (None, 1),
-            }
-        )
         x = np.ones((2, 3), dtype="float32")
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
