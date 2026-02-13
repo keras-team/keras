@@ -755,6 +755,10 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     raise NotImplementedError("`unfold` is not supported with openvino backend")
 
 
+def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    raise NotImplementedError("`fold` is not supported with openvino backend")
+
+
 def depth_to_space(x, block_size, data_format="channels_last"):
     """OpenVINO implementation of depth_to_space (pixel shuffle).
 

@@ -1895,6 +1895,80 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches.reshape(N, CKK, oH * oW)
 
 
+def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """JAX implementation of Fold.
+    Combine sliding local blocks into a large containing tensor (col2im).
+
+    Args:
+        input: 3-D tensor, shape (N, C*kH*kW, L)
+        output_size: (H, W) the spatial size of the output tensor
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, H, W)
+    """
+
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    kH, kW = k
+    dH, dW = d
+    pH, pW = p
+    sH, sW = s
+    H_out, W_out = output_size
+
+    N, CkHkW, L = input.shape
+    C = CkHkW // (kH * kW)
+
+    H_padded = H_out + 2 * pH
+    W_padded = W_out + 2 * pW
+
+    # Calculate number of patches
+    nH = (H_padded - dH * (kH - 1) - 1) // sH + 1
+    nW = (W_padded - dW * (kW - 1) - 1) // sW + 1
+
+    # Reshape input: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
+    x = input.reshape(N, C, kH, kW, nH, nW)
+
+    # Initialize output with zeros
+    output = jnp.zeros((N, C, H_padded, W_padded), dtype=input.dtype)
+
+    # Build indices for scatter
+    batch_idx = jnp.arange(N)
+    channel_idx = jnp.arange(C)
+
+    for i in range(kH):
+        for j in range(kW):
+            # Compute the starting positions for this kernel element
+            h_positions = jnp.arange(nH) * sH + i * dH
+            w_positions = jnp.arange(nW) * sW + j * dW
+
+            # Get values for this kernel position: (N, C, nH, nW)
+            vals = x[:, :, i, j, :, :]
+
+            # Create scatter indices using meshgrid
+            n_idx, c_idx, h_idx, w_idx = jnp.meshgrid(
+                batch_idx, channel_idx, h_positions, w_positions, indexing="ij"
+            )
+
+            # Use advanced indexing to add values
+            output = output.at[n_idx, c_idx, h_idx, w_idx].add(vals)
+
+    # Remove padding
+    if pH > 0 or pW > 0:
+        output = output[:, :, pH : H_padded - pH, pW : W_padded - pW]
+
+    return output
+
+
 def depth_to_space(x, block_size, data_format="channels_last"):
     """JAX implementation of depth_to_space (pixel shuffle).
 

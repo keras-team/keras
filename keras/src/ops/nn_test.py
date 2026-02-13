@@ -3499,6 +3499,86 @@ class NNOpsBehaviorTest(testing.TestCase):
         )
         self.assertAllClose(unfold_result, except_result)
 
+    def test_fold(self):
+        if keras.config.backend() in ["openvino"]:
+            pytest.skip("Backend does not support fold operation")
+
+        # test 1: fold is inverse of unfold with non-overlapping patches
+        x = ops.arange(8, dtype="float32")
+        x = ops.reshape(x, [1, 2, 2, 2])
+        patches = knn.unfold(x, kernel_size=2, stride=2)
+        reconstructed = knn.fold(
+            patches, output_size=(2, 2), kernel_size=2, stride=2
+        )
+        self.assertAllClose(reconstructed, x)
+
+        # test 2: fold with larger input
+        x = ops.arange(32, dtype="float32")
+        x = ops.reshape(x, [1, 2, 4, 4])
+        patches = knn.unfold(x, kernel_size=2, stride=2)
+        reconstructed = knn.fold(
+            patches, output_size=(4, 4), kernel_size=2, stride=2
+        )
+        self.assertAllClose(reconstructed, x)
+
+        # test 3: fold with non-square kernel
+        x = ops.arange(12, dtype="float32")
+        x = ops.reshape(x, [1, 2, 2, 3])
+        patches = knn.unfold(x, kernel_size=[2, 3], stride=[2, 3])
+        reconstructed = knn.fold(
+            patches, output_size=(2, 3), kernel_size=[2, 3], stride=[2, 3]
+        )
+        self.assertAllClose(reconstructed, x)
+
+        # test 4: fold with dilation
+        # Note: with dilation, unfold extracts sparse samples, so fold
+        # recovers only those positions (others remain zero)
+        x = ops.arange(32, dtype="float32")
+        x = ops.reshape(x, [1, 2, 4, 4])
+        patches = knn.unfold(x, kernel_size=2, dilation=2, stride=2)
+        reconstructed = knn.fold(
+            patches, output_size=(4, 4), kernel_size=2, dilation=2, stride=2
+        )
+        # Check shape is correct
+        self.assertEqual(reconstructed.shape, (1, 2, 4, 4))
+        # Check that the dilated positions are recovered correctly and
+        # others are 0. With kernel_size=2, dilation=2, stride=2 on a 4x4
+        # input, unfold extracts one patch from the top-left. The patch
+        # consists of elements at (0,0), (0,2), (2,0), (2,2) within the
+        # 4x4 grid. fold should place these values back.
+        expected_np = np.zeros_like(ops.convert_to_numpy(x))
+        x_np = ops.convert_to_numpy(x)
+        expected_np[:, :, 0, 0] = x_np[:, :, 0, 0]
+        expected_np[:, :, 0, 2] = x_np[:, :, 0, 2]
+        expected_np[:, :, 2, 0] = x_np[:, :, 2, 0]
+        expected_np[:, :, 2, 2] = x_np[:, :, 2, 2]
+        expected = ops.convert_to_tensor(expected_np, dtype=x.dtype)
+        self.assertAllClose(reconstructed, expected)
+
+        # test 5: fold output shape check with overlapping patches
+        # When stride < kernel_size, patches overlap and values are summed
+        x = ops.ones((1, 1, 4, 4), dtype="float32")
+        patches = knn.unfold(x, kernel_size=2, stride=1)
+        reconstructed = knn.fold(
+            patches, output_size=(4, 4), kernel_size=2, stride=1
+        )
+        # With stride=1 and kernel_size=2, center pixels are covered 4 times
+        # corners 1 time, edges 2 times
+        expected_counts = ops.convert_to_tensor(
+            [[[[1, 2, 2, 1], [2, 4, 4, 2], [2, 4, 4, 2], [1, 2, 2, 1]]]],
+            dtype="float32",
+        )
+        self.assertAllClose(reconstructed, expected_counts)
+
+        # test 6: fold with padding
+        x = ops.arange(8, dtype="float32")
+        x = ops.reshape(x, [1, 2, 2, 2])
+        patches = knn.unfold(x, kernel_size=2, stride=2, padding=1)
+        reconstructed = knn.fold(
+            patches, output_size=(2, 2), kernel_size=2, stride=2, padding=1
+        )
+        self.assertAllClose(reconstructed, x)
+
     def test_depth_to_space(self):
         # Test channels_last (default)
         # Input: (1, 2, 2, 12) -> Output: (1, 4, 4, 3)
