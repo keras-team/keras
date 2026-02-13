@@ -3404,14 +3404,7 @@ def unravel_index(indices, shape):
         dim_const = ov_opset.constant(dim_size, indices_dtype).output(0)
         coord = ov_opset.floor_mod(indices, dim_const).output(0)
         coords.append(coord)
-        x1_float = ov_opset.convert(indices, Type.f32).output(0)
-        x2_float = ov_opset.convert(dim_const, Type.f32).output(0)
-        indices = ov_opset.convert(
-            ov_opset.floor(
-                ov_opset.divide(x1_float, x2_float).output(0)
-            ).output(0),
-            indices_dtype,
-        ).output(0)
+        indices = ov_opset.divide(indices, dim_const, pythondiv=False).output(0)
 
     coords = list(reversed(coords))
     return tuple(OpenVINOKerasTensor(coord) for coord in coords)
