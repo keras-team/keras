@@ -70,6 +70,15 @@ else:
 
         At runtime this is a placeholder class. Do not instantiate
         it or use it with ``isinstance()``.
+
+        Example:
+
+        ```python
+        from keras.types import Tensor
+
+        def my_function(x: Tensor) -> Tensor:
+            return x
+        ```
         """
 
         pass
@@ -85,6 +94,15 @@ else:
 
         At runtime this is a placeholder class. Do not instantiate
         it or use it with ``isinstance()``.
+
+        Example:
+
+        ```python
+        from keras.types import Shape
+
+        def reshape(x, shape: Shape):
+            return keras.ops.reshape(x, shape)
+        ```
         """
 
         pass
@@ -99,6 +117,15 @@ else:
 
         At runtime this is a placeholder class. Do not instantiate
         it or use it with ``isinstance()``.
+
+        Example:
+
+        ```python
+        from keras.types import DType
+
+        def cast(x, dtype: DType):
+            return keras.ops.cast(x, dtype)
+        ```
         """
 
         pass
