@@ -124,6 +124,8 @@ def get_ov_output(x, ov_type=None):
         x = ov_opset.constant(x.value.data).output(0)
     elif isinstance(x, OpenVINOKerasTensor):
         x = x.output
+    elif isinstance(x, ov.Output):
+        return x
     elif isinstance(x, Tensor):
         x = ov_opset.constant(x.data).output(0)
     else:
