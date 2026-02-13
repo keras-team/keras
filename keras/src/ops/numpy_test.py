@@ -5857,10 +5857,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_nanvar(self):
-        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]])
+        x = np.array([[[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]]])
 
         self.assertAllClose(knp.nanvar(x), np.nanvar(x))
         self.assertAllClose(knp.nanvar(x, axis=()), np.nanvar(x, axis=()))
+        self.assertAllClose(knp.nanvar(x, axis=0), np.nanvar(x, axis=0))
         self.assertAllClose(knp.nanvar(x, axis=1), np.nanvar(x, axis=1))
         self.assertAllClose(knp.nanvar(x, axis=(1,)), np.nanvar(x, axis=(1,)))
         self.assertAllClose(

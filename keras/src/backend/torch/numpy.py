@@ -1359,11 +1359,11 @@ def nansum(x, axis=None, keepdims=False):
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
-    if axis == () or axis == []:
-        return x
-
     result_dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, result_dtype)
+
+    if axis == () or axis == []:
+        return torch.where(torch.isnan(x), x, torch.zeros(()))
 
     mean = nanmean(x, axis=axis, keepdims=True)
 
@@ -1375,9 +1375,8 @@ def nanvar(x, axis=None, keepdims=False):
     else:
         centered = centered.square()
 
-    count = valid.sum(dim=axis, keepdim=keepdims).clamp(min=1)
+    count = valid.sum(dim=axis, keepdim=keepdims)
     var = centered.sum(dim=axis, keepdim=keepdims) / count
-
     return var
 
 

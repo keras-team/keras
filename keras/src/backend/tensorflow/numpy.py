@@ -2247,11 +2247,8 @@ def nanvar(x, axis=None, keepdims=False):
     else:
         centered = tf.square(centered)
 
-    count = tf.maximum(
-        tf.reduce_sum(
-            tf.cast(valid, centered.dtype), axis=axis, keepdims=keepdims
-        ),
-        1.0,
+    count = tf.reduce_sum(
+        tf.cast(valid, centered.dtype), axis=axis, keepdims=keepdims
     )
 
     var = tf.reduce_sum(centered, axis=axis, keepdims=keepdims) / count

@@ -5460,6 +5460,22 @@ def nanvar(x, axis=None, keepdims=False):
 
     Returns:
         Output tensor containing the variance ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanvar(x)
+    0.6875
+
+    >>> ops.nanvar(x, axis=1)
+    array([1.  , 0.25])
+
+    >>> ops.nanvar(x, axis=1, keepdims=True)
+    array([[1.  ],
+           [0.25]])
     """
     if any_symbolic_tensors((x,)):
         return Nanvar(axis=axis, keepdims=keepdims).symbolic_call(x)
