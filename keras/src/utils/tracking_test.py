@@ -97,3 +97,53 @@ class TrackingTest(testing.TestCase):
         self.assertLen(tracked_variables, 2)
         self.assertEqual(tracked_variables[0], v1)
         self.assertEqual(tracked_variables[1], v2)
+
+    def test_tracked_dict_constructor_with_ordered_dict(self):
+        tracked_variables = []
+        tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    tracked_variables,
+                ),
+            }
+        )
+        v1 = backend.Variable(1.0)
+        v2 = backend.Variable(2.0)
+        v3 = backend.Variable(3.0)
+        input_ordered = collections.OrderedDict(
+            [("x", v1), ("y", v2), ("z", v3)]
+        )
+        tdict = tracking.TrackedDict(input_ordered, tracker=tracker)
+
+        self.assertIsInstance(tdict, dict)
+        self.assertEqual(list(tdict.keys()), ["x", "y", "z"])
+        self.assertEqual(list(tdict.values()), [v1, v2, v3])
+        self.assertLen(tracked_variables, 3)
+        self.assertEqual(tracked_variables, [v1, v2, v3])
+
+    def test_tracked_dict_constructor_with_iterable_pairs(self):
+        tracked_variables = []
+        tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    tracked_variables,
+                ),
+            }
+        )
+        v1 = backend.Variable(1.0)
+        v2 = backend.Variable(2.0)
+        # Test with zip object
+        keys = ["p", "q"]
+        values = [v1, v2]
+        iterable_pairs = zip(keys, values)
+        tdict = tracking.TrackedDict(iterable_pairs, tracker=tracker)
+
+        self.assertIsInstance(tdict, dict)
+        self.assertEqual(tdict["p"], v1)
+        self.assertEqual(tdict["q"], v2)
+        self.assertLen(tdict, 2)
+        self.assertLen(tracked_variables, 2)
+        self.assertIn(v1, tracked_variables)
+        self.assertIn(v2, tracked_variables)
