@@ -828,18 +828,21 @@ def gru(
     if mask is not None:
         mask = mask.to(device)
 
-    return _cudnn_gru(
-        inputs,
-        initial_state,
-        kernel,
-        recurrent_kernel,
-        bias,
-        mask,
-        batch_first,
-        go_backwards,
-        return_sequences,
-        device,
-    )
+    try:
+        return _cudnn_gru(
+            inputs,
+            initial_state,
+            kernel,
+            recurrent_kernel,
+            bias,
+            mask,
+            batch_first,
+            go_backwards,
+            return_sequences,
+            device,
+        )
+    except Exception:
+        raise NotImplementedError
 
 
 def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
