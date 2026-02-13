@@ -1,5 +1,3 @@
-import re
-
 import numpy as np
 import pytest
 
@@ -1358,6 +1356,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         self.assertAllClose(output, expected.sum() / 16.0)  # 16 pixels
 
     def test_binary_segmentation_different_axis(self):
+        # Test axis=0 with perfect predictions (all correct)
         y_true = np.array(
             [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
         )
@@ -1370,62 +1369,39 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             ]
         )
         y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
-        if backend.backend() == "tensorflow":
-            expected_message = (
-                "Only axis=-1 is currently supported. Received: axis=0"
-            )
-            escaped_message = re.escape(expected_message)
+        output = losses.SparseCategoricalCrossentropy(axis=0)(
+            y_true, y_pred_reshaped
+        )
+        self.assertAllClose(output, 0.0)
 
-            with pytest.raises(ValueError, match=escaped_message):
-                losses.SparseCategoricalCrossentropy(axis=0)(
-                    y_true, y_pred_reshaped
-                )
-        elif backend.backend() == "jax":
-            expected_message = (
-                "Arguments `target` and `output` "
-                "must have the same shape up until"
-                " the last dimension: target.shape=(4, 4),"
-                " output.shape=(2, 4, 4)"
-            )
-            escaped_message = re.escape(expected_message)
+        # Test axis=0 with some incorrect predictions
+        y_true = np.array(
+            [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
+                [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [0.2, 0.8]],
+                [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
+                [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
+                [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.6, 0.4]],
+            ]
+        )
+        y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
+        expected = np.array([-np.log(0.2), -np.log(0.4)])
+        output = losses.SparseCategoricalCrossentropy(axis=0)(
+            y_true, y_pred_reshaped
+        )
+        self.assertAllClose(output, expected.sum() / 16.0)
 
-            with pytest.raises(ValueError, match=escaped_message):
-                losses.SparseCategoricalCrossentropy(axis=0)(
-                    y_true, y_pred_reshaped
-                )
-        elif backend.backend() == "torch":
-            output = losses.SparseCategoricalCrossentropy(axis=0)(
-                y_true, y_pred_reshaped
-            )
-            self.assertAllClose(output, 0.0)
-
-        if backend.backend() == "torch":
-            y_true = np.array(
-                [[0, 1, 1, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
-            )
-            y_pred = np.array(
-                [
-                    [[1.0, 0.0], [0.0, 1.0], [0.0, 1.0], [0.2, 0.8]],
-                    [[0.0, 1.0], [1.0, 0.0], [0.0, 1.0], [1.0, 0.0]],
-                    [[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]],
-                    [[0.0, 1.0], [0.0, 1.0], [1.0, 0.0], [0.6, 0.4]],
-                ]
-            )
-            y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
-            expected = np.array([-np.log(0.2), -np.log(0.4)])
-            output = losses.SparseCategoricalCrossentropy(axis=0)(
-                y_true, y_pred_reshaped
-            )
-            self.assertAllClose(output, expected.sum() / 16.0)
-
-            y_true = np.array([y_true, y_true, y_true])
-            y_pred_reshaped = np.array(
-                [y_pred_reshaped, y_pred_reshaped, y_pred_reshaped]
-            )
-            output = losses.SparseCategoricalCrossentropy(axis=1)(
-                y_true, y_pred_reshaped
-            )
-            self.assertAllClose(output, expected.sum() / 16.0)
+        # Test axis=1 with batched data
+        y_true = np.array([y_true, y_true, y_true])
+        y_pred_reshaped = np.array(
+            [y_pred_reshaped, y_pred_reshaped, y_pred_reshaped]
+        )
+        output = losses.SparseCategoricalCrossentropy(axis=1)(
+            y_true, y_pred_reshaped
+        )
+        self.assertAllClose(output, expected.sum() / 16.0)
 
     def test_multi_class_segmentation(self):
         y_true = np.array(
@@ -1504,6 +1480,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
         self.assertAllClose(output, expected.sum() / 16.0)  # 16 pixels
 
     def test_multi_class_segmentation_different_axis(self):
+        # Test axis=0 with perfect predictions (all correct) for 3 classes
         y_true = np.array(
             [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
         )
@@ -1536,87 +1513,65 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             ]
         )
         y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
-        if backend.backend() == "tensorflow":
-            expected_message = (
-                "Only axis=-1 is currently supported. Received: axis=0"
-            )
-            escaped_message = re.escape(expected_message)
+        output = losses.SparseCategoricalCrossentropy(axis=0)(
+            y_true, y_pred_reshaped
+        )
+        self.assertAllClose(output, 0.0)
 
-            with pytest.raises(ValueError, match=escaped_message):
-                losses.SparseCategoricalCrossentropy(axis=0)(
-                    y_true, y_pred_reshaped
-                )
-        elif backend.backend() == "jax":
-            expected_message = (
-                "Arguments `target` and `output` "
-                "must have the same shape up until"
-                " the last dimension: target.shape=(4, 4),"
-                " output.shape=(3, 4, 4)"
-            )
-            escaped_message = re.escape(expected_message)
-
-            with pytest.raises(ValueError, match=escaped_message):
-                losses.SparseCategoricalCrossentropy(axis=0)(
-                    y_true, y_pred_reshaped
-                )
-        elif backend.backend() == "torch":
-            output = losses.SparseCategoricalCrossentropy(axis=0)(
-                y_true, y_pred_reshaped
-            )
-            self.assertAllClose(output, 0.0)
-
-        if backend.backend() == "torch":
-            y_true = np.array(
-                [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
-            )
-            y_pred = np.array(
+        # Test axis=0 with some incorrect predictions for 3 classes
+        y_true = np.array(
+            [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
+        )
+        y_pred = np.array(
+            [
                 [
-                    [
-                        [1.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0],
-                        [0.0, 0.0, 1.0],
-                        [0.2, 0.0, 0.8],
-                    ],
-                    [
-                        [0.7, 0.3, 0.0],
-                        [1.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0],
-                        [1.0, 0.0, 0.0],
-                    ],
-                    [
-                        [1.0, 0.0, 0.0],
-                        [1.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0],
-                        [0.0, 1.0, 0.0],
-                    ],
-                    [
-                        [0.0, 1.0, 0.0],
-                        [0.0, 1.0, 0.0],
-                        [0.5, 0.5, 0.0],
-                        [0.0, 1.0, 0.0],
-                    ],
-                ]
-            )
-            expected = np.array(
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 0.0, 1.0],
+                    [0.2, 0.0, 0.8],
+                ],
                 [
-                    -np.log(0.2),
-                    -np.log(0.3),
-                    -np.log(0.5),
-                ]
-            )
-            y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
-            output = losses.SparseCategoricalCrossentropy(axis=0)(
-                y_true, y_pred_reshaped
-            )
-            self.assertAllClose(output, expected.sum() / 16.0)
-            y_true = np.array([y_true, y_true, y_true])
-            y_pred_reshaped = np.array(
-                [y_pred_reshaped, y_pred_reshaped, y_pred_reshaped]
-            )
-            output = losses.SparseCategoricalCrossentropy(axis=1)(
-                y_true, y_pred_reshaped
-            )
-            self.assertAllClose(output, expected.sum() / 16.0)
+                    [0.7, 0.3, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                ],
+                [
+                    [1.0, 0.0, 0.0],
+                    [1.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+                [
+                    [0.0, 1.0, 0.0],
+                    [0.0, 1.0, 0.0],
+                    [0.5, 0.5, 0.0],
+                    [0.0, 1.0, 0.0],
+                ],
+            ]
+        )
+        expected = np.array(
+            [
+                -np.log(0.2),
+                -np.log(0.3),
+                -np.log(0.5),
+            ]
+        )
+        y_pred_reshaped = np.moveaxis(y_pred, source=2, destination=0)
+        output = losses.SparseCategoricalCrossentropy(axis=0)(
+            y_true, y_pred_reshaped
+        )
+        self.assertAllClose(output, expected.sum() / 16.0)
+
+        # Test axis=1 with batched data
+        y_true = np.array([y_true, y_true, y_true])
+        y_pred_reshaped = np.array(
+            [y_pred_reshaped, y_pred_reshaped, y_pred_reshaped]
+        )
+        output = losses.SparseCategoricalCrossentropy(axis=1)(
+            y_true, y_pred_reshaped
+        )
+        self.assertAllClose(output, expected.sum() / 16.0)
 
     def test_dtype_arg(self):
         y_true = np.array([[0], [1], [2]], dtype="int64")
