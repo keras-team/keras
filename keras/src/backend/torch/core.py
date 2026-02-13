@@ -735,3 +735,10 @@ class CustomGradientFunction(torch.autograd.Function):
         if not isinstance(grads, tuple):
             grads = (grads,)
         return (None,) + grads
+
+if hasattr(torch, "compiler") and hasattr(torch.compiler, "disable"):
+    tree.flatten = torch.compiler.disable(tree.flatten)
+    tree.pack_sequence_as = torch.compiler.disable(tree.pack_sequence_as)
+    tree.map_structure = torch.compiler.disable(tree.map_structure)
+    tree.is_nested = torch.compiler.disable(tree.is_nested)
+    tree.assert_same_structure = torch.compiler.disable(tree.assert_same_structure)
