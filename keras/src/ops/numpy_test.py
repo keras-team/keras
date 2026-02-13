@@ -2025,6 +2025,19 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, None))
         self.assertEqual(knp.vstack([x, y]).shape, (None, 3))
 
+    def test_dstack(self):
+        x = KerasTensor((None,))
+        y = KerasTensor((None,))
+        self.assertEqual(knp.dstack([x, y]).shape, (1, None, 2))
+
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, 3))
+        self.assertEqual(knp.dstack([x, y]).shape, (None, 3, 2))
+
+        x = KerasTensor((None, 3))
+        y = KerasTensor((None, None))
+        self.assertEqual(knp.dstack([x, y]).shape, (None, 3, 2))
+
     def test_argpartition(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
@@ -2701,6 +2714,19 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.vstack([x, y]).shape, (4, 3))
+
+    def test_dstack(self):
+        x = KerasTensor((3,))
+        y = KerasTensor((3,))
+        self.assertEqual(knp.dstack([x, y]).shape, (1, 3, 2))
+
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.dstack([x, y]).shape, (2, 3, 2))
+
+        x = KerasTensor((2, 3, 4))
+        y = KerasTensor((2, 3, 5))
+        self.assertEqual(knp.dstack([x, y]).shape, (2, 3, 9))
 
     def test_argpartition(self):
         x = KerasTensor((2, 3))
@@ -5531,6 +5557,20 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
 
+    def test_dstack(self):
+        x = np.array([[1, 2, 3], [3, 2, 1]])
+        y = np.array([[4, 5, 6], [6, 5, 4]])
+        self.assertAllClose(knp.dstack([x, y]), np.dstack([x, y]))
+        self.assertAllClose(knp.Dstack()([x, y]), np.dstack([x, y]))
+
+        x = np.array([1, 2, 3])
+        y = np.array([[4, 5, 6]])
+        self.assertAllClose(knp.dstack([x, y]), np.dstack([x, y]))
+
+        x = np.ones([2, 3, 4])
+        y = np.ones([2, 3, 5])
+        self.assertAllClose(knp.dstack([x, y]), np.dstack([x, y]))
+
     def test_floor_divide(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
@@ -7772,6 +7812,29 @@ class NumpyDtypeTest(testing.TestCase):
             standardize_dtype(knp.dot(x1, x2).dtype), expected_dtype
         )
         self.assertEqual(knp.Dot().symbolic_call(x1, x2).dtype, expected_dtype)
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_dstack(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((1, 1), dtype=dtype1)
+        x2 = knp.ones((1, 1), dtype=dtype2)
+        x1_jax = jnp.ones((1, 1), dtype=dtype1)
+        x2_jax = jnp.ones((1, 1), dtype=dtype2)
+
+        expected_dtype = standardize_dtype(jnp.dstack([x1_jax, x2_jax]).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.dstack([x1, x2]).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Dstack().symbolic_call([x1, x2]).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(
         named_product(

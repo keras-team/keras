@@ -1145,6 +1145,48 @@ def dot(x1, x2):
     return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
 
+def dstack(xs):
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+    elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
+
+    processed_elems = []
+    for elem in elems:
+        shape = elem.get_partial_shape()
+        rank = shape.rank
+        shape_len = rank.get_length()
+        if shape_len == 0:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        elif shape_len == 1:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        elif shape_len == 2:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        processed_elems.append(elem)
+
+    for i in range(1, len(processed_elems)):
+        processed_elems[0], processed_elems[i] = _align_operand_types(
+            processed_elems[0], processed_elems[i], "dstack()"
+        )
+    return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 2).output(0))
+
+
 def empty(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
@@ -1181,6 +1223,17 @@ def exp(x):
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, ov_type)
     return OpenVINOKerasTensor(ov_opset.exp(x).output(0))
+
+
+def exp2(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
+    two = ov_opset.constant(2.0, x.get_element_type()).output(0)
+    result = ov_opset.power(two, x).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def expand_dims(x, axis):
@@ -2886,6 +2939,18 @@ def round(x, decimals=0):
     if x_type.is_integral():
         result = ov_opset.convert(result, x_type)
 
+    return OpenVINOKerasTensor(result.output(0))
+
+
+def trunc(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        return OpenVINOKerasTensor(x)
+    sign_x = ov_opset.sign(x)
+    abs_x = ov_opset.abs(x)
+    floor_abs_x = ov_opset.floor(abs_x)
+    result = ov_opset.multiply(sign_x, floor_abs_x)
     return OpenVINOKerasTensor(result.output(0))
 
 

@@ -534,6 +534,37 @@ class ConvTransposeBasicTest(testing.TestCase):
                 filters=2, kernel_size=(2, 2), strides=(1, 0)
             )
 
+        # `output_padding` >= `strides`.
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv1DTranspose(
+                filters=2, kernel_size=3, strides=2, output_padding=2
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=2,
+                kernel_size=3,
+                strides=2,
+                output_padding=3,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=2,
+                kernel_size=3,
+                strides=(2, 3),
+                output_padding=(1, 3),
+            )
+
         # `dilation_rate > 1` while `strides > 1`.
         with self.assertRaisesRegex(
             ValueError,
@@ -884,6 +915,10 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
     def test_shape_inference_static_unknown_shape(
         self, kernel_size, strides, padding, output_padding
     ):
+        # output_padding cannot be greater than or equal to strides
+        if output_padding is not None and output_padding >= strides:
+            pytest.skip("`output_padding` must be less than `strides`")
+
         if backend.config.image_data_format() == "channels_last":
             input_shape = (None, None, 3)
             output_tensor_shape = (None, None, None, 2)
