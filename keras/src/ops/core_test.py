@@ -1116,10 +1116,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         # Test mul reduction
         inputs = np.array([2.0, 3.0, 1.0, 1.0])
-        indices = [[0], [1]]
-        updates = np.array([3.0, 4.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
         result = core.scatter_update(inputs, indices, updates, reduction="mul")
-        self.assertAllClose(result, [6.0, 12.0, 1.0, 1.0])
+        self.assertAllClose(result, [30.0, 6.0, 1.0, 1.0])
 
         # Test Operation call with reduction
         inputs = np.zeros((4,))
