@@ -3386,7 +3386,6 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     return OpenVINOKerasTensor(result)
 
 
-
 def unravel_index(indices, shape):
     indices = get_ov_output(indices)
     if not indices.get_element_type().is_integral():
