@@ -1225,6 +1225,17 @@ def exp(x):
     return OpenVINOKerasTensor(ov_opset.exp(x).output(0))
 
 
+def exp2(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
+    two = ov_opset.constant(2.0, x.get_element_type()).output(0)
+    result = ov_opset.power(two, x).output(0)
+    return OpenVINOKerasTensor(result)
+
+
 def expand_dims(x, axis):
     x = get_ov_output(x)
     if isinstance(axis, tuple):
