@@ -279,3 +279,139 @@ class NormalizationTest(testing.TestCase):
         # The expected broadcast shape should be (1, 7)
         self.assertEqual(tuple(layer.mean.shape), (1, 7))
         self.assertAllClose(layer.mean, [[5.0] * 7])
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_list_of_batches(self):
+        x = np.random.random((32, 4)).astype("float32")
+        batches = [x[:8], x[8:16], x[16:24], x[24:32]]
+        layer = layers.Normalization(axis=-1)
+        layer.adapt(batches)
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_generator(self):
+        x = np.random.random((32, 4)).astype("float32")
+
+        def batch_gen():
+            for i in range(0, 32, 8):
+                yield x[i : i + 8]
+
+        layer = layers.Normalization(axis=-1)
+        layer.adapt(batch_gen())
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_iterable_same_result_as_ndarray(self):
+        x = np.random.random((64, 5)).astype("float32")
+        list_of_batches = [x[i : i + 16] for i in range(0, 64, 16)]
+        layer_list = layers.Normalization(axis=-1)
+        layer_list.adapt(list_of_batches)
+        layer_ndarray = layers.Normalization(axis=-1)
+        layer_ndarray.adapt(x)
+        out_list = layer_list(x[:10])
+        out_ndarray = layer_ndarray(x[:10])
+        out_list = backend.convert_to_numpy(out_list)
+        out_ndarray = backend.convert_to_numpy(out_ndarray)
+        self.assertAllClose(out_list, out_ndarray, atol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_iterable_with_tuples(self):
+        x = np.random.random((24, 3)).astype("float32")
+        batches = [(x[i : i + 8], np.zeros(8)) for i in range(0, 24, 8)]
+        layer = layers.Normalization(axis=-1)
+        layer.adapt(batches)
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_iterable_axis_none(self):
+        x = np.random.random((20, 2, 3)).astype("float32")
+        batches = [x[i : i + 5] for i in range(0, 20, 5)]
+        layer = layers.Normalization(axis=None)
+        layer.adapt(batches)
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output), 0.0, atol=1e-5)
+
+    def test_adapt_empty_iterable_raises(self):
+        layer = layers.Normalization(axis=-1)
+        with self.assertRaisesRegex(ValueError, "empty iterable"):
+            layer.adapt([])
+
+    def test_adapt_empty_generator_raises(self):
+        layer = layers.Normalization(axis=-1)
+
+        def empty_gen():
+            yield from ()
+
+        with self.assertRaisesRegex(ValueError, "empty iterable"):
+            layer.adapt(empty_gen())
+
+    def test_adapt_iterable_incompatible_shape_raises(self):
+        x1 = np.random.random((8, 4)).astype("float32")
+        x2 = np.random.random((8, 6)).astype("float32")
+
+        def bad_gen():
+            yield x1
+            yield x2
+
+        layer = layers.Normalization(axis=-1)
+        with self.assertRaisesRegex(ValueError, "incompatible shape"):
+            layer.adapt(bad_gen())
+
+    def test_adapt_iterable_batch_without_shape_raises(self):
+        layer = layers.Normalization(axis=-1)
+
+        def gen_no_shape():
+            yield 42
+
+        with self.assertRaisesRegex(TypeError, "`.shape`"):
+            layer.adapt(gen_no_shape())
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_iterable_single_batch(self):
+        x = np.random.random((16, 4)).astype("float32")
+        layer = layers.Normalization(axis=-1)
+        layer.adapt([x])
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_iterable_high_dim_axis_tuple(self):
+        x = np.random.random((32, 4, 3, 5)).astype("float32")
+        batches = [x[i : i + 8] for i in range(0, 32, 8)]
+        layer = layers.Normalization(axis=(1, 2))
+        layer.adapt(batches)
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
+
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_iterator_of_batches(self):
+        x = np.random.random((24, 3)).astype("float32")
+        list_of_batches = [x[i : i + 6] for i in range(0, 24, 6)]
+        layer = layers.Normalization(axis=-1)
+        layer.adapt(iter(list_of_batches))
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
