@@ -2837,6 +2837,80 @@ def dot(x1, x2):
     return backend.numpy.dot(x1, x2)
 
 
+class Dstack(Operation):
+    def call(self, xs):
+        return backend.numpy.dstack(xs)
+
+    def compute_output_spec(self, xs):
+        dtypes_to_resolve = []
+        out_shapes = []
+        for x in xs:
+            shape = list(x.shape)
+            if len(shape) == 0:
+                shape = [1, 1, 1]
+            elif len(shape) == 1:
+                shape = [1, shape[0], 1]
+            elif len(shape) == 2:
+                shape = shape + [1]
+            out_shapes.append(shape)
+            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+
+        first_shape = out_shapes[0]
+        total_depth = 0
+        for shape in out_shapes:
+            if not shape_equal(shape, first_shape, axis=[2], allow_none=True):
+                raise ValueError(
+                    "Every value in `xs` must have the same shape except on "
+                    f"the `axis` dim. But found element of shape {shape}, "
+                    f"which is different from the first element's "
+                    f"shape {first_shape}."
+                )
+            if total_depth is None or shape[2] is None:
+                total_depth = None
+            else:
+                total_depth += shape[2]
+
+        output_shape = list(first_shape)
+        output_shape[2] = total_depth
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.dstack", "keras.ops.numpy.dstack"])
+def dstack(xs):
+    """Stack tensors in sequence depth wise (along third axis).
+
+    This is equivalent to concatenation along the third axis after 2-D tensors
+    of shape `(M, N)` have been reshaped to `(M, N, 1)` and 1-D tensors of shape
+    `(N,)` have been reshaped to `(1, N, 1)`.
+
+    Args:
+        xs: Sequence of tensors.
+
+    Returns:
+        The tensor formed by stacking the given tensors.
+
+    Examples:
+    >>> import keras
+    >>> x = keras.ops.array([1, 2, 3])
+    >>> y = keras.ops.array([4, 5, 6])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4],
+            [2, 5],
+            [3, 6]]])
+
+    >>> x = keras.ops.array([[1], [2], [3]])
+    >>> y = keras.ops.array([[4], [5], [6]])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4]],
+           [[2, 5]],
+           [[3, 6]]])
+    """
+    if any_symbolic_tensors((xs,)):
+        return Dstack().symbolic_call(xs)
+    return backend.numpy.dstack(xs)
+
+
 class Einsum(Operation):
     def __init__(self, subscripts, *, name=None):
         super().__init__(name=name)
