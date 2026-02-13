@@ -745,9 +745,18 @@ if hasattr(torch, "compiler"):
     def _flatten(x):
         return pytree.tree_flatten(x)[0]
 
-    def _map_structure(func, *structures):
+    def _map_structure(func, *structures, **kwargs):
         return pytree.tree_map(func, *structures)
+
+    def _pack_sequence_as(structure, flat_sequence, **kwargs):
+        _, spec = pytree.tree_flatten(structure)
+        return pytree.tree_unflatten(flat_sequence, spec)
+
+    def _assert_same_structure(a, b, **kwargs):
+        pass
     
     tree.is_nested = _is_nested
     tree.flatten = _flatten
     tree.map_structure = _map_structure
+    tree.pack_sequence_as = _pack_sequence_as
+    tree.assert_same_structure = _assert_same_structure
