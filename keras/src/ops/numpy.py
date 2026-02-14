@@ -3729,6 +3729,72 @@ def hstack(xs):
     return backend.numpy.hstack(xs)
 
 
+class Hsplit(Operation):
+    def __init__(self, indices_or_sections, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(indices_or_sections, int):
+            indices_or_sections = tuple(indices_or_sections)
+        self.indices_or_sections = indices_or_sections
+
+    def call(self, x):
+        return backend.numpy.hsplit(x, self.indices_or_sections)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                "`hsplit` only works on arrays of at least 1 dimension. "
+                f"Received array with shape {x.shape}."
+            )
+
+        axis = 0 if len(x.shape) == 1 else 1
+        return _compute_split_output_spec(x, self.indices_or_sections, axis)
+
+
+@keras_export(["keras.ops.hsplit", "keras.ops.numpy.hsplit"])
+def hsplit(x, indices_or_sections):
+    """Split an array into multiple sub-arrays horizontally (column-wise).
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: If an integer, N, the tensor will be split into N
+            equal sections along axis 1 (if ndim >= 2) or axis 0 (if ndim == 1).
+            If a 1-D array of sorted integers, the entries indicate indices at
+            which the tensor will be split along the axis.
+
+    Returns:
+        A list of sub-arrays.
+
+    Example:
+
+    >>> x = keras.ops.arange(16.0).reshape((4, 4))
+    >>> keras.ops.hsplit(x, 2)
+    [array([[ 0.,  1.],
+           [ 4.,  5.],
+           [ 8.,  9.],
+           [12., 13.]]),
+     array([[ 2.,  3.],
+           [ 6.,  7.],
+           [10., 11.],
+           [14., 15.]])]
+    >>> keras.ops.hsplit(x, [1, 3])
+    [array([[0.],
+        [4.],
+        [8.],
+        [12.]]),
+    array([[1., 2.],
+        [5., 6.],
+        [9., 10.],
+        [13., 14.]]),
+    array([[3.],
+        [7.],
+        [11.],
+        [15.]])]
+    """
+    if any_symbolic_tensors((x,)):
+        return Hsplit(indices_or_sections).symbolic_call(x)
+    return backend.numpy.hsplit(x, indices_or_sections)
+
+
 class Hypot(Operation):
     def call(self, x1, x2):
         return backend.numpy.hypot(x1, x2)

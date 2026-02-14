@@ -1661,6 +1661,10 @@ def hstack(xs):
     return tf.concat(xs, axis=1)
 
 
+def hsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=1)
+
+
 def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

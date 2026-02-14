@@ -710,6 +710,11 @@ def hstack(xs):
     return np.hstack(xs)
 
 
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return np.hsplit(x, indices_or_sections)
+
+
 def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

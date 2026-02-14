@@ -790,6 +790,11 @@ def hstack(xs):
     return jnp.hstack(xs)
 
 
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return jnp.hsplit(x, indices_or_sections)
+
+
 def identity(n, dtype=None):
     dtype = dtype or config.floatx()
     return jnp.identity(n, dtype=dtype)

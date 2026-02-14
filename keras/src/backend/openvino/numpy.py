@@ -1477,6 +1477,10 @@ def hstack(xs):
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
+def hsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=1)
+
+
 def hypot(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
