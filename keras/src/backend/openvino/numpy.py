@@ -2295,23 +2295,89 @@ def moveaxis(x, source, destination):
 
 
 def nanmax(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nanmax` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        return amax(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    nan_mask = ov_opset.is_nan(x)
+    neg_inf = ov_opset.constant(float("-inf"), x_type)
+    x = ov_opset.select(nan_mask, neg_inf, x).output(0)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+
+    result = ov_opset.reduce_max(x, axis, keepdims).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def nanmean(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanmean` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        return mean(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    nan_mask = ov_opset.is_nan(x)
+    zero = ov_opset.constant(0, x_type)
+    x_no_nan = ov_opset.select(nan_mask, zero, x).output(0)
+
+    not_nan = ov_opset.logical_not(nan_mask).output(0)
+    not_nan_float = ov_opset.convert(not_nan, x_type).output(0)
+
+    x_no_nan, axis = _resolve_axis(x_no_nan, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x_no_nan)
+
+    not_nan_float = ov_opset.reshape(
+        not_nan_float,
+        ov_opset.shape_of(x_no_nan).output(0),
+        False,
+    ).output(0)
+
+    nan_sum = ov_opset.reduce_sum(x_no_nan, axis, keepdims).output(0)
+    count = ov_opset.reduce_sum(not_nan_float, axis, keepdims).output(0)
+    result = ov_opset.divide(nan_sum, count).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def nanmin(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nanmin` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        return amin(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    nan_mask = ov_opset.is_nan(x)
+    pos_inf = ov_opset.constant(float("inf"), x_type)
+    x = ov_opset.select(nan_mask, pos_inf, x).output(0)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+
+    result = ov_opset.reduce_min(x, axis, keepdims).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def nanprod(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanprod` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if not x_type.is_integral() and x_type != Type.boolean:
+        nan_mask = ov_opset.is_nan(x)
+        one = ov_opset.constant(1, x_type)
+        x = ov_opset.select(nan_mask, one, x).output(0)
+
+    x = _upcast_type_if_needed(x)
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+
+    result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def nansum(x, axis=None, keepdims=False):
