@@ -615,16 +615,6 @@ class OpenVINOKerasTensor:
             "numerical value. You cannot convert it to a float."
         )
 
-    def __bool__(self):
-        raise TypeError(
-            "A symbolic OpenVINOKerasTensor cannot be used as a boolean."
-        )
-
-    def __iter__(self):
-        raise NotImplementedError(
-            "Iterating over a symbolic OpenVINOKerasTensor is not supported."
-        )
-
     def __repr__(self):
         return f"<OpenVINOKerasTensor shape={self.shape}, dtype={self.dtype}>"
 
