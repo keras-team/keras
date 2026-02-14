@@ -2302,7 +2302,9 @@ def nanmax(x, axis=None, keepdims=False):
         return amax(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
 
     nan_mask = ov_opset.is_nan(x)
-    neg_inf = ov_opset.constant(-np.inf, x_type)
+    neg_inf = ov_opset.constant(np.array(-np.inf, dtype=np.float32))
+    if x_type != Type.f32:
+        neg_inf = ov_opset.convert(neg_inf, x_type)
     x_replaced = ov_opset.select(nan_mask, neg_inf, x).output(0)
 
     x_replaced, axis = _resolve_axis(x_replaced, axis)
@@ -2312,7 +2314,9 @@ def nanmax(x, axis=None, keepdims=False):
     result = ov_opset.reduce_max(x_replaced, axis, keepdims).output(0)
 
     all_nan = ov_opset.reduce_logical_and(nan_mask, axis, keepdims).output(0)
-    nan_value = ov_opset.constant(np.nan, x_type)
+    nan_value = ov_opset.constant(np.array(np.nan, dtype=np.float32))
+    if x_type != Type.f32:
+        nan_value = ov_opset.convert(nan_value, x_type)
     result = ov_opset.select(all_nan, nan_value, result).output(0)
 
     return OpenVINOKerasTensor(result)
@@ -2356,7 +2360,9 @@ def nanmin(x, axis=None, keepdims=False):
         return amin(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
 
     nan_mask = ov_opset.is_nan(x)
-    pos_inf = ov_opset.constant(np.array(np.inf, dtype=np.float32), x_type)
+    pos_inf = ov_opset.constant(np.array(np.inf, dtype=np.float32))
+    if x_type != Type.f32:
+        pos_inf = ov_opset.convert(pos_inf, x_type)
     x_replaced = ov_opset.select(nan_mask, pos_inf, x).output(0)
 
     x_replaced, axis = _resolve_axis(x_replaced, axis)
@@ -2366,7 +2372,9 @@ def nanmin(x, axis=None, keepdims=False):
     result = ov_opset.reduce_min(x_replaced, axis, keepdims).output(0)
 
     all_nan = ov_opset.reduce_logical_and(nan_mask, axis, keepdims).output(0)
-    nan_value = ov_opset.constant(np.array(np.nan, dtype=np.float32), x_type)
+    nan_value = ov_opset.constant(np.array(np.nan, dtype=np.float32))
+    if x_type != Type.f32:
+        nan_value = ov_opset.convert(nan_value, x_type)
     result = ov_opset.select(all_nan, nan_value, result).output(0)
 
     return OpenVINOKerasTensor(result)
