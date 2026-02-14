@@ -878,9 +878,14 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    raise NotImplementedError(
-        "`cumprod` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        x = ov_opset.convert(x, ov_type).output(0)
+    x, axis = _resolve_axis(x, axis)
+    if x.get_element_type() == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.cum_prod(x, axis).output(0))
 
 
 def cumsum(x, axis=None, dtype=None):
