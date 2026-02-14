@@ -881,11 +881,17 @@ def cumprod(x, axis=None, dtype=None):
     x = get_ov_output(x)
     x_type = x.get_element_type()
 
+    # Determine output dtype following numpy backend logic
     if dtype is not None:
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        if ov_type == Type.boolean:
+            ov_type = Type.i32
     else:
         ov_type = x_type
+        if ov_type == Type.boolean:
+            ov_type = Type.i32
 
+    # Convert boolean to int32 for computation
     if x_type == Type.boolean:
         x = ov_opset.convert(x, Type.i32).output(0)
         x_type = Type.i32
