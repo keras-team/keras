@@ -1171,6 +1171,9 @@ def dot_product_attention(
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
+        # Explicit set `is_causal` to `False` when `bias` is used as `mask`.
+        # PyTorch doesn't allow both `attn_mask` and `is_causal=True`.
+        is_causal = False
         # Expand bias from 3D [B, T, S] to 4D [B, 1, T, S] to match the
         # shape of query/key/value after transpose [B, num_heads, T, head_dim].
         # PyTorch's scaled_dot_product_attention expects 4D mask format
@@ -1237,11 +1240,14 @@ def dot_product_attention(
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
+            # Don't pass attn_mask when is_causal=True, as PyTorch doesn't
+            # allow both
+            attn_mask_arg = None if is_causal else mask
             attention_output = torch.nn.functional.scaled_dot_product_attention(
                 query.contiguous(),
                 key.contiguous(),
                 value.contiguous(),
-                attn_mask=mask,
+                attn_mask=attn_mask_arg,
                 is_causal=is_causal,
                 scale=scale,
             )
@@ -1262,7 +1268,10 @@ def dot_product_attention(
         # attention and memory-efficient kernels have known GPU issues with
         # masks (see PyTorch issues #127523, #128119, #97514). The math
         # kernel is the only reliable fallback for masks on GPU.
-        if mask is not None:
+        # Don't pass attn_mask when is_causal=True, as PyTorch doesn't
+        # allow both
+        attn_mask_arg = None if is_causal else mask
+        if mask is not None and not is_causal:
             with torch.nn.attention.sdpa_kernel(
                 backends=[torch.nn.attention.SDPBackend.MATH],
             ):
@@ -1271,7 +1280,7 @@ def dot_product_attention(
                         query.contiguous(),
                         key.contiguous(),
                         value.contiguous(),
-                        attn_mask=mask,
+                        attn_mask=attn_mask_arg,
                         is_causal=is_causal,
                         scale=scale,
                     )
@@ -1281,7 +1290,7 @@ def dot_product_attention(
                 query.contiguous(),
                 key.contiguous(),
                 value.contiguous(),
-                attn_mask=mask,
+                attn_mask=attn_mask_arg,
                 is_causal=is_causal,
                 scale=scale,
             )
