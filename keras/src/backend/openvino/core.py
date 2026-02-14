@@ -519,6 +519,152 @@ class OpenVINOKerasTensor:
     def numpy(self):
         return self.__array__()
 
+    def __rmod__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rmod__"
+        )
+        return OpenVINOKerasTensor(ov_opset.mod(other, first).output(0))
+
+    def __matmul__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__matmul__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.matmul(first, other, False, False).output(0)
+        )
+
+    def __rmatmul__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rmatmul__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.matmul(other, first, False, False).output(0)
+        )
+
+    def __div__(self, other):
+        return self.__truediv__(other)
+
+    def __rdiv__(self, other):
+        return self.__rtruediv__(other)
+
+    def __and__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__and__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_and(first, other).output(0))
+
+    def __rand__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rand__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_and(other, first).output(0))
+
+    def __or__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__or__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_or(first, other).output(0))
+
+    def __ror__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__ror__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_or(other, first).output(0))
+
+    def __xor__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__xor__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_xor(first, other).output(0))
+
+    def __rxor__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rxor__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_xor(other, first).output(0))
+
+    def __int__(self):
+        raise ValueError(
+            "An OpenVINOKerasTensor is symbolic: it's a placeholder "
+            "for a shape and a dtype. It doesn't have any actual "
+            "numerical value. You cannot convert it to an int."
+        )
+
+    def __float__(self):
+        raise ValueError(
+            "An OpenVINOKerasTensor is symbolic: it's a placeholder "
+            "for a shape and a dtype. It doesn't have any actual "
+            "numerical value. You cannot convert it to a float."
+        )
+
+    def __bool__(self):
+        raise TypeError(
+            "A symbolic OpenVINOKerasTensor cannot be used as a boolean."
+        )
+
+    def __iter__(self):
+        raise NotImplementedError(
+            "Iterating over a symbolic OpenVINOKerasTensor is not supported."
+        )
+
+    def __repr__(self):
+        return f"<OpenVINOKerasTensor shape={self.shape}, dtype={self.dtype}>"
+
+    def __round__(self, ndigits=None):
+        first = self.output
+        result = ov_opset.round(first, "half_to_even").output(0)
+        return OpenVINOKerasTensor(result)
+
+    def reshape(self, new_shape):
+        first = self.output
+        shape_const = get_ov_output(new_shape)
+        return OpenVINOKerasTensor(
+            ov_opset.reshape(first, shape_const, False).output(0)
+        )
+
+    def squeeze(self, axis=None):
+        first = self.output
+        if axis is not None:
+            axes = get_ov_output([axis] if isinstance(axis, int) else axis)
+        else:
+            axes = get_ov_output(
+                [i for i, d in enumerate(self.shape) if d == 1]
+            )
+        return OpenVINOKerasTensor(ov_opset.squeeze(first, axes).output(0))
+
+    def __jax_array__(self):
+        raise ValueError(
+            "An OpenVINOKerasTensor cannot be used as input to a JAX "
+            "function. It is a symbolic placeholder for a shape and "
+            "dtype, used during inference with the OpenVINO backend."
+        )
+
+    def __tf_tensor__(self, dtype=None, name=None):
+        raise ValueError(
+            "An OpenVINOKerasTensor cannot be used as input to a "
+            "TensorFlow function. It is a symbolic placeholder for a "
+            "shape and dtype, used during inference with the OpenVINO "
+            "backend."
+        )
+
 
 def ov_to_keras_type(ov_type):
     for _keras_type, _ov_type in OPENVINO_DTYPES.items():
