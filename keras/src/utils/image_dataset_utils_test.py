@@ -590,7 +590,6 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         ("grain", "grain"),
     )
     def test_image_dataset_from_directory_shuffle(self, format):
-        # TODO: add same test for train/val
         directory = self._prepare_directory(
             num_classes=2, count=25, nested_dirs=True
         )
@@ -653,3 +652,82 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             batches_1_alt.append(ops.convert_to_numpy(b))
         batches_1_alt = np.concatenate(batches_1_alt, axis=0)
         self.assertAllClose(batches_1, batches_1_alt, atol=1e-6)
+
+        # Test train/val split with shuffle
+        common_args = {
+            "batch_size": 8,
+            "image_size": (18, 18),
+            "label_mode": None,
+            "follow_links": True,
+            "shuffle": True,
+            "seed": 1337,
+            "format": format,
+        }
+        train_dataset, val_dataset = (
+            image_dataset_utils.image_dataset_from_directory(
+                directory,
+                validation_split=0.2,
+                subset="both",
+                **common_args,
+            )
+        )
+
+        def _count_batches_and_samples(dataset):
+            batch_count = 0
+            sample_count = 0
+            for batch in dataset:
+                batch_count += 1
+                sample_count += batch.shape[0]
+            return batch_count, sample_count
+
+        full_dataset = image_dataset_utils.image_dataset_from_directory(
+            directory,
+            **common_args,
+        )
+        full_batch_count, full_sample_count = _count_batches_and_samples(
+            full_dataset
+        )
+
+        train_batch_count, train_sample_count = _count_batches_and_samples(
+            train_dataset
+        )
+        val_batch_count, val_sample_count = _count_batches_and_samples(
+            val_dataset
+        )
+        self.assertEqual(
+            train_sample_count + val_sample_count, full_sample_count
+        )
+
+        num_val_samples = int(0.2 * full_sample_count)
+        self.assertEqual(val_sample_count, num_val_samples)
+        self.assertEqual(
+            train_sample_count, full_sample_count - num_val_samples
+        )
+
+        expected_train_batches = int(
+            np.ceil(train_sample_count / common_args["batch_size"])
+        )
+        expected_val_batches = int(
+            np.ceil(val_sample_count / common_args["batch_size"])
+        )
+        self.assertEqual(train_batch_count, expected_train_batches)
+        self.assertEqual(val_batch_count, expected_val_batches)
+
+        train_dataset_alt, val_dataset_alt = (
+            image_dataset_utils.image_dataset_from_directory(
+                directory,
+                validation_split=0.2,
+                subset="both",
+                **common_args,
+            )
+        )
+        train_batch_count_alt, train_sample_count_alt = (
+            _count_batches_and_samples(train_dataset_alt)
+        )
+        val_batch_count_alt, val_sample_count_alt = _count_batches_and_samples(
+            val_dataset_alt
+        )
+        self.assertEqual(train_batch_count, train_batch_count_alt)
+        self.assertEqual(train_sample_count, train_sample_count_alt)
+        self.assertEqual(val_batch_count, val_batch_count_alt)
+        self.assertEqual(val_sample_count, val_sample_count_alt)
