@@ -6476,6 +6476,49 @@ def sort(x, axis=-1):
     return backend.numpy.sort(x, axis=axis)
 
 
+def _compute_split_output_spec(x, indices_or_sections, axis):
+    x_shape = list(x.shape)
+    x_size_on_axis = x_shape[axis]
+    if isinstance(indices_or_sections, int):
+        if x_size_on_axis is None:
+            x_shape[axis] = None
+            return [
+                KerasTensor(x_shape, dtype=x.dtype)
+                for _ in range(indices_or_sections)
+            ]
+
+        if np.mod(x_size_on_axis, indices_or_sections) != 0:
+            raise ValueError(
+                "`x` size on given `axis` must be divisible by "
+                "`indices_or_sections` when `indices_or_sections` is an "
+                f"int. But received {x_size_on_axis} and "
+                f"{indices_or_sections}."
+            )
+
+        size = x_size_on_axis // indices_or_sections
+        x_shape[axis] = size
+        return [
+            KerasTensor(x_shape, dtype=x.dtype)
+            for _ in range(indices_or_sections)
+        ]
+
+    all_indices = [0] + list(indices_or_sections) + [x_size_on_axis]
+    outputs = []
+
+    for i in range(len(all_indices) - 1):
+        start = all_indices[i]
+        end = all_indices[i + 1]
+        if start is None or end is None:
+            output_size = None
+        else:
+            output_size = end - start
+        output_shape = list(x_shape)
+        output_shape[axis] = output_size
+        outputs.append(KerasTensor(output_shape, dtype=x.dtype))
+
+    return outputs
+
+
 class Split(Operation):
     def __init__(self, indices_or_sections, axis=0, *, name=None):
         super().__init__(name=name)
@@ -6488,37 +6531,9 @@ class Split(Operation):
         return backend.numpy.split(x, self.indices_or_sections, axis=self.axis)
 
     def compute_output_spec(self, x):
-        x_shape = list(x.shape)
-        x_size_on_axis = x_shape[self.axis]
-        if isinstance(self.indices_or_sections, int):
-            if x_size_on_axis is None:
-                x_shape[self.axis] = None
-                return [
-                    KerasTensor(x_shape, dtype=x.dtype)
-                    for _ in range(self.indices_or_sections)
-                ]
-            if np.mod(x_size_on_axis, self.indices_or_sections) != 0:
-                raise ValueError(
-                    "`x` size on given `axis` must be dividible by "
-                    "`indices_or_sections` when `indices_or_sections` is an "
-                    f"int. But received {x_size_on_axis} and "
-                    f"{self.indices_or_sections}."
-                )
-            size = x_size_on_axis // self.indices_or_sections
-            x_shape[self.axis] = size
-            return [
-                KerasTensor(x_shape, dtype=x.dtype)
-                for _ in range(self.indices_or_sections)
-            ]
-
-        indices_or_sections = (0, *self.indices_or_sections, x_size_on_axis)
-        output_size = np.diff(indices_or_sections)
-        outputs = []
-        for i in range(len(output_size)):
-            output_shape = list(x_shape)
-            output_shape[self.axis] = int(output_size[i])
-            outputs.append(KerasTensor(output_shape, dtype=x.dtype))
-        return outputs
+        return _compute_split_output_spec(
+            x, self.indices_or_sections, self.axis
+        )
 
 
 @keras_export(["keras.ops.split", "keras.ops.numpy.split"])
@@ -7266,6 +7281,58 @@ def vstack(xs):
     if any_symbolic_tensors((xs,)):
         return Vstack().symbolic_call(xs)
     return backend.numpy.vstack(xs)
+
+
+class Vsplit(Operation):
+    def __init__(self, indices_or_sections, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(indices_or_sections, int):
+            indices_or_sections = tuple(indices_or_sections)
+        self.indices_or_sections = indices_or_sections
+
+    def call(self, x):
+        return backend.numpy.vsplit(x, self.indices_or_sections)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 2:
+            raise ValueError(
+                "`vsplit` only works on arrays of at least 2 dimensions. "
+                f"Received array with shape {x.shape}."
+            )
+        return _compute_split_output_spec(x, self.indices_or_sections, 0)
+
+
+@keras_export(["keras.ops.vsplit", "keras.ops.numpy.vsplit"])
+def vsplit(x, indices_or_sections):
+    """Split an array into multiple sub-arrays vertically (row-wise).
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: If an integer, N, the tensor will be split into N
+            equal sections along axis 0. If a 1-D array of sorted integers,
+            the entries indicate indices at which the tensor will be split
+            along axis 0.
+
+    Returns:
+        A list of sub-arrays.
+
+    Example:
+
+    >>> x = keras.ops.arange(12).reshape((4, 3))
+    >>> keras.ops.vsplit(x, 2)
+    [array([[0, 1, 2],
+           [3, 4, 5]]),
+     array([[ 6,  7,  8],
+           [ 9, 10, 11]])]
+    >>> keras.ops.vsplit(x, [1, 3])
+    [array([[0, 1, 2]]),
+     array([[3, 4, 5],
+           [6, 7, 8]]),
+     array([[ 9, 10, 11]])]
+    """
+    if any_symbolic_tensors((x,)):
+        return Vsplit(indices_or_sections).symbolic_call(x)
+    return backend.numpy.vsplit(x, indices_or_sections)
 
 
 class Where(Operation):

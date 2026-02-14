@@ -3170,6 +3170,10 @@ def vstack(xs):
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
+def vsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=0)
+
+
 def vectorize(pyfunc, *, excluded=None, signature=None):
     raise NotImplementedError(
         "`vectorize` is not supported with openvino backend"
