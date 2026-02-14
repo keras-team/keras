@@ -2603,6 +2603,11 @@ def roll(x, shift, axis=None):
 
 
 def searchsorted(sorted_sequence, values, side="left"):
+    if side not in ("left", "right"):
+        raise ValueError(
+            "`side` must be either 'left' or 'right'. "
+            f"Received: side={side}"
+        )
     sorted_sequence = get_ov_output(sorted_sequence)
     values = get_ov_output(values)
 
