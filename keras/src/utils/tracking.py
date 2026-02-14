@@ -242,14 +242,23 @@ class TrackedDict(dict):
             mapping = {k: self.tracker.track(v) for k, v in mapping.items()}
         super().update(mapping)
 
-    def pop(self, key, default=None):
-        if self.tracker:
-            value = super().pop(key, default)
-            if value is not default:
-                self.tracker.untrack(value)
+    def pop(self, key, *args):
+        if len(args) > 1:
+            raise TypeError(
+                f"pop expected at most 2 arguments, got {1 + len(args)}"
+            )
+
+        if not self.tracker:
+            return super().pop(key, *args)
+
+        try:
+            value = super().pop(key)
+            self.tracker.untrack(value)
             return value
-        else:
-            return super().pop(key, default)
+        except KeyError:
+            if args:
+                return args[0]
+            raise
 
     def popitem(self):
         key, value = super().popitem()
