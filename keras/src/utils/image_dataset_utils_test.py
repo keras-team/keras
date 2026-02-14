@@ -671,6 +671,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
                 **common_args,
             )
         )
+
         def _count_batches_and_samples(dataset):
             batch_count = 0
             sample_count = 0
@@ -723,8 +724,8 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         train_batch_count_alt, train_sample_count_alt = (
             _count_batches_and_samples(train_dataset_alt)
         )
-        val_batch_count_alt, val_sample_count_alt = (
-            _count_batches_and_samples(val_dataset_alt)
+        val_batch_count_alt, val_sample_count_alt = _count_batches_and_samples(
+            val_dataset_alt
         )
         self.assertEqual(train_batch_count, train_batch_count_alt)
         self.assertEqual(train_sample_count, train_sample_count_alt)
