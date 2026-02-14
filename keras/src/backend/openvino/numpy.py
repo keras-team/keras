@@ -879,13 +879,36 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 def cumprod(x, axis=None, dtype=None):
     x = get_ov_output(x)
+    x_type = x.get_element_type()
+
     if dtype is not None:
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
-        x = ov_opset.convert(x, ov_type).output(0)
-    x, axis = _resolve_axis(x, axis)
-    if x.get_element_type() == Type.boolean:
+    else:
+        ov_type = x_type
+
+    if x_type == Type.boolean:
         x = ov_opset.convert(x, Type.i32).output(0)
-    return OpenVINOKerasTensor(ov_opset.cum_prod(x, axis).output(0))
+        x_type = Type.i32
+
+    if x_type.is_integral():
+        x = ov_opset.convert(x, Type.f32).output(0)
+        compute_as_float = True
+    else:
+        compute_as_float = False
+
+    x, axis = _resolve_axis(x, axis)
+
+    log_x = ov_opset.log(x).output(0)
+    cumsum_log = ov_opset.cumsum(log_x, axis).output(0)
+    result = ov_opset.exp(cumsum_log).output(0)
+
+    if compute_as_float and ov_type.is_integral():
+        result = ov_opset.round(result).output(0)
+
+    if result.get_element_type() != ov_type:
+        result = ov_opset.convert(result, ov_type).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def cumsum(x, axis=None, dtype=None):
