@@ -1853,3 +1853,22 @@ class LayerTest(testing.TestCase):
         # foo_mode omitted -> foo_mode defaults to False -> no change
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)
+
+    def test_layer_build_with_attention_mask_arg(self):
+        test = self
+
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, attention_mask=None):
+                if attention_mask is not None:
+                    return inputs * ops.cast(attention_mask, x.dtype)
+                return inputs
+
+            def build(self, inputs_shape, attention_mask_shape=None):
+                test.assertIsNotNone(attention_mask_shape)
+                self.built = True
+
+        layer = CustomLayer()
+        x = np.ones((2, 3), dtype="float32")
+        mask = np.ones((2, 1), dtype="float32")
+        y = layer(x, attention_mask=mask)
+        self.assertEqual(y.shape, (2, 3))
