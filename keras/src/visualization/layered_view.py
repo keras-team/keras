@@ -99,41 +99,54 @@ def _get_layer_dims(layer, min_z, max_z, min_xy, max_xy, scale_z, scale_xy):
         return min_xy, min_xy, min_z
 
     # output_shape is typically (batch, ..., features)
-    # For Conv: (batch, h, w, filters) or (batch, h, w, d, filters)
-    # For Dense: (batch, units)
-    shape = [s for s in output_shape if s is not None]
+    # Strip the batch dimension first, then handle None dimensions.
+    shape = output_shape[1:]
 
-    if len(shape) == 0:
+    if not shape:
         return min_xy, min_xy, min_z
 
     if len(shape) == 1:
-        # (units,) after removing batch
+        # Dense, Flatten, etc. -> (units,)
         units = shape[0]
+        if units is None:
+            return min_xy, min_xy, min_z
         xy = max(min_xy, min(max_xy, int(math.sqrt(units) * scale_xy)))
         return xy, xy, min_z
 
     if len(shape) == 2:
-        # (batch, units)
-        units = shape[-1]
-        xy = max(min_xy, min(max_xy, int(math.sqrt(units) * scale_xy)))
-        return xy, xy, min_z
-
-    if len(shape) == 3:
-        # (batch, spatial, features)
-        spatial = shape[1]
-        features = shape[2]
-        w = max(min_xy, min(max_xy, int(spatial * scale_xy)))
+        # Conv1D, LSTM, etc. -> (steps, features)
+        spatial, features = shape
+        w = (
+            max(min_xy, min(max_xy, int(spatial * scale_xy)))
+            if spatial is not None
+            else min_xy
+        )
         h = w
-        d = max(min_z, min(max_z, int(features * scale_z)))
+        d = (
+            max(min_z, min(max_z, int(features * scale_z)))
+            if features is not None
+            else min_z
+        )
         return w, h, d
 
-    # (batch, h, w, features) or higher
-    h_val = shape[1]
-    w_val = shape[2]
+    # Conv2D and higher -> (H, W, C) or (D, H, W, C)
+    h_val, w_val = shape[0], shape[1]
     features = shape[-1]
-    w = max(min_xy, min(max_xy, int(w_val * scale_xy)))
-    h = max(min_xy, min(max_xy, int(h_val * scale_xy)))
-    d = max(min_z, min(max_z, int(features * scale_z)))
+    w = (
+        max(min_xy, min(max_xy, int(w_val * scale_xy)))
+        if w_val is not None
+        else min_xy
+    )
+    h = (
+        max(min_xy, min(max_xy, int(h_val * scale_xy)))
+        if h_val is not None
+        else min_xy
+    )
+    d = (
+        max(min_z, min(max_z, int(features * scale_z)))
+        if features is not None
+        else min_z
+    )
     return w, h, d
 
 
@@ -196,7 +209,12 @@ def _draw_legend(layers, color_map, background_fill):
     swatch_size = 16
     row_height = 24
     padding = 10
-    max_text_width = max(len(name) for name in seen) * 8
+    try:
+        font = ImageFont.load_default()
+        max_text_width = max(int(font.getlength(n)) for n in seen)
+    except (AttributeError, OSError):
+        font = None
+        max_text_width = max(len(name) for name in seen) * 8
 
     legend_w = swatch_size + padding * 3 + max_text_width
     legend_h = padding * 2 + len(seen) * row_height
@@ -215,6 +233,7 @@ def _draw_legend(layers, color_map, background_fill):
             (padding * 2 + swatch_size, y),
             name,
             fill=(0, 0, 0, 255),
+            font=font,
         )
         y += row_height
 
