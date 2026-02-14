@@ -1264,7 +1264,7 @@ def dot_product_attention(
         # kernel is the only reliable fallback for masks on GPU.
         if mask is not None:
             with torch.nn.attention.sdpa_kernel(
-                enable_math=True, enable_flash=False, enable_mem_efficient=False
+                backends=[torch.nn.attention.SDPBackend.MATH],
             ):
                 attention_output = (
                     torch.nn.functional.scaled_dot_product_attention(
