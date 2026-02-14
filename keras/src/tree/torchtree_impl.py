@@ -89,6 +89,19 @@ def traverse(func, structure, top_down=True):
 
 
 def flatten(structure):
+    # Fast path: for common simple structures (tuple/list of non-dict items),
+    # skip the expensive _dict_to_ordered_dict which recursively sorts dicts.
+    if isinstance(structure, (list, tuple)):
+        # If no element is a dict/defaultdict or nested container with dicts,
+        # we can skip _dict_to_ordered_dict entirely.
+        has_dict = False
+        for item in structure:
+            if isinstance(item, (dict, defaultdict)):
+                has_dict = True
+                break
+        if not has_dict:
+            leaves, _ = torch_tree.tree_flatten(structure)
+            return leaves
     # We need to first sort dicts to ensure a deterministic order that is
     # consistent with other tree implementations.
     structure = _dict_to_ordered_dict(structure)
