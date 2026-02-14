@@ -10,6 +10,7 @@ from keras.src.visualization.draw_bounding_boxes import (
 from keras.src.visualization.draw_segmentation_masks import (
     draw_segmentation_masks as draw_segmentation_masks,
 )
+from keras.src.visualization.layered_view import layered_view as layered_view
 from keras.src.visualization.plot_bounding_box_gallery import (
     plot_bounding_box_gallery as plot_bounding_box_gallery,
 )
