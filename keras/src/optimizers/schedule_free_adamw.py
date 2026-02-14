@@ -111,7 +111,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         # Initialize momentum to match the initial parameter values
         for momentum, var in zip(self._momentums, var_list):
             if momentum is not None:
-                self.assign(momentum, ops.copy(var))
+                self.assign(momentum, var.value)
 
     def update_step(self, gradient, variable, learning_rate):
         """Update step given gradient and the associated model variable."""
