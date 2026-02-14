@@ -571,10 +571,14 @@ def lstm(
     from keras.src import activations as act_module
     from keras.src import ops
 
-    if (
-        activation not in (act_module.tanh, torch.tanh, ops.tanh)
-        or recurrent_activation
-        not in (act_module.sigmoid, torch.sigmoid, ops.sigmoid)
+    if activation not in (
+        act_module.tanh,
+        torch.tanh,
+        ops.tanh,
+    ) or recurrent_activation not in (
+        act_module.sigmoid,
+        torch.sigmoid,
+        ops.sigmoid,
     ):
         raise NotImplementedError
 
@@ -780,10 +784,14 @@ def gru(
     from keras.src import activations as act_module
     from keras.src import ops
 
-    if (
-        activation not in (act_module.tanh, torch.tanh, ops.tanh)
-        or recurrent_activation
-        not in (act_module.sigmoid, torch.sigmoid, ops.sigmoid)
+    if activation not in (
+        act_module.tanh,
+        torch.tanh,
+        ops.tanh,
+    ) or recurrent_activation not in (
+        act_module.sigmoid,
+        torch.sigmoid,
+        ops.sigmoid,
     ):
         raise NotImplementedError
 
