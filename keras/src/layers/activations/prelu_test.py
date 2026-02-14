@@ -37,3 +37,15 @@ class PReLUTest(testing.TestCase):
         prelu_layer.alpha.assign(weights)
         ref_out = np_prelu(inputs, weights)
         self.assertAllClose(prelu_layer(inputs), ref_out)
+
+    def test_prelu_alpha_initializer_is_none(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "The `alpha_initializer` argument for PReLU cannot be None",
+        ):
+            self.run_layer_test(
+                prelu.PReLU,
+                init_kwargs={"alpha_initializer": None},
+                input_shape=(2, 3, 4),
+                supports_masking=True,
+            )
