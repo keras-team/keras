@@ -1258,14 +1258,33 @@ def dot_product_attention(
             mask = mask.contiguous(
                 memory_format=torch.contiguous_format
             ).clone()
-        attention_output = torch.nn.functional.scaled_dot_product_attention(
-            query.contiguous(),
-            key.contiguous(),
-            value.contiguous(),
-            attn_mask=mask,
-            is_causal=is_causal,
-            scale=scale,
-        )
+        # Force the math kernel when mask is present, as PyTorch's flash
+        # attention and memory-efficient kernels have known GPU issues with
+        # masks (see PyTorch issues #127523, #128119, #97514). The math
+        # kernel is the only reliable fallback for masks on GPU.
+        if mask is not None:
+            with torch.nn.attention.sdpa_kernel(
+                enable_math=True, enable_flash=False, enable_mem_efficient=False
+            ):
+                attention_output = (
+                    torch.nn.functional.scaled_dot_product_attention(
+                        query.contiguous(),
+                        key.contiguous(),
+                        value.contiguous(),
+                        attn_mask=mask,
+                        is_causal=is_causal,
+                        scale=scale,
+                    )
+                )
+        else:
+            attention_output = torch.nn.functional.scaled_dot_product_attention(
+                query.contiguous(),
+                key.contiguous(),
+                value.contiguous(),
+                attn_mask=mask,
+                is_causal=is_causal,
+                scale=scale,
+            )
     return torch.transpose(attention_output, axis1, axis0)
 
 
