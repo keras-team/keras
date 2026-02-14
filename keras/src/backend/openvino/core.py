@@ -634,9 +634,7 @@ class OpenVINOKerasTensor:
         if decimals == 0:
             result = ov_opset.round(first, "half_to_even")
         else:
-            factor = ov_opset.constant(
-                10.0**decimals, first.get_element_type()
-            )
+            factor = ov_opset.constant(10.0**decimals, first.get_element_type())
             scaled = ov_opset.multiply(first, factor)
             rounded = ov_opset.round(scaled, "half_to_even")
             result = ov_opset.divide(rounded, factor)
