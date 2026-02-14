@@ -2622,7 +2622,10 @@ def searchsorted(sorted_sequence, values, side="left"):
         sorted_sequence, values, "searchsorted()"
     )
 
-    with_right_bound = side == "right"
+    # Note: OpenVINO's bucketize with_right_bound has opposite semantics
+    # with_right_bound=True means search from right (side='left' in numpy)
+    # with_right_bound=False means search from left (side='right' in numpy)
+    with_right_bound = side == "left"
     result = ov_opset.bucketize(
         values,
         sorted_sequence,
