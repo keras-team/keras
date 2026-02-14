@@ -333,15 +333,21 @@ def scatter(indices, values, shape):
 
 
 class ScatterUpdate(Operation):
+    def __init__(self, reduction=None, *, name=None):
+        super().__init__(name=name)
+        self.reduction = reduction
+
     def call(self, inputs, indices, updates):
-        return backend.core.scatter_update(inputs, indices, updates)
+        return backend.core.scatter_update(
+            inputs, indices, updates, reduction=self.reduction
+        )
 
     def compute_output_spec(self, inputs, indices, updates):
         return KerasTensor(inputs.shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.scatter_update")
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     """Update inputs via updates at scattered (sparse) indices.
 
     At a high level, this operation does `inputs[indices] = updates`.
@@ -383,13 +389,41 @@ def scatter_update(inputs, indices, updates):
             indices to update. `N` is the number of indices to update, must be
             equal to the first dimension of `updates`.
         updates: A tensor, the new values to be put to `inputs` at `indices`.
+        reduction: A string specifying the reduction operation to apply when
+            multiple updates target the same index. Supported values are:
+            `None` (default): Updates replace existing values (last write wins).
+            `"add"`: Updates are added to existing values.
+            `"max"`: The maximum of updates and existing values is kept.
+            `"min"`: The minimum of updates and existing values is kept.
+            `"mul"`: Updates are multiplied with existing values.
 
     Returns:
         A tensor, has the same shape and dtype as `inputs`.
+
+    Example:
+
+    Using `reduction="add"` to accumulate values at the same index:
+
+    >>> inputs = np.zeros((4,))
+    >>> indices = [[0], [0], [1]]
+    >>> updates = np.array([1., 1., 1.])
+    >>> keras.ops.scatter_update(inputs, indices, updates, reduction="add")
+    array([2., 1., 0., 0.])
     """
+    if reduction is not None:
+        reduction = reduction.lower()
+        if reduction not in ("add", "max", "min", "mul"):
+            raise ValueError(
+                f"Invalid reduction: {reduction}. "
+                "Supported values are: None, 'add', 'max', 'min', 'mul'."
+            )
     if any_symbolic_tensors((inputs, indices, updates)):
-        return ScatterUpdate().symbolic_call(inputs, indices, updates)
-    return backend.core.scatter_update(inputs, indices, updates)
+        return ScatterUpdate(reduction=reduction).symbolic_call(
+            inputs, indices, updates
+        )
+    return backend.core.scatter_update(
+        inputs, indices, updates, reduction=reduction
+    )
 
 
 class Slice(Operation):
