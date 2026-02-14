@@ -516,14 +516,7 @@ class DataShardingIntegrationTest(testing.TestCase):
                 distribution._auto_shard_dataset = True
                 ds = distribution.distribute_dataset(global_dataset)
 
-                items = []
-                for batch in ds:
-                    arr = batch.numpy().tolist()
-                    if isinstance(arr[0], list):
-                        for sub in arr:
-                            items.extend(map(int, sub))
-                    else:
-                        items.extend(map(int, arr))
+                items = list(ds.unbatch().as_numpy_iterator())
 
                 shards.append(items)
 
