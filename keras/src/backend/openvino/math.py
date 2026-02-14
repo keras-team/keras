@@ -122,7 +122,3 @@ def erfinv(x):
 
 def solve(a, b):
     raise NotImplementedError("`solve` is not supported with openvino backend")
-
-
-def norm(x, ord=None, axis=None, keepdims=False):
-    raise NotImplementedError("`norm` is not supported with openvino backend")

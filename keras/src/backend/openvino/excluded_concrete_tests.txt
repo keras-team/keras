@@ -200,6 +200,19 @@ TestMathErrors::test_stft_invalid_window
 TestMathErrors::test_stft_invalid_window_shape
 LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_cholesky_inverse
+LinalgOpsCorrectnessTest::test_norm_2_nuc
+LinalgOpsCorrectnessTest::test_qr
+LinalgOpsCorrectnessTest::test_solve
+LinalgOpsCorrectnessTest::test_solve_triangular
+LinalgOpsCorrectnessTest::test_svd
+LinalgOpsCorrectnessTest::test_det
+LinalgOpsCorrectnessTest::test_eig
+LinalgOpsCorrectnessTest::test_eigh
+LinalgOpsCorrectnessTest::test_inv
+LinalgOpsCorrectnessTest::test_lstsq
+LinalgOpsCorrectnessTest::test_lu_factor
+LinalgOpsCorrectnessTest::test_norm_2
+LinalgOpsDynamicShapeTest::test_qr
 NNOpsDynamicShapeTest::test_binary_crossentropy
 NNOpsDynamicShapeTest::test_categorical_crossentropy
 NNOpsCorrectnessTest::test_conv_transpose_
@@ -222,3 +235,4 @@ NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsBehaviorTest::test_logit_recovery_binary_crossentropy
+QrOpTest
