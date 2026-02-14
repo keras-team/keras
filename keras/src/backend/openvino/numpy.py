@@ -1543,7 +1543,9 @@ def inner(x1, x2):
         return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
 
     if x1_rank == 1 and x2_rank == 1:
-        return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.matmul(x1, x2, False, False).output(0)
+        )
 
     if x2_rank >= 2:
         perm = list(range(x2_rank))
