@@ -2605,8 +2605,7 @@ def roll(x, shift, axis=None):
 def searchsorted(sorted_sequence, values, side="left"):
     if side not in ("left", "right"):
         raise ValueError(
-            "`side` must be either 'left' or 'right'. "
-            f"Received: side={side}"
+            f"`side` must be either 'left' or 'right'. Received: side={side}"
         )
     sorted_sequence = get_ov_output(sorted_sequence)
     values = get_ov_output(values)
@@ -2630,6 +2629,10 @@ def searchsorted(sorted_sequence, values, side="left"):
         output_type=Type.i64,
         with_right_bound=with_right_bound,
     ).output(0)
+
+    # Ensure output is int64
+    if result.get_element_type() != Type.i64:
+        result = ov_opset.convert(result, Type.i64).output(0)
 
     return OpenVINOKerasTensor(result)
 
