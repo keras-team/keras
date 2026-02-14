@@ -2303,13 +2303,18 @@ def nanmax(x, axis=None, keepdims=False):
 
     nan_mask = ov_opset.is_nan(x)
     neg_inf = ov_opset.constant(float("-inf"), x_type)
-    x = ov_opset.select(nan_mask, neg_inf, x).output(0)
+    x_replaced = ov_opset.select(nan_mask, neg_inf, x).output(0)
 
-    x, axis = _resolve_axis(x, axis)
+    x_replaced, axis = _resolve_axis(x_replaced, axis)
     if axis is None:
-        return OpenVINOKerasTensor(x)
+        return OpenVINOKerasTensor(x_replaced)
 
-    result = ov_opset.reduce_max(x, axis, keepdims).output(0)
+    result = ov_opset.reduce_max(x_replaced, axis, keepdims).output(0)
+
+    all_nan = ov_opset.reduce_logical_and(nan_mask, axis, keepdims).output(0)
+    nan_value = ov_opset.constant(float("nan"), x_type)
+    result = ov_opset.select(all_nan, nan_value, result).output(0)
+
     return OpenVINOKerasTensor(result)
 
 
@@ -2352,13 +2357,18 @@ def nanmin(x, axis=None, keepdims=False):
 
     nan_mask = ov_opset.is_nan(x)
     pos_inf = ov_opset.constant(float("inf"), x_type)
-    x = ov_opset.select(nan_mask, pos_inf, x).output(0)
+    x_replaced = ov_opset.select(nan_mask, pos_inf, x).output(0)
 
-    x, axis = _resolve_axis(x, axis)
+    x_replaced, axis = _resolve_axis(x_replaced, axis)
     if axis is None:
-        return OpenVINOKerasTensor(x)
+        return OpenVINOKerasTensor(x_replaced)
 
-    result = ov_opset.reduce_min(x, axis, keepdims).output(0)
+    result = ov_opset.reduce_min(x_replaced, axis, keepdims).output(0)
+
+    all_nan = ov_opset.reduce_logical_and(nan_mask, axis, keepdims).output(0)
+    nan_value = ov_opset.constant(float("nan"), x_type)
+    result = ov_opset.select(all_nan, nan_value, result).output(0)
+
     return OpenVINOKerasTensor(result)
 
 
