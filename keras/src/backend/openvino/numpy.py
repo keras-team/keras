@@ -2605,7 +2605,7 @@ def roll(x, shift, axis=None):
 def searchsorted(sorted_sequence, values, side="left"):
     sorted_sequence = get_ov_output(sorted_sequence)
     values = get_ov_output(values)
-    
+
     if sorted_sequence.get_partial_shape().rank.get_length() != 1:
         raise ValueError(
             "`searchsorted` only supports 1-D sorted sequences. "
@@ -2613,11 +2613,11 @@ def searchsorted(sorted_sequence, values, side="left"):
             "to extend it to N-D sequences. Received: "
             f"sorted_sequence.shape={sorted_sequence.get_partial_shape()}"
         )
-    
+
     sorted_sequence, values = _align_operand_types(
         sorted_sequence, values, "searchsorted()"
     )
-    
+
     with_right_bound = side == "right"
     result = ov_opset.bucketize(
         values,
@@ -2625,7 +2625,7 @@ def searchsorted(sorted_sequence, values, side="left"):
         output_type=Type.i64,
         with_right_bound=with_right_bound,
     ).output(0)
-    
+
     return OpenVINOKerasTensor(result)
 
 
