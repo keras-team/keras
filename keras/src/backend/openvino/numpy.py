@@ -2629,13 +2629,12 @@ def searchsorted(sorted_sequence, values, side="left"):
     result = ov_opset.bucketize(
         values,
         sorted_sequence,
-        output_type=Type.i64,
+        output_type=Type.i32,  # OpenVINO bucketize only supports i32
         with_right_bound=with_right_bound,
     ).output(0)
 
-    # Ensure output is int64
-    if result.get_element_type() != Type.i64:
-        result = ov_opset.convert(result, Type.i64).output(0)
+    # Convert to int64 to match numpy behavior
+    result = ov_opset.convert(result, Type.i64).output(0)
 
     return OpenVINOKerasTensor(result)
 
