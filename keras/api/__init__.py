@@ -31,6 +31,7 @@ from keras import random as random
 from keras import regularizers as regularizers
 from keras import saving as saving
 from keras import tree as tree
+from keras import types as types
 from keras import utils as utils
 from keras import visualization as visualization
 from keras import wrappers as wrappers
