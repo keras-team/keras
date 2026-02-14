@@ -277,6 +277,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 "`by_name` only supports loading legacy '.h5' or '.hdf5' "
                 f"files. Received: {filepath}"
             )
+
         saving_lib.load_weights_only(
             model, filepath, skip_mismatch=skip_mismatch
         )
@@ -336,8 +337,12 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             # It's a step directory, use it directly
             checkpoint_path = filepath
 
-        # Load checkpoint
-        loaded_state = ocp.load_pytree(checkpoint_path)
+        # Load weights only (no assets) from Orbax checkpoint
+        loaded_checkpointables = ocp.load_checkpointables(
+            checkpoint_path, dict(pytree=None)
+        )
+
+        loaded_state = loaded_checkpointables["pytree"]
 
         # Set the model state directly from the loaded state
         model.set_state_tree(loaded_state)
@@ -366,8 +371,22 @@ def _load_model_from_orbax_checkpoint(
 
     # Load the composite state efficiently
     checkpointer = ocp.training.Checkpointer(directory=filepath)
+
     with ocp.Context():
-        composite_state = checkpointer.load_pytree(step)
+        # Check which checkpointables were saved so we only request
+        # keys that actually exist (Orbax raises KeyError otherwise).
+        saved_keys = set(
+            checkpointer.checkpointables_metadata(step).metadata.keys()
+        )
+        request = {"pytree": None}
+        if "assets" in saved_keys:
+            request["assets"] = None
+
+        loaded_checkpointables = checkpointer.load_checkpointables(
+            step, request
+        )
+        composite_state = loaded_checkpointables["pytree"]
+        assets_data = loaded_checkpointables.get("assets")
 
     # Validate and extract model config
     if "model_config" not in composite_state:
@@ -400,4 +419,8 @@ def _load_model_from_orbax_checkpoint(
 
     # Apply the loaded state to the model
     model.set_state_tree(state_tree)
+
+    # Load assets if present
+    saving_lib._load_assets_from_dict(model, assets_data)
+
     return model
