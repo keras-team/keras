@@ -773,6 +773,36 @@ class ExportArchiveTest(testing.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="String lookup requires TensorFlow backend",
+    )
+    def test_model_with_tracked_collection(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        text_vectorization = layers.TextVectorization()
+        text_vectorization.adapt(["one two", "three four", "five six"])
+
+        # CustomModel has a list of layers. The `TrackedList` that Keras uses is
+        # not a TensorFlow Trackable, but `Layer._trackable_children` makes it
+        # work.
+        model = CustomModel(
+            [
+                text_vectorization,
+                layers.Embedding(10, 32),
+                layers.Dense(1),
+            ]
+        )
+        ref_input = tf.convert_to_tensor(["one two three four"])
+        ref_output = model(ref_input)
+
+        saved_model.export_saved_model(
+            model,
+            temp_filepath,
+            input_signature=[tf.TensorSpec(shape=[1], dtype=tf.string)],
+        )
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+
     def test_track_multiple_layers(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         layer_1 = layers.Dense(2)
