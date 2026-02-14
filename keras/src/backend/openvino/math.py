@@ -1,3 +1,4 @@
+import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
 
@@ -125,4 +126,28 @@ def solve(a, b):
 
 
 def norm(x, ord=None, axis=None, keepdims=False):
-    raise NotImplementedError("`norm` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axis = 0
+    if isinstance(axis, tuple):
+        axis = list(axis)
+    axis_tensor = ov_opset.constant(axis, Type.i32).output(0)
+    if ord is None or ord == "euclidean" or ord == 2:
+        norm = ov_opset.reduce_l2(x, axis_tensor, keepdims).output(0)
+    elif ord == 1:
+        norm = ov_opset.reduce_l1(x, axis_tensor, keepdims).output(0)
+    elif ord == np.inf or ord == "inf" or ord == float("inf"):
+        norm = ov_opset.reduce_max(
+            ov_opset.abs(x).output(0), axis_tensor, keepdims
+        ).output(0)
+    elif ord == -np.inf or ord == "-inf" or ord == float("-inf"):
+        norm = ov_opset.reduce_min(
+            ov_opset.abs(x).output(0), axis_tensor, keepdims
+        ).output(0)
+    else:
+        raise NotImplementedError(
+            f"`norm` with ord={ord} is not supported with openvino backend"
+        )
+    return OpenVINOKerasTensor(norm)
