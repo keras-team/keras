@@ -549,7 +549,10 @@ class GRU(RNN):
             initial_state = initial_state[0]
         if tree.is_nested(mask):
             mask = mask[0]
-        if self.use_cudnn in ("auto", True):
+        # Skip the fast path when zero_output_for_mask is enabled with a
+        # mask, since the backend function does not support it.
+        use_fast_path = not (self.zero_output_for_mask and mask is not None)
+        if use_fast_path and self.use_cudnn in ("auto", True):
             if not self.recurrent_dropout:
                 try:
                     if training and self.dropout:
