@@ -34,13 +34,13 @@ else:
         f"Backend '{backend.backend()}' must implement ExportArchive."
     )
 
-
 DEFAULT_ENDPOINT_NAME = "serve"
 
 
-@keras_export("keras.export.ExportArchive")
-class ExportArchive(BackendExportArchive):
-    """ExportArchive is used to write SavedModel artifacts (e.g. for inference).
+@keras_export("keras.export.BackendSavedModelExportArchive")
+class BackendSavedModelExportArchive(BackendExportArchive):
+    """BackendSavedModelExportArchive is used to write SavedModel artifact
+    (e.g. for inference).
 
     If you have a Keras model or layer that you want to export as SavedModel for
     serving (e.g. via TensorFlow-Serving), you can use `ExportArchive`
@@ -691,3 +691,21 @@ def _list_variables_used_by_fns(fns):
                     non_trainable_variables.append(v)
                     non_trainable_variables_ids.add(id(v))
     return trainable_variables, non_trainable_variables
+
+
+@keras_export("keras.export.ExportArchive")
+class ExportArchive:
+    """This is the wrapper class for the backend-specific export archives.
+
+    It's for transitional purposes during the migration to the new export API.
+    """
+
+    def __new__(cls, export_model="backend_saved_model", **kwargs):
+        if export_model == "backend_saved_model":
+            return BackendSavedModelExportArchive()
+        elif export_model == "orbax_export":
+            return NotImplementedError(
+                "Orbax ExportArchive is not supported in Keras 3 yet."
+            )
+        else:
+            raise ValueError(f"Unsupported export_model: {export_model}")
