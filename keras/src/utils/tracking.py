@@ -220,8 +220,15 @@ class TrackedDict(dict):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
         if tracker and values:
-            values = {k: tracker.track(v) for k, v in values.items()}
-        super().__init__(values or [])
+            # Accept either a mapping (with .items()) or an iterable of
+            # (key, value) pairs (e.g. a zip object). Normalize to an
+            # items iterator before tracking elements.
+            if hasattr(values, "items"):
+                items_iter = values.items()
+            else:
+                items_iter = values
+            values = {k: tracker.track(v) for k, v in items_iter}
+        super().__init__(values or {})
 
     def __setitem__(self, key, value):
         if self.tracker:

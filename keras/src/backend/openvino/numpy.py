@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.opset14 as ov_opset
+import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
@@ -3168,6 +3168,10 @@ def vstack(xs):
             elems[0], elems[i], "vstack()"
         )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
+
+
+def vsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=0)
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):

@@ -2015,6 +2015,14 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, None))
         self.assertEqual(knp.dstack([x, y]).shape, (None, 3, 2))
 
+    def test_vsplit(self):
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.vsplit(x, 2)[0].shape, (None, 3, 3))
+        self.assertEqual(len(knp.vsplit(x, [1, 3])), 3)
+        self.assertEqual(knp.vsplit(x, [1, 3])[0].shape, (1, 3, 3))
+        self.assertEqual(knp.vsplit(x, [1, 3])[1].shape, (2, 3, 3))
+        self.assertEqual(knp.vsplit(x, [1, 3])[2].shape, (None, 3, 3))
+
     def test_argpartition(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
@@ -2620,6 +2628,20 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             knp.split(x, 2, axis=1)
+
+    def test_vsplit(self):
+        x = KerasTensor((5, 3))
+
+        splits = knp.vsplit(x, 5)
+        self.assertEqual(len(splits), 5)
+        for split in splits:
+            self.assertEqual(split.shape, (1, 3))
+
+        splits = knp.vsplit(x, [1, 3])
+        self.assertEqual(len(splits), 3)
+        self.assertEqual(splits[0].shape, (1, 3))
+        self.assertEqual(splits[1].shape, (2, 3))
+        self.assertEqual(splits[2].shape, (2, 3))
 
     def test_sqrt(self):
         x = KerasTensor((2, 3))
@@ -5316,6 +5338,38 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             fn(x, indices, axis=1),
             np.split(x_np, indices_np, axis=1),
         )
+
+    def test_vsplit(self):
+        x = np.arange(18).reshape((6, 3))
+
+        self.assertIsInstance(knp.vsplit(x, 3), list)
+        self.assertAllClose(knp.vsplit(x, 3), np.vsplit(x, 3))
+        self.assertAllClose(knp.Vsplit(3)(x), np.vsplit(x, 3))
+
+        indices = [1, 3, 5]
+
+        # Compare each split
+        for split_knp, split_np in zip(
+            knp.vsplit(x, indices), np.vsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(
+            knp.Vsplit(indices)(x), np.vsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        with self.assertRaises(Exception):
+            knp.vsplit(x, 4)
+
+        x_kr = knp.array(x)
+        indices_kr = knp.array(indices)
+        indices_np = np.array(indices)
+
+        for split_knp, split_np in zip(
+            knp.vsplit(x_kr, indices_kr), np.vsplit(x, indices_np)
+        ):
+            self.assertAllClose(split_knp, split_np)
 
     def test_sqrt(self):
         x = np.array([[1, 4, 9], [16, 25, 36]], dtype="float32")
@@ -9515,6 +9569,23 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Split(2, -1).symbolic_call(x)[0].dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_vsplit(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1, 2), dtype=dtype)
+        x_jax = jnp.ones((1, 2), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.vsplit(x_jax, [1])[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.vsplit(x, [1])[0].dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Vsplit([1]).symbolic_call(x)[0].dtype),
             expected_dtype,
         )
 

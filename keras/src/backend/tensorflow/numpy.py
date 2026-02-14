@@ -3030,6 +3030,10 @@ def vstack(xs):
     return tf.concat(xs, axis=0)
 
 
+def vsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=0)
+
+
 def _vmap_fn(fn, in_axes=0):
     if in_axes != 0:
         raise ValueError(

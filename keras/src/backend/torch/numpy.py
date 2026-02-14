@@ -1843,6 +1843,13 @@ def vstack(xs):
     return torch.vstack(xs)
 
 
+def vsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
+    return list(torch.vsplit(x, indices_or_sections))
+
+
 def vectorize(pyfunc, *, excluded=None, signature=None):
     return vectorize_impl(
         pyfunc, torch.vmap, excluded=excluded, signature=signature
