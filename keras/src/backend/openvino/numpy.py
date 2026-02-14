@@ -1532,31 +1532,20 @@ def inner(x1, x2):
         element_type = x1.output.get_element_type()
     if isinstance(x2, OpenVINOKerasTensor):
         element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "inner()")
+    x1_out = get_ov_output(x1, element_type)
+    x2_out = get_ov_output(x2, element_type)
 
-    x1_rank = x1.get_partial_shape().rank.get_length()
-    x2_rank = x2.get_partial_shape().rank.get_length()
+    x1_rank = x1_out.get_partial_shape().rank
+    x2_rank = x2_out.get_partial_shape().rank
 
-    if x1_rank == 0 and x2_rank == 0:
-        return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
+    is_x1_scalar = x1_rank.is_static and x1_rank.get_length() == 0
+    is_x2_scalar = x2_rank.is_static and x2_rank.get_length() == 0
 
-    if x1_rank == 1 and x2_rank == 1:
-        return OpenVINOKerasTensor(
-            ov_opset.matmul(x1, x2, False, False).output(0)
-        )
+    if is_x1_scalar or is_x2_scalar:
+        x1_out, x2_out = _align_operand_types(x1_out, x2_out, "inner()")
+        return OpenVINOKerasTensor(ov_opset.multiply(x1_out, x2_out).output(0))
 
-    if x2_rank >= 2:
-        perm = list(range(x2_rank))
-        perm[-2], perm[-1] = perm[-1], perm[-2]
-        perm_const = ov_opset.constant(perm, Type.i32).output(0)
-        x2_transposed = ov_opset.transpose(x2, perm_const).output(0)
-    else:
-        x2_transposed = x2
-
-    result = ov_opset.matmul(x1, x2_transposed, False, False).output(0)
-    return OpenVINOKerasTensor(result)
+    return tensordot(x1, x2, axes=((-1,), (-1,)))
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
