@@ -1713,7 +1713,7 @@ def lcm(x1, x2):
     x1_abs = ov_opset.abs(x1).output(0)
     x2_abs = ov_opset.abs(x2).output(0)
 
-    gcd_val = gcd(x1_abs, x2_abs)
+    gcd_val = gcd(x1, x2)
     gcd_val = get_ov_output(gcd_val)
 
     zero = ov_opset.constant(0, gcd_val.get_element_type()).output(0)
