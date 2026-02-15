@@ -652,7 +652,13 @@ class JAXTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
+        accumulate=True,
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = JAXEpochIterator(
@@ -732,7 +738,8 @@ class JAXTrainer(base_trainer.Trainer):
                     # during predict(), but it's allowed.
                     "non_trainable_variables": non_trainable_variables,
                 }
-                outputs = append_to_outputs(batch_outputs, outputs)
+                if accumulate:
+                    outputs = append_to_outputs(batch_outputs, outputs)
 
                 # Dispatch callbacks. This takes care of async dispatch.
                 callbacks.on_predict_batch_end(
@@ -745,7 +752,13 @@ class JAXTrainer(base_trainer.Trainer):
         self.jax_state_sync()
         callbacks.on_predict_end()
         self._jax_state = None
-        return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
+        if accumulate:
+            if outputs is None:
+                return None
+            return tree.map_structure_up_to(
+                batch_outputs, np.concatenate, outputs
+            )
+        return outputs
 
     def train_on_batch(
         self,
