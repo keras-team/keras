@@ -147,3 +147,46 @@ class TrackingTest(testing.TestCase):
         self.assertLen(tracked_variables, 2)
         self.assertIn(v1, tracked_variables)
         self.assertIn(v2, tracked_variables)
+
+    def test_tracked_ordered_dict_preserves_type_and_order(self):
+        tracked_variables = []
+        tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    tracked_variables,
+                ),
+            }
+        )
+        v1 = backend.Variable(1.0)
+        v2 = backend.Variable(2.0)
+        input_ordered = collections.OrderedDict([("x", v1), ("y", v2)])
+        ordered_dict = tracker.track(input_ordered)
+
+        self.assertIsInstance(ordered_dict, collections.OrderedDict)
+        self.assertEqual(list(ordered_dict.keys()), ["x", "y"])
+        self.assertLen(tracked_variables, 2)
+
+    def test_tracked_ordered_dict_setitem_and_pop(self):
+        tracked_variables = []
+        tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    tracked_variables,
+                ),
+            }
+        )
+        v1 = backend.Variable(1.0)
+        v2 = backend.Variable(2.0)
+        ordered_dict = tracking.TrackedOrderedDict(
+            collections.OrderedDict([("x", v1)]), tracker=tracker
+        )
+        self.assertLen(tracked_variables, 1)
+
+        ordered_dict["y"] = v2
+        self.assertLen(tracked_variables, 2)
+
+        ordered_dict.pop("x")
+        self.assertLen(tracked_variables, 1)
+        self.assertNotIn(v1, tracked_variables)
