@@ -7,7 +7,8 @@ NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_cumprod
-NumpyDtypeTest::test_diagflat
+NumpyDtypeTest::test_diagflat_complex128
+
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
