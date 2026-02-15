@@ -1170,16 +1170,32 @@ def dot_product_attention(
         mask = mask.contiguous()
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
-        mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
-        # Explicit set `is_causal` to `False` when `bias` is used as `mask`.
-        # PyTorch doesn't allow both `attn_mask` and `is_causal=True`.
-        is_causal = False
-        # Expand bias from 3D [B, T, S] to 4D [B, 1, T, S] to match the
-        # shape of query/key/value after transpose [B, num_heads, T, head_dim].
-        # PyTorch's scaled_dot_product_attention expects 4D mask format
-        # (N, 1, L, S) when query/key/value are 4D. This fixes the
-        # RuntimeError "(*bias): last dimension must be contiguous" on GPU
-        # (issue #20459).
+        # When bias is provided and is_causal=True, we need to combine the bias
+        # with a causal mask. PyTorch doesn't allow both attn_mask and
+        # is_causal=True, so we create a combined mask.
+        if is_causal:
+            # Create a causal mask (lower triangular) and combine with bias.
+            # The bias values are only applied to valid (causal) positions.
+            # bias shape is [B, num_heads, T, S] or [B, T, S]
+            if len(bias.shape) == 3:
+                # bias is [B, T, S], expand to [B, 1, T, S]
+                bias = bias.unsqueeze(1)
+            B, H, T, S = bias.shape
+            # Create causal mask: lower triangular matrix
+            causal_mask = torch.tril(
+                torch.ones((T, S), dtype=torch.bool, device=bias.device)
+            )
+            causal_mask = causal_mask[None, None, :, :]  # [1, 1, T, S]
+            # Apply bias only to causal positions, mask out others
+            mask = torch.where(
+                causal_mask, bias, _get_large_negative(compute_dtype)
+            )
+            is_causal = False  # We've incorporated causal into the mask
+        else:
+            # When is_causal=False, use bias directly as mask
+            mask = bias
+        # Expand bias from 3D [B, T, S] to 4D [B, 1, T, S] if needed
+        # (already done above for is_causal case)
         if len(mask.shape) == 3:
             # mask (bias) is [B, T, S], expand to [B, 1, T, S]
             mask = mask.unsqueeze(1)
