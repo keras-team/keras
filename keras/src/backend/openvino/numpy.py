@@ -678,40 +678,40 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         return OpenVINOKerasTensor(final_output)
 
 
-def bitwise_and(x1, x2):
+def bitwise_and(x, y):
     element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "bitwise_and()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_and(x1, x2).output(0))
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "bitwise_and()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_and(x, y).output(0))
 
 
-def bitwise_or(x1, x2):
+def bitwise_or(x, y):
     element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "bitwise_or()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_or(x1, x2).output(0))
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "bitwise_or()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_or(x, y).output(0))
 
 
-def bitwise_xor(x1, x2):
+def bitwise_xor(x, y):
     element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
-    x1, x2 = _align_operand_types(x1, x2, "bitwise_xor()")
-    return OpenVINOKerasTensor(ov_opset.bitwise_xor(x1, x2).output(0))
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "bitwise_xor()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_xor(x, y).output(0))
 
 
 def blackman(x):
