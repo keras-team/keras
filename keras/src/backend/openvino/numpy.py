@@ -690,6 +690,15 @@ def bitwise_and(x, y):
     return OpenVINOKerasTensor(ov_opset.bitwise_and(x, y).output(0))
 
 
+def bitwise_invert(x):
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.bitwise_not(x).output(0))
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
 def bitwise_or(x, y):
     element_type = None
     if isinstance(x, OpenVINOKerasTensor):
