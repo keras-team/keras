@@ -10,7 +10,9 @@ NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_inner
-NumpyDtypeTest::test_isreal
+NumpyDtypeTest::test_imag_complex128
+NumpyDtypeTest::test_isreal_complex128
+NumpyDtypeTest::test_real_complex128
 NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_nanmax
 NumpyDtypeTest::test_nanmean

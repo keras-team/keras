@@ -1522,10 +1522,6 @@ def identity(n, dtype=None):
     return OpenVINOKerasTensor(identity_matrix.output(0))
 
 
-def imag(x):
-    raise NotImplementedError("`imag` is not supported with openvino backend")
-
-
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     dtype = OPENVINO_DTYPES[config.floatx()]
 
@@ -1635,10 +1631,6 @@ def _is_inf(x, pos=True):
             inf = ov_opset.constant(inf_value, Type.f32).output(0)
         is_inf = ov_opset.equal(x, inf).output(0)
     return OpenVINOKerasTensor(is_inf)
-
-
-def isreal(x):
-    raise NotImplementedError("`isreal` is not supported with openvino backend")
 
 
 def kron(x1, x2):
@@ -2510,8 +2502,43 @@ def ravel(x):
     )
 
 
+def _is_complex(x):
+    """Check if input has a complex dtype."""
+    if isinstance(x, OpenVINOKerasTensor):
+        dtype = ov_to_keras_type(x.output.get_element_type())
+    else:
+        dtype = standardize_dtype(getattr(x, "dtype", type(x)))
+    return dtype in dtypes.COMPLEX_TYPES
+
+
 def real(x):
-    raise NotImplementedError("`real` is not supported with openvino backend")
+    # TODO: Unblock when OpenVINO supports complex128 inputs
+    if _is_complex(x):
+        x_ov = get_ov_output(x)
+        index_0 = ov_opset.constant(0, Type.i32).output(0)
+        axis = ov_opset.constant(-1, Type.i32).output(0)
+        real_part = ov_opset.gather(x_ov, index_0, axis).output(0)
+        return OpenVINOKerasTensor(real_part)
+    if isinstance(x, OpenVINOKerasTensor):
+        return x
+    return OpenVINOKerasTensor(get_ov_output(x))
+
+
+def imag(x):
+    # TODO: Unblock when OpenVINO supports complex128 inputs
+    if _is_complex(x):
+        x_ov = get_ov_output(x)
+        index_1 = ov_opset.constant(1, Type.i32).output(0)
+        axis = ov_opset.constant(-1, Type.i32).output(0)
+        imag_part = ov_opset.gather(x_ov, index_1, axis).output(0)
+        return OpenVINOKerasTensor(imag_part)
+    # For real inputs, return zeros with the same shape
+    return zeros_like(x)
+
+
+def isreal(x):
+    """Return True for each element if it has zero imaginary part."""
+    return equal(imag(x), 0)
 
 
 def reciprocal(x):
