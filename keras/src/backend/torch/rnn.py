@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 from keras.src import tree
@@ -495,46 +494,29 @@ def prepare_lstm_weights(lstm, kernel, recurrent_kernel, bias, device):
     lstm = lstm.to(device)
     hidden_size = lstm.hidden_size
 
-    # Convert gates from Keras [i,f,c,o] to PyTorch [i,f,g,o]
-    i_k, f_k, c_k, o_k = np.split(kernel, 4, axis=1)
-    weight_ih_data = np.concatenate([i_k, f_k, c_k, o_k], axis=1).T
-
-    i_r, f_r, c_r, o_r = np.split(recurrent_kernel, 4, axis=1)
-    weight_hh_data = np.concatenate([i_r, f_r, c_r, o_r], axis=1).T
+    # Keras and PyTorch both use gate order [i, f, g, o], so just transpose
+    weight_ih = convert_to_tensor(kernel).T.contiguous().to(device)
+    weight_hh = convert_to_tensor(recurrent_kernel).T.contiguous().to(device)
 
     if bias is not None:
-        # Split Keras combined bias into input and hidden biases
-        bias_ih_data = convert_to_tensor(bias, dtype="float32")
-        bias_hh_data = torch.zeros_like(bias_ih_data)
-
+        bias_ih = convert_to_tensor(bias).to(device)
+        bias_hh = torch.zeros_like(bias_ih)
     else:
-        bias_ih_data = torch.zeros(4 * hidden_size, device=device)
-        bias_hh_data = torch.zeros(4 * hidden_size, device=device)
+        bias_ih = torch.zeros(
+            4 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            4 * hidden_size, dtype=kernel.dtype, device=device
+        )
 
-    # Create PyTorch tensors for weights
-    weight_ih = convert_to_tensor(weight_ih_data, dtype="float32").contiguous()
-    weight_hh = convert_to_tensor(weight_hh_data, dtype="float32").contiguous()
-    bias_ih = convert_to_tensor(bias_ih_data, dtype="float32").contiguous()
-    bias_hh = convert_to_tensor(bias_hh_data, dtype="float32").contiguous()
-
-    # Ensure the weights are all on the same device
-    weight_ih = weight_ih.to(device)
-    weight_hh = weight_hh.to(device)
-    bias_ih = bias_ih.to(device)
-    bias_hh = bias_hh.to(device)
-
-    # Copy Keras weights into Torch's flat weights
     with torch.no_grad():
         lstm.weight_ih_l0.copy_(weight_ih)
         lstm.weight_hh_l0.copy_(weight_hh)
         lstm.bias_ih_l0.copy_(bias_ih)
         lstm.bias_hh_l0.copy_(bias_hh)
 
-    # Optimize the layout
     lstm.flatten_parameters()
 
-    # After prepare_lstm_weights:
-    # Force all LSTM parameters to be on the correct device
     for param in lstm.parameters():
         if param.device != device:
             param.data = param.data.to(device)
@@ -579,65 +561,79 @@ def lstm(
     unroll=False,
     batch_first=True,
 ):
-    cudnn_supported = cudnn_ok(
-        activation,
-        recurrent_activation,
-        unroll,
-        use_bias=bias is not None,
-    )
+    """Native PyTorch LSTM with pre-computed input projections.
 
-    if not cudnn_supported:
+    Pre-computes input projections for all timesteps at once (one large
+    matmul), then processes timesteps sequentially for state updates.
+    This is faster than the generic step-by-step RNN loop while giving
+    numerically identical results and maintaining full gradient flow.
+    """
+    from keras.src import activations as act_module
+    from keras.src import ops
+
+    if activation not in (
+        act_module.tanh,
+        torch.tanh,
+        ops.tanh,
+    ) or recurrent_activation not in (
+        act_module.sigmoid,
+        torch.sigmoid,
+        ops.sigmoid,
+    ):
         raise NotImplementedError
 
-    # Get device from inputs
     device = get_device()
 
-    from keras.src.backend.torch import Variable
-
-    if isinstance(kernel, Variable):
-        kernel = kernel.value
-    if isinstance(recurrent_kernel, Variable):
-        recurrent_kernel = recurrent_kernel.value
-    if isinstance(bias, Variable):
-        bias = bias.value
-
-    # Convert to torch tensors
-    inputs = convert_to_tensor(inputs, dtype="float32")
-    initial_state_h = convert_to_tensor(initial_state_h, dtype="float32")
-    initial_state_c = convert_to_tensor(initial_state_c, dtype="float32")
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+    inputs = convert_to_tensor(inputs, dtype="float32").to(device)
+    h = convert_to_tensor(initial_state_h, dtype="float32").to(device)
+    c = convert_to_tensor(initial_state_c, dtype="float32").to(device)
     if mask is not None:
-        mask = convert_to_tensor(mask, dtype="bool")
+        mask = convert_to_tensor(mask, dtype="bool").to(device)
 
-    # Preprocess for go_backwards by flipping the sequence
+    # Pre-compute input projections for all timesteps at once
+    x_proj = torch.matmul(inputs, kernel)  # (batch, seq_len, 4*hidden)
+
+    seq_len = inputs.shape[1]
     if go_backwards:
-        seq_dim = 1 if batch_first else 0
-        inputs = torch.flip(inputs, dims=[seq_dim])
+        time_range = range(seq_len - 1, -1, -1)
+    else:
+        time_range = range(seq_len)
+
+    all_h = []
+    for t in time_range:
+        z = x_proj[:, t, :] + torch.matmul(h, recurrent_kernel)
+        if bias is not None:
+            z = z + bias
+
+        z0, z1, z2, z3 = torch.chunk(z, 4, dim=-1)
+        i = torch.sigmoid(z0)
+        f = torch.sigmoid(z1)
+        c_new = f * c + i * torch.tanh(z2)
+        o = torch.sigmoid(z3)
+        h_new = o * torch.tanh(c_new)
+
         if mask is not None:
-            mask = torch.flip(mask, dims=[seq_dim])
+            mask_t = mask[:, t].unsqueeze(-1)
+            h = torch.where(mask_t, h_new, h)
+            c = torch.where(mask_t, c_new, c)
+        else:
+            h = h_new
+            c = c_new
 
-    # Move all tensors to the same device
-    inputs = inputs.to(device)
-    initial_state_h = initial_state_h.to(device)
-    initial_state_c = initial_state_c.to(device)
-    if mask is not None:
-        mask = mask.to(device)
+        all_h.append(h)
 
-    try:
-        return _cudnn_lstm(
-            inputs,
-            initial_state_h,
-            initial_state_c,
-            kernel,
-            recurrent_kernel,
-            bias,
-            mask,
-            batch_first,
-            go_backwards,
-            return_sequences,
-            device,
-        )
-    except Exception:
-        raise NotImplementedError
+    outputs = torch.stack(all_h, dim=1)
+    last_output = h
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, [h, c]
 
 
 def _cudnn_lstm(
@@ -714,9 +710,6 @@ def _cudnn_lstm(
         # Run LSTM without packing for fixed-length sequences
         outputs, (h_n, c_n) = lstm(inputs, (initial_state_h, initial_state_c))
 
-    outputs = outputs.detach().clone().cpu()
-    h_n = h_n.detach().clone().cpu()
-    c_n = c_n.detach().clone().cpu()
     # Reshape hidden states for return
     h_n = h_n.squeeze(batch_axis)
     c_n = c_n.squeeze(batch_axis)
@@ -741,5 +734,329 @@ def _cudnn_lstm(
     return last_output, outputs, [h_n, c_n]
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+):
+    """Native PyTorch GRU with pre-computed input projections.
+
+    Pre-computes input projections for all timesteps at once (one large
+    matmul), then processes timesteps sequentially for state updates.
+    This is faster than the generic step-by-step RNN loop while giving
+    numerically identical results and maintaining full gradient flow.
+
+    Args:
+        inputs: Input tensor of shape `(batch, timesteps, feature)`.
+        initial_state: Initial hidden state tensor of shape
+            `(batch, units)`.
+        mask: Optional boolean mask tensor of shape `(batch, timesteps)`.
+        kernel: Input kernel weights of shape `(feature, units * 3)`.
+        recurrent_kernel: Recurrent kernel weights of shape
+            `(units, units * 3)`.
+        bias: Optional bias tensor of shape `(2, units * 3)` for
+            `reset_after=True`.
+        activation: Activation function (must be `tanh`).
+        recurrent_activation: Recurrent activation function (must be
+            `sigmoid`).
+        return_sequences: Boolean. Whether to return the full sequence
+            of outputs or only the last output.
+        go_backwards: Boolean. Whether to process the input sequence
+            in reverse.
+        unroll: Boolean. Not used (kept for API compatibility).
+        reset_after: Boolean. Must be `True`.
+
+    Returns:
+        A tuple of `(last_output, outputs, [last_state])`.
+    """
+    if not reset_after:
+        raise NotImplementedError
+
+    from keras.src import activations as act_module
+    from keras.src import ops
+
+    if activation not in (
+        act_module.tanh,
+        torch.tanh,
+        ops.tanh,
+    ) or recurrent_activation not in (
+        act_module.sigmoid,
+        torch.sigmoid,
+        ops.sigmoid,
+    ):
+        raise NotImplementedError
+
+    device = get_device()
+
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+    inputs = convert_to_tensor(inputs, dtype="float32").to(device)
+    h = convert_to_tensor(initial_state, dtype="float32").to(device)
+    if mask is not None:
+        mask = convert_to_tensor(mask, dtype="bool").to(device)
+
+    # Split bias into input_bias and recurrent_bias
+    # For reset_after=True, bias shape is (2, 3*units)
+    if bias is not None:
+        input_bias = bias[0]  # (3*units,)
+        recurrent_bias = bias[1]  # (3*units,)
+    else:
+        input_bias = None
+        recurrent_bias = None
+
+    # Pre-compute input projections for all timesteps at once
+    x_proj = torch.matmul(inputs, kernel)  # (batch, seq_len, 3*units)
+    if input_bias is not None:
+        x_proj = x_proj + input_bias
+
+    seq_len = inputs.shape[1]
+    units = recurrent_kernel.shape[0]
+
+    if go_backwards:
+        time_range = range(seq_len - 1, -1, -1)
+    else:
+        time_range = range(seq_len)
+
+    all_h = []
+    for t in time_range:
+        x_t = x_proj[:, t, :]
+
+        # Recurrent projection
+        matrix_inner = torch.matmul(h, recurrent_kernel)
+        if recurrent_bias is not None:
+            matrix_inner = matrix_inner + recurrent_bias
+
+        # Split into gate components
+        x_z = x_t[:, :units]
+        x_r = x_t[:, units : 2 * units]
+        x_h = x_t[:, 2 * units :]
+
+        recurrent_z = matrix_inner[:, :units]
+        recurrent_r = matrix_inner[:, units : 2 * units]
+        recurrent_h = matrix_inner[:, 2 * units :]
+
+        # Gate computations
+        z = torch.sigmoid(x_z + recurrent_z)
+        r = torch.sigmoid(x_r + recurrent_r)
+
+        # Candidate (reset gate applied after matmul for reset_after=True)
+        recurrent_h = r * recurrent_h
+        hh = torch.tanh(x_h + recurrent_h)
+
+        # State update
+        h_new = z * h + (1 - z) * hh
+
+        if mask is not None:
+            mask_t = mask[:, t].unsqueeze(-1)
+            h = torch.where(mask_t, h_new, h)
+        else:
+            h = h_new
+
+        all_h.append(h)
+
+    outputs = torch.stack(all_h, dim=1)
+    last_output = h
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, [h]
+
+
+def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
+    """Copies kernel and recurrent kernel weights into the PyTorch GRU format.
+
+    Keras GRU uses gate order [z, r, h] (update, reset, hidden).
+    PyTorch GRU uses gate order [r, z, h] (reset, update, hidden).
+    This function handles the reordering.
+
+    For reset_after=True, Keras bias shape is (2, 3*units):
+    - Row 0: input bias [z, r, h]
+    - Row 1: recurrent bias [z, r, h]
+
+    Args:
+        gru_layer: The PyTorch GRU layer to prepare weights for.
+        kernel: The kernel weights tensor with shape (input_dim, 3*units).
+        recurrent_kernel: The recurrent kernel weights tensor
+            with shape (units, 3*units).
+        bias: The bias tensor with shape (2, 3*units) for reset_after=True.
+        device: The device to place the tensors on.
+    """
+
+    gru_layer = gru_layer.to(device)
+    hidden_size = gru_layer.hidden_size
+
+    # Split Keras weights by gate: [z, r, h]
+    kernel_parts = torch.chunk(convert_to_tensor(kernel), 3, dim=1)
+    recurrent_kernel_parts = torch.chunk(
+        convert_to_tensor(recurrent_kernel), 3, dim=1
+    )
+
+    # Reorder to PyTorch format [r, z, h] and transpose
+    weight_ih = (
+        torch.cat([kernel_parts[1], kernel_parts[0], kernel_parts[2]], dim=1)
+        .T.contiguous()
+        .to(device)
+    )
+    weight_hh = (
+        torch.cat(
+            [
+                recurrent_kernel_parts[1],
+                recurrent_kernel_parts[0],
+                recurrent_kernel_parts[2],
+            ],
+            dim=1,
+        )
+        .T.contiguous()
+        .to(device)
+    )
+
+    if bias is not None:
+        # bias shape is (2, 3*units) for reset_after=True
+        # Row 0 is input bias, Row 1 is recurrent bias
+        bias_t = convert_to_tensor(bias)
+        input_bias_parts = torch.chunk(bias_t[0], 3)
+        recurrent_bias_parts = torch.chunk(bias_t[1], 3)
+
+        # Reorder to [r, z, h]
+        bias_ih = (
+            torch.cat(
+                [
+                    input_bias_parts[1],
+                    input_bias_parts[0],
+                    input_bias_parts[2],
+                ]
+            )
+            .contiguous()
+            .to(device)
+        )
+        bias_hh = (
+            torch.cat(
+                [
+                    recurrent_bias_parts[1],
+                    recurrent_bias_parts[0],
+                    recurrent_bias_parts[2],
+                ]
+            )
+            .contiguous()
+            .to(device)
+        )
+    else:
+        bias_ih = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+
+    # Copy weights into PyTorch GRU layer
+    with torch.no_grad():
+        gru_layer.weight_ih_l0.copy_(weight_ih)
+        gru_layer.weight_hh_l0.copy_(weight_hh)
+        gru_layer.bias_ih_l0.copy_(bias_ih)
+        gru_layer.bias_hh_l0.copy_(bias_hh)
+
+    # Optimize the layout for cuDNN
+    gru_layer.flatten_parameters()
+
+    # Force all GRU parameters to be on the correct device
+    for param in gru_layer.parameters():
+        if param.device != device:
+            param.data = param.data.to(device)
+
+
+def _cudnn_gru(
+    inputs,
+    initial_state,
+    kernel,
+    recurrent_kernel,
+    bias,
+    mask,
+    batch_first,
+    go_backwards,
+    return_sequences,
+    device,
+):
+    if mask is not None:
+        _assert_valid_mask(mask)
+        sequence_lengths = _compute_sequence_length_from_mask(mask, batch_first)
+
+    # If shape is [batch, hidden]; Make [1, batch, hidden]
+    if initial_state.dim() == 2:
+        initial_state = initial_state.unsqueeze(0)
+    # If shape is [batch, 1, hidden]
+    elif initial_state.dim() == 3 and initial_state.shape[1] == 1:
+        initial_state = initial_state.permute(1, 0, 2)
+
+    input_size = kernel.shape[0]
+    hidden_size = recurrent_kernel.shape[0]
+
+    # Configure GRU with the provided parameters
+    gru_layer = torch.nn.GRU(
+        input_size=input_size,
+        hidden_size=hidden_size,
+        num_layers=1,
+        batch_first=batch_first,
+        bidirectional=False,
+    )
+
+    prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device)
+
+    if mask is not None:
+        # Sort and pack
+        sorted_lengths, sorted_indices = torch.sort(
+            sequence_lengths, descending=True
+        )
+        sorted_inputs = inputs[sorted_indices]
+        sorted_initial_h = initial_state[:, sorted_indices]
+
+        # Create the packed sequence
+        packed_inputs = torch.nn.utils.rnn.pack_padded_sequence(
+            sorted_inputs, sorted_lengths.cpu(), batch_first
+        )
+
+        # Process with GRU (which handles the packed sequence correctly)
+        packed_outputs, h_n = gru_layer(packed_inputs, sorted_initial_h)
+
+        # Unpack back to padded tensor
+        outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(
+            packed_outputs, batch_first
+        )
+
+        # Unsort outputs back to original batch order
+        _, unsort_indices = torch.sort(sorted_indices)
+        outputs = outputs[unsort_indices]
+        h_n = h_n[:, unsort_indices]
+
+    else:
+        # Run GRU without packing for fixed-length sequences
+        outputs, h_n = gru_layer(inputs, initial_state)
+
+    # Reshape hidden state for return
+    h_n = h_n.squeeze(0)
+
+    # Return appropriate outputs based on return_sequences flag
+    if mask is not None:
+        last_output = h_n
+    else:
+        last_output = outputs[:, -1]
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    if go_backwards and return_sequences:
+        outputs = torch.flip(outputs, dims=[1])
+
+    return last_output, outputs, [h_n]
