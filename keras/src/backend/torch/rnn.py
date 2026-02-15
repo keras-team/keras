@@ -589,9 +589,14 @@ def lstm(
     recurrent_kernel = convert_to_tensor(recurrent_kernel)
     if bias is not None:
         bias = convert_to_tensor(bias)
-    inputs = convert_to_tensor(inputs, dtype="float32").to(device)
-    h = convert_to_tensor(initial_state_h, dtype="float32").to(device)
-    c = convert_to_tensor(initial_state_c, dtype="float32").to(device)
+    compute_dtype = kernel.dtype
+    inputs = convert_to_tensor(inputs).to(dtype=compute_dtype, device=device)
+    h = convert_to_tensor(initial_state_h).to(
+        dtype=compute_dtype, device=device
+    )
+    c = convert_to_tensor(initial_state_c).to(
+        dtype=compute_dtype, device=device
+    )
     if mask is not None:
         mask = convert_to_tensor(mask, dtype="bool").to(device)
 
@@ -802,8 +807,9 @@ def gru(
     recurrent_kernel = convert_to_tensor(recurrent_kernel)
     if bias is not None:
         bias = convert_to_tensor(bias)
-    inputs = convert_to_tensor(inputs, dtype="float32").to(device)
-    h = convert_to_tensor(initial_state, dtype="float32").to(device)
+    compute_dtype = kernel.dtype
+    inputs = convert_to_tensor(inputs).to(dtype=compute_dtype, device=device)
+    h = convert_to_tensor(initial_state).to(dtype=compute_dtype, device=device)
     if mask is not None:
         mask = convert_to_tensor(mask, dtype="bool").to(device)
 
