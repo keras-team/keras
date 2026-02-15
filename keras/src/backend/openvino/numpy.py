@@ -3400,6 +3400,16 @@ def unravel_index(indices, shape):
     if isinstance(shape, tuple):
         shape = list(shape)
 
+    # Handle negative indices
+    total_size = np.prod(shape)
+    total_size_const = ov_opset.constant(total_size, indices_dtype).output(0)
+
+    zero = ov_opset.constant(0, indices_dtype).output(0)
+    is_negative = ov_opset.less(indices, zero).output(0)
+    indices = ov_opset.select(
+        is_negative, ov_opset.add(indices, total_size_const), indices
+    ).output(0)
+
     coords = []
     for dim_size in reversed(shape):
         dim_const = ov_opset.constant(dim_size, indices_dtype).output(0)
