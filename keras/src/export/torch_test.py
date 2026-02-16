@@ -474,7 +474,9 @@ class ExportTorchTest(testing.TestCase):
 
         model = models.Sequential(
             [
-                layers.Conv2D(32, 3, activation="relu", input_shape=(28, 28, 3)),
+                layers.Conv2D(
+                    32, 3, activation="relu", input_shape=(28, 28, 3)
+                ),
                 layers.MaxPooling2D(2),
                 layers.Conv2D(64, 3, activation="relu"),
                 layers.GlobalAveragePooling2D(),
@@ -499,7 +501,9 @@ class ExportTorchTest(testing.TestCase):
 
         model = models.Sequential(
             [
-                layers.Embedding(input_dim=1000, output_dim=64, input_length=10),
+                layers.Embedding(
+                    input_dim=1000, output_dim=64, input_length=10
+                ),
                 layers.GlobalAveragePooling1D(),
                 layers.Dense(1, activation="sigmoid"),
             ]
@@ -545,28 +549,28 @@ class ExportTorchTest(testing.TestCase):
 
         model = models.Sequential([layers.Dense(1, input_shape=(5,))])
         temp_filepath = os.path.join(self.get_temp_dir(), "concrete_shapes.pt2")
-        
+
         # Provide concrete input signature
         from keras.src import InputSpec
+
         input_sig = [InputSpec(shape=(2, 5), dtype="float32")]
-        
+
         model.export(temp_filepath, format="torch", input_signature=input_sig)
-        
+
         loaded_program = torch.export.load(temp_filepath)
         # Verify the program was exported with static shapes
         self.assertIsNotNone(loaded_program.graph_signature)
 
     def test_export_with_none_in_signature(self):
         """Test export handles None batch dimension correctly."""
-        import torch
 
         model = models.Sequential([layers.Dense(1, input_shape=(5,))])
         temp_filepath = os.path.join(self.get_temp_dir(), "none_batch.pt2")
-        
+
         # torch.export will replace None with a concrete value (1 by default)
         from keras.src import InputSpec
+
         input_sig = [InputSpec(shape=(None, 5), dtype="float32")]
-        
+
         model.export(temp_filepath, format="torch", input_signature=input_sig)
         self.assertTrue(os.path.exists(temp_filepath))
-

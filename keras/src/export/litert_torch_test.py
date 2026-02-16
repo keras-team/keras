@@ -299,6 +299,7 @@ class LiteRTTorchExportTest(testing.TestCase):
             model.build((None, 10))
             with self.assertRaisesRegex(ImportError, "litert-torch"):
                 model.export("dummy.tflite", format="litert")
+
     # ------------------------------------------------------------------ #
     #  Quantization and optimization tests
     # ------------------------------------------------------------------ #
@@ -308,7 +309,7 @@ class LiteRTTorchExportTest(testing.TestCase):
     def test_export_with_optimizations_default(self):
         """Test TFLite optimizations parameter is translated to quant_config."""
         _requires_litert_torch()
-        
+
         try:
             import tensorflow as tf
         except ImportError:
@@ -323,22 +324,22 @@ class LiteRTTorchExportTest(testing.TestCase):
         )
 
         path = os.path.join(self.get_temp_dir(), "quantized.tflite")
-        
+
         # Export with TFLite-style optimizations parameter
         # Should be translated to litert_torch quant_config
         model.export(
-            path, 
+            path,
             format="litert",
             optimizations=[tf.lite.Optimize.DEFAULT],
         )
-        
+
         self.assertTrue(os.path.exists(path))
-        
+
         # Verify inference still works post-quantization
         x_np = np.random.normal(size=(1, 10)).astype("float32")
         keras_out = _to_numpy(model(x_np))
         litert_out = _run_litert_inference(_get_interpreter(path), [x_np])
-        
+
         # Quantized model has reduced precision
         self.assertAllClose(keras_out, litert_out, atol=1e-1, rtol=1e-1)
 
@@ -348,13 +349,13 @@ class LiteRTTorchExportTest(testing.TestCase):
     def test_export_with_direct_quant_config(self):
         """Test passing litert_torch quant_config directly."""
         _requires_litert_torch()
-        
+
         try:
-            from litert_torch.quantize.quant_config import QuantConfig
+            from litert_torch.quantize.pt2e_quantizer import PT2EQuantizer
             from litert_torch.quantize.pt2e_quantizer import (
-                PT2EQuantizer,
                 get_symmetric_quantization_config,
             )
+            from litert_torch.quantize.quant_config import QuantConfig
         except ImportError:
             self.skipTest("litert_torch quantization modules unavailable")
 
@@ -366,7 +367,7 @@ class LiteRTTorchExportTest(testing.TestCase):
         )
 
         path = os.path.join(self.get_temp_dir(), "quant_direct.tflite")
-        
+
         # Create quantization config directly
         quant_config_obj = get_symmetric_quantization_config(
             is_per_channel=True, is_dynamic=False, is_qat=False
@@ -374,7 +375,7 @@ class LiteRTTorchExportTest(testing.TestCase):
         quantizer = PT2EQuantizer()
         quantizer.set_global(quant_config_obj)
         quant_cfg = QuantConfig(pt2e_quantizer=quantizer)
-        
+
         model.export(path, format="litert", quant_config=quant_cfg)
         self.assertTrue(os.path.exists(path))
 
@@ -384,7 +385,7 @@ class LiteRTTorchExportTest(testing.TestCase):
     def test_export_with_dynamic_shapes(self):
         """Test export with dynamic_shapes parameter."""
         _requires_litert_torch()
-        
+
         model = models.Sequential(
             [
                 layers.Dense(8, activation="relu", input_shape=(10,)),
@@ -393,17 +394,20 @@ class LiteRTTorchExportTest(testing.TestCase):
         )
 
         path = os.path.join(self.get_temp_dir(), "dynamic.tflite")
-        
+
         # Export with dynamic shapes (batch dimension can vary)
         import torch
-        dynamic_shapes = {"args_0": {0: torch.export.Dim("batch", min=1, max=10)}}
-        
+
+        dynamic_shapes = {
+            "args_0": {0: torch.export.Dim("batch", min=1, max=10)}
+        }
+
         model.export(
             path,
             format="litert",
             dynamic_shapes=dynamic_shapes,
         )
-        
+
         self.assertTrue(os.path.exists(path))
 
     @pytest.mark.skipif(
@@ -412,7 +416,7 @@ class LiteRTTorchExportTest(testing.TestCase):
     def test_export_with_multiple_kwargs(self):
         """Test export with multiple litert_torch kwargs."""
         _requires_litert_torch()
-        
+
         model = models.Sequential(
             [
                 layers.Dense(8, activation="relu", input_shape=(10,)),
@@ -421,18 +425,20 @@ class LiteRTTorchExportTest(testing.TestCase):
         )
 
         path = os.path.join(self.get_temp_dir(), "multi_kwargs.tflite")
-        
+
         # Pass multiple kwargs including ones that should be filtered
         import tensorflow as tf
-        
+
         model.export(
             path,
             format="litert",
             strict_export=False,
-            optimizations=[tf.lite.Optimize.DEFAULT],  # Translated to quant_config
+            optimizations=[
+                tf.lite.Optimize.DEFAULT
+            ],  # Translated to quant_config
             # representative_dataset would be ignored (TFLite-specific)
         )
-        
+
         self.assertTrue(os.path.exists(path))
 
     # ------------------------------------------------------------------ #
@@ -444,7 +450,6 @@ class LiteRTTorchExportTest(testing.TestCase):
     def test_export_preserves_model_device(self):
         """Verify model tensors return to original device after export."""
         _requires_litert_torch()
-        import torch
 
         # Create model on CPU initially
         model = models.Sequential(
@@ -464,9 +469,7 @@ class LiteRTTorchExportTest(testing.TestCase):
         model.export(path, format="litert")
 
         # Check devices are preserved
-        final_devices = [
-            str(p.device) for p in model.torch_model.parameters()
-        ]
+        final_devices = [str(p.device) for p in model.torch_model.parameters()]
         self.assertEqual(original_devices, final_devices)
 
     @pytest.mark.skipif(
@@ -478,7 +481,7 @@ class LiteRTTorchExportTest(testing.TestCase):
 
         model = models.Sequential([layers.Dense(1, input_shape=(5,))])
         path = os.path.join(self.get_temp_dir(), "verbose_test.tflite")
-        
+
         # Should print message to stdout
         model.export(path, format="litert", verbose=True)
         self.assertTrue(os.path.exists(path))
@@ -492,7 +495,7 @@ class LiteRTTorchExportTest(testing.TestCase):
 
         model = models.Sequential([layers.Dense(1, input_shape=(5,))])
         path = os.path.join(self.get_temp_dir(), "no_quant.tflite")
-        
+
         # Empty list should not create quant_config
         model.export(path, format="litert", optimizations=[])
         self.assertTrue(os.path.exists(path))
@@ -511,16 +514,16 @@ class LiteRTTorchExportTest(testing.TestCase):
                 layers.Dense(1),
             ]
         )
-        
+
         # Adapt the normalization layer
         data = np.random.normal(size=(100, 5)).astype("float32")
         model.layers[0].adapt(data)
 
         path = os.path.join(self.get_temp_dir(), "norm_test.tflite")
         model.export(path, format="litert")
-        
+
         self.assertTrue(os.path.exists(path))
-        
+
         # Verify inference
         x_np = np.random.normal(size=(1, 5)).astype("float32")
         keras_out = _to_numpy(model(x_np))
