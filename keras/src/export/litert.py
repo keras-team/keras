@@ -258,6 +258,10 @@ class LiteRTExporter:
                         raise ValueError(
                             f"Unknown target_spec attribute '{spec_key}'"
                         )
+            elif hasattr(converter, attr):
+                # Set any valid converter attribute (optimizations, 
+                # representative_dataset, etc.)
+                setattr(converter, attr, value)
             else:
                 raise ValueError(f"Unknown converter attribute '{attr}'")
 
@@ -322,10 +326,27 @@ def export_litert_via_torch(
             model.eval()
 
         # 5. Convert directly via litert_torch.
+        # Filter kwargs to only those supported by litert_torch.convert.
+        # TFLite-specific options (optimizations, representative_dataset, etc.)
+        # are not supported by litert_torch.
+        litert_torch_kwargs = {}
+        valid_litert_torch_args = {
+            "strict_export",
+            "quant_config",
+            "dynamic_shapes",
+            "_ai_edge_converter_flags",
+            "_saved_model_dir",
+        }
+        for k, v in kwargs.items():
+            if k in valid_litert_torch_args:
+                litert_torch_kwargs[k] = v
+            # Silently ignore TFLite-specific kwargs that don't apply to
+            # litert_torch (e.g., optimizations, representative_dataset)
+
         try:
             try:
                 edge_model = litert_torch.convert(
-                    model, sample_inputs, **kwargs
+                    model, sample_inputs, **litert_torch_kwargs
                 )
             except Exception as e:
                 raise RuntimeError(
