@@ -323,9 +323,7 @@ def export_litert_via_torch(
 
         # 5. Convert directly via litert_torch.
         try:
-            edge_model = litert_torch.convert(
-                model, sample_inputs, **kwargs
-            )
+            edge_model = litert_torch.convert(model, sample_inputs, **kwargs)
         except Exception as e:
             raise RuntimeError(
                 f"Failed to convert PyTorch model to LiteRT: {e}"
@@ -428,7 +426,8 @@ def _restore_model_devices(model, original_devices, torch):
                     obj = getattr(layer, attr_name, None)
                     if isinstance(obj, torch.Tensor):
                         setattr(
-                            layer, attr_name,
+                            layer,
+                            attr_name,
                             obj.to(original_devices[key]),
                         )
     except Exception:
@@ -487,9 +486,10 @@ def _register_litert_decompositions(torch, litert_torch):
             else:
                 for d in dim:
                     count *= self.shape[d]
-            return torch.ops.aten.sum.dim_IntList(
-                self, dim, keepdim=keepdim
-            ) / count
+            return (
+                torch.ops.aten.sum.dim_IntList(self, dim, keepdim=keepdim)
+                / count
+            )
 
         litert_decomp.add_pre_convert_decomp(mean_dim_op, _mean_dim_with_dtype)
 
@@ -500,7 +500,10 @@ def _register_litert_decompositions(torch, litert_torch):
     repeat_interleave_op = getattr(
         torch.ops.aten.repeat_interleave, "Tensor", None
     )
-    if repeat_interleave_op is not None and repeat_interleave_op not in pre_convert:
+    if (
+        repeat_interleave_op is not None
+        and repeat_interleave_op not in pre_convert
+    ):
 
         def _repeat_interleave_decomp(repeats, output_size=None):
             # This overload takes a 1-D repeats tensor and returns

@@ -197,7 +197,6 @@ class ApplicationsLiteRTTorchExportTest(testing.TestCase):
 
     def _verify_litert_export(self, model, input_array, atol=1e-3):
         """Helper: export model to LiteRT and verify numeric parity."""
-        import torch
 
         # Get Keras reference output
         keras_out = _to_numpy(model(input_array))

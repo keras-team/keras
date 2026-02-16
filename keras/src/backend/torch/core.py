@@ -611,9 +611,7 @@ def slice(inputs, start_indices, shape):
     shape = convert_to_tensor(shape).to(shape_dtype)
     result = inputs
     for dim in range(start_indices.shape[0]):
-        result = torch.narrow(
-            result, dim, start_indices[dim], shape[dim]
-        )
+        result = torch.narrow(result, dim, start_indices[dim], shape[dim])
     return result
 
 
