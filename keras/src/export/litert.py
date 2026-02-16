@@ -323,17 +323,21 @@ def export_litert_via_torch(
 
         # 5. Convert directly via litert_torch.
         try:
-            edge_model = litert_torch.convert(model, sample_inputs, **kwargs)
-        except Exception as e:
-            raise RuntimeError(
-                f"Failed to convert PyTorch model to LiteRT: {e}"
-            ) from e
+            try:
+                edge_model = litert_torch.convert(
+                    model, sample_inputs, **kwargs
+                )
+            except Exception as e:
+                raise RuntimeError(
+                    f"Failed to convert PyTorch model to LiteRT: {e}"
+                ) from e
 
-        # 6. Save the .tflite model.
-        edge_model.export(filepath)
-
-    # 7. Restore model variables to original devices.
-    _restore_model_devices(model, original_devices, torch)
+            # 6. Save the .tflite model.
+            edge_model.export(filepath)
+        finally:
+            # 7. Always restore model variables to original devices,
+            # even if conversion or export failed.
+            _restore_model_devices(model, original_devices, torch)
 
     if verbose:
         io_utils.print_msg(f"Saved LiteRT model to {filepath}")
@@ -490,14 +494,16 @@ def _register_litert_decompositions(torch, litert_torch):
                 self = self.to(dtype)
             # Compute mean via sum / count to avoid recursing into
             # the same decomposition entry.
+            curr_dim = dim
+            if curr_dim is None:
+                curr_dim = list(range(self.ndim))
+            elif isinstance(curr_dim, int):
+                curr_dim = [curr_dim]
             count = 1
-            if dim is None:
-                count = self.numel()
-            else:
-                for d in dim:
-                    count *= self.shape[d]
+            for d in curr_dim:
+                count *= self.shape[d]
             return (
-                torch.ops.aten.sum.dim_IntList(self, dim, keepdim=keepdim)
+                torch.ops.aten.sum.dim_IntList(self, curr_dim, keepdim=keepdim)
                 / count
             )
 
@@ -517,12 +523,24 @@ def _register_litert_decompositions(torch, litert_torch):
 
         def _repeat_interleave_decomp(repeats, output_size=None):
             # This overload takes a 1-D repeats tensor and returns
-            # indices. Use arange + repeat to produce the same result
-            # with ops that litert_torch can lower.
+            # indices where each index i is repeated repeats[i] times.
+            # Example: [2, 1] -> [0, 0, 1].
+            # Use cumsum and searchsorted to compute indices portably.
             if output_size is None:
                 output_size = torch.ops.aten.sum.default(repeats)
-            return torch.ops.aten.arange.start_step(
+            # cumsum of repeats gives boundaries: [2, 1] -> [2, 3]
+            boundaries = torch.ops.aten.cumsum.default(
+                repeats, dim=0, dtype=repeats.dtype
+            )
+            # Create output indices: arange(output_size) gives [0, 1, 2]
+            out_indices = torch.ops.aten.arange.start_step(
                 0, output_size, 1, dtype=repeats.dtype, device=repeats.device
+            )
+            # searchsorted: for each out_indices[i], find which repeats
+            # bucket it falls into. [0, 1, 2] with boundaries [2, 3]
+            # -> [0, 0, 1] (0 and 1 < 2, so bucket 0; 2 >= 2 and < 3, so 1)
+            return torch.ops.aten.searchsorted.default(
+                boundaries, out_indices, right=False
             )
 
         # Only register if not already registered

@@ -596,9 +596,8 @@ def slice(inputs, start_indices, shape):
         if all(isinstance(s, int) for s in start_indices) and all(
             isinstance(s, int) for s in shape
         ):
-            python_slice = __builtins__["slice"]
             slices = [
-                python_slice(start_index, start_index + length)
+                builtins.slice(start_index, start_index + length)
                 for start_index, length in zip(start_indices, shape)
             ]
             return inputs[slices]
@@ -621,9 +620,8 @@ def slice_update(inputs, start_indices, updates):
     start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     updates = convert_to_tensor(updates)
 
-    python_slice = __builtins__["slice"]
     slices = [
-        python_slice(start_index, start_index + update_length)
+        builtins.slice(start_index, start_index + update_length)
         for start_index, update_length in zip(start_indices, updates.shape)
     ]
     outputs = torch.clone(inputs)
