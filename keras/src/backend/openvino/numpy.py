@@ -2295,21 +2295,28 @@ def moveaxis(x, source, destination):
 
 
 def nanmax(x, axis=None, keepdims=False):
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
+    if x_type == Type.f64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
 
     if x_type.is_integral() or x_type == Type.boolean:
         return amax(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
 
     nan_mask = ov_opset.is_nan(x)
     neg_inf = ov_opset.constant(np.array(-np.inf, dtype=np.float32))
     if x_type != Type.f32:
         neg_inf = ov_opset.convert(neg_inf, x_type)
     x_replaced = ov_opset.select(nan_mask, neg_inf, x).output(0)
-
-    x_replaced, axis = _resolve_axis(x_replaced, axis)
-    if axis is None:
-        return OpenVINOKerasTensor(x_replaced)
 
     result = ov_opset.reduce_max(x_replaced, axis, keepdims).output(0)
 
@@ -2323,11 +2330,22 @@ def nanmax(x, axis=None, keepdims=False):
 
 
 def nanmean(x, axis=None, keepdims=False):
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
+    if x_type == Type.f64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
 
     if x_type.is_integral() or x_type == Type.boolean:
         return mean(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
 
     nan_mask = ov_opset.is_nan(x)
     zero = ov_opset.constant(0, x_type)
@@ -2336,16 +2354,6 @@ def nanmean(x, axis=None, keepdims=False):
     not_nan = ov_opset.logical_not(nan_mask).output(0)
     not_nan_float = ov_opset.convert(not_nan, x_type).output(0)
 
-    x_no_nan, axis = _resolve_axis(x_no_nan, axis)
-    if axis is None:
-        return OpenVINOKerasTensor(x_no_nan)
-
-    not_nan_float = ov_opset.reshape(
-        not_nan_float,
-        ov_opset.shape_of(x_no_nan).output(0),
-        False,
-    ).output(0)
-
     nan_sum = ov_opset.reduce_sum(x_no_nan, axis, keepdims).output(0)
     count = ov_opset.reduce_sum(not_nan_float, axis, keepdims).output(0)
     result = ov_opset.divide(nan_sum, count).output(0)
@@ -2353,21 +2361,28 @@ def nanmean(x, axis=None, keepdims=False):
 
 
 def nanmin(x, axis=None, keepdims=False):
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
+    if x_type == Type.f64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
 
     if x_type.is_integral() or x_type == Type.boolean:
         return amin(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
 
     nan_mask = ov_opset.is_nan(x)
     pos_inf = ov_opset.constant(np.array(np.inf, dtype=np.float32))
     if x_type != Type.f32:
         pos_inf = ov_opset.convert(pos_inf, x_type)
     x_replaced = ov_opset.select(nan_mask, pos_inf, x).output(0)
-
-    x_replaced, axis = _resolve_axis(x_replaced, axis)
-    if axis is None:
-        return OpenVINOKerasTensor(x_replaced)
 
     result = ov_opset.reduce_min(x_replaced, axis, keepdims).output(0)
 
@@ -2381,8 +2396,15 @@ def nanmin(x, axis=None, keepdims=False):
 
 
 def nanprod(x, axis=None, keepdims=False):
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
+    if x_type == Type.f64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
 
     if not x_type.is_integral() and x_type != Type.boolean:
         nan_mask = ov_opset.is_nan(x)
