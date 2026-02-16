@@ -259,7 +259,7 @@ class LiteRTExporter:
                             f"Unknown target_spec attribute '{spec_key}'"
                         )
             elif hasattr(converter, attr):
-                # Set any valid converter attribute (optimizations, 
+                # Set any valid converter attribute (optimizations,
                 # representative_dataset, etc.)
                 setattr(converter, attr, value)
             else:
@@ -326,10 +326,10 @@ def export_litert_via_torch(
             model.eval()
 
         # 5. Convert directly via litert_torch.
-        # Filter kwargs to only those supported by litert_torch.convert.
-        # TFLite-specific options (optimizations, representative_dataset, etc.)
-        # are not supported by litert_torch.
+        # Translate TFLite-specific kwargs to litert_torch equivalents.
         litert_torch_kwargs = {}
+        
+        # Direct pass-through args
         valid_litert_torch_args = {
             "strict_export",
             "quant_config",
@@ -340,8 +340,14 @@ def export_litert_via_torch(
         for k, v in kwargs.items():
             if k in valid_litert_torch_args:
                 litert_torch_kwargs[k] = v
-            # Silently ignore TFLite-specific kwargs that don't apply to
-            # litert_torch (e.g., optimizations, representative_dataset)
+        
+        # Translate TFLite 'optimizations' to litert_torch 'quant_config'
+        if "optimizations" in kwargs and "quant_config" not in litert_torch_kwargs:
+            quant_cfg = _create_quant_config_from_optimizations(
+                kwargs["optimizations"], litert_torch
+            )
+            if quant_cfg is not None:
+                litert_torch_kwargs["quant_config"] = quant_cfg
 
         try:
             try:
@@ -423,6 +429,78 @@ def _move_model_to_cpu(model, original_devices, torch):
         # Some models may not have _flatten_layers or layer attributes
         # may not support device movement. Continue gracefully.
         pass
+
+
+def _create_quant_config_from_optimizations(optimizations, litert_torch):
+    """Translate TFLite optimizations to litert_torch QuantConfig.
+    
+    Args:
+        optimizations: List of tf.lite.Optimize constants
+        litert_torch: The litert_torch module
+    
+    Returns:
+        QuantConfig instance or None if no quantization requested
+    """
+    if not optimizations:
+        return None
+    
+    try:
+        from litert_torch.quantize.quant_config import QuantConfig
+        from litert_torch.quantize.pt2e_quantizer import (
+            PT2EQuantizer,
+            get_symmetric_quantization_config,
+        )
+    except ImportError:
+        # If quantization modules unavailable, skip quantization
+        io_utils.print_msg(
+            "Warning: litert_torch quantization modules not available. "
+            "Skipping quantization."
+        )
+        return None
+    
+    # Check what TFLite optimizations are requested
+    # Import tensorflow.lite to access Optimize constants
+    try:
+        import tensorflow as tf
+        optimize_default = tf.lite.Optimize.DEFAULT
+        optimize_size = getattr(tf.lite.Optimize, "OPTIMIZE_FOR_SIZE", None)
+        optimize_latency = getattr(
+            tf.lite.Optimize, "OPTIMIZE_FOR_LATENCY", None
+        )
+    except (ImportError, AttributeError):
+        # If TF not available or constants missing, can't interpret
+        # optimizations properly
+        return None
+    
+    # Map TFLite optimizations to litert_torch quantization configs
+    # DEFAULT: Dynamic range quantization (weights quantized, activations
+    # float)
+    # OPTIMIZE_FOR_SIZE: Static quantization (both weights and activations)
+    # OPTIMIZE_FOR_LATENCY: Per-channel quantization for better accuracy
+    
+    has_default = optimize_default in optimizations
+    has_size = optimize_size and optimize_size in optimizations
+    has_latency = optimize_latency and optimize_latency in optimizations
+    
+    if has_default or has_size or has_latency:
+        # Create quantizer with symmetric quantization config
+        # Use per-channel for better accuracy (similar to OPTIMIZE_FOR_LATENCY)
+        # Use dynamic=True for DEFAULT (dynamic range quantization)
+        is_dynamic = has_default and not (has_size or has_latency)
+        is_per_channel = has_latency or has_size
+        
+        quant_config_obj = get_symmetric_quantization_config(
+            is_per_channel=is_per_channel,
+            is_dynamic=is_dynamic,
+            is_qat=False,  # Post-training quantization
+        )
+        
+        quantizer = PT2EQuantizer()
+        quantizer.set_global(quant_config_obj)
+        
+        return QuantConfig(pt2e_quantizer=quantizer)
+    
+    return None
 
 
 def _restore_model_devices(model, original_devices, torch):

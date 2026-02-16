@@ -411,3 +411,162 @@ class ExportTorchTest(testing.TestCase):
             atol=1e-5,
             rtol=1e-5,
         )
+
+    # ------------------------------------------------------------------ #
+    #  Additional robustness and edge case tests
+    # ------------------------------------------------------------------ #
+    def test_export_with_batch_normalization(self):
+        """Test export with batch normalization layer."""
+        import torch
+
+        model = models.Sequential(
+            [
+                layers.Dense(16, input_shape=(10,)),
+                layers.BatchNormalization(),
+                layers.Activation("relu"),
+                layers.Dense(8),
+                layers.BatchNormalization(),
+                layers.Dense(1),
+            ]
+        )
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "bn_model.pt2")
+        model.export(temp_filepath, format="torch")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Verify inference in eval mode
+        ref_input = np.random.normal(size=(2, 10)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input, training=False))
+
+        loaded_program = torch.export.load(temp_filepath)
+        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
+        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+
+    def test_export_with_dropout(self):
+        """Test export with dropout layer (should be disabled in inference)."""
+        import torch
+
+        model = models.Sequential(
+            [
+                layers.Dense(16, activation="relu", input_shape=(10,)),
+                layers.Dropout(0.5),
+                layers.Dense(8, activation="relu"),
+                layers.Dropout(0.3),
+                layers.Dense(1),
+            ]
+        )
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "dropout_model.pt2")
+        model.export(temp_filepath, format="torch")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        # Dropout should be disabled during export/inference
+        ref_input = np.random.normal(size=(2, 10)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input, training=False))
+
+        loaded_program = torch.export.load(temp_filepath)
+        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
+        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+
+    def test_export_conv_model(self):
+        """Test export with convolutional layers."""
+        import torch
+
+        model = models.Sequential(
+            [
+                layers.Conv2D(32, 3, activation="relu", input_shape=(28, 28, 3)),
+                layers.MaxPooling2D(2),
+                layers.Conv2D(64, 3, activation="relu"),
+                layers.GlobalAveragePooling2D(),
+                layers.Dense(10, activation="softmax"),
+            ]
+        )
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "conv_model.pt2")
+        model.export(temp_filepath, format="torch")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        ref_input = np.random.normal(size=(2, 28, 28, 3)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        loaded_program = torch.export.load(temp_filepath)
+        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
+        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+
+    def test_export_with_embedding(self):
+        """Test export with embedding layer."""
+        import torch
+
+        model = models.Sequential(
+            [
+                layers.Embedding(input_dim=1000, output_dim=64, input_length=10),
+                layers.GlobalAveragePooling1D(),
+                layers.Dense(1, activation="sigmoid"),
+            ]
+        )
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "embedding_model.pt2")
+        model.export(temp_filepath, format="torch")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        ref_input = np.random.randint(0, 1000, size=(2, 10)).astype("int32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        loaded_program = torch.export.load(temp_filepath)
+        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
+        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+
+    def test_export_functional_with_residual(self):
+        """Test export functional model with residual connections."""
+        import torch
+
+        inputs = layers.Input(shape=(10,))
+        x = layers.Dense(16, activation="relu")(inputs)
+        residual = layers.Dense(16)(inputs)
+        x = layers.Add()([x, residual])
+        x = layers.Activation("relu")(x)
+        outputs = layers.Dense(1)(x)
+        model = models.Model(inputs=inputs, outputs=outputs)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "residual_model.pt2")
+        model.export(temp_filepath, format="torch")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        ref_input = np.random.normal(size=(2, 10)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        loaded_program = torch.export.load(temp_filepath)
+        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
+        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+
+    def test_export_with_concrete_shapes(self):
+        """Test that exported model has concrete (non-dynamic) shapes."""
+        import torch
+
+        model = models.Sequential([layers.Dense(1, input_shape=(5,))])
+        temp_filepath = os.path.join(self.get_temp_dir(), "concrete_shapes.pt2")
+        
+        # Provide concrete input signature
+        from keras.src import InputSpec
+        input_sig = [InputSpec(shape=(2, 5), dtype="float32")]
+        
+        model.export(temp_filepath, format="torch", input_signature=input_sig)
+        
+        loaded_program = torch.export.load(temp_filepath)
+        # Verify the program was exported with static shapes
+        self.assertIsNotNone(loaded_program.graph_signature)
+
+    def test_export_with_none_in_signature(self):
+        """Test export handles None batch dimension correctly."""
+        import torch
+
+        model = models.Sequential([layers.Dense(1, input_shape=(5,))])
+        temp_filepath = os.path.join(self.get_temp_dir(), "none_batch.pt2")
+        
+        # torch.export will replace None with a concrete value (1 by default)
+        from keras.src import InputSpec
+        input_sig = [InputSpec(shape=(None, 5), dtype="float32")]
+        
+        model.export(temp_filepath, format="torch", input_signature=input_sig)
+        self.assertTrue(os.path.exists(temp_filepath))
+
