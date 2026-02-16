@@ -1876,7 +1876,7 @@ class OneHot(Operation):
         super().__init__(name=name)
         self.num_classes = num_classes
         self.axis = axis
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = dtype
         self.sparse = sparse
 
     def call(self, x):
@@ -1937,6 +1937,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
            [0. 0. 1. 0.]
            [1. 0. 0. 0.]], shape=(4, 4), dtype=float32)
     """
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OneHot(
             num_classes, axis=axis, dtype=dtype, sparse=sparse
@@ -2274,6 +2275,7 @@ def multi_hot(
     if num_classes is None:
         raise ValueError("Argument `num_classes` must be specified.")
 
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((inputs,)):
         return MultiHot(num_classes, axis, dtype, sparse).symbolic_call(inputs)
 
