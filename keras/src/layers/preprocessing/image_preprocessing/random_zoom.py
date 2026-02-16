@@ -304,9 +304,15 @@ class RandomZoom(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
+        original_dtype = segmentation_masks.dtype
+        output = self.transform_images(
             segmentation_masks, transformation, training=training
         )
+        if output.dtype == original_dtype:
+            return output
+        if backend.is_int_dtype(original_dtype):
+            output = self.backend.numpy.round(output)
+        return self.backend.cast(output, original_dtype)
 
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
