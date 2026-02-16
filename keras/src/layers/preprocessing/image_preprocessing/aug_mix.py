@@ -335,7 +335,8 @@ class AugMix(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-AugMix.__doc__ = AugMix.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace("{LayerName}", "AugMix"),
-)
+if AugMix.__doc__ is not None:
+    AugMix.__doc__ = AugMix.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace("{LayerName}", "AugMix"),
+    )

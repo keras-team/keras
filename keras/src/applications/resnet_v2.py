@@ -203,6 +203,9 @@ Returns:
     A Model instance.
 """
 
-setattr(ResNet50V2, "__doc__", ResNet50V2.__doc__ + DOC)
-setattr(ResNet101V2, "__doc__", ResNet101V2.__doc__ + DOC)
-setattr(ResNet152V2, "__doc__", ResNet152V2.__doc__ + DOC)
+if ResNet50V2.__doc__ is not None:
+    setattr(ResNet50V2, "__doc__", ResNet50V2.__doc__ + DOC)
+if ResNet101V2.__doc__ is not None:
+    setattr(ResNet101V2, "__doc__", ResNet101V2.__doc__ + DOC)
+if ResNet152V2.__doc__ is not None:
+    setattr(ResNet152V2, "__doc__", ResNet152V2.__doc__ + DOC)
