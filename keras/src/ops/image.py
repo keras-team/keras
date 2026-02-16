@@ -1910,3 +1910,81 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+class EuclideanDistTransform(Operation):
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.euclidean_dist_transform(
+            images, data_format=self.data_format
+        )
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
+            )
+        return KerasTensor(images_shape, dtype="float32")
+
+
+@keras_export("keras.ops.image.euclidean_dist_transform")
+def euclidean_dist_transform(images, data_format=None):
+    """Computes the Euclidean distance transform of binary images.
+
+    For each pixel in a binary image, the Euclidean distance transform
+    computes the Euclidean distance to the nearest zero (background)
+    pixel. Non-zero pixels are treated as foreground.
+
+    Uses `scipy.ndimage.distance_transform_edt` under the hood for
+    C-optimized performance across all backends.
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+            Non-zero values are treated as foreground (1), and zero
+            values as background (0).
+        data_format: A string specifying the data format of the input
+            tensor. It can be either `"channels_last"` or
+            `"channels_first"`. `"channels_last"` corresponds to inputs
+            with shape `(batch, height, width, channels)`, while
+            `"channels_first"` corresponds to inputs with shape
+            `(batch, channels, height, width)`. If not specified, the
+            value will default to `keras.config.image_data_format`.
+
+    Returns:
+        A `float32` tensor with the same shape as the input, containing
+        the Euclidean distance from each foreground pixel to the nearest
+        background pixel. Background pixels have a distance of `0`.
+
+    Examples:
+
+    >>> x = np.array([[[0, 0, 0, 0, 0],
+    ...                [0, 1, 1, 1, 0],
+    ...                [0, 1, 1, 1, 0],
+    ...                [0, 1, 1, 1, 0],
+    ...                [0, 0, 0, 0, 0]]], dtype="float32")[..., None]
+    >>> y = keras.ops.image.euclidean_dist_transform(x)
+    >>> y[0, :, :, 0]
+    array([[0., 0., 0., 0., 0.],
+           [0., 1., 1., 1., 0.],
+           [0., 1., 2., 1., 0.],
+           [0., 1., 1., 1., 0.],
+           [0., 0., 0., 0., 0.]], dtype=float32)
+
+    >>> x = np.random.rand(2, 64, 80, 3)  # batch of 2 RGB images
+    >>> y = keras.ops.image.euclidean_dist_transform(x)
+    >>> y.shape
+    (2, 64, 80, 3)
+    """
+    if any_symbolic_tensors((images,)):
+        return EuclideanDistTransform(
+            data_format,
+        ).symbolic_call(images)
+    return backend.image.euclidean_dist_transform(
+        images, data_format=data_format
+    )

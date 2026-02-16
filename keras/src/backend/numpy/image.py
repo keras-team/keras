@@ -1203,3 +1203,38 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = np.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+    output = np.empty((batch_size, height, width, channels), dtype="float32")
+
+    for b in range(batch_size):
+        for c in range(channels):
+            output[b, :, :, c] = scipy.ndimage.distance_transform_edt(
+                images[b, :, :, c] != 0
+            ).astype("float32")
+
+    if data_format == "channels_first":
+        output = np.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = np.squeeze(output, axis=0)
+    return output
