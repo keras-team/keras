@@ -358,7 +358,10 @@ def _move_model_to_cpu(model, original_devices, torch):
                 if dev != "cpu":
                     original_devices[("var", v.path)] = dev
                     v.value.data = v.value.data.to("cpu")
-    except Exception:
+    except (AttributeError, TypeError):
+        # model.variables may not exist, or some variables may lack device
+        # info. Continue gracefully - device-specific ops will be caught by
+        # litert_torch with clearer error messages.
         pass
 
     # (b) nn.Module parameters and buffers
@@ -371,7 +374,9 @@ def _move_model_to_cpu(model, original_devices, torch):
             if b.device.type != "cpu":
                 original_devices[("buffer", name)] = str(b.device)
                 b.data = b.data.to("cpu")
-    except Exception:
+    except (AttributeError, RuntimeError):
+        # Some models may not have parameters/buffers or device
+        # operations may fail. Continue gracefully.
         pass
 
     # (c) Raw tensor attributes on layers (not Variables or registered
@@ -389,7 +394,9 @@ def _move_model_to_cpu(model, original_devices, torch):
                     key = ("attr", f"{layer.name}.{attr_name}")
                     original_devices[key] = str(obj.device)
                     setattr(layer, attr_name, obj.to("cpu"))
-    except Exception:
+    except (AttributeError, RuntimeError):
+        # Some models may not have _flatten_layers or layer attributes
+        # may not support device movement. Continue gracefully.
         pass
 
 
@@ -403,7 +410,8 @@ def _restore_model_devices(model, original_devices, torch):
             key = ("var", v.path)
             if key in original_devices:
                 v.value.data = v.value.data.to(original_devices[key])
-    except Exception:
+    except (AttributeError, TypeError):
+        # Variables may not exist. Continue gracefully.
         pass
 
     try:
@@ -415,7 +423,8 @@ def _restore_model_devices(model, original_devices, torch):
             key = ("buffer", name)
             if key in original_devices:
                 b.data = b.data.to(original_devices[key])
-    except Exception:
+    except (AttributeError, RuntimeError):
+        # Parameters/buffers may not exist or device operations may fail.
         pass
 
     try:
@@ -430,7 +439,8 @@ def _restore_model_devices(model, original_devices, torch):
                             attr_name,
                             obj.to(original_devices[key]),
                         )
-    except Exception:
+    except (AttributeError, RuntimeError):
+        # Layer attributes may not exist or device operations may fail.
         pass
 
 
@@ -587,7 +597,9 @@ def _patch_vhlo_target_version():
 
         MlirLowered.module_bytecode_vhlo = _patched_module_bytecode_vhlo
         MlirLowered._keras_vhlo_patched = True
-    except Exception:
+    except (ImportError, AttributeError):
+        # VHLO patching is best-effort. If litert_torch internals are
+        # unavailable, the conversion will proceed without this optimization.
         pass
 
 
@@ -617,5 +629,7 @@ def _remove_optimization_barriers(module):
         for op in module.body.operations:
             for region in op.regions:
                 _walk_and_remove(region)
-    except Exception:
+    except (AttributeError, RuntimeError):
+        # MLIR operations may not have expected structure. This is a
+        # best-effort optimization; conversion can proceed without it.
         pass

@@ -142,7 +142,10 @@ class TorchExporter:
                         for t in sample_inputs
                     )
                     break  # All vars are on the same device
-        except Exception:
+        except (AttributeError, TypeError):
+            # If variables or device detection fails, continue with
+            # sample_inputs as-is. Device mismatch will be caught by
+            # torch.export with a clearer error message.
             pass
 
         # 3. Put model in eval mode for inference
