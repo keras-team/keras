@@ -744,6 +744,228 @@ def _is_integer(a):
     return False
 
 
+# B-spline prefilter poles for each spline order (from scipy).
+_BSPLINE_POLES = {
+    2: [-0.17157287525380990239662255158060384],
+    3: [-0.26794919243112270647255365849413763],
+    4: [
+        -0.36134122590022017709221284132567525,
+        -0.01372542929733912136033122693912820,
+    ],
+    5: [
+        -0.43057534709997279151434783493520110,
+        -0.04309628820326465382271237682255018,
+    ],
+}
+
+
+def _bspline_prefilter_gain(poles):
+    """Compute the overall gain for the B-spline prefilter."""
+    gain = 1.0
+    for z in poles:
+        gain *= (1.0 - z) * (1.0 - 1.0 / z)
+    return gain
+
+
+def _init_causal_mirror(c, z):
+    """Initialize c[..., 0] for whole-sample symmetric boundary.
+
+    Used for fill_mode in (constant, mirror, wrap).
+    Matches scipy's _init_causal_mirror from ni_splines.c.
+    """
+    n = c.shape[-1]
+    if n == 1:
+        c[..., 0] = c[..., 0] / (1.0 - z)
+        return c
+    z_n_1 = z ** (n - 1)
+    c[..., 0] = c[..., 0] + z_n_1 * c[..., n - 1]
+    z_i = z
+    for i in range(1, n - 1):
+        c[..., 0] = c[..., 0] + z_i * (c[..., i] + z_n_1 * c[..., n - 1 - i])
+        z_i *= z
+    c[..., 0] = c[..., 0] / (1.0 - z_n_1 * z_n_1)
+    return c
+
+
+def _init_causal_reflect(c, z):
+    """Initialize c[..., 0] for half-sample symmetric boundary.
+
+    Used for fill_mode in (reflect, nearest).
+    Matches scipy's _init_causal_reflect from ni_splines.c.
+    """
+    n = c.shape[-1]
+    if n == 1:
+        c[..., 0] = c[..., 0] / ((1.0 - z) * (1.0 - z))
+        return c
+    z_n = z**n
+    c0 = c[..., 0].clone()
+    c[..., 0] = c[..., 0] + z_n * c[..., n - 1]
+    z_i = z
+    for i in range(1, n):
+        c[..., 0] = c[..., 0] + z_i * (c[..., i] + z_n * c[..., n - 1 - i])
+        z_i *= z
+    c[..., 0] = c[..., 0] * (z / (1.0 - z_n * z_n)) + c0
+    return c
+
+
+def _init_anticausal_mirror(c, z):
+    """Initialize c[..., n-1] for half-sample symmetric boundary."""
+    n = c.shape[-1]
+    c[..., n - 1] = (z / (z * z - 1.0)) * (c[..., n - 1] + z * c[..., n - 2])
+    return c
+
+
+def _init_anticausal_reflect(c, z):
+    """Initialize c[..., n-1] for whole-sample symmetric boundary."""
+    c[..., -1] = -z / (1.0 - z) * c[..., -1]
+    return c
+
+
+def _apply_bspline_filter_1d(c, z, reflect_mode=False):
+    """Apply one causal + anticausal IIR filter pass for a single pole.
+
+    Args:
+        c: Data tensor with filter axis last.
+        z: Pole value.
+        reflect_mode: If True, use whole-sample symmetric boundary
+            (for reflect/nearest). Otherwise use half-sample symmetric
+            (for constant/mirror/wrap).
+    """
+    n = c.shape[-1]
+    if reflect_mode:
+        c = _init_causal_reflect(c, z)
+    else:
+        c = _init_causal_mirror(c, z)
+    # Causal (forward) pass
+    for i in range(1, n):
+        c[..., i] = c[..., i] + z * c[..., i - 1]
+    if reflect_mode:
+        c = _init_anticausal_reflect(c, z)
+    else:
+        c = _init_anticausal_mirror(c, z)
+    # Anticausal (backward) pass
+    for i in range(n - 2, -1, -1):
+        c[..., i] = z * (c[..., i + 1] - c[..., i])
+    return c
+
+
+def _bspline_prefilter(data, order, fill_mode="constant"):
+    """Apply B-spline prefilter along all axes.
+
+    Converts input data into B-spline coefficients by applying an IIR
+    filter along each axis. Uses float64 for numerical stability.
+    """
+    if order < 2:
+        return data
+    poles = _BSPLINE_POLES[order]
+    gain = _bspline_prefilter_gain(poles)
+    reflect_mode = fill_mode in ("reflect", "nearest")
+    # Work in float64 for precision
+    result = data.to(torch.float64)
+    for axis in range(result.ndim):
+        # Move target axis to last position
+        result = result.moveaxis(axis, -1)
+        # Apply gain
+        result = result * gain
+        # Apply each pole's filter
+        for z in poles:
+            result = _apply_bspline_filter_1d(
+                result.contiguous(), z, reflect_mode
+            )
+        # Move axis back
+        result = result.moveaxis(-1, axis)
+    return result
+
+
+def _bspline_indices_and_weights(coordinate, order):
+    """Compute B-spline interpolation indices and weights for orders 2-5."""
+    if order == 2:
+        idx = torch.floor(coordinate + 0.5).to(torch.int32) - 1
+        x = coordinate - (idx + 1).float()
+        # Quadratic B-spline weights
+        w1 = 0.75 - x * x
+        t = 0.5 - x
+        w0 = 0.5 * t * t
+        w2 = 1.0 - w0 - w1
+        return [(idx, w0), (idx + 1, w1), (idx + 2, w2)]
+
+    elif order == 3:
+        idx = torch.floor(coordinate).to(torch.int32) - 1
+        x = coordinate - (idx + 1).float()
+        z = 1.0 - x
+        # Cubic B-spline weights
+        w1 = (x * x * (x - 2.0) * 3.0 + 4.0) / 6.0
+        w2 = (z * z * (z - 2.0) * 3.0 + 4.0) / 6.0
+        w0 = z * z * z / 6.0
+        w3 = 1.0 - w0 - w1 - w2
+        return [
+            (idx, w0),
+            (idx + 1, w1),
+            (idx + 2, w2),
+            (idx + 3, w3),
+        ]
+
+    elif order == 4:
+        idx = torch.floor(coordinate + 0.5).to(torch.int32) - 2
+        x = coordinate - (idx + 2).float()
+        t = x * x
+        # Quartic B-spline weights
+        w2 = t * (t * 0.25 - 0.625) + 115.0 / 192.0
+        t0 = 1.0 + x
+        w1 = (
+            t0 * (t0 * (t0 * (5.0 - t0) / 6.0 - 1.25) + 5.0 / 24.0)
+            + 55.0 / 96.0
+        )
+        t1 = 1.0 - x
+        w3 = (
+            t1 * (t1 * (t1 * (5.0 - t1) / 6.0 - 1.25) + 5.0 / 24.0)
+            + 55.0 / 96.0
+        )
+        t2 = (0.5 - x) ** 2
+        w0 = t2 * t2 / 24.0
+        w4 = 1.0 - w0 - w1 - w2 - w3
+        return [
+            (idx, w0),
+            (idx + 1, w1),
+            (idx + 2, w2),
+            (idx + 3, w3),
+            (idx + 4, w4),
+        ]
+
+    elif order == 5:
+        idx = torch.floor(coordinate).to(torch.int32) - 2
+        x = coordinate - (idx + 2).float()
+        z = 1.0 - x
+        t = x * x
+        # Quintic B-spline weights
+        w2 = t * (t * (0.25 - x / 12.0) - 0.5) + 0.55
+        t = z * z
+        w3 = t * (t * (0.25 - z / 12.0) - 0.5) + 0.55
+        t0 = x + 1.0
+        w1 = (
+            t0 * (t0 * (t0 * (t0 * (t0 / 24.0 - 0.375) + 1.25) - 1.75) + 0.625)
+            + 0.425
+        )
+        t1 = z + 1.0
+        w4 = (
+            t1 * (t1 * (t1 * (t1 * (t1 / 24.0 - 0.375) + 1.25) - 1.75) + 0.625)
+            + 0.425
+        )
+        t2 = z * z
+        w0 = z * t2 * t2 / 120.0
+        w5 = 1.0 - w0 - w1 - w2 - w3 - w4
+        return [
+            (idx, w0),
+            (idx + 1, w1),
+            (idx + 2, w2),
+            (idx + 3, w3),
+            (idx + 4, w4),
+            (idx + 5, w5),
+        ]
+    else:
+        raise NotImplementedError(f"B-spline order {order} not supported")
+
+
 def _nearest_indices_and_weights(coordinate):
     coordinate = (
         coordinate if _is_integer(coordinate) else torch.round(coordinate)
@@ -802,10 +1024,57 @@ def map_coordinates(
         interp_fun = _nearest_indices_and_weights
     elif order == 1:
         interp_fun = _linear_indices_and_weights
+    elif 2 <= order <= 5:
+        interp_fun = lambda coord: _bspline_indices_and_weights(coord, order)
     else:
-        raise NotImplementedError("map_coordinates currently requires order<=1")
+        raise NotImplementedError(
+            f"map_coordinates order must be 0-5, got {order}"
+        )
 
-    if fill_mode == "constant":
+    # Apply B-spline prefilter for order > 1
+    if order > 1:
+        if fill_mode == "nearest":
+            # Match scipy: prepad with 12 edge values before prefiltering,
+            # then use the padded array for interpolation with adjusted
+            # coords.
+            npad = 12
+            interp_arr = input_arr
+            for axis in range(input_arr.ndim):
+                left = interp_arr.select(axis, 0).unsqueeze(axis)
+                right = interp_arr.select(axis, -1).unsqueeze(axis)
+                left = left.expand(
+                    *interp_arr.shape[:axis],
+                    npad,
+                    *interp_arr.shape[axis + 1 :],
+                )
+                right = right.expand(
+                    *interp_arr.shape[:axis],
+                    npad,
+                    *interp_arr.shape[axis + 1 :],
+                )
+                interp_arr = torch.cat([left, interp_arr, right], dim=axis)
+            interp_arr = _bspline_prefilter(interp_arr, order, "nearest")
+            coordinate_arrs = [c + npad for c in coordinate_arrs]
+        else:
+            interp_arr = _bspline_prefilter(input_arr, order, fill_mode)
+        # For B-spline interpolation, coefficient lookup must use the same
+        # boundary extension as the prefilter to be consistent. The
+        # prefilter uses mirror for constant/mirror/wrap and reflect for
+        # nearest/reflect.
+        if fill_mode in ("reflect", "nearest"):
+            coeff_index_fixer = _reflect_index_fixer
+        else:
+            coeff_index_fixer = _mirror_index_fixer
+    else:
+        interp_arr = input_arr
+        coeff_index_fixer = index_fixer
+
+    # For order > 1 with constant fill_mode, we use mirror coefficient
+    # lookup (matching the prefilter boundary) and mask the final result
+    # based on coordinate bounds instead of per-index validity.
+    use_coord_masking = fill_mode == "constant" and order > 1
+
+    if fill_mode == "constant" and not use_coord_masking:
 
         def is_valid(index, size):
             return (0 <= index) & (index < size)
@@ -816,11 +1085,11 @@ def map_coordinates(
             return True
 
     valid_1d_interpolations = []
-    for coordinate, size in zip(coordinate_arrs, input_arr.shape):
+    for coordinate, size in zip(coordinate_arrs, interp_arr.shape):
         interp_nodes = interp_fun(coordinate)
         valid_interp = []
         for index, weight in interp_nodes:
-            fixed_index = index_fixer(index, size)
+            fixed_index = coeff_index_fixer(index, size)
             valid = is_valid(index, size)
             valid_interp.append((fixed_index, valid, weight))
         valid_1d_interpolations.append(valid_interp)
@@ -830,14 +1099,25 @@ def map_coordinates(
         indices, validities, weights = zip(*items)
         if all(valid is True for valid in validities):
             # fast path
-            contribution = input_arr[indices]
+            contribution = interp_arr[indices]
         else:
             all_valid = functools.reduce(operator.and_, validities)
             contribution = torch.where(
-                all_valid, input_arr[indices], fill_value
+                all_valid, interp_arr[indices], fill_value
             )
         outputs.append(functools.reduce(operator.mul, weights) * contribution)
     result = functools.reduce(operator.add, outputs)
+
+    # For constant fill_mode with order > 1, mask out-of-bounds coordinates
+    if use_coord_masking:
+        in_bounds = torch.ones(
+            coordinate_arrs[0].shape,
+            dtype=torch.bool,
+            device=input_arr.device,
+        )
+        for coordinate, size in zip(coordinate_arrs, input_arr.shape):
+            in_bounds = in_bounds & (coordinate >= 0) & (coordinate <= size - 1)
+        result = torch.where(in_bounds, result, fill_value)
     if _is_integer(input_arr):
         result = result if _is_integer(result) else torch.round(result)
     return result.to(input_arr.dtype)
