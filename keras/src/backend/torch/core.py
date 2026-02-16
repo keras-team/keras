@@ -584,17 +584,37 @@ def scatter_update(inputs, indices, updates):
 
 
 def slice(inputs, start_indices, shape):
-    shape_dtype = to_torch_dtype("int64")
     inputs = convert_to_tensor(inputs)
+
+    # Fast path: when start_indices and shape are Python sequences of ints,
+    # build Python slice objects directly. This avoids creating tensors from
+    # the indices, which would introduce data-dependent expressions that
+    # torch.export cannot trace.
+    if isinstance(start_indices, (list, tuple)) and isinstance(
+        shape, (list, tuple)
+    ):
+        if all(isinstance(s, int) for s in start_indices) and all(
+            isinstance(s, int) for s in shape
+        ):
+            python_slice = __builtins__["slice"]
+            slices = [
+                python_slice(start_index, start_index + length)
+                for start_index, length in zip(start_indices, shape)
+            ]
+            return inputs[slices]
+
+    # Slow path: tensor-based slicing via torch.narrow for truly dynamic
+    # indices. torch.narrow is a proper ATen op that torch.export can
+    # trace, unlike Python-level iteration over tensor elements.
+    shape_dtype = to_torch_dtype("int64")
     start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     shape = convert_to_tensor(shape).to(shape_dtype)
-
-    python_slice = __builtins__["slice"]
-    slices = [
-        python_slice(start_index, start_index + length)
-        for start_index, length in zip(start_indices, shape)
-    ]
-    return inputs[slices]
+    result = inputs
+    for dim in range(start_indices.shape[0]):
+        result = torch.narrow(
+            result, dim, start_indices[dim], shape[dim]
+        )
+    return result
 
 
 def slice_update(inputs, start_indices, updates):

@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import tree
@@ -10,6 +11,7 @@ def export_litert(
     model,
     filepath,
     input_signature=None,
+    verbose=None,
     **kwargs,
 ):
     """Export the model as a LiteRT artifact for inference.
@@ -21,6 +23,20 @@ def export_litert(
             `None`, it will be inferred.
         **kwargs: Additional keyword arguments passed to the exporter.
     """
+    if backend.backend() == "torch":
+        return export_litert_via_torch(
+            model,
+            filepath,
+            input_signature=input_signature,
+            verbose=verbose,
+            **kwargs,
+        )
+
+    if backend.backend() != "tensorflow":
+        raise ImportError(
+            "The LiteRT export API is currently only available "
+            "with the TensorFlow and PyTorch backends."
+        )
 
     exporter = LiteRTExporter(
         model=model,
@@ -242,7 +258,361 @@ class LiteRTExporter:
                         raise ValueError(
                             f"Unknown target_spec attribute '{spec_key}'"
                         )
-            elif hasattr(converter, attr):
-                setattr(converter, attr, value)
             else:
                 raise ValueError(f"Unknown converter attribute '{attr}'")
+
+
+def export_litert_via_torch(
+    model, filepath, input_signature=None, verbose=None, **kwargs
+):
+    try:
+        import litert_torch
+        import torch
+    except ImportError:
+        raise ImportError(
+            "To export to LiteRT with the PyTorch backend, "
+            "you must install the `litert-torch` package. "
+            "You can install it via `pip install litert-torch`."
+        )
+
+    from keras.src.export.export_utils import convert_spec_to_tensor
+
+    # 1. Move model state to CPU to avoid MPS/CUDA-specific ops.
+    # This covers three categories of tensors:
+    #   a) Keras Variable instances (model.variables)
+    #   b) nn.Module parameters & buffers (model.named_parameters/buffers)
+    #   c) Raw tensor attributes on layers (e.g. Normalization.mean)
+    original_devices = {}
+    _move_model_to_cpu(model, original_devices, torch)
+
+    # Use a CPU device scope so Keras ops (convert_to_tensor, etc.)
+    # don't move intermediate tensors back to MPS/CUDA during tracing.
+    from keras.src.backend.torch.core import device_scope
+
+    with device_scope("cpu"):
+        # 2. Register decompositions and fix StableHLO version
+        # compatibility.  On Apple Silicon, torch.export captures
+        # aten._scaled_dot_product_attention_math_for_mps which
+        # litert_torch cannot lower. We register the standard
+        # (non-MPS) decomposition so it decomposes into portable ops.
+        _register_litert_decompositions(torch, litert_torch)
+
+        # Force VHLO serialization to target a StableHLO version
+        # compatible with the TFLite converter. Without this, JAX's
+        # StableHLO (v1.13.0+) emits v2 VHLO ops (tanh_v2, etc.)
+        # that TF's converter (up to ~v1.9.1) cannot parse.
+        _patch_vhlo_target_version()
+
+        # 3. Build sample inputs for conversion (always on CPU).
+        if input_signature is None:
+            input_signature = get_input_signature(model)
+
+        sample_inputs = tree.map_structure(
+            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+            input_signature,
+        )
+        sample_inputs = tree.map_structure(
+            lambda t: t.cpu() if hasattr(t, "cpu") else t,
+            sample_inputs,
+        )
+        sample_inputs = tuple(sample_inputs)
+
+        # 4. Put model in eval mode for better export quality.
+        if hasattr(model, "eval"):
+            model.eval()
+
+        # 5. Convert directly via litert_torch.
+        try:
+            edge_model = litert_torch.convert(
+                model, sample_inputs, **kwargs
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to convert PyTorch model to LiteRT: {e}"
+            ) from e
+
+        # 6. Save the .tflite model.
+        edge_model.export(filepath)
+
+    # 7. Restore model variables to original devices.
+    _restore_model_devices(model, original_devices, torch)
+
+    if verbose:
+        io_utils.print_msg(f"Saved LiteRT model to {filepath}")
+
+    return filepath
+
+
+def _move_model_to_cpu(model, original_devices, torch):
+    """Move all model tensors to CPU for portable export.
+
+    Handles three categories that Keras models can store tensors in:
+    1. Keras ``Variable`` instances (``model.variables``).
+    2. ``nn.Module`` parameters and buffers registered via PyTorch.
+    3. Raw tensor attributes on Keras layers (e.g.
+       ``Normalization.mean`` / ``Normalization.variance``).
+    """
+    # (a) Keras Variables
+    try:
+        for v in model.variables:
+            if hasattr(v, "value") and hasattr(v.value, "data"):
+                dev = str(v.value.device)
+                if dev != "cpu":
+                    original_devices[("var", v.path)] = dev
+                    v.value.data = v.value.data.to("cpu")
+    except Exception:
+        pass
+
+    # (b) nn.Module parameters and buffers
+    try:
+        for name, p in model.named_parameters():
+            if p.device.type != "cpu":
+                original_devices[("param", name)] = str(p.device)
+                p.data = p.data.to("cpu")
+        for name, b in model.named_buffers():
+            if b.device.type != "cpu":
+                original_devices[("buffer", name)] = str(b.device)
+                b.data = b.data.to("cpu")
+    except Exception:
+        pass
+
+    # (c) Raw tensor attributes on layers (not Variables or registered
+    #     parameters). Some preprocessing layers (e.g. Normalization)
+    #     store mean/variance as plain tensor attributes.
+    try:
+        for layer in model._flatten_layers():
+            for attr_name in list(vars(layer)):
+                obj = getattr(layer, attr_name, None)
+                if (
+                    isinstance(obj, torch.Tensor)
+                    and not isinstance(obj, torch.nn.Parameter)
+                    and obj.device.type != "cpu"
+                ):
+                    key = ("attr", f"{layer.name}.{attr_name}")
+                    original_devices[key] = str(obj.device)
+                    setattr(layer, attr_name, obj.to("cpu"))
+    except Exception:
+        pass
+
+
+def _restore_model_devices(model, original_devices, torch):
+    """Restore model tensors to their original devices after export."""
+    if not original_devices:
+        return
+
+    try:
+        for v in model.variables:
+            key = ("var", v.path)
+            if key in original_devices:
+                v.value.data = v.value.data.to(original_devices[key])
+    except Exception:
+        pass
+
+    try:
+        for name, p in model.named_parameters():
+            key = ("param", name)
+            if key in original_devices:
+                p.data = p.data.to(original_devices[key])
+        for name, b in model.named_buffers():
+            key = ("buffer", name)
+            if key in original_devices:
+                b.data = b.data.to(original_devices[key])
+    except Exception:
+        pass
+
+    try:
+        for layer in model._flatten_layers():
+            for attr_name in list(vars(layer)):
+                key = ("attr", f"{layer.name}.{attr_name}")
+                if key in original_devices:
+                    obj = getattr(layer, attr_name, None)
+                    if isinstance(obj, torch.Tensor):
+                        setattr(
+                            layer, attr_name,
+                            obj.to(original_devices[key]),
+                        )
+    except Exception:
+        pass
+
+
+def _register_litert_decompositions(torch, litert_torch):
+    """Register decompositions for ops that litert_torch cannot lower.
+
+    Covers two categories:
+    1. MPS-specific ops on Apple Silicon (e.g. MPS SDPA variant).
+    2. Ops whose litert_torch lowering doesn't accept all kwargs
+       (e.g. ``aten.mean.dim`` with ``dtype``).
+    """
+    from litert_torch.fx_infra import decomp as litert_decomp
+
+    pre_convert = litert_decomp.pre_convert_decomp()
+
+    # --- MPS SDPA decomposition ---
+    mps_sdpa = getattr(
+        torch.ops.aten,
+        "_scaled_dot_product_attention_math_for_mps",
+        None,
+    )
+    if mps_sdpa is not None:
+        mps_sdpa_default = getattr(mps_sdpa, "default", None)
+        if mps_sdpa_default is not None and mps_sdpa_default not in pre_convert:
+            non_mps_sdpa = getattr(
+                torch.ops.aten._scaled_dot_product_attention_math,
+                "default",
+                None,
+            )
+            if non_mps_sdpa is not None:
+                core_decomps = torch._decomp.core_aten_decompositions()
+                if non_mps_sdpa in core_decomps:
+                    litert_decomp.add_pre_convert_decomp(
+                        mps_sdpa_default, core_decomps[non_mps_sdpa]
+                    )
+
+    # --- aten.mean.dim decomposition (strip dtype kwarg) ---
+    # litert_torch's lowering for aten.mean.dim does not accept the
+    # ``dtype`` keyword argument. We register a decomposition that
+    # implements mean via sum/division when dtype is specified, avoiding
+    # a recursive call to the same op.
+    mean_dim_op = torch.ops.aten.mean.dim
+    if mean_dim_op not in pre_convert:
+
+        def _mean_dim_with_dtype(self, dim, keepdim=False, *, dtype=None):
+            if dtype is not None:
+                self = self.to(dtype)
+            # Compute mean via sum / count to avoid recursing into
+            # the same decomposition entry.
+            count = 1
+            if dim is None:
+                count = self.numel()
+            else:
+                for d in dim:
+                    count *= self.shape[d]
+            return torch.ops.aten.sum.dim_IntList(
+                self, dim, keepdim=keepdim
+            ) / count
+
+        litert_decomp.add_pre_convert_decomp(mean_dim_op, _mean_dim_with_dtype)
+
+    # --- aten.repeat_interleave decomposition ---
+    # litert_torch does not have a lowering for
+    # aten.repeat_interleave.Tensor. Decompose it into
+    # unsqueeze + expand + reshape which are portable ops.
+    repeat_interleave_op = getattr(
+        torch.ops.aten.repeat_interleave, "Tensor", None
+    )
+    if repeat_interleave_op is not None and repeat_interleave_op not in pre_convert:
+
+        def _repeat_interleave_decomp(repeats, output_size=None):
+            # This overload takes a 1-D repeats tensor and returns
+            # indices. Use arange + repeat to produce the same result
+            # with ops that litert_torch can lower.
+            if output_size is None:
+                output_size = torch.ops.aten.sum.default(repeats)
+            return torch.ops.aten.arange.start_step(
+                0, output_size, 1, dtype=repeats.dtype, device=repeats.device
+            )
+
+        # Only register if not already registered
+        litert_decomp.add_pre_convert_decomp(
+            repeat_interleave_op, _repeat_interleave_decomp
+        )
+
+    # Also handle the self_int overload (scalar repeats along a dim)
+    repeat_interleave_self_int = getattr(
+        torch.ops.aten.repeat_interleave, "self_int", None
+    )
+    if (
+        repeat_interleave_self_int is not None
+        and repeat_interleave_self_int not in pre_convert
+    ):
+
+        def _repeat_interleave_self_int_decomp(
+            self, repeats, dim=None, *, output_size=None
+        ):
+            if dim is None:
+                self = self.flatten()
+                dim = 0
+            if dim < 0:
+                dim = self.ndim + dim
+            # unsqueeze after dim, expand, then flatten the two dims
+            x = self.unsqueeze(dim + 1)
+            expand_shape = [-1] * x.ndim
+            expand_shape[dim + 1] = repeats
+            x = x.expand(expand_shape)
+            shape = list(self.shape)
+            shape[dim] = shape[dim] * repeats
+            return x.reshape(shape)
+
+        litert_decomp.add_pre_convert_decomp(
+            repeat_interleave_self_int, _repeat_interleave_self_int_decomp
+        )
+
+
+def _patch_vhlo_target_version():
+    """Patch VHLO serialization for TFLite converter compatibility.
+
+    Addresses two issues in the litert_torch → TFLite conversion path:
+
+    1. **StableHLO version skew**: litert_torch serializes VHLO bytecode
+       targeting StableHLO v1.13.0+ (``WEEK_12``), which introduces v2
+       variants of element-wise ops (``tanh_v2``, ``logistic_v2``, etc.).
+       The TFLite converter only supports StableHLO up to ~v1.9.1.
+
+    2. **Unsupported ``optimization_barrier`` ops**: litert_torch's
+       embedding composite pass inserts ``stablehlo.optimization_barrier``
+       ops that the TFLite converter cannot handle.
+
+    This function monkey-patches ``MlirLowered.module_bytecode_vhlo`` to
+    strip ``optimization_barrier`` ops and serialize with the minimum
+    StableHLO version.
+    """
+    try:
+        from litert_torch.odml_torch import export as _odml_export
+
+        MlirLowered = _odml_export.MlirLowered
+        if getattr(MlirLowered, "_keras_vhlo_patched", False):
+            return
+
+        _serialize = _odml_export.serialize_portable_artifact
+        _stablehlo = _odml_export.stablehlo
+        _min_version = _stablehlo.get_minimum_version()
+
+        @property
+        def _patched_module_bytecode_vhlo(self):
+            _remove_optimization_barriers(self.module)
+            return _serialize(self.module_bytecode, _min_version)
+
+        MlirLowered.module_bytecode_vhlo = _patched_module_bytecode_vhlo
+        MlirLowered._keras_vhlo_patched = True
+    except Exception:
+        pass
+
+
+def _remove_optimization_barriers(module):
+    """Remove ``stablehlo.optimization_barrier`` ops from an MLIR module.
+
+    ``optimization_barrier`` is a compiler hint that prevents reordering;
+    it has no runtime effect.  Each output is replaced with its
+    corresponding input before the op is erased.
+    """
+
+    def _walk_and_remove(region):
+        for block in region:
+            to_erase = []
+            for op in block:
+                # Recurse into nested regions (e.g. while, if).
+                for nested in op.regions:
+                    _walk_and_remove(nested)
+                if op.name == "stablehlo.optimization_barrier":
+                    for result, operand in zip(op.results, op.operands):
+                        result.replace_all_uses_with(operand)
+                    to_erase.append(op)
+            for op in reversed(to_erase):
+                op.erase()
+
+    try:
+        for op in module.body.operations:
+            for region in op.regions:
+                _walk_and_remove(region)
+    except Exception:
+        pass
