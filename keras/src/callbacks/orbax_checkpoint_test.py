@@ -583,9 +583,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         callback.checkpointer.close()
 
         # Load the model back through the Orbax load path
-        from keras.src.saving import saving_api
-
-        loaded_model = saving_api.load_model(checkpoint_dir)
+        loaded_model = saving.load_model(checkpoint_dir)
 
         # Verify model structure
         self.assertEqual(model.name, loaded_model.name)

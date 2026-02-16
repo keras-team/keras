@@ -272,9 +272,7 @@ class OrbaxCheckpoint(MonitorCallback):
         # Collect assets if saving full model (not just weights)
         assets_dict = None
         if not self.save_weights_only:
-            from keras.src.saving.saving_lib import _save_assets_to_dict
-
-            assets_dict = _save_assets_to_dict(self.model)
+            assets_dict = saving_lib._save_assets_to_dict(self.model)
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
