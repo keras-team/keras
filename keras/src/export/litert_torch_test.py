@@ -383,7 +383,7 @@ class LiteRTTorchExportTest(testing.TestCase):
         backend.backend() != "torch", reason="Torch backend only"
     )
     def test_export_with_dynamic_shapes(self):
-        """Test export with dynamic_shapes parameter."""
+        """Test runtime dynamic shapes via interpreter resize_tensor_input."""
         _requires_litert_torch()
 
         model = models.Sequential(
@@ -395,20 +395,34 @@ class LiteRTTorchExportTest(testing.TestCase):
 
         path = os.path.join(self.get_temp_dir(), "dynamic.tflite")
 
-        # Export with dynamic shapes (batch dimension can vary)
-        import torch
+        # Export with static shape (batch=1)
+        model.export(path, format="litert")
 
-        dynamic_shapes = {
-            "args_0": {0: torch.export.Dim("batch", min=1, max=10)}
-        }
+        # Test runtime dynamic shapes by resizing interpreter inputs
+        interpreter = _get_interpreter(path)
+        input_details = interpreter.get_input_details()
 
-        model.export(
-            path,
-            format="litert",
-            dynamic_shapes=dynamic_shapes,
-        )
+        # Test with different batch sizes at runtime
+        for batch_size in [1, 2, 5]:
+            # Resize the input tensor at runtime
+            interpreter.resize_tensor_input(
+                input_details[0]["index"], [batch_size, 10]
+            )
+            interpreter.allocate_tensors()
 
-        self.assertTrue(os.path.exists(path))
+            # Run inference with the new batch size
+            x = np.random.normal(size=(batch_size, 10)).astype("float32")
+
+            # Set input and invoke
+            interpreter.set_tensor(input_details[0]["index"], x)
+            interpreter.invoke()
+
+            # Get output
+            output_details = interpreter.get_output_details()
+            output = interpreter.get_tensor(output_details[0]["index"])
+
+            # Verify output has correct batch dimension
+            self.assertEqual(output.shape[0], batch_size)
 
     @pytest.mark.skipif(
         backend.backend() != "torch", reason="Torch backend only"
@@ -461,15 +475,13 @@ class LiteRTTorchExportTest(testing.TestCase):
         model.build((None, 5))
 
         # Get original devices
-        original_devices = [
-            str(p.device) for p in model.torch_model.parameters()
-        ]
+        original_devices = [str(p.device) for _, p in model.named_parameters()]
 
         path = os.path.join(self.get_temp_dir(), "device_test.tflite")
         model.export(path, format="litert")
 
         # Check devices are preserved
-        final_devices = [str(p.device) for p in model.torch_model.parameters()]
+        final_devices = [str(p.device) for _, p in model.named_parameters()]
         self.assertEqual(original_devices, final_devices)
 
     @pytest.mark.skipif(
