@@ -12,6 +12,7 @@ from keras.src.optimizers.muon import Muon
 from keras.src.optimizers.nadam import Nadam
 from keras.src.optimizers.optimizer import Optimizer
 from keras.src.optimizers.rmsprop import RMSprop
+from keras.src.optimizers.schedule_free_adamw import ScheduleFreeAdamW
 from keras.src.optimizers.sgd import SGD
 from keras.src.saving import serialization_lib
 
@@ -30,6 +31,7 @@ ALL_OBJECTS = {
     Ftrl,
     Lion,
     LossScaleOptimizer,
+    ScheduleFreeAdamW,
 }
 ALL_OBJECTS_DICT = {cls.__name__.lower(): cls for cls in ALL_OBJECTS}
 

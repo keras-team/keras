@@ -3386,6 +3386,41 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     return OpenVINOKerasTensor(result)
 
 
+def unravel_index(indices, shape):
+    indices = get_ov_output(indices)
+    if not indices.get_element_type().is_integral():
+        indices = ov_opset.convert(indices, Type.i64).output(0)
+    indices_dtype = indices.get_element_type()
+
+    if None in shape:
+        raise ValueError(
+            f"`shape` argument cannot contain `None`. Received: shape={shape}"
+        )
+
+    if isinstance(shape, tuple):
+        shape = list(shape)
+
+    # Handle negative indices
+    total_size = np.prod(shape)
+    total_size_const = ov_opset.constant(total_size, indices_dtype).output(0)
+
+    zero = ov_opset.constant(0, indices_dtype).output(0)
+    is_negative = ov_opset.less(indices, zero).output(0)
+    indices = ov_opset.select(
+        is_negative, ov_opset.add(indices, total_size_const), indices
+    ).output(0)
+
+    coords = []
+    for dim_size in reversed(shape):
+        dim_const = ov_opset.constant(dim_size, indices_dtype).output(0)
+        coord = ov_opset.floor_mod(indices, dim_const).output(0)
+        coords.append(coord)
+        indices = ov_opset.divide(indices, dim_const).output(0)
+
+    coords = list(reversed(coords))
+    return tuple(OpenVINOKerasTensor(coord) for coord in coords)
+
+
 def vander(x, N=None, increasing=False):
     x = get_ov_output(x)
     x_type = x.get_element_type()
