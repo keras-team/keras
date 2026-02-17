@@ -194,20 +194,20 @@ class RandomResizedCrop(BaseImagePreprocessingLayer):
         input_shape = list(input_shape)
         rank = len(input_shape)
 
-        if self.data_format == "channels_first":
-            if rank == 4:
-                input_shape[2] = self.height
-                input_shape[3] = self.width
-            elif rank == 3:
-                input_shape[1] = self.height
-                input_shape[2] = self.width
-        else:  # channels_last
+        if self.data_format == "channels_last":
             if rank == 4:
                 input_shape[1] = self.height
                 input_shape[2] = self.width
             elif rank == 3:
                 input_shape[0] = self.height
                 input_shape[1] = self.width
+        else:  # channels_first
+            if rank == 4:
+                input_shape[2] = self.height
+                input_shape[3] = self.width
+            elif rank == 3:
+                input_shape[1] = self.height
+                input_shape[2] = self.width
 
         return tuple(input_shape)
 
