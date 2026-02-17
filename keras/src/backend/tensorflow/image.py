@@ -1074,31 +1074,3 @@ def scale_and_translate(
         kernel,
         antialias,
     )
-
-
-def crop_to_bounding_box(
-    images,
-    offset_height,
-    offset_width,
-    target_height,
-    target_width,
-    data_format=None,
-):
-    images = convert_to_tensor(images)
-    data_format = backend.standardize_data_format(data_format)
-    if data_format == "channels_last":
-        begin = tf.convert_to_tensor(
-            [offset_height, offset_width, 0], dtype=tf.int32
-        )
-        size = tf.convert_to_tensor(
-            [target_height, target_width, -1], dtype=tf.int32
-        )
-        return tf.slice(images, begin, size)
-    else:  # channels_first
-        begin = tf.convert_to_tensor(
-            [0, offset_height, offset_width], dtype=tf.int32
-        )
-        size = tf.convert_to_tensor(
-            [-1, target_height, target_width], dtype=tf.int32
-        )
-        return tf.slice(images, begin, size)
