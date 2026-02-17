@@ -3889,14 +3889,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         """
         import torch
 
-        # Test mean over multiple axes (GlobalAveragePooling2D use case)
-        x = np.random.randn(2, 8, 8, 64).astype(np.float32)
-        result = knp.mean(x, axis=[1, 2])
-        expected = np.mean(x, axis=(1, 2))
-        self.assertAllClose(result, expected)
-
         # Test that it works during torch.export (ONNX export simulation)
         try:
+            # Test mean over multiple axes (GlobalAveragePooling2D use case)
+            x = np.random.randn(2, 8, 8, 64).astype(np.float32)
+            result = knp.mean(x, axis=[1, 2])
+            expected = np.mean(x, axis=(1, 2))
+            self.assertAllClose(result, expected)
 
             class MeanModel(torch.nn.Module):
                 def forward(self, x):

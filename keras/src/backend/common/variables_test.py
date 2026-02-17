@@ -372,6 +372,16 @@ class VariablePropertiesTest(test_case.TestCase):
         ):
             standardize_shape((3, 4, -5))
 
+    @parameterized.named_parameters(
+        ("all_dynamic", (None, None, None, 64), (None, None, None, 64)),
+        ("mixed", (None, 224, 224, 3), (None, 224, 224, 3)),
+        ("all_static", (1, 224, 224, 3), (1, 224, 224, 3)),
+    )
+    def test_standardize_shape_preserves_none(self, input_shape, expected):
+        """Test that None dimensions are preserved correctly."""
+        result = standardize_shape(input_shape)
+        self.assertEqual(result, expected)
+
     def test_shape_equal_length_mismatch(self):
         """Test mismatch in lengths of shapes."""
         self.assertFalse(shape_equal((3, 2), (3, 2, 4)))
@@ -1187,29 +1197,27 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         This validates the fix for GitHub issue #22102 where torch.SymInt
         objects from torch.export were causing "Constraints violated" errors.
         """
+        from unittest.mock import create_autospec
 
-        # The fix specifically handles torch.SymInt objects
-        # We can't easily create real SymInt objects outside of torch.export,
-        # but we can verify the code path exists and handles None correctly
+        import torch
 
-        # Test that the fix preserves None (which SymInt becomes)
-        shape_with_none = (None, None, 64)
-        result = standardize_shape(shape_with_none)
+        # Create a mock SymInt object
+        sym_int = create_autospec(torch.SymInt, instance=True)
+        shape_with_sym_int = (sym_int, 224, 224, 64)
+
+        # SymInt should be converted to None
+        result = standardize_shape(shape_with_sym_int)
+        self.assertEqual(result, (None, 224, 224, 64))
+
+        # Test with multiple SymInts
+        sym_int2 = create_autospec(torch.SymInt, instance=True)
+        shape_with_multiple_sym_ints = (sym_int, sym_int2, 64)
+        result = standardize_shape(shape_with_multiple_sym_ints)
         self.assertEqual(result, (None, None, 64))
 
         # Verify torch.SymInt is imported and checked in the actual code
         # by checking that torch backend is active
         self.assertEqual(backend.backend(), "torch")
-
-    @parameterized.named_parameters(
-        ("all_dynamic", (None, None, None, 64), (None, None, None, 64)),
-        ("mixed", (None, 224, 224, 3), (None, 224, 224, 3)),
-        ("all_static", (1, 224, 224, 3), (1, 224, 224, 3)),
-    )
-    def test_standardize_shape_preserves_none(self, input_shape, expected):
-        """Test that None dimensions are preserved correctly."""
-        result = standardize_shape(input_shape)
-        self.assertEqual(result, expected)
 
 
 @pytest.mark.skipif(
