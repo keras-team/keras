@@ -633,6 +633,38 @@ def kaiser(x, beta):
     raise NotImplementedError("`kaiser` is not supported with openvino backend")
 
 
+def bitwise_left_shift(x, y):
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "bitwise_left_shift()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_left_shift(x, y).output(0))
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "bitwise_right_shift()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_right_shift(x, y).output(0))
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if x is None:
         raise ValueError("input x is None")

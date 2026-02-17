@@ -53,8 +53,6 @@ NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
-NumpyTwoInputOpsCorrectnessTest::test_bitwise_left_shift
-NumpyTwoInputOpsCorrectnessTest::test_bitwise_right_shift
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_lcm
