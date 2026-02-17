@@ -852,7 +852,7 @@ def dtype(x):
 class Cast(Operation):
     def __init__(self, dtype, *, name=None):
         super().__init__(name=name)
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.core.cast(x, self.dtype)
@@ -877,6 +877,7 @@ def cast(x, dtype):
     >>> x = keras.ops.arange(4)
     >>> x = keras.ops.cast(x, dtype="float16")
     """
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Cast(dtype=dtype)(x)
     return backend.core.cast(x, dtype)
@@ -885,7 +886,7 @@ def cast(x, dtype):
 class SaturateCast(Operation):
     def __init__(self, dtype, *, name=None):
         super().__init__(name=name)
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return _saturate_cast(x, self.dtype)
@@ -941,6 +942,7 @@ def saturate_cast(x, dtype):
     >>> #  [255 255 255 255]]
 
     """
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return SaturateCast(dtype=dtype)(x)
     return _saturate_cast(x, dtype)
@@ -989,7 +991,7 @@ def _saturate_cast(x, dtype, backend_module=None):
 class ConvertToTensor(Operation):
     def __init__(self, dtype=None, sparse=None, ragged=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
         self.sparse = sparse
         self.ragged = ragged
 
@@ -1040,6 +1042,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     >>> x = np.array([1, 2, 3])
     >>> y = keras.ops.convert_to_tensor(x)
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return ConvertToTensor(dtype=dtype, sparse=sparse, ragged=ragged)(x)
     return backend.core.convert_to_tensor(
