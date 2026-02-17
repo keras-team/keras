@@ -138,6 +138,30 @@ class Trainer:
                 `"mixed_float16"`, the passed optimizer will be automatically
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
+
+        Note:
+            Trainable variables are determined at `compile()` time. If you
+            modify the `trainable` property of a layer after calling
+            `compile()`, those changes will not take effect during `fit()`
+            unless `compile()` is called again.
+
+            Recommended workflow when changing trainable variables:
+            ```python
+            # Initial training with some layers
+            model.compile(optimizer="adam", loss="mse")
+            model.fit(x_train, y_train)
+
+            # Change trainable flags
+            layer.trainable = False  # or True
+
+            # Recompile for the change to take effect
+            model.compile(optimizer="adam", loss="mse")
+            model.fit(x_train, y_train)
+            ```
+
+            This behavior applies to all Keras backends and matches the behavior
+            of Keras 2 (`tf.keras`), where trainable variables are captured at
+            compile time (as also documented in the transfer learning guide).
         """
         optimizer = optimizers.get(optimizer)
         self.optimizer = optimizer

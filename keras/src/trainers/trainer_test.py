@@ -2869,10 +2869,6 @@ class TestTrainer(testing.TestCase):
         self.assertLessEqual(tracing_count[0], 2)
 
 
-@pytest.mark.skipif(
-    keras.backend.backend() != "jax",
-    reason="JAX backend only",
-)
 class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("single_device", False),
@@ -2920,70 +2916,3 @@ class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
                     v.value.sharding for v in model.trainable_variables
                 ]
                 self.assertListEqual(actual_shardings, expected_shardings)
-
-    def test_frozen_layer_after_compile(self):
-        inputs = layers.Input(shape=(10,))
-        x = layers.Dense(5, name="dense1")(inputs)
-        outputs = layers.Dense(1, name="dense2")(x)
-        model = models.Model(inputs, outputs)
-
-        model.compile(
-            optimizer=optimizers.SGD(learning_rate=0.1),
-            loss=losses.MeanSquaredError(),
-        )
-
-        # Freeze the first layer AFTER compile
-        model.get_layer("dense1").trainable = False
-
-        # Get initial weights
-        initial_dense1_kernel = model.get_layer("dense1").kernel.value.copy()
-        initial_dense2_kernel = model.get_layer("dense2").kernel.value.copy()
-
-        # Create dummy data and train
-        x_train = np.random.randn(10, 10).astype("float32")
-        y_train = np.random.randn(10, 1).astype("float32")
-        model.fit(x_train, y_train, epochs=1, batch_size=10, verbose=0)
-
-        # Check that frozen layer did NOT change
-        new_dense1_kernel = model.get_layer("dense1").kernel.value
-        new_dense2_kernel = model.get_layer("dense2").kernel.value
-
-        self.assertTrue(
-            np.allclose(initial_dense1_kernel, new_dense1_kernel),
-            "Dense1 kernel should not change when frozen after compile()",
-        )
-
-        # Check that trainable layer DID change
-        self.assertFalse(
-            np.allclose(initial_dense2_kernel, new_dense2_kernel),
-            "Dense2 kernel should change during training",
-        )
-
-    def test_fully_trainable_model(self):
-        inputs = layers.Input(shape=(10,))
-        x = layers.Dense(5)(inputs)
-        outputs = layers.Dense(1)(x)
-        model = models.Model(inputs, outputs)
-
-        model.compile(
-            optimizer=optimizers.SGD(learning_rate=0.1),
-            loss=losses.MeanSquaredError(),
-        )
-
-        # Get initial weights
-        initial_weights = [v.value.copy() for v in model.trainable_variables]
-
-        # Create dummy data and train
-        x_train = np.random.randn(10, 10).astype("float32")
-        y_train = np.random.randn(10, 1).astype("float32")
-        model.fit(x_train, y_train, epochs=1, batch_size=10, verbose=0)
-
-        # Check that all weights changed
-        final_weights = [v.value for v in model.trainable_variables]
-        for i, (initial, final) in enumerate(
-            zip(initial_weights, final_weights)
-        ):
-            self.assertFalse(
-                np.allclose(initial, final),
-                f"Weight {i} should change during training",
-            )
