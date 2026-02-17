@@ -5,6 +5,7 @@ from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 
@@ -122,8 +123,6 @@ class ReshapeTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_reshape_model_fit_with_varying_input_size_and_minus_one(self):
-        from keras.src import random
-
         def generator():
             yield (
                 ops.ones((1, 12, 2), dtype="float32"),

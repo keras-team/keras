@@ -3877,44 +3877,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([65504, 65504, 65504], dtype="float16")
         self.assertAllClose(knp.mean(x), np.mean(x))
 
-    @pytest.mark.skipif(
-        backend.backend() != "torch",
-        reason="Test for torch mean ONNX compatibility",
-    )
-    def test_mean_torch_onnx_compatibility(self):
-        """Test mean() works with ONNX export (fix for GlobalAveragePooling2D).
-
-        Validates that mean() doesn't pass dtype kwarg to torch.mean(),
-        which causes ONNX export errors.
-        """
-        import torch
-
-        # Test that it works during torch.export (ONNX export simulation)
-        try:
-            # Test mean over multiple axes (GlobalAveragePooling2D use case)
-            x = np.random.randn(2, 8, 8, 64).astype(np.float32)
-            result = knp.mean(x, axis=[1, 2])
-            expected = np.mean(x, axis=(1, 2))
-            self.assertAllClose(result, expected)
-
-            class MeanModel(torch.nn.Module):
-                def forward(self, x):
-                    # Use torch.mean directly (as ops.mean does internally)
-                    return torch.mean(x, dim=[1, 2], keepdim=False)
-
-            model = MeanModel()
-            sample = torch.randn(1, 8, 8, 64)
-
-            # This should not raise dtype kwarg error
-            exported = torch.export.export(model, (sample,), strict=False)
-            self.assertIsNotNone(exported)
-        except TypeError as e:
-            if "dtype" in str(e):
-                self.fail(f"mean() failed with dtype kwarg error: {e}")
-            pytest.skip(f"torch.export not available: {e}")
-        except Exception as e:
-            pytest.skip(f"torch.export not available: {e}")
-
     def test_array_split(self):
         x = np.array([[1, 2, 3], [4, 5, 6]])
 

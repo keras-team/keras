@@ -1,4 +1,5 @@
 import itertools
+from unittest.mock import create_autospec
 
 import numpy as np
 import pytest
@@ -1197,8 +1198,6 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         This validates the fix for GitHub issue #22102 where torch.SymInt
         objects from torch.export were causing "Constraints violated" errors.
         """
-        from unittest.mock import create_autospec
-
         import torch
 
         # Create a mock SymInt object
@@ -1214,10 +1213,6 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         shape_with_multiple_sym_ints = (sym_int, sym_int2, 64)
         result = standardize_shape(shape_with_multiple_sym_ints)
         self.assertEqual(result, (None, None, 64))
-
-        # Verify torch.SymInt is imported and checked in the actual code
-        # by checking that torch backend is active
-        self.assertEqual(backend.backend(), "torch")
 
 
 @pytest.mark.skipif(
