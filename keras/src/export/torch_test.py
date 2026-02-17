@@ -473,7 +473,7 @@ class ExportTorchTest(testing.TestCase):
         model = models.Sequential(
             [
                 layers.Conv2D(
-                    32, 3, activation="relu", input_shape=(28, 28, 3)
+                    32, 3, activation="relu", input_shape=(32, 32, 3)
                 ),
                 layers.MaxPooling2D(2),
                 layers.Conv2D(64, 3, activation="relu"),
@@ -483,10 +483,16 @@ class ExportTorchTest(testing.TestCase):
         )
 
         # Explicitly build the model to ensure all layer shapes are computed
-        model.build((None, 28, 28, 3))
+        model.build((None, 32, 32, 3))
 
-        ref_input = np.random.normal(size=(1, 28, 28, 3)).astype("float32")
+        # Test with reference input to verify model works before export
+        ref_input = np.random.normal(size=(1, 32, 32, 3)).astype("float32")
         ref_output = _convert_to_numpy(model(ref_input, training=False))
+
+        # Verify output shape is valid
+        self.assertGreater(
+            ref_output.size, 0, "Model output should be non-empty"
+        )
 
         temp_filepath = os.path.join(self.get_temp_dir(), "conv_model.pt2")
         model.export(temp_filepath, format="torch")
@@ -494,9 +500,16 @@ class ExportTorchTest(testing.TestCase):
 
         loaded_program = torch.export.load(temp_filepath)
         loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
-        self.assertAllClose(
-            ref_output, _to_numpy(loaded_output), atol=_DEFAULT_ATOL
+        loaded_output_np = _to_numpy(loaded_output)
+
+        # Verify loaded output shape matches reference
+        msg = (
+            f"Output shape mismatch: ref={ref_output.shape}, "
+            f"loaded={loaded_output_np.shape}"
         )
+        self.assertEqual(ref_output.shape, loaded_output_np.shape, msg)
+
+        self.assertAllClose(ref_output, loaded_output_np, atol=_DEFAULT_ATOL)
 
     def test_export_functional_with_residual(self):
         """Test export functional model with residual connections."""
