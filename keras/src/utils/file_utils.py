@@ -53,8 +53,8 @@ def is_link_in_dir(info, base):
     return is_path_in_dir(info.linkname, base_dir=tip)
 
 
-def filter_safe_zipinfos(members):
-    base_dir = resolve_path(".")
+def filter_safe_zipinfos(members, base_dir):
+    base_dir = resolve_path(base_dir)
     for finfo in members:
         valid_path = False
         if is_path_in_dir(finfo.filename, base_dir):
@@ -68,8 +68,8 @@ def filter_safe_zipinfos(members):
             )
 
 
-def filter_safe_tarinfos(members):
-    base_dir = resolve_path(".")
+def filter_safe_tarinfos(members, base_dir):
+    base_dir = resolve_path(base_dir)
     for finfo in members:
         valid_path = False
         if finfo.issym() or finfo.islnk():
@@ -99,7 +99,7 @@ def extract_open_archive(archive, path="."):
     if isinstance(archive, zipfile.ZipFile):
         # Zip archive.
         archive.extractall(
-            path, members=filter_safe_zipinfos(archive.infolist())
+            path, members=filter_safe_zipinfos(archive.infolist(), path)
         )
     else:
         # Tar archive.
@@ -111,7 +111,7 @@ def extract_open_archive(archive, path="."):
             extractall_kwargs = {"filter": "data"}
         archive.extractall(
             path,
-            members=filter_safe_tarinfos(archive),
+            members=filter_safe_tarinfos(archive, path),
             **extractall_kwargs,
         )
 
@@ -563,6 +563,3 @@ def makedirs(path):
         else:
             _raise_if_no_gfile(path)
     return os.makedirs(path)
-
-
-"/fo"

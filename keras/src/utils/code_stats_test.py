@@ -8,15 +8,7 @@ from keras.src.utils.code_stats import count_loc
 
 class TestCountLoc(test_case.TestCase):
     def setUp(self):
-        self.test_dir = "test_directory"
-        os.makedirs(self.test_dir, exist_ok=True)
-
-    def tearDown(self):
-        for root, dirs, files in os.walk(self.test_dir, topdown=False):
-            for name in files:
-                os.remove(os.path.join(root, name))
-            for name in dirs:
-                os.rmdir(os.path.join(root, name))
+        self.test_dir = self.get_temp_dir()
 
     def create_file(self, filename, content):
         with open(

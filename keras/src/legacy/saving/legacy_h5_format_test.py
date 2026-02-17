@@ -388,6 +388,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         # Compare output
         self.assertAllClose(ref_output, output, atol=1e-5)
 
+    @pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
     def test_custom_sequential_registered_no_scope(self):
         @tf_keras.saving.register_keras_serializable(package="my_package")
         class MyDense(tf_keras.layers.Dense):
@@ -411,6 +412,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         ref_input = np.array([5])
         self._check_reloading_model(ref_input, model, tf_keras_model)
 
+    @pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
     def test_custom_functional_registered_no_scope(self):
         @tf_keras.saving.register_keras_serializable(package="my_package")
         class MyDense(tf_keras.layers.Dense):
