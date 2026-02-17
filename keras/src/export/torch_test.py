@@ -458,12 +458,12 @@ class ExportTorchTest(testing.TestCase):
             ]
         )
 
+        ref_input = np.random.normal(size=(1, 28, 28, 3)).astype("float32")
+        ref_output = _convert_to_numpy(model(ref_input))
+
         temp_filepath = os.path.join(self.get_temp_dir(), "conv_model.pt2")
         model.export(temp_filepath, format="torch")
         self.assertTrue(os.path.exists(temp_filepath))
-
-        ref_input = np.random.normal(size=(1, 28, 28, 3)).astype("float32")
-        ref_output = _convert_to_numpy(model(ref_input))
 
         loaded_program = torch.export.load(temp_filepath)
         loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
