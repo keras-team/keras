@@ -607,6 +607,16 @@ def dot(x1, x2):
     return np.dot(x1, x2)
 
 
+def dstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
+    return np.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = dtype or config.floatx()
     return np.empty(shape, dtype=dtype)
@@ -1299,6 +1309,11 @@ def vstack(xs):
             lambda x: convert_to_tensor(x).astype(dtype), xs
         )
     return np.vstack(xs)
+
+
+def vsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return np.vsplit(x, indices_or_sections)
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):

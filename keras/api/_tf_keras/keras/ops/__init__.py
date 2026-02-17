@@ -181,6 +181,7 @@ from keras.src.ops.numpy import digitize as digitize
 from keras.src.ops.numpy import divide as divide
 from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
+from keras.src.ops.numpy import dstack as dstack
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
 from keras.src.ops.numpy import empty_like as empty_like
@@ -312,6 +313,7 @@ from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize
 from keras.src.ops.numpy import view as view
+from keras.src.ops.numpy import vsplit as vsplit
 from keras.src.ops.numpy import vstack as vstack
 from keras.src.ops.numpy import where as where
 from keras.src.ops.numpy import zeros as zeros

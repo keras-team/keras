@@ -1,6 +1,5 @@
 import numpy as np
-import openvino.opset14 as ov_opset
-import openvino.opset15 as ov_opset15
+import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
@@ -17,6 +16,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import while_loop
 
 
 def add(x1, x2):
@@ -710,6 +710,36 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         return OpenVINOKerasTensor(final_output)
 
 
+def bitwise_and(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_and()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_and(x, y).output(0))
+
+
+def bitwise_xor(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_xor()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_xor(x, y).output(0))
+
+
+def bitwise_invert(x):
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.bitwise_not(x).output(0))
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_or()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_or(x, y).output(0))
+
+
 def blackman(x):
     x = get_ov_output(x)
     zero_const = ov_opset.constant(0, Type.i64)
@@ -1178,6 +1208,48 @@ def dot(x1, x2):
     return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
 
+def dstack(xs):
+    if not isinstance(xs, (list, tuple)):
+        xs = (xs,)
+    elems = [convert_to_tensor(elem) for elem in xs]
+    element_type = elems[0].output.get_element_type()
+    elems = [get_ov_output(elem, element_type) for elem in elems]
+
+    processed_elems = []
+    for elem in elems:
+        shape = elem.get_partial_shape()
+        rank = shape.rank
+        shape_len = rank.get_length()
+        if shape_len == 0:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        elif shape_len == 1:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        elif shape_len == 2:
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
+        processed_elems.append(elem)
+
+    for i in range(1, len(processed_elems)):
+        processed_elems[0], processed_elems[i] = _align_operand_types(
+            processed_elems[0], processed_elems[i], "dstack()"
+        )
+    return OpenVINOKerasTensor(ov_opset.concat(processed_elems, 2).output(0))
+
+
 def empty(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
@@ -1214,6 +1286,17 @@ def exp(x):
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, ov_type)
     return OpenVINOKerasTensor(ov_opset.exp(x).output(0))
+
+
+def exp2(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
+    two = ov_opset.constant(2.0, x.get_element_type()).output(0)
+    result = ov_opset.power(two, x).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def expand_dims(x, axis):
@@ -1360,7 +1443,61 @@ def full_like(x, fill_value, dtype=None):
 
 
 def gcd(x1, x2):
-    raise NotImplementedError("`gcd` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "gcd()")
+
+    x1 = ov_opset.abs(x1).output(0)
+    x2 = ov_opset.abs(x2).output(0)
+
+    # Broadcast to common shape
+    temp_sum = ov_opset.add(x1, x2).output(0)
+    target_shape = ov_opset.shape_of(temp_sum, Type.i32).output(0)
+    x1 = ov_opset.broadcast(x1, target_shape).output(0)
+    x2 = ov_opset.broadcast(x2, target_shape).output(0)
+
+    def cond(a, b):
+        b = get_ov_output(b)
+        zero = ov_opset.constant(0, b.get_element_type()).output(0)
+        not_zero = ov_opset.not_equal(b, zero).output(0)
+
+        shape_b = ov_opset.shape_of(b, Type.i64).output(0)
+        rank_b = ov_opset.shape_of(shape_b, Type.i64).output(0)
+        rank_b_scalar = ov_opset.squeeze(
+            rank_b, ov_opset.constant(0, Type.i32)
+        ).output(0)
+        axes = ov_opset.range(
+            ov_opset.constant(0, Type.i64).output(0),
+            rank_b_scalar,
+            ov_opset.constant(1, Type.i64).output(0),
+            Type.i64,
+        ).output(0)
+
+        return ov_opset.reduce_logical_or(not_zero, axes, False).output(0)
+
+    def body(a, b):
+        a = get_ov_output(a)
+        b = get_ov_output(b)
+
+        zero = ov_opset.constant(0, b.get_element_type()).output(0)
+        mask = ov_opset.not_equal(b, zero).output(0)
+
+        one = ov_opset.constant(1, b.get_element_type()).output(0)
+        safe_b = ov_opset.select(mask, b, one).output(0)
+
+        mod_val = ov_opset.floor_mod(a, safe_b).output(0)
+
+        next_a = ov_opset.select(mask, b, a).output(0)
+        next_b = ov_opset.select(mask, mod_val, b).output(0)
+
+        return OpenVINOKerasTensor(next_a), OpenVINOKerasTensor(next_b)
+
+    x1_kt = OpenVINOKerasTensor(x1)
+    x2_kt = OpenVINOKerasTensor(x2)
+
+    results = while_loop(cond, body, (x1_kt, x2_kt))
+
+    return results[0]
 
 
 def greater(x1, x2):
@@ -2922,6 +3059,18 @@ def round(x, decimals=0):
     return OpenVINOKerasTensor(result.output(0))
 
 
+def trunc(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        return OpenVINOKerasTensor(x)
+    sign_x = ov_opset.sign(x)
+    abs_x = ov_opset.abs(x)
+    floor_abs_x = ov_opset.floor(abs_x)
+    result = ov_opset.multiply(sign_x, floor_abs_x)
+    return OpenVINOKerasTensor(result.output(0))
+
+
 def tile(x, repeats):
     x = get_ov_output(x)
 
@@ -3081,6 +3230,10 @@ def vstack(xs):
             elems[0], elems[i], "vstack()"
         )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
+
+
+def vsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=0)
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
@@ -3293,6 +3446,41 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
     result = ov_opset.reduce_sum(result, const_axis, False).output(0)
 
     return OpenVINOKerasTensor(result)
+
+
+def unravel_index(indices, shape):
+    indices = get_ov_output(indices)
+    if not indices.get_element_type().is_integral():
+        indices = ov_opset.convert(indices, Type.i64).output(0)
+    indices_dtype = indices.get_element_type()
+
+    if None in shape:
+        raise ValueError(
+            f"`shape` argument cannot contain `None`. Received: shape={shape}"
+        )
+
+    if isinstance(shape, tuple):
+        shape = list(shape)
+
+    # Handle negative indices
+    total_size = np.prod(shape)
+    total_size_const = ov_opset.constant(total_size, indices_dtype).output(0)
+
+    zero = ov_opset.constant(0, indices_dtype).output(0)
+    is_negative = ov_opset.less(indices, zero).output(0)
+    indices = ov_opset.select(
+        is_negative, ov_opset.add(indices, total_size_const), indices
+    ).output(0)
+
+    coords = []
+    for dim_size in reversed(shape):
+        dim_const = ov_opset.constant(dim_size, indices_dtype).output(0)
+        coord = ov_opset.floor_mod(indices, dim_const).output(0)
+        coords.append(coord)
+        indices = ov_opset.divide(indices, dim_const).output(0)
+
+    coords = list(reversed(coords))
+    return tuple(OpenVINOKerasTensor(coord) for coord in coords)
 
 
 def vander(x, N=None, increasing=False):
