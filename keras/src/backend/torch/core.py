@@ -639,10 +639,16 @@ def slice(inputs, start_indices, shape):
 
 
 def slice_update(inputs, start_indices, updates):
-    shape_dtype = to_torch_dtype("int64")
     inputs = convert_to_tensor(inputs)
-    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     updates = convert_to_tensor(updates)
+
+    # Convert start_indices to a Python list of ints to avoid data-dependent
+    # tensor iteration, which torch.export cannot trace. If start_indices is
+    # already a list/tuple, keep it as-is. If it's a numpy array or tensor,
+    # convert to list.
+    if not isinstance(start_indices, (list, tuple)):
+        start_indices = convert_to_tensor(start_indices, dtype="int64")
+        start_indices = start_indices.tolist()
 
     slices = [
         builtins.slice(start_index, start_index + update_length)
