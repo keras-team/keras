@@ -520,12 +520,23 @@ def scatter(indices, values, shape):
     return zeros.at[key].add(values)
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = jnp.array(indices)
     indices = jnp.transpose(indices)
-    inputs = inputs.at[tuple(indices)].set(updates)
-    return inputs
+    idx = tuple(indices)
+    if reduction is None:
+        return inputs.at[idx].set(updates)
+    elif reduction == "add":
+        return inputs.at[idx].add(updates)
+    elif reduction == "max":
+        return inputs.at[idx].max(updates)
+    elif reduction == "min":
+        return inputs.at[idx].min(updates)
+    elif reduction == "mul":
+        return inputs.at[idx].multiply(updates)
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
 
 
 def slice(inputs, start_indices, shape):

@@ -682,6 +682,10 @@ def dot(x1, x2):
     return jnp.dot(x1, x2)
 
 
+def dstack(xs):
+    return jnp.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = dtype or config.floatx()
     return jnp.empty(shape, dtype=dtype)
@@ -1348,6 +1352,11 @@ def inner(x1, x2):
 
 def vstack(xs):
     return jnp.vstack(xs)
+
+
+def vsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return jnp.vsplit(x, indices_or_sections)
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):

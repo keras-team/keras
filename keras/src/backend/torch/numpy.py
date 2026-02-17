@@ -765,6 +765,11 @@ def dot(x1, x2):
     return cast(torch.matmul(x1, x2), result_dtype)
 
 
+def dstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    return torch.dstack(xs)
+
+
 def empty(shape, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     return torch.empty(size=shape, dtype=dtype, device=get_device())
@@ -1854,6 +1859,13 @@ def inner(x1, x2):
 def vstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return torch.vstack(xs)
+
+
+def vsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
+    return list(torch.vsplit(x, indices_or_sections))
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):

@@ -114,10 +114,6 @@ class FunctionTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "incompatible inputs"):
             _ = fn([np.ones((4, 3)), np.ones((2, 3))])
 
-    def test_graph_disconnected_error(self):
-        # TODO
-        pass
-
     def test_serialization(self):
         inputs = Input(shape=(10,))
         outputs = Dense(1)(inputs)
@@ -158,11 +154,11 @@ class FunctionTest(testing.TestCase):
             ],
         )
         with self.assertRaisesRegex(
-            ValueError, "`inputs` not connected to `outputs`"
+            ValueError, "Output .* is not connected to `inputs`"
         ):
             _ = Model(Input(shape=(6,)), model_2(model_1(Input(shape=(6,)))))
 
         with self.assertRaisesRegex(
-            ValueError, "`inputs` not connected to `outputs`"
+            ValueError, "Output .* is not connected to `inputs`"
         ):
             _ = Model(model_1(Input(shape=(6,))), model_2(Input(shape=(3,))))
