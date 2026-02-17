@@ -297,7 +297,9 @@ class LiteRTTorchExportTest(testing.TestCase):
         with unittest.mock.patch.dict(sys.modules, {"litert_torch": None}):
             model = models.Sequential([layers.Dense(1)])
             model.build((None, 10))
-            with self.assertRaisesRegex(ImportError, "litert-torch"):
+            with self.assertRaisesRegex(
+                ImportError, "must install the `litert-torch` package"
+            ):
                 model.export("dummy.tflite", format="litert")
 
     # ------------------------------------------------------------------ #

@@ -616,6 +616,7 @@ def _register_litert_decompositions(torch, litert_torch):
     # litert_torch does not have a lowering for
     # aten.repeat_interleave.Tensor. Decompose it into
     # unsqueeze + expand + reshape which are portable ops.
+    # TODO: Remove this once litert-torch supports aten.repeat_interleave.
     repeat_interleave_op = getattr(
         torch.ops.aten.repeat_interleave, "Tensor", None
     )
@@ -699,6 +700,10 @@ def _patch_vhlo_target_version():
     This function monkey-patches ``MlirLowered.module_bytecode_vhlo`` to
     strip ``optimization_barrier`` ops and serialize with the minimum
     StableHLO version.
+
+    TODO: Remove this patch once the TFLite converter supports newer StableHLO
+    versions and handles optimization barriers, or when litert-torch provides
+    options to target older StableHLO versions/disable barriers.
     """
     try:
         from litert_torch.odml_torch import export as _odml_export
