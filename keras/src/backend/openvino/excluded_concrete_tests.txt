@@ -4,7 +4,8 @@ NumpyDtypeTest::test_array
 NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
 NumpyDtypeTest::test_kaiser
-NumpyDtypeTest::test_bitwise
+NumpyDtypeTest::test_bitwise_left_shift
+NumpyDtypeTest::test_bitwise_right_shift
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_diagflat
@@ -35,7 +36,6 @@ NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
-NumpyOneInputOpsCorrectnessTest::test_bitwise_invert
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_cumprod
 NumpyOneInputOpsCorrectnessTest::test_diagflat
@@ -53,11 +53,8 @@ NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
-NumpyTwoInputOpsCorrectnessTest::test_bitwise_and
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_left_shift
-NumpyTwoInputOpsCorrectnessTest::test_bitwise_or
 NumpyTwoInputOpsCorrectnessTest::test_bitwise_right_shift
-NumpyTwoInputOpsCorrectnessTest::test_bitwise_xor
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_lcm

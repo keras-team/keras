@@ -678,6 +678,36 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         return OpenVINOKerasTensor(final_output)
 
 
+def bitwise_and(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_and()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_and(x, y).output(0))
+
+
+def bitwise_xor(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_xor()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_xor(x, y).output(0))
+
+
+def bitwise_invert(x):
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.bitwise_not(x).output(0))
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_or()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_or(x, y).output(0))
+
+
 def blackman(x):
     x = get_ov_output(x)
     zero_const = ov_opset.constant(0, Type.i64)
