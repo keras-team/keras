@@ -610,6 +610,7 @@ def hamming(x):
 
     return OpenVINOKerasTensor(hamming_window.output(0))
 
+
 def hanning(x):
     m = get_ov_output(x)
 
@@ -651,6 +652,7 @@ def hanning(x):
     )
 
     return OpenVINOKerasTensor(hanning_window.output(0))
+
 
 def heaviside(x1, x2):
     x1 = get_ov_output(x1)
