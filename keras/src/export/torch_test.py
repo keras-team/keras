@@ -13,6 +13,10 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.testing.test_utils import named_product
 
+# Tolerance constants for numerical comparison in torch export tests
+_DEFAULT_ATOL = 1e-5
+_DEFAULT_RTOL = 1e-5
+
 
 class CustomModel(models.Model):
     def __init__(self, layer_list):
@@ -119,7 +123,9 @@ class ExportTorchTest(testing.TestCase):
         loaded_output = loaded_model(_to_torch_tensor(ref_input))
         loaded_output = _to_numpy(loaded_output)
 
-        self.assertAllClose(ref_output, loaded_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(
+            ref_output, loaded_output, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
+        )
 
     def test_export_subclass_model(self):
         """Test exporting subclass models."""
@@ -138,7 +144,9 @@ class ExportTorchTest(testing.TestCase):
         loaded_output = loaded_model(_to_torch_tensor(ref_input))
         loaded_output = _to_numpy(loaded_output)
 
-        self.assertAllClose(ref_output, loaded_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(
+            ref_output, loaded_output, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
+        )
 
     def test_model_with_multiple_inputs(self):
         """Test exporting models with multiple inputs."""
@@ -161,7 +169,9 @@ class ExportTorchTest(testing.TestCase):
         )
         loaded_output = _to_numpy(loaded_output)
 
-        self.assertAllClose(ref_output, loaded_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(
+            ref_output, loaded_output, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
+        )
 
     def test_multi_output_model_export(self):
         """Test exporting multi-output models."""
@@ -183,10 +193,14 @@ class ExportTorchTest(testing.TestCase):
         if isinstance(loaded_outputs, (tuple, list)):
             for ref_out, loaded_out in zip(ref_outputs, loaded_outputs):
                 loaded_np = _to_numpy(loaded_out)
-                self.assertAllClose(ref_out, loaded_np, atol=1e-5, rtol=1e-5)
+                self.assertAllClose(
+                    ref_out, loaded_np, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
+                )
         else:
             loaded_np = _to_numpy(loaded_outputs)
-            self.assertAllClose(ref_outputs, loaded_np, atol=1e-5, rtol=1e-5)
+            self.assertAllClose(
+                ref_outputs, loaded_np, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
+            )
 
     def test_export_with_custom_input_signature(self):
         """Test exporting with custom input signature specification."""
@@ -215,7 +229,12 @@ class ExportTorchTest(testing.TestCase):
 
         # Numeric verification
         ref_output = _convert_to_numpy(model(_to_numpy(test_input)))
-        self.assertAllClose(ref_output, _to_numpy(output), atol=1e-5, rtol=1e-5)
+        self.assertAllClose(
+            ref_output,
+            _to_numpy(output),
+            atol=_DEFAULT_ATOL,
+            rtol=_DEFAULT_RTOL,
+        )
 
     def test_export_with_verbose(self):
         """Test export with verbose output."""
@@ -239,7 +258,10 @@ class ExportTorchTest(testing.TestCase):
         loaded_output = loaded_model(_to_torch_tensor(ref_input))
 
         self.assertAllClose(
-            ref_output, _to_numpy(loaded_output), atol=1e-5, rtol=1e-5
+            ref_output,
+            _to_numpy(loaded_output),
+            atol=_DEFAULT_ATOL,
+            rtol=_DEFAULT_RTOL,
         )
 
     def test_export_error_handling(self):
@@ -306,8 +328,8 @@ class ExportTorchTest(testing.TestCase):
         self.assertAllClose(
             _convert_to_numpy(model_tuple(ref_input_tuple)),
             _to_numpy(loaded_output),
-            atol=1e-5,
-            rtol=1e-5,
+            atol=_DEFAULT_ATOL,
+            rtol=_DEFAULT_RTOL,
         )
 
         # Case 2: List input (Array)
@@ -329,8 +351,8 @@ class ExportTorchTest(testing.TestCase):
         self.assertAllClose(
             _convert_to_numpy(model_tuple([ref_input_arr, ref_input_arr * 2])),
             _to_numpy(loaded_output),
-            atol=1e-5,
-            rtol=1e-5,
+            atol=_DEFAULT_ATOL,
+            rtol=_DEFAULT_RTOL,
         )
 
         # Case 3: Dict input
@@ -360,8 +382,8 @@ class ExportTorchTest(testing.TestCase):
         self.assertAllClose(
             _convert_to_numpy(model_dict(ref_input_dict)),
             _to_numpy(loaded_output),
-            atol=1e-5,
-            rtol=1e-5,
+            atol=_DEFAULT_ATOL,
+            rtol=_DEFAULT_RTOL,
         )
 
     def test_model_with_named_inputs(self):
@@ -408,8 +430,8 @@ class ExportTorchTest(testing.TestCase):
         self.assertAllClose(
             ref_output,
             _to_numpy(loaded_output),
-            atol=1e-5,
-            rtol=1e-5,
+            atol=_DEFAULT_ATOL,
+            rtol=_DEFAULT_RTOL,
         )
 
     # ------------------------------------------------------------------ #
@@ -440,7 +462,9 @@ class ExportTorchTest(testing.TestCase):
 
         loaded_program = torch.export.load(temp_filepath)
         loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
-        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+        self.assertAllClose(
+            ref_output, _to_numpy(loaded_output), atol=_DEFAULT_ATOL
+        )
 
     def test_export_conv_model(self):
         """Test export with convolutional layers."""
@@ -458,8 +482,11 @@ class ExportTorchTest(testing.TestCase):
             ]
         )
 
+        # Explicitly build the model to ensure all layer shapes are computed
+        model.build((None, 28, 28, 3))
+
         ref_input = np.random.normal(size=(1, 28, 28, 3)).astype("float32")
-        ref_output = _convert_to_numpy(model(ref_input))
+        ref_output = _convert_to_numpy(model(ref_input, training=False))
 
         temp_filepath = os.path.join(self.get_temp_dir(), "conv_model.pt2")
         model.export(temp_filepath, format="torch")
@@ -467,7 +494,9 @@ class ExportTorchTest(testing.TestCase):
 
         loaded_program = torch.export.load(temp_filepath)
         loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
-        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+        self.assertAllClose(
+            ref_output, _to_numpy(loaded_output), atol=_DEFAULT_ATOL
+        )
 
     def test_export_functional_with_residual(self):
         """Test export functional model with residual connections."""
@@ -490,7 +519,9 @@ class ExportTorchTest(testing.TestCase):
 
         loaded_program = torch.export.load(temp_filepath)
         loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
-        self.assertAllClose(ref_output, _to_numpy(loaded_output), atol=1e-5)
+        self.assertAllClose(
+            ref_output, _to_numpy(loaded_output), atol=_DEFAULT_ATOL
+        )
 
     def test_export_with_concrete_shapes(self):
         """Test that exported model has concrete (non-dynamic) shapes."""
