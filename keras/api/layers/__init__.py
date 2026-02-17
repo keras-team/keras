@@ -267,6 +267,9 @@ from keras.src.layers.preprocessing.image_preprocessing.random_perspective impor
 from keras.src.layers.preprocessing.image_preprocessing.random_posterization import (
     RandomPosterization as RandomPosterization,
 )
+from keras.src.layers.preprocessing.image_preprocessing.random_resized_crop import (
+    RandomResizedCrop as RandomResizedCrop,
+)
 from keras.src.layers.preprocessing.image_preprocessing.random_rotation import (
     RandomRotation as RandomRotation,
 )
