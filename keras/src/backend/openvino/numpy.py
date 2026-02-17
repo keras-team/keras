@@ -3714,3 +3714,9 @@ def argpartition(x, kth, axis=-1):
         ov_opset.constant(inv_axes),
     ).output(0)
     return OpenVINOKerasTensor(result)
+
+def signbit(x):
+    x = get_ov_output(x)
+    zero = ov_opset.constant(0, dtype=x.get_element_type())
+    return OpenVINOKerasTensor(ov_opset.less(x, zero))
+    
