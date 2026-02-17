@@ -1662,6 +1662,9 @@ def hstack(xs):
 
 
 def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if x.ndim == 1:
+        return split(x, indices_or_sections, axis=0)
     return split(x, indices_or_sections, axis=1)
 
 
