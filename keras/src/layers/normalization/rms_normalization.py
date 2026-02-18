@@ -49,13 +49,11 @@ class RMSNormalization(Layer):
 
     def build(self, input_shape):
         ndim = len(input_shape)
-        if isinstance(self.axis, (list, tuple)):
-            axes = [(a + ndim if a < 0 else a) for a in self.axis]
-            self.axis = sorted(list(set(axes)))
-        else:
-            axis = self.axis + ndim if self.axis < 0 else self.axis
-            self.axis = [axis]
-
+        axes = (
+            self.axis if isinstance(self.axis, (list, tuple)) else [self.axis]
+        )
+        axes = [axis + ndim if axis < 0 else axis for axis in axes]
+        self.axis = sorted(list(set(axes)))
         shape = tuple([input_shape[dim] for dim in self.axis])
 
         self.scale = self.add_weight(
@@ -67,16 +65,24 @@ class RMSNormalization(Layer):
     def call(self, x):
         """Applies RMS normalization to the input tensor.
 
+        RMS Normalization scales the input by the reciprocal of the root mean
+        square of the activations. Unlike Layer Normalization, it does not
+        subtract the mean (centering).
+
         Args:
-            x: Input tensor of shape (batch_size, input_dim).
+            x: Input tensor of arbitrary shape. The dimensions specified in
+                `self.axis` will be used to compute the RMS value.
 
         Returns:
-            The RMS-normalized tensor of the same shape (batch_size, input_dim),
-            scaled by the learned `scale` parameter.
+            A tensor with the same shape as `x`, where the values along `axis`
+            have been normalized and scaled by the learnable `scale` parameter.
         """
-        return ops.rms_normalization(
-            x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
-        )
+        x = ops.cast(x, self.compute_dtype)
+        pow_2 = ops.square(x)
+        ms = ops.mean(pow_2, axis=self.axis, keepdims=True)
+        rms = ops.sqrt(ms + self.epsilon)
+        normalized = x / rms
+        return normalized * self.scale
 
     def compute_output_shape(self, input_shape):
         if isinstance(self.axis, int):
