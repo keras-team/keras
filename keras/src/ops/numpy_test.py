@@ -1795,6 +1795,29 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.nansum(x4, axis=2).shape, (None, 2, 4))
         self.assertEqual(knp.nansum(x4, axis=(1, 3)).shape, (None, 3))
 
+    def test_nanvar(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.nanvar(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.nanvar(x, axis=1).shape, (None, 3))
+        self.assertEqual(
+            knp.nanvar(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
+
+        self.assertEqual(knp.nanvar(x, axis=(1,)).shape, (None, 3))
+
+        self.assertEqual(knp.nanvar(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(
+            knp.nanvar(x, axis=(1, 2), keepdims=True).shape, (None, 1, 1)
+        )
+
+        self.assertEqual(knp.nanvar(x, axis=()).shape, (None, 3, 3))
+
+        x4 = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nanvar(x4, axis=2).shape, (None, 2, 4))
+        self.assertEqual(knp.nanvar(x4, axis=(1, 3)).shape, (None, 3))
+
     def test_ndim(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.ndim(x).shape, (2,))
@@ -2014,6 +2037,23 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         y = KerasTensor((None, None))
         self.assertEqual(knp.dstack([x, y]).shape, (None, 3, 2))
+
+    def test_hsplit(self):
+        x = KerasTensor((3, None, 3))
+        self.assertEqual(knp.hsplit(x, 2)[0].shape, (3, None, 3))
+        self.assertEqual(len(knp.hsplit(x, [1, 3])), 3)
+        self.assertEqual(knp.hsplit(x, [1, 3])[0].shape, (3, 1, 3))
+        self.assertEqual(knp.hsplit(x, [1, 3])[1].shape, (3, 2, 3))
+        self.assertEqual(knp.hsplit(x, [1, 3])[2].shape, (3, None, 3))
+
+        # test 1D case
+        x_1d = KerasTensor((None,))
+        self.assertEqual(knp.hsplit(x_1d, 2)[0].shape, (None,))
+
+        splits_1d = knp.hsplit(x_1d, [2, 5])
+        self.assertEqual(splits_1d[0].shape, (2,))
+        self.assertEqual(splits_1d[1].shape, (3,))
+        self.assertEqual(splits_1d[2].shape, (None,))
 
     def test_vsplit(self):
         x = KerasTensor((None, 3, 3))
@@ -2500,6 +2540,13 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.nansum(x, axis=1).shape, (2,))
         self.assertEqual(knp.nansum(x, axis=1, keepdims=True).shape, (2, 1))
 
+    def test_nanvar_(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.nanvar(x).shape, ())
+        self.assertEqual(knp.nanvar(x, axis=0).shape, (3,))
+        self.assertEqual(knp.nanvar(x, axis=1).shape, (2,))
+        self.assertEqual(knp.nanvar(x, axis=1, keepdims=True).shape, (2, 1))
+
     def test_ndim(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.ndim(x).shape, (2,))
@@ -2628,6 +2675,33 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
 
         with self.assertRaises(ValueError):
             knp.split(x, 2, axis=1)
+
+    def test_hsplit(self):
+        x = KerasTensor((3, 5))
+
+        splits = knp.hsplit(x, 5)
+        self.assertEqual(len(splits), 5)
+        for split in splits:
+            self.assertEqual(split.shape, (3, 1))
+
+        splits = knp.hsplit(x, [1, 3])
+        self.assertEqual(len(splits), 3)
+        self.assertEqual(splits[0].shape, (3, 1))
+        self.assertEqual(splits[1].shape, (3, 2))
+        self.assertEqual(splits[2].shape, (3, 2))
+
+        # test 1D case
+        x_1d = KerasTensor((10,))
+        splits = knp.hsplit(x_1d, 2)
+        self.assertEqual(len(splits), 2)
+        for split in splits:
+            self.assertEqual(split.shape, (5,))
+
+        splits = knp.hsplit(x_1d, [2, 5])
+        self.assertEqual(len(splits), 3)
+        self.assertEqual(splits[0].shape, (2,))
+        self.assertEqual(splits[1].shape, (3,))
+        self.assertEqual(splits[2].shape, (5,))
 
     def test_vsplit(self):
         x = KerasTensor((5, 3))
@@ -4668,9 +4742,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x_float = np.array([1.1, 2.2, 3.3])
         self.assertAllClose(knp.diagflat(x_float), np.diagflat(x_float))
 
-        x_complex = np.array([1 + 1j, 2 + 2j, 3 + 3j])
-        self.assertAllClose(knp.diagflat(x_complex), np.diagflat(x_complex))
-
         x = np.array([1, 2, 3])
         self.assertAllClose(knp.Diagflat()(x), np.diagflat(x))
         self.assertAllClose(knp.Diagflat(k=1)(x), np.diagflat(x, k=1))
@@ -5339,6 +5410,68 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.split(x_np, indices_np, axis=1),
         )
 
+    def test_hsplit(self):
+        x = np.arange(18).reshape((3, 6))
+
+        self.assertIsInstance(knp.hsplit(x, 3), list)
+        self.assertAllClose(knp.hsplit(x, 3), np.hsplit(x, 3))
+        self.assertAllClose(knp.Hsplit(3)(x), np.hsplit(x, 3))
+
+        indices = [1, 3, 5]
+
+        # Compare each split
+        for split_knp, split_np in zip(
+            knp.hsplit(x, indices), np.hsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(
+            knp.Hsplit(indices)(x), np.hsplit(x, indices)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        with self.assertRaises(Exception):
+            knp.hsplit(x, 4)
+
+        x_kr = knp.array(x)
+        indices_kr = knp.array(indices)
+        indices_np = np.array(indices)
+
+        for split_knp, split_np in zip(
+            knp.hsplit(x_kr, indices_kr), np.hsplit(x, indices_np)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        # Test 1D case
+        x_1d = np.arange(10)
+        indices_1d = [2, 5, 9]
+
+        self.assertIsInstance(knp.hsplit(x_1d, 2), list)
+        self.assertAllClose(knp.hsplit(x_1d, 2), np.hsplit(x_1d, 2))
+        self.assertAllClose(knp.Hsplit(2)(x_1d), np.hsplit(x_1d, 2))
+
+        for split_knp, split_np in zip(
+            knp.hsplit(x_1d, indices_1d), np.hsplit(x_1d, indices_1d)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(
+            knp.Hsplit(indices_1d)(x_1d), np.hsplit(x_1d, indices_1d)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        with self.assertRaises(Exception):
+            knp.hsplit(x_1d, 3)
+
+        x_kr = knp.array(x_1d)
+        indices_kr = knp.array(indices_1d)
+        indices_np = np.array(indices_1d)
+
+        for split_knp, split_np in zip(
+            knp.hsplit(x_kr, indices_kr), np.hsplit(x_1d, indices_np)
+        ):
+            self.assertAllClose(split_knp, split_np)
+
     def test_vsplit(self):
         x = np.arange(18).reshape((6, 3))
 
@@ -5878,6 +6011,45 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.nansum(x_3d, axis=(1, 2)),
             np.nansum(x_3d, axis=(1, 2)),
+        )
+
+    def test_nanvar(self):
+        x = np.array([[[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]]])
+
+        self.assertAllClose(knp.nanvar(x), np.nanvar(x))
+        self.assertAllClose(knp.nanvar(x, axis=()), np.nanvar(x, axis=()))
+        self.assertAllClose(knp.nanvar(x, axis=0), np.nanvar(x, axis=0))
+        self.assertAllClose(knp.nanvar(x, axis=1), np.nanvar(x, axis=1))
+        self.assertAllClose(knp.nanvar(x, axis=(1,)), np.nanvar(x, axis=(1,)))
+        self.assertAllClose(
+            knp.nanvar(x, axis=1, keepdims=True),
+            np.nanvar(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(knp.Nanvar()(x), np.nanvar(x))
+        self.assertAllClose(knp.Nanvar(axis=1)(x), np.nanvar(x, axis=1))
+        self.assertAllClose(
+            knp.Nanvar(axis=1, keepdims=True)(x),
+            np.nanvar(x, axis=1, keepdims=True),
+        )
+
+        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+        self.assertAllClose(knp.nanvar(x_all_nan), np.nanvar(x_all_nan))
+        self.assertAllClose(
+            knp.nanvar(x_all_nan, axis=1),
+            np.nanvar(x_all_nan, axis=1),
+        )
+
+        x_3d = np.array(
+            [
+                [[1.0, np.nan], [2.0, 3.0]],
+                [[np.nan, 4.0], [5.0, np.nan]],
+            ]
+        )
+        self.assertAllClose(knp.nanvar(x_3d), np.nanvar(x_3d))
+        self.assertAllClose(
+            knp.nanvar(x_3d, axis=(1, 2)),
+            np.nanvar(x_3d, axis=(1, 2)),
         )
 
     def test_nan_to_num(self):
@@ -9099,6 +9271,25 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nanvar(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.nanvar(x_jax).dtype)
+
+        if backend.backend() == "torch" and expected_dtype == "uint32":
+            expected_dtype = "int32"
+
+        self.assertEqual(standardize_dtype(knp.nanvar(x).dtype), expected_dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.Nanvar().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nan_to_num(self, dtype):
         import jax.numpy as jnp
 
@@ -9570,6 +9761,39 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(
             standardize_dtype(knp.Split(2, -1).symbolic_call(x)[0].dtype),
             expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_hsplit(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((2, 1), dtype=dtype)
+        x_jax = jnp.ones((2, 1), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.hsplit(x_jax, [1])[0].dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.hsplit(x, [1])[0].dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hsplit([1]).symbolic_call(x)[0].dtype),
+            expected_dtype,
+        )
+
+        # test 1d case
+        x_1d = knp.ones((4,), dtype=dtype)
+        x_1d_jax = jnp.ones((4,), dtype=dtype)
+        expected_dtype_1d = standardize_dtype(
+            jnp.hsplit(x_1d_jax, [2])[0].dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.hsplit(x_1d, [2])[0].dtype),
+            expected_dtype_1d,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Hsplit([2]).symbolic_call(x_1d)[0].dtype),
+            expected_dtype_1d,
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))

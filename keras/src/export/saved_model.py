@@ -507,6 +507,13 @@ class BackendSavedModelExportArchive(BackendExportArchive):
         tvs, ntvs = _list_variables_used_by_fns(fns)
         self._tf_trackable._all_variables = list(tvs + ntvs)
 
+        # `tf.train.TrackableView` hardcodes the `save_type` to "checkpoint".
+        # We need to subclass to use a `save_type` of "savedmodel".
+        class SavedModelTrackableView(tf.train.TrackableView):
+            @classmethod
+            def children(cls, obj, save_type="savedmodel", **kwargs):
+                return super().children(obj, save_type, **kwargs)
+
         # Next, track lookup tables.
         # Hopefully, one day this will be automated at the tf.function level.
         self._tf_trackable._misc_assets = []
@@ -514,7 +521,7 @@ class BackendSavedModelExportArchive(BackendExportArchive):
 
         if hasattr(self, "_tracked"):
             for root in self._tracked:
-                descendants = tf.train.TrackableView(root).descendants()
+                descendants = SavedModelTrackableView(root).descendants()
                 for trackable in descendants:
                     if isinstance(trackable, TrackableResource):
                         self._tf_trackable._misc_assets.append(trackable)
