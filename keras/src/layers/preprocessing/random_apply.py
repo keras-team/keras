@@ -70,9 +70,7 @@ class RandomApply(Layer):
             return inputs
 
         seed_generator = self.generator
-        random_value = backend.random.uniform(
-            shape=(), seed=seed_generator
-        )
+        random_value = backend.random.uniform(shape=(), seed=seed_generator)
         if random_value < self.rate:
             kwargs = {}
             if self._layer._call_has_training_arg:
