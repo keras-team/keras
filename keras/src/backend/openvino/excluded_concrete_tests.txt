@@ -10,7 +10,7 @@ NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_diagflat
 =======
 NumpyDtypeTest::test_cumprod
-NumpyDtypeTest::test_diagflat_complex128
+
 
 >>>>>>> f10aeb4fb (Implement diagflat for OpenVINO backend)
 NumpyDtypeTest::test_einsum
