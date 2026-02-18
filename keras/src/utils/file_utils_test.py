@@ -1,8 +1,6 @@
 import hashlib
 import os
-import shutil
 import tarfile
-import tempfile
 import urllib
 import urllib.parse
 import urllib.request
@@ -60,21 +58,10 @@ class IsPathInDirTest(test_case.TestCase):
 
 
 class IsLinkInDirTest(test_case.TestCase):
-    def setUp(self):
-        self._cleanup(os.path.join("test_path", "to", "base_dir"))
-        self._cleanup(os.path.join(".", "base_dir"))
-
-    def _cleanup(self, base_dir):
-        if os.path.exists(base_dir):
-            shutil.rmtree(base_dir)
-
     def test_is_link_in_dir_with_absolute_paths(self):
-        base_dir = os.path.join("test_path", "to", "base_dir")
+        base_dir = self.get_temp_dir()
         link_path = os.path.join(base_dir, "symlink")
         target_path = os.path.join(base_dir, "file.txt")
-
-        # Create the base_dir directory if it does not exist.
-        os.makedirs(base_dir, exist_ok=True)
 
         # Create the file.txt file.
         with open(target_path, "w") as f:
@@ -96,12 +83,9 @@ class IsLinkInDirTest(test_case.TestCase):
         self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
 
     def test_is_link_in_dir_with_relative_paths(self):
-        base_dir = os.path.join(".", "base_dir")
+        base_dir = self.get_temp_dir()
         link_path = os.path.join(base_dir, "symlink")
         target_path = os.path.join(base_dir, "file.txt")
-
-        # Create the base_dir directory if it does not exist.
-        os.makedirs(base_dir, exist_ok=True)
 
         # Create the file.txt file.
         with open(target_path, "w") as f:
@@ -122,104 +106,84 @@ class IsLinkInDirTest(test_case.TestCase):
 
         self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
 
-    def tearDown(self):
-        self._cleanup(os.path.join("test_path", "to", "base_dir"))
-        self._cleanup(os.path.join(".", "base_dir"))
-
 
 class FilterSafePathsTest(test_case.TestCase):
     def setUp(self):
-        self.base_dir = os.path.join(os.getcwd(), "temp_dir")
-        os.makedirs(self.base_dir, exist_ok=True)
+        self.base_dir = os.path.abspath(self.get_temp_dir())
         self.tar_path = os.path.join(self.base_dir, "test.tar")
-
-    def tearDown(self):
-        os.remove(self.tar_path)
-        shutil.rmtree(self.base_dir)
+        self.target_path = os.path.join(self.base_dir, "target.txt")
+        with open(self.target_path, "w") as f:
+            f.write("target")
+        self.symlink_path = os.path.join(self.base_dir, "symlink.txt")
+        os.symlink(self.target_path, self.symlink_path)
 
     def test_member_within_base_dir(self):
         """Test a member within the base directory."""
         with tarfile.open(self.tar_path, "w") as tar:
-            tar.add(__file__, arcname="safe_path.txt")
+            tar.add(self.target_path, arcname="safe_path.txt")
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "safe_path.txt")
 
     def test_symlink_within_base_dir(self):
         """Test a symlink pointing within the base directory."""
-        symlink_path = os.path.join(self.base_dir, "symlink.txt")
-        target_path = os.path.join(self.base_dir, "target.txt")
-        with open(target_path, "w") as f:
-            f.write("target")
-        os.symlink(target_path, symlink_path)
         with tarfile.open(self.tar_path, "w") as tar:
-            tar.add(symlink_path, arcname="symlink.txt")
+            tar.add(self.symlink_path, arcname="symlink.txt")
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "symlink.txt")
-        os.remove(symlink_path)
-        os.remove(target_path)
 
     def test_invalid_path_warning(self):
         """Test warning for an invalid path during archive extraction."""
-        invalid_path = os.path.join(os.getcwd(), "invalid.txt")
-        with open(invalid_path, "w") as f:
-            f.write("invalid")
         with tarfile.open(self.tar_path, "w") as tar:
             tar.add(
-                invalid_path, arcname="../../invalid.txt"
+                self.target_path, arcname="../../invalid.txt"
             )  # Path intended to be outside of base dir
         with tarfile.open(self.tar_path, "r") as tar:
             with patch("warnings.warn") as mock_warn:
-                _ = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
+                _ = list(
+                    file_utils.filter_safe_tarinfos(
+                        tar.getmembers(), self.base_dir
+                    )
+                )
                 warning_msg = (
                     "Skipping invalid path during archive extraction: "
                     "'../../invalid.txt'."
                 )
                 mock_warn.assert_called_with(warning_msg, stacklevel=2)
-        os.remove(invalid_path)
 
     def test_symbolic_link_in_base_dir(self):
         """symbolic link within the base directory is correctly processed."""
-        symlink_path = os.path.join(self.base_dir, "symlink.txt")
-        target_path = os.path.join(self.base_dir, "target.txt")
-
-        # Create a target file and then a symbolic link pointing to it.
-        with open(target_path, "w") as f:
-            f.write("target")
-        os.symlink(target_path, symlink_path)
-
         # Add the symbolic link to the tar archive.
         with tarfile.open(self.tar_path, "w") as tar:
-            tar.add(symlink_path, arcname="symlink.txt")
+            tar.add(self.symlink_path, arcname="symlink.txt")
 
         with tarfile.open(self.tar_path, "r") as tar:
-            members = list(file_utils.filter_safe_tarinfos(tar.getmembers()))
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
             self.assertEqual(len(members), 1)
             self.assertEqual(members[0].name, "symlink.txt")
             self.assertTrue(
                 members[0].issym()
             )  # Explicitly assert it's a symbolic link.
 
-        os.remove(symlink_path)
-        os.remove(target_path)
-
 
 class ExtractArchiveTest(test_case.TestCase):
     def setUp(self):
         """Create temporary directories and files for testing."""
-        self.temp_dir = tempfile.mkdtemp()
+        self.temp_dir = self.get_temp_dir()
         self.file_content = "Hello, world!"
 
         # Create sample files to be archived
         with open(os.path.join(self.temp_dir, "sample.txt"), "w") as f:
             f.write(self.file_content)
-
-    def tearDown(self):
-        """Clean up temporary directories."""
-        shutil.rmtree(self.temp_dir)
 
     def create_tar(self):
         archive_path = os.path.join(self.temp_dir, "sample.tar")
@@ -604,12 +568,9 @@ class GetFileTest(test_case.TestCase):
 class HashFileTest(test_case.TestCase):
     def setUp(self):
         self.test_content = b"Hello, World!"
-        self.temp_file = tempfile.NamedTemporaryFile(delete=False)
-        self.temp_file.write(self.test_content)
-        self.temp_file.close()
-
-    def tearDown(self):
-        os.remove(self.temp_file.name)
+        self.temp_file = os.path.join(self.get_temp_dir(), "test_file.txt")
+        with open(self.temp_file, "wb") as f:
+            f.write(self.test_content)
 
     def test_hash_file_sha256(self):
         """Test SHA256 hashing of a file."""
@@ -617,24 +578,22 @@ class HashFileTest(test_case.TestCase):
             "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"
         )
         calculated_sha256 = file_utils.hash_file(
-            self.temp_file.name, algorithm="sha256"
+            self.temp_file, algorithm="sha256"
         )
         self.assertEqual(expected_sha256, calculated_sha256)
 
     def test_hash_file_md5(self):
         """Test MD5 hashing of a file."""
         expected_md5 = "65a8e27d8879283831b664bd8b7f0ad4"
-        calculated_md5 = file_utils.hash_file(
-            self.temp_file.name, algorithm="md5"
-        )
+        calculated_md5 = file_utils.hash_file(self.temp_file, algorithm="md5")
         self.assertEqual(expected_md5, calculated_md5)
 
 
 class TestValidateFile(test_case.TestCase):
     def setUp(self):
-        self.tmp_file = tempfile.NamedTemporaryFile(delete=False)
-        self.tmp_file.write(b"Hello, World!")
-        self.tmp_file.close()
+        self.temp_file = os.path.join(self.get_temp_dir(), "test_file.txt")
+        with open(self.temp_file, "wb") as f:
+            f.write(b"Hello, World!")
 
         self.sha256_hash = (
             "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f"
@@ -644,40 +603,33 @@ class TestValidateFile(test_case.TestCase):
     def test_validate_file_sha256(self):
         """Validate SHA256 hash of a file."""
         self.assertTrue(
-            file_utils.validate_file(
-                self.tmp_file.name, self.sha256_hash, "sha256"
-            )
+            file_utils.validate_file(self.temp_file, self.sha256_hash, "sha256")
         )
 
     def test_validate_file_md5(self):
         """Validate MD5 hash of a file."""
         self.assertTrue(
-            file_utils.validate_file(self.tmp_file.name, self.md5_hash, "md5")
+            file_utils.validate_file(self.temp_file, self.md5_hash, "md5")
         )
 
     def test_validate_file_auto_sha256(self):
         """Auto-detect and validate SHA256 hash."""
         self.assertTrue(
-            file_utils.validate_file(
-                self.tmp_file.name, self.sha256_hash, "auto"
-            )
+            file_utils.validate_file(self.temp_file, self.sha256_hash, "auto")
         )
 
     def test_validate_file_auto_md5(self):
         """Auto-detect and validate MD5 hash."""
         self.assertTrue(
-            file_utils.validate_file(self.tmp_file.name, self.md5_hash, "auto")
+            file_utils.validate_file(self.temp_file, self.md5_hash, "auto")
         )
 
     def test_validate_file_wrong_hash(self):
         """Test validation with incorrect hash."""
         wrong_hash = "deadbeef" * 8
         self.assertFalse(
-            file_utils.validate_file(self.tmp_file.name, wrong_hash, "sha256")
+            file_utils.validate_file(self.temp_file, wrong_hash, "sha256")
         )
-
-    def tearDown(self):
-        os.remove(self.tmp_file.name)
 
 
 class ResolveHasherTest(test_case.TestCase):

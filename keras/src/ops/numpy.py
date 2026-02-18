@@ -3741,6 +3741,72 @@ def hstack(xs):
     return backend.numpy.hstack(xs)
 
 
+class Hsplit(Operation):
+    def __init__(self, indices_or_sections, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(indices_or_sections, int):
+            indices_or_sections = tuple(indices_or_sections)
+        self.indices_or_sections = indices_or_sections
+
+    def call(self, x):
+        return backend.numpy.hsplit(x, self.indices_or_sections)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                "`hsplit` only works on arrays of at least 1 dimension. "
+                f"Received array with shape {x.shape}."
+            )
+
+        axis = 0 if len(x.shape) == 1 else 1
+        return _compute_split_output_spec(x, self.indices_or_sections, axis)
+
+
+@keras_export(["keras.ops.hsplit", "keras.ops.numpy.hsplit"])
+def hsplit(x, indices_or_sections):
+    """Split an array into multiple sub-arrays horizontally (column-wise).
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: If an integer, N, the tensor will be split into N
+            equal sections along axis 1 (if ndim >= 2) or axis 0 (if ndim == 1).
+            If a 1-D array of sorted integers, the entries indicate indices at
+            which the tensor will be split along the axis.
+
+    Returns:
+        A list of sub-arrays.
+
+    Example:
+
+    >>> x = keras.ops.arange(16.0).reshape((4, 4))
+    >>> keras.ops.hsplit(x, 2)
+    [array([[ 0.,  1.],
+           [ 4.,  5.],
+           [ 8.,  9.],
+           [12., 13.]]),
+     array([[ 2.,  3.],
+           [ 6.,  7.],
+           [10., 11.],
+           [14., 15.]])]
+    >>> keras.ops.hsplit(x, [1, 3])
+    [array([[0.],
+        [4.],
+        [8.],
+        [12.]]),
+    array([[1., 2.],
+        [5., 6.],
+        [9., 10.],
+        [13., 14.]]),
+    array([[3.],
+        [7.],
+        [11.],
+        [15.]])]
+    """
+    if any_symbolic_tensors((x,)):
+        return Hsplit(indices_or_sections).symbolic_call(x)
+    return backend.numpy.hsplit(x, indices_or_sections)
+
+
 class Hypot(Operation):
     def call(self, x1, x2):
         return backend.numpy.hypot(x1, x2)
@@ -5443,6 +5509,58 @@ def nansum(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nansum(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.nansum(x, axis=axis, keepdims=keepdims)
+
+
+class Nanvar(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanvar(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanvar", "keras.ops.numpy.nanvar"])
+def nanvar(x, axis=None, keepdims=False):
+    """Compute the variance along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the variance is computed. The default
+            is to compute the variance of the flattened tensor.
+        keepdims: If `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Output tensor containing the variance ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanvar(x)
+    0.6875
+
+    >>> ops.nanvar(x, axis=1)
+    array([1.  , 0.25])
+
+    >>> ops.nanvar(x, axis=1, keepdims=True)
+    array([[1.  ],
+           [0.25]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanvar(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanvar(x, axis=axis, keepdims=keepdims)
 
 
 class NanToNum(Operation):
