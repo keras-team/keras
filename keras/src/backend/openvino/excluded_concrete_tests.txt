@@ -9,6 +9,8 @@ NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
+HistogramTest::test_histogram_predict_jit_compile_false
+HistogramTest::test_histogram_predict_jit_compile_true
 NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
@@ -30,7 +32,6 @@ NumpyDtypeTest::test_subtract
 NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_view
-
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_hanning
@@ -222,5 +223,3 @@ NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsBehaviorTest::test_logit_recovery_binary_crossentropy
-HistogramTest::test_histogram_predict_jit_compile_false
-HistogramTest::test_histogram_predict_jit_compile_true
