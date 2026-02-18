@@ -6,7 +6,7 @@ tensorflow;sys_platform == 'darwin'
 tf2onnx
 # This is the only version which works with TF 2.20.0.
 # TODO(#21914): Update this version when TF is updated.
-ai-edge-litert==1.3.0;sys_platform != 'win32'
+ai-edge-litert>=1.3.0;sys_platform != 'win32'
 
 # Torch.
 --extra-index-url https://download.pytorch.org/whl/cpu
