@@ -2768,6 +2768,40 @@ def roll(x, shift, axis=None):
     return OpenVINOKerasTensor(result)
 
 
+def searchsorted(sorted_sequence, values, side="left"):
+    if side not in ("left", "right"):
+        raise ValueError(
+            f"`side` must be either 'left' or 'right'. Received: side={side}"
+        )
+    sorted_sequence = get_ov_output(sorted_sequence)
+    values = get_ov_output(values)
+
+    if sorted_sequence.get_partial_shape().rank.get_length() != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.get_partial_shape()}"
+        )
+
+    sorted_sequence, values = _align_operand_types(
+        sorted_sequence, values, "searchsorted()"
+    )
+
+    # Note: OpenVINO's bucketize with_right_bound has opposite semantics
+    # with_right_bound=True means search from right (side='left' in numpy)
+    # with_right_bound=False means search from left (side='right' in numpy)
+    with_right_bound = side == "left"
+    result = ov_opset.bucketize(
+        values,
+        sorted_sequence,
+        output_type=Type.i32,
+        with_right_bound=with_right_bound,
+    ).output(0)
+
+    return OpenVINOKerasTensor(result)
+
+
 def sign(x):
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.sign(x).output(0))
