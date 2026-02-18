@@ -11,10 +11,6 @@ NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
-NumpyDtypeTest::test_nanmax
-NumpyDtypeTest::test_nanmean
-NumpyDtypeTest::test_nanmin
-NumpyDtypeTest::test_nanprod
 NumpyDtypeTest::test_nanvar
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
@@ -38,10 +34,6 @@ NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_diagflat
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
-NumpyOneInputOpsCorrectnessTest::test_nanmax
-NumpyOneInputOpsCorrectnessTest::test_nanmean
-NumpyOneInputOpsCorrectnessTest::test_nanmin
-NumpyOneInputOpsCorrectnessTest::test_nanprod
 NumpyOneInputOpsCorrectnessTest::test_nanvar
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
