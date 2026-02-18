@@ -878,6 +878,13 @@ def hstack(xs):
     return torch.hstack(xs)
 
 
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
+    return list(torch.hsplit(x, indices_or_sections))
+
+
 def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
