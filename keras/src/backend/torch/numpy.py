@@ -186,12 +186,11 @@ def mean(x, axis=None, keepdims=False):
     # delimiter in the overloaded method signatures.
     # Additionally, we have to create a singleton-tuple
     # when `axis` is an int to match the existing fn signature
-    result = torch.mean(
-        x,
-        axis,
-        keepdims,
-        dtype=to_torch_dtype(compute_dtype),
-    )
+
+    # Cast input to compute dtype before mean to avoid dtype kwarg
+    # which causes issues with ONNX export (dtype kwarg not supported)
+    x = cast(x, compute_dtype)
+    result = torch.mean(x, axis, keepdims)
     return cast(result, result_dtype)
 
 
