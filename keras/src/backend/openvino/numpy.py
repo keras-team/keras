@@ -611,6 +611,49 @@ def hamming(x):
     return OpenVINOKerasTensor(hamming_window.output(0))
 
 
+def hanning(x):
+    m = get_ov_output(x)
+
+    m_i64 = (
+        m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
+    )
+
+    start = ov_opset.constant(0, Type.i64)
+    step = ov_opset.constant(1, Type.i64)
+    n = ov_opset.range(start, m_i64, step, Type.f64)
+
+    one_i64 = ov_opset.constant(1, Type.i64)
+    denom_i64 = ov_opset.subtract(m_i64, one_i64)
+    denom = ov_opset.convert(denom_i64, Type.f64)
+
+    # Handle M=1 case to avoid division by zero
+    one_f64 = ov_opset.constant(1.0, Type.f64)
+    is_zero = ov_opset.equal(denom_i64, ov_opset.constant(0, Type.i64))
+    safe_denom = ov_opset.select(is_zero, one_f64, denom)
+
+    two_pi = ov_opset.constant(2.0 * np.pi, Type.f64)
+    two_pi_over_m_minus_1 = ov_opset.divide(two_pi, safe_denom)
+
+    x = ov_opset.multiply(two_pi_over_m_minus_1, n)
+    c = ov_opset.cos(x)
+
+    # 0.5 - 0.5 * cos(...)
+    a = ov_opset.constant(0.5, Type.f64)
+    b = ov_opset.constant(0.5, Type.f64)
+    hanning_window = ov_opset.subtract(a, ov_opset.multiply(b, c))
+
+    # Fix for M=1: NumPy returns [1.], but formula gives [0.]
+    # Broadcast 1.0 to the shape of hanning_window
+    ones = ov_opset.broadcast(one_f64, ov_opset.shape_of(hanning_window))
+    hanning_window = ov_opset.select(is_zero, ones, hanning_window)
+
+    hanning_window = ov_opset.convert(
+        hanning_window, OPENVINO_DTYPES[config.floatx()]
+    )
+
+    return OpenVINOKerasTensor(hanning_window.output(0))
+
+
 def heaviside(x1, x2):
     x1 = get_ov_output(x1)
     x_type = x1.get_element_type()

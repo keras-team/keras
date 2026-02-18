@@ -1,7 +1,6 @@
 NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
-NumpyDtypeTest::test_hanning
 NumpyDtypeTest::test_heaviside
 NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_bitwise_left_shift
@@ -28,7 +27,6 @@ NumpyDtypeTest::test_view
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
-NumpyOneInputOpsCorrectnessTest::test_hanning
 NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_diagflat
@@ -47,7 +45,6 @@ NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
-NumpyOneInputOpsDynamicShapeTest::test_hanning
 NumpyOneInputOpsDynamicShapeTest::test_isreal
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsDynamicShapeTest::test_view
