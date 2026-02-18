@@ -10,7 +10,6 @@ NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_cumprod
 NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
-NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_nanmax
@@ -54,7 +53,6 @@ NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyTwoInputOpsCorrectnessTest::test_einsum
-NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
