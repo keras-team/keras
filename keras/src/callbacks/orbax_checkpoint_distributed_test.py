@@ -107,20 +107,6 @@ class _DistributedTestMixin:
         model.compile(optimizer="adam", loss="mse", jit_compile=False)
         return model
 
-    @staticmethod
-    def _build_deep_model():
-        """Deeper model for multi-layer sharding.
-
-        Kernel shapes: dense_1 (16, 8), dense_2 (8, 8), output (8, 4).
-        """
-        inputs = layers.Input(shape=(16,), name="input_layer")
-        x = layers.Dense(8, activation="relu", name="dense_1")(inputs)
-        x = layers.Dense(8, activation="relu", name="dense_2")(x)
-        outputs = layers.Dense(4, name="output_layer")(x)
-        model = models.Model(inputs, outputs, name="deep_sharding_model")
-        model.compile(optimizer="adam", loss="mse", jit_compile=False)
-        return model
-
     # -- Data helpers ---------------------------------------------------------
 
     @staticmethod
@@ -695,8 +681,6 @@ class OrbaxShardedReshardingTest(
             testcase_name="2_to_4_devices",
             save_devices=2,
             load_devices=4,
-            save_axis="model",
-            load_axis="model",
             save_layout=("model", None),
             load_layout=("model", None),
         ),
@@ -704,8 +688,6 @@ class OrbaxShardedReshardingTest(
             testcase_name="sharded_to_replicated",
             save_devices=2,
             load_devices=0,
-            save_axis="model",
-            load_axis=None,
             save_layout=("model", None),
             load_layout=None,
         ),
@@ -713,8 +695,6 @@ class OrbaxShardedReshardingTest(
             testcase_name="replicated_to_sharded",
             save_devices=0,
             load_devices=2,
-            save_axis=None,
-            load_axis="model",
             save_layout=None,
             load_layout=("model", None),
         ),
@@ -722,8 +702,6 @@ class OrbaxShardedReshardingTest(
             testcase_name="row_to_col_sharding",
             save_devices=2,
             load_devices=2,
-            save_axis="model",
-            load_axis="model",
             save_layout=("model", None),
             load_layout=(None, "model"),
         ),
@@ -732,8 +710,6 @@ class OrbaxShardedReshardingTest(
         self,
         save_devices,
         load_devices,
-        save_axis,
-        load_axis,
         save_layout,
         load_layout,
     ):
