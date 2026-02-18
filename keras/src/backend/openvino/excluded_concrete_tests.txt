@@ -9,6 +9,7 @@ NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_isreal
+NumpyDtypeTest::test_nanvar
 NumpyDtypeTest::test_nanmax
 NumpyDtypeTest::test_nanmean
 NumpyDtypeTest::test_nanmin
