@@ -1169,6 +1169,68 @@ def diag(x, k=0):
         raise ValueError("diag supports only 1D or 2D tensors")
 
 
+def diagflat(x, k=0):
+    x = get_ov_output(x)
+
+    flatten_shape = ov_opset.constant([-1], dtype=Type.i32).output(0)
+    v_flat = ov_opset.reshape(x, flatten_shape, False).output(0)
+
+    v_flat_shape = ov_opset.shape_of(v_flat, Type.i32).output(0)
+    zero_node = ov_opset.constant(0, dtype=Type.i32).output(0)
+    n = ov_opset.gather(v_flat_shape, zero_node, zero_node).output(0)
+
+    k_val = int(k)
+    if k_val < 0:
+        abs_k = -k_val
+    else:
+        abs_k = k_val
+
+    n_plus_k = ov_opset.add(
+        n, ov_opset.constant(abs_k, dtype=Type.i32).output(0)
+    ).output(0)
+
+    target_shape_vec = ov_opset.concat(
+        [
+            ov_opset.reshape(
+                n_plus_k,
+                ov_opset.constant([1], dtype=Type.i32).output(0),
+                False,
+            ).output(0),
+            ov_opset.reshape(
+                n_plus_k,
+                ov_opset.constant([1], dtype=Type.i32).output(0),
+                False,
+            ).output(0),
+        ],
+        0,
+    ).output(0)
+
+    v_type = x.get_element_type()
+    zero_const = ov_opset.constant(0, dtype=v_type).output(0)
+
+    zeros_mat = ov_opset.broadcast(zero_const, target_shape_vec).output(0)
+
+    one_node = ov_opset.constant(1, dtype=Type.i32).output(0)
+    rng = ov_opset.range(zero_node, n, one_node, Type.i32).output(0)
+
+    k_const = ov_opset.constant(k_val, dtype=Type.i32).output(0)
+
+    if k_val >= 0:
+        rows = rng
+        cols = ov_opset.add(rng, k_const).output(0)
+    else:
+        neg_k_const = ov_opset.constant(-k_val, dtype=Type.i32).output(0)
+        rows = ov_opset.add(rng, neg_k_const).output(0)
+        cols = rng
+
+    rows_expanded = ov_opset.reshape(rows, [-1, 1], False).output(0)
+    cols_expanded = ov_opset.reshape(cols, [-1, 1], False).output(0)
+    indices = ov_opset.concat([rows_expanded, cols_expanded], 1).output(0)
+
+    result = ov_opset.scatter_nd_update(zeros_mat, indices, v_flat).output(0)
+    return OpenVINOKerasTensor(result)
+
+
 def diagonal(x, offset=0, axis1=0, axis2=1):
     x = get_ov_output(x)
     shape = x.get_partial_shape()
