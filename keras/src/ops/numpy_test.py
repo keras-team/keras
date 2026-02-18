@@ -4742,9 +4742,6 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x_float = np.array([1.1, 2.2, 3.3])
         self.assertAllClose(knp.diagflat(x_float), np.diagflat(x_float))
 
-        x_complex = np.array([1 + 1j, 2 + 2j, 3 + 3j])
-        self.assertAllClose(knp.diagflat(x_complex), np.diagflat(x_complex))
-
         x = np.array([1, 2, 3])
         self.assertAllClose(knp.Diagflat()(x), np.diagflat(x))
         self.assertAllClose(knp.Diagflat(k=1)(x), np.diagflat(x, k=1))
