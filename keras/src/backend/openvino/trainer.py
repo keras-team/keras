@@ -173,7 +173,12 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None,
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
         **kwargs,
     ):
         self._call_context_kwargs = kwargs
