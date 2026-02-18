@@ -234,6 +234,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.greater_equal(x, y).shape, (2, 3))
 
+    def test_allclose(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.allclose(x, y).shape, ())
+
     def test_isclose(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -814,6 +819,14 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.greater_equal(x, y)
+
+    def test_allclose(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.allclose(x, y).shape, ())
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.allclose(x, 2).shape, ())
 
     def test_isclose(self):
         x = KerasTensor((2, 3))
@@ -3353,7 +3366,21 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.GreaterEqual()(2, x),
             np.greater_equal(2, x),
         )
+    def test_allclose(self):
+        x = np.array([1], dtype="int32")
+        y = np.array([2], dtype="int32")
+        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), False)
 
+        x = np.array([1.0], dtype="float32")
+        y = np.array([1.0000001], dtype="float32")
+        self.assertAllClose(knp.allclose(x, y, rtol=0.1, atol=1e-8), True)
+
+        # Test with NaNs
+        x_nan = np.array([np.nan, 1.0])
+        y_nan = np.array([np.nan, 1.0])
+        self.assertAllClose(knp.allclose(x_nan, y_nan), False)
+        self.assertAllClose(knp.allclose(x_nan, y_nan, equal_nan=True), True)
+        
     def test_isclose(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])

@@ -137,6 +137,8 @@ def all(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     return np.all(x, axis=axis, keepdims=keepdims)
 
+def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+    return np.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 def angle(x):
     x = convert_to_tensor(x)
