@@ -48,14 +48,18 @@ class RMSNormalization(Layer):
         self.epsilon = epsilon
 
     def build(self, input_shape):
-        if isinstance(self.axis, list):
-            shape = tuple([input_shape[dim] for dim in self.axis])
+        ndim = len(input_shape)
+        if isinstance(self.axis, (list, tuple)):
+            axes = [(a + ndim if a < 0 else a) for a in self.axis]
+            self.axis = sorted(list(set(axes)))
         else:
-            shape = (input_shape[self.axis],)
-            self.axis = [self.axis]
+            axis = self.axis + ndim if self.axis < 0 else self.axis
+            self.axis = [axis]
+
+        shape = tuple([input_shape[dim] for dim in self.axis])
 
         self.scale = self.add_weight(
-            name="scale", shape=shape, initializer="ones"
+            name="scale", shape=shape, initializer="ones", trainable=True
         )
 
         self.built = True
