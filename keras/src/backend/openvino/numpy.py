@@ -3714,6 +3714,8 @@ def argpartition(x, kth, axis=-1):
         ov_opset.constant(inv_axes),
     ).output(0)
     return OpenVINOKerasTensor(result)
+
+
 def histogram(x, bins=10, range=None):
     x = get_ov_output(x)
     x = ov_opset.reshape(x, [-1], False).output(0)
@@ -3784,9 +3786,7 @@ def histogram(x, bins=10, range=None):
     on_val = ov_opset.constant(1, Type.i32).output(0)
     off_val = ov_opset.constant(0, Type.i32).output(0)
 
-    one_hot = ov_opset.one_hot(
-        final_inds, depth, on_val, off_val, axis=-1
-    )
+    one_hot = ov_opset.one_hot(final_inds, depth, on_val, off_val, axis=-1)
     counts = ov_opset.reduce_sum(
         one_hot, ov_opset.constant(0, Type.i32).output(0), keep_dims=False
     )
