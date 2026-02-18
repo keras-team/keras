@@ -755,53 +755,17 @@ def gru(
     unroll=False,
     reset_after=True,
 ):
-    """Native PyTorch GRU with pre-computed input projections.
+    cudnn_supported = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    )
 
-    Pre-computes input projections for all timesteps at once (one large
-    matmul), then processes timesteps sequentially for state updates.
-    This is faster than the generic step-by-step RNN loop while giving
-    numerically identical results and maintaining full gradient flow.
-
-    Args:
-        inputs: Input tensor of shape `(batch, timesteps, feature)`.
-        initial_state: Initial hidden state tensor of shape
-            `(batch, units)`.
-        mask: Optional boolean mask tensor of shape `(batch, timesteps)`.
-        kernel: Input kernel weights of shape `(feature, units * 3)`.
-        recurrent_kernel: Recurrent kernel weights of shape
-            `(units, units * 3)`.
-        bias: Optional bias tensor of shape `(2, units * 3)` for
-            `reset_after=True`.
-        activation: Activation function (must be `tanh`).
-        recurrent_activation: Recurrent activation function (must be
-            `sigmoid`).
-        return_sequences: Boolean. Whether to return the full sequence
-            of outputs or only the last output.
-        go_backwards: Boolean. Whether to process the input sequence
-            in reverse.
-        unroll: Boolean. Not used (kept for API compatibility).
-        reset_after: Boolean. Must be `True`.
-
-    Returns:
-        A tuple of `(last_output, outputs, [last_state])`.
-    """
-    if not reset_after:
+    if not cudnn_supported or not reset_after:
         raise NotImplementedError
 
-    from keras.src import activations as act_module
-    from keras.src import ops
-
-    if activation not in (
-        act_module.tanh,
-        torch.tanh,
-        ops.tanh,
-    ) or recurrent_activation not in (
-        act_module.sigmoid,
-        torch.sigmoid,
-        ops.sigmoid,
-    ):
-        raise NotImplementedError
-
+    # Get device from inputs
     device = get_device()
 
     # Convert to torch tensors (convert_to_tensor unwraps Variables)
@@ -809,78 +773,39 @@ def gru(
     recurrent_kernel = convert_to_tensor(recurrent_kernel)
     if bias is not None:
         bias = convert_to_tensor(bias)
-    compute_dtype = kernel.dtype
-    inputs = convert_to_tensor(inputs).to(dtype=compute_dtype, device=device)
-    h = convert_to_tensor(initial_state).to(dtype=compute_dtype, device=device)
+
+    inputs = convert_to_tensor(inputs, dtype="float32")
+    initial_state = convert_to_tensor(initial_state, dtype="float32")
     if mask is not None:
-        mask = convert_to_tensor(mask, dtype="bool").to(device)
+        mask = convert_to_tensor(mask, dtype="bool")
 
-    # Split bias into input_bias and recurrent_bias
-    # For reset_after=True, bias shape is (2, 3*units)
-    if bias is not None:
-        input_bias = bias[0]  # (3*units,)
-        recurrent_bias = bias[1]  # (3*units,)
-    else:
-        input_bias = None
-        recurrent_bias = None
-
-    # Pre-compute input projections for all timesteps at once
-    x_proj = torch.matmul(inputs, kernel)  # (batch, seq_len, 3*units)
-    if input_bias is not None:
-        x_proj = x_proj + input_bias
-
-    seq_len = inputs.shape[1]
-    units = recurrent_kernel.shape[0]
-
+    # Preprocess for go_backwards by flipping the sequence
     if go_backwards:
-        time_range = range(seq_len - 1, -1, -1)
-    else:
-        time_range = range(seq_len)
-
-    all_h = []
-    for t in time_range:
-        x_t = x_proj[:, t, :]
-
-        # Recurrent projection
-        matrix_inner = torch.matmul(h, recurrent_kernel)
-        if recurrent_bias is not None:
-            matrix_inner = matrix_inner + recurrent_bias
-
-        # Split into gate components
-        x_z = x_t[:, :units]
-        x_r = x_t[:, units : 2 * units]
-        x_h = x_t[:, 2 * units :]
-
-        recurrent_z = matrix_inner[:, :units]
-        recurrent_r = matrix_inner[:, units : 2 * units]
-        recurrent_h = matrix_inner[:, 2 * units :]
-
-        # Gate computations
-        z = torch.sigmoid(x_z + recurrent_z)
-        r = torch.sigmoid(x_r + recurrent_r)
-
-        # Candidate (reset gate applied after matmul for reset_after=True)
-        recurrent_h = r * recurrent_h
-        hh = torch.tanh(x_h + recurrent_h)
-
-        # State update
-        h_new = z * h + (1 - z) * hh
-
+        inputs = torch.flip(inputs, dims=[1])
         if mask is not None:
-            mask_t = mask[:, t].unsqueeze(-1)
-            h = torch.where(mask_t, h_new, h)
-        else:
-            h = h_new
+            mask = torch.flip(mask, dims=[1])
 
-        all_h.append(h)
+    # Move all tensors to the same device
+    inputs = inputs.to(device)
+    initial_state = initial_state.to(device)
+    if mask is not None:
+        mask = mask.to(device)
 
-    outputs = torch.stack(all_h, dim=1)
-    last_output = h
-
-    if not return_sequences:
-        outputs = last_output.unsqueeze(1)
-
-    return last_output, outputs, [h]
+    try:
+        return _cudnn_gru(
+            inputs,
+            initial_state,
+            kernel,
+            recurrent_kernel,
+            bias,
+            mask,
+            batch_first=True,
+            go_backwards=go_backwards,
+            return_sequences=return_sequences,
+            device=device,
+        )
+    except Exception:
+        raise NotImplementedError
 
 
 def prepare_gru_weights(gru_layer, kernel, recurrent_kernel, bias, device):
