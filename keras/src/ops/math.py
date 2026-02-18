@@ -778,6 +778,20 @@ def stft(
        [0.0, 0.64951905],
        [0.0, -0.64951905]]))
     """
+    # Validate sequence_stride to prevent negative or zero values
+    if not isinstance(sequence_stride, int):
+        raise ValueError(
+            "Argument sequence_stride must be integer."
+            f"Received: sequence_stride={sequence_stride}"
+            f"(type={type(sequence_stride).__name__})"
+        )
+
+    if sequence_stride <= 0:
+        raise ValueError(
+            "Argument sequence_stride must be positive integer."
+            f"Received: sequence_stride={sequence_stride}"
+        )
+
     if any_symbolic_tensors((x,)):
         return STFT(
             sequence_length=sequence_length,
