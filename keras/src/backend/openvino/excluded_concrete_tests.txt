@@ -3,8 +3,6 @@ NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_heaviside
 NumpyDtypeTest::test_kaiser
-NumpyDtypeTest::test_bitwise_left_shift
-NumpyDtypeTest::test_bitwise_right_shift
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
