@@ -59,11 +59,11 @@ class RMSNormalization(Layer):
         self.scale = self.add_weight(
             name="scale", shape=shape, initializer="ones", trainable=True
         )
-
         self.built = True
 
     def call(self, x):
-        """Applies RMS normalization to the input tensor.
+        """
+        Applies RMS normalization to the input tensor.
 
         RMS Normalization scales the input by the reciprocal of the root mean
         square of the activations. Unlike Layer Normalization, it does not
