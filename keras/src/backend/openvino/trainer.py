@@ -164,15 +164,19 @@ class OpenVINOTrainer(base_trainer.Trainer):
         validation_steps=None,
         validation_batch_size=None,
         validation_freq=1,
+        **kwargs,
     ):
+        self._call_context_kwargs = kwargs
         raise NotImplementedError(
             "`fit` is not supported with openvino backend"
         )
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None,
+        **kwargs,
     ):
+        self._call_context_kwargs = kwargs
         # Create an iterator that yields batches of input data.
         epoch_iterator = EpochIterator(
             x=x,
