@@ -790,6 +790,11 @@ def hstack(xs):
     return jnp.hstack(xs)
 
 
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return jnp.hsplit(x, indices_or_sections)
+
+
 def identity(n, dtype=None):
     dtype = dtype or config.floatx()
     return jnp.identity(n, dtype=dtype)
@@ -1049,6 +1054,11 @@ def nanprod(x, axis=None, keepdims=False):
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nansum(x, axis=axis, keepdims=keepdims)
+
+
+def nanvar(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanvar(x, axis=axis, keepdims=keepdims)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
