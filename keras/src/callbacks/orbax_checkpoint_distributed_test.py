@@ -17,7 +17,6 @@ if "XLA_FLAGS" not in os.environ:
 
 import jax
 import numpy as np
-import orbax.checkpoint as orbax_ckpt
 import pytest
 from absl.testing import parameterized
 
@@ -261,7 +260,6 @@ class OrbaxShardedWeightsTest(
         self._assert_shards_equal(model, fresh)
 
         # Sharding spec equality.
-
         loaded_specs = self._get_sharding_specs(fresh)
         for path, spec in orig_specs.items():
             if path in loaded_specs:
@@ -617,36 +615,15 @@ class OrbaxShardedFileStructureTest(
                     len(shards), 0, "OCDBT data dir should have shards"
                 )
 
-        # --- Metadata verification via Orbax APIs ---
-        # Read checkpoint metadata to verify sharding info is recorded.
-        try:
-            # Orbax V1 API: use CheckpointManager or direct metadata
-            # reading to confirm sharding metadata was persisted.
-            metadata_path = os.path.join(pytree_path, "_METADATA")
-            self.assertTrue(
-                os.path.isfile(metadata_path),
-                "Sharding metadata file must exist in pytree dir",
-            )
-            metadata_size = os.path.getsize(metadata_path)
-            self.assertGreater(
-                metadata_size,
-                0,
-                "Metadata file should not be empty — it must contain "
-                "serialized sharding and tensor specifications",
-            )
-
-            # Use orbax.checkpoint.type_handlers to read param infos
-            # if available, to verify tensor sharding metadata.
-            if hasattr(orbax_ckpt, "type_handlers"):
-                th = orbax_ckpt.type_handlers
-                if hasattr(th, "get_json_tspec_read"):
-                    # Metadata file contains tensorstore specs
-                    # with sharding info — verified by non-zero size.
-                    pass
-        except Exception:
-            # If Orbax API version doesn't support metadata reading,
-            # fall back to file-size verification (already done above).
-            pass
+        # Metadata file must be non-empty (contains serialized
+        # tensor shapes, dtypes, and sharding specifications).
+        metadata_size = os.path.getsize(os.path.join(pytree_path, "_METADATA"))
+        self.assertGreater(
+            metadata_size,
+            0,
+            "Metadata file should not be empty — it must contain "
+            "serialized sharding and tensor specifications",
+        )
 
         # --- Shard shape checks ---
 
