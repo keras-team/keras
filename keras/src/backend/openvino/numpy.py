@@ -633,6 +633,38 @@ def kaiser(x, beta):
     raise NotImplementedError("`kaiser` is not supported with openvino backend")
 
 
+def bitwise_left_shift(x, y):
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "bitwise_left_shift()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_left_shift(x, y).output(0))
+
+
+def left_shift(x, y):
+    return bitwise_left_shift(x, y)
+
+
+def bitwise_right_shift(x, y):
+    element_type = None
+    if isinstance(x, OpenVINOKerasTensor):
+        element_type = x.output.get_element_type()
+    if isinstance(y, OpenVINOKerasTensor):
+        element_type = y.output.get_element_type()
+    x = get_ov_output(x, element_type)
+    y = get_ov_output(y, element_type)
+    x, y = _align_operand_types(x, y, "bitwise_right_shift()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_right_shift(x, y).output(0))
+
+
+def right_shift(x, y):
+    return bitwise_right_shift(x, y)
+
+
 def bincount(x, weights=None, minlength=0, sparse=False):
     if x is None:
         raise ValueError("input x is None")
@@ -676,6 +708,36 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         ).output(0)
         final_output = ov_opset.convert(final_output, Type.i32).output(0)
         return OpenVINOKerasTensor(final_output)
+
+
+def bitwise_and(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_and()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_and(x, y).output(0))
+
+
+def bitwise_xor(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_xor()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_xor(x, y).output(0))
+
+
+def bitwise_invert(x):
+    x = get_ov_output(x)
+    return OpenVINOKerasTensor(ov_opset.bitwise_not(x).output(0))
+
+
+def bitwise_not(x):
+    return bitwise_invert(x)
+
+
+def bitwise_or(x, y):
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x, y = _align_operand_types(x, y, "bitwise_or()")
+    return OpenVINOKerasTensor(ov_opset.bitwise_or(x, y).output(0))
 
 
 def blackman(x):
@@ -878,9 +940,91 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    raise NotImplementedError(
-        "`cumprod` is not supported with openvino backend"
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    # Determine output dtype following numpy backend logic
+    if dtype is not None:
+        ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
+        if ov_type == Type.boolean:
+            ov_type = Type.i32
+    else:
+        ov_type = x_type
+        if ov_type == Type.boolean:
+            ov_type = Type.i32
+
+    # Convert boolean to int32 for computation
+    if x_type == Type.boolean:
+        x = ov_opset.convert(x, Type.i32).output(0)
+        x_type = Type.i32
+
+    compute_as_float = False
+    if x_type.is_integral():
+        compute_dtype = Type.f32
+        x = ov_opset.convert(x, compute_dtype).output(0)
+        compute_as_float = True
+    else:
+        compute_dtype = x_type
+
+    x, axis = _resolve_axis(x, axis)
+
+    signs = ov_opset.sign(x).output(0)
+
+    is_zero_sign = ov_opset.equal(
+        signs, ov_opset.constant(0, compute_dtype)
+    ).output(0)
+    signs_no_zeros = ov_opset.select(
+        is_zero_sign, ov_opset.constant(1, compute_dtype), signs
+    ).output(0)
+
+    is_negative = ov_opset.less(
+        signs_no_zeros, ov_opset.constant(0, compute_dtype)
+    ).output(0)
+    num_negatives = ov_opset.cumsum(
+        ov_opset.convert(is_negative, Type.i32), axis
+    ).output(0)
+    is_odd = ov_opset.mod(num_negatives, ov_opset.constant(2, Type.i32)).output(
+        0
     )
+
+    cum_sign = ov_opset.subtract(
+        ov_opset.constant(1, Type.i32),
+        ov_opset.multiply(ov_opset.constant(2, Type.i32), is_odd),
+    ).output(0)
+    cum_sign = ov_opset.convert(cum_sign, compute_dtype).output(0)
+
+    abs_x = ov_opset.absolute(x).output(0)
+    is_zero_abs = ov_opset.equal(
+        abs_x, ov_opset.constant(0, compute_dtype)
+    ).output(0)
+    abs_x_safe = ov_opset.select(
+        is_zero_abs, ov_opset.constant(1, compute_dtype), abs_x
+    ).output(0)
+
+    log_abs_x = ov_opset.log(abs_x_safe).output(0)
+    cumsum_log_abs = ov_opset.cumsum(log_abs_x, axis).output(0)
+    cumprod_abs = ov_opset.exp(cumsum_log_abs).output(0)
+
+    result = ov_opset.multiply(cumprod_abs, cum_sign).output(0)
+
+    is_zero = ov_opset.equal(x, ov_opset.constant(0, compute_dtype)).output(0)
+    has_zero_before = ov_opset.cumsum(
+        ov_opset.convert(is_zero, Type.i32), axis
+    ).output(0)
+    zero_mask = ov_opset.equal(
+        has_zero_before, ov_opset.constant(0, Type.i32)
+    ).output(0)
+    result = ov_opset.multiply(
+        result, ov_opset.convert(zero_mask, compute_dtype)
+    ).output(0)
+
+    if compute_as_float and ov_type.is_integral():
+        result = ov_opset.round(result).output(0)
+
+    if result.get_element_type() != ov_type:
+        result = ov_opset.convert(result, ov_type).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def cumsum(x, axis=None, dtype=None):
@@ -1524,6 +1668,28 @@ def identity(n, dtype=None):
 
 def imag(x):
     raise NotImplementedError("`imag` is not supported with openvino backend")
+
+
+def inner(x1, x2):
+    element_type = None
+    if isinstance(x1, OpenVINOKerasTensor):
+        element_type = x1.output.get_element_type()
+    if isinstance(x2, OpenVINOKerasTensor):
+        element_type = x2.output.get_element_type()
+    x1_out = get_ov_output(x1, element_type)
+    x2_out = get_ov_output(x2, element_type)
+
+    x1_rank = x1_out.get_partial_shape().rank
+    x2_rank = x2_out.get_partial_shape().rank
+
+    is_x1_scalar = x1_rank.is_static and x1_rank.get_length() == 0
+    is_x2_scalar = x2_rank.is_static and x2_rank.get_length() == 0
+
+    if is_x1_scalar or is_x2_scalar:
+        x1_out, x2_out = _align_operand_types(x1_out, x2_out, "inner()")
+        return OpenVINOKerasTensor(ov_opset.multiply(x1_out, x2_out).output(0))
+
+    return tensordot(x1, x2, axes=((-1,), (-1,)))
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -2439,6 +2605,10 @@ def nansum(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
+def nanvar(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nanvar` is not supported with openvino backend")
+
+
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = get_ov_output(x)
     dtype = x.get_element_type()
@@ -2705,6 +2875,40 @@ def roll(x, shift, axis=None):
         ).output(0)
         result = ov_opset.roll(flattened, shift, 0).output(0)
         result = ov_opset.reshape(result, output_shape, False).output(0)
+    return OpenVINOKerasTensor(result)
+
+
+def searchsorted(sorted_sequence, values, side="left"):
+    if side not in ("left", "right"):
+        raise ValueError(
+            f"`side` must be either 'left' or 'right'. Received: side={side}"
+        )
+    sorted_sequence = get_ov_output(sorted_sequence)
+    values = get_ov_output(values)
+
+    if sorted_sequence.get_partial_shape().rank.get_length() != 1:
+        raise ValueError(
+            "`searchsorted` only supports 1-D sorted sequences. "
+            "You can use `keras.ops.vectorized_map` "
+            "to extend it to N-D sequences. Received: "
+            f"sorted_sequence.shape={sorted_sequence.get_partial_shape()}"
+        )
+
+    sorted_sequence, values = _align_operand_types(
+        sorted_sequence, values, "searchsorted()"
+    )
+
+    # Note: OpenVINO's bucketize with_right_bound has opposite semantics
+    # with_right_bound=True means search from right (side='left' in numpy)
+    # with_right_bound=False means search from left (side='right' in numpy)
+    with_right_bound = side == "left"
+    result = ov_opset.bucketize(
+        values,
+        sorted_sequence,
+        output_type=Type.i32,
+        with_right_bound=with_right_bound,
+    ).output(0)
+
     return OpenVINOKerasTensor(result)
 
 

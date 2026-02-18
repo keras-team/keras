@@ -333,15 +333,21 @@ def scatter(indices, values, shape):
 
 
 class ScatterUpdate(Operation):
+    def __init__(self, reduction=None, *, name=None):
+        super().__init__(name=name)
+        self.reduction = reduction
+
     def call(self, inputs, indices, updates):
-        return backend.core.scatter_update(inputs, indices, updates)
+        return backend.core.scatter_update(
+            inputs, indices, updates, reduction=self.reduction
+        )
 
     def compute_output_spec(self, inputs, indices, updates):
         return KerasTensor(inputs.shape, dtype=inputs.dtype)
 
 
 @keras_export("keras.ops.scatter_update")
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     """Update inputs via updates at scattered (sparse) indices.
 
     At a high level, this operation does `inputs[indices] = updates`.
@@ -383,13 +389,41 @@ def scatter_update(inputs, indices, updates):
             indices to update. `N` is the number of indices to update, must be
             equal to the first dimension of `updates`.
         updates: A tensor, the new values to be put to `inputs` at `indices`.
+        reduction: A string specifying the reduction operation to apply when
+            multiple updates target the same index. Supported values are:
+            `None` (default): Updates replace existing values (last write wins).
+            `"add"`: Updates are added to existing values.
+            `"max"`: The maximum of updates and existing values is kept.
+            `"min"`: The minimum of updates and existing values is kept.
+            `"mul"`: Updates are multiplied with existing values.
 
     Returns:
         A tensor, has the same shape and dtype as `inputs`.
+
+    Example:
+
+    Using `reduction="add"` to accumulate values at the same index:
+
+    >>> inputs = np.zeros((4,))
+    >>> indices = [[0], [0], [1]]
+    >>> updates = np.array([1., 1., 1.])
+    >>> keras.ops.scatter_update(inputs, indices, updates, reduction="add")
+    array([2., 1., 0., 0.])
     """
+    if reduction is not None:
+        reduction = reduction.lower()
+        if reduction not in ("add", "max", "min", "mul"):
+            raise ValueError(
+                f"Invalid reduction: {reduction}. "
+                "Supported values are: None, 'add', 'max', 'min', 'mul'."
+            )
     if any_symbolic_tensors((inputs, indices, updates)):
-        return ScatterUpdate().symbolic_call(inputs, indices, updates)
-    return backend.core.scatter_update(inputs, indices, updates)
+        return ScatterUpdate(reduction=reduction).symbolic_call(
+            inputs, indices, updates
+        )
+    return backend.core.scatter_update(
+        inputs, indices, updates, reduction=reduction
+    )
 
 
 class Slice(Operation):
@@ -818,7 +852,7 @@ def dtype(x):
 class Cast(Operation):
     def __init__(self, dtype, *, name=None):
         super().__init__(name=name)
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.core.cast(x, self.dtype)
@@ -843,6 +877,7 @@ def cast(x, dtype):
     >>> x = keras.ops.arange(4)
     >>> x = keras.ops.cast(x, dtype="float16")
     """
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Cast(dtype=dtype)(x)
     return backend.core.cast(x, dtype)
@@ -851,7 +886,7 @@ def cast(x, dtype):
 class SaturateCast(Operation):
     def __init__(self, dtype, *, name=None):
         super().__init__(name=name)
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return _saturate_cast(x, self.dtype)
@@ -907,6 +942,7 @@ def saturate_cast(x, dtype):
     >>> #  [255 255 255 255]]
 
     """
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return SaturateCast(dtype=dtype)(x)
     return _saturate_cast(x, dtype)
@@ -955,7 +991,7 @@ def _saturate_cast(x, dtype, backend_module=None):
 class ConvertToTensor(Operation):
     def __init__(self, dtype=None, sparse=None, ragged=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
         self.sparse = sparse
         self.ragged = ragged
 
@@ -1006,6 +1042,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     >>> x = np.array([1, 2, 3])
     >>> y = keras.ops.convert_to_tensor(x)
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return ConvertToTensor(dtype=dtype, sparse=sparse, ragged=ragged)(x)
     return backend.core.convert_to_tensor(

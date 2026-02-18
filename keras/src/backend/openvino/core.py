@@ -770,7 +770,7 @@ def scatter(indices, values, shape):
     )
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     raise NotImplementedError(
         "`scatter_update` is not supported with openvino backend"
     )

@@ -593,7 +593,7 @@ def append(
 class Arange(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, start, stop=None, step=None):
         return backend.numpy.arange(start, stop, step=step, dtype=self.dtype)
@@ -661,6 +661,7 @@ def arange(start, stop=None, step=None, dtype=None):
     >>> keras.ops.arange(3, 7, 2)
     array([3, 5], dtype=int32)
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop, step)):
         return Arange(dtype=dtype).symbolic_call(start, stop, step=step)
     return backend.numpy.arange(start, stop, step=step, dtype=dtype)
@@ -1092,7 +1093,7 @@ def argsort(x, axis=-1):
 class Array(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.array(x, dtype=self.dtype)
@@ -1124,6 +1125,7 @@ def array(x, dtype=None):
     >>> keras.ops.array([1, 2, 3], dtype="float32")
     array([1., 2., 3.], dtype=float32)
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Array(dtype=dtype).symbolic_call(x)
     return backend.numpy.array(x, dtype=dtype)
@@ -1132,7 +1134,7 @@ def array(x, dtype=None):
 class View(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.view(x, dtype=self.dtype)
@@ -1186,6 +1188,7 @@ def view(x, dtype=None):
     >>> keras.ops.view(x, dtype="float32")
     array([1.0e-45, 3.0e-45, 4.0e-45], dtype=float32)
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return View(dtype=dtype).symbolic_call(x)
     return backend.numpy.view(x, dtype=dtype)
@@ -2322,7 +2325,7 @@ class Cumprod(Operation):
     def __init__(self, axis=None, dtype=None, *, name=None):
         super().__init__(name=name)
         self.axis = axis
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.cumprod(x, axis=self.axis, dtype=self.dtype)
@@ -2358,14 +2361,17 @@ def cumprod(x, axis=None, dtype=None):
     Returns:
         Output tensor.
     """
-    return Cumprod(axis=axis, dtype=dtype)(x)
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((x,)):
+        return Cumprod(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.cumprod(x, axis=axis, dtype=dtype)
 
 
 class Cumsum(Operation):
     def __init__(self, axis=None, dtype=None, *, name=None):
         super().__init__(name=name)
         self.axis = axis
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.cumsum(x, axis=self.axis, dtype=self.dtype)
@@ -2401,7 +2407,10 @@ def cumsum(x, axis=None, dtype=None):
     Returns:
         Output tensor.
     """
-    return Cumsum(axis=axis, dtype=dtype)(x)
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((x,)):
+        return Cumsum(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.cumsum(x, axis=axis, dtype=dtype)
 
 
 class Deg2rad(Operation):
@@ -3196,7 +3205,7 @@ def empty(shape, dtype=None):
 class EmptyLike(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.empty_like(x, dtype=self.dtype)
@@ -3230,6 +3239,7 @@ def empty_like(x, dtype=None):
     >>> y.dtype
     dtype('float32')
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return EmptyLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.empty_like(x, dtype=dtype)
@@ -3452,7 +3462,7 @@ class Full(Operation):
     def __init__(self, shape, dtype=None, *, name=None):
         super().__init__(name=name)
         self.shape = shape
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, fill_value):
         return backend.numpy.full(self.shape, fill_value, dtype=self.dtype)
@@ -3474,6 +3484,7 @@ def full(shape, fill_value, dtype=None):
     Returns:
         Output tensor.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((fill_value,)):
         return Full(shape=shape, dtype=dtype).symbolic_call(fill_value)
     return backend.numpy.full(shape, fill_value, dtype=dtype)
@@ -3482,7 +3493,7 @@ def full(shape, fill_value, dtype=None):
 class FullLike(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x, fill_value):
         return backend.numpy.full_like(x, fill_value, dtype=self.dtype)
@@ -3508,6 +3519,7 @@ def full_like(x, fill_value, dtype=None):
     Returns:
         Tensor of `fill_value` with the same shape and type as `x`.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x, fill_value)):
         return FullLike(dtype=dtype).symbolic_call(x, fill_value)
     return backend.numpy.full_like(x, fill_value, dtype=dtype)
@@ -4640,7 +4652,7 @@ class Logspace(Operation):
         self.num = num
         self.endpoint = endpoint
         self.base = base
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
         self.axis = axis
 
     def call(self, start, stop):
@@ -4708,6 +4720,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     Returns:
         A tensor of evenly spaced samples on a log scale.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop)):
         return Logspace(num, endpoint, base, dtype, axis)(start, stop)
     return backend.numpy.logspace(
@@ -5432,6 +5445,58 @@ def nansum(x, axis=None, keepdims=False):
     return backend.numpy.nansum(x, axis=axis, keepdims=keepdims)
 
 
+class Nanvar(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanvar(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanvar", "keras.ops.numpy.nanvar"])
+def nanvar(x, axis=None, keepdims=False):
+    """Compute the variance along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the variance is computed. The default
+            is to compute the variance of the flattened tensor.
+        keepdims: If `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Output tensor containing the variance ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanvar(x)
+    0.6875
+
+    >>> ops.nanvar(x, axis=1)
+    array([1.  , 0.25])
+
+    >>> ops.nanvar(x, axis=1, keepdims=True)
+    array([[1.  ],
+           [0.25]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanvar(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanvar(x, axis=axis, keepdims=keepdims)
+
+
 class NanToNum(Operation):
     def __init__(self, nan=0.0, posinf=None, neginf=None, *, name=None):
         super().__init__(name=name)
@@ -5553,7 +5618,7 @@ def not_equal(x1, x2):
 class OnesLike(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.ones_like(x, dtype=self.dtype)
@@ -5579,6 +5644,7 @@ def ones_like(x, dtype=None):
     Returns:
         A tensor of ones with the same shape and type as `x`.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OnesLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.ones_like(x, dtype=dtype)
@@ -5587,7 +5653,7 @@ def ones_like(x, dtype=None):
 class ZerosLike(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.zeros_like(x, dtype=self.dtype)
@@ -5618,6 +5684,7 @@ def zeros_like(x, dtype=None):
     Returns:
         A tensor of zeros with the same shape and type as `x`.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return ZerosLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.zeros_like(x, dtype=dtype)
@@ -5773,7 +5840,7 @@ class Prod(Operation):
         else:
             self.axis = axis
         self.keepdims = keepdims
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.prod(
@@ -5819,6 +5886,7 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     Returns:
         Product of elements of `x` over the given axis or axes.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Prod(axis=axis, keepdims=keepdims, dtype=dtype).symbolic_call(x)
     return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
