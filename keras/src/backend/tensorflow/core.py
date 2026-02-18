@@ -581,8 +581,36 @@ def scatter(indices, values, shape):
     return tf.scatter_nd(indices, values, shape)
 
 
-def scatter_update(inputs, indices, updates):
-    return tf.tensor_scatter_nd_update(inputs, indices, updates)
+def scatter_update(inputs, indices, updates, reduction=None):
+    if reduction is None:
+        return tf.tensor_scatter_nd_update(inputs, indices, updates)
+    elif reduction == "add":
+        return tf.tensor_scatter_nd_add(inputs, indices, updates)
+    elif reduction == "max":
+        return tf.tensor_scatter_nd_max(inputs, indices, updates)
+    elif reduction == "min":
+        return tf.tensor_scatter_nd_min(inputs, indices, updates)
+    elif reduction == "mul":
+        # TensorFlow doesn't have tensor_scatter_nd_mul, implement manually
+        # Use while_loop to handle both scalar and slice updates correctly
+        num_updates = tf.shape(indices)[0]
+
+        def body(i, result):
+            idx = indices[i : i + 1]  # Shape (1, index_depth)
+            current = tf.gather_nd(result, idx)  # Shape (1, *slice_shape)
+            new_value = (
+                current * updates[i]
+            )  # Maintains shape (1, *slice_shape)
+            return i + 1, tf.tensor_scatter_nd_update(result, idx, new_value)
+
+        _, result = tf.while_loop(
+            lambda i, _: i < num_updates,
+            body,
+            [0, inputs],
+        )
+        return result
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
 
 
 def slice(inputs, start_indices, shape):

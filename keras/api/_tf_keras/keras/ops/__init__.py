@@ -204,6 +204,7 @@ from keras.src.ops.numpy import hamming as hamming
 from keras.src.ops.numpy import hanning as hanning
 from keras.src.ops.numpy import heaviside as heaviside
 from keras.src.ops.numpy import histogram as histogram
+from keras.src.ops.numpy import hsplit as hsplit
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import hypot as hypot
 from keras.src.ops.numpy import identity as identity
@@ -253,6 +254,7 @@ from keras.src.ops.numpy import nanmean as nanmean
 from keras.src.ops.numpy import nanmin as nanmin
 from keras.src.ops.numpy import nanprod as nanprod
 from keras.src.ops.numpy import nansum as nansum
+from keras.src.ops.numpy import nanvar as nanvar
 from keras.src.ops.numpy import ndim as ndim
 from keras.src.ops.numpy import negative as negative
 from keras.src.ops.numpy import nextafter as nextafter

@@ -1,4 +1,5 @@
 import itertools
+from unittest.mock import create_autospec
 
 import numpy as np
 import pytest
@@ -371,6 +372,16 @@ class VariablePropertiesTest(test_case.TestCase):
             "Cannot convert .* to a shape. Negative dimensions",
         ):
             standardize_shape((3, 4, -5))
+
+    @parameterized.named_parameters(
+        ("all_dynamic", (None, None, None, 64), (None, None, None, 64)),
+        ("mixed", (None, 224, 224, 3), (None, 224, 224, 3)),
+        ("all_static", (1, 224, 224, 3), (1, 224, 224, 3)),
+    )
+    def test_standardize_shape_preserves_none(self, input_shape, expected):
+        """Test that None dimensions are preserved correctly."""
+        result = standardize_shape(input_shape)
+        self.assertEqual(result, expected)
 
     def test_shape_equal_length_mismatch(self):
         """Test mismatch in lengths of shapes."""
@@ -1180,6 +1191,28 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         self.assertIs(type(standardized_shape), tuple)
         for d in standardized_shape:
             self.assertIsInstance(d, int)
+
+    def test_standardize_shape_with_torch_symint(self):
+        """Test that torch.SymInt dimensions are converted to None.
+
+        This validates the fix for GitHub issue #22102 where torch.SymInt
+        objects from torch.export were causing "Constraints violated" errors.
+        """
+        import torch
+
+        # Create a mock SymInt object
+        sym_int = create_autospec(torch.SymInt, instance=True)
+        shape_with_sym_int = (sym_int, 224, 224, 64)
+
+        # SymInt should be converted to None
+        result = standardize_shape(shape_with_sym_int)
+        self.assertEqual(result, (None, 224, 224, 64))
+
+        # Test with multiple SymInts
+        sym_int2 = create_autospec(torch.SymInt, instance=True)
+        shape_with_multiple_sym_ints = (sym_int, sym_int2, 64)
+        result = standardize_shape(shape_with_multiple_sym_ints)
+        self.assertEqual(result, (None, None, 64))
 
 
 @pytest.mark.skipif(
