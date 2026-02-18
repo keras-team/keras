@@ -473,7 +473,11 @@ class ExportTorchTest(testing.TestCase):
         model = models.Sequential(
             [
                 layers.Conv2D(
-                    32, 3, activation="relu", input_shape=(32, 32, 3)
+                    32,
+                    3,
+                    activation="relu",
+                    input_shape=(32, 32, 3),
+                    data_format="channels_last",
                 ),
                 layers.MaxPooling2D(2),
                 layers.Conv2D(64, 3, activation="relu"),
