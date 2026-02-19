@@ -925,7 +925,22 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
-    return torch.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    if "float" in standardize_dtype(result_dtype):
+        return torch.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return torch.eq(x1, x2)
+
+
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = cast(x1, result_dtype)
+    x2 = cast(x2, result_dtype)
+    if "float" in standardize_dtype(result_dtype):
+        return torch.all(
+            torch.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+        )
+    return torch.all(torch.eq(x1, x2))
 
 
 def isfinite(x):
