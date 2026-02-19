@@ -300,6 +300,7 @@ def all(x, axis=None, keepdims=False):
         return All(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.all(x, axis=axis, keepdims=keepdims)
 
+
 class AllClose(Operation):
     def __init__(self, rtol=1e-05, atol=1e-08, equal_nan=False, *, name=None):
         super().__init__(name=name)
@@ -348,6 +349,7 @@ def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
     return backend.numpy.allclose(
         x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
     )
+
 
 class Angle(Operation):
     def call(self, x):

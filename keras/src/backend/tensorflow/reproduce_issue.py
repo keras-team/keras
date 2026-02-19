@@ -2,9 +2,10 @@ import os
 
 os.environ["KERAS_BACKEND"] = "tensorflow"
 
+import numpy as np
+
 import keras
 import keras.src.ops
-import numpy as np
 
 print(f"Has keras.src.ops.allclose: {hasattr(keras.src.ops, 'allclose')}")
 
@@ -14,7 +15,7 @@ try:
     x1 = np.array([1.0, 2.0])
     x2 = np.array([1.0, 2.000000001])
     # Try calling directly from src if ops fails
-    if hasattr(keras.src.ops, 'allclose'):
+    if hasattr(keras.src.ops, "allclose"):
         print("Calling keras.src.ops.allclose...")
         result = keras.src.ops.allclose(x1, x2)
         print(f"Result: {result}")

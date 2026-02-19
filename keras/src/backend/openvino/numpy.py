@@ -205,6 +205,7 @@ def all(x, axis=None, keepdims=False):
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     )
 
+
 def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
     if (
         not isinstance(x1, OpenVINOKerasTensor)
@@ -225,6 +226,7 @@ def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
             pass
 
     return all(isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan))
+
 
 def angle(x):
     raise NotImplementedError("`angle` is not supported with openvino backend")

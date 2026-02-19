@@ -3366,6 +3366,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.GreaterEqual()(2, x),
             np.greater_equal(2, x),
         )
+
     def test_allclose(self):
         x = np.array([1], dtype="int32")
         y = np.array([2], dtype="int32")
@@ -3380,7 +3381,7 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y_nan = np.array([np.nan, 1.0])
         self.assertAllClose(knp.allclose(x_nan, y_nan), False)
         self.assertAllClose(knp.allclose(x_nan, y_nan, equal_nan=True), True)
-        
+
     def test_isclose(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])
