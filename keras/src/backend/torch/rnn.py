@@ -762,7 +762,7 @@ def gru(
         use_bias=bias is not None,
     )
 
-    if not cudnn_supported or not reset_after:
+    if not cudnn_supported or not reset_after or mask is not None:
         raise NotImplementedError
 
     # Get device from inputs
