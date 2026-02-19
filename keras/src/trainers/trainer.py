@@ -159,9 +159,8 @@ class Trainer:
             model.fit(x_train, y_train)
             ```
 
-            This behavior applies to all Keras backends and matches the behavior
-            of Keras 2 (`tf.keras`), where trainable variables are captured at
-            compile time (as also documented in the transfer learning guide).
+            This behavior applies to all Keras backends and is also documented
+            in the transfer learning guide.
         """
         optimizer = optimizers.get(optimizer)
         self.optimizer = optimizer
