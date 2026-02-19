@@ -123,46 +123,30 @@ class TorchExporter:
             self.input_signature = get_input_signature(self.model)
 
         # 2. Create sample inputs from signature
-        # Replace None dimensions with 1 for sample input generation
+        #    (replace None dimensions with concrete value)
         sample_inputs = tree.map_structure(
             lambda x: convert_spec_to_tensor(x, replace_none_number=1),
             self.input_signature,
         )
         sample_inputs = tuple(sample_inputs)
 
-        # Ensure sample inputs are on the same device as the model
-        # (e.g., CPU for LiteRT export). Keras models expose variables
-        # through model.variables, not PyTorch's nn.Module.parameters().
-        try:
-            for v in self.model.variables:
-                if hasattr(v, "value") and hasattr(v.value, "device"):
-                    device = v.value.device
-                    sample_inputs = tuple(
-                        t.to(device) if hasattr(t, "to") else t
-                        for t in sample_inputs
-                    )
-                    break  # All vars are on the same device
-        except (AttributeError, TypeError):
-            # If variables or device detection fails, continue with
-            # sample_inputs as-is. Device mismatch will be caught by
-            # torch.export with a clearer error message.
-            pass
+        # 3. Move sample inputs to same device as model
+        device = self._get_model_device()
+        if device is not None:
+            sample_inputs = tuple(
+                t.to(device) if hasattr(t, "to") else t for t in sample_inputs
+            )
 
-        # 3. Put model in eval mode for inference
+        # 4. Put model in eval mode for inference
         if hasattr(self.model, "eval"):
             self.model.eval()
 
-        # 4. Export the model
-        # Extract torch.export-specific kwargs
-        export_kwargs = {}
-        if "strict" in self.kwargs:
-            export_kwargs["strict"] = self.kwargs["strict"]
-        else:
-            # Default to non-strict mode for better compatibility with
-            # Keras models that may use non-traceable patterns
-            export_kwargs["strict"] = False
+        # 5. Configure torch.export parameters
+        export_kwargs = self._get_export_kwargs()
 
+        # 6. Export and save the model
         with warnings.catch_warnings():
+            # Suppress Keras internal warnings about submodule registration
             warnings.filterwarnings(
                 "ignore",
                 message=r".*not properly registered as a submodule.*",
@@ -176,12 +160,41 @@ class TorchExporter:
                 )
             except Exception as e:
                 raise RuntimeError(
-                    "PyTorch export failed. This may be due to model "
-                    "complexity, unsupported operations, or data-dependent "
-                    f"control flow. Error: {e}"
+                    f"Failed to export model to PyTorch format. "
+                    f"Common causes: unsupported operations, data-dependent "
+                    f"control flow, or dynamic shapes. Original error: {e}"
                 ) from e
 
-        # 5. Save the exported program
         torch.export.save(exported_program, filepath)
-
         return filepath
+
+    def _get_model_device(self):
+        """Detect the device of model parameters.
+
+        Returns:
+            torch.device or None if device cannot be determined.
+        """
+        try:
+            for v in self.model.variables:
+                if hasattr(v, "value") and hasattr(v.value, "device"):
+                    return v.value.device
+        except (AttributeError, TypeError):
+            pass
+        return None
+
+    def _get_export_kwargs(self):
+        """Extract and configure torch.export parameters.
+
+        Returns:
+            dict: Parameters for torch.export.export.
+        """
+        export_kwargs = {}
+        if "strict" in self.kwargs:
+            export_kwargs["strict"] = self.kwargs["strict"]
+        else:
+            # Default to non-strict mode: Keras models often use patterns
+            # (e.g., custom layers with Python control flow) that strict
+            # mode rejects. Non-strict mode allows these while still
+            # capturing the core computation graph.
+            export_kwargs["strict"] = False
+        return export_kwargs

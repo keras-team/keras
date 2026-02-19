@@ -269,6 +269,25 @@ class LiteRTExporter:
 def export_litert_via_torch(
     model, filepath, input_signature=None, verbose=None, **kwargs
 ):
+    """Export Keras model to LiteRT via PyTorch backend.
+
+    This function handles the complete conversion pipeline:
+    1. Move model to CPU (required for portable ops)
+    2. Register decompositions for unsupported operations
+    3. Patch VHLO version for TFLite converter compatibility
+    4. Convert model using litert_torch
+    5. Restore model to original device
+
+    Args:
+        model: Keras model to export.
+        filepath: Path to save the .tflite model.
+        input_signature: Optional input specification.
+        verbose: Whether to print export messages.
+        **kwargs: Additional arguments for litert_torch conversion.
+
+    Returns:
+        Path to the exported model.
+    """
     try:
         import litert_torch
         import torch
@@ -276,38 +295,26 @@ def export_litert_via_torch(
         raise ImportError(
             "To export to LiteRT with the PyTorch backend, "
             "you must install the `litert-torch` package. "
-            "You can install it via `pip install litert-torch`."
+            "Install via: pip install litert-torch"
         )
 
     from keras.src.export.export_utils import convert_spec_to_tensor
 
-    # 1. Move model state to CPU to avoid MPS/CUDA-specific ops.
-    # This covers three categories of tensors:
-    #   a) Keras Variable instances (model.variables)
-    #   b) nn.Module parameters & buffers (model.named_parameters/buffers)
-    #   c) Raw tensor attributes on layers (e.g. Normalization.mean)
+    # Track original devices for restoration
     original_devices = {}
+
+    # Step 1: Move model to CPU for portable export
     _move_model_to_cpu(model, original_devices, torch)
 
-    # Use a CPU device scope so Keras ops (convert_to_tensor, etc.)
-    # don't move intermediate tensors back to MPS/CUDA during tracing.
+    # Use CPU device scope for all conversions
     from keras.src.backend.torch.core import device_scope
 
     with device_scope("cpu"):
-        # 2. Register decompositions and fix StableHLO version
-        # compatibility.  On Apple Silicon, torch.export captures
-        # aten._scaled_dot_product_attention_math_for_mps which
-        # litert_torch cannot lower. We register the standard
-        # (non-MPS) decomposition so it decomposes into portable ops.
+        # Step 2: Setup decompositions and version compatibility
         _register_litert_decompositions(torch, litert_torch)
-
-        # Force VHLO serialization to target a StableHLO version
-        # compatible with the TFLite converter. Without this, JAX's
-        # StableHLO (v1.13.0+) emits v2 VHLO ops (tanh_v2, etc.)
-        # that TF's converter (up to ~v1.9.1) cannot parse.
         _patch_vhlo_target_version()
 
-        # 3. Build sample inputs for conversion (always on CPU).
+        # Step 3: Prepare sample inputs
         if input_signature is None:
             input_signature = get_input_signature(model)
 
@@ -321,36 +328,12 @@ def export_litert_via_torch(
         )
         sample_inputs = tuple(sample_inputs)
 
-        # 4. Put model in eval mode for better export quality.
+        # Step 4: Set model to eval mode
         if hasattr(model, "eval"):
             model.eval()
 
-        # 5. Convert directly via litert_torch.
-        # Translate TFLite-specific kwargs to litert_torch equivalents.
-        litert_torch_kwargs = {}
-
-        # Direct pass-through args
-        valid_litert_torch_args = {
-            "strict_export",
-            "quant_config",
-            "dynamic_shapes",
-            "_ai_edge_converter_flags",
-            "_saved_model_dir",
-        }
-        for k, v in kwargs.items():
-            if k in valid_litert_torch_args:
-                litert_torch_kwargs[k] = v
-
-        # Translate TFLite 'optimizations' to litert_torch 'quant_config'
-        if (
-            "optimizations" in kwargs
-            and "quant_config" not in litert_torch_kwargs
-        ):
-            quant_cfg = _create_quant_config_from_optimizations(
-                kwargs["optimizations"], litert_torch
-            )
-            if quant_cfg is not None:
-                litert_torch_kwargs["quant_config"] = quant_cfg
+        # Step 5: Convert to LiteRT
+        litert_torch_kwargs = _prepare_litert_kwargs(kwargs, litert_torch)
 
         try:
             try:
@@ -359,14 +342,15 @@ def export_litert_via_torch(
                 )
             except Exception as e:
                 raise RuntimeError(
-                    f"Failed to convert PyTorch model to LiteRT: {e}"
+                    f"Failed to convert PyTorch model to LiteRT. "
+                    f"Common causes: unsupported operations, dynamic shapes, "
+                    f"or complex control flow. Original error: {e}"
                 ) from e
 
-            # 6. Save the .tflite model.
+            # Step 6: Save the model
             edge_model.export(filepath)
         finally:
-            # 7. Always restore model variables to original devices,
-            # even if conversion or export failed.
+            # Step 7: Always restore model to original devices
             _restore_model_devices(model, original_devices, torch)
 
     if verbose:
@@ -375,7 +359,62 @@ def export_litert_via_torch(
     return filepath
 
 
+def _prepare_litert_kwargs(kwargs, litert_torch):
+    """Prepare litert_torch conversion kwargs from user-provided arguments.
+
+    Translates TFLite-style arguments to litert_torch equivalents.
+
+    Args:
+        kwargs: User-provided keyword arguments.
+        litert_torch: The litert_torch module.
+
+    Returns:
+        dict: Kwargs suitable for litert_torch.convert().
+    """
+    litert_torch_kwargs = {}
+
+    # Direct pass-through arguments
+    valid_litert_torch_args = {
+        "strict_export",
+        "quant_config",
+        "dynamic_shapes",
+        "_ai_edge_converter_flags",
+        "_saved_model_dir",
+    }
+    for k, v in kwargs.items():
+        if k in valid_litert_torch_args:
+            litert_torch_kwargs[k] = v
+
+    # Translate TFLite 'optimizations' to litert_torch 'quant_config'
+    if "optimizations" in kwargs and "quant_config" not in litert_torch_kwargs:
+        quant_cfg = _create_quant_config_from_optimizations(
+            kwargs["optimizations"], litert_torch
+        )
+        if quant_cfg is not None:
+            litert_torch_kwargs["quant_config"] = quant_cfg
+
+    return litert_torch_kwargs
+
+
 def _move_model_to_cpu(model, original_devices, torch):
+    """Move all model tensors to CPU for portable export.
+
+    Handles three categories that Keras models can store tensors in:
+    1. Keras ``Variable`` instances (``model.variables``).
+    2. ``nn.Module`` parameters and buffers registered via PyTorch.
+    3. Raw tensor attributes on Keras layers (e.g.
+       ``Normalization.mean`` / ``Normalization.variance``).
+    """
+    # (a) Keras Variables
+    try:
+        for v in model.variables:
+            if hasattr(v, "value") and hasattr(v.value, "data"):
+                dev = str(v.value.device)
+                if dev != "cpu":
+                    original_devices[("var", v.path)] = dev
+                    v.value.data = v.value.data.to("cpu")
+    except (AttributeError, TypeError):
+        pass
     """Move all model tensors to CPU for portable export.
 
     Handles three categories that Keras models can store tensors in:
@@ -552,12 +591,21 @@ def _restore_model_devices(model, original_devices, torch):
 
 
 def _register_litert_decompositions(torch, litert_torch):
-    """Register decompositions for ops that litert_torch cannot lower.
+    """Register decompositions for operations unsupported by litert_torch.
 
-    Covers two categories:
-    1. MPS-specific ops on Apple Silicon (e.g. MPS SDPA variant).
-    2. Ops whose litert_torch lowering doesn't accept all kwargs
-       (e.g. ``aten.mean.dim`` with ``dtype``).
+    Covers two main categories:
+    1. **MPS-specific ops**: On Apple Silicon, torch.export may capture
+       MPS-optimized operations (e.g.,
+       `_scaled_dot_product_attention_math_for_mps`) that litert_torch
+       cannot lower. We register standard (portable) decompositions
+       instead.
+    2. **Ops with unsupported kwargs**: Some operations (e.g., `aten.mean.dim`
+       with `dtype` kwarg) have litert_torch lowerings that don't accept all
+       parameters. We decompose these into equivalent primitive operations.
+
+    Args:
+        torch: The torch module.
+        litert_torch: The litert_torch module.
     """
     from litert_torch.fx_infra import decomp as litert_decomp
 
@@ -686,24 +734,27 @@ def _register_litert_decompositions(torch, litert_torch):
 def _patch_vhlo_target_version():
     """Patch VHLO serialization for TFLite converter compatibility.
 
-    Addresses two issues in the litert_torch → TFLite conversion path:
+    **WARNING: This function monkey-patches litert_torch internals.**
 
-    1. **StableHLO version skew**: litert_torch serializes VHLO bytecode
-       targeting StableHLO v1.13.0+ (``WEEK_12``), which introduces v2
-       variants of element-wise ops (``tanh_v2``, ``logistic_v2``, etc.).
-       The TFLite converter only supports StableHLO up to ~v1.9.1.
+    Addresses StableHLO version compatibility issues:
 
-    2. **Unsupported ``optimization_barrier`` ops**: litert_torch's
-       embedding composite pass inserts ``stablehlo.optimization_barrier``
-       ops that the TFLite converter cannot handle.
+    1. **StableHLO version skew**: litert_torch serializes VHLO targeting
+       StableHLO v1.13.0+, which uses v2 element-wise ops (`tanh_v2`,
+       `logistic_v2`, etc.). The TFLite converter only supports StableHLO
+       up to ~v1.9.1 and cannot parse these newer ops.
 
-    This function monkey-patches ``MlirLowered.module_bytecode_vhlo`` to
-    strip ``optimization_barrier`` ops and serialize with the minimum
-    StableHLO version.
+    2. **Unsupported optimization_barrier ops**: litert_torch inserts
+       `stablehlo.optimization_barrier` operations that the TFLite
+       converter rejects.
 
-    TODO: Remove this patch once the TFLite converter supports newer StableHLO
-    versions and handles optimization barriers, or when litert-torch provides
-    options to target older StableHLO versions/disable barriers.
+    This patch modifies `MlirLowered.module_bytecode_vhlo` to:
+    - Remove optimization barrier ops (they're compiler hints with no
+      runtime effect)
+    - Serialize using the minimum StableHLO version for maximum
+      compatibility
+
+    TODO: Remove this once TFLite converter supports newer StableHLO versions
+    or litert-torch provides configuration options for version targeting.
     """
     try:
         from litert_torch.odml_torch import export as _odml_export
@@ -724,8 +775,10 @@ def _patch_vhlo_target_version():
         MlirLowered.module_bytecode_vhlo = _patched_module_bytecode_vhlo
         MlirLowered._keras_vhlo_patched = True
     except (ImportError, AttributeError):
-        # VHLO patching is best-effort. If litert_torch internals are
-        # unavailable, the conversion will proceed without this optimization.
+        # Patching is best-effort. If litert_torch internals change or are
+        # unavailable, conversion will proceed without this optimization.
+        # If version incompatibility issues arise, they'll be caught by
+        # the TFLite converter with appropriate error messages.
         pass
 
 

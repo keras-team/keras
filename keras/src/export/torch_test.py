@@ -13,10 +13,6 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.testing.test_utils import named_product
 
-# Tolerance constants for numerical comparison in torch export tests
-_DEFAULT_ATOL = 1e-5
-_DEFAULT_RTOL = 1e-5
-
 
 class CustomModel(models.Model):
     def __init__(self, layer_list):
@@ -102,104 +98,100 @@ def _to_torch_tensor(np_array):
 class ExportTorchTest(testing.TestCase):
     """Test suite for PyTorch ExportedProgram export functionality."""
 
+    # Numerical tolerance for exported model comparison
+    ATOL = 1e-5
+    RTOL = 1e-5
+
+    def _verify_export_and_inference(
+        self, model, ref_input, filepath=None, **export_kwargs
+    ):
+        """Helper to export model, load it, and verify numerical correctness.
+
+        Args:
+            model: Keras model to export.
+            ref_input: Input for inference (numpy or nested structure).
+            filepath: Optional export path. If None, uses temp file.
+            **export_kwargs: Additional arguments for model.export().
+
+        Returns:
+            tuple: (keras_output, loaded_output) both as numpy arrays.
+        """
+        import torch
+
+        if filepath is None:
+            filepath = os.path.join(self.get_temp_dir(), "model.pt2")
+
+        # Get reference output
+        ref_output = _convert_to_numpy(model(ref_input))
+
+        # Export model
+        model.export(filepath, format="torch", **export_kwargs)
+        self.assertTrue(os.path.exists(filepath))
+
+        # Load and run inference
+        loaded_program = torch.export.load(filepath)
+        loaded_model = loaded_program.module()
+
+        # Convert input to torch tensors on correct device
+        torch_input = tree.map_structure(_to_torch_tensor, ref_input)
+        loaded_output = _convert_to_numpy(loaded_model(torch_input))
+
+        self.assertAllClose(
+            ref_output, loaded_output, atol=self.ATOL, rtol=self.RTOL
+        )
+
+        return ref_output, loaded_output
+
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional"])
     )
     def test_standard_model_export(self, model_type):
         """Test exporting standard model types to PyTorch format."""
-        import torch
-
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.pt2")
         model = get_model(model_type)
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
-        ref_output = _convert_to_numpy(model(ref_input))
-
-        model.export(temp_filepath, format="torch")
-        self.assertTrue(os.path.exists(temp_filepath))
-
-        # Load and verify - input must be on same device as model
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_model = loaded_program.module()
-        loaded_output = loaded_model(_to_torch_tensor(ref_input))
-        loaded_output = _to_numpy(loaded_output)
-
-        self.assertAllClose(
-            ref_output, loaded_output, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
-        )
+        self._verify_export_and_inference(model, ref_input)
 
     def test_export_subclass_model(self):
         """Test exporting subclass models."""
-        import torch
-
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.pt2")
         model = get_model("subclass")
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
-        ref_output = _convert_to_numpy(model(ref_input))
-
-        model.export(temp_filepath, format="torch")
-        self.assertTrue(os.path.exists(temp_filepath))
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_model = loaded_program.module()
-        loaded_output = loaded_model(_to_torch_tensor(ref_input))
-        loaded_output = _to_numpy(loaded_output)
-
-        self.assertAllClose(
-            ref_output, loaded_output, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
-        )
+        self._verify_export_and_inference(model, ref_input)
 
     def test_model_with_multiple_inputs(self):
         """Test exporting models with multiple inputs."""
-        import torch
-
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.pt2")
         model = get_model("multi_input")
         ref_input1 = np.random.normal(size=(1, 10)).astype("float32")
         ref_input2 = np.random.normal(size=(1, 10)).astype("float32")
-        ref_output = _convert_to_numpy(model([ref_input1, ref_input2]))
-
-        model.export(temp_filepath, format="torch")
-        self.assertTrue(os.path.exists(temp_filepath))
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_model = loaded_program.module()
-        # Multi-input models exported from Keras expect a list of inputs
-        loaded_output = loaded_model(
-            [_to_torch_tensor(ref_input1), _to_torch_tensor(ref_input2)]
-        )
-        loaded_output = _to_numpy(loaded_output)
-
-        self.assertAllClose(
-            ref_output, loaded_output, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
-        )
+        ref_input = [ref_input1, ref_input2]
+        self._verify_export_and_inference(model, ref_input)
 
     def test_multi_output_model_export(self):
         """Test exporting multi-output models."""
         import torch
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.pt2")
         model = get_model("multi_output")
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
-        ref_outputs = _convert_to_numpy(model(ref_input))
+        ref_output = _convert_to_numpy(model(ref_input))
 
+        temp_filepath = os.path.join(self.get_temp_dir(), "multi_out.pt2")
         model.export(temp_filepath, format="torch")
         self.assertTrue(os.path.exists(temp_filepath))
 
         loaded_program = torch.export.load(temp_filepath)
         loaded_model = loaded_program.module()
-        loaded_outputs = loaded_model(_to_torch_tensor(ref_input))
+        loaded_output = _convert_to_numpy(
+            loaded_model(_to_torch_tensor(ref_input))
+        )
 
-        # Multi-output may return a tuple or list
-        if isinstance(loaded_outputs, (tuple, list)):
-            for ref_out, loaded_out in zip(ref_outputs, loaded_outputs):
-                loaded_np = _to_numpy(loaded_out)
+        # Handle both tuple/list and single output cases
+        if isinstance(loaded_output, (tuple, list)):
+            for ref_out, loaded_out in zip(ref_output, loaded_output):
                 self.assertAllClose(
-                    ref_out, loaded_np, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
+                    ref_out, loaded_out, atol=self.ATOL, rtol=self.RTOL
                 )
         else:
-            loaded_np = _to_numpy(loaded_outputs)
             self.assertAllClose(
-                ref_outputs, loaded_np, atol=_DEFAULT_ATOL, rtol=_DEFAULT_RTOL
+                ref_output, loaded_output, atol=self.ATOL, rtol=self.RTOL
             )
 
     def test_export_with_custom_input_signature(self):
@@ -208,10 +200,10 @@ class ExportTorchTest(testing.TestCase):
 
         model = get_model("sequential")
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
-        model(ref_input)  # Build
+        model(ref_input)  # Build the model
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.pt2")
         input_signature = [layers.InputSpec(shape=(1, 10), dtype="float32")]
+        temp_filepath = os.path.join(self.get_temp_dir(), "custom_sig.pt2")
 
         model.export(
             temp_filepath,
@@ -220,20 +212,17 @@ class ExportTorchTest(testing.TestCase):
         )
         self.assertTrue(os.path.exists(temp_filepath))
 
-        # Verify we can load and run
+        # Verify the export works with the specified signature
         loaded_program = torch.export.load(temp_filepath)
         loaded_model = loaded_program.module()
         test_input = torch.randn(1, 10).to(_get_torch_device())
         output = loaded_model(test_input)
         self.assertEqual(_to_numpy(output).shape[-1], 1)
 
-        # Numeric verification
+        # Verify numerical correctness
         ref_output = _convert_to_numpy(model(_to_numpy(test_input)))
         self.assertAllClose(
-            ref_output,
-            _to_numpy(output),
-            atol=_DEFAULT_ATOL,
-            rtol=_DEFAULT_RTOL,
+            ref_output, _to_numpy(output), atol=self.ATOL, rtol=self.RTOL
         )
 
     def test_export_with_verbose(self):
@@ -242,26 +231,13 @@ class ExportTorchTest(testing.TestCase):
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
         model(ref_input)
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.pt2")
-
-        # Export with verbose=True should not raise
+        temp_filepath = os.path.join(self.get_temp_dir(), "verbose_model.pt2")
         model.export(temp_filepath, format="torch", verbose=True)
         self.assertTrue(os.path.exists(temp_filepath))
 
-        # Numeric verification
-        import torch
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_model = loaded_program.module()
-
-        ref_output = _convert_to_numpy(model(ref_input))
-        loaded_output = loaded_model(_to_torch_tensor(ref_input))
-
-        self.assertAllClose(
-            ref_output,
-            _to_numpy(loaded_output),
-            atol=_DEFAULT_ATOL,
-            rtol=_DEFAULT_RTOL,
+        # Verify inference
+        self._verify_export_and_inference(
+            model, ref_input, filepath=temp_filepath
         )
 
     def test_export_error_handling(self):
@@ -289,101 +265,50 @@ class ExportTorchTest(testing.TestCase):
             model.export(temp_filepath, format="torch")
 
     def test_model_with_input_structure(self):
-        """Test exporting models with structured inputs (tuple/array/dict)."""
+        """Test exporting models with structured inputs (list/dict)."""
         import torch
 
-        # Define basic input
         ref_input_arr = np.random.normal(size=(1, 10)).astype("float32")
 
-        # Case 1: Tuple input
+        # Test 1: List input (multiple tensors)
         input1 = layers.Input(shape=(10,), name="input_1")
         input2 = layers.Input(shape=(10,), name="input_2")
         output = layers.Add()([input1, input2])
-        model_tuple = models.Model(inputs=[input1, input2], outputs=output)
-        ref_input_tuple = (ref_input_arr, ref_input_arr * 2)
+        model_list = models.Model(inputs=[input1, input2], outputs=output)
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "tuple_model.pt2")
-        model_tuple.export(temp_filepath, format="torch")
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_model = loaded_program.module()
-        # Exported model expects a tuple argument or expanded args.
-        # Keras models with list inputs expects list of args or single
-        # list/tuple. `get_input_signature` returns a list of specs.
-        # `model.export` converts this to a tuple of tensors: `(t1, t2)`.
-        # The traced model expects `(t1, t2)`.
-        # But `model.export` logic: sample_inputs = (t1, t2)
-        # model(*sample_inputs) -> model(t1, t2)
-        # So the model actually expects *args.
-        # For multi-input functional models, `get_input_signature`
-        # returns a list containing a list of specs.
-        # `model.export` converts this to `([t1, t2],)`.
-        # So the model expects a single argument which is a list/tuple.
-        loaded_output = loaded_model(
-            [
-                _to_torch_tensor(ref_input_tuple[0]),
-                _to_torch_tensor(ref_input_tuple[1]),
-            ]
-        )
-        self.assertAllClose(
-            _convert_to_numpy(model_tuple(ref_input_tuple)),
-            _to_numpy(loaded_output),
-            atol=_DEFAULT_ATOL,
-            rtol=_DEFAULT_RTOL,
+        ref_input_list = [ref_input_arr, ref_input_arr * 2]
+        list_filepath = os.path.join(self.get_temp_dir(), "list_input.pt2")
+        self._verify_export_and_inference(
+            model_list, ref_input_list, filepath=list_filepath
         )
 
-        # Case 2: List input (Array)
-        # Same model, but input passed as list
-        temp_filepath = os.path.join(self.get_temp_dir(), "list_model.pt2")
-        model_tuple.export(
-            temp_filepath, format="torch"
-        )  # Re-export same model is fine
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_model = loaded_program.module()
-        # Same signature
-        loaded_output = loaded_model(
-            [
-                _to_torch_tensor(ref_input_arr),
-                _to_torch_tensor(ref_input_arr * 2),
-            ]
-        )
-        self.assertAllClose(
-            _convert_to_numpy(model_tuple([ref_input_arr, ref_input_arr * 2])),
-            _to_numpy(loaded_output),
-            atol=_DEFAULT_ATOL,
-            rtol=_DEFAULT_RTOL,
-        )
-
-        # Case 3: Dict input
+        # Test 2: Dict input
         input_x = layers.Input(shape=(10,), name="x")
         input_y = layers.Input(shape=(10,), name="y")
         output = layers.Add()([input_x, input_y])
         model_dict = models.Model(
             inputs={"x": input_x, "y": input_y}, outputs=output
         )
-        ref_input_dict = {"x": ref_input_arr, "y": ref_input_arr * 2}
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "dict_model.pt2")
+        ref_input_dict = {"x": ref_input_arr, "y": ref_input_arr * 2}
+        temp_filepath = os.path.join(self.get_temp_dir(), "dict_input.pt2")
+        ref_output = _convert_to_numpy(model_dict(ref_input_dict))
+
         model_dict.export(temp_filepath, format="torch")
+        self.assertTrue(os.path.exists(temp_filepath))
 
         loaded_program = torch.export.load(temp_filepath)
         loaded_model = loaded_program.module()
-        # For dict inputs, the input signature is a dict spec.
-        # sample_inputs = ({'x': t1, 'y': t2},) containing one
-        # element which is the dict. So the model expects a single
-        # dict argument.
-        loaded_output = loaded_model(
-            {
-                "x": _to_torch_tensor(ref_input_dict["x"]),
-                "y": _to_torch_tensor(ref_input_dict["y"]),
-            }
+        loaded_output = _convert_to_numpy(
+            loaded_model(
+                {
+                    "x": _to_torch_tensor(ref_input_dict["x"]),
+                    "y": _to_torch_tensor(ref_input_dict["y"]),
+                }
+            )
         )
         self.assertAllClose(
-            _convert_to_numpy(model_dict(ref_input_dict)),
-            _to_numpy(loaded_output),
-            atol=_DEFAULT_ATOL,
-            rtol=_DEFAULT_RTOL,
+            ref_output, loaded_output, atol=self.ATOL, rtol=self.RTOL
         )
 
     def test_model_with_named_inputs(self):
@@ -403,35 +328,24 @@ class ExportTorchTest(testing.TestCase):
         loaded_program = torch.export.load(temp_filepath)
         signature = loaded_program.graph_signature
 
-        # Check that input specs contain the original names
+        # Verify input names are preserved (may be prefixed by torch.export)
         input_names = [spec.arg.name for spec in signature.input_specs]
-        # Torch export might prefix them (e.g., args_0_x), but the
-        # key part should be there
         self.assertTrue(
-            any("input_x" in name or "x" in name for name in input_names)
+            any("input_x" in name or "x" in name for name in input_names),
+            f"Expected 'input_x' or 'x' in {input_names}",
         )
         self.assertTrue(
-            any("input_y" in name or "y" in name for name in input_names)
+            any("input_y" in name or "y" in name for name in input_names),
+            f"Expected 'input_y' or 'y' in {input_names}",
         )
 
-        # Verify inference
+        # Verify numerical correctness
         ref_input = {
             "x": np.random.normal(size=(1, 10)).astype("float32"),
             "y": np.random.normal(size=(1, 10)).astype("float32"),
         }
-        ref_output = _convert_to_numpy(model(ref_input))
-        loaded_model = loaded_program.module()
-        loaded_output = loaded_model(
-            {
-                "x": _to_torch_tensor(ref_input["x"]),
-                "y": _to_torch_tensor(ref_input["y"]),
-            }
-        )
-        self.assertAllClose(
-            ref_output,
-            _to_numpy(loaded_output),
-            atol=_DEFAULT_ATOL,
-            rtol=_DEFAULT_RTOL,
+        self._verify_export_and_inference(
+            model, ref_input, filepath=temp_filepath
         )
 
     # ------------------------------------------------------------------ #
@@ -439,8 +353,6 @@ class ExportTorchTest(testing.TestCase):
     # ------------------------------------------------------------------ #
     def test_export_with_batch_normalization(self):
         """Test export with batch normalization layer."""
-        import torch
-
         model = models.Sequential(
             [
                 layers.Dense(16, input_shape=(10,)),
@@ -452,24 +364,13 @@ class ExportTorchTest(testing.TestCase):
             ]
         )
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "bn_model.pt2")
-        model.export(temp_filepath, format="torch")
-        self.assertTrue(os.path.exists(temp_filepath))
-
-        # Verify inference in eval mode
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
-        ref_output = _convert_to_numpy(model(ref_input, training=False))
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
-        self.assertAllClose(
-            ref_output, _to_numpy(loaded_output), atol=_DEFAULT_ATOL
-        )
+        # Ensure model is built and in eval mode for consistent behavior
+        model(ref_input, training=False)
+        self._verify_export_and_inference(model, ref_input)
 
     def test_export_functional_with_residual(self):
         """Test export functional model with residual connections."""
-        import torch
-
         inputs = layers.Input(shape=(10,))
         x = layers.Dense(16, activation="relu")(inputs)
         residual = layers.Dense(16)(inputs)
@@ -478,18 +379,8 @@ class ExportTorchTest(testing.TestCase):
         outputs = layers.Dense(1)(x)
         model = models.Model(inputs=inputs, outputs=outputs)
 
-        temp_filepath = os.path.join(self.get_temp_dir(), "residual_model.pt2")
-        model.export(temp_filepath, format="torch")
-        self.assertTrue(os.path.exists(temp_filepath))
-
         ref_input = np.random.normal(size=(1, 10)).astype("float32")
-        ref_output = _convert_to_numpy(model(ref_input))
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
-        self.assertAllClose(
-            ref_output, _to_numpy(loaded_output), atol=_DEFAULT_ATOL
-        )
+        self._verify_export_and_inference(model, ref_input)
 
     def test_export_with_concrete_shapes(self):
         """Test that exported model has concrete (non-dynamic) shapes."""
