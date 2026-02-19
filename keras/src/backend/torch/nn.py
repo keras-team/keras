@@ -1171,13 +1171,11 @@ def dot_product_attention(
                 key_len = key.shape[2]
             causal_mask = torch.tril(
                 torch.ones(
-                    (query_len, key_len),
-                    device=query.device,
-                    dtype=compute_dtype,
+                    (query_len, key_len), device=query.device, dtype=bias.dtype
                 )
             )
             causal_mask = torch.where(
-                causal_mask == 1, 0.0, _get_large_negative(compute_dtype)
+                causal_mask == 1, 0.0, _get_large_negative(bias.dtype)
             )
             # Expand to match bias shape
             while len(causal_mask.shape) < len(bias.shape):
