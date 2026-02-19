@@ -1001,6 +1001,10 @@ def nanprod(x, axis=None, keepdims=False):
     return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def nanstd(x, axis=None, keepdims=False):
+    return np.nanstd(x, axis=axis, keepdims=keepdims)
+
+
 def nansum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)
