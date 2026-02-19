@@ -5,6 +5,8 @@ NumpyDtypeTest::test_heaviside
 NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_einsum
+HistogramTest::test_histogram_predict_jit_compile_false
+HistogramTest::test_histogram_predict_jit_compile_true
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_nanvar
@@ -21,7 +23,6 @@ NumpyDtypeTest::test_subtract
 NumpyDtypeTest::test_trunc
 NumpyDtypeTest::test_var
 NumpyDtypeTest::test_view
-HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_kaiser

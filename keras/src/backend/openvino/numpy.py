@@ -4136,3 +4136,89 @@ def argpartition(x, kth, axis=-1):
         ov_opset.constant(inv_axes),
     ).output(0)
     return OpenVINOKerasTensor(result)
+
+
+def histogram(x, bins=10, range=None):
+    x = get_ov_output(x)
+    x = ov_opset.reshape(x, [-1], False).output(0)
+
+    float_type = OPENVINO_DTYPES[config.floatx()]
+    x_float = ov_opset.convert(x, float_type).output(0)
+
+    if range is None:
+        min_val = ov_opset.reduce_min(x_float, 0).output(0)
+        max_val = ov_opset.reduce_max(x_float, 0).output(0)
+
+        is_equal = ov_opset.equal(min_val, max_val)
+        half = ov_opset.constant(0.5, float_type).output(0)
+        min_val = ov_opset.select(
+            is_equal, ov_opset.subtract(min_val, half), min_val
+        )
+        max_val = ov_opset.select(
+            is_equal, ov_opset.add(max_val, half), max_val
+        )
+
+        min_val = min_val.output(0)
+        max_val = max_val.output(0)
+    else:
+        min_val = ov_opset.constant(range[0], float_type).output(0)
+        max_val = ov_opset.constant(range[1], float_type).output(0)
+
+    bins_const = ov_opset.constant(bins, float_type).output(0)
+    step = ov_opset.divide(
+        ov_opset.subtract(max_val, min_val), bins_const
+    ).output(0)
+
+    idx_float = ov_opset.range(
+        ov_opset.constant(0, float_type),
+        ov_opset.constant(bins + 1, float_type),
+        ov_opset.constant(1, float_type),
+        output_type=float_type,
+    ).output(0)
+
+    bin_edges = ov_opset.add(
+        min_val, ov_opset.multiply(idx_float, step)
+    ).output(0)
+
+    inds = ov_opset.bucketize(
+        x_float, bin_edges, output_type=Type.i32, with_right_bound=False
+    ).output(0)
+
+    inds_shifted = ov_opset.subtract(
+        inds, ov_opset.constant(1, Type.i32).output(0)
+    )
+
+    trash_idx = ov_opset.constant(bins, Type.i32).output(0)
+
+    is_under = ov_opset.less(
+        inds_shifted, ov_opset.constant(0, Type.i32).output(0)
+    )
+    is_over = ov_opset.greater_equal(inds_shifted, trash_idx)
+
+    is_max = ov_opset.equal(x_float, max_val)
+
+    final_inds = inds_shifted
+    final_inds = ov_opset.select(is_under, trash_idx, final_inds)
+
+    bins_minus_1 = ov_opset.constant(bins - 1, Type.i32).output(0)
+    replacement = ov_opset.select(is_max, bins_minus_1, trash_idx)
+    final_inds = ov_opset.select(is_over, replacement, final_inds)
+
+    depth = ov_opset.constant(bins + 1, Type.i32).output(0)
+    on_val = ov_opset.constant(1, Type.i32).output(0)
+    off_val = ov_opset.constant(0, Type.i32).output(0)
+
+    one_hot = ov_opset.one_hot(final_inds, depth, on_val, off_val, axis=-1)
+    counts = ov_opset.reduce_sum(
+        one_hot, ov_opset.constant(0, Type.i32).output(0), keep_dims=False
+    )
+
+    hist = ov_opset.slice(
+        counts,
+        ov_opset.constant([0], Type.i32).output(0),
+        ov_opset.constant([bins], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([0], Type.i32).output(0),
+    )
+
+    return OpenVINOKerasTensor(hist.output(0)), OpenVINOKerasTensor(bin_edges)
