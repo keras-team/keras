@@ -1647,6 +1647,39 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         output = kimage.MapCoordinates(order, fill_mode)(input, coordinates)
         self.assertAllClose(output, expected)
 
+    @parameterized.named_parameters(
+        named_product(
+            shape=[((5,), (7,)), ((3, 4, 5), (2, 3, 4))],
+            order=[2, 3, 4, 5],
+            fill_mode=["constant", "nearest", "wrap", "mirror", "reflect"],
+        )
+    )
+    def test_map_coordinates_higher_order(self, shape, order, fill_mode):
+        if backend.backend() not in ("numpy", "torch"):
+            self.skipTest(f"{backend.backend()} does not support order > 1")
+        input_shape, coordinates_shape = shape
+        np.random.seed(42)
+        input = np.arange(math.prod(input_shape), dtype="float32").reshape(
+            input_shape
+        )
+        coordinates = [
+            (size - 1)
+            * np.random.uniform(size=coordinates_shape).astype("float32")
+            for size in input_shape
+        ]
+        output = kimage.map_coordinates(input, coordinates, order, fill_mode)
+        # Compare against scipy directly (not _fixed_map_coordinates)
+        # because the padding workaround in _fixed_map_coordinates changes
+        # B-spline prefilter coefficients for order > 1.
+        expected = scipy.ndimage.map_coordinates(
+            input, coordinates, order=order, mode=fill_mode, cval=0.0
+        )
+        self.assertAllClose(output, expected, atol=1e-4)
+
+        # Test class
+        output = kimage.MapCoordinates(order, fill_mode)(input, coordinates)
+        self.assertAllClose(output, expected, atol=1e-4)
+
     @parameterized.parameters(
         [
             (0, 0, 3, 3, None, None),
