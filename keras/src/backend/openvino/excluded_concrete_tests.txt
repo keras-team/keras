@@ -40,7 +40,6 @@ NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_isreal
-NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_isreal
