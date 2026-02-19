@@ -1154,44 +1154,13 @@ def dot_product_attention(
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
-        # Expand mask from 3D [B, T, S] to 4D [B, 1, T, S] to match the
-        # shape of query/key/value after transpose [B, num_heads, T, head_dim].
-        # PyTorch's scaled_dot_product_attention expects 4D mask format
-        # (N, 1, L, S) when query/key/value are 4D.
-        if len(mask.shape) == 3:
-            # mask is [B, T, S], expand to [B, 1, T, S]
-            mask = mask.unsqueeze(1)
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
-        # When bias is provided and is_causal=True, we need to combine the bias
-        # with a causal mask. PyTorch doesn't allow both attn_mask and
-        # is_causal=True, so we create a combined mask.
-        if is_causal:
-            # Create a causal mask (lower triangular) and combine with bias.
-            # The bias values are only applied to valid (causal) positions.
-            # bias shape is [B, num_heads, T, S] or [B, T, S]
-            if len(bias.shape) == 3:
-                # bias is [B, T, S], expand to [B, 1, T, S]
-                bias = bias.unsqueeze(1)
-            B, H, T, S = bias.shape
-            # Create causal mask: lower triangular matrix
-            causal_mask = torch.tril(
-                torch.ones((T, S), dtype=torch.bool, device=bias.device)
-            )
-            causal_mask = causal_mask[None, None, :, :]  # [1, 1, T, S]
-            # Apply bias only to causal positions, mask out others
-            mask = torch.where(
-                causal_mask, bias, _get_large_negative(compute_dtype)
-            )
-            is_causal = False  # We've incorporated causal into the mask
-        else:
-            # When is_causal=False, use bias directly as mask
-            mask = bias
-        # Expand bias from 3D [B, T, S] to 4D [B, 1, T, S] if needed
-        # (already done above for is_causal case)
-        if len(mask.shape) == 3:
-            # mask (bias) is [B, T, S], expand to [B, 1, T, S]
-            mask = mask.unsqueeze(1)
+        # Use `bias` as `mask` for scaled_dot_product_attention.
+        # Explicit set `is_causal` to `False` when `bias` is used as `mask`,
+        # as PyTorch doesn't allow both attn_mask and is_causal=True.
+        is_causal = False
+        mask = bias
 
     axis0, axis1 = 1, 2
     query = torch.transpose(query, axis0, axis1)
@@ -1202,7 +1171,7 @@ def dot_product_attention(
     # attention and memory-efficient kernels have known GPU issues with masks
     # (see PyTorch issues #127523, #128119, #97514). The math kernel is the
     # only reliable fallback.
-    if mask is not None or bias is not None:
+    if mask is not None:
         flash_attention = False
     elif flash_attention is None:
         flash_attention = _can_use_flash_attention(
@@ -1218,14 +1187,13 @@ def dot_product_attention(
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
-            # Don't pass attn_mask when is_causal=True, as PyTorch doesn't
-            # allow both
-            attn_mask_arg = None if is_causal else mask
+            # We only enter this branch when mask is None and bias is None,
+            # so we can safely pass is_causal without checking for mask.
             attention_output = torch.nn.functional.scaled_dot_product_attention(
                 query,
                 key,
                 value,
-                attn_mask=attn_mask_arg,
+                attn_mask=None,
                 is_causal=is_causal,
                 scale=scale,
             )
@@ -1235,7 +1203,7 @@ def dot_product_attention(
         # masks (see PyTorch issues #127523, #128119, #97514). The math
         # kernel is the only reliable fallback for masks on GPU.
         attn_mask_arg = None if is_causal else mask
-        if mask is not None and not is_causal:
+        if mask is not None:
             with torch.nn.attention.sdpa_kernel(
                 backends=[torch.nn.attention.SDPBackend.MATH],
             ):
