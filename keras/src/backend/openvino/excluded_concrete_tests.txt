@@ -7,6 +7,7 @@ NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
+NumpyDtypeTest::test_nanstd
 NumpyDtypeTest::test_nanvar
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
@@ -28,6 +29,7 @@ NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
+NumpyOneInputOpsCorrectnessTest::test_nanstd
 NumpyOneInputOpsCorrectnessTest::test_nanvar
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
