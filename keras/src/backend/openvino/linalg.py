@@ -75,26 +75,30 @@ def norm(x, ord=None, axis=None, keepdims=False):
             # L2 norm: sqrt(sum(x * conj(x)))
             x_conj = x_ov
             x_sq = ov_opset.multiply(x_conj, x_conj).output(0)
-            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+            axis_for_const = list(axis) if isinstance(axis, tuple) else axis
+            axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
             norm_result = ov_opset.reduce_sum(
                 x_sq, axis_const, keepdims
             ).output(0)
             norm_result = ov_opset.sqrt(norm_result).output(0)
         elif ord == float("inf"):
-            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+            axis_for_const = list(axis) if isinstance(axis, tuple) else axis
+            axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
             x_abs = ov_opset.abs(x_ov).output(0)
             norm_result = ov_opset.reduce_max(
                 x_abs, axis_const, keepdims
             ).output(0)
         elif ord == float("-inf"):
-            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+            axis_for_const = list(axis) if isinstance(axis, tuple) else axis
+            axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
             x_abs = ov_opset.abs(x_ov).output(0)
             norm_result = ov_opset.reduce_min(
                 x_abs, axis_const, keepdims
             ).output(0)
         elif ord == 0:
             # Count non-zero elements
-            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+            axis_for_const = list(axis) if isinstance(axis, tuple) else axis
+            axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
             zero = ov_opset.constant(0.0, Type.f32).output(0)
             not_equal = ov_opset.not_equal(x_ov, zero).output(0)
             not_equal_float = ov_opset.convert(not_equal, Type.f32).output(0)
@@ -103,7 +107,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
             ).output(0)
         elif ord == 1:
             # L1 norm: sum(|x|)
-            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+            axis_for_const = list(axis) if isinstance(axis, tuple) else axis
+            axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
             x_abs = ov_opset.abs(x_ov).output(0)
             norm_result = ov_opset.reduce_sum(
                 x_abs, axis_const, keepdims
@@ -116,7 +121,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
             # p-norm: (sum(|x|^p))^(1/p)
             ord_tensor = convert_to_tensor(ord, dtype=dtype)
             ord_ov = get_ov_output(ord_tensor)
-            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+            axis_for_const = list(axis) if isinstance(axis, tuple) else axis
+            axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
             x_abs = ov_opset.abs(x_ov).output(0)
             x_pow = ov_opset.power(x_abs, ord_ov).output(0)
             sum_pow = ov_opset.reduce_sum(x_pow, axis_const, keepdims).output(0)
@@ -133,7 +139,8 @@ def norm(x, ord=None, axis=None, keepdims=False):
         if ord is None or ord == "fro":
             # Frobenius norm: sqrt(sum(x * conj(x)))
             x_sq = ov_opset.multiply(x_ov, x_ov).output(0)
-            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+            axis_for_const = list(axis) if isinstance(axis, tuple) else axis
+            axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
             sum_sq = ov_opset.reduce_sum(x_sq, axis_const, keepdims).output(0)
             norm_result = ov_opset.sqrt(sum_sq).output(0)
         elif ord == 1:

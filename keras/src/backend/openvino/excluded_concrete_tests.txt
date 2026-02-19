@@ -189,7 +189,8 @@ LinalgOpsCorrectnessTest::test_eigh
 LinalgOpsCorrectnessTest::test_inv
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_lu_factor
-LinalgOpsCorrectnessTest::test_norm_2
+LinalgOpsCorrectnessTest::test_norm_2_-2
+LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsDynamicShapeTest::test_qr
 NNOpsDynamicShapeTest::test_binary_crossentropy
 NNOpsDynamicShapeTest::test_categorical_crossentropy
