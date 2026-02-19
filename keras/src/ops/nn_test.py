@@ -2474,7 +2474,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
     )
     def test_dot_product_attention(
-        self, bias, scale, mask_and_is_causal, flash_attention
+        self, bias, scale, mask_and_is_causal, flash_attention, enable_gqa
     ):
         mask, is_causal = mask_and_is_causal
         query_shape = (2, 3, 4, 8)
