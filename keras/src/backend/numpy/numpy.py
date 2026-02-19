@@ -710,6 +710,11 @@ def hstack(xs):
     return np.hstack(xs)
 
 
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return np.hsplit(x, indices_or_sections)
+
+
 def hypot(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1005,6 +1010,16 @@ def nansum(x, axis=None, keepdims=False):
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
     return np.nansum(x, axis=axis, keepdims=keepdims).astype(dtype)
+
+
+def nanvar(x, axis=None, keepdims=False):
+    axis = standardize_axis_for_numpy(axis)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return np.nanvar(
+        x, axis=axis, keepdims=keepdims, dtype=compute_dtype
+    ).astype(result_dtype)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):

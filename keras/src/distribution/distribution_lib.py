@@ -578,10 +578,10 @@ class ModelParallel(Distribution):
     # will be split across 4 devices. Any other variable that doesn't
     # match any key in the layout map will be fully replicated.
     layout_map = LayoutMap(device_mesh)
-    layout_map['dense.*kernel'] = (None, 'model')
-    layout_map['dense.*bias'] = ('model',)
-    layout_map['conv2d.*kernel'] = (None, None, None, 'model')
-    layout_map['conv2d.*bias'] = ('model',)
+    layout_map['.*dense.*kernel'] = (None, 'model')
+    layout_map['.*dense.*bias'] = ('model',)
+    layout_map['.*conv2d.*kernel'] = (None, None, None, 'model')
+    layout_map['.*conv2d.*bias'] = ('model',)
 
     distribution = ModelParallel(
         layout_map=layout_map,
@@ -777,10 +777,10 @@ class LayoutMap(collections.abc.MutableMapping):
 
     ```python
     layout_map = LayoutMap(device_mesh)
-    layout_map['dense.*kernel'] = (None, 'model')
-    layout_map['dense.*bias'] = ('model',)
-    layout_map['conv2d.*kernel'] = (None, None, None, 'model')
-    layout_map['conv2d.*bias'] = ('model',)
+    layout_map['.*dense.*kernel'] = (None, 'model')
+    layout_map['.*dense.*bias'] = ('model',)
+    layout_map['.*conv2d.*kernel'] = (None, None, None, 'model')
+    layout_map['.*conv2d.*bias'] = ('model',)
 
     layout_1 = layout_map['dense_1.kernel']             # layout_1 == layout_2d
     layout_2 = layout_map['dense_1.bias']               # layout_2 == layout_1d
@@ -817,10 +817,11 @@ class LayoutMap(collections.abc.MutableMapping):
         if key in self._layout_map:
             return self._layout_map[key]
 
-        matching_keys = []
-        for k in self._layout_map:
-            if re.search(k, key):
-                matching_keys.append(k)
+        matching_keys = [
+            pattern
+            for pattern in self._layout_map
+            if re.fullmatch(pattern, key)
+        ]
         if len(matching_keys) > 1:
             raise ValueError(
                 f"Path '{key}' matches multiple layout "
