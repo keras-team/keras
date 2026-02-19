@@ -31,15 +31,17 @@ class RMSNormalizationTest(testing.TestCase):
     def test_correctness(self):
         layer = layers.RMSNormalization(axis=[-1, -2])
         layer.build(input_shape=(2, 2, 2))
-        inputs = np.random.normal(loc=5.0, scale=10.0, size=(1000, 2, 2, 2)).astype(
-            "float32"
-        )
+        inputs = np.random.normal(
+            loc=5.0, scale=10.0, size=(1000, 2, 2, 2)
+        ).astype("float32")
 
         inputs = ops.convert_to_tensor(inputs)
 
         out = layer(inputs)
         reduce_axis = layer.axis
-        square_mean = ops.mean(ops.square(inputs), axis=reduce_axis, keepdims=True)
+        square_mean = ops.mean(
+            ops.square(inputs), axis=reduce_axis, keepdims=True
+        )
         expected = ops.multiply(
             ops.multiply(inputs, ops.rsqrt(square_mean + layer.epsilon)),
             layer.scale,
