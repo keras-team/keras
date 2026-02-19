@@ -3001,7 +3001,7 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
         import torch.nn.functional as F
 
         if isinstance(axis, (tuple, list)):
-            normalized_shape = tuple([x.shape[dim] for dim in axis])
+            normalized_shape = tuple([x.shape[dim] for dim in sorted(axis)])
         else:
             normalized_shape = (x.shape[axis],)
         outputs = F.rms_norm(x, normalized_shape, scale, epsilon)
