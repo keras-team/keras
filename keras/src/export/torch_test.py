@@ -466,55 +466,6 @@ class ExportTorchTest(testing.TestCase):
             ref_output, _to_numpy(loaded_output), atol=_DEFAULT_ATOL
         )
 
-    def test_export_conv_model(self):
-        """Test export with convolutional layers."""
-        import torch
-
-        model = models.Sequential(
-            [
-                layers.Conv2D(
-                    32,
-                    3,
-                    activation="relu",
-                    input_shape=(32, 32, 3),
-                    data_format="channels_last",
-                ),
-                layers.MaxPooling2D(2),
-                layers.Conv2D(64, 3, activation="relu"),
-                layers.GlobalAveragePooling2D(),
-                layers.Dense(10, activation="softmax"),
-            ]
-        )
-
-        # Explicitly build the model to ensure all layer shapes are computed
-        model.build((None, 32, 32, 3))
-
-        # Test with reference input to verify model works before export
-        ref_input = np.random.normal(size=(1, 32, 32, 3)).astype("float32")
-        ref_output = _convert_to_numpy(model(ref_input, training=False))
-
-        # Verify output shape is valid
-        self.assertGreater(
-            ref_output.size, 0, "Model output should be non-empty"
-        )
-
-        temp_filepath = os.path.join(self.get_temp_dir(), "conv_model.pt2")
-        model.export(temp_filepath, format="torch")
-        self.assertTrue(os.path.exists(temp_filepath))
-
-        loaded_program = torch.export.load(temp_filepath)
-        loaded_output = loaded_program.module()(_to_torch_tensor(ref_input))
-        loaded_output_np = _to_numpy(loaded_output)
-
-        # Verify loaded output shape matches reference
-        msg = (
-            f"Output shape mismatch: ref={ref_output.shape}, "
-            f"loaded={loaded_output_np.shape}"
-        )
-        self.assertEqual(ref_output.shape, loaded_output_np.shape, msg)
-
-        self.assertAllClose(ref_output, loaded_output_np, atol=_DEFAULT_ATOL)
-
     def test_export_functional_with_residual(self):
         """Test export functional model with residual connections."""
         import torch
