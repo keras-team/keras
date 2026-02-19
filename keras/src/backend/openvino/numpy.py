@@ -751,7 +751,6 @@ def kaiser(x, beta):
     arg = ov_opset.multiply(beta, sqrt_term).output(0)
     num = _i0_node(arg)
     den = _i0_node(beta)
-    # So the logic holds for M=1 without special branching if we ensure safe_alpha.
     result = ov_opset.divide(num, den).output(0)
     result = ov_opset.convert(result, OPENVINO_DTYPES[config.floatx()]).output(
         0
