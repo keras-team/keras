@@ -1318,3 +1318,48 @@ class ExportLitertTest(testing.TestCase):
         output_shapes = [tuple(d["shape"][1:]) for d in output_details]
         self.assertIn((5,), output_shapes)
         self.assertIn((3,), output_shapes)
+
+    def test_subclass_model_with_dict_inputs(self):
+        """Regression test: subclass models with dict inputs must export.
+
+        ``tf.lite.TFLiteConverter.from_keras_model`` invokes the Keras 2
+        compatibility bridge (``keras_deps.get_call_context_function``).  In
+        Keras 3 that bridge returns ``None``, which causes an immediate
+        ``TypeError: 'NoneType' object is not callable`` and prevented any
+        subclass model with dict (nested) inputs from being exported.
+
+        The fix uses ``ExportArchive.add_endpoint`` → SavedModel →
+        ``from_saved_model``, which bypasses the broken bridge entirely.
+        """
+        if LiteRTInterpreter is None:
+            self.skipTest("No LiteRT interpreter available")
+
+        class DictInputModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(4)
+
+            def call(self, inputs):
+                return self.dense(inputs["x"] + inputs["y"])
+
+        model = DictInputModel()
+        batch = np.ones((1, 8), dtype="float32")
+        model({"x": batch, "y": batch})  # build
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "dict_subclass_model.tflite"
+        )
+        # Must not raise TypeError from the Keras 2 'from_keras_model' bridge.
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        # Feed inputs positionally — TFLite uses internal generic names
+        # (e.g. ``serving_default_inputs_0:0``) rather than Keras dict keys.
+        _set_interpreter_inputs(interpreter, [batch, batch])
+        interpreter.invoke()
+        litert_out = _get_interpreter_outputs(interpreter)
+
+        ref_out = model({"x": batch, "y": batch}).numpy()
+        self.assertAllClose(ref_out, litert_out, atol=1e-4)
