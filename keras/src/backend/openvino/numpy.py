@@ -2636,6 +2636,10 @@ def nanprod(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
+def nanstd(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nanstd` is not supported with openvino backend")
+
+
 def nansum(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     x_type = x.get_element_type()
