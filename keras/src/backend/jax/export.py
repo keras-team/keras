@@ -6,11 +6,15 @@ import warnings
 
 from keras.src import tree
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.export.saved_model_export_archive import SavedModelExportArchive
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-class JaxExportArchive:
-    def __init__(self):
+class JaxExportArchive(SavedModelExportArchive):
+    """JAX backend implementation of SavedModel export archive."""
+
+    def _backend_init(self):
+        """JAX-specific initialization."""
         self._backend_variables = []
         self._backend_trainable_variables = []
         self._backend_non_trainable_variables = []
@@ -39,7 +43,7 @@ class JaxExportArchive:
             + self._backend_non_trainable_variables
         )
 
-    def add_endpoint(self, name, fn, input_signature=None, **kwargs):
+    def _add_endpoint_helper(self, name, fn, input_signature, **kwargs):
         jax2tf_kwargs = kwargs.pop("jax2tf_kwargs", None)
         # Use `copy.copy()` to avoid modification issues.
         jax2tf_kwargs = copy.copy(jax2tf_kwargs) or {}

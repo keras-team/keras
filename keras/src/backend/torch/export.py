@@ -5,24 +5,29 @@ import torch
 
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
+from keras.src.export.saved_model_export_archive import SavedModelExportArchive
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.module_utils import torch_xla
 
 
-class TorchExportArchive:
+class TorchExportArchive(SavedModelExportArchive):
+    """Torch backend implementation of SavedModel export archive."""
+
     def _track_layer(self, layer):
         raise NotImplementedError(
             "`track` is not supported for `Layer`s and `Model`s in the torch "
             "backend. Use `track_and_add_endpoint` instead."
         )
 
-    def add_endpoint(self, name, fn, input_signature, **kwargs):
+    def _add_endpoint_helper(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
             "`add_endpoint` is not supported for `Layer`s and `Model`s in the "
             "torch backend. Use `track_and_add_endpoint` instead."
         )
 
-    def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
+    def _track_and_add_endpoint_helper(
+        self, name, resource, input_signature, **kwargs
+    ):
         # Disable false alarms related to lifting parameters.
         warnings.filterwarnings("ignore", message=".*created when tracing.*")
         warnings.filterwarnings(
