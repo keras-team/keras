@@ -521,7 +521,13 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
+        accumulate=True,
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = TFEpochIterator(
@@ -586,17 +592,22 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 callbacks.on_predict_batch_begin(begin_step)
                 data = get_data(iterator)
                 batch_outputs = self.predict_function(data)
-                outputs = append_to_outputs(batch_outputs, outputs)
+                if accumulate:
+                    outputs = append_to_outputs(batch_outputs, outputs)
                 callbacks.on_predict_batch_end(
                     end_step, {"outputs": batch_outputs}
                 )
                 if self.stop_predicting:
                     break
         callbacks.on_predict_end()
-        outputs = tree.map_structure_up_to(
-            batch_outputs, potentially_ragged_concat, outputs
-        )
-        return tree.map_structure(convert_to_np_if_not_ragged, outputs)
+        if accumulate:
+            if outputs is None:
+                return None
+            outputs = tree.map_structure_up_to(
+                batch_outputs, potentially_ragged_concat, outputs
+            )
+            return tree.map_structure(convert_to_np_if_not_ragged, outputs)
+        return outputs
 
     def train_on_batch(
         self,

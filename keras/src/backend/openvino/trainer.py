@@ -171,7 +171,13 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
+        self,
+        x,
+        batch_size=None,
+        verbose="auto",
+        steps=None,
+        callbacks=None,
+        accumulate=True,
     ):
         # Create an iterator that yields batches of input data.
         epoch_iterator = EpochIterator(
@@ -213,15 +219,22 @@ class OpenVINOTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for begin_step, end_step, data in epoch_iterator.enumerate_epoch():
+        for begin_step, end_step, iterator in epoch_iterator:
             callbacks.on_predict_batch_begin(begin_step)
-            batch_outputs = self.predict_function(data)
-            outputs = append_to_outputs(batch_outputs, outputs)
+            batch_outputs = self.predict_function(iterator)
+            if accumulate:
+                outputs = append_to_outputs(batch_outputs, outputs)
             callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
             if self.stop_predicting:
                 break
         callbacks.on_predict_end()
-        return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
+        if accumulate:
+            if outputs is None:
+                return None
+            return tree.map_structure_up_to(
+                batch_outputs, np.concatenate, outputs
+            )
+        return outputs
 
     @traceback_utils.filter_traceback
     def evaluate(
