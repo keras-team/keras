@@ -10,7 +10,6 @@ NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
-NumpyDtypeTest::test_inner
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_nanvar
