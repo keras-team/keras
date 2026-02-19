@@ -8,7 +8,6 @@ NumpyDtypeTest::test_einsum
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
 NumpyDtypeTest::test_isreal
-NumpyDtypeTest::test_lcm
 NumpyDtypeTest::test_nanvar
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
@@ -38,7 +37,6 @@ NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyTwoInputOpsCorrectnessTest::test_einsum
-NumpyTwoInputOpsCorrectnessTest::test_lcm
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
@@ -48,9 +46,7 @@ NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_isreal
 NumpyOneInputOpsStaticShapeTest::test_view
-NumpyTwoInputOpsDynamicShapeTest::test_lcm
 NumpyTwoInputOpsDynamicShapeTest::test_nextafter
-NumpyTwoInputOpsStaticShapeTest::test_lcm
 NumpyTwoInputOpsStaticShapeTest::test_nextafter
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
 CoreOpsBehaviorTests::test_scan_invalid_arguments
