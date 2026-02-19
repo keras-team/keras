@@ -1588,6 +1588,24 @@ def repeat(x, repeats, axis=None):
             device=get_device(),
         )
 
+    # When repeats is a scalar int and axis is specified, use
+    # unsqueeze + expand + reshape instead of repeat_interleave.
+    # This preserves static shape information during torch.export
+    # (repeat_interleave introduces unbacked symbolic dimensions)
+    # and avoids the missing aten.repeat_interleave.Tensor lowering
+    # in litert_torch.
+    if isinstance(repeats, int) and axis is not None:
+        if axis < 0:
+            axis = x.ndim + axis
+        shape = list(x.shape)
+        x = x.unsqueeze(axis + 1)
+        expand_shape = [-1] * x.ndim
+        expand_shape[axis + 1] = repeats
+        x = x.expand(expand_shape)
+        new_shape = list(shape)
+        new_shape[axis] = shape[axis] * repeats
+        return x.reshape(new_shape)
+
     repeats = convert_to_tensor(repeats, dtype=int)
 
     return torch.repeat_interleave(x, repeats, dim=axis)

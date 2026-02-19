@@ -1,5 +1,4 @@
-from keras.src import layers
-from keras.src import models
+from keras.src import backend
 from keras.src import tree
 from keras.src.export.export_utils import get_input_signature
 from keras.src.utils import io_utils
@@ -10,6 +9,7 @@ def export_litert(
     model,
     filepath,
     input_signature=None,
+    verbose=None,
     **kwargs,
 ):
     """Export the model as a LiteRT artifact for inference.
@@ -21,6 +21,20 @@ def export_litert(
             `None`, it will be inferred.
         **kwargs: Additional keyword arguments passed to the exporter.
     """
+    if backend.backend() == "torch":
+        return export_litert_via_torch(
+            model,
+            filepath,
+            input_signature=input_signature,
+            verbose=verbose,
+            **kwargs,
+        )
+
+    if backend.backend() != "tensorflow":
+        raise ImportError(
+            "The LiteRT export API is currently only available "
+            "with the TensorFlow and PyTorch backends."
+        )
 
     exporter = LiteRTExporter(
         model=model,
@@ -67,161 +81,108 @@ class LiteRTExporter:
         Returns:
             Path to exported model
         """
-        # 1. Resolve / infer input signature
         if self.input_signature is None:
-            # Use the standard get_input_signature which handles all model types
-            # and preserves nested structures (dicts, lists, etc.)
             self.input_signature = get_input_signature(self.model)
 
-        # 2. Determine input structure and create adapter if needed
-        # There are 3 cases:
-        # Case 1: Single input (not nested)
-        # Case 2: Flat list of inputs (list where flattened == original)
-        # Case 3: Nested structure (dicts, nested lists, etc.)
-
-        # Special handling for Functional models: get_input_signature wraps
-        # the structure in a list, so unwrap it for analysis
-        input_struct = self.input_signature
-        if (
-            isinstance(self.input_signature, list)
-            and len(self.input_signature) == 1
-        ):
-            input_struct = self.input_signature[0]
-
-        if not tree.is_nested(input_struct):
-            # Case 1: Single input - use as-is
-            model_to_convert = self.model
-            signature_for_conversion = self.input_signature
-        elif isinstance(input_struct, list) and len(input_struct) == len(
-            tree.flatten(input_struct)
-        ):
-            # Case 2: Flat list of inputs - use as-is
-            model_to_convert = self.model
-            signature_for_conversion = self.input_signature
-        else:
-            # Case 3: Nested structure (dict, nested lists, etc.)
-            # Create adapter model that converts flat list to nested structure
-            adapted_model = self._create_nested_inputs_adapter(input_struct)
-
-            # Flatten signature for TFLite conversion
-            signature_for_conversion = tree.flatten(input_struct)
-
-            # Use adapted model and flat list signature for conversion
-            model_to_convert = adapted_model
-
-        # Store original model reference for later use
-        original_model = self.model
-
-        # Temporarily replace self.model with the model to convert
-        self.model = model_to_convert
-
-        try:
-            # Convert the model to TFLite.
-            tflite_model = self._convert_to_tflite(signature_for_conversion)
-        finally:
-            # Restore original model
-            self.model = original_model
-
-        # Save the TFLite model to the specified file path.
         if not filepath.endswith(".tflite"):
             raise ValueError(
                 f"The LiteRT export requires the filepath to end with "
                 f"'.tflite'. Got: {filepath}"
             )
 
+        tflite_model = self._convert_to_tflite(self.input_signature)
+
         with open(filepath, "wb") as f:
             f.write(tflite_model)
 
         return filepath
 
-    def _create_nested_inputs_adapter(self, input_signature_struct):
-        """Create an adapter model that converts flat list inputs to nested
-        structure.
-
-        This adapter allows models expecting nested inputs (dicts, lists, etc.)
-        to be exported to TFLite format (which only supports positional/list
-        inputs).
-
-        Args:
-            input_signature_struct: Nested structure of InputSpecs (dict, list,
-                etc.)
-
-        Returns:
-            A Functional model that accepts flat list inputs and converts to
-            nested
-        """
-        # Get flat paths to preserve names and print input mapping
-        paths_and_specs = tree.flatten_with_path(input_signature_struct)
-        paths = [".".join(str(e) for e in p) for p, v in paths_and_specs]
-        io_utils.print_msg(f"Creating adapter for inputs: {paths}")
-
-        # Create Input layers for TFLite (flat list-based)
-        input_layers = []
-        for path, spec in paths_and_specs:
-            # Extract the input name from spec or path
-            name = (
-                spec.name
-                if hasattr(spec, "name") and spec.name
-                else (str(path[-1]) if path else "input")
-            )
-
-            input_layer = layers.Input(
-                shape=spec.shape[1:],  # Remove batch dimension
-                dtype=spec.dtype,
-                name=name,
-            )
-            input_layers.append(input_layer)
-
-        # Reconstruct the nested structure from flat list
-        inputs_structure = tree.pack_sequence_as(
-            input_signature_struct, input_layers
-        )
-
-        # Call the original model with nested inputs
-        outputs = self.model(inputs_structure)
-
-        # Build as Functional model (flat list inputs -> nested -> model ->
-        # output)
-        adapted_model = models.Model(inputs=input_layers, outputs=outputs)
-
-        # Preserve the original model's variables
-        adapted_model._variables = self.model.variables
-        adapted_model._trainable_variables = self.model.trainable_variables
-        adapted_model._non_trainable_variables = (
-            self.model.non_trainable_variables
-        )
-
-        return adapted_model
 
     def _convert_to_tflite(self, input_signature):
         """Converts the Keras model to TFLite format.
 
+        Uses ``ExportArchive`` as an intermediate SavedModel step to avoid
+        two Keras-3 incompatibilities:
+
+        * ``tf.lite.TFLiteConverter.from_keras_model`` invokes the Keras 2
+          bridge (``keras_deps.get_call_context_function``), which returns
+          ``None`` in Keras 3 and immediately crashes.
+        * ``tf.saved_model.save`` calls ``inspect.getattr_static(obj,
+          '__dict__')`` on every tracked object; Keras 3's ``_DictWrapper``
+          raises a ``TypeError`` there.
+
+        ``ExportArchive.add_endpoint`` traces ``model.call`` directly and
+        captures only the concrete function's variables, bypassing both
+        issues.  It also handles nested (dict / list) input signatures
+        natively, so no adapter model is required.
+
+        Conversion is attempted first with only ``TFLITE_BUILTINS`` so that
+        the resulting model can run on runtimes without the Flex delegate
+        (e.g. ``ai_edge_litert``).  If that fails, the conversion is retried
+        with ``SELECT_TF_OPS`` as a fallback, and a warning is emitted so the
+        caller knows the Flex delegate will be required at inference time.
+
         Returns:
             A bytes object containing the serialized TFLite model.
         """
-        # Try direct conversion first for all models
-        try:
-            converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
-            converter.target_spec.supported_ops = [
-                tf.lite.OpsSet.TFLITE_BUILTINS,
-                tf.lite.OpsSet.SELECT_TF_OPS,
-            ]
-            # Keras 3 only supports resource variables
-            converter.experimental_enable_resource_variables = True
+        import tempfile
+        import warnings
 
-            # Apply any additional converter settings from kwargs
-            self._apply_converter_kwargs(converter)
+        from keras.src import export as keras_export
 
-            tflite_model = converter.convert()
+        with tempfile.TemporaryDirectory() as saved_model_dir:
+            archive = keras_export.ExportArchive()
+            archive.add_endpoint(
+                "serving_default",
+                self.model.call,
+                input_signature=input_signature,
+            )
+            archive.write_out(saved_model_dir, verbose=False)
 
-            return tflite_model
+            def _make_converter():
+                converter = tf.lite.TFLiteConverter.from_saved_model(
+                    saved_model_dir
+                )
+                converter.experimental_enable_resource_variables = True
+                self._apply_converter_kwargs(converter)
+                return converter
 
-        except Exception as e:
-            # If direct conversion fails, raise the error with helpful message
-            raise RuntimeError(
-                f"Direct TFLite conversion failed. This may be due to model "
-                f"complexity or unsupported operations. Error: {e}"
-            ) from e
+            # First attempt: builtins only (no Flex delegate required).
+            try:
+                converter = _make_converter()
+                converter.target_spec.supported_ops = [
+                    tf.lite.OpsSet.TFLITE_BUILTINS,
+                ]
+                return converter.convert()
+            except Exception:
+                pass
+
+            # Second attempt: allow SELECT_TF_OPS (requires Flex delegate).
+            try:
+                converter = _make_converter()
+                converter.target_spec.supported_ops = [
+                    tf.lite.OpsSet.TFLITE_BUILTINS,
+                    tf.lite.OpsSet.SELECT_TF_OPS,
+                ]
+                result = converter.convert()
+                warnings.warn(
+                    "The exported LiteRT model contains TensorFlow "
+                    "Select ops (Flex delegate) because not all "
+                    "operations could be lowered to built-in TFLite "
+                    "ops. The Flex delegate must be linked into the "
+                    "runtime to run this model. Consider providing a "
+                    "concrete `input_signature` to help the converter "
+                    "resolve dynamic shapes statically.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+                return result
+            except Exception as e:
+                raise RuntimeError(
+                    f"TFLite conversion failed. This may be due to model "
+                    f"complexity or unsupported operations. Error: {e}"
+                ) from e
+
 
     def _apply_converter_kwargs(self, converter):
         """Apply additional converter settings from kwargs.
@@ -243,6 +204,557 @@ class LiteRTExporter:
                             f"Unknown target_spec attribute '{spec_key}'"
                         )
             elif hasattr(converter, attr):
+                # Set any valid converter attribute (optimizations,
+                # representative_dataset, etc.)
                 setattr(converter, attr, value)
             else:
                 raise ValueError(f"Unknown converter attribute '{attr}'")
+
+
+
+def export_litert_via_torch(
+    model, filepath, input_signature=None, verbose=None, **kwargs
+):
+    """Export Keras model to LiteRT via PyTorch backend.
+
+    This function handles the complete conversion pipeline:
+    1. Move model to CPU (required for portable ops)
+    2. Register decompositions for unsupported operations
+    3. Patch VHLO version for TFLite converter compatibility
+    4. Convert model using litert_torch
+    5. Restore model to original device
+
+    Args:
+        model: Keras model to export.
+        filepath: Path to save the .tflite model.
+        input_signature: Optional input specification.
+        verbose: Whether to print export messages.
+        **kwargs: Additional arguments for litert_torch conversion.
+
+    Returns:
+        Path to the exported model.
+    """
+    try:
+        import litert_torch
+        import torch
+    except ImportError:
+        raise ImportError(
+            "To export to LiteRT with the PyTorch backend, "
+            "you must install the `litert-torch` package. "
+            "Install via: pip install litert-torch"
+        )
+
+    from keras.src.export.export_utils import convert_spec_to_tensor
+
+    # Track original devices for restoration
+    original_devices = {}
+
+    # Step 1: Move model to CPU for portable export
+    _move_model_to_cpu(model, original_devices, torch)
+
+    # Use CPU device scope for all conversions
+    from keras.src.backend.torch.core import device_scope
+
+    with device_scope("cpu"):
+        # Step 2: Setup decompositions and version compatibility
+        _register_litert_decompositions(torch, litert_torch)
+        _patch_vhlo_target_version()
+
+        # Step 3: Prepare sample inputs
+        if input_signature is None:
+            input_signature = get_input_signature(model)
+
+        sample_inputs = tree.map_structure(
+            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+            input_signature,
+        )
+        sample_inputs = tree.map_structure(
+            lambda t: t.cpu() if hasattr(t, "cpu") else t,
+            sample_inputs,
+        )
+        sample_inputs = tuple(sample_inputs)
+
+        # Step 4: Set model to eval mode
+        if hasattr(model, "eval"):
+            model.eval()
+
+        # Step 5: Convert to LiteRT
+        litert_torch_kwargs = _prepare_litert_kwargs(kwargs, litert_torch)
+
+        try:
+            try:
+                edge_model = litert_torch.convert(
+                    model, sample_inputs, **litert_torch_kwargs
+                )
+            except Exception as e:
+                raise RuntimeError(
+                    f"Failed to convert PyTorch model to LiteRT. "
+                    f"Common causes: unsupported operations, dynamic shapes, "
+                    f"or complex control flow. Original error: {e}"
+                ) from e
+
+            # Step 6: Save the model
+            edge_model.export(filepath)
+        finally:
+            # Step 7: Always restore model to original devices
+            _restore_model_devices(model, original_devices, torch)
+
+    if verbose:
+        io_utils.print_msg(f"Saved LiteRT model to {filepath}")
+
+    return filepath
+
+
+def _prepare_litert_kwargs(kwargs, litert_torch):
+    """Prepare litert_torch conversion kwargs from user-provided arguments.
+
+    Translates TFLite-style arguments to litert_torch equivalents.
+
+    Args:
+        kwargs: User-provided keyword arguments.
+        litert_torch: The litert_torch module.
+
+    Returns:
+        dict: Kwargs suitable for litert_torch.convert().
+    """
+    litert_torch_kwargs = {}
+
+    # Direct pass-through arguments
+    valid_litert_torch_args = {
+        "strict_export",
+        "quant_config",
+        "dynamic_shapes",
+        "_ai_edge_converter_flags",
+        "_saved_model_dir",
+    }
+    for k, v in kwargs.items():
+        if k in valid_litert_torch_args:
+            litert_torch_kwargs[k] = v
+
+    # Translate TFLite 'optimizations' to litert_torch 'quant_config'
+    if "optimizations" in kwargs and "quant_config" not in litert_torch_kwargs:
+        quant_cfg = _create_quant_config_from_optimizations(
+            kwargs["optimizations"], litert_torch
+        )
+        if quant_cfg is not None:
+            litert_torch_kwargs["quant_config"] = quant_cfg
+
+    return litert_torch_kwargs
+
+
+def _move_model_to_cpu(model, original_devices, torch):
+    """Move all model tensors to CPU for portable export.
+
+    Handles three categories that Keras models can store tensors in:
+    1. Keras ``Variable`` instances (``model.variables``).
+    2. ``nn.Module`` parameters and buffers registered via PyTorch.
+    3. Raw tensor attributes on Keras layers (e.g.
+       ``Normalization.mean`` / ``Normalization.variance``).
+    """
+    # (a) Keras Variables
+    try:
+        for v in model.variables:
+            if hasattr(v, "value") and hasattr(v.value, "data"):
+                dev = str(v.value.device)
+                if dev != "cpu":
+                    original_devices[("var", v.path)] = dev
+                    v.value.data = v.value.data.to("cpu")
+    except (AttributeError, TypeError):
+        pass
+    """Move all model tensors to CPU for portable export.
+
+    Handles three categories that Keras models can store tensors in:
+    1. Keras ``Variable`` instances (``model.variables``).
+    2. ``nn.Module`` parameters and buffers registered via PyTorch.
+    3. Raw tensor attributes on Keras layers (e.g.
+       ``Normalization.mean`` / ``Normalization.variance``).
+    """
+    # (a) Keras Variables
+    try:
+        for v in model.variables:
+            if hasattr(v, "value") and hasattr(v.value, "data"):
+                dev = str(v.value.device)
+                if dev != "cpu":
+                    original_devices[("var", v.path)] = dev
+                    v.value.data = v.value.data.to("cpu")
+    except (AttributeError, TypeError):
+        # model.variables may not exist, or some variables may lack device
+        # info. Continue gracefully - device-specific ops will be caught by
+        # litert_torch with clearer error messages.
+        pass
+
+    # (b) nn.Module parameters and buffers
+    try:
+        for name, p in model.named_parameters():
+            if p.device.type != "cpu":
+                original_devices[("param", name)] = str(p.device)
+                p.data = p.data.to("cpu")
+        for name, b in model.named_buffers():
+            if b.device.type != "cpu":
+                original_devices[("buffer", name)] = str(b.device)
+                b.data = b.data.to("cpu")
+    except (AttributeError, RuntimeError):
+        # Some models may not have parameters/buffers or device
+        # operations may fail. Continue gracefully.
+        pass
+
+    # (c) Raw tensor attributes on layers (not Variables or registered
+    #     parameters). Some preprocessing layers (e.g. Normalization)
+    #     store mean/variance as plain tensor attributes.
+    try:
+        for layer in model._flatten_layers():
+            for attr_name in list(vars(layer)):
+                obj = getattr(layer, attr_name, None)
+                if (
+                    isinstance(obj, torch.Tensor)
+                    and not isinstance(obj, torch.nn.Parameter)
+                    and obj.device.type != "cpu"
+                ):
+                    key = ("attr", f"{layer.name}.{attr_name}")
+                    original_devices[key] = str(obj.device)
+                    setattr(layer, attr_name, obj.to("cpu"))
+    except (AttributeError, RuntimeError):
+        # Some models may not have _flatten_layers or layer attributes
+        # may not support device movement. Continue gracefully.
+        pass
+
+
+def _create_quant_config_from_optimizations(optimizations, litert_torch):
+    """Translate TFLite optimizations to litert_torch QuantConfig.
+
+    Args:
+        optimizations: List of tf.lite.Optimize constants
+        litert_torch: The litert_torch module
+
+    Returns:
+        QuantConfig instance or None if no quantization requested
+    """
+    if not optimizations:
+        return None
+
+    try:
+        from litert_torch.quantize.pt2e_quantizer import PT2EQuantizer
+        from litert_torch.quantize.pt2e_quantizer import (
+            get_symmetric_quantization_config,
+        )
+        from litert_torch.quantize.quant_config import QuantConfig
+    except ImportError:
+        # If quantization modules unavailable, skip quantization
+        io_utils.print_msg(
+            "Warning: litert_torch quantization modules not available. "
+            "Skipping quantization."
+        )
+        return None
+
+    # Check what TFLite optimizations are requested
+    # Import tensorflow.lite to access Optimize constants
+    try:
+        import tensorflow as tf
+
+        optimize_default = tf.lite.Optimize.DEFAULT
+        optimize_size = getattr(tf.lite.Optimize, "OPTIMIZE_FOR_SIZE", None)
+        optimize_latency = getattr(
+            tf.lite.Optimize, "OPTIMIZE_FOR_LATENCY", None
+        )
+    except (ImportError, AttributeError):
+        # If TF not available or constants missing, can't interpret
+        # optimizations properly
+        return None
+
+    # Map TFLite optimizations to litert_torch quantization configs
+    # DEFAULT: Dynamic range quantization (weights quantized, activations
+    # float)
+    # OPTIMIZE_FOR_SIZE: Static quantization (both weights and activations)
+    # OPTIMIZE_FOR_LATENCY: Per-channel quantization for better accuracy
+
+    has_default = optimize_default in optimizations
+    has_size = optimize_size and optimize_size in optimizations
+    has_latency = optimize_latency and optimize_latency in optimizations
+
+    if has_default or has_size or has_latency:
+        # Create quantizer with symmetric quantization config
+        # Use per-channel for better accuracy (similar to OPTIMIZE_FOR_LATENCY)
+        # Use dynamic=True for DEFAULT (dynamic range quantization)
+        is_dynamic = has_default and not (has_size or has_latency)
+        is_per_channel = has_latency or has_size
+
+        quant_config_obj = get_symmetric_quantization_config(
+            is_per_channel=is_per_channel,
+            is_dynamic=is_dynamic,
+            is_qat=False,  # Post-training quantization
+        )
+
+        quantizer = PT2EQuantizer()
+        quantizer.set_global(quant_config_obj)
+
+        return QuantConfig(pt2e_quantizer=quantizer)
+
+    return None
+
+
+def _restore_model_devices(model, original_devices, torch):
+    """Restore model tensors to their original devices after export."""
+    if not original_devices:
+        return
+
+    try:
+        for v in model.variables:
+            key = ("var", v.path)
+            if key in original_devices:
+                v.value.data = v.value.data.to(original_devices[key])
+    except (AttributeError, TypeError):
+        # Variables may not exist. Continue gracefully.
+        pass
+
+    try:
+        for name, p in model.named_parameters():
+            key = ("param", name)
+            if key in original_devices:
+                p.data = p.data.to(original_devices[key])
+        for name, b in model.named_buffers():
+            key = ("buffer", name)
+            if key in original_devices:
+                b.data = b.data.to(original_devices[key])
+    except (AttributeError, RuntimeError):
+        # Parameters/buffers may not exist or device operations may fail.
+        pass
+
+    try:
+        for layer in model._flatten_layers():
+            for attr_name in list(vars(layer)):
+                key = ("attr", f"{layer.name}.{attr_name}")
+                if key in original_devices:
+                    obj = getattr(layer, attr_name, None)
+                    if isinstance(obj, torch.Tensor):
+                        setattr(
+                            layer,
+                            attr_name,
+                            obj.to(original_devices[key]),
+                        )
+    except (AttributeError, RuntimeError):
+        # Layer attributes may not exist or device operations may fail.
+        pass
+
+
+def _register_litert_decompositions(torch, litert_torch):
+    """Register decompositions for operations unsupported by litert_torch.
+
+    Covers two main categories:
+    1. **MPS-specific ops**: On Apple Silicon, torch.export may capture
+       MPS-optimized operations (e.g.,
+       `_scaled_dot_product_attention_math_for_mps`) that litert_torch
+       cannot lower. We register standard (portable) decompositions
+       instead.
+    2. **Ops with unsupported kwargs**: Some operations (e.g., `aten.mean.dim`
+       with `dtype` kwarg) have litert_torch lowerings that don't accept all
+       parameters. We decompose these into equivalent primitive operations.
+
+    Args:
+        torch: The torch module.
+        litert_torch: The litert_torch module.
+    """
+    from litert_torch.fx_infra import decomp as litert_decomp
+
+    pre_convert = litert_decomp.pre_convert_decomp()
+
+    # --- MPS SDPA decomposition ---
+    mps_sdpa = getattr(
+        torch.ops.aten,
+        "_scaled_dot_product_attention_math_for_mps",
+        None,
+    )
+    if mps_sdpa is not None:
+        mps_sdpa_default = getattr(mps_sdpa, "default", None)
+        if mps_sdpa_default is not None and mps_sdpa_default not in pre_convert:
+            non_mps_sdpa = getattr(
+                torch.ops.aten._scaled_dot_product_attention_math,
+                "default",
+                None,
+            )
+            if non_mps_sdpa is not None:
+                core_decomps = torch._decomp.core_aten_decompositions()
+                if non_mps_sdpa in core_decomps:
+                    litert_decomp.add_pre_convert_decomp(
+                        mps_sdpa_default, core_decomps[non_mps_sdpa]
+                    )
+
+    # --- aten.mean.dim decomposition (strip dtype kwarg) ---
+    # litert_torch's lowering for aten.mean.dim does not accept the
+    # ``dtype`` keyword argument. We register a decomposition that
+    # implements mean via sum/division when dtype is specified, avoiding
+    # a recursive call to the same op.
+    mean_dim_op = torch.ops.aten.mean.dim
+    if mean_dim_op not in pre_convert:
+
+        def _mean_dim_with_dtype(self, dim, keepdim=False, *, dtype=None):
+            if dtype is not None:
+                self = self.to(dtype)
+            # Compute mean via sum / count to avoid recursing into
+            # the same decomposition entry.
+            curr_dim = dim
+            if curr_dim is None:
+                curr_dim = list(range(self.ndim))
+            elif isinstance(curr_dim, int):
+                curr_dim = [curr_dim]
+            count = 1
+            for d in curr_dim:
+                count *= self.shape[d]
+            return (
+                torch.ops.aten.sum.dim_IntList(self, curr_dim, keepdim=keepdim)
+                / count
+            )
+
+        litert_decomp.add_pre_convert_decomp(mean_dim_op, _mean_dim_with_dtype)
+
+    # --- aten.repeat_interleave decomposition ---
+    # litert_torch does not have a lowering for
+    # aten.repeat_interleave.Tensor. Decompose it into
+    # unsqueeze + expand + reshape which are portable ops.
+    # TODO: Remove this once litert-torch supports aten.repeat_interleave.
+    repeat_interleave_op = getattr(
+        torch.ops.aten.repeat_interleave, "Tensor", None
+    )
+    if (
+        repeat_interleave_op is not None
+        and repeat_interleave_op not in pre_convert
+    ):
+
+        def _repeat_interleave_decomp(repeats, output_size=None):
+            # This overload takes a 1-D repeats tensor and returns
+            # indices where each index i is repeated repeats[i] times.
+            # Example: [2, 1] -> [0, 0, 1].
+            # Use cumsum and searchsorted to compute indices portably.
+            if output_size is None:
+                output_size = torch.ops.aten.sum.default(repeats)
+            # cumsum of repeats gives boundaries: [2, 1] -> [2, 3]
+            boundaries = torch.ops.aten.cumsum.default(
+                repeats, dim=0, dtype=repeats.dtype
+            )
+            # Create output indices: arange(output_size) gives [0, 1, 2]
+            out_indices = torch.ops.aten.arange.start_step(
+                0, output_size, 1, dtype=repeats.dtype, device=repeats.device
+            )
+            # searchsorted: for each out_indices[i], find which repeats
+            # bucket it falls into. [0, 1, 2] with boundaries [2, 3]
+            # -> [0, 0, 1] (0 and 1 < 2, so bucket 0; 2 >= 2 and < 3, so 1)
+            return torch.ops.aten.searchsorted.default(
+                boundaries, out_indices, right=False
+            )
+
+        # Only register if not already registered
+        litert_decomp.add_pre_convert_decomp(
+            repeat_interleave_op, _repeat_interleave_decomp
+        )
+
+    # Also handle the self_int overload (scalar repeats along a dim)
+    repeat_interleave_self_int = getattr(
+        torch.ops.aten.repeat_interleave, "self_int", None
+    )
+    if (
+        repeat_interleave_self_int is not None
+        and repeat_interleave_self_int not in pre_convert
+    ):
+
+        def _repeat_interleave_self_int_decomp(
+            self, repeats, dim=None, *, output_size=None
+        ):
+            if dim is None:
+                self = self.flatten()
+                dim = 0
+            if dim < 0:
+                dim = self.ndim + dim
+            # unsqueeze after dim, expand, then flatten the two dims
+            x = self.unsqueeze(dim + 1)
+            expand_shape = [-1] * x.ndim
+            expand_shape[dim + 1] = repeats
+            x = x.expand(expand_shape)
+            shape = list(self.shape)
+            shape[dim] = shape[dim] * repeats
+            return x.reshape(shape)
+
+        litert_decomp.add_pre_convert_decomp(
+            repeat_interleave_self_int, _repeat_interleave_self_int_decomp
+        )
+
+
+def _patch_vhlo_target_version():
+    """Patch VHLO serialization for TFLite converter compatibility.
+
+    **WARNING: This function monkey-patches litert_torch internals.**
+
+    Addresses StableHLO version compatibility issues:
+
+    1. **StableHLO version skew**: litert_torch serializes VHLO targeting
+       StableHLO v1.13.0+, which uses v2 element-wise ops (`tanh_v2`,
+       `logistic_v2`, etc.). The TFLite converter only supports StableHLO
+       up to ~v1.9.1 and cannot parse these newer ops.
+
+    2. **Unsupported optimization_barrier ops**: litert_torch inserts
+       `stablehlo.optimization_barrier` operations that the TFLite
+       converter rejects.
+
+    This patch modifies `MlirLowered.module_bytecode_vhlo` to:
+    - Remove optimization barrier ops (they're compiler hints with no
+      runtime effect)
+    - Serialize using the minimum StableHLO version for maximum
+      compatibility
+
+    TODO: Remove this once TFLite converter supports newer StableHLO versions
+    or litert-torch provides configuration options for version targeting.
+    """
+    try:
+        from litert_torch.odml_torch import export as _odml_export
+
+        MlirLowered = _odml_export.MlirLowered
+        if getattr(MlirLowered, "_keras_vhlo_patched", False):
+            return
+
+        _serialize = _odml_export.serialize_portable_artifact
+        _stablehlo = _odml_export.stablehlo
+        _min_version = _stablehlo.get_minimum_version()
+
+        @property
+        def _patched_module_bytecode_vhlo(self):
+            _remove_optimization_barriers(self.module)
+            return _serialize(self.module_bytecode, _min_version)
+
+        MlirLowered.module_bytecode_vhlo = _patched_module_bytecode_vhlo
+        MlirLowered._keras_vhlo_patched = True
+    except (ImportError, AttributeError):
+        # Patching is best-effort. If litert_torch internals change or are
+        # unavailable, conversion will proceed without this optimization.
+        # If version incompatibility issues arise, they'll be caught by
+        # the TFLite converter with appropriate error messages.
+        pass
+
+
+def _remove_optimization_barriers(module):
+    """Remove ``stablehlo.optimization_barrier`` ops from an MLIR module.
+
+    ``optimization_barrier`` is a compiler hint that prevents reordering;
+    it has no runtime effect.  Each output is replaced with its
+    corresponding input before the op is erased.
+    """
+
+    def _walk_and_remove(region):
+        for block in region:
+            to_erase = []
+            for op in block:
+                # Recurse into nested regions (e.g. while, if).
+                for nested in op.regions:
+                    _walk_and_remove(nested)
+                if op.name == "stablehlo.optimization_barrier":
+                    for result, operand in zip(op.results, op.operands):
+                        result.replace_all_uses_with(operand)
+                    to_erase.append(op)
+            for op in reversed(to_erase):
+                op.erase()
+
+    try:
+        for op in module.body.operations:
+            for region in op.regions:
+                _walk_and_remove(region)
+    except (AttributeError, RuntimeError):
+        # MLIR operations may not have expected structure. This is a
+        # best-effort optimization; conversion can proceed without it.
+        pass

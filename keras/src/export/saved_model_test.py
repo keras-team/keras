@@ -1037,3 +1037,49 @@ class ExportArchiveTest(testing.TestCase):
 
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(revived_model.combined_fn(ref_input), ref_output)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="This test is native to the TF backend.",
+    )
+    def test_export_archive_track_model_with_dict_attributes(self):
+        """Regression: ExportArchive.track() must not crash on _DictWrapper.
+
+        ``ExportArchive._filter_and_track_resources`` walks every tracked
+        object through ``SavedModelTrackableView.children``.  TF's
+        ``convert_to_trackable`` calls ``tensor_util.is_tf_type(obj)``, which
+        internally uses ``inspect.getattr_static(obj, '__dict__')``.  Keras 3
+        stores some collections in ``_DictWrapper`` objects whose ``__dict__``
+        property raises ``TypeError``.  The fix catches that error in the
+        ``children()`` override and falls back gracefully.
+        """
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+
+        # A subclass model whose internal Keras collections (_DictWrapper
+        # objects tracking layers, metrics, etc.) trigger the bug.
+        class DictAttrModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(4)
+                # A real dict attr that Keras wraps as _DictWrapper.
+                self.metadata = {"version": 1, "kind": "test"}
+
+            def call(self, x):
+                return self.dense(x)
+
+        model = DictAttrModel()
+        ref_input = tf.random.normal((3, 8))
+        ref_output = model(ref_input)
+
+        export_archive = saved_model.ExportArchive()
+        # Must not raise TypeError from inspect.getattr_static on _DictWrapper.
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            "serve",
+            model.call,
+            input_signature=[tf.TensorSpec(shape=(None, 8), dtype=tf.float32)],
+        )
+        export_archive.write_out(temp_filepath)
+
+        revived = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived.serve(ref_input))
