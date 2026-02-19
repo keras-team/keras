@@ -10,10 +10,6 @@ NumpyDtypeTest::test_diagflat
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_nanvar
-NumpyDtypeTest::test_nanmax
-NumpyDtypeTest::test_nanmean
-NumpyDtypeTest::test_nanmin
-NumpyDtypeTest::test_nanprod
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
@@ -44,7 +40,6 @@ NumpyOneInputOpsCorrectnessTest::test_trunc
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyTwoInputOpsCorrectnessTest::test_einsum
-NumpyTwoInputOpsCorrectnessTest::test_inner
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
