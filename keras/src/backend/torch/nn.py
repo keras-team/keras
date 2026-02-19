@@ -1156,11 +1156,41 @@ def dot_product_attention(
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
-        # Use `bias` as `mask` for scaled_dot_product_attention.
-        # Explicit set `is_causal` to `False` when `bias` is used as `mask`,
-        # as PyTorch doesn't allow both attn_mask and is_causal=True.
-        is_causal = False
-        mask = bias
+        # When both bias and is_causal are present, combine them:
+        # create a causal mask and add it to the bias.
+        if is_causal:
+            # Create causal mask: lower triangular matrix where valid positions
+            # are 0.0 and invalid positions are large negative values.
+            # Get sequence lengths from bias shape (last two dimensions)
+            if len(bias.shape) >= 2:
+                query_len = bias.shape[-2]
+                key_len = bias.shape[-1]
+            else:
+                # Fallback to query/key shapes if bias shape is unexpected
+                query_len = query.shape[2]
+                key_len = key.shape[2]
+            causal_mask = torch.tril(
+                torch.ones(
+                    (query_len, key_len),
+                    device=query.device,
+                    dtype=compute_dtype,
+                )
+            )
+            causal_mask = torch.where(
+                causal_mask == 1, 0.0, _get_large_negative(compute_dtype)
+            )
+            # Expand to match bias shape
+            while len(causal_mask.shape) < len(bias.shape):
+                causal_mask = causal_mask.unsqueeze(0)
+            # Add causal mask to bias
+            mask = bias + causal_mask
+            is_causal = False
+        else:
+            # Use `bias` as `mask` for scaled_dot_product_attention.
+            mask = bias
+            # Explicit set `is_causal` to `False` when `bias` is used as `mask`,
+            # as PyTorch doesn't allow both attn_mask and is_causal=True.
+            is_causal = False
 
     axis0, axis1 = 1, 2
     query = torch.transpose(query, axis0, axis1)
