@@ -2,7 +2,6 @@ NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_heaviside
-NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_einsum
 NumpyDtypeTest::test_isreal
@@ -24,7 +23,6 @@ NumpyDtypeTest::test_view
 HistogramTest
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
-NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
