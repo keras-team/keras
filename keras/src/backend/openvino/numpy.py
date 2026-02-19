@@ -672,21 +672,9 @@ def heaviside(x1, x2):
     return OpenVINOKerasTensor(x)
 
 def _i0_node(x):
-    """
-    Computes the modified Bessel function of the first kind, order 0 (I0),
-    using the polynomial approximation from Abramowitz and Stegun.
-    Input 'x' is expected to be an ov.Output (node) with floating point type (ideally f64).
-    Returns an ov.Output (node).
-    """
-    # Use absolute value because I0 is even: I0(x) = I0(-x)
     x = ov_opset.abs(x).output(0)
     x_type = x.get_element_type()
-
-    # Constants
     three_point_seven_five = ov_opset.constant(3.75, x_type).output(0)
-
-    # Coefficients for |x| <= 3.75
-    # P1 coefficients: 1.0, 3.5156229, 3.0899424, 1.2067492, 0.2659732, 0.0360768, 0.0045813
     p1_coeffs = [
         1.0,
         3.5156229,
@@ -696,10 +684,6 @@ def _i0_node(x):
         0.0360768,
         0.0045813,
     ]
-
-    # Coefficients for |x| > 3.75
-    # P2 coefficients: 0.39894228, 0.01328592, 0.00225319, -0.00157565, 0.00916281,
-    # -0.02057706, 0.02635537, -0.01647633, 0.00392377
     p2_coeffs = [
         0.39894228,
         0.01328592,
@@ -711,48 +695,22 @@ def _i0_node(x):
         -0.01647633,
         0.00392377,
     ]
-
-    # Branch A: |x| <= 3.75
-    # t = (x / 3.75)^2
     t_A = ov_opset.divide(x, three_point_seven_five).output(0)
     t_A = ov_opset.multiply(t_A, t_A).output(0)
-
-    # Evaluate Polynomial P1 using Horner's method
-    # res_A = p1[6] * t^6 + ... + p1[0]
     res_A = ov_opset.constant(p1_coeffs[6], x_type).output(0)
     for i in range(5, -1, -1):
         c = ov_opset.constant(p1_coeffs[i], x_type).output(0)
         res_A = ov_opset.add(ov_opset.multiply(res_A, t_A), c).output(0)
-
-    # Branch B: |x| > 3.75
-    # t = 3.75 / |x|
-    # To be safe against division by zero (though branch B is for |x| > 3.75),
-    # we can just compute it. If x is small, we select res_A anyway.
-    # But to prevent NaN/Inf propagation if we execute both branches,
-    # we can use a safe x.
-    # safe_x = max(|x|, 3.75) roughly
     safe_x = ov_opset.maximum(x, three_point_seven_five).output(0)
     t_B = ov_opset.divide(three_point_seven_five, safe_x).output(0)
-
-    # Evaluate Polynomial P2 using Horner's method
     res_B = ov_opset.constant(p2_coeffs[8], x_type).output(0)
     for i in range(7, -1, -1):
         c = ov_opset.constant(p2_coeffs[i], x_type).output(0)
         res_B = ov_opset.add(ov_opset.multiply(res_B, t_B), c).output(0)
-
-    # Final formula for B: (e^|x| / sqrt(|x|)) * res_B
     exp_x = ov_opset.exp(x).output(0)
-    # Avoid div by zero in sqrt(x) if x is 0 (though branch A handles 0)
-    # The selection logic handles the result, but intermediate values might be Inf.
-    # However, branch B is only selected if |x| > 3.75, so sqrt(x) is safe if we use select correctly.
-    # But if we compute graph eagerly or without control flow, we might need safe inputs.
-    # Using safe_x for sqrt as well.
     sqrt_safe_x = ov_opset.sqrt(safe_x).output(0)
-
     factor = ov_opset.divide(exp_x, sqrt_safe_x).output(0)
     res_B = ov_opset.multiply(factor, res_B).output(0)
-
-    # Select based on condition
     condition = ov_opset.less_equal(x, three_point_seven_five).output(0)
     result = ov_opset.select(condition, res_A, res_B).output(0)
 
@@ -761,83 +719,43 @@ def _i0_node(x):
 def kaiser(x, beta):
     m = get_ov_output(x)
     beta = get_ov_output(beta)
-
-    # Ensure M is integer for range generation (if it's not already)
-    # and scalar (or 0-D tensor)
     if m.get_element_type() != Type.i64:
         m_i64 = ov_opset.convert(m, Type.i64).output(0)
     else:
         m_i64 = m
-
-    # Ensure precision for calculation (float64 is preferred for I0)
     calc_type = Type.f64
     if m.get_element_type() != calc_type:
         m_float = ov_opset.convert(m, calc_type).output(0)
     else:
         m_float = m
-
     if beta.get_element_type() != calc_type:
         beta = ov_opset.convert(beta, calc_type).output(0)
-
-    # Generate sequence n: 0, 1, ..., M-1
     start = ov_opset.constant(0, Type.i64).output(0)
     step = ov_opset.constant(1, Type.i64).output(0)
     n = ov_opset.range(start, m_i64, step, calc_type).output(0)
-
-    # alpha = (M - 1) / 2
     one_float = ov_opset.constant(1.0, calc_type).output(0)
     two_float = ov_opset.constant(2.0, calc_type).output(0)
     alpha = ov_opset.divide(
         ov_opset.subtract(m_float, one_float), two_float
     ).output(0)
-
-    # Calculate (n - alpha) / alpha
-    # Note: If M=1, alpha=0.Division by zero.
-    # NumPy kaiser(1, beta) returns [1.0].
-    # We handle this by using a safe alpha or safe division, then select.
-
-    # Check for M=1 case (alpha == 0)
     zero_float = ov_opset.constant(0.0, calc_type).output(0)
     is_alpha_zero = ov_opset.equal(alpha, zero_float).output(0)
-
-    # Safe alpha to avoid div by zero
     safe_alpha = ov_opset.select(is_alpha_zero, one_float, alpha).output(0)
-
     val = ov_opset.divide(
         ov_opset.subtract(n, alpha), safe_alpha
-    ).output(0)  # (n - alpha) / alpha
-    val_sq = ov_opset.multiply(val, val).output(0)  # val^2
-    term = ov_opset.subtract(one_float, val_sq).output(0)  # 1 - val^2
-
-    # term can be slightly negative due to precision issues at boundaries?
-    # theoretically for n in [0, M-1], (n-alpha) is in [-alpha, alpha], so ratio in [-1, 1], sq in [0, 1].
-    # so 1 - sq >= 0.
-    # Just in case, we can clip or abs? sqrt of negative is NaN.
-    # Let's assume it's safe or add abs.
-    # Actually, if we use max(0, term) it's safer.
+    ).output(0)  
+    val_sq = ov_opset.multiply(val, val).output(0)  
+    term = ov_opset.subtract(one_float, val_sq).output(0)  
     term = ov_opset.maximum(term, zero_float).output(0)
-
     sqrt_term = ov_opset.sqrt(term).output(0)
     arg = ov_opset.multiply(beta, sqrt_term).output(0)
-
-    # numerator = I0(beta * sqrt(...))
     num = _i0_node(arg)
-
-    # denominator = I0(beta)
     den = _i0_node(beta)
-
-    # result = num / den
-    # If M=1, alpha=0.
-    # Using safe_alpha=1 => val = (0-0)/1 = 0 => term = 1 => sqrt=1 => arg=beta => num=I0(beta).
-    # den = I0(beta). result = 1.
     # So the logic holds for M=1 without special branching if we ensure safe_alpha.
     result = ov_opset.divide(num, den).output(0)
-
-    # Final conversion to float32 (standard keras floatx)
     result = ov_opset.convert(result, OPENVINO_DTYPES[config.floatx()]).output(
         0
     )
-
     return OpenVINOKerasTensor(result)
 
 
