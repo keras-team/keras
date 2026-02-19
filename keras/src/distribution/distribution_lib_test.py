@@ -11,6 +11,15 @@ from keras.src import backend
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
+from keras.src.distribution.distribution_lib import AutoTPDistribution
+from keras.src.distribution.tensor_parallel.tensor_parallel import (
+    TensorParallelKeras,
+)
+from keras.src.layers import Dense
+from keras.src.layers import Input
+from keras.src.losses import SparseCategoricalCrossentropy
+from keras.src.models import Model
+from keras.src.optimizers import Adam
 
 
 @pytest.mark.skipif(
@@ -535,3 +544,118 @@ class LayoutMapTest(testing.TestCase):
 #             ValueError, "Cannot create sharding when device mesh is not set"
 #         ):
 #             backend_dlib._to_dtensor_layout(layout)
+
+
+class AutoTPDistributionTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.devices = distribution_lib.list_devices()
+        if len(self.devices) < 2:
+            self.skipTest("This test requires at least 2 devices.")
+        inputs = Input(shape=(4,), name="input_layer")
+        x = Dense(8, name="dense_1")(inputs)
+        outputs = Dense(2, name="dense_2")(x)
+        self.model = Model(inputs, outputs)
+
+    def test_init_with_explicit_device_mesh(self):
+        """Tests initialization with a user-provided DeviceMesh."""
+        device_mesh = distribution_lib.DeviceMesh(
+            shape=(1, 2), axis_names=["data", "model"], devices=self.devices
+        )
+        distribution = AutoTPDistribution(self.model, device_mesh=device_mesh)
+
+        self.assertIs(distribution.device_mesh, device_mesh)
+        self.assertEqual(distribution.batch_dim_name, "data")
+        self.assertIsInstance(
+            distribution.model,
+            TensorParallelKeras,
+        )
+        self.assertEqual(distribution.model.world_size, 2)
+
+    @mock.patch.object(
+        distribution_lib,
+        "list_devices",
+        return_value=[f"cpu:{i}" for i in range(2)],
+    )
+    def test_init_without_device_mesh_for_auto_creation(
+        self, mock_list_devices
+    ):
+        """Tests the automatic creation of DeviceMesh when none is provided."""
+        distribution = AutoTPDistribution(self.model, device_mesh=None)
+        mock_list_devices.assert_called_once()
+
+        device_mesh = distribution.device_mesh
+        self.assertEqual(device_mesh.shape, (1, 2))
+        self.assertEqual(device_mesh.axis_names, ("data", "model"))
+        self.assertEqual(distribution.batch_dim_name, "data")
+        self.assertEqual(distribution.model.world_size, 2)
+
+    def test_init_raises_error_on_missing_data_axis(self):
+        """Ensures an error is raised if the DeviceMesh lacks a 'data' axis."""
+        device_mesh = distribution_lib.DeviceMesh(
+            shape=(2,), axis_names=["model"], devices=self.devices
+        )
+        with self.assertRaisesRegex(ValueError, "must have a 'data' axis"):
+            AutoTPDistribution(self.model, device_mesh=device_mesh)
+
+    def test_get_data_layout(self):
+        """Verifies the layout for input data sharding."""
+        distribution = AutoTPDistribution(self.model)
+        data_shape = (16, 4)
+        layout = distribution.get_data_layout(data_shape)
+
+        self.assertEqual(layout.axes, ("data", None))
+        self.assertIs(layout.device_mesh, distribution.device_mesh)
+
+    def test_get_variable_layout_warns_and_returns_replicated(self):
+        """Verifies that variable layout is handled internally."""
+        distribution = AutoTPDistribution(self.model)
+        dummy_variable = backend.Variable(initializer=np.zeros((8, 2)))
+
+        with self.assertWarns(UserWarning) as w:
+            layout = distribution.get_variable_layout(dummy_variable)
+
+        self.assertIn(
+            "Variable layout is determined automatically",
+            str(w.warnings[0].message),
+        )
+
+        self.assertEqual(layout.axes, (None, None))
+
+    def test_distribute_dataset_in_single_process_mode(self):
+        """Tests dataset distribution in a single-process environment."""
+        distribution = AutoTPDistribution(self.model)
+        dataset = tf.data.Dataset.from_tensor_slices(
+            (np.zeros((16, 4)), np.zeros((16, 1)))
+        )
+
+        distributed_dataset = distribution.distribute_dataset(dataset)
+        self.assertIs(dataset, distributed_dataset)
+
+    def test_full_compile_and_fit_integration(self):
+        """A test to ensure the distributed model can compile and train."""
+        distribution = AutoTPDistribution(self.model)
+
+        x_train = np.random.rand(16, 4).astype("float32")
+        y_train = np.random.randint(0, 2, size=(16, 1))
+
+        dist_model = distribution.model
+
+        with distribution.scope():
+            dist_model.compile(
+                optimizer=Adam(0.01),
+                loss=SparseCategoricalCrossentropy(from_logits=True),
+                metrics=["accuracy"],
+            )
+
+        self.assertEqual(self.model.count_params(), dist_model.count_params())
+
+        history = dist_model.fit(
+            x_train,
+            y_train,
+            epochs=1,
+            batch_size=4,
+            verbose=0,
+        )
+        self.assertIn("loss", history.history)
+        self.assertIn("accuracy", history.history)
