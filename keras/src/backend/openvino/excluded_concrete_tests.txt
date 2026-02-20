@@ -16,7 +16,6 @@ NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_nextafter
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_quantile
-NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
 NumpyDtypeTest::test_var

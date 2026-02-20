@@ -1548,3 +1548,7 @@ def argpartition(x, kth, axis=-1):
 
 def histogram(x, bins=10, range=None):
     return np.histogram(x, bins=bins, range=range)
+
+def signbit(x):
+     x = convert_to_tensor(x)
+    return ov_opset.less(x, 0)
