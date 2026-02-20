@@ -2761,7 +2761,58 @@ def nansum(x, axis=None, keepdims=False):
 
 
 def nanvar(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nanvar` is not supported with openvino backend")
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        x = x.astype(np.float32)
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type == Type.f64:
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        return var(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    if axis == () or axis == []:
+        nan_mask = ov_opset.is_nan(x).output(0)
+        zero = ov_opset.constant(0, x_type).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.select(nan_mask, x, zero).output(0)
+        )
+
+    # Compute mean ignoring NaN, keeping dims for broadcasting
+    mean_val = get_ov_output(
+        nanmean(OpenVINOKerasTensor(x), axis=axis, keepdims=True)
+    )
+
+    nan_mask = ov_opset.is_nan(x)
+    zero = ov_opset.constant(0, x_type)
+    not_nan = ov_opset.logical_not(nan_mask).output(0)
+
+    # Squared deviations, zeroed where NaN
+    centered = ov_opset.subtract(x, mean_val).output(0)
+    centered = ov_opset.select(nan_mask, zero, centered).output(0)
+    squared = ov_opset.multiply(centered, centered).output(0)
+
+    x, axis_const = _resolve_axis(x, axis)
+    # Re-resolve for the shaped tensors (axis_const from _resolve_axis)
+    if axis is None:
+        flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
+        squared = ov_opset.reshape(squared, flatten_shape, False).output(0)
+        not_nan = ov_opset.reshape(not_nan, flatten_shape, False).output(0)
+        axis_const = ov_opset.constant(0, Type.i32).output(0)
+    else:
+        if isinstance(axis, (tuple, list)):
+            axis_const = ov_opset.constant(list(axis), Type.i32).output(0)
+        else:
+            axis_const = ov_opset.constant(axis, Type.i32).output(0)
+
+    not_nan_float = ov_opset.convert(not_nan, x_type).output(0)
+    sq_sum = ov_opset.reduce_sum(squared, axis_const, keepdims).output(0)
+    count = ov_opset.reduce_sum(
+        not_nan_float, axis_const, keepdims
+    ).output(0)
+    result = ov_opset.divide(sq_sum, count).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
