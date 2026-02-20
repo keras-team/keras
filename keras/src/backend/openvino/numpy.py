@@ -13,6 +13,7 @@ from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
     align_operand_types as _align_operand_types,
 )
+from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
@@ -526,7 +527,7 @@ def view(x, dtype=None):
     if dtype is None:
         dtype = old_dtype
     new_dtype = standardize_dtype(dtype)
-    np_array = x.get_node().data
+    np_array = convert_to_numpy(OpenVINOKerasTensor(x))
     result = np_array.view(np.dtype(new_dtype))
 
     new_ov_type = OPENVINO_DTYPES[new_dtype]
