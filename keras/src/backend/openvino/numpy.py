@@ -4265,3 +4265,8 @@ def histogram(x, bins=10, range=None):
     )
 
     return OpenVINOKerasTensor(hist.output(0)), OpenVINOKerasTensor(bin_edges)
+
+def signbit(x):
+    x = get_ov_output(x)
+      
+   return openvino.runtime.opset12.less(x, 0.0) | openvino.runtime.opset12.is_finite(x) & (openvino.runtime.opset12.atan2(x, -1.0) > 0)
