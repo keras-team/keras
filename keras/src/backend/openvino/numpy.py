@@ -1802,7 +1802,9 @@ def identity(n, dtype=None):
 
 
 def imag(x):
-    raise NotImplementedError("`imag` is not supported with openvino backend")
+    # Implement properly when OpenVINO supports complex inputs
+    x = convert_to_tensor(x)
+    return zeros(x.shape, dtype=x.dtype)
 
 
 def inner(x1, x2):
@@ -1939,7 +1941,9 @@ def _is_inf(x, pos=True):
 
 
 def isreal(x):
-    raise NotImplementedError("`isreal` is not supported with openvino backend")
+    # Implement complex support when OpenVINO adds complex dtypes.
+    x = convert_to_tensor(x)
+    return ones(x.shape, dtype="bool")
 
 
 def kron(x1, x2):
@@ -2942,7 +2946,9 @@ def ravel(x):
 
 
 def real(x):
-    raise NotImplementedError("`real` is not supported with openvino backend")
+    # TODO: Implement complex support when OpenVINO adds complex dtypes.
+    # Currently, all supported dtypes are real-valued.
+    return convert_to_tensor(x)
 
 
 def reciprocal(x):

@@ -7,7 +7,6 @@ NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_einsum
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
-NumpyDtypeTest::test_isreal
 NumpyDtypeTest::test_nanvar
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
@@ -38,11 +37,9 @@ NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
-NumpyOneInputOpsDynamicShapeTest::test_isreal
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
-NumpyOneInputOpsStaticShapeTest::test_isreal
 NumpyOneInputOpsStaticShapeTest::test_view
 NumpyTwoInputOpsDynamicShapeTest::test_nextafter
 NumpyTwoInputOpsStaticShapeTest::test_nextafter
