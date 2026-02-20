@@ -1134,7 +1134,7 @@ class Trainer:
                         "the model on a batch of data.\n"
                         "Exception encountered:\n"
                         f"'{e}'"
-                    )
+                    ) from e
             if used_test_step_build:
                 compile_metrics_unbuilt = (
                     self._compile_metrics is not None
