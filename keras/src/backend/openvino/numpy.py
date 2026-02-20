@@ -3029,17 +3029,17 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
             ov_opset.add(_gather(lo_idx), _gather(hi_idx)).output(0), two
         ).output(0)
     else:  # linear
-        # preserve_gradients: ensure lo < hi even at boundaries
+        # preserve_gradients: ensure interp_lo_idx < interp_hi_idx
         one_i32 = ov_opset.constant(np.int32(1)).output(0)
-        lo_idx = ov_opset.maximum(
+        interp_lo_idx = ov_opset.maximum(
             ov_opset.subtract(hi_idx, one_i32).output(0), zero_i32
         ).output(0)
-        hi_idx = ov_opset.minimum(
-            ov_opset.add(lo_idx, one_i32).output(0), n_minus1_i32
+        interp_hi_idx = ov_opset.minimum(
+            ov_opset.add(interp_lo_idx, one_i32).output(0), n_minus1_i32
         ).output(0)
         frac = ov_opset.convert(
             ov_opset.subtract(
-                ov_opset.convert(hi_idx, Type.f64).output(0), exact_idx
+                ov_opset.convert(interp_hi_idx, Type.f64).output(0), exact_idx
             ).output(0),
             compute_ov_type,
         ).output(0)
@@ -3048,10 +3048,10 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
         ).output(0)
         gathered = ov_opset.add(
             ov_opset.multiply(
-                _gather(hi_idx),
+                _gather(interp_hi_idx),
                 ov_opset.subtract(one_val, frac).output(0),
             ).output(0),
-            ov_opset.multiply(_gather(lo_idx), frac).output(0),
+            ov_opset.multiply(_gather(interp_lo_idx), frac).output(0),
         ).output(0)
 
     # keepdims: insert size-1 dims before rotating q to front
