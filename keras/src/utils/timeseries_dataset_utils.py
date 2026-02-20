@@ -342,8 +342,9 @@ def _timeseries_dataset_grain(
     # Build the list of sequences as numpy arrays
     sequences = []
     for pos in start_positions:
-        indices = np.arange(pos, pos + sequence_length * sampling_rate,
-                            sampling_rate)
+        indices = np.arange(
+            pos, pos + sequence_length * sampling_rate, sampling_rate
+        )
         sequences.append(data_slice[indices])
 
     seq_ds = grain.MapDataset.source(sequences)
