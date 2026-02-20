@@ -245,6 +245,26 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.euclidean_dist_transform(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
 
+    def test_ssim(self):
+        # Test batched channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        y = KerasTensor([None, 20, 20, 3])
+        out = kimage.ssim(x, y)
+        self.assertEqual(out.shape, (None,))
+
+        # Test unbatched channels_last
+        x = KerasTensor([20, 20, 3])
+        y = KerasTensor([20, 20, 3])
+        out = kimage.ssim(x, y)
+        self.assertEqual(out.shape, ())
+
+        # Test batched channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        y = KerasTensor([None, 3, 20, 20])
+        out = kimage.ssim(x, y)
+        self.assertEqual(out.shape, (None,))
+
     def test_scale_and_translate(self):
         images = KerasTensor([None, 20, 20, 3])
         output_shape = (None, 25, 25, 3)
@@ -548,6 +568,26 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor([3, 20, 20])
         out = kimage.euclidean_dist_transform(x)
         self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_ssim(self):
+        # Test batched channels_last
+        x = KerasTensor([2, 20, 20, 3])
+        y = KerasTensor([2, 20, 20, 3])
+        out = kimage.ssim(x, y)
+        self.assertEqual(out.shape, (2,))
+
+        # Test unbatched channels_last
+        x = KerasTensor([20, 20, 3])
+        y = KerasTensor([20, 20, 3])
+        out = kimage.ssim(x, y)
+        self.assertEqual(out.shape, ())
+
+        # Test batched channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([2, 3, 20, 20])
+        y = KerasTensor([2, 3, 20, 20])
+        out = kimage.ssim(x, y)
+        self.assertEqual(out.shape, (2,))
 
     def test_scale_and_translate(self):
         images = KerasTensor([20, 20, 3])
@@ -2124,6 +2164,79 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                 x[:, :, c] != 0
             ).astype("float32")
             self.assertAllClose(out[:, :, c], expected, atol=1e-5)
+
+    def test_ssim_identical_images(self):
+        # SSIM of identical images should be ~1.0
+        np.random.seed(42)
+        x = np.random.random((2, 32, 32, 3)).astype("float32")
+        out = backend.convert_to_numpy(kimage.ssim(x, x))
+        self.assertEqual(out.shape, (2,))
+        self.assertAllClose(out, np.ones(2), atol=1e-5)
+
+    def test_ssim_identical_images_unbatched(self):
+        # Unbatched (rank-3) input
+        np.random.seed(42)
+        x = np.random.random((32, 32, 3)).astype("float32")
+        out = backend.convert_to_numpy(kimage.ssim(x, x))
+        self.assertEqual(out.shape, ())
+        self.assertAllClose(out, 1.0, atol=1e-5)
+
+    def test_ssim_against_tf(self):
+        np.random.seed(42)
+        x = np.random.random((2, 64, 64, 3)).astype("float32")
+        y = np.random.random((2, 64, 64, 3)).astype("float32")
+
+        out = backend.convert_to_numpy(kimage.ssim(x, y))
+        ref = tf.image.ssim(x, y, max_val=1.0).numpy()
+        self.assertEqual(out.shape, ref.shape)
+        self.assertAllClose(out, ref, atol=1e-5)
+
+    def test_ssim_channels_first(self):
+        np.random.seed(42)
+        x = np.random.random((2, 3, 64, 64)).astype("float32")
+        y = np.random.random((2, 3, 64, 64)).astype("float32")
+
+        out = backend.convert_to_numpy(
+            kimage.ssim(x, y, data_format="channels_first")
+        )
+        # Compare against tf.image.ssim (channels_last)
+        x_cl = np.transpose(x, (0, 2, 3, 1))
+        y_cl = np.transpose(y, (0, 2, 3, 1))
+        ref = tf.image.ssim(x_cl, y_cl, max_val=1.0).numpy()
+        self.assertEqual(out.shape, ref.shape)
+        self.assertAllClose(out, ref, atol=1e-5)
+
+    def test_ssim_max_val_255(self):
+        np.random.seed(42)
+        x = (np.random.random((2, 64, 64, 3)) * 255).astype("float32")
+        y = (np.random.random((2, 64, 64, 3)) * 255).astype("float32")
+
+        out = backend.convert_to_numpy(kimage.ssim(x, y, max_val=255))
+        ref = tf.image.ssim(x, y, max_val=255).numpy()
+        self.assertEqual(out.shape, ref.shape)
+        self.assertAllClose(out, ref, atol=1e-4)
+
+    def test_ssim_custom_params(self):
+        np.random.seed(42)
+        x = np.random.random((2, 64, 64, 3)).astype("float32")
+        y = np.random.random((2, 64, 64, 3)).astype("float32")
+
+        out = backend.convert_to_numpy(
+            kimage.ssim(
+                x, y, filter_size=7, filter_sigma=1.0, k1=0.05, k2=0.07
+            )
+        )
+        ref = tf.image.ssim(
+            x,
+            y,
+            max_val=1.0,
+            filter_size=7,
+            filter_sigma=1.0,
+            k1=0.05,
+            k2=0.07,
+        ).numpy()
+        self.assertEqual(out.shape, ref.shape)
+        self.assertAllClose(out, ref, atol=1e-5)
 
     def test_map_coordinates_constant_padding(self):
         input_img = tf.ones((2, 2), dtype=tf.uint8)

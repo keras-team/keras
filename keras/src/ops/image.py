@@ -1988,3 +1988,234 @@ def euclidean_dist_transform(images, data_format=None):
     return backend.image.euclidean_dist_transform(
         images, data_format=data_format
     )
+
+
+class SSIM(Operation):
+    def __init__(
+        self,
+        max_val=1.0,
+        filter_size=11,
+        filter_sigma=1.5,
+        k1=0.01,
+        k2=0.03,
+        data_format=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.max_val = max_val
+        self.filter_size = filter_size
+        self.filter_sigma = filter_sigma
+        self.k1 = k1
+        self.k2 = k2
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, image1, image2):
+        return _ssim(
+            image1,
+            image2,
+            max_val=self.max_val,
+            filter_size=self.filter_size,
+            filter_sigma=self.filter_sigma,
+            k1=self.k1,
+            k2=self.k2,
+            data_format=self.data_format,
+        )
+
+    def compute_output_spec(self, image1, image2):
+        if len(image1.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid image1 rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image1.shape={image1.shape}"
+            )
+        if len(image2.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid image2 rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"image2.shape={image2.shape}"
+            )
+        if len(image1.shape) == 3:
+            return KerasTensor((), dtype=image1.dtype)
+        return KerasTensor((image1.shape[0],), dtype=image1.dtype)
+
+
+@keras_export("keras.ops.image.ssim")
+def ssim(
+    image1,
+    image2,
+    max_val=1.0,
+    filter_size=11,
+    filter_sigma=1.5,
+    k1=0.01,
+    k2=0.03,
+    data_format=None,
+):
+    """Computes the Structural Similarity Index (SSIM) between two images.
+
+    SSIM is a perceptual metric that quantifies the visual similarity
+    between two images, based on luminance, contrast, and structure
+    comparisons. A value of 1.0 indicates identical images.
+
+    Uses a Gaussian-weighted sliding window applied via depthwise
+    convolution. The SSIM is computed locally over the window and
+    averaged across all spatial positions and channels.
+
+    Args:
+        image1: First image or batch of images. Must be 3D or 4D.
+        image2: Second image or batch of images. Must be 3D or 4D,
+            and have the same shape as `image1`.
+        max_val: The dynamic range of the images (i.e., the difference
+            between the maximum and minimum allowed values).
+            Defaults to `1.0` (assumes images are normalized to
+            `[0, 1]`). Use `255` for images in `[0, 255]` range.
+        filter_size: Size of the Gaussian filter used for computing
+            SSIM statistics. Defaults to `11`.
+        filter_sigma: Standard deviation of the Gaussian filter.
+            Defaults to `1.5`.
+        k1: Small constant used to stabilize the luminance comparison.
+            Defaults to `0.01`.
+        k2: Small constant used to stabilize the contrast comparison.
+            Defaults to `0.03`.
+        data_format: A string specifying the data format of the input
+            tensors. It can be either `"channels_last"` or
+            `"channels_first"`. `"channels_last"` corresponds to inputs
+            with shape `(batch, height, width, channels)`, while
+            `"channels_first"` corresponds to inputs with shape
+            `(batch, channels, height, width)`. If not specified, the
+            value will default to `keras.config.image_data_format`.
+
+    Returns:
+        A scalar (for 3D input) or 1D tensor of shape `(batch,)` (for
+        4D input) containing SSIM values for each image.
+
+    Examples:
+
+    Identical images yield SSIM close to 1.0:
+    >>> x = np.random.random((2, 64, 64, 3)).astype("float32")
+    >>> keras.ops.image.ssim(x, x)
+    array([1., 1.], dtype=float32)
+
+    Single unbatched image:
+    >>> x = np.random.random((64, 64, 3)).astype("float32")
+    >>> keras.ops.image.ssim(x, x)
+    array(1., dtype=float32)
+    """
+    if any_symbolic_tensors((image1, image2)):
+        return SSIM(
+            max_val=max_val,
+            filter_size=filter_size,
+            filter_sigma=filter_sigma,
+            k1=k1,
+            k2=k2,
+            data_format=data_format,
+        ).symbolic_call(image1, image2)
+    return _ssim(
+        image1,
+        image2,
+        max_val=max_val,
+        filter_size=filter_size,
+        filter_sigma=filter_sigma,
+        k1=k1,
+        k2=k2,
+        data_format=data_format,
+    )
+
+
+def _ssim(
+    image1,
+    image2,
+    max_val=1.0,
+    filter_size=11,
+    filter_sigma=1.5,
+    k1=0.01,
+    k2=0.03,
+    data_format=None,
+):
+    data_format = backend.standardize_data_format(data_format)
+    input_dtype = backend.standardize_dtype(image1.dtype)
+    compute_dtype = backend.result_type(input_dtype, float)
+
+    image1 = ops.cast(image1, compute_dtype)
+    image2 = ops.cast(image2, compute_dtype)
+
+    # Handle unbatched (3D) input
+    unbatched = len(ops.shape(image1)) == 3
+    if unbatched:
+        image1 = ops.expand_dims(image1, axis=0)
+        image2 = ops.expand_dims(image2, axis=0)
+
+    # Convert channels_first to channels_last for computation
+    if data_format == "channels_first":
+        image1 = ops.transpose(image1, (0, 2, 3, 1))
+        image2 = ops.transpose(image2, (0, 2, 3, 1))
+
+    num_channels = ops.shape(image1)[-1]
+
+    # Build 2D Gaussian kernel
+    coords = ops.arange(filter_size, dtype=compute_dtype)
+    coords = coords - (filter_size - 1) / 2.0
+    g = ops.exp(-(coords**2) / (2.0 * filter_sigma**2))
+    kernel_2d = ops.outer(g, g)
+    kernel_2d = kernel_2d / ops.sum(kernel_2d)
+    # Shape: (filter_size, filter_size, 1, 1) -> tile to all channels
+    kernel_2d = ops.reshape(kernel_2d, (filter_size, filter_size, 1, 1))
+    kernel = ops.tile(kernel_2d, (1, 1, num_channels, 1))
+
+    # Compute means via depthwise convolution
+    mu1 = ops.nn.depthwise_conv(
+        image1, kernel, padding="valid", data_format="channels_last"
+    )
+    mu2 = ops.nn.depthwise_conv(
+        image2, kernel, padding="valid", data_format="channels_last"
+    )
+
+    mu1_sq = mu1 * mu1
+    mu2_sq = mu2 * mu2
+    mu1_mu2 = mu1 * mu2
+
+    # Compute variances and covariance
+    sigma1_sq = (
+        ops.nn.depthwise_conv(
+            image1 * image1,
+            kernel,
+            padding="valid",
+            data_format="channels_last",
+        )
+        - mu1_sq
+    )
+    sigma2_sq = (
+        ops.nn.depthwise_conv(
+            image2 * image2,
+            kernel,
+            padding="valid",
+            data_format="channels_last",
+        )
+        - mu2_sq
+    )
+    sigma12 = (
+        ops.nn.depthwise_conv(
+            image1 * image2,
+            kernel,
+            padding="valid",
+            data_format="channels_last",
+        )
+        - mu1_mu2
+    )
+
+    # SSIM constants
+    c1 = (k1 * max_val) ** 2
+    c2 = (k2 * max_val) ** 2
+
+    # SSIM formula
+    numerator = (2.0 * mu1_mu2 + c1) * (2.0 * sigma12 + c2)
+    denominator = (mu1_sq + mu2_sq + c1) * (sigma1_sq + sigma2_sq + c2)
+    ssim_map = numerator / denominator
+
+    # Average over spatial dims (H, W) and channels (C) -> per-image scalar
+    result = ops.mean(ssim_map, axis=(1, 2, 3))
+
+    if unbatched:
+        result = ops.squeeze(result, axis=0)
+
+    return ops.cast(result, input_dtype)
