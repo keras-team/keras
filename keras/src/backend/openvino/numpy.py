@@ -3770,28 +3770,22 @@ def nextafter(x1, x2):
         ov_opset.multiply(x1, direction), zero
     ).output(0)
     halve_mask = ov_opset.logical_and(is_pow2, going_towards_zero).output(0)
-    ulp = ov_opset.select(
-        halve_mask, ov_opset.multiply(ulp, half), ulp
-    ).output(0)
+    ulp = ov_opset.select(halve_mask, ov_opset.multiply(ulp, half), ulp).output(
+        0
+    )
 
-    result = ov_opset.add(
-        x1, ov_opset.multiply(direction, ulp)
-    ).output(0)
+    result = ov_opset.add(x1, ov_opset.multiply(direction, ulp)).output(0)
 
     # Handle x1 == 0: result is the smallest subnormal towards x2
     min_subnormal = ov_opset.constant(5e-324, Type.f64).output(0)
-    zero_result = ov_opset.multiply(
-        ov_opset.sign(x2), min_subnormal
-    ).output(0)
+    zero_result = ov_opset.multiply(ov_opset.sign(x2), min_subnormal).output(0)
     is_zero = ov_opset.equal(x1, zero).output(0)
     result = ov_opset.select(is_zero, zero_result, result).output(0)
 
     # Handle x1 == x2: return x2
     result = ov_opset.select(eq_mask, x2, result).output(0)
 
-    return OpenVINOKerasTensor(
-        ov_opset.convert(result, ov_dtype).output(0)
-    )
+    return OpenVINOKerasTensor(ov_opset.convert(result, ov_dtype).output(0))
 
 
 def square(x):

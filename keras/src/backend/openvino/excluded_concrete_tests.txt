@@ -13,7 +13,6 @@ NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
-NumpyDtypeTest::test_nextafter
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_quantile
 NumpyDtypeTest::test_signbit
