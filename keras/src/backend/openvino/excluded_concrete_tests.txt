@@ -18,7 +18,6 @@ NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
 NumpyDtypeTest::test_var
-NumpyDtypeTest::test_view
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_conj
@@ -30,13 +29,14 @@ NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_vectorize
-NumpyOneInputOpsCorrectnessTest::test_view
 NumpyTwoInputOpsCorrectnessTest::test_einsum
 NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
+NumpyOneInputOpsDynamicShapeTest::test_kaiser
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
+NumpyOneInputOpsStaticShapeTest::test_isreal
 NumpyOneInputOpsStaticShapeTest::test_view
 NumpyTwoInputOpsDynamicShapeTest::test_nextafter
 NumpyTwoInputOpsStaticShapeTest::test_nextafter
