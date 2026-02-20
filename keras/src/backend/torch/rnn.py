@@ -800,7 +800,6 @@ def gru(
             bias,
             mask,
             batch_first=True,
-            go_backwards=go_backwards,
             return_sequences=return_sequences,
             device=device,
         )
@@ -918,7 +917,6 @@ def _cudnn_gru(
     bias,
     mask,
     batch_first,
-    go_backwards,
     return_sequences,
     device,
 ):
@@ -988,8 +986,5 @@ def _cudnn_gru(
 
     if not return_sequences:
         outputs = last_output.unsqueeze(1)
-
-    if go_backwards and return_sequences:
-        outputs = torch.flip(outputs, dims=[1])
 
     return last_output, outputs, [h_n]
