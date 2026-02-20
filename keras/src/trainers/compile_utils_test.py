@@ -286,6 +286,184 @@ class TestCompileMetrics(testing.TestCase):
         self.assertAllClose(result["a_mean_squared_error"], 0.0)
         self.assertAllClose(result["b_mean_squared_error"], 1.0, atol=1e-6)
 
+    def test_nested_dict_metrics(self):
+        """Test metrics with nested dict structure (Issue #21700)."""
+        compile_metrics = CompileMetrics(
+            metrics={
+                "a": ["mae"],
+                "b": {"c": ["mse"], "d": ["mae"]},
+            },
+            weighted_metrics=None,
+        )
+
+        y_true = {
+            "a": np.array([[0.1, 0.2], [0.3, 0.4]]),
+            "b": {
+                "c": np.array([[0.5, 0.6], [0.7, 0.8]]),
+                "d": np.array([[0.9, 1.0], [1.1, 1.2]]),
+            },
+        }
+        y_pred = {
+            "a": np.array([[0.2, 0.3], [0.4, 0.5]]),
+            "b": {
+                "c": np.array([[0.6, 0.7], [0.8, 0.9]]),
+                "d": np.array([[1.0, 1.1], [1.2, 1.3]]),
+            },
+        }
+
+        compile_metrics.build(y_true, y_pred)
+        compile_metrics.update_state(y_true, y_pred)
+        result = compile_metrics.result()
+
+        # Verify metric names follow nested path pattern
+        self.assertIn("a_mae", result)
+        self.assertIn("b_c_mse", result)
+        self.assertIn("b_d_mae", result)
+
+        # Verify metric values are correct
+        # MAE for 'a': mean(|[0.1, 0.1]|) = 0.1
+        self.assertAllClose(result["a_mae"], 0.1, atol=1e-5)
+        # MSE for 'b_c': mean([0.1^2, 0.1^2]) = 0.01
+        self.assertAllClose(result["b_c_mse"], 0.01, atol=1e-5)
+        # MAE for 'b_d': mean(|[0.1, 0.1]|) = 0.1
+        self.assertAllClose(result["b_d_mae"], 0.1, atol=1e-5)
+
+    def test_deeply_nested_metrics(self):
+        """Test metrics with 3+ levels of nesting."""
+        compile_metrics = CompileMetrics(
+            metrics={
+                "output": {
+                    "level1": {
+                        "level2": ["mse"],
+                    },
+                },
+            },
+            weighted_metrics=None,
+        )
+
+        y_true = {"output": {"level1": {"level2": np.zeros((2, 3))}}}
+        y_pred = {"output": {"level1": {"level2": np.ones((2, 3))}}}
+
+        compile_metrics.build(y_true, y_pred)
+        compile_metrics.update_state(y_true, y_pred)
+        result = compile_metrics.result()
+
+        self.assertIn("output_level1_level2_mse", result)
+        # MSE of zeros vs ones = 1.0
+        self.assertAllClose(result["output_level1_level2_mse"], 1.0)
+
+    def test_mixed_nested_and_flat(self):
+        """Test metrics with some nested, some flat outputs."""
+        compile_metrics = CompileMetrics(
+            metrics={
+                "flat_output": ["mae"],
+                "nested_output": {
+                    "a": ["mse"],
+                    "b": ["mae"],
+                },
+            },
+            weighted_metrics=None,
+        )
+
+        y_true = {
+            "flat_output": np.zeros((2, 3)),
+            "nested_output": {
+                "a": np.zeros((2, 3)),
+                "b": np.zeros((2, 3)),
+            },
+        }
+        y_pred = {
+            "flat_output": np.ones((2, 3)),
+            "nested_output": {
+                "a": np.ones((2, 3)),
+                "b": np.ones((2, 3)) * 2,
+            },
+        }
+
+        compile_metrics.build(y_true, y_pred)
+        compile_metrics.update_state(y_true, y_pred)
+        result = compile_metrics.result()
+
+        self.assertIn("flat_output_mae", result)
+        self.assertIn("nested_output_a_mse", result)
+        self.assertIn("nested_output_b_mae", result)
+
+        self.assertAllClose(result["flat_output_mae"], 1.0)
+        self.assertAllClose(result["nested_output_a_mse"], 1.0)
+        self.assertAllClose(result["nested_output_b_mae"], 2.0)
+
+    def test_nested_weighted_metrics(self):
+        """Test weighted_metrics with nested structure."""
+        compile_metrics = CompileMetrics(
+            metrics=None,
+            weighted_metrics={
+                "a": ["mse"],
+                "b": {"c": ["mae"]},
+            },
+        )
+
+        y_true = {
+            "a": np.zeros((2, 3)),
+            "b": {"c": np.zeros((2, 3))},
+        }
+        y_pred = {
+            "a": np.ones((2, 3)),
+            "b": {"c": np.ones((2, 3))},
+        }
+        sample_weight = {
+            "a": np.array([1.0, 2.0]),
+            "b": {"c": np.array([0.5, 1.5])},
+        }
+
+        compile_metrics.build(y_true, y_pred)
+        compile_metrics.update_state(y_true, y_pred, sample_weight)
+        result = compile_metrics.result()
+
+        self.assertIn("a_mse", result)
+        self.assertIn("b_c_mae", result)
+        # Verify values are correct (MSE and MAE of zeros vs ones = 1.0)
+        self.assertAllClose(result["a_mse"], 1.0)
+        self.assertAllClose(result["b_c_mae"], 1.0)
+
+    def test_flat_metrics_backward_compat(self):
+        """Ensure existing flat metrics continue working after changes."""
+        compile_metrics = CompileMetrics(
+            metrics={"output_1": ["mse"], "output_2": ["mae"]},
+            weighted_metrics=None,
+        )
+
+        y_true = {
+            "output_1": np.zeros((2, 3)),
+            "output_2": np.zeros((2, 3)),
+        }
+        y_pred = {
+            "output_1": np.ones((2, 3)),
+            "output_2": np.ones((2, 3)),
+        }
+
+        compile_metrics.build(y_true, y_pred)
+        compile_metrics.update_state(y_true, y_pred)
+        result = compile_metrics.result()
+
+        # Should match existing naming convention
+        self.assertIn("output_1_mse", result)
+        self.assertIn("output_2_mae", result)
+        self.assertAllClose(result["output_1_mse"], 1.0)
+        self.assertAllClose(result["output_2_mae"], 1.0)
+
+    def test_nested_metrics_invalid_key(self):
+        """Test error when metric key doesn't exist in outputs."""
+        compile_metrics = CompileMetrics(
+            metrics={"a": ["mse"], "nonexistent": {"b": ["mae"]}},
+            weighted_metrics=None,
+        )
+
+        y_true = {"a": np.zeros((2, 3))}
+        y_pred = {"a": np.ones((2, 3))}
+
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            compile_metrics.build(y_true, y_pred)
+
 
 class TestCompileLoss(testing.TestCase):
     def test_single_output_case(self):

@@ -11,10 +11,17 @@ from keras.src.utils.tracking import Tracker
 
 
 class MetricsList(metrics_module.Metric):
-    def __init__(self, metrics, name="metrics_list", output_name=None):
+    def __init__(self, metrics, name="metrics_list", output_path=None):
         super().__init__(name=name)
         self.metrics = metrics
-        self.output_name = output_name
+        self.output_path = output_path  # Tuple like ('b', 'c') or ('a',)
+
+    @property
+    def output_name(self):
+        """Convert path tuple to underscore-separated string for naming."""
+        if not self.output_path:
+            return None
+        return "_".join(str(p) for p in self.output_path)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
         for m in self.metrics:
@@ -43,6 +50,21 @@ def is_function_like(value):
     if callable(value):
         return True
     return False
+
+
+def resolve_path(path, obj):
+    """Navigate to a nested value using a path tuple.
+
+    Args:
+        path: Tuple of keys/indices to traverse, e.g., ('a', 'b') or (0, 1)
+        obj: Nested structure (dict, list, or tuple) to navigate
+
+    Returns:
+        The value at the specified path in the nested structure
+    """
+    for key in path:
+        obj = obj[key]
+    return obj
 
 
 def is_binary_or_sparse_categorical(y_true, y_pred):
@@ -174,6 +196,141 @@ class CompileMetrics(metrics_module.Metric):
                 vars.extend(m.variables)
         return vars
 
+    def _is_nested_config(self, config):
+        """Check if config contains nested dicts (beyond first level).
+
+        Args:
+            config: Metrics configuration (dict, list, or None)
+
+        Returns:
+            True if config contains nested dicts, False otherwise
+        """
+        if not isinstance(config, dict):
+            return False
+        for value in config.values():
+            if isinstance(value, dict):
+                return True
+        return False
+
+    def _resolve_leaf_tensors(self, current_path, y_true, y_pred):
+        """Resolve y_true and y_pred for leaf nodes.
+
+        Args:
+            current_path: Tuple tracking current position in structure
+                (used for output_path, not for navigation)
+            y_true: Ground truth tensor (already at correct level from
+                recursive calls in _build_nested_metrics)
+            y_pred: Predictions tensor (already at correct level)
+
+        Returns:
+            Tuple of (resolved_y_true, resolved_y_pred)
+        """
+        # y_true and y_pred are already at the correct level from recursive
+        # calls - no path navigation needed (matches CompileLoss pattern)
+        yt = y_true
+        yp = y_pred
+
+        # Flatten if still nested (shouldn't happen at leaf)
+        if tree.is_nested(yt):
+            yt = tree.flatten(yt)[0]
+        if tree.is_nested(yp):
+            yp = tree.flatten(yp)[0]
+
+        return yt, yp
+
+    def _build_nested_metrics(
+        self, metrics, y_true, y_pred, flat_list, current_path, argument_name
+    ):
+        """Recursively build metrics for nested structures.
+
+        Args:
+            metrics: User-provided metrics config (can be nested dict, list,
+                or single metric)
+            y_true: Ground truth (can be nested)
+            y_pred: Predictions (can be nested)
+            flat_list: List to append MetricsList objects to
+            current_path: Tuple tracking current position in structure
+            argument_name: Name of the argument for error messages
+        """
+        if metrics is None:
+            return
+
+        # Base case: list of metric specs for a single output
+        if isinstance(metrics, list) and all(
+            is_function_like(m) for m in metrics
+        ):
+            yt, yp = self._resolve_leaf_tensors(current_path, y_true, y_pred)
+
+            metric_objs = [
+                get_metric(m, yt, yp) for m in metrics if m is not None
+            ]
+            if metric_objs:
+                flat_list.append(
+                    MetricsList(metric_objs, output_path=current_path or None)
+                )
+            return
+
+        # Base case: single metric spec (string, function, or Metric object)
+        if is_function_like(metrics):
+            yt, yp = self._resolve_leaf_tensors(current_path, y_true, y_pred)
+
+            metric_obj = get_metric(metrics, yt, yp)
+            if metric_obj is not None:
+                flat_list.append(
+                    MetricsList([metric_obj], output_path=current_path or None)
+                )
+            return
+
+        # Recursive case: dict with nested structure
+        if isinstance(metrics, dict):
+            for key, sub_metrics in metrics.items():
+                if sub_metrics is None:
+                    continue
+                # Validate key exists in y_pred
+                if not isinstance(y_pred, dict) or key not in y_pred:
+                    raise ValueError(
+                        f"In the dict argument `{argument_name}`, key "
+                        f"'{key}' does not correspond to any model "
+                        f"output. Received:\n{argument_name}={metrics}"
+                    )
+                self._build_nested_metrics(
+                    sub_metrics,
+                    y_true[key],
+                    y_pred[key],
+                    flat_list,
+                    current_path + (key,),
+                    argument_name,
+                )
+            return
+
+        # Handle list/tuple of metrics for multiple outputs
+        if isinstance(metrics, (list, tuple)):
+            if not isinstance(y_pred, (list, tuple)):
+                raise ValueError(
+                    f"Metrics list provided but model output is not a list. "
+                    f"Received metrics={metrics}"
+                )
+            if len(metrics) != len(y_pred):
+                raise ValueError(
+                    f"For a model with multiple outputs, when providing the "
+                    f"`{argument_name}` argument as a list, it should have "
+                    f"as many entries as the model has outputs. "
+                    f"Received:\n{argument_name}={metrics}\nof length "
+                    f"{len(metrics)} whereas the model has "
+                    f"{len(y_pred)} outputs."
+                )
+            for idx, (sub_metrics, sub_yt, sub_yp) in enumerate(
+                zip(metrics, y_true, y_pred)
+            ):
+                self._build_nested_metrics(
+                    sub_metrics,
+                    sub_yt,
+                    sub_yp,
+                    flat_list,
+                    current_path + (idx,),
+                    argument_name,
+                )
+
     def build(self, y_true, y_pred):
         num_outputs = 1  # default
         # Resolve output names. If y_pred is a dict, prefer its keys.
@@ -198,27 +355,56 @@ class CompileMetrics(metrics_module.Metric):
         if output_names:
             num_outputs = len(output_names)
 
-        y_pred = self._flatten_y(y_pred)
-        y_true = self._flatten_y(y_true)
-
         metrics = self._user_metrics
         weighted_metrics = self._user_weighted_metrics
-        self._flat_metrics = self._build_metrics_set(
-            metrics,
-            num_outputs,
-            output_names,
-            y_true,
-            y_pred,
-            argument_name="metrics",
-        )
-        self._flat_weighted_metrics = self._build_metrics_set(
-            weighted_metrics,
-            num_outputs,
-            output_names,
-            y_true,
-            y_pred,
-            argument_name="weighted_metrics",
-        )
+
+        # Check if nested config - use recursive building
+        if self._is_nested_config(metrics) or self._is_nested_config(
+            weighted_metrics
+        ):
+            # Store original structure for path-based resolution
+            self._y_pred_structure = y_pred
+            self._y_true_structure = y_true
+
+            self._flat_metrics = []
+            self._flat_weighted_metrics = []
+            if metrics:
+                self._build_nested_metrics(
+                    metrics, y_true, y_pred, self._flat_metrics, (), "metrics"
+                )
+            if weighted_metrics:
+                self._build_nested_metrics(
+                    weighted_metrics,
+                    y_true,
+                    y_pred,
+                    self._flat_weighted_metrics,
+                    (),
+                    "weighted_metrics",
+                )
+        else:
+            # Existing flat logic
+            self._y_pred_structure = None
+            self._y_true_structure = None
+
+            y_pred_flat = self._flatten_y(y_pred)
+            y_true_flat = self._flatten_y(y_true)
+
+            self._flat_metrics = self._build_metrics_set(
+                metrics,
+                num_outputs,
+                output_names,
+                y_true_flat,
+                y_pred_flat,
+                argument_name="metrics",
+            )
+            self._flat_weighted_metrics = self._build_metrics_set(
+                weighted_metrics,
+                num_outputs,
+                output_names,
+                y_true_flat,
+                y_pred_flat,
+                argument_name="weighted_metrics",
+            )
         self.built = True
 
     def _build_metrics_set(
@@ -287,7 +473,7 @@ class CompileMetrics(metrics_module.Metric):
                                 for m in mls
                                 if m is not None
                             ],
-                            output_name=name,
+                            output_path=(name,) if name else None,
                         )
                     )
             elif isinstance(metrics, dict):
@@ -316,7 +502,7 @@ class CompileMetrics(metrics_module.Metric):
                                     for m in metrics[name]
                                     if m is not None
                                 ],
-                                output_name=name,
+                                output_path=(name,),
                             )
                         )
                     else:
@@ -336,23 +522,83 @@ class CompileMetrics(metrics_module.Metric):
     def update_state(self, y_true, y_pred, sample_weight=None):
         if not self.built:
             self.build(y_true, y_pred)
-        y_true = self._flatten_y(y_true)
-        y_pred = self._flatten_y(y_pred)
-        for m, y_t, y_p in zip(self._flat_metrics, y_true, y_pred):
-            if m:
-                m.update_state(y_t, y_p)
-        if sample_weight is not None:
-            sample_weight = self._flatten_y(sample_weight)
-            # For multi-outputs, repeat sample weights for n outputs.
-            if len(sample_weight) < len(y_true):
-                sample_weight = [sample_weight[0] for _ in range(len(y_true))]
+
+        # Check if using nested path-based resolution
+        if self._y_pred_structure is not None:
+            # Nested case: use path-based resolution
+            for m in self._flat_metrics:
+                if m and m.output_path:
+                    y_t = resolve_path(m.output_path, y_true)
+                    y_p = resolve_path(m.output_path, y_pred)
+                    m.update_state(y_t, y_p)
+                elif m:
+                    # No path - single output case
+                    if tree.is_nested(y_true):
+                        y_t = tree.flatten(y_true)[0]
+                    else:
+                        y_t = y_true
+                    if tree.is_nested(y_pred):
+                        y_p = tree.flatten(y_pred)[0]
+                    else:
+                        y_p = y_pred
+                    m.update_state(y_t, y_p)
+
+            for m in self._flat_weighted_metrics:
+                if m and m.output_path:
+                    y_t = resolve_path(m.output_path, y_true)
+                    y_p = resolve_path(m.output_path, y_pred)
+                    # Resolve sample weight at path if nested
+                    s_w = None
+                    if sample_weight is not None:
+                        if tree.is_nested(sample_weight):
+                            try:
+                                s_w = resolve_path(
+                                    m.output_path, sample_weight
+                                )
+                            except (KeyError, IndexError, TypeError):
+                                s_w = tree.flatten(sample_weight)[0]
+                        else:
+                            s_w = sample_weight
+                    m.update_state(y_t, y_p, s_w)
+                elif m:
+                    if tree.is_nested(y_true):
+                        y_t = tree.flatten(y_true)[0]
+                    else:
+                        y_t = y_true
+                    if tree.is_nested(y_pred):
+                        y_p = tree.flatten(y_pred)[0]
+                    else:
+                        y_p = y_pred
+                    s_w = sample_weight
+                    if s_w is not None and tree.is_nested(s_w):
+                        s_w = tree.flatten(s_w)[0]
+                    m.update_state(y_t, y_p, s_w)
         else:
-            sample_weight = [None for _ in range(len(y_true))]
-        for m, y_t, y_p, s_w in zip(
-            self._flat_weighted_metrics, y_true, y_pred, sample_weight
-        ):
-            if m:
-                m.update_state(y_t, y_p, s_w)
+            # Flat case: use existing logic
+            y_true_flat = self._flatten_y(y_true)
+            y_pred_flat = self._flatten_y(y_pred)
+            for m, y_t, y_p in zip(
+                self._flat_metrics, y_true_flat, y_pred_flat
+            ):
+                if m:
+                    m.update_state(y_t, y_p)
+            if sample_weight is not None:
+                sample_weight_flat = self._flatten_y(sample_weight)
+                # For multi-outputs, repeat sample weights for n outputs.
+                if len(sample_weight_flat) < len(y_true_flat):
+                    sample_weight_flat = [
+                        sample_weight_flat[0] for _ in range(len(y_true_flat))
+                    ]
+            else:
+                sample_weight_flat = [None for _ in range(len(y_true_flat))]
+            for m, y_t, y_p, s_w in zip(
+                self._flat_weighted_metrics,
+                y_true_flat,
+                y_pred_flat,
+                sample_weight_flat,
+            ):
+                if m:
+                    m.update_state(y_t, y_p, s_w)
 
     def reset_state(self):
         if not self.built:
