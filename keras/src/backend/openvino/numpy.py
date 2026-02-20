@@ -695,8 +695,90 @@ def heaviside(x1, x2):
     return OpenVINOKerasTensor(x)
 
 
+def _i0_node(x):
+    x = ov_opset.abs(x).output(0)
+    x_type = x.get_element_type()
+    three_point_seven_five = ov_opset.constant(3.75, x_type).output(0)
+    p1_coeffs = [
+        1.0,
+        3.5156229,
+        3.0899424,
+        1.2067492,
+        0.2659732,
+        0.0360768,
+        0.0045813,
+    ]
+    p2_coeffs = [
+        0.39894228,
+        0.01328592,
+        0.00225319,
+        -0.00157565,
+        0.00916281,
+        -0.02057706,
+        0.02635537,
+        -0.01647633,
+        0.00392377,
+    ]
+    t_A = ov_opset.divide(x, three_point_seven_five).output(0)
+    t_A = ov_opset.multiply(t_A, t_A).output(0)
+    res_A = ov_opset.constant(p1_coeffs[6], x_type).output(0)
+    for i in range(5, -1, -1):
+        c = ov_opset.constant(p1_coeffs[i], x_type).output(0)
+        res_A = ov_opset.add(ov_opset.multiply(res_A, t_A), c).output(0)
+    safe_x = ov_opset.maximum(x, three_point_seven_five).output(0)
+    t_B = ov_opset.divide(three_point_seven_five, safe_x).output(0)
+    res_B = ov_opset.constant(p2_coeffs[8], x_type).output(0)
+    for i in range(7, -1, -1):
+        c = ov_opset.constant(p2_coeffs[i], x_type).output(0)
+        res_B = ov_opset.add(ov_opset.multiply(res_B, t_B), c).output(0)
+    exp_x = ov_opset.exp(x).output(0)
+    sqrt_safe_x = ov_opset.sqrt(safe_x).output(0)
+    factor = ov_opset.divide(exp_x, sqrt_safe_x).output(0)
+    res_B = ov_opset.multiply(factor, res_B).output(0)
+    condition = ov_opset.less_equal(x, three_point_seven_five).output(0)
+    result = ov_opset.select(condition, res_A, res_B).output(0)
+
+    return result
+
+
 def kaiser(x, beta):
-    raise NotImplementedError("`kaiser` is not supported with openvino backend")
+    m = get_ov_output(x)
+    beta = get_ov_output(beta)
+    if m.get_element_type() != Type.i64:
+        m_i64 = ov_opset.convert(m, Type.i64).output(0)
+    else:
+        m_i64 = m
+    calc_type = Type.f64
+    if m.get_element_type() != calc_type:
+        m_float = ov_opset.convert(m, calc_type).output(0)
+    else:
+        m_float = m
+    if beta.get_element_type() != calc_type:
+        beta = ov_opset.convert(beta, calc_type).output(0)
+    start = ov_opset.constant(0, Type.i64).output(0)
+    step = ov_opset.constant(1, Type.i64).output(0)
+    n = ov_opset.range(start, m_i64, step, calc_type).output(0)
+    one_float = ov_opset.constant(1.0, calc_type).output(0)
+    two_float = ov_opset.constant(2.0, calc_type).output(0)
+    alpha = ov_opset.divide(
+        ov_opset.subtract(m_float, one_float), two_float
+    ).output(0)
+    zero_float = ov_opset.constant(0.0, calc_type).output(0)
+    is_alpha_zero = ov_opset.equal(alpha, zero_float).output(0)
+    safe_alpha = ov_opset.select(is_alpha_zero, one_float, alpha).output(0)
+    val = ov_opset.divide(ov_opset.subtract(n, alpha), safe_alpha).output(0)
+    val_sq = ov_opset.multiply(val, val).output(0)
+    term = ov_opset.subtract(one_float, val_sq).output(0)
+    term = ov_opset.maximum(term, zero_float).output(0)
+    sqrt_term = ov_opset.sqrt(term).output(0)
+    arg = ov_opset.multiply(beta, sqrt_term).output(0)
+    num = _i0_node(arg)
+    den = _i0_node(beta)
+    result = ov_opset.divide(num, den).output(0)
+    result = ov_opset.convert(result, OPENVINO_DTYPES[config.floatx()]).output(
+        0
+    )
+    return OpenVINOKerasTensor(result)
 
 
 def bitwise_left_shift(x, y):
