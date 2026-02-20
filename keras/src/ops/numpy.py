@@ -301,6 +301,56 @@ def all(x, axis=None, keepdims=False):
     return backend.numpy.all(x, axis=axis, keepdims=keepdims)
 
 
+class AllClose(Operation):
+    def __init__(self, rtol=1e-05, atol=1e-08, equal_nan=False, *, name=None):
+        super().__init__(name=name)
+        self.rtol = rtol
+        self.atol = atol
+        self.equal_nan = equal_nan
+
+    def call(self, x1, x2):
+        return backend.numpy.allclose(
+            x1,
+            x2,
+            rtol=self.rtol,
+            atol=self.atol,
+            equal_nan=self.equal_nan,
+        )
+
+    def compute_output_spec(self, x1, x2):
+        return KerasTensor([], dtype="bool")
+
+
+@keras_export(["keras.ops.allclose", "keras.ops.numpy.allclose"])
+def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+    """Returns True if two arrays are element-wise equal within a tolerance.
+
+    The tolerance values are positive, typically very small numbers.  The
+    relative difference (`rtol * abs(b)`) and the absolute difference
+    `atol` are added together to compare against the absolute difference
+    between `a` and `b`.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+        rtol: The relative tolerance parameter (see Notes).
+        atol: The absolute tolerance parameter (see Notes).
+        equal_nan: Whether to compare NaN's as equal.  If True, NaN's in
+            `a` will be considered equal to NaN's in `b` in the output array.
+
+    Returns:
+        True if the two arrays are equal within the given tolerance;
+        False otherwise.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return AllClose(
+            rtol=rtol, atol=atol, equal_nan=equal_nan
+        ).symbolic_call(x1, x2)
+    return backend.numpy.allclose(
+        x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+    )
+
+
 class Angle(Operation):
     def call(self, x):
         return backend.numpy.angle(x)
