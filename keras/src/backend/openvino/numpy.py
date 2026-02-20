@@ -671,6 +671,7 @@ def heaviside(x1, x2):
     x = ov_opset.select(eq, x2, x).output(0)
     return OpenVINOKerasTensor(x)
 
+
 def _i0_node(x):
     x = ov_opset.abs(x).output(0)
     x_type = x.get_element_type()
@@ -716,6 +717,7 @@ def _i0_node(x):
 
     return result
 
+
 def kaiser(x, beta):
     m = get_ov_output(x)
     beta = get_ov_output(beta)
@@ -741,11 +743,9 @@ def kaiser(x, beta):
     zero_float = ov_opset.constant(0.0, calc_type).output(0)
     is_alpha_zero = ov_opset.equal(alpha, zero_float).output(0)
     safe_alpha = ov_opset.select(is_alpha_zero, one_float, alpha).output(0)
-    val = ov_opset.divide(
-        ov_opset.subtract(n, alpha), safe_alpha
-    ).output(0)  
-    val_sq = ov_opset.multiply(val, val).output(0)  
-    term = ov_opset.subtract(one_float, val_sq).output(0)  
+    val = ov_opset.divide(ov_opset.subtract(n, alpha), safe_alpha).output(0)
+    val_sq = ov_opset.multiply(val, val).output(0)
+    term = ov_opset.subtract(one_float, val_sq).output(0)
     term = ov_opset.maximum(term, zero_float).output(0)
     sqrt_term = ov_opset.sqrt(term).output(0)
     arg = ov_opset.multiply(beta, sqrt_term).output(0)
