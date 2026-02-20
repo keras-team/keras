@@ -1,8 +1,9 @@
 import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
-from keras.src.backend.openvino import numpy as ov_numpy
+
 from keras.src.backend.config import floatx
+from keras.src.backend.openvino import numpy as ov_numpy
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import convert_to_numpy
@@ -156,7 +157,7 @@ def shuffle(x, axis=0, seed=None):
     ).output(0)
     indices = ov_numpy.argsort(OpenVINOKerasTensor(rand_values), axis=0)
     return ov_numpy.take(x, indices, axis=axis)
-    
+
 
 def gamma(shape, alpha, dtype=None, seed=None):
     raise NotImplementedError("`gamma` is not supported with openvino backend")
