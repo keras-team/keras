@@ -1094,7 +1094,7 @@ def _get_large_negative(dtype):
 
 
 def _can_use_flash_attention(
-    query, key, value, mask=None, is_causal=False, raise_error=False
+    query, key, value, mask=None, is_causal=False, enable_gqa=False, raise_error=False
 ):
     """Verify the availability of flash attention."""
     try:
@@ -1117,7 +1117,7 @@ def _can_use_flash_attention(
             mask,
             0.0,  # dropout_p
             is_causal,
-            False,  # enable_gqa
+            enable_gqa,
         )
     except TypeError:
         # The old function signature for the older version of PyTorch
@@ -1128,6 +1128,7 @@ def _can_use_flash_attention(
             mask,
             0.0,  # dropout_p
             is_causal,
+            enable_gqa,
         )
     if raise_error and can_use_flash_attention(spda_params, True) is False:
         raise RuntimeError(
@@ -1161,6 +1162,13 @@ def dot_product_attention(
         raise ValueError(
             "Only one of `bias` and `mask` can be provided. Received both."
         )
+
+    enable_gqa = False
+    num_query_heads = query.shape[-2]
+    num_kv_heads = key.shape[-2]
+    if num_query_heads != num_kv_heads and num_query_heads % num_kv_heads == 0:
+        enable_gqa = True
+
     compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
@@ -1182,13 +1190,13 @@ def dot_product_attention(
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
-            query, key, value, mask, is_causal
+            query, key, value, mask, is_causal, enable_gqa
         )
     elif flash_attention is True:
         # Use `raise_error=True` to provide more details if the inputs failed to
         # use flash attention
         _can_use_flash_attention(
-            query, key, value, mask, is_causal, raise_error=True
+            query, key, value, mask, is_causal, enable_gqa, raise_error=True
         )
     if flash_attention:
         with torch.nn.attention.sdpa_kernel(
@@ -1201,6 +1209,7 @@ def dot_product_attention(
                 attn_mask=mask,
                 is_causal=is_causal,
                 scale=scale,
+                enable_gqa=enable_gqa,
             )
     else:
         if mask is not None:
@@ -1212,6 +1221,7 @@ def dot_product_attention(
             attn_mask=mask,
             is_causal=is_causal,
             scale=scale,
+            enable_gqa=enable_gqa,
         )
     return torch.transpose(attention_output, axis1, axis0)
 
