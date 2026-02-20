@@ -301,6 +301,12 @@ from keras.src.layers.preprocessing.normalization import (
     Normalization as Normalization,
 )
 from keras.src.layers.preprocessing.pipeline import Pipeline as Pipeline
+from keras.src.layers.preprocessing.random_apply import (
+    RandomApply as RandomApply,
+)
+from keras.src.layers.preprocessing.random_choice import (
+    RandomChoice as RandomChoice,
+)
 from keras.src.layers.preprocessing.rescaling import Rescaling as Rescaling
 from keras.src.layers.preprocessing.stft_spectrogram import (
     STFTSpectrogram as STFTSpectrogram,

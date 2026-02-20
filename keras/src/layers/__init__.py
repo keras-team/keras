@@ -184,6 +184,8 @@ from keras.src.layers.preprocessing.integer_lookup import IntegerLookup
 from keras.src.layers.preprocessing.mel_spectrogram import MelSpectrogram
 from keras.src.layers.preprocessing.normalization import Normalization
 from keras.src.layers.preprocessing.pipeline import Pipeline
+from keras.src.layers.preprocessing.random_apply import RandomApply
+from keras.src.layers.preprocessing.random_choice import RandomChoice
 from keras.src.layers.preprocessing.rescaling import Rescaling
 from keras.src.layers.preprocessing.stft_spectrogram import STFTSpectrogram
 from keras.src.layers.preprocessing.string_lookup import StringLookup
