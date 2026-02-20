@@ -28,9 +28,7 @@ class ProgbarTest(testing.TestCase):
 
     def test_stateful_metrics_displayed_as_is(self):
         """Stateful metrics should be displayed without additional averaging."""
-        pb = progbar.Progbar(
-            target=3, verbose=2, stateful_metrics=["acc"]
-        )
+        pb = progbar.Progbar(target=3, verbose=2, stateful_metrics=["acc"])
         # Simulate 3 steps where the stateful metric "acc" grows.
         pb.update(1, values=[("acc", 0.5)])
         pb.update(2, values=[("acc", 0.6)])
