@@ -3818,9 +3818,62 @@ def negative(x):
 
 
 def nextafter(x1, x2):
-    raise NotImplementedError(
-        "`nextafter` is not supported with openvino backend"
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "nextafter()")
+
+    x1_keras = ov_to_keras_type(x1.get_element_type())
+    x2_keras = ov_to_keras_type(x2.get_element_type())
+    dtype = dtypes.result_type(x1_keras, x2_keras, float)
+    ov_dtype = OPENVINO_DTYPES[dtype]
+
+    # Work in float64 for precision (matches TF/PyTorch approach)
+    x1 = ov_opset.convert(x1, Type.f64).output(0)
+    x2 = ov_opset.convert(x2, Type.f64).output(0)
+
+    zero = ov_opset.constant(0.0, Type.f64).output(0)
+    two = ov_opset.constant(2.0, Type.f64).output(0)
+    half = ov_opset.constant(0.5, Type.f64).output(0)
+
+    eq_mask = ov_opset.equal(x1, x2).output(0)
+    direction = ov_opset.sign(ov_opset.subtract(x2, x1)).output(0)
+    abs_x1 = ov_opset.abs(x1).output(0)
+
+    # Compute ULP = 2^(floor(log2(|x1|)) - 52) for normal float64 numbers
+    ln2 = ov_opset.constant(np.log(2.0), Type.f64).output(0)
+    log2_abs = ov_opset.floor(
+        ov_opset.divide(ov_opset.log(abs_x1), ln2)
+    ).output(0)
+    min_exp = ov_opset.constant(-1022.0, Type.f64).output(0)
+    clamped_exp = ov_opset.maximum(log2_abs, min_exp).output(0)
+    mantissa_bits = ov_opset.constant(52.0, Type.f64).output(0)
+    ulp_exp = ov_opset.subtract(clamped_exp, mantissa_bits).output(0)
+    ulp = ov_opset.power(two, ulp_exp).output(0)
+
+    # At power-of-2 boundaries going towards zero, the ULP is halved
+    # because we step into the adjacent binade with finer spacing
+    pow2_floor = ov_opset.power(two, log2_abs).output(0)
+    is_pow2 = ov_opset.equal(abs_x1, pow2_floor).output(0)
+    going_towards_zero = ov_opset.less(
+        ov_opset.multiply(x1, direction), zero
+    ).output(0)
+    halve_mask = ov_opset.logical_and(is_pow2, going_towards_zero).output(0)
+    ulp = ov_opset.select(halve_mask, ov_opset.multiply(ulp, half), ulp).output(
+        0
     )
+
+    result = ov_opset.add(x1, ov_opset.multiply(direction, ulp)).output(0)
+
+    # Handle x1 == 0: result is the smallest subnormal towards x2
+    min_subnormal = ov_opset.constant(5e-324, Type.f64).output(0)
+    zero_result = ov_opset.multiply(ov_opset.sign(x2), min_subnormal).output(0)
+    is_zero = ov_opset.equal(x1, zero).output(0)
+    result = ov_opset.select(is_zero, zero_result, result).output(0)
+
+    # Handle x1 == x2: return x2
+    result = ov_opset.select(eq_mask, x2, result).output(0)
+
+    return OpenVINOKerasTensor(ov_opset.convert(result, ov_dtype).output(0))
 
 
 def square(x):
