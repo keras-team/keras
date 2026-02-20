@@ -2775,9 +2775,7 @@ def nanvar(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         nan_mask = ov_opset.is_nan(x).output(0)
         zero = ov_opset.constant(0, x_type).output(0)
-        return OpenVINOKerasTensor(
-            ov_opset.select(nan_mask, x, zero).output(0)
-        )
+        return OpenVINOKerasTensor(ov_opset.select(nan_mask, x, zero).output(0))
 
     # Compute mean ignoring NaN, keeping dims for broadcasting
     mean_val = get_ov_output(
@@ -2808,9 +2806,7 @@ def nanvar(x, axis=None, keepdims=False):
 
     not_nan_float = ov_opset.convert(not_nan, x_type).output(0)
     sq_sum = ov_opset.reduce_sum(squared, axis_const, keepdims).output(0)
-    count = ov_opset.reduce_sum(
-        not_nan_float, axis_const, keepdims
-    ).output(0)
+    count = ov_opset.reduce_sum(not_nan_float, axis_const, keepdims).output(0)
     result = ov_opset.divide(sq_sum, count).output(0)
     return OpenVINOKerasTensor(result)
 

@@ -8,7 +8,6 @@ NumpyDtypeTest::test_einsum
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
 NumpyDtypeTest::test_isreal
-NumpyDtypeTest::test_nanvar
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
