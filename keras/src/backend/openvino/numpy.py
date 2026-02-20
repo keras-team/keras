@@ -1,4 +1,5 @@
 import numpy as np
+import openvino as ov
 import openvino.opset15 as ov_opset
 from openvino import Type
 
@@ -203,6 +204,28 @@ def all(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     )
+
+
+def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+    if (
+        not isinstance(x1, OpenVINOKerasTensor)
+        and not isinstance(x2, OpenVINOKerasTensor)
+        and not isinstance(x1, ov.Output)
+        and not isinstance(x2, ov.Output)
+    ):
+        try:
+            return OpenVINOKerasTensor(
+                ov_opset.constant(
+                    np.allclose(
+                        x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+                    ),
+                    Type.boolean,
+                ).output(0)
+            )
+        except Exception:
+            pass
+
+    return all(isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan))
 
 
 def angle(x):
@@ -1861,7 +1884,9 @@ def identity(n, dtype=None):
 
 
 def imag(x):
-    raise NotImplementedError("`imag` is not supported with openvino backend")
+    # Implement properly when OpenVINO supports complex inputs
+    x = convert_to_tensor(x)
+    return zeros(x.shape, dtype=x.dtype)
 
 
 def inner(x1, x2):
@@ -1894,9 +1919,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     rtol = ov_opset.convert(get_ov_output(rtol), dtype)
     atol = ov_opset.convert(get_ov_output(atol), dtype)
 
-    abs_diff = ov_opset.abs(x1 - x2)
+    abs_diff = ov_opset.abs(ov_opset.subtract(x1, x2))
     abs_x2 = ov_opset.abs(x2)
-    total_tolerance = atol + rtol * abs_x2
+    total_tolerance = ov_opset.add(atol, ov_opset.multiply(rtol, abs_x2))
     is_close = ov_opset.less_equal(abs_diff, total_tolerance)
     if equal_nan:
         both_nan = ov_opset.logical_and(ov_opset.isnan(x1), ov_opset.isnan(x2))
@@ -1998,7 +2023,9 @@ def _is_inf(x, pos=True):
 
 
 def isreal(x):
-    raise NotImplementedError("`isreal` is not supported with openvino backend")
+    # Implement complex support when OpenVINO adds complex dtypes.
+    x = convert_to_tensor(x)
+    return ones(x.shape, dtype="bool")
 
 
 def kron(x1, x2):
@@ -2065,7 +2092,27 @@ def kron(x1, x2):
 
 
 def lcm(x1, x2):
-    raise NotImplementedError("`lcm` is not supported with openvino backend")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "lcm()")
+    if not x1.get_element_type().is_integral():
+        raise ValueError("`lcm` is only supported for integer types.")
+    x1_abs = ov_opset.abs(x1).output(0)
+    x2_abs = ov_opset.abs(x2).output(0)
+
+    gcd_val = gcd(x1, x2)
+    gcd_val = get_ov_output(gcd_val)
+
+    zero = ov_opset.constant(0, gcd_val.get_element_type()).output(0)
+    one = ov_opset.constant(1, gcd_val.get_element_type()).output(0)
+
+    is_zero = ov_opset.equal(gcd_val, zero).output(0)
+    safe_gcd = ov_opset.select(is_zero, one, gcd_val).output(0)
+
+    term1 = ov_opset.divide(x1_abs, safe_gcd).output(0)
+    result = ov_opset.multiply(term1, x2_abs).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def ldexp(x1, x2):
@@ -2981,7 +3028,9 @@ def ravel(x):
 
 
 def real(x):
-    raise NotImplementedError("`real` is not supported with openvino backend")
+    # TODO: Implement complex support when OpenVINO adds complex dtypes.
+    # Currently, all supported dtypes are real-valued.
+    return convert_to_tensor(x)
 
 
 def reciprocal(x):
@@ -4218,3 +4267,89 @@ def argpartition(x, kth, axis=-1):
         ov_opset.constant(inv_axes),
     ).output(0)
     return OpenVINOKerasTensor(result)
+
+
+def histogram(x, bins=10, range=None):
+    x = get_ov_output(x)
+    x = ov_opset.reshape(x, [-1], False).output(0)
+
+    float_type = OPENVINO_DTYPES[config.floatx()]
+    x_float = ov_opset.convert(x, float_type).output(0)
+
+    if range is None:
+        min_val = ov_opset.reduce_min(x_float, 0).output(0)
+        max_val = ov_opset.reduce_max(x_float, 0).output(0)
+
+        is_equal = ov_opset.equal(min_val, max_val)
+        half = ov_opset.constant(0.5, float_type).output(0)
+        min_val = ov_opset.select(
+            is_equal, ov_opset.subtract(min_val, half), min_val
+        )
+        max_val = ov_opset.select(
+            is_equal, ov_opset.add(max_val, half), max_val
+        )
+
+        min_val = min_val.output(0)
+        max_val = max_val.output(0)
+    else:
+        min_val = ov_opset.constant(range[0], float_type).output(0)
+        max_val = ov_opset.constant(range[1], float_type).output(0)
+
+    bins_const = ov_opset.constant(bins, float_type).output(0)
+    step = ov_opset.divide(
+        ov_opset.subtract(max_val, min_val), bins_const
+    ).output(0)
+
+    idx_float = ov_opset.range(
+        ov_opset.constant(0, float_type),
+        ov_opset.constant(bins + 1, float_type),
+        ov_opset.constant(1, float_type),
+        output_type=float_type,
+    ).output(0)
+
+    bin_edges = ov_opset.add(
+        min_val, ov_opset.multiply(idx_float, step)
+    ).output(0)
+
+    inds = ov_opset.bucketize(
+        x_float, bin_edges, output_type=Type.i32, with_right_bound=False
+    ).output(0)
+
+    inds_shifted = ov_opset.subtract(
+        inds, ov_opset.constant(1, Type.i32).output(0)
+    )
+
+    trash_idx = ov_opset.constant(bins, Type.i32).output(0)
+
+    is_under = ov_opset.less(
+        inds_shifted, ov_opset.constant(0, Type.i32).output(0)
+    )
+    is_over = ov_opset.greater_equal(inds_shifted, trash_idx)
+
+    is_max = ov_opset.equal(x_float, max_val)
+
+    final_inds = inds_shifted
+    final_inds = ov_opset.select(is_under, trash_idx, final_inds)
+
+    bins_minus_1 = ov_opset.constant(bins - 1, Type.i32).output(0)
+    replacement = ov_opset.select(is_max, bins_minus_1, trash_idx)
+    final_inds = ov_opset.select(is_over, replacement, final_inds)
+
+    depth = ov_opset.constant(bins + 1, Type.i32).output(0)
+    on_val = ov_opset.constant(1, Type.i32).output(0)
+    off_val = ov_opset.constant(0, Type.i32).output(0)
+
+    one_hot = ov_opset.one_hot(final_inds, depth, on_val, off_val, axis=-1)
+    counts = ov_opset.reduce_sum(
+        one_hot, ov_opset.constant(0, Type.i32).output(0), keep_dims=False
+    )
+
+    hist = ov_opset.slice(
+        counts,
+        ov_opset.constant([0], Type.i32).output(0),
+        ov_opset.constant([bins], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([0], Type.i32).output(0),
+    )
+
+    return OpenVINOKerasTensor(hist.output(0)), OpenVINOKerasTensor(bin_edges)
