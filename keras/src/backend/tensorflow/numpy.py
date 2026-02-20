@@ -1714,6 +1714,24 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return tf.equal(x1, x2)
 
 
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    if "float" in standardize_dtype(dtype):
+        finite = tf.math.is_finite(x1) & tf.math.is_finite(x2)
+        close = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        result = (finite & close) | tf.equal(x1, x2)
+        if equal_nan:
+            result = result | (is_nan(x1) & is_nan(x2))
+        return tf.reduce_all(result)
+    else:
+        return tf.reduce_all(tf.equal(x1, x2))
+
+
 @sparse.densifying_unary(True)
 def isfinite(x):
     x = convert_to_tensor(x)

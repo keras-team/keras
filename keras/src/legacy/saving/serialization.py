@@ -383,9 +383,11 @@ def class_and_config_for_serialized_keras_object(
                 custom_objects=custom_objects,
                 printable_module_name="config_item",
             )
-        # TODO(momernick): Should this also have 'module_objects'?
+        # Also consider looking up functions in `module_objects`.
         elif isinstance(item, str) and inspect.isfunction(
-            object_registration.get_registered_object(item, custom_objects)
+            object_registration.get_registered_object(
+                item, custom_objects, module_objects
+            )
         ):
             # Handle custom functions here. When saving functions, we only save
             # the function's name as a string. If we find a matching string in
@@ -397,7 +399,9 @@ def class_and_config_for_serialized_keras_object(
             # naming conflict with a custom object, since the config of an
             # object will always be a dict.
             deserialized_objects[key] = (
-                object_registration.get_registered_object(item, custom_objects)
+                object_registration.get_registered_object(
+                    item, custom_objects, module_objects
+                )
             )
     for key, item in deserialized_objects.items():
         cls_config[key] = deserialized_objects[key]

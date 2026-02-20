@@ -1,4 +1,5 @@
 import numpy as np
+import openvino as ov
 import openvino.opset15 as ov_opset
 from openvino import Type
 
@@ -204,6 +205,28 @@ def all(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(
         ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
     )
+
+
+def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+    if (
+        not isinstance(x1, OpenVINOKerasTensor)
+        and not isinstance(x2, OpenVINOKerasTensor)
+        and not isinstance(x1, ov.Output)
+        and not isinstance(x2, ov.Output)
+    ):
+        try:
+            return OpenVINOKerasTensor(
+                ov_opset.constant(
+                    np.allclose(
+                        x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+                    ),
+                    Type.boolean,
+                ).output(0)
+            )
+        except Exception:
+            pass
+
+    return all(isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan))
 
 
 def angle(x):
@@ -1791,7 +1814,9 @@ def identity(n, dtype=None):
 
 
 def imag(x):
-    raise NotImplementedError("`imag` is not supported with openvino backend")
+    # Implement properly when OpenVINO supports complex inputs
+    x = convert_to_tensor(x)
+    return zeros(x.shape, dtype=x.dtype)
 
 
 def inner(x1, x2):
@@ -1824,9 +1849,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     rtol = ov_opset.convert(get_ov_output(rtol), dtype)
     atol = ov_opset.convert(get_ov_output(atol), dtype)
 
-    abs_diff = ov_opset.abs(x1 - x2)
+    abs_diff = ov_opset.abs(ov_opset.subtract(x1, x2))
     abs_x2 = ov_opset.abs(x2)
-    total_tolerance = atol + rtol * abs_x2
+    total_tolerance = ov_opset.add(atol, ov_opset.multiply(rtol, abs_x2))
     is_close = ov_opset.less_equal(abs_diff, total_tolerance)
     if equal_nan:
         both_nan = ov_opset.logical_and(ov_opset.isnan(x1), ov_opset.isnan(x2))
@@ -1928,7 +1953,9 @@ def _is_inf(x, pos=True):
 
 
 def isreal(x):
-    raise NotImplementedError("`isreal` is not supported with openvino backend")
+    # Implement complex support when OpenVINO adds complex dtypes.
+    x = convert_to_tensor(x)
+    return ones(x.shape, dtype="bool")
 
 
 def kron(x1, x2):
@@ -2931,7 +2958,9 @@ def ravel(x):
 
 
 def real(x):
-    raise NotImplementedError("`real` is not supported with openvino backend")
+    # TODO: Implement complex support when OpenVINO adds complex dtypes.
+    # Currently, all supported dtypes are real-valued.
+    return convert_to_tensor(x)
 
 
 def reciprocal(x):
