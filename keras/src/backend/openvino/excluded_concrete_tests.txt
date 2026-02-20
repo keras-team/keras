@@ -117,7 +117,6 @@ RandomCorrectnessTest::test_randint1
 RandomCorrectnessTest::test_randint2
 RandomCorrectnessTest::test_randint3
 RandomCorrectnessTest::test_randint4
-RandomCorrectnessTest::test_shuffle
 RandomCorrectnessTest::test_truncated_normal0
 RandomCorrectnessTest::test_truncated_normal1
 RandomCorrectnessTest::test_truncated_normal2
