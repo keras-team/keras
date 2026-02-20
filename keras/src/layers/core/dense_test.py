@@ -130,6 +130,16 @@ class DenseTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "positive integer"):
             layers.Dense(units)
 
+    def test_dense_accepts_integer_like_units(self):
+        """layers.Dense should accept numpy integers and ops.prod results."""
+        layer = layers.Dense(np.int32(10))
+        self.assertEqual(layer.units, 10)
+        self.assertIsInstance(layer.units, int)
+
+        layer = layers.Dense(np.int64(5))
+        self.assertEqual(layer.units, 5)
+        self.assertIsInstance(layer.units, int)
+
     def test_dense_correctness(self):
         # With bias and activation.
         layer = layers.Dense(units=2, activation="relu")
