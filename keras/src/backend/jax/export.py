@@ -19,7 +19,7 @@ class JaxExportArchive(SavedModelExportArchive):
         self._backend_trainable_variables = []
         self._backend_non_trainable_variables = []
 
-    def _track_layer(self, layer):
+    def _backend_track_layer(self, layer):
         # Variables in the lists below are actually part of the trackables
         # that get saved, because the lists are created in __init__.
         trainable_variables = layer.trainable_variables
@@ -43,7 +43,7 @@ class JaxExportArchive(SavedModelExportArchive):
             + self._backend_non_trainable_variables
         )
 
-    def _add_endpoint_helper(self, name, fn, input_signature, **kwargs):
+    def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         jax2tf_kwargs = kwargs.pop("jax2tf_kwargs", None)
         # Use `copy.copy()` to avoid modification issues.
         jax2tf_kwargs = copy.copy(jax2tf_kwargs) or {}

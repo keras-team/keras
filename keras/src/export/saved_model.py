@@ -242,6 +242,114 @@ class ExportArchive:
 
         Returns:
             The `tf.function` wrapping `fn` that was added to the archive.
+
+        Example:
+
+        Adding an endpoint using the `input_signature` argument when the
+        model has a single input argument:
+
+        ```python
+        export_archive = ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            name="serve",
+            fn=model.call,
+            input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
+        )
+        ```
+
+        Adding an endpoint using the `input_signature` argument when the
+        model has two positional input arguments:
+
+        ```python
+        export_archive = ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            name="serve",
+            fn=model.call,
+            input_signature=[
+                keras.InputSpec(shape=(None, 3), dtype="float32"),
+                keras.InputSpec(shape=(None, 4), dtype="float32"),
+            ],
+        )
+        ```
+
+        Adding an endpoint using the `input_signature` argument when the
+        model has one input argument that is a list of 2 tensors (e.g.
+        a Functional model with 2 inputs):
+
+        ```python
+        model = keras.Model(inputs=[x1, x2], outputs=outputs)
+
+        export_archive = ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            name="serve",
+            fn=model.call,
+            input_signature=[
+                [
+                    keras.InputSpec(shape=(None, 3), dtype="float32"),
+                    keras.InputSpec(shape=(None, 4), dtype="float32"),
+                ],
+            ],
+        )
+        ```
+
+        This also works with dictionary inputs:
+
+        ```python
+        model = keras.Model(inputs={"x1": x1, "x2": x2}, outputs=outputs)
+
+        export_archive = ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(
+            name="serve",
+            fn=model.call,
+            input_signature=[
+                {
+                    "x1": keras.InputSpec(shape=(None, 3), dtype="float32"),
+                    "x2": keras.InputSpec(shape=(None, 4), dtype="float32"),
+                },
+            ],
+        )
+        ```
+
+        Adding an endpoint that is a `tf.function`:
+
+        ```python
+        @tf.function()
+        def serving_fn(x):
+            return model(x)
+
+        # The function must be traced, i.e. it must be called at least once.
+        serving_fn(tf.random.normal(shape=(2, 3)))
+
+        export_archive = ExportArchive()
+        export_archive.track(model)
+        export_archive.add_endpoint(name="serve", fn=serving_fn)
+        ```
+
+        Combining a model with some TensorFlow preprocessing, which can use
+        TensorFlow resources:
+
+        ```python
+        lookup_table = tf.lookup.StaticHashTable(initializer, default_value=0.0)
+
+        export_archive = ExportArchive()
+        model_fn = export_archive.track_and_add_endpoint(
+            "model_fn",
+            model,
+            input_signature=[tf.TensorSpec(shape=(None, 5), dtype=tf.float32)],
+        )
+        export_archive.track(lookup_table)
+
+        @tf.function()
+        def serving_fn(x):
+            x = lookup_table.lookup(x)
+            return model_fn(x)
+
+        export_archive.add_endpoint(name="serve", fn=serving_fn)
+        ```
         """
         raise NotImplementedError(
             "add_endpoint() is not implemented for this backend."
@@ -285,6 +393,28 @@ class ExportArchive:
         Arguments:
             name: The string name for the collection.
             variables: A tuple/list/set of `keras.Variable` instances.
+
+        Example:
+
+        ```python
+        export_archive = ExportArchive()
+        export_archive.track(model)
+        # Register an endpoint
+        export_archive.add_endpoint(
+            name="serve",
+            fn=model.call,
+            input_signature=[keras.InputSpec(shape=(None, 3), dtype="float32")],
+        )
+        # Save a variable collection
+        export_archive.add_variable_collection(
+            name="optimizer_variables", variables=model.optimizer.variables)
+        export_archive.write_out("path/to/location")
+
+        # Reload the object
+        revived_object = tf.saved_model.load("path/to/location")
+        # Retrieve the variables
+        optimizer_variables = revived_object.optimizer_variables
+        ```
         """
         raise NotImplementedError(
             "add_variable_collection() is not implemented for this backend."

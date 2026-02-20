@@ -13,8 +13,8 @@ class SavedModelExportArchive:
     This class contains all the common SavedModel export logic that is shared
     across different backends (TensorFlow, JAX, Torch). Backend-specific
     implementations should extend this class and override the following methods:
-    - `_track_layer(layer)`: Track variables of a layer.
-    - `_add_endpoint_helper(name, fn, input_signature, **kwargs)`: Backend-
+    - `_backend_track_layer(layer)`: Track variables of a layer.
+    - `_backend_add_endpoint(name, fn, input_signature, **kwargs)`: Backend-
         specific endpoint creation logic.
     - `_backend_init()`: Backend-specific initialization (optional).
     """
@@ -82,7 +82,7 @@ class SavedModelExportArchive:
             self._tracked.append(resource)
 
         if isinstance(resource, layers.Layer):
-            self._track_layer(resource)
+            self._backend_track_layer(resource)
         elif not isinstance(resource, tf.__internal__.tracking.Trackable):
             raise ValueError(
                 "Invalid resource type. Expected a Keras `Layer` or `Model` "
@@ -90,47 +90,12 @@ class SavedModelExportArchive:
                 f"Received object {resource} of type '{type(resource)}'. "
             )
 
-    def _track_layer(self, layer):
-        """Track variables of a layer. Override in backend subclasses."""
+    def _backend_track_layer(self, layer):
         raise NotImplementedError(
-            "_track_layer() must be implemented in backend subclasses."
+            "_backend_track_layer() must be implemented in backend subclasses."
         )
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
-        """Register a new serving endpoint.
-
-        Args:
-            name: `str`. The name of the endpoint.
-            fn: A callable. It should only leverage resources
-                (e.g. `keras.Variable` objects or `tf.lookup.StaticHashTable`
-                objects) that are available on the models/layers tracked by the
-                `ExportArchive` (you can call `.track(model)` to track a new
-                model).
-                The shape and dtype of the inputs to the function must be
-                known. For that purpose, you can either 1) make sure that `fn`
-                is a `tf.function` that has been called at least once, or 2)
-                provide an `input_signature` argument that specifies the shape
-                and dtype of the inputs (see below).
-            input_signature: Optional. Specifies the shape and dtype of `fn`.
-                Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-                `backend.KerasTensor`, or backend tensor (see below for an
-                example showing a `Functional` model with 2 input arguments). If
-                not provided, `fn` must be a `tf.function` that has been called
-                at least once. Defaults to `None`.
-            **kwargs: Additional keyword arguments:
-                - Specific to the JAX backend:
-                    - `is_static`: Optional `bool`. Indicates whether `fn` is
-                        static. Set to `False` if `fn` involves state updates
-                        (e.g., RNG seeds).
-                    - `jax2tf_kwargs`: Optional `dict`. Arguments for
-                        `jax2tf.convert`. See [`jax2tf.convert`](
-                            https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
-                        If `native_serialization` and `polymorphic_shapes` are
-                        not provided, they are automatically computed.
-
-        Returns:
-            The `tf.function` wrapping `fn` that was added to the archive.
-        """
         if name in self._endpoint_names:
             raise ValueError(f"Endpoint name '{name}' is already taken.")
 
@@ -179,7 +144,7 @@ class SavedModelExportArchive:
         input_signature = tree.map_structure(
             make_tf_tensor_spec, input_signature
         )
-        decorated_fn = self._add_endpoint_helper(
+        decorated_fn = self._backend_add_endpoint(
             name, fn, input_signature, **kwargs
         )
         self._endpoint_signatures[name] = input_signature
@@ -187,10 +152,9 @@ class SavedModelExportArchive:
         self._endpoint_names.append(name)
         return decorated_fn
 
-    def _add_endpoint_helper(self, name, fn, input_signature, **kwargs):
-        """Backend-specific endpoint creation. Override in subclasses."""
+    def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
-            "_add_endpoint_helper() must be implemented in backend subclasses."
+            "_backend_add_endpoint() must be implemented in backend subclasses."
         )
 
     def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
@@ -221,51 +185,8 @@ class SavedModelExportArchive:
                         not provided, they are automatically computed.
 
         """
-        if name in self._endpoint_names:
-            raise ValueError(f"Endpoint name '{name}' is already taken.")
-        if not isinstance(resource, layers.Layer):
-            raise ValueError(
-                "Invalid resource type. Expected an instance of a Keras "
-                "`Layer` or `Model`. "
-                f"Received: resource={resource} (of type {type(resource)})"
-            )
-        if not resource.built:
-            raise ValueError(
-                "The layer provided has not yet been built. "
-                "It must be built before export."
-            )
-        if backend.backend() != "jax":
-            if "jax2tf_kwargs" in kwargs or "is_static" in kwargs:
-                raise ValueError(
-                    "'jax2tf_kwargs' and 'is_static' are only supported with "
-                    f"the jax backend. Current backend: {backend.backend()}"
-                )
-
-        input_signature = tree.map_structure(
-            make_tf_tensor_spec, input_signature
-        )
-
-        # Default behavior: track and add endpoint separately.
-        # Subclasses can override _track_and_add_endpoint_helper for
-        # special handling (e.g., Torch backend).
-        decorated_fn = self._track_and_add_endpoint_helper(
-            name, resource, input_signature, **kwargs
-        )
-        self._endpoint_signatures[name] = input_signature
-        setattr(self._tf_trackable, name, decorated_fn)
-        self._endpoint_names.append(name)
-        return decorated_fn
-
-    def _track_and_add_endpoint_helper(
-        self, name, resource, input_signature, **kwargs
-    ):
-        """Helper for track_and_add_endpoint. Override in subclasses if needed.
-
-        Default implementation tracks the resource and adds an endpoint
-        for its __call__ method.
-        """
         self.track(resource)
-        return self._add_endpoint_helper(
+        return self.add_endpoint(
             name, resource.__call__, input_signature, **kwargs
         )
 

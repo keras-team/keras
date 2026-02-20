@@ -3,8 +3,10 @@ import warnings
 
 import torch
 
+from keras.src import layers
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
+from keras.src.export.export_utils import make_tf_tensor_spec
 from keras.src.export.saved_model_export_archive import SavedModelExportArchive
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.module_utils import torch_xla
@@ -13,21 +15,36 @@ from keras.src.utils.module_utils import torch_xla
 class TorchExportArchive(SavedModelExportArchive):
     """Torch backend implementation of SavedModel export archive."""
 
-    def _track_layer(self, layer):
+    def _backend_track_layer(self, layer):
         raise NotImplementedError(
             "`track` is not supported for `Layer`s and `Model`s in the torch "
             "backend. Use `track_and_add_endpoint` instead."
         )
 
-    def _add_endpoint_helper(self, name, fn, input_signature, **kwargs):
+    def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
             "`add_endpoint` is not supported for `Layer`s and `Model`s in the "
             "torch backend. Use `track_and_add_endpoint` instead."
         )
 
-    def _track_and_add_endpoint_helper(
-        self, name, resource, input_signature, **kwargs
-    ):
+    def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
+        if name in self._endpoint_names:
+            raise ValueError(f"Endpoint name '{name}' is already taken.")
+        if not isinstance(resource, layers.Layer):
+            raise ValueError(
+                "Invalid resource type. Expected an instance of a Keras "
+                "`Layer` or `Model`. "
+                f"Received: resource={resource} (of type {type(resource)})"
+            )
+        if not resource.built:
+            raise ValueError(
+                "The layer provided has not yet been built. "
+                "It must be built before export."
+            )
+
+        input_signature = tree.map_structure(
+            make_tf_tensor_spec, input_signature
+        )
         # Disable false alarms related to lifting parameters.
         warnings.filterwarnings("ignore", message=".*created when tracing.*")
         warnings.filterwarnings(
@@ -146,4 +163,7 @@ class TorchExportArchive(SavedModelExportArchive):
             ),
             input_signature=input_signature,
         )
+        self._endpoint_signatures[name] = input_signature
+        setattr(self._tf_trackable, name, decorated_fn)
+        self._endpoint_names.append(name)
         return decorated_fn
