@@ -165,9 +165,9 @@ def extract_archive(file_path, path=".", archive_format="auto"):
                     if os.path.exists(path):
                         backup_path = f"{path}.bak"
                         if os.path.lexists(backup_path):
-                            if os.path.isdir(backup_path) and not os.path.islink(
+                            if os.path.isdir(
                                 backup_path
-                            ):
+                            ) and not os.path.islink(backup_path):
                                 shutil.rmtree(backup_path)
                             else:
                                 os.remove(backup_path)
