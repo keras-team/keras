@@ -1758,6 +1758,58 @@ class TestTrainer(testing.TestCase):
         loss2 = model.evaluate(x, y, batch_size=100)
         self.assertAllClose(loss1, loss2)
 
+    def test_evaluate_progbar_metrics_match_returned(self):
+        """Progress bar metrics should match the final returned metrics.
+
+        Regression test for https://github.com/keras-team/keras/issues/21301.
+        Compiled metrics are stateful (they maintain running totals). The
+        progress bar must display them as-is rather than averaging them again.
+
+        Uses a Lambda identity model with varying input data so that per-batch
+        loss values differ.  Without the fix the progress bar would show a
+        double-averaged (incorrect) value.
+        """
+        from keras.src.callbacks.progbar_logger import ProgbarLogger
+
+        # Identity model: output = input → loss = MSE(input, 0)
+        model = models.Sequential(
+            [layers.Lambda(lambda x: x, output_shape=(1,))]
+        )
+        # Use varying data so that per-batch losses differ.
+        x = np.arange(1, 11, dtype="float32").reshape(-1, 1)
+        y = np.zeros((10, 1), dtype="float32")
+
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+            metrics=[metrics.MeanAbsoluteError()],
+        )
+
+        progbar_logger = ProgbarLogger()
+        output = model.evaluate(
+            x,
+            y,
+            batch_size=1,
+            callbacks=[progbar_logger],
+            return_dict=True,
+        )
+
+        # The progbar should have the same metric values as the returned
+        # dict (not double-averaged values).
+        progbar_values = {}
+        if progbar_logger.progbar is not None:
+            for k in progbar_logger.progbar._values_order:
+                values, count = progbar_logger.progbar._values[k]
+                progbar_values[k] = values / max(1, count)
+
+        for key in output:
+            if key in progbar_values:
+                self.assertAllClose(
+                    float(output[key]),
+                    float(progbar_values[key]),
+                    atol=1e-4,
+                )
+
     @pytest.mark.requires_trainable_backend
     def test_adds_loss_scaling_optimizer(self):
         model = TrainingTestingLayer(dtype="mixed_float16")

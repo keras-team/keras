@@ -91,6 +91,13 @@ class ProgbarLogger(Callback):
         self._maybe_init_progbar()
         self.seen = batch + 1  # One-indexed.
 
+        # All metrics from compiled Keras models are stateful: they maintain
+        # running totals internally and return already-aggregated values.
+        # Mark every log key as stateful so the progress bar displays them
+        # as-is instead of averaging them a second time.
+        if logs and self.progbar is not None:
+            self.progbar.stateful_metrics.update(logs.keys())
+
         if self.verbose == 1:
             self.progbar.update(self.seen, list(logs.items()), finalize=False)
 
@@ -99,4 +106,6 @@ class ProgbarLogger(Callback):
         if self.target is None:
             self.target = self.seen
             self.progbar.target = self.target
+        if logs and self.progbar is not None:
+            self.progbar.stateful_metrics.update(logs.keys())
         self.progbar.update(self.target, list(logs.items()), finalize=True)
