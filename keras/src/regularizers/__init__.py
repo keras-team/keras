@@ -53,8 +53,27 @@ def get(identifier):
     if callable(obj):
         if inspect.isclass(obj):
             obj = obj()
+        if not isinstance(obj, Regularizer):
+            obj = _CallableRegularizer(obj)
         return obj
     else:
         raise ValueError(
             f"Could not interpret regularizer identifier: {identifier}"
+        )
+
+
+class _CallableRegularizer(Regularizer):
+    """Wraps a plain callable as a `Regularizer` instance."""
+
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, x):
+        return self.fn(x)
+
+    def get_config(self):
+        raise NotImplementedError(
+            "A plain callable used as a regularizer cannot be serialized. "
+            "Please subclass `keras.regularizers.Regularizer` and implement "
+            "`get_config()` for serialization support."
         )

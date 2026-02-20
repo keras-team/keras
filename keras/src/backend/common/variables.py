@@ -371,13 +371,17 @@ class Variable:
     @regularizer.setter
     def regularizer(self, value):
         from keras.src.regularizers import Regularizer
+        from keras.src.regularizers import get as get_regularizer
 
         if value is not None and not isinstance(value, Regularizer):
-            raise ValueError(
-                "Invalid value for attribute `regularizer`. Expected an "
-                "instance of `keras.regularizers.Regularizer`, or `None`. "
-                f"Received: regularizer={value}"
-            )
+            if callable(value):
+                value = get_regularizer(value)
+            else:
+                raise ValueError(
+                    "Invalid value for attribute `regularizer`. Expected an "
+                    "instance of `keras.regularizers.Regularizer`, a callable, "
+                    f"or `None`. Received: regularizer={value}"
+                )
         self._regularizer = value
 
     @property
@@ -387,13 +391,17 @@ class Variable:
     @constraint.setter
     def constraint(self, value):
         from keras.src.constraints import Constraint
+        from keras.src.constraints import get as get_constraint
 
         if value is not None and not isinstance(value, Constraint):
-            raise ValueError(
-                "Invalid value for attribute `constraint`. Expected an "
-                "instance of `keras.constraints.Constraint`, or `None`. "
-                f"Received: constraint={value}"
-            )
+            if callable(value):
+                value = get_constraint(value)
+            else:
+                raise ValueError(
+                    "Invalid value for attribute `constraint`. Expected an "
+                    "instance of `keras.constraints.Constraint`, a callable, "
+                    f"or `None`. Received: constraint={value}"
+                )
         self._constraint = value
 
     def __repr__(self):
