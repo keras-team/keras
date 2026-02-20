@@ -38,11 +38,10 @@ def einsum(subscripts, *operands, **kwargs):
     result_dtype = (
         dtypes.result_type(*keras_types) if keras_types else config.floatx()
     )
-    # int8 x int8 -> int32 (JAX semantics); use set to avoid shadowed all()
     if set(keras_types) == {"int8"}:
         result_dtype = "int32"
     ov_result_type = OPENVINO_DTYPES[result_dtype]
-    # OV Einsum supports float* and int32/int64 only; promote everything else
+    # OV Einsum supports float*/int32/int64; promote unsupported types
     _ov_einsum_ok = {
         OPENVINO_DTYPES[t]
         for t in ("float16", "bfloat16", "float32", "float64", "int32", "int64")
