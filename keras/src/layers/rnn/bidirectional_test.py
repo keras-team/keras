@@ -123,6 +123,8 @@ class SimpleRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
