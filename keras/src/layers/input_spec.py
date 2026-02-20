@@ -139,24 +139,70 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     if not input_spec:
         return
 
-    input_spec = tree.flatten(input_spec)
-    if isinstance(inputs, dict):
-        # Flatten `inputs` by reference order if input spec names are provided
-        names = [spec.name for spec in input_spec]
-        if all(names):
-            list_inputs = []
-            for name in names:
-                if name not in inputs:
-                    raise ValueError(
-                        f'Missing data for input "{name}". '
-                        "You passed a data dictionary with keys "
-                        f"{list(inputs.keys())}. "
-                        f"Expected the following keys: {names}"
-                    )
-                list_inputs.append(inputs[name])
-            inputs = list_inputs
+    # Fast path: single InputSpec and single tensor input (most common case
+    # during inference/generation). Avoids expensive tree.flatten calls.
+    if isinstance(input_spec, InputSpec):
+        if not isinstance(inputs, dict):
+            input_spec = [input_spec]
+            inputs = [inputs]
+        else:
+            input_spec = [input_spec]
+            names = [input_spec[0].name]
+            if all(names):
+                list_inputs = []
+                for name in names:
+                    if name not in inputs:
+                        raise ValueError(
+                            f'Missing data for input "{name}". '
+                            "You passed a data dictionary with keys "
+                            f"{list(inputs.keys())}. "
+                            f"Expected the following keys: {names}"
+                        )
+                    list_inputs.append(inputs[name])
+                inputs = list_inputs
+            else:
+                inputs = tree.flatten(inputs)
+    elif isinstance(input_spec, (list, tuple)) and len(input_spec) == 1:
+        # Common case: list/tuple with a single InputSpec
+        input_spec = list(input_spec)
+        if not isinstance(inputs, dict):
+            inputs = [inputs]
+        else:
+            names = [input_spec[0].name]
+            if all(names):
+                list_inputs = []
+                for name in names:
+                    if name not in inputs:
+                        raise ValueError(
+                            f'Missing data for input "{name}". '
+                            "You passed a data dictionary with keys "
+                            f"{list(inputs.keys())}. "
+                            f"Expected the following keys: {names}"
+                        )
+                    list_inputs.append(inputs[name])
+                inputs = list_inputs
+            else:
+                inputs = tree.flatten(inputs)
+    else:
+        input_spec = tree.flatten(input_spec)
+        if isinstance(inputs, dict):
+            # Flatten `inputs` by reference order if input spec names
+            # are provided.
+            names = [spec.name for spec in input_spec]
+            if all(names):
+                list_inputs = []
+                for name in names:
+                    if name not in inputs:
+                        raise ValueError(
+                            f'Missing data for input "{name}". '
+                            "You passed a data dictionary with keys "
+                            f"{list(inputs.keys())}. "
+                            f"Expected the following keys: {names}"
+                        )
+                    list_inputs.append(inputs[name])
+                inputs = list_inputs
 
-    inputs = tree.flatten(inputs)
+        inputs = tree.flatten(inputs)
     if len(inputs) != len(input_spec):
         raise ValueError(
             f'Layer "{layer_name}" expects {len(input_spec)} input(s),'
