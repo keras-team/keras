@@ -509,10 +509,12 @@ class BackendSavedModelExportArchive(BackendExportArchive):
 
         # `tf.train.TrackableView` hardcodes the `save_type` to "checkpoint".
         # We need to subclass to use a `save_type` of "savedmodel".
+        savedmodel_cache = {}
+
         class SavedModelTrackableView(tf.train.TrackableView):
             @classmethod
             def children(cls, obj, save_type="savedmodel", **kwargs):
-                return super().children(obj, save_type, **kwargs)
+                return super().children(obj, save_type, cache=savedmodel_cache)
 
         # Next, track lookup tables.
         # Hopefully, one day this will be automated at the tf.function level.
