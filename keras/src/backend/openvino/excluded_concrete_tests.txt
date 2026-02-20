@@ -2,7 +2,6 @@ NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_heaviside
-NumpyDtypeTest::test_kaiser
 NumpyDtypeTest::test_concatenate
 NumpyDtypeTest::test_einsum
 HistogramTest::test_histogram_predict_jit_compile_false
@@ -21,7 +20,6 @@ NumpyDtypeTest::test_subtract
 NumpyDtypeTest::test_var
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
-NumpyOneInputOpsCorrectnessTest::test_kaiser
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
@@ -36,12 +34,10 @@ NumpyTwoInputOpsCorrectnessTest::test_nextafter
 NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_kaiser
+NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
-<<<<<<< openvino/view
 NumpyOneInputOpsStaticShapeTest::test_isreal
-=======
 NumpyOneInputOpsStaticShapeTest::test_view
->>>>>>> master
 NumpyTwoInputOpsDynamicShapeTest::test_nextafter
 NumpyTwoInputOpsStaticShapeTest::test_nextafter
 CoreOpsBehaviorTests::test_associative_scan_invalid_arguments
@@ -121,7 +117,6 @@ RandomCorrectnessTest::test_randint1
 RandomCorrectnessTest::test_randint2
 RandomCorrectnessTest::test_randint3
 RandomCorrectnessTest::test_randint4
-RandomCorrectnessTest::test_shuffle
 RandomCorrectnessTest::test_truncated_normal0
 RandomCorrectnessTest::test_truncated_normal1
 RandomCorrectnessTest::test_truncated_normal2
