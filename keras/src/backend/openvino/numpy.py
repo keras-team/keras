@@ -48,7 +48,7 @@ def einsum(subscripts, *operands, **kwargs):
     }
     if ov_result_type not in _ov_einsum_ok:
         ov_compute_type = OPENVINO_DTYPES[
-            "int64" if result_dtype == "uint64" else "int32"
+            "int64" if result_dtype in ("uint32", "uint64") else "int32"
         ]
     else:
         ov_compute_type = ov_result_type
