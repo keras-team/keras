@@ -519,7 +519,18 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    raise NotImplementedError("`view` is not supported with openvino backend")
+    x = get_ov_output(x)
+    old_ov_type = x.get_element_type()
+    old_dtype = ov_to_keras_type(old_ov_type)
+
+    if dtype is None:
+        dtype = old_dtype
+    new_dtype = standardize_dtype(dtype)
+    np_array = x.get_node().data
+    result = np_array.view(np.dtype(new_dtype))
+
+    new_ov_type = OPENVINO_DTYPES[new_dtype]
+    return OpenVINOKerasTensor(ov_opset.constant(result, new_ov_type).output(0))
 
 
 def average(x, axis=None, weights=None):
