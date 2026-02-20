@@ -4269,4 +4269,4 @@ def histogram(x, bins=10, range=None):
 def signbit(x):
     x = get_ov_output(x)
       
-    return OpenVINOKerasTensor(ov_opset.less(x, 0).output(0))
+   return openvino.runtime.opset12.less(x, 0.0) | openvino.runtime.opset12.is_finite(x) & (openvino.runtime.opset12.atan2(x, -1.0) > 0)
