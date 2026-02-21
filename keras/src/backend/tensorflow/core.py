@@ -400,12 +400,12 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
 
 
 def associative_scan(f, elems, reverse=False, axis=0):
-    # Implementation is the same as tfp.math.scan_associative
-    # with additional checks to ensure similar behavior with jax
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
+
     elems_flat = tree.flatten(elems)
     elems_flat = [tf.convert_to_tensor(elem) for elem in elems_flat]
+
     if reverse:
         elems_flat = [tf.reverse(elem, [axis]) for elem in elems_flat]
 
@@ -413,21 +413,25 @@ def associative_scan(f, elems, reverse=False, axis=0):
         a = tree.pack_sequence_as(elems, a_flat)
         b = tree.pack_sequence_as(elems, b_flat)
         c = f(a, b)
-        c_flat = tree.flatten(c)
-        return c_flat
+        return tree.flatten(c)
 
     def _get_dim(x):
-        return shape(x)[axis]
-
-    # TODO add constant dim check
-    num_elems = _get_dim(elems_flat[0])
-    if not all(_get_dim(elem) == num_elems for elem in elems_flat[1:]):
-        raise ValueError(
-            "Array inputs to associative_scan must have the same "
-            "first dimension. (saw: {})".format(
-                [tf.shape(elem) for elem in elems_flat]
+        dim = x.shape[axis]
+        if dim is None:
+            raise ValueError(
+                "associative_scan requires a statically known dimension along "
+                f"axis={axis}. Received shape={x.shape}"
             )
-        )
+        return int(dim)
+
+    num_elems = _get_dim(elems_flat[0])
+    for elem in elems_flat[1:]:
+        if _get_dim(elem) != num_elems:
+            raise ValueError(
+                "Array inputs to associative_scan must have the same dimension "
+                "along the scan axis (first dimension of the scan). "
+                f"(saw: {[e.shape for e in elems_flat]})"
+            )
 
     def _interleave(a, b, axis):
         # [a b c ...] [d e f ...] -> [a d b e c f ...]

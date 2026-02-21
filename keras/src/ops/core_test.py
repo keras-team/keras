@@ -1557,7 +1557,7 @@ class CoreOpsBehaviorTests(testing.TestCase):
     def test_associative_scan_invalid_arguments(self):
         # varying dimension at scan axis
         x = (np.array([1, 2]), np.array([3, 4]), np.array([5, 6, 7]))
-        with self.assertRaisesRegex(ValueError, " first dimension"):
+        with self.assertRaisesRegex(ValueError, "first dimension"):
             core.associative_scan(lambda x, y: (x[0] + y[0], x[1] + y[1]), x)
 
         # same error, symbolic
@@ -1565,7 +1565,7 @@ class CoreOpsBehaviorTests(testing.TestCase):
             KerasTensor((None, 5)),
             KerasTensor((None, 4)),
         )
-        with self.assertRaisesRegex(ValueError, " first dimension"):
+        with self.assertRaisesRegex(ValueError, "first dimension"):
             core.associative_scan(
                 lambda x, y: (x[0] + y[0], x[1] + y[1]), x, axis=1
             )
