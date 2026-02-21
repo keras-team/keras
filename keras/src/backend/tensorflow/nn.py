@@ -1207,19 +1207,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     Returns:
         Output tensor.
     """
-    if axis != -1 and axis != len(output.shape) - 1:
-        raise ValueError(
-            f"Only axis=-1 is currently supported. Received: axis={axis}"
-        )
-    output, from_logits = _get_logits(
-        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
-    )
-
     target = tf.convert_to_tensor(target)
     target = tf.cast(target, dtype="int64")
     output = tf.convert_to_tensor(output)
-    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
-        target = tf.squeeze(target, axis=-1)
 
     if len(output.shape) < 1:
         raise ValueError(
@@ -1227,25 +1217,58 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "Received: "
             f"output.shape={output.shape}"
         )
-    if len(target.shape) != len(output.shape[:-1]):
+
+    # Normalize axis to positive index
+    output_rank = len(output.shape)
+    positive_axis = axis if axis >= 0 else output_rank + axis
+
+    # Squeeze target if it has an extra dimension of size 1 at the axis
+    if (
+        len(target.shape) == len(output.shape)
+        and target.shape[positive_axis] == 1
+    ):
+        target = tf.squeeze(target, axis=positive_axis)
+
+    # Compute expected shape by removing the class dimension from output
+    output_shape_without_class = list(output.shape[:positive_axis]) + list(
+        output.shape[positive_axis + 1 :]
+    )
+
+    target_shape = list(target.shape)
+    if len(target_shape) != len(output_shape_without_class):
         raise ValueError(
-            "Argument `output` must have rank (ndim) `target.ndim - 1`. "
-            "Received: "
+            "Arguments `target` and `output` must have the same shape "
+            f"except for the class dimension at axis={axis}: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
-    for e1, e2 in zip(target.shape, output.shape[:-1]):
+    for e1, e2 in zip(target_shape, output_shape_without_class):
         if e1 is not None and e2 is not None and e1 != e2:
             raise ValueError(
                 "Arguments `target` and `output` must have the same shape "
-                "up until the last dimension: "
+                f"except for the class dimension at axis={axis}: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
+
+    output, from_logits = _get_logits(
+        output, from_logits, "Softmax", "sparse_categorical_crossentropy"
+    )
 
     if not from_logits:
         output = tf.clip_by_value(
             output, backend.epsilon(), 1 - backend.epsilon()
         )
         output = tf.math.log(output)
+
+    # If axis is not the last dimension, transpose to move it there
+    # since tf.nn.sparse_softmax_cross_entropy_with_logits requires axis=-1
+    if positive_axis != output_rank - 1:
+        # Build permutation: move axis to the end
+        perm = (
+            list(range(positive_axis))
+            + list(range(positive_axis + 1, output_rank))
+            + [positive_axis]
+        )
+        output = tf.transpose(output, perm)
 
     result = tf.nn.sparse_softmax_cross_entropy_with_logits(
         labels=target, logits=output
