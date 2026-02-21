@@ -330,9 +330,8 @@ def scatter(indices, values, shape):
     indices = np.reshape(indices, [-1, index_length])
     values = np.reshape(values, [-1] + list(value_shape))
 
-    for i in range(indices.shape[0]):
-        index = indices[i]
-        zeros[tuple(index)] += values[i]
+    idx = tuple(indices.T)
+    np.add.at(zeros, idx, values)
     return zeros
 
 

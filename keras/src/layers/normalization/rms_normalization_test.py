@@ -48,6 +48,18 @@ class RMSNormalizationTest(testing.TestCase):
 
         self.assertAllClose(out, expected, atol=1e-1)
 
+    def test_unsorted_contiguous_axes(self):
+        inputs = np.random.randn(2, 3, 4).astype("float32")
+
+        layer_sorted = layers.RMSNormalization(axis=[-2, -1])
+        out_sorted = layer_sorted(inputs)
+
+        layer_unsorted = layers.RMSNormalization(axis=[-1, -2])
+        out_unsorted = layer_unsorted(inputs)
+
+        self.assertEqual(layer_unsorted.scale.shape, (3, 4))
+        self.assertAllClose(out_sorted, out_unsorted)
+
     def test_output(self):
         layer = layers.RMSNormalization()
         inputs = np.arange(10).astype("float32")[None, :]
