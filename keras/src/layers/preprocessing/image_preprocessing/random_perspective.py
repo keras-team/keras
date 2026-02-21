@@ -326,9 +326,13 @@ class RandomPerspective(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
+        original_interpolation = self.interpolation
+        self.interpolation = "nearest"
+        output = self.transform_images(
             segmentation_masks, transformation, training=training
         )
+        self.interpolation = original_interpolation
+        return output
 
     def compute_output_shape(self, input_shape):
         return input_shape

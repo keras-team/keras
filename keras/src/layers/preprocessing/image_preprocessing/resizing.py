@@ -132,7 +132,11 @@ class Resizing(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation=None, training=True
     ):
-        return self.transform_images(segmentation_masks)
+        original_interpolation = self.interpolation
+        self.interpolation = "nearest"
+        output = self.transform_images(segmentation_masks)
+        self.interpolation = original_interpolation
+        return output
 
     def transform_labels(self, labels, transformation=None, training=True):
         return labels
