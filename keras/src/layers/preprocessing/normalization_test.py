@@ -279,3 +279,21 @@ class NormalizationTest(testing.TestCase):
         # The expected broadcast shape should be (1, 7)
         self.assertEqual(tuple(layer.mean.shape), (1, 7))
         self.assertAllClose(layer.mean, [[5.0] * 7])
+
+    def test_adapt_tf_dataset_with_labels(self):
+        """Normalization.adapt should support supervised tf.data.Dataset."""
+        import tensorflow as tf
+
+        x = np.ones((32, 3), dtype="float32")
+        y = np.ones((32,), dtype="int32")
+
+        dataset = tf.data.Dataset.from_tensor_slices((x, y)).batch(8)
+
+        layer = layers.Normalization()
+        layer.adapt(dataset)
+
+        mean = backend.convert_to_numpy(layer.mean).squeeze()
+        var = backend.convert_to_numpy(layer.variance).squeeze()
+
+        np.testing.assert_allclose(mean, np.ones(3))
+        np.testing.assert_allclose(var, np.zeros(3))
