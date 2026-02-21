@@ -7,6 +7,7 @@ since your modifications would be overwritten.
 from keras.src.ops.image import affine_transform as affine_transform
 from keras.src.ops.image import crop_images as crop_images
 from keras.src.ops.image import elastic_transform as elastic_transform
+from keras.src.ops.image import euclidean_dist_transform as euclidean_dist_transform
 from keras.src.ops.image import extract_patches as extract_patches
 from keras.src.ops.image import extract_patches_3d as extract_patches_3d
 from keras.src.ops.image import gaussian_blur as gaussian_blur
