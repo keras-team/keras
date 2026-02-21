@@ -3354,13 +3354,10 @@ def signbit(x):
         # 1 / -0.0 = -inf (< 0), while 1 / 0.0 = +inf (> 0).
         zero = ov_opset.constant(0, x_type).output(0)
         one = ov_opset.constant(1, x_type).output(0)
-        is_neg = ov_opset.less(x_ov, zero).output(0)
         reciprocal_is_neg = ov_opset.less(
             ov_opset.divide(one, x_ov).output(0), zero
         ).output(0)
-        return OpenVINOKerasTensor(
-            ov_opset.logical_or(is_neg, reciprocal_is_neg).output(0)
-        )
+        return OpenVINOKerasTensor(reciprocal_is_neg)
 
 
 def sin(x):
