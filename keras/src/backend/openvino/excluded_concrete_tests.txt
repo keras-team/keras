@@ -10,7 +10,6 @@ NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_multiply
 NumpyDtypeTest::test_power
-NumpyDtypeTest::test_quantile
 NumpyDtypeTest::test_signbit
 NumpyDtypeTest::test_std
 NumpyDtypeTest::test_subtract
@@ -28,7 +27,6 @@ NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
-NumpyTwoInputOpsCorrectnessTest::test_quantile
 NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_angle
