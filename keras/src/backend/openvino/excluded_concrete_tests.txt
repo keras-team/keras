@@ -2,7 +2,6 @@ NumpyDtypeTest::test_add_
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_heaviside
-NumpyDtypeTest::test_concatenate
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
 NumpyDtypeTest::test_nanvar
