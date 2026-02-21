@@ -219,8 +219,8 @@ class TimeseriesDatasetTest(testing.TestCase):
             format=format,
         )
         for batch in dataset:
-            self.assertLess(np.max(batch[0]), 90)
-            self.assertGreater(np.min(batch[0]), 9)
+            self.assertLess(np.max(np.array(batch[0])), 90)
+            self.assertGreater(np.min(np.array(batch[0])), 9)
 
     def test_errors(self):
         # bad start index
