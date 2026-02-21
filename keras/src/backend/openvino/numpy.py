@@ -707,7 +707,15 @@ def heaviside(x1, x2):
     x1, x2 = _align_operand_types(x1, x2, "heaviside()")
 
     x_type = ov_to_keras_type(x1.get_element_type())
-    if x_type in ["int8", "int16", "int32", "uint8", "uint16", "uint32", "bool"]:
+    if x_type in [
+        "int8",
+        "int16",
+        "int32",
+        "uint8",
+        "uint16",
+        "uint32",
+        "bool",
+    ]:
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x1 = ov_opset.convert(x1, ov_type).output(0)
         x2 = ov_opset.convert(x2, ov_type).output(0)
