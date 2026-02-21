@@ -3,7 +3,6 @@ from openvino import Type
 
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
-from keras.src.backend.openvino.numpy import take_along_axis
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
@@ -30,6 +29,8 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
+    from keras.src.backend.openvino.numpy import take_along_axis
+
     # Expand targets: (batch,) → (batch, 1) for use with take_along_axis
     targets = ov_opset.unsqueeze(
         get_ov_output(targets), ov_opset.constant(1, Type.i32)
@@ -39,9 +40,11 @@ def in_top_k(targets, predictions, k):
     # top_k returns (batch, k) sorted descending; last col is the k-th largest
     topk_values = top_k(predictions, k)[0]
     # Grab only the last column (index k-1): threshold value, shape (batch,)
-    k_minus_1 = ov_opset.constant([k - 1], dtype=Type.i32).output(0)
-    axis_1 = ov_opset.constant(1, dtype=Type.i32).output(0)
-    topk_min = ov_opset.gather(topk_values, k_minus_1, axis_1).output(0)
+    k_minus_1_idx = ov_opset.constant([k - 1], dtype=Type.i32).output(0)
+    topk_values_axis = ov_opset.constant(1, dtype=Type.i32).output(0)
+    topk_min = ov_opset.gather(
+        topk_values, k_minus_1_idx, topk_values_axis
+    ).output(0)
 
     # Gather the prediction score at each true class index → shape (batch, 1)
     targets_values = take_along_axis(predictions, targets, axis=-1)
