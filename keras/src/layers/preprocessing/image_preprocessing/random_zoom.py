@@ -100,7 +100,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
     _FACTOR_VALIDATION_ERROR = (
         "The `height_factor` and `width_factor` arguments "
         "should be a number (or a list of two numbers) "
-        "in the range [-1.0, 1.0]. "
+        "in the range (-1.0, 1.0]. "
     )
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
     _SUPPORTED_INTERPOLATION = ("nearest", "bilinear")
@@ -167,7 +167,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
         return lower, upper
 
     def _check_factor_range(self, input_number):
-        if input_number > 1.0 or input_number < -1.0:
+        if input_number > 1.0 or input_number <= -1.0:
             raise ValueError(
                 self._FACTOR_VALIDATION_ERROR
                 + f"Received: input_number={input_number}"
