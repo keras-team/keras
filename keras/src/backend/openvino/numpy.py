@@ -3352,12 +3352,15 @@ def signbit(x):
     else:
         # Use the reciprocal trick to distinguish between 0.0 and -0.0:
         # 1 / -0.0 = -inf (< 0), while 1 / 0.0 = +inf (> 0).
-        float_type = OPENVINO_DTYPES[config.floatx()]
-        x_ov = ov_opset.convert(x_ov, float_type)
-        zero = ov_opset.constant(0, float_type).output(0)
-        one = ov_opset.constant(1, float_type).output(0)
-        result = ov_opset.divide(one, x_ov).output(0)
-        return OpenVINOKerasTensor(ov_opset.less(result, zero).output(0))
+        zero = ov_opset.constant(0, x_type).output(0)
+        one = ov_opset.constant(1, x_type).output(0)
+        is_neg = ov_opset.less(x_ov, zero).output(0)
+        reciprocal_is_neg = ov_opset.less(
+            ov_opset.divide(one, x_ov).output(0), zero
+        ).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.logical_or(is_neg, reciprocal_is_neg).output(0)
+        )
 
 
 def sin(x):
