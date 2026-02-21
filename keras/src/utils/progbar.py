@@ -8,6 +8,12 @@ import numpy as np
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
+ANSI_SAVE_CURSOR = "\033[s"
+ANSI_MOVE_TO_LINE_2 = "\033[2;1H"
+ANSI_CLEAR_LINE = "\033[K"
+ANSI_RESTORE_CURSOR = "\033[u"
+ANSI_MOVE_CURSOR_HOME = "\033[H"
+
 
 @keras_export("keras.utils.Progbar")
 class Progbar:
@@ -22,6 +28,8 @@ class Progbar:
             All others will be averaged by the progbar before display.
         interval: Minimum visual progress update interval (in seconds).
         unit_name: Display name for step counts (usually "step" or "sample").
+        pinned: Boolean, whether to pin the progress bar at the top of
+            the terminal. Defaults to `False`.
     """
 
     def __init__(
@@ -32,12 +40,14 @@ class Progbar:
         interval=0.05,
         stateful_metrics=None,
         unit_name="step",
+        pinned=False,
     ):
         self.target = target
         self.width = width
         self.verbose = verbose
         self.interval = interval
         self.unit_name = unit_name
+        self.pinned = pinned
         if stateful_metrics:
             self.stateful_metrics = set(stateful_metrics)
         else:
@@ -114,8 +124,15 @@ class Progbar:
                 return
 
             if self._dynamic_display:
-                message += "\b" * self._prev_total_width
-                message += "\r"
+                if self.pinned:
+                    message += (
+                        f"{ANSI_SAVE_CURSOR}"
+                        f"{ANSI_MOVE_TO_LINE_2}"
+                        f"{ANSI_CLEAR_LINE}"
+                    )
+                else:
+                    message += "\b" * self._prev_total_width
+                    message += "\r"
             else:
                 message += "\n"
 
@@ -178,6 +195,9 @@ class Progbar:
             total_width = len(bar) + len(info) - special_char_len
             if self._prev_total_width > total_width:
                 message += " " * (self._prev_total_width - total_width)
+
+            if self.pinned and self._dynamic_display:
+                message += ANSI_RESTORE_CURSOR
             if finalize:
                 message += "\n"
 
