@@ -903,6 +903,12 @@ class JAXTrainer(base_trainer.Trainer):
         self._jax_state_synced = True
 
     def _get_state_sharding_spec(self):
+        """
+        Returns concrete state shardings for JIT out_shardings.
+
+        JAX does not allow AbstractMesh in in_shardings/out_shardings during
+        compilation, so we use the variables' concrete shardings.
+        """
         trainable_shardings = [
             v.value.sharding for v in self.trainable_variables
         ]
@@ -1019,9 +1025,9 @@ class JAXEpochIterator(EpochIterator):
         for data in self.data_adapter.get_jax_iterator():
             if layouts is None:
                 layouts = tree.map_structure(
-                    lambda d: distribution.get_data_layout(
-                        d.shape
-                    ).backend_layout,
+                    lambda d: (
+                        distribution.get_data_layout(d.shape).backend_layout
+                    ),
                     data,
                 )
             yield _distribute_data(data, layouts)

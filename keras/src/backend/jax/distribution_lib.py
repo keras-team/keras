@@ -80,9 +80,9 @@ def distribute_tensor(tensor, layout):
     if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
 
-    # TODO(scottzhu): This might not be a cheap check, we should consider
-    # have some proper JAX API for doing this check.
+    # In tracing scope use AbstractMesh-based sharding for stable JIT cache.
     if jax_utils.is_in_jax_tracing_scope():
+        layout = _to_abstract_sharding(layout)
         return jax.lax.with_sharding_constraint(tensor, layout)
 
     # Skip relayout if unnecessary.
@@ -225,8 +225,35 @@ def _to_backend_mesh(device_mesh):
     return jax.sharding.Mesh(devices, device_mesh.axis_names)
 
 
+def _to_abstract_sharding(sharding):
+    """Convert a single sharding to use AbstractMesh for JIT-stable cache keys.
+
+    For NamedSharding(mesh, spec), returns one with mesh.abstract_mesh
+    when available; else unchanged. Used for jit() out_shardings in Trainer.
+
+    Args:
+        sharding: A single Sharding (e.g. NamedSharding), or None.
+
+    Returns:
+        Sharding with AbstractMesh where available, or the original sharding.
+    """
+    if sharding is None:
+        return None
+    if not isinstance(sharding, jax.sharding.NamedSharding):
+        return sharding
+    mesh = sharding.mesh
+    abstract = getattr(mesh, "abstract_mesh", None)
+    if abstract is None:
+        return sharding
+    return jax.sharding.NamedSharding(abstract, sharding.spec)
+
+
 def _to_backend_layout(tensor_layout):
     """Convert the TensorLayout to JAX backend specific Sharding.
+
+    Always uses the concrete Mesh. Callers that need AbstractMesh for
+    JIT-stable cache keys (e.g. inside tracing) should use
+    _to_abstract_sharding() on the result.
 
     Args:
         tensor_layout: TensorLayout instance to convert.

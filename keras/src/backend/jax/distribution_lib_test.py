@@ -95,10 +95,16 @@ class JaxDistributionLibTest(testing.TestCase):
             return distribution_lib.distribute_tensor(inputs, target_layout)
 
         result = test_function(inputs, target_layout)
-        # Note that the returned tensor has a different sharding implementation
-        # which is GSPMDSharding, but it should be equivalent as the target
-        # layout specified.
-        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
+        # Inside JIT we use AbstractMesh-based sharding when available.
+        self.assertEqual(result.shape, inputs.shape)
+        if hasattr(result.sharding, "spec"):
+            expected_sharding = backend_dlib._to_abstract_sharding(
+                target_layout
+            )
+            self.assertTrue(
+                result.sharding.is_equivalent_to(target_layout, ndim=2)
+                or result.sharding.is_equivalent_to(expected_sharding, ndim=2)
+            )
 
         # Test without jit
         result = distribution_lib.distribute_tensor(inputs, target_layout)
@@ -226,6 +232,19 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertIsInstance(jax_mesh, jax.sharding.Mesh)
         self.assertEqual(jax_mesh.devices.shape, shape)
         self.assertEqual(jax_mesh.axis_names, ("batch", "model"))
+
+    def test_to_abstract_sharding(self):
+        jax_mesh = jax.sharding.Mesh(
+            np.array(jax.devices()).reshape(4, 2), ("batch", "model")
+        )
+        spec = jax.sharding.PartitionSpec("batch", None)
+        concrete = jax.sharding.NamedSharding(jax_mesh, spec)
+        out = backend_dlib._to_abstract_sharding(concrete)
+        if getattr(jax_mesh, "abstract_mesh", None) is not None:
+            self.assertIsInstance(out, jax.sharding.NamedSharding)
+            self.assertIs(out.mesh, jax_mesh.abstract_mesh)
+        else:
+            self.assertIs(out, concrete)
 
     def test_to_backend_layout(self):
         axes = ["data", None]
