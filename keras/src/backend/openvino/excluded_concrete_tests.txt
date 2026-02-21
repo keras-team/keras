@@ -185,4 +185,5 @@ NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
+NNOpsBehaviorTest::test_logit_recovery_binary_crossentropy
 QrOpTest
