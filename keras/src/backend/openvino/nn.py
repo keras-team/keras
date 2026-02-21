@@ -570,22 +570,118 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    raise NotImplementedError(
-        "`categorical_crossentropy` is not supported with openvino backend"
-    )
+    target = get_ov_output(target)
+    output = get_ov_output(output)
+
+    if target.shape != output.shape:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+    if len(target.shape) < 1:
+        raise ValueError(
+            "Arguments `target` and `output` must be at least rank 1. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
+    if from_logits:
+        log_prob = ov_opset.log_softmax(output, axis).output(0)
+    else:
+        sum_result = ov_opset.reduce_sum(output, axis, keep_dims=True).output(0)
+        output = ov_opset.divide(output, sum_result).output(0)
+        output = ov_opset.clamp(
+            output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
+        ).output(0)
+        log_prob = ov_opset.log(output).output(0)
+    result = ov_opset.multiply(target, log_prob).output(0)
+    loss = ov_opset.reduce_sum(result, axis).output(0)
+    loss = ov_opset.negative(loss).output(0)
+    return OpenVINOKerasTensor(loss)
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    raise NotImplementedError(
-        "`sparse_categorical_crossentropy` is not supported "
-        "with openvino backend"
-    )
+    target = get_ov_output(target)
+    output = get_ov_output(output)
+
+    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
+        target = ov_opset.squeeze(target, -1).output(0)
+
+    if len(output.shape) < 1:
+        raise ValueError(
+            "Argument `output` must be at least rank 1. "
+            "Received: "
+            f"output.shape={output.shape}"
+        )
+
+    output_shape_without_class_dim = list(output.shape)
+    del output_shape_without_class_dim[axis]
+
+    if list(target.shape) != output_shape_without_class_dim:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape "
+            "up until the last dimension: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
+    if from_logits:
+        log_prob = ov_opset.log_softmax(output, axis).output(0)
+    else:
+        sum = ov_opset.reduce_sum(output, axis, keep_dims=True).output(0)
+        output = ov_opset.divide(output, sum).output(0)
+        output = ov_opset.clamp(
+            output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
+        ).output(0)
+        log_prob = ov_opset.log(output).output(0)
+
+    output_type = output.get_element_type()
+    on_val = ov_opset.constant(1, output_type).output(0)
+    off_val = ov_opset.constant(0, output_type).output(0)
+    one_hot_target = ov_opset.one_hot(
+        target,
+        depth=output.shape[axis],
+        on_value=on_val,
+        off_value=off_val,
+        axis=axis,
+    ).output(0)
+    result = ov_opset.multiply(one_hot_target, log_prob).output(0)
+    loss = ov_opset.reduce_sum(result, axis).output(0)
+    loss = ov_opset.negative(loss).output(0)
+    return OpenVINOKerasTensor(loss)
 
 
 def binary_crossentropy(target, output, from_logits=False):
-    raise NotImplementedError(
-        "`binary_crossentropy` is not supported with openvino backend"
-    )
+    target = get_ov_output(target)
+    output = get_ov_output(output)
+
+    if target.shape != output.shape:
+        raise ValueError(
+            "Arguments `target` and `output` must have the same shape. "
+            "Received: "
+            f"target.shape={target.shape}, output.shape={output.shape}"
+        )
+
+    if from_logits:
+        output = ov_opset.sigmoid(output).output(0)
+
+    output = ov_opset.clamp(
+        output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
+    ).output(0)
+    one = ov_opset.constant(1, target.get_element_type()).output(0)
+
+    minus_output = ov_opset.subtract(one, output).output(0)
+    minus_target = ov_opset.subtract(one, target).output(0)
+
+    log_prob = ov_opset.log(output).output(0)
+    minus_log_prob = ov_opset.log(minus_output).output(0)
+    result = ov_opset.multiply(target, log_prob).output(0)
+    minus_result = ov_opset.multiply(minus_target, minus_log_prob).output(0)
+    result = ov_opset.add(result, minus_result).output(0)
+    loss = ov_opset.reduce_mean(result, -1).output(0)
+    loss = ov_opset.negative(loss).output(0)
+    loss = ov_opset.unsqueeze(loss, -1).output(0)
+    return OpenVINOKerasTensor(loss)
 
 
 def moments(x, axes, keepdims=False, synchronized=False):

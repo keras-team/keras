@@ -169,12 +169,8 @@ LinalgOpsCorrectnessTest::test_lu_factor
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsDynamicShapeTest::test_qr
-NNOpsDynamicShapeTest::test_binary_crossentropy
-NNOpsDynamicShapeTest::test_categorical_crossentropy
 NNOpsCorrectnessTest::test_conv_transpose_
 NNOpsCorrectnessTest::test_ctc_decode
-NNOpsCorrectnessTest::test_binary_crossentropy
-NNOpsCorrectnessTest::test_categorical_crossentropy
 NNOpsCorrectnessTest::test_log_softmax_correctness_with_axis_tuple
 NNOpsCorrectnessTest::test_softmax_correctness_with_axis_tuple
 NNOpsCorrectnessTest::test_separable_conv_
@@ -182,7 +178,6 @@ NNOpsCorrectnessTest::test_glu
 NNOpsCorrectnessTest::test_moments
 NNOpsCorrectnessTest::test_normalize
 NNOpsCorrectnessTest::test_polar_corectness
-NNOpsCorrectnessTest::test_sparse_categorical_crossentropy
 NNOpsCorrectnessTest::test_sparsemax
 NNOpsCorrectnessTest::test_rms_normalization_10.0
 NNOpsDtypeTest::test_ctc_decode
