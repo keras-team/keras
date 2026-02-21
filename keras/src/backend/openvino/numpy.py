@@ -3161,9 +3161,18 @@ def sign(x):
 
 
 def signbit(x):
-    raise NotImplementedError(
-        "`signbit` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    zero = ov_opset.constant(0, dtype=x_type).output(0)
+    is_negative = ov_opset.less(x, zero).output(0)
+    if x_type.is_real():
+        one = ov_opset.constant(1.0, dtype=x_type).output(0)
+        recip = ov_opset.divide(one, x).output(0)
+        recip_neg = ov_opset.less(recip, zero).output(0)
+        is_zero = ov_opset.equal(x, zero).output(0)
+        neg_zero = ov_opset.logical_and(is_zero, recip_neg).output(0)
+        is_negative = ov_opset.logical_or(is_negative, neg_zero).output(0)
+    return OpenVINOKerasTensor(is_negative)
 
 
 def sin(x):
