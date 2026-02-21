@@ -1203,3 +1203,114 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+    input_shape = images.shape
+
+    if len(input_shape) not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single channel image), "
+            "rank 3 (single image), or rank 4 (batch of images). "
+            f"Received: images.shape={input_shape}"
+        )
+
+    need_squeeze_batch = False
+    need_squeeze_channel = False
+
+    if len(input_shape) == 2:
+        images = np.expand_dims(images, axis=(0, -1))
+        need_squeeze_batch = True
+        need_squeeze_channel = True
+    elif len(input_shape) == 3:
+        if data_format == "channels_first":
+            images = np.expand_dims(images, axis=0)
+            need_squeeze_batch = True
+        else:
+            images = np.expand_dims(images, axis=0)
+            need_squeeze_batch = True
+
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch_size, height, width, channels = images.shape
+
+    output = np.zeros_like(images, dtype="float32")
+
+    for b in range(batch_size):
+        for c in range(channels):
+            mask = images[b, :, :, c] != 0
+
+            output[b, :, :, c] = _exact_euclidean_distance_transform_2d(mask)
+
+    if data_format == "channels_first":
+        output = np.transpose(output, (0, 3, 1, 2))
+
+    if need_squeeze_channel:
+        output = np.squeeze(
+            output, axis=-1 if data_format == "channels_last" else 1
+        )
+    if need_squeeze_batch:
+        output = np.squeeze(output, axis=0)
+
+    return output
+
+
+def _exact_euclidean_distance_transform_2d(mask):
+    mask = mask.astype("float32")
+    height, width = mask.shape
+
+    dist = np.where(mask > 0, np.inf, 0.0).astype("float32")
+
+    for i in range(height):
+        dist[i, :] = _edt_1d(dist[i, :])
+
+    for j in range(width):
+        dist[:, j] = _edt_1d(dist[:, j])
+
+    dist = np.sqrt(dist)
+
+    return dist
+
+
+def _edt_1d(f):
+    n = len(f)
+
+    if n == 0:
+        return f
+    if n == 1:
+        return f
+
+    f = np.where(np.isinf(f), 1e10, f)
+
+    d = np.zeros(n, dtype="float32")
+    v = np.zeros(n, dtype="int32")
+    z = np.zeros(n + 1, dtype="float32")
+
+    k = 0
+    v[0] = 0
+    z[0] = -np.inf
+    z[1] = np.inf
+
+    for q in range(1, n):
+        while k >= 0:
+            s = ((f[q] + q * q) - (f[v[k]] + v[k] * v[k])) / (2 * q - 2 * v[k])
+
+            if s > z[k]:
+                break
+            k -= 1
+
+        k += 1
+        v[k] = q
+        z[k] = s
+        z[k + 1] = np.inf
+
+    k = 0
+    for q in range(n):
+        while z[k + 1] < q:
+            k += 1
+        d[q] = (q - v[k]) ** 2 + f[v[k]]
+
+    return d

@@ -87,3 +87,9 @@ def scale_and_translate(
     raise NotImplementedError(
         "`scale_and_translate` is not supported with openvino backend"
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    raise NotImplementedError(
+        "`euclidean_dist_transform` is not supported with openvino backend"
+    )
