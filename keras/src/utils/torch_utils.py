@@ -178,8 +178,31 @@ class TorchModuleWrapper(Layer):
                     "`keras.config.enable_unsafe_deserialization()."
                 )
 
-            # Decode the base64 string back to bytes
-            buffer_bytes = base64.b64decode(config["module"].encode("ascii"))
+            module_data = config["module"]
+
+            # Handle serialized bytes format from Keras serialization
+            # pipeline: {'class_name': '__bytes__', 'config': {'value': ...}}
+            if isinstance(module_data, dict):
+                if module_data.get("class_name") == "__bytes__":
+                    module_data = module_data["config"]["value"]
+                else:
+                    raise ValueError(
+                        "Unexpected dict format for 'module' in "
+                        f"TorchModuleWrapper config: {module_data}"
+                    )
+
+            if isinstance(module_data, str):
+                buffer_bytes = base64.b64decode(
+                    module_data.encode("ascii")
+                )
+            elif isinstance(module_data, bytes):
+                buffer_bytes = module_data
+            else:
+                raise TypeError(
+                    "Expected 'module' to be a str or bytes, "
+                    f"got {type(module_data)}"
+                )
+
             buffer = io.BytesIO(buffer_bytes)
             config["module"] = torch.load(buffer, weights_only=False)
         return cls(**config)
