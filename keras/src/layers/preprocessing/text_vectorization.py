@@ -402,9 +402,14 @@ class TextVectorization(Layer):
         frequencies of each token in the input dataset.
 
         Arguments:
-            data: The data to train on. It can be passed either as a
-                batched `tf.data.Dataset`, as a list of strings,
-                or as a NumPy array.
+            data: The data to train on. It can be passed as:
+                - A batched `tf.data.Dataset`
+                - A list of strings
+                - A NumPy array
+                - Any iterable yielding strings or batches of strings
+            batch_size: Integer or `None`. Number of samples per batch when
+                processing iterables. Only used for non-Dataset iterables.
+                Defaults to 32.
             steps: Integer or `None`.
                 Total number of steps (batches of samples) to process.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
@@ -420,12 +425,42 @@ class TextVectorization(Layer):
             for batch in data:
                 self.update_state(batch)
         else:
-            data = tf_utils.ensure_tensor(data, dtype="string")
-            if data.shape.rank == 1:
-                # A plain list of strings
-                # is treated as as many documents
-                data = tf.expand_dims(data, -1)
-            self.update_state(data)
+            try:
+                data = tf_utils.ensure_tensor(data, dtype="string")
+                if data.shape.rank == 1:
+                    data = tf.expand_dims(data, -1)
+                self.update_state(data)
+            except (ValueError, TypeError) as e:
+                try:
+                    iterator = iter(data)
+                    batch_size = batch_size or 32
+
+                    def process_batch(batch_to_process):
+                        if not batch_to_process:
+                            return
+                        batch_tensor = tf_utils.ensure_tensor(
+                            batch_to_process, dtype="string"
+                        )
+                        if batch_tensor.shape.rank == 1:
+                            batch_tensor = tf.expand_dims(batch_tensor, -1)
+                        self.update_state(batch_tensor)
+
+                    batch = []
+                    for item in iterator:
+                        batch.append(item)
+                        if len(batch) >= batch_size:
+                            process_batch(batch)
+                            batch = []
+
+                    process_batch(batch)
+
+                except TypeError:
+                    raise ValueError(
+                        f"`adapt()` requires data to be a tf.data.Dataset, "
+                        f"a NumPy array, a list of strings, or any iterable "
+                        f"yielding strings. Received: {type(data)}. "
+                        f"Original error: {e}"
+                    )
         self.finalize_state()
 
     def update_state(self, data):
