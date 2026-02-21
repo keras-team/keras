@@ -1005,13 +1005,13 @@ def concatenate(xs, axis=0):
 
 
 def conjugate(x):
-    raise NotImplementedError(
-        "`conjugate` is not supported with openvino backend"
-    )
+    # TODO: Implement complex support when OpenVINO adds complex dtypes.
+    # Currently, all supported dtypes are real-valued.
+    return convert_to_tensor(x)
 
 
 def conj(x):
-    raise NotImplementedError("`conj` is not supported with openvino backend")
+    return conjugate(x)
 
 
 def copy(x):
