@@ -53,8 +53,27 @@ def get(identifier):
     if callable(obj):
         if inspect.isclass(obj):
             obj = obj()
+        if not isinstance(obj, Constraint):
+            obj = _CallableConstraint(obj)
         return obj
     else:
         raise ValueError(
             f"Could not interpret constraint identifier: {identifier}"
+        )
+
+
+class _CallableConstraint(Constraint):
+    """Wraps a plain callable as a `Constraint` instance."""
+
+    def __init__(self, fn):
+        self.fn = fn
+
+    def __call__(self, w):
+        return self.fn(w)
+
+    def get_config(self):
+        raise NotImplementedError(
+            "A plain callable used as a constraint cannot be serialized. "
+            "Please subclass `keras.constraints.Constraint` and implement "
+            "`get_config()` for serialization support."
         )

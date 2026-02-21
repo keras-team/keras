@@ -1229,3 +1229,31 @@ class TestStandardizeShapeWithTensorflow(test_case.TestCase):
         self.assertIs(type(standardized_shape), tuple)
         for d in standardized_shape:
             self.assertIsInstance(d, int)
+
+
+class VariableConstraintRegularizerTest(test_case.TestCase):
+    def test_plain_callable_constraint_on_variable(self):
+        """Test that a plain callable can be set as a constraint."""
+        from keras.src.constraints import Constraint
+
+        v = backend.Variable(initializer=np.ones((2, 2)))
+        v.constraint = lambda w: w * 0.5
+        self.assertIsInstance(v.constraint, Constraint)
+
+    def test_plain_callable_regularizer_on_variable(self):
+        """Test that a plain callable can be set as a regularizer."""
+        from keras.src.regularizers import Regularizer
+
+        v = backend.Variable(initializer=np.ones((2, 2)))
+        v.regularizer = lambda w: 0.01 * ops.sum(w)
+        self.assertIsInstance(v.regularizer, Regularizer)
+
+    def test_non_callable_constraint_raises(self):
+        v = backend.Variable(initializer=np.ones((2, 2)))
+        with self.assertRaisesRegex(ValueError, "constraint"):
+            v.constraint = "not_a_callable"
+
+    def test_non_callable_regularizer_raises(self):
+        v = backend.Variable(initializer=np.ones((2, 2)))
+        with self.assertRaisesRegex(ValueError, "regularizer"):
+            v.regularizer = "not_a_callable"
