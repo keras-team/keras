@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
@@ -264,9 +265,15 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
+        original_dtype = segmentation_masks.dtype
+        output = self.transform_images(
             segmentation_masks, transformation, training=training
         )
+        if output.dtype == original_dtype:
+            return output
+        if backend.is_int_dtype(original_dtype):
+            output = self.backend.numpy.round(output)
+        return self.backend.cast(output, original_dtype)
 
     def compute_output_shape(self, input_shape):
         return input_shape

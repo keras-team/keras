@@ -262,7 +262,13 @@ class RandomCrop(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(segmentation_masks, transformation)
+        original_dtype = segmentation_masks.dtype
+        output = self.transform_images(segmentation_masks, transformation)
+        if output.dtype == original_dtype:
+            return output
+        if backend.is_int_dtype(original_dtype):
+            output = self.backend.numpy.round(output)
+        return self.backend.cast(output, original_dtype)
 
     def compute_output_shape(self, input_shape, *args, **kwargs):
         input_shape = list(input_shape)
