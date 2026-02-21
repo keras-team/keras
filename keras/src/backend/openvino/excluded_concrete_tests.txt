@@ -103,11 +103,6 @@ RandomCorrectnessTest::test_dropout_noise_shape
 RandomCorrectnessTest::test_gamma0
 RandomCorrectnessTest::test_gamma1
 RandomCorrectnessTest::test_gamma2
-RandomCorrectnessTest::test_randint0
-RandomCorrectnessTest::test_randint1
-RandomCorrectnessTest::test_randint2
-RandomCorrectnessTest::test_randint3
-RandomCorrectnessTest::test_randint4
 RandomCorrectnessTest::test_truncated_normal0
 RandomCorrectnessTest::test_truncated_normal1
 RandomCorrectnessTest::test_truncated_normal2
