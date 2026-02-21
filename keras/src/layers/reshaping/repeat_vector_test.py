@@ -30,6 +30,16 @@ class FlattenTest(testing.TestCase):
         repeated = layers.RepeatVector(n=3)(input_layer)
         self.assertEqual(repeated.shape, (2, 3, None))
 
+    def test_repeat_vector_accepts_integer_like_n(self):
+        """RepeatVector should accept numpy integers."""
+        layer = layers.RepeatVector(n=np.int32(3))
+        self.assertEqual(layer.n, 3)
+        self.assertIsInstance(layer.n, int)
+
+        layer = layers.RepeatVector(n=np.int64(5))
+        self.assertEqual(layer.n, 5)
+        self.assertIsInstance(layer.n, int)
+
     def test_repeat_vector_with_invalid_n(self):
         with self.assertRaisesRegex(
             TypeError, "Expected an integer value for `n`"
