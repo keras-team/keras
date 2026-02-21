@@ -118,7 +118,8 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
     if maxval.get_element_type() != gen_dtype:
         maxval = ov_opset.convert(maxval, gen_dtype).output(0)
     rand = ov_opset.random_uniform(
-        shape, minval, maxval, gen_dtype, seed1, seed2).output(0)
+        shape, minval, maxval, gen_dtype, seed1, seed2
+    ).output(0)
     if ov_dtype != gen_dtype:
         result = ov_opset.convert(rand, ov_dtype).output(0)
     else:
