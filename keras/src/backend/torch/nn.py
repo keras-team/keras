@@ -1173,14 +1173,52 @@ def dot_product_attention(
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
-        mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
+        # When both bias and is_causal are present, combine them:
+        # create a causal mask and add it to the bias.
+        if is_causal:
+            # Create causal mask: lower triangular matrix where valid positions
+            # are 0.0 and invalid positions are large negative values.
+            # Get sequence lengths from bias shape (last two dimensions)
+            if len(bias.shape) >= 2:
+                query_len = bias.shape[-2]
+                key_len = bias.shape[-1]
+            else:
+                # Fallback to query/key shapes if bias shape is unexpected
+                query_len = query.shape[2]
+                key_len = key.shape[2]
+            causal_mask = torch.tril(
+                torch.ones(
+                    (query_len, key_len), device=query.device, dtype=bias.dtype
+                )
+            )
+            causal_mask = torch.where(
+                causal_mask == 1, 0.0, _get_large_negative(bias.dtype)
+            )
+            # Expand to match bias shape
+            while len(causal_mask.shape) < len(bias.shape):
+                causal_mask = causal_mask.unsqueeze(0)
+            # Add causal mask to bias
+            mask = bias + causal_mask
+            is_causal = False
+        else:
+            # Use `bias` as `mask` for scaled_dot_product_attention.
+            mask = bias
+            # Explicit set `is_causal` to `False` when `bias` is used as `mask`,
+            # as PyTorch doesn't allow both attn_mask and is_causal=True.
+            is_causal = False
 
     axis0, axis1 = 1, 2
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
 
-    if flash_attention is None:
+    # Disable flash attention when mask or bias is present, as PyTorch's flash
+    # attention and memory-efficient kernels have known GPU issues with masks
+    # (see PyTorch issues #127523, #128119, #97514). The math kernel is the
+    # only reliable fallback.
+    if mask is not None:
+        flash_attention = False
+    elif flash_attention is None:
         flash_attention = _can_use_flash_attention(
             query, key, value, mask, is_causal
         )
@@ -1194,25 +1232,45 @@ def dot_product_attention(
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
+            # We only enter this branch when mask is None and bias is None,
+            # so we can safely pass is_causal without checking for mask.
             attention_output = torch.nn.functional.scaled_dot_product_attention(
                 query,
                 key,
                 value,
-                attn_mask=mask,
+                attn_mask=None,
                 is_causal=is_causal,
                 scale=scale,
             )
     else:
+        # Force the math kernel when mask is present, as PyTorch's flash
+        # attention and memory-efficient kernels have known GPU issues with
+        # masks (see PyTorch issues #127523, #128119, #97514). The math
+        # kernel is the only reliable fallback for masks on GPU.
+        attn_mask_arg = None if is_causal else mask
         if mask is not None:
-            mask = mask.contiguous()
-        attention_output = torch.nn.functional.scaled_dot_product_attention(
-            query.contiguous(),
-            key.contiguous(),
-            value.contiguous(),
-            attn_mask=mask,
-            is_causal=is_causal,
-            scale=scale,
-        )
+            with torch.nn.attention.sdpa_kernel(
+                backends=[torch.nn.attention.SDPBackend.MATH],
+            ):
+                attention_output = (
+                    torch.nn.functional.scaled_dot_product_attention(
+                        query,
+                        key,
+                        value,
+                        attn_mask=attn_mask_arg,
+                        is_causal=is_causal,
+                        scale=scale,
+                    )
+                )
+        else:
+            attention_output = torch.nn.functional.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=attn_mask_arg,
+                is_causal=is_causal,
+                scale=scale,
+            )
     return torch.transpose(attention_output, axis1, axis0)
 
 

@@ -230,26 +230,20 @@ class GroupedQueryAttentionTest(testing.TestCase):
         reason="Numpy backend does not support masking.",
     )
     def test_query_mask_propagation(self):
-        """Test automatic propagation of the query's mask."""
-        try:
-            layer = layers.GroupedQueryAttention(
-                num_query_heads=2, num_key_value_heads=2, head_dim=2
-            )
-            self.assertTrue(layer.supports_masking)
-            query = np.array(
-                [[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]]
-            )
-            masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
-            value = np.random.normal(size=(3, 3, 8))
-            output = layer(query=masked_query, value=value)
-        except RuntimeError as e:
-            if e.args[0].startswith(
-                "(*bias): last dimension must be contiguous"
-            ):
-                self.skipTest(
-                    "PyTorch errors out on GPU: issue to track bug is here "
-                    "https://github.com/keras-team/keras/issues/20459"
-                )
+        """Test automatic propagation of the query's mask.
+
+        This test was previously skipped due to a PyTorch backend bug where
+        bias tensors used as attention masks were not made contiguous, causing
+        a RuntimeError. This has been fixed in PyTorch (issue #20459).
+        """
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=2, num_key_value_heads=2, head_dim=2
+        )
+        self.assertTrue(layer.supports_masking)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.random.normal(size=(3, 3, 8))
+        output = layer(query=masked_query, value=value)
         self.assertAllClose(masked_query._keras_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
