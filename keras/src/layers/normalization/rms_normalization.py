@@ -1,5 +1,6 @@
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import backend_utils
 from keras.src.layers.layer import Layer
 
 
@@ -49,15 +50,20 @@ class RMSNormalization(Layer):
 
     def build(self, input_shape):
         ndim = len(input_shape)
-        axes = (
-            self.axis if isinstance(self.axis, (list, tuple)) else [self.axis]
-        )
-        axes = [axis + ndim if axis < 0 else axis for axis in axes]
+
+        if isinstance(self.axis, (list, tuple)):
+            axes = [
+                backend_utils.canonicalize_axis(ax, ndim) for ax in self.axis
+            ]
+        else:
+            axes = [backend_utils.canonicalize_axis(self.axis, ndim)]
+
         self.axis = sorted(list(set(axes)))
-        shape = tuple([input_shape[dim] for dim in self.axis])
+        # optimized tuple construction
+        shape = tuple(input_shape[dim] for dim in self.axis)
 
         self.scale = self.add_weight(
-            name="scale", shape=shape, initializer="ones", trainable=True
+            name="scale", shape=shape, initializer="ones"
         )
         self.built = True
 
@@ -77,7 +83,9 @@ class RMSNormalization(Layer):
             A tensor with the same shape as `x`, where the values along `axis`
             have been normalized and scaled by the learnable `scale` parameter.
         """
+        # Cast for backend compatibility
         x = ops.cast(x, self.compute_dtype)
+        # Explicit decomposition to solve PyTorch contiguity bugs
         pow_2 = ops.square(x)
         ms = ops.mean(pow_2, axis=self.axis, keepdims=True)
         rms = ops.sqrt(ms + self.epsilon)
@@ -85,18 +93,6 @@ class RMSNormalization(Layer):
         return normalized * self.scale
 
     def compute_output_shape(self, input_shape):
-        if isinstance(self.axis, int):
-            axes = [self.axis]
-        else:
-            axes = self.axis
-
-        for axis in axes:
-            if axis >= len(input_shape) or axis < -len(input_shape):
-                raise ValueError(
-                    f"Axis {axis} is out of bounds for "
-                    f"input shape {input_shape}. "
-                    f"Received: axis={self.axis}"
-                )
         return input_shape
 
     def get_config(self):
