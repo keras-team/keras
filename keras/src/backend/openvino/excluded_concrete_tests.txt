@@ -4,7 +4,6 @@ NumpyDtypeTest::test_array
 NumpyDtypeTest::test_heaviside
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
-NumpyDtypeTest::test_nanvar
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
@@ -20,7 +19,6 @@ NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
-NumpyOneInputOpsCorrectnessTest::test_nanvar
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_signbit
