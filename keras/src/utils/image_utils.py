@@ -311,7 +311,7 @@ def smart_resize(
     size,
     interpolation="bilinear",
     data_format="channels_last",
-    backend_module=None,
+    **kwargs,
 ):
     """Resize images to a target size without aspect ratio distortion.
 
@@ -366,8 +366,6 @@ def smart_resize(
             `"lanczos3"`, `"lanczos5"`.
             Defaults to `"bilinear"`.
         data_format: `"channels_last"` or `"channels_first"`.
-        backend_module: Backend module to use (if different from the default
-            backend).
 
     Returns:
         Array with shape `(size[0], size[1], channels)`.
@@ -375,7 +373,12 @@ def smart_resize(
         and if it was a backend-native tensor,
         the output is a backend-native tensor.
     """
-    backend_module = backend_module or backend
+    backend_module = kwargs.pop("backend_module", None) or backend
+    if kwargs:
+        raise TypeError(
+            "smart_resize() got unexpected keyword arguments: "
+            f"{list(kwargs.keys())}"
+        )
     if len(size) != 2:
         raise ValueError(
             f"Expected `size` to be a tuple of 2 integers, but got: {size}."
