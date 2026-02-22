@@ -227,7 +227,7 @@ class OrbaxCheckpoint(MonitorCallback):
         if not self._multihost_initialized:
             return True  # Single host is always primary
         multihost = ocp.multihost
-        return multihost.is_primary_host()
+        return multihost.is_primary_host(primary_host=0)
 
     def _should_save_on_batch(self, batch):
         """Check if we should save on this batch."""
