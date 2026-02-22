@@ -50,7 +50,6 @@ CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
 CoreOpsBehaviorTests::test_vectorized_map_serialization
 ExtractSequencesOpTest::test_extract_sequences_call
-InTopKTest::test_in_top_k_call
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_erfinv_operation_edge_cases
@@ -58,7 +57,6 @@ MathOpsCorrectnessTest::test_extract_sequences
 MathOpsCorrectnessTest::test_fft
 MathOpsCorrectnessTest::test_fft2
 MathOpsCorrectnessTest::test_ifft2
-MathOpsCorrectnessTest::test_in_top_k
 MathOpsCorrectnessTest::test_irfft0
 MathOpsCorrectnessTest::test_irfft1
 MathOpsCorrectnessTest::test_irfft2

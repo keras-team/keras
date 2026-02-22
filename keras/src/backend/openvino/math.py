@@ -29,9 +29,28 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
-    raise NotImplementedError(
-        "`in_top_k` is not supported with openvino backend"
-    )
+    from keras.src.backend.openvino.numpy import take_along_axis
+
+    # Expand targets: (batch,) → (batch, 1) for use with take_along_axis
+    targets = ov_opset.unsqueeze(
+        get_ov_output(targets), ov_opset.constant(1, Type.i32)
+    ).output(0)
+    predictions = get_ov_output(predictions)
+
+    # top_k returns (batch, k) sorted descending; last col is the k-th largest
+    topk_values = top_k(predictions, k)[0]
+    # Grab only the last column (index k-1): threshold value, shape (batch,)
+    k_minus_1_idx = ov_opset.constant([k - 1], dtype=Type.i32).output(0)
+    topk_values_axis = ov_opset.constant(1, dtype=Type.i32).output(0)
+    topk_min = ov_opset.gather(
+        topk_values, k_minus_1_idx, topk_values_axis
+    ).output(0)
+
+    # Gather the prediction score at each true class index → shape (batch, 1)
+    targets_values = take_along_axis(predictions, targets, axis=-1)
+    # target score >= k-th largest score means it belongs in the top-k
+    mask = ov_opset.greater_equal(targets_values, topk_min).output(0)
+    return OpenVINOKerasTensor(mask)
 
 
 def logsumexp(x, axis=None, keepdims=False):
