@@ -1,16 +1,21 @@
 import numpy as np
+from absl.testing import parameterized
 
 from keras.src import testing
 from keras.src.utils import timeseries_dataset_utils
 
 
 class TimeseriesDatasetTest(testing.TestCase):
-    def test_basics(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_basics(self, format):
         # Test ordering, targets, sequence length, batch size
         data = np.arange(100)
         targets = data * 2
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
-            data, targets, sequence_length=9, batch_size=5
+            data, targets, sequence_length=9, batch_size=5, format=format
         )
         # Expect 19 batches
         for i, batch in enumerate(dataset):
@@ -29,13 +34,17 @@ class TimeseriesDatasetTest(testing.TestCase):
                     inputs[j], np.arange(i * 5 + j, i * 5 + j + 9)
                 )
 
-    def test_timeseries_regression(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_timeseries_regression(self, format):
         # Test simple timeseries regression use case
         data = np.arange(10)
         offset = 3
         targets = data[offset:]
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
-            data, targets, sequence_length=offset, batch_size=1
+            data, targets, sequence_length=offset, batch_size=1, format=format
         )
         i = 0
         for batch in dataset:
@@ -48,10 +57,14 @@ class TimeseriesDatasetTest(testing.TestCase):
             i += 1
         self.assertEqual(i, 7)  # Expect 7 batches
 
-    def test_no_targets(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_no_targets(self, format):
         data = np.arange(50)
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
-            data, None, sequence_length=10, batch_size=5
+            data, None, sequence_length=10, batch_size=5, format=format
         )
         # Expect 9 batches
         i = None
@@ -67,8 +80,9 @@ class TimeseriesDatasetTest(testing.TestCase):
                 )
         self.assertEqual(i, 8)
 
-    def test_shuffle(self):
-        # Test cross-epoch random order and seed determinism
+    def test_shuffle_tf(self):
+        # Test cross-epoch random order and seed determinism (TF-specific
+        # since grain does not support .take())
         data = np.arange(10)
         targets = data * 2
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
@@ -78,6 +92,7 @@ class TimeseriesDatasetTest(testing.TestCase):
             batch_size=1,
             shuffle=True,
             seed=123,
+            format="tf",
         )
         first_seq = None
         for x, y in dataset.take(1):
@@ -96,15 +111,44 @@ class TimeseriesDatasetTest(testing.TestCase):
             batch_size=1,
             shuffle=True,
             seed=123,
+            format="tf",
         )
         for x, _ in dataset.take(1):
             self.assertAllClose(x, first_seq)
 
-    def test_sampling_rate(self):
+    def test_shuffle_grain(self):
+        # Test shuffle with grain format
+        data = np.arange(20)
+        targets = data * 2
+        dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
+            data,
+            targets,
+            sequence_length=5,
+            batch_size=1,
+            shuffle=True,
+            seed=123,
+            format="grain",
+        )
+        batch = next(iter(dataset))
+        self.assertLen(batch, 2)
+        inputs, targets = batch
+        # Verify that inputs and targets are consistent
+        self.assertAllClose(inputs[:, 0] * 2, targets)
+
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_sampling_rate(self, format):
         data = np.arange(100)
         targets = data * 2
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
-            data, targets, sequence_length=9, batch_size=5, sampling_rate=2
+            data,
+            targets,
+            sequence_length=9,
+            batch_size=5,
+            sampling_rate=2,
+            format=format,
         )
         for i, batch in enumerate(dataset):
             self.assertLen(batch, 2)
@@ -124,11 +168,20 @@ class TimeseriesDatasetTest(testing.TestCase):
                     inputs[j], np.arange(start_index, end_index, 2)
                 )
 
-    def test_sequence_stride(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_sequence_stride(self, format):
         data = np.arange(100)
         targets = data * 2
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
-            data, targets, sequence_length=9, batch_size=5, sequence_stride=3
+            data,
+            targets,
+            sequence_length=9,
+            batch_size=5,
+            sequence_stride=3,
+            format=format,
         )
         for i, batch in enumerate(dataset):
             self.assertLen(batch, 2)
@@ -148,7 +201,11 @@ class TimeseriesDatasetTest(testing.TestCase):
                     inputs[j], np.arange(start_index, end_index)
                 )
 
-    def test_start_and_end_index(self):
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_start_and_end_index(self, format):
         data = np.arange(100)
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
             data,
@@ -159,10 +216,11 @@ class TimeseriesDatasetTest(testing.TestCase):
             sampling_rate=2,
             start_index=10,
             end_index=90,
+            format=format,
         )
         for batch in dataset:
-            self.assertLess(np.max(batch[0]), 90)
-            self.assertGreater(np.min(batch[0]), 9)
+            self.assertLess(np.max(np.array(batch[0])), 90)
+            self.assertGreater(np.min(np.array(batch[0])), 9)
 
     def test_errors(self):
         # bad start index
@@ -194,11 +252,26 @@ class TimeseriesDatasetTest(testing.TestCase):
                 np.arange(10), None, 3, sequence_stride=0
             )
 
-    def test_not_batched(self):
+    def test_invalid_format(self):
+        with self.assertRaisesRegex(ValueError, "`format` should be"):
+            _ = timeseries_dataset_utils.timeseries_dataset_from_array(
+                np.arange(10), None, 3, format="invalid"
+            )
+
+    @parameterized.named_parameters(
+        ("tf", "tf"),
+        ("grain", "grain"),
+    )
+    def test_not_batched(self, format):
         data = np.arange(100)
 
         dataset = timeseries_dataset_utils.timeseries_dataset_from_array(
-            data, None, sequence_length=9, batch_size=None, shuffle=True
+            data,
+            None,
+            sequence_length=9,
+            batch_size=None,
+            shuffle=True,
+            format=format,
         )
         sample = next(iter(dataset))
         self.assertEqual(len(sample.shape), 1)
