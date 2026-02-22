@@ -21,14 +21,22 @@ from keras.src.backend.openvino.core import while_loop
 
 
 def add(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "add()")
+    if x1.get_element_type() == Type.boolean:
+        return OpenVINOKerasTensor(ov_opset.logical_or(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.add(x1, x2).output(0))
 
 
@@ -65,13 +73,19 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "subtract()")
     if x1.get_element_type() == Type.boolean:
         return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
@@ -91,14 +105,22 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "multiply()")
+    if x1.get_element_type() == Type.boolean:
+        return OpenVINOKerasTensor(ov_opset.logical_and(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
 
 
