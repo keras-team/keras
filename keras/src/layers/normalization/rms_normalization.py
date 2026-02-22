@@ -1,5 +1,6 @@
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common import backend_utils
 from keras.src.layers.layer import Layer
 
 
@@ -48,45 +49,50 @@ class RMSNormalization(Layer):
         self.epsilon = epsilon
 
     def build(self, input_shape):
-        if isinstance(self.axis, list):
-            shape = tuple([input_shape[dim] for dim in self.axis])
+        ndim = len(input_shape)
+
+        if isinstance(self.axis, (list, tuple)):
+            axes = [
+                backend_utils.canonicalize_axis(ax, ndim) for ax in self.axis
+            ]
         else:
-            shape = (input_shape[self.axis],)
-            self.axis = [self.axis]
+            axes = [backend_utils.canonicalize_axis(self.axis, ndim)]
+
+        self.axis = sorted(list(set(axes)))
+        # optimized tuple construction
+        shape = tuple(input_shape[dim] for dim in self.axis)
 
         self.scale = self.add_weight(
             name="scale", shape=shape, initializer="ones"
         )
-
         self.built = True
 
     def call(self, x):
-        """Applies RMS normalization to the input tensor.
+        """
+        Applies RMS normalization to the input tensor.
+
+        RMS Normalization scales the input by the reciprocal of the root mean
+        square of the activations. Unlike Layer Normalization, it does not
+        subtract the mean (centering).
 
         Args:
-            x: Input tensor of shape (batch_size, input_dim).
+            x: Input tensor of arbitrary shape. The dimensions specified in
+                `self.axis` will be used to compute the RMS value.
 
         Returns:
-            The RMS-normalized tensor of the same shape (batch_size, input_dim),
-            scaled by the learned `scale` parameter.
+            A tensor with the same shape as `x`, where the values along `axis`
+            have been normalized and scaled by the learnable `scale` parameter.
         """
-        return ops.rms_normalization(
-            x, scale=self.scale, axis=self.axis, epsilon=self.epsilon
-        )
+        # Cast for backend compatibility
+        x = ops.cast(x, self.compute_dtype)
+        # Explicit decomposition to solve PyTorch contiguity bugs
+        pow_2 = ops.square(x)
+        ms = ops.mean(pow_2, axis=self.axis, keepdims=True)
+        rms = ops.sqrt(ms + self.epsilon)
+        normalized = x / rms
+        return normalized * self.scale
 
     def compute_output_shape(self, input_shape):
-        if isinstance(self.axis, int):
-            axes = [self.axis]
-        else:
-            axes = self.axis
-
-        for axis in axes:
-            if axis >= len(input_shape) or axis < -len(input_shape):
-                raise ValueError(
-                    f"Axis {axis} is out of bounds for "
-                    f"input shape {input_shape}. "
-                    f"Received: axis={self.axis}"
-                )
         return input_shape
 
     def get_config(self):
