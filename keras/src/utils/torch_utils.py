@@ -192,14 +192,15 @@ class TorchModuleWrapper(Layer):
                     )
 
             if isinstance(module_data, str):
-                buffer_bytes = base64.b64decode(module_data.encode("ascii"))
-            elif isinstance(module_data, bytes):
-                buffer_bytes = module_data
-            else:
+                module_data = module_data.encode("ascii")
+
+            if not isinstance(module_data, bytes):
                 raise TypeError(
                     "Expected 'module' to be a str or bytes, "
                     f"got {type(module_data)}"
                 )
+
+            buffer_bytes = base64.b64decode(module_data)
 
             buffer = io.BytesIO(buffer_bytes)
             config["module"] = torch.load(buffer, weights_only=False)
