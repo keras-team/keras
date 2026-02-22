@@ -192,9 +192,7 @@ class TorchModuleWrapper(Layer):
                     )
 
             if isinstance(module_data, str):
-                buffer_bytes = base64.b64decode(
-                    module_data.encode("ascii")
-                )
+                buffer_bytes = base64.b64decode(module_data.encode("ascii"))
             elif isinstance(module_data, bytes):
                 buffer_bytes = module_data
             else:
