@@ -895,3 +895,52 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    images = convert_to_tensor(images)
+
+    # Convert to channels_first for convolution (like gaussian_blur)
+    if data_format != "channels_first":
+        images = jnp.transpose(images, (0, 3, 1, 2))
+
+    num_channels = images.shape[1]
+
+    # Sobel kernels - shape (1, 1, 3, 3) then tile to (C, 1, 3, 3) for OIHW
+    sobel_x = jnp.array(
+        [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=images.dtype
+    )[jnp.newaxis, jnp.newaxis, :, :]
+    sobel_y = jnp.array(
+        [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=images.dtype
+    )[jnp.newaxis, jnp.newaxis, :, :]
+
+    kernel_x = jnp.tile(sobel_x, (num_channels, 1, 1, 1))
+    kernel_y = jnp.tile(sobel_y, (num_channels, 1, 1, 1))
+
+    # Apply convolutions using depthwise conv with NCHW format
+    edges_x = jax.lax.conv_general_dilated(
+        images,
+        kernel_x,
+        window_strides=(1, 1),
+        padding="SAME",
+        dimension_numbers=("NCHW", "OIHW", "NCHW"),
+        feature_group_count=num_channels,
+    )
+    edges_y = jax.lax.conv_general_dilated(
+        images,
+        kernel_y,
+        window_strides=(1, 1),
+        padding="SAME",
+        dimension_numbers=("NCHW", "OIHW", "NCHW"),
+        feature_group_count=num_channels,
+    )
+
+    # Convert back to channels_last: (N, C, H, W) -> (N, H, W, C)
+    if data_format != "channels_first":
+        edges_x = jnp.transpose(edges_x, (0, 2, 3, 1))
+        edges_y = jnp.transpose(edges_y, (0, 2, 3, 1))
+
+    # Stack to get (..., 2) where last dim contains [dy, dx]
+    edges = jnp.stack([edges_y, edges_x], axis=-1)
+
+    return edges

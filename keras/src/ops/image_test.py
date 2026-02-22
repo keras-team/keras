@@ -2835,3 +2835,62 @@ class ExtractPatches3DTest(testing.TestCase):
             volume, size=(2, 3, 4), strides=(2, 3, 4), data_format=data_format
         )
         self.assertEqual(patches.shape, expected_shape)
+
+
+class SobelEdgesTest(testing.TestCase):
+    def setUp(self):
+        if backend.backend() == "openvino":
+            self.skipTest("sobel_edges is not supported with openvino backend")
+
+    def test_sobel_edges_shape_channels_last(self):
+        image = np.random.random((2, 16, 16, 3)).astype("float32")
+        edges = kimage.sobel_edges(image)
+        self.assertEqual(edges.shape, (2, 16, 16, 3, 2))
+
+    def test_sobel_edges_shape_channels_first(self):
+        image = np.random.random((2, 3, 16, 16)).astype("float32")
+        edges = kimage.sobel_edges(image, data_format="channels_first")
+        self.assertEqual(edges.shape, (2, 3, 16, 16, 2))
+
+    def test_sobel_edges_single_channel(self):
+        image = np.random.random((1, 16, 16, 1)).astype("float32")
+        edges = kimage.sobel_edges(image)
+        self.assertEqual(edges.shape, (1, 16, 16, 1, 2))
+
+    def test_sobel_edges_detects_vertical_edge(self):
+        # Create image with vertical edge in the middle
+        image = np.zeros((1, 8, 8, 1), dtype="float32")
+        image[0, :, 4:, 0] = 1.0
+        edges = kimage.sobel_edges(image)
+
+        # Horizontal gradient (dx) should be non-zero at the edge
+        dx = backend.convert_to_numpy(edges[0, :, :, 0, 1])
+        # The edge is at column 4, so dx should have non-zero values there
+        self.assertTrue(np.any(np.abs(dx[:, 3:5]) > 0))
+
+    def test_sobel_edges_detects_horizontal_edge(self):
+        # Create image with horizontal edge in the middle
+        image = np.zeros((1, 8, 8, 1), dtype="float32")
+        image[0, 4:, :, 0] = 1.0
+        edges = kimage.sobel_edges(image)
+
+        # Vertical gradient (dy) should be non-zero at the edge
+        dy = backend.convert_to_numpy(edges[0, :, :, 0, 0])
+        # The edge is at row 4, so dy should have non-zero values there
+        self.assertTrue(np.any(np.abs(dy[3:5, :]) > 0))
+
+    def test_sobel_edges_uniform_image(self):
+        # Uniform image should have near-zero gradients (except at borders)
+        image = np.ones((1, 16, 16, 1), dtype="float32") * 0.5
+        edges = kimage.sobel_edges(image)
+
+        # Interior gradients should be zero
+        edges_np = backend.convert_to_numpy(edges)
+        interior = edges_np[0, 2:-2, 2:-2, 0, :]
+        self.assertAllClose(interior, np.zeros_like(interior), atol=1e-5)
+
+    def test_sobel_edges_multi_channel(self):
+        # Test with RGB image
+        image = np.random.random((1, 16, 16, 3)).astype("float32")
+        edges = kimage.sobel_edges(image)
+        self.assertEqual(edges.shape, (1, 16, 16, 3, 2))

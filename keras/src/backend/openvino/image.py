@@ -87,3 +87,9 @@ def scale_and_translate(
     raise NotImplementedError(
         "`scale_and_translate` is not supported with openvino backend"
     )
+
+
+def sobel_edges(images, data_format=None):
+    raise NotImplementedError(
+        "`sobel_edges` is not supported with openvino backend"
+    )

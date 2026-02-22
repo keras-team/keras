@@ -1203,3 +1203,27 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    from scipy import ndimage
+
+    images = convert_to_tensor(images)
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch, height, width, channels = images.shape
+
+    # Output shape: (batch, height, width, channels, 2)
+    edges = np.zeros((batch, height, width, channels, 2), dtype=images.dtype)
+
+    for b in range(batch):
+        for c in range(channels):
+            # axis=0 is vertical (y), axis=1 is horizontal (x)
+            edges[b, :, :, c, 0] = ndimage.sobel(images[b, :, :, c], axis=0)
+            edges[b, :, :, c, 1] = ndimage.sobel(images[b, :, :, c], axis=1)
+
+    if data_format == "channels_first":
+        edges = np.transpose(edges, (0, 3, 1, 2, 4))
+
+    return edges
