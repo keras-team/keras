@@ -86,6 +86,16 @@ def matmul(x1, x2):
         element_type = x2.output.get_element_type()
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
+
+    # When both inputs are int8, promote to int32 to align with other backends.
+    if (
+        ov_to_keras_type(x1.get_element_type()) == "int8"
+        and ov_to_keras_type(x2.get_element_type()) == "int8"
+    ):
+        int32_type = OPENVINO_DTYPES["int32"]
+        x1 = ov_opset.convert(x1, int32_type).output(0)
+        x2 = ov_opset.convert(x2, int32_type).output(0)
+
     x1, x2 = _align_operand_types(x1, x2, "matmul()")
     return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
