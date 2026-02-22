@@ -23,6 +23,7 @@ from keras.src.distribution.distribution_lib import DeviceMesh
 from keras.src.optimizers.rmsprop import RMSprop
 from keras.src.testing import test_case
 from keras.src.testing.test_utils import named_product
+from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters import py_dataset_adapter
 
 if backend.backend() == "jax":
@@ -848,6 +849,48 @@ class TestTrainer(testing.TestCase):
             self.assertAllClose(output["my_custom_metric"], 5.0)
         else:
             self.assertAllClose(output[-1], 5.0)  # Custom metrics go last.
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TensorFlow distribution-only regression test.",
+    )
+    def test_evaluate_distributed_with_custom_test_step_input_transform(self):
+        import tensorflow as tf
+
+        class SplitInputsForEvalModel(Trainer, layers.Layer):
+            def __init__(self, units):
+                layers.Layer.__init__(self)
+                Trainer.__init__(self)
+                self.dense = layers.Dense(
+                    units,
+                    use_bias=False,
+                    kernel_initializer=initializers.Ones(),
+                )
+
+            def call(self, x):
+                x1, x2 = x
+                return ops.concatenate([self.dense(x1), self.dense(x2)], axis=0)
+
+            def test_step(self, data):
+                x, y, sample_weight = (
+                    data_adapter_utils.unpack_x_y_sample_weight(data)
+                )
+                x = tf.split(x, num_or_size_splits=2, axis=0)
+                return super().test_step((x, y, sample_weight))
+
+        strategy = tf.distribute.MirroredStrategy(["CPU:0", "CPU:1"])
+        with strategy.scope():
+            model = SplitInputsForEvalModel(units=3)
+            model.compile(
+                optimizer=optimizers.SGD(),
+                loss=losses.MeanSquaredError(),
+                metrics=[metrics.MeanSquaredError()],
+            )
+
+            x = np.ones((100, 4))
+            y = np.zeros((100, 3))
+            output = model.evaluate(x, y, batch_size=16, return_dict=True)
+            self.assertIn("loss", output)
 
     @parameterized.named_parameters(
         named_product(
