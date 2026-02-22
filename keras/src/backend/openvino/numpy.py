@@ -253,7 +253,26 @@ def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
 
 
 def angle(x):
-    raise NotImplementedError("`angle` is not supported with openvino backend")
+    """Returns the angle of a complex tensor.
+    The angle is computed as `atan2(imaginary_part, real_part)`.
+
+    Note: Uses existing `arctan2` implementation.
+
+    Args:
+        x: Input tensor. Can be a Python scalar, list, or a NumPy array.
+
+    Returns:
+        A tensor containing the angle of each element in `x`.
+    """
+    # Extract real and imaginary parts
+    if np.iscomplexobj(x):
+        real = np.real(x)
+        imag = np.imag(x)
+    else:
+        real = x
+        imag = 0
+
+    return arctan2(imag, real)
 
 
 def any(x, axis=None, keepdims=False):
