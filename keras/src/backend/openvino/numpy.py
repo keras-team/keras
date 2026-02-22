@@ -3576,7 +3576,7 @@ def stack(x, axis=0):
 
 def std(x, axis=None, keepdims=False):
     var_x = var(x, axis, keepdims)
-    std_dev = ov_opset.sqrt(var_x).output(0)
+    std_dev = ov_opset.sqrt(var_x.output).output(0)
     return OpenVINOKerasTensor(std_dev)
 
 
@@ -4321,9 +4321,12 @@ def var(x, axis=None, keepdims=False):
     x_type = x.get_element_type()
     x, axis = _resolve_axis(x, axis)
 
-    work_dtype = Type.f64 if x_type.is_integral() else x.get_element_type()
-    if x_type.is_integral():
+    if x_type.is_integral() or x_type == Type.boolean:
+        work_dtype = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, work_dtype).output(0)
+    else:
+        work_dtype = x_type
+
     if axis is None:
         const_zero = ov_opset.constant(0, dtype=work_dtype).output(0)
         return OpenVINOKerasTensor(
