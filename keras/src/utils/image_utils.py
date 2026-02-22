@@ -374,6 +374,11 @@ def smart_resize(
         the output is a backend-native tensor.
     """
     backend_module = kwargs.pop("backend_module", None) or backend
+    if kwargs:
+        raise TypeError(
+            "smart_resize() got unexpected keyword arguments: "
+            f"{list(kwargs.keys())}"
+        )
     if len(size) != 2:
         raise ValueError(
             f"Expected `size` to be a tuple of 2 integers, but got: {size}."
