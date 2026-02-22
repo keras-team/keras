@@ -1910,3 +1910,96 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+class EuclideanDistanceTransform(Operation):
+    def __init__(self, sampling=None, *, name=None):
+        super().__init__(name=name)
+        self.sampling = sampling
+
+    def call(self, images):
+        return backend.image.euclidean_distance_transform(
+            images, sampling=self.sampling
+        )
+
+    def compute_output_spec(self, images):
+        if len(images.shape) not in (2, 3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 2, 3, or 4. "
+                f"Received input with shape: images.shape={images.shape}"
+            )
+        return KerasTensor(images.shape, dtype="float32")
+
+
+@keras_export("keras.ops.image.euclidean_distance_transform")
+def euclidean_distance_transform(images, sampling=None):
+    """Computes the Euclidean distance transform of binary images.
+
+    The Euclidean distance transform computes the shortest Euclidean distance
+    from each foreground (non-zero) pixel to the nearest background (zero)
+    pixel. Background pixels have a distance of 0.
+
+    This operation is commonly used for:
+    - Binary image analysis and segmentation
+    - Preprocessing for watershed algorithms
+    - Feature extraction and shape analysis
+    - Loss calculation in image segmentation tasks
+
+    Args:
+        images: Input binary image or batch of binary images. Must be 2D, 3D,
+            or 4D. For 2D input, shape is `(height, width)`. For 3D input,
+            shape is `(height, width, channels)`. For 4D input,
+            shape is `(batch, height, width, channels)`. Non-zero values are
+            treated as foreground (1), zero values as background (0).
+        sampling: Spacing of elements along each dimension. If a sequence,
+            must be of length equal to the number of spatial dimensions.
+            If a single number, this is used for all dimensions. If `None`
+            (default), a spacing of unity (1.0) is used along all dimensions.
+
+    Returns:
+        Distance transform image(s) with the same shape as the input, where
+        each foreground pixel value represents the Euclidean distance to the
+        nearest background pixel. Output dtype is `float32`.
+
+    Examples:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> # Simple 2D binary image
+    >>> image = np.array([[0, 0, 0, 0, 0],
+    ...                   [0, 1, 1, 1, 0],
+    ...                   [0, 1, 1, 1, 0],
+    ...                   [0, 1, 1, 1, 0],
+    ...                   [0, 0, 0, 0, 0]], dtype="float32")
+    >>> result = ops.image.euclidean_distance_transform(image)
+    >>> result
+    array([[0.        , 0.        , 0.        , 0.        , 0.        ],
+           [0.        , 1.        , 1.        , 1.        , 0.        ],
+           [0.        , 1.        , 1.4142135 , 1.        , 0.        ],
+           [0.        , 1.        , 1.        , 1.        , 0.        ],
+           [0.        , 0.        , 0.        , 0.        , 0.        ]],
+          dtype=float32)
+
+    >>> # Batched 4D input
+    >>> images = np.zeros((2, 5, 5, 1), dtype="float32")
+    >>> images[0, 1:4, 1:4, 0] = 1
+    >>> images[1, 2:4, 2:4, 0] = 1
+    >>> result = ops.image.euclidean_distance_transform(images)
+    >>> result.shape
+    (2, 5, 5, 1)
+
+    >>> # With custom sampling (anisotropic pixels)
+    >>> image = np.array([[0, 0, 0],
+    ...                   [0, 1, 0],
+    ...                   [0, 0, 0]], dtype="float32")
+    >>> result = ops.image.euclidean_distance_transform(
+    ...     image, sampling=(2.0, 1.0)
+    ... )
+    >>> result[1, 1]  # Distance considering 2:1 aspect ratio
+    1.0
+    """
+    if any_symbolic_tensors((images,)):
+        return EuclideanDistanceTransform(sampling=sampling).symbolic_call(
+            images
+        )
+    return backend.image.euclidean_distance_transform(images, sampling=sampling)

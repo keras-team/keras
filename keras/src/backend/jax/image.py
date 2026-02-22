@@ -2,10 +2,12 @@ import functools
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from keras.src import backend
 from keras.src.backend.jax.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -895,3 +897,66 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+def euclidean_distance_transform(images, sampling=None):
+    """Computes the Euclidean distance transform of binary images.
+
+    Args:
+        images: Input binary image or batch of images.
+        sampling: Spacing of elements along each dimension.
+
+    Returns:
+        Distance transform with the same shape as input.
+    """
+    images = convert_to_tensor(images)
+    original_shape = images.shape
+    original_ndim = len(original_shape)
+
+    # Validate input rank
+    if original_ndim not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single grayscale image), "
+            "rank 3 (single image with channels), "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    def _edt_impl(images_np):
+        """Apply EDT using scipy."""
+        if images_np.ndim == 2:
+            binary = images_np != 0
+            return scipy.ndimage.distance_transform_edt(
+                binary, sampling=sampling
+            ).astype(np.float32)
+
+        # Handle 3D and 4D cases
+        # 3D input is interpreted as (H, W, C) - single image with channels
+        if images_np.ndim == 3:
+            images_np = np.expand_dims(images_np, axis=0)
+
+        batch_size = images_np.shape[0]
+        num_channels = images_np.shape[3]
+
+        result = np.zeros_like(images_np, dtype=np.float32)
+
+        for b in range(batch_size):
+            for c in range(num_channels):
+                binary = images_np[b, :, :, c] != 0
+                result[b, :, :, c] = scipy.ndimage.distance_transform_edt(
+                    binary, sampling=sampling
+                )
+
+        # Restore original ndim
+        if original_ndim == 3:
+            result = np.squeeze(result, axis=0)
+
+        return result.astype(np.float32)
+
+    # Use pure_callback to call scipy from JAX
+    result = jax.pure_callback(
+        _edt_impl,
+        jax.ShapeDtypeStruct(original_shape, jnp.float32),
+        images,
+    )
+    return result

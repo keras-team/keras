@@ -13,6 +13,7 @@ from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.core import to_torch_dtype
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = {
     "bilinear": "bilinear",
@@ -1190,3 +1191,60 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_distance_transform(images, sampling=None):
+    """Computes the Euclidean distance transform of binary images.
+
+    Args:
+        images: Input binary image or batch of images.
+        sampling: Spacing of elements along each dimension.
+
+    Returns:
+        Distance transform with the same shape as input.
+    """
+    images = convert_to_tensor(images)
+    original_shape = images.shape
+    original_ndim = len(original_shape)
+    device = images.device
+
+    # Validate input rank
+    if original_ndim not in (2, 3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 2 (single grayscale image), "
+            "rank 3 (single image with channels), "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    # Convert to numpy for scipy processing
+    images_np = images.cpu().numpy()
+
+    # For 2D input, process directly
+    if original_ndim == 2:
+        binary = images_np != 0
+        result = scipy.ndimage.distance_transform_edt(binary, sampling=sampling)
+        return torch.tensor(result, dtype=torch.float32, device=device)
+
+    # Handle 3D and 4D cases
+    # 3D input is interpreted as (H, W, C) - single image with channels
+    if original_ndim == 3:
+        images_np = np.expand_dims(images_np, axis=0)
+
+    batch_size = images_np.shape[0]
+    num_channels = images_np.shape[3]
+
+    result = np.zeros_like(images_np, dtype=np.float32)
+
+    for b in range(batch_size):
+        for c in range(num_channels):
+            binary = images_np[b, :, :, c] != 0
+            result[b, :, :, c] = scipy.ndimage.distance_transform_edt(
+                binary, sampling=sampling
+            )
+
+    # Restore original ndim
+    if original_ndim == 3:
+        result = np.squeeze(result, axis=0)
+
+    return torch.tensor(result, dtype=torch.float32, device=device)
