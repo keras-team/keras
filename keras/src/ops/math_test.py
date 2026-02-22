@@ -1472,6 +1472,26 @@ class TestMathErrors(testing.TestCase):
                 x, sequence_length, sequence_stride, fft_length, window=window
             )
 
+    @parameterized.parameters([0, -5, 1.5])
+    def test_stft_invalid_sequence_stride(self, sequence_stride):
+        x = np.array([1.0, 2.0, 3.0, 4.0])
+        sequence_length = 2
+        fft_length = 4
+        with self.assertRaisesRegex(
+            ValueError, "`sequence_stride` must be a positive integer"
+        ):
+            kmath.stft(x, sequence_length, sequence_stride, fft_length)
+
+    @parameterized.parameters([0, -5, 1.5])
+    def test_istft_invalid_sequence_stride(self, sequence_stride):
+        x = (np.array([[1.0, 2.0]]), np.array([[3.0, 4.0]]))
+        sequence_length = 2
+        fft_length = 4
+        with self.assertRaisesRegex(
+            ValueError, "`sequence_stride` must be a positive integer"
+        ):
+            kmath.istft(x, sequence_length, sequence_stride, fft_length)
+
     def test_istft_invalid_window_shape_2D_inputs(self):
         # backend agnostic error message
         x = (np.array([[1.0, 2.0]]), np.array([[3.0, 4.0]]))
