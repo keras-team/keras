@@ -391,9 +391,10 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandomTranslation.__doc__ = RandomTranslation.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandomTranslation"
-    ),
-)
+if RandomTranslation.__doc__ is not None:
+    RandomTranslation.__doc__ = RandomTranslation.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomTranslation"
+        ),
+    )

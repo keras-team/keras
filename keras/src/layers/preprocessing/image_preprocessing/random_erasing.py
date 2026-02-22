@@ -335,9 +335,10 @@ class RandomErasing(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandomErasing.__doc__ = RandomErasing.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomErasing"
-    ),
-)
+if RandomErasing.__doc__ is not None:
+    RandomErasing.__doc__ = RandomErasing.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomErasing"
+        ),
+    )

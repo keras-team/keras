@@ -130,6 +130,7 @@ class Adadelta(optimizer.Optimizer):
         return config
 
 
-Adadelta.__doc__ = Adadelta.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adadelta.__doc__ is not None:
+    Adadelta.__doc__ = Adadelta.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

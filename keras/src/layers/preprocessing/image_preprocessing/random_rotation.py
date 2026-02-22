@@ -256,9 +256,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandomRotation.__doc__ = RandomRotation.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandomRotation"
-    ),
-)
+if RandomRotation.__doc__ is not None:
+    RandomRotation.__doc__ = RandomRotation.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomRotation"
+        ),
+    )

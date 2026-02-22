@@ -274,9 +274,10 @@ class RandAugment(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandAugment.__doc__ = RandAugment.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandAugment"
-    ),
-)
+if RandAugment.__doc__ is not None:
+    RandAugment.__doc__ = RandAugment.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandAugment"
+        ),
+    )

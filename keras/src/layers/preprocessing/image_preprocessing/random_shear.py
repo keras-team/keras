@@ -411,9 +411,10 @@ class RandomShear(BaseImagePreprocessingLayer):
         return input_shape
 
 
-RandomShear.__doc__ = RandomShear.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandomShear"
-    ),
-)
+if RandomShear.__doc__ is not None:
+    RandomShear.__doc__ = RandomShear.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomShear"
+        ),
+    )
