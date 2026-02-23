@@ -1308,7 +1308,7 @@ class LayerTest(testing.TestCase):
             MyLayer1()
 
         # Case 2: String positional + shape kwarg — the exact bug from
-        # https://github.com/keras-team/keras/issues/XXXXX
+        # https://github.com/keras-team/keras/issues/22265
         # In Keras 2 this was valid: add_weight("matrix", shape=(3, 4))
         class MyLayer2(layers.Layer):
             def __init__(self):
@@ -1322,6 +1322,30 @@ class LayerTest(testing.TestCase):
             "name.*keyword argument",
         ):
             MyLayer2()
+
+        # Case 3: shape passed both positionally and as keyword
+        class MyLayer3(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), shape=(3, 4))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`shape` was passed both positionally and as a keyword argument",
+        ):
+            MyLayer3()
+
+        # Case 4: too many positional arguments
+        class MyLayer4(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight("name", (3, 4))
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "takes at most 1 positional argument",
+        ):
+            MyLayer4()
 
     def test_remove_weight(self):
         class MyLayer(layers.Layer):
