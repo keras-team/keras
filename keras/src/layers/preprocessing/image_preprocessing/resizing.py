@@ -130,7 +130,9 @@ class Resizing(BaseImagePreprocessingLayer):
         return _saturate_cast(resized, images.dtype, self.backend)
 
     def transform_images(self, images, transformation=None, training=True):
-        return self._transform_images(images, transformation, self.interpolation)
+        return self._transform_images(
+            images, transformation, self.interpolation
+        )
 
     def transform_segmentation_masks(
         self, segmentation_masks, transformation=None, training=True
