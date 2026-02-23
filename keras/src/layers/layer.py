@@ -517,6 +517,7 @@ class Layer(BackendLayer, Operation):
 
     def add_weight(
         self,
+        *args,
         shape=None,
         initializer=None,
         dtype=None,
@@ -563,6 +564,26 @@ class Layer(BackendLayer, Operation):
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
+        if args:
+            if len(args) > 1:
+                raise TypeError(
+                    f"add_weight() takes at most 1 positional argument "
+                    f"but {len(args)} were given."
+                )
+            arg = args[0]
+            if isinstance(arg, str):
+                raise ValueError(
+                    f"`name` must be passed as a keyword argument. "
+                    f"Received: add_weight('{arg}', ...). "
+                    f"Use: add_weight(shape=..., name='{arg}')."
+                )
+            else:
+                if shape is not None:
+                    raise ValueError(
+                        "`shape` was passed both positionally and as "
+                        "a keyword argument."
+                    )
+                shape = arg
         if shape is None:
             shape = ()
         if dtype is not None:
