@@ -323,6 +323,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
         )
     dtype = to_torch_dtype(dtype)
+    if str(get_device()) == "mps" and dtype == torch.float64:
+        dtype = torch.float32
     return torch.as_tensor(x, dtype=dtype, device=get_device())
 
 

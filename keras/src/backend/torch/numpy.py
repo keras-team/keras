@@ -216,11 +216,19 @@ def mean(x, axis=None, keepdims=False):
         result_dtype = ori_dtype
 
     if axis is None:
-        result = torch.mean(
-            x,
-            keepdim=keepdims,
-            dtype=to_torch_dtype(compute_dtype),
-        )
+        if keepdims:
+            dim = tuple(range(x.ndim))
+            result = torch.mean(
+                x,
+                dim=dim,
+                keepdim=keepdims,
+                dtype=to_torch_dtype(compute_dtype),
+            )
+        else:
+            result = torch.mean(
+                x,
+                dtype=to_torch_dtype(compute_dtype),
+            )
     else:
         result = torch.mean(
             x,
