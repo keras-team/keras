@@ -899,7 +899,7 @@ def binary_crossentropy(target, output, from_logits=False):
     else:
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
         result = tnn.binary_cross_entropy(output, target, reduction="none")
-    
+
     if result.shape != ori_target_shape:
         result = torch.reshape(result, ori_target_shape)
     return result
