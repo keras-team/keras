@@ -189,8 +189,113 @@ def shuffle(x, axis=0, seed=None):
     return ov_numpy.take(x, indices, axis=axis)
 
 
+def _const(val, dtype):
+    if dtype == Type.bf16:
+        return ov_opset.convert(
+            ov_opset.constant(val, Type.f32), Type.bf16
+        ).output(0)
+    return ov_opset.constant(val, dtype).output(0)
+
+
+def _random_normal(shape, dtype, seed1, seed2):
+    zero = _const(0.0, dtype)
+    one = _const(1.0, dtype)
+    two_pi = _const(2 * np.pi, dtype)
+    minus_two = _const(-2.0, dtype)
+    epsilon = _const(1e-7, dtype)
+    u1 = ov_opset.random_uniform(shape, zero, one, dtype, seed1, seed2).output(
+        0
+    )
+    u2 = ov_opset.random_uniform(
+        shape, zero, one, dtype, seed1 + 123, seed2
+    ).output(0)
+    u1 = ov_opset.add(u1, epsilon).output(0)
+    mag = ov_opset.sqrt(ov_opset.multiply(minus_two, ov_opset.log(u1))).output(
+        0
+    )
+    angle = ov_opset.multiply(two_pi, u2).output(0)
+    z0 = ov_opset.multiply(mag, ov_opset.cos(angle)).output(0)
+    return z0
+
+
 def gamma(shape, alpha, dtype=None, seed=None):
-    raise NotImplementedError("`gamma` is not supported with openvino backend")
+    dtype = dtype or floatx()
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    seed_val = draw_seed(seed)
+    if isinstance(seed_val, OpenVINOKerasTensor):
+        seed1, seed2 = convert_to_numpy(seed_val)
+    else:
+        seed1, seed2 = seed_val.data
+    seed1 = int(seed1)
+    seed2 = int(seed2)
+    if isinstance(shape, (list, tuple)):
+        shape = ov_opset.constant(list(shape), Type.i32).output(0)
+    elif isinstance(shape, OpenVINOKerasTensor):
+        shape = shape.output
+    else:
+        shape = get_ov_output(shape, Type.i32)
+    alpha = get_ov_output(alpha, ov_dtype)
+    one = _const(1.0, ov_dtype)
+    one_third = _const(1.0 / 3.0, ov_dtype)
+    zero = _const(0.0, ov_dtype)
+    is_small_alpha = ov_opset.less(alpha, one).output(0)
+    alpha_boosted = ov_opset.select(
+        is_small_alpha, ov_opset.add(alpha, one), alpha
+    ).output(0)
+    d = ov_opset.subtract(alpha_boosted, one_third).output(0)
+    c = ov_opset.divide(
+        one,
+        ov_opset.sqrt(ov_opset.multiply(_const(9.0, ov_dtype), d)),
+    ).output(0)
+    samples = ov_opset.broadcast(zero, shape).output(0)
+    mask = ov_opset.broadcast(
+        ov_opset.constant(False, Type.boolean), shape
+    ).output(0)
+    num_iters = 10
+    for i in range(num_iters):
+        iter_seed = seed1 + i * 1000
+        x = _random_normal(shape, ov_dtype, iter_seed, seed2)
+        cx = ov_opset.multiply(c, x).output(0)
+        v_base = ov_opset.add(one, cx).output(0)
+        v = ov_opset.power(v_base, _const(3.0, ov_dtype)).output(0)
+        v_pos = ov_opset.greater(v, zero).output(0)
+        u = ov_opset.random_uniform(
+            shape, zero, one, ov_dtype, iter_seed + 500, seed2
+        ).output(0)
+        x2 = ov_opset.multiply(x, x).output(0)
+        x4 = ov_opset.multiply(x2, x2).output(0)
+        c1_val = ov_opset.subtract(
+            one, ov_opset.multiply(_const(0.0331, ov_dtype), x4)
+        ).output(0)
+        accept1 = ov_opset.less(u, c1_val).output(0)
+        v_safe = ov_opset.select(v_pos, v, one).output(0)
+        log_u = ov_opset.log(u).output(0)
+        log_v = ov_opset.log(v_safe).output(0)
+        term2 = ov_opset.multiply(
+            d, ov_opset.add(ov_opset.subtract(one, v), log_v)
+        ).output(0)
+        rhs = ov_opset.add(
+            ov_opset.multiply(_const(0.5, ov_dtype), x2), term2
+        ).output(0)
+        accept2 = ov_opset.less(log_u, rhs).output(0)
+        accepted = ov_opset.logical_or(accept1, accept2).output(0)
+        accepted = ov_opset.logical_and(accepted, v_pos).output(0)
+        dv = ov_opset.multiply(d, v).output(0)
+        update_mask = ov_opset.logical_and(
+            ov_opset.logical_not(mask), accepted
+        ).output(0)
+        samples = ov_opset.select(update_mask, dv, samples).output(0)
+        mask = ov_opset.logical_or(mask, accepted).output(0)
+    u_final = ov_opset.random_uniform(
+        shape, zero, one, ov_dtype, seed1 + 9999, seed2
+    ).output(0)
+    pow_exp = ov_opset.divide(one, alpha).output(0)
+    u_pow = ov_opset.power(u_final, pow_exp).output(0)
+    adjusted_samples = ov_opset.multiply(samples, u_pow).output(0)
+    final_samples = ov_opset.select(
+        is_small_alpha, adjusted_samples, samples
+    ).output(0)
+    return OpenVINOKerasTensor(final_samples)
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):

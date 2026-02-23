@@ -1,15 +1,11 @@
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
-NumpyDtypeTest::test_heaviside
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
 NumpyDtypeTest::test_matmul_
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_power
-NumpyDtypeTest::test_signbit
-NumpyDtypeTest::test_std
-NumpyDtypeTest::test_var
 NumpyDtypeTest::test_view
 NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_array
@@ -18,7 +14,6 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
-NumpyOneInputOpsCorrectnessTest::test_signbit
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
@@ -93,9 +88,6 @@ RandomCorrectnessTest::test_binomial1
 RandomCorrectnessTest::test_binomial2
 RandomCorrectnessTest::test_dropout
 RandomCorrectnessTest::test_dropout_noise_shape
-RandomCorrectnessTest::test_gamma0
-RandomCorrectnessTest::test_gamma1
-RandomCorrectnessTest::test_gamma2
 RandomCorrectnessTest::test_truncated_normal0
 RandomCorrectnessTest::test_truncated_normal1
 RandomCorrectnessTest::test_truncated_normal2
@@ -120,10 +112,6 @@ RandomDTypeTest::test_dropout_bfloat16
 RandomDTypeTest::test_dropout_float16
 RandomDTypeTest::test_dropout_float32
 RandomDTypeTest::test_dropout_float64
-RandomDTypeTest::test_gamma_bfloat16
-RandomDTypeTest::test_gamma_float16
-RandomDTypeTest::test_gamma_float32
-RandomDTypeTest::test_gamma_float64
 RandomDTypeTest::test_normal_bfloat16
 RandomDTypeTest::test_randint_int16
 RandomDTypeTest::test_randint_int32
