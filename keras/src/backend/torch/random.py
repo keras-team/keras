@@ -135,7 +135,10 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def _ensure_not_partial(inputs):
-    from torch.distributed.tensor import DTensor, Partial, Replicate
+    from torch.distributed.tensor import DTensor
+    from torch.distributed.tensor import Partial
+    from torch.distributed.tensor import Replicate
+
     if isinstance(inputs, DTensor):
         has_partial = any(isinstance(p, Partial) for p in inputs.placements)
         if has_partial:

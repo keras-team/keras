@@ -68,6 +68,7 @@ def add(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     from keras.src.backend.torch import distribution_lib
+
     x1, x2 = distribution_lib._sync_tensors(x1, x2)
     return torch.add(x1, x2)
 
@@ -88,6 +89,7 @@ def einsum(subscripts, *operands, **kwargs):
         # prevent overflow
         operands = [cast(operand, compute_dtype) for operand in operands]
         from torch.distributed.tensor import Replicate
+
         operands = [
             (
                 op.redistribute(
@@ -101,11 +103,10 @@ def einsum(subscripts, *operands, **kwargs):
         return cast(torch.einsum(subscripts, *operands), "int32")
 
     from torch.distributed.tensor import Replicate
+
     operands = [
         (
-            op.redistribute(
-                op.device_mesh, [Replicate()] * op.device_mesh.ndim
-            )
+            op.redistribute(op.device_mesh, [Replicate()] * op.device_mesh.ndim)
             if isinstance(op, distribution_lib.DTensor)
             else op
         )
@@ -118,6 +119,7 @@ def subtract(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     from keras.src.backend.torch import distribution_lib
+
     x1, x2 = distribution_lib._sync_tensors(x1, x2)
     # TODO: torch.subtract doesn't support bool
     if standardize_dtype(x1.dtype) == "bool":
@@ -131,6 +133,7 @@ def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     from keras.src.backend.torch import distribution_lib
+
     x1, x2 = distribution_lib._sync_tensors(x1, x2)
 
     def can_use_int_matmul(x1, x2):
@@ -189,6 +192,7 @@ def multiply(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     from keras.src.backend.torch import distribution_lib
+
     x1, x2 = distribution_lib._sync_tensors(x1, x2)
     return torch.multiply(x1, x2)
 
@@ -412,7 +416,8 @@ def argmax(x, axis=None, keepdims=False):
 
     is_dtensor = isinstance(x, distribution_lib.DTensor)
     if is_dtensor:
-        from torch.distributed.tensor import DTensor, Replicate
+        from torch.distributed.tensor import DTensor
+        from torch.distributed.tensor import Replicate
 
         mesh = x.device_mesh
         x = x.redistribute(mesh, [Replicate()] * mesh.ndim).to_local()
@@ -437,7 +442,8 @@ def argmin(x, axis=None, keepdims=False):
 
     is_dtensor = isinstance(x, distribution_lib.DTensor)
     if is_dtensor:
-        from torch.distributed.tensor import DTensor, Replicate
+        from torch.distributed.tensor import DTensor
+        from torch.distributed.tensor import Replicate
 
         mesh = x.device_mesh
         x = x.redistribute(mesh, [Replicate()] * mesh.ndim).to_local()
@@ -462,7 +468,8 @@ def argsort(x, axis=-1):
 
     is_dtensor = isinstance(x, distribution_lib.DTensor)
     if is_dtensor:
-        from torch.distributed.tensor import DTensor, Replicate
+        from torch.distributed.tensor import DTensor
+        from torch.distributed.tensor import Replicate
 
         mesh = x.device_mesh
         x = x.redistribute(mesh, [Replicate()] * mesh.ndim).to_local()
@@ -861,6 +868,7 @@ def empty_like(x, dtype=None):
 def equal(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     from keras.src.backend.torch import distribution_lib
+
     x1, x2 = distribution_lib._sync_tensors(x1, x2)
     return torch.eq(x1, x2)
 
@@ -1287,6 +1295,7 @@ def maximum(x1, x2):
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     from keras.src.backend.torch import distribution_lib
+
     x1, x2 = distribution_lib._sync_tensors(x1, x2)
     return torch.maximum(x1, x2)
 

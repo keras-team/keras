@@ -1,14 +1,17 @@
 """Utilities for distribution strategy with Torch backend."""
 
+import numpy as np
 import torch
 import torch.distributed as dist
-import numpy as np
 from torch.distributed.device_mesh import init_device_mesh
-from torch.distributed.tensor import DTensor, Replicate, Shard
-from torch.distributed.tensor import distribute_tensor as distribute_tensor_torch
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
+from torch.distributed.tensor import Shard
+from torch.distributed.tensor import (
+    distribute_tensor as distribute_tensor_torch,
+)
 
 from keras.src.backend.torch.core import get_device
-from keras.src.backend.torch.core import to_torch_dtype
 
 
 def list_devices(device_type=None):
@@ -33,7 +36,7 @@ def list_devices(device_type=None):
             device_type = "mps"
         else:
             device_type = "cpu"
-    
+
     device_type = device_type.lower()
     if "gpu" in device_type:
         device_type = "cuda"
@@ -45,20 +48,21 @@ def list_devices(device_type=None):
     elif device_type == "xla":
         try:
             import torch_xla.core.xla_model as xm
+
             count = len(xm.get_xla_supported_devices())
         except ImportError:
             count = 0
     elif device_type == "mps":
         count = 1 if torch.backends.mps.is_available() else 0
     else:
-        count = 1 # Default for CPU
+        count = 1  # Default for CPU
 
     if dist.is_initialized():
         world_size = dist.get_world_size()
         # In a distributed setting, we return all global devices.
         # Assuming one device per rank for simplicity here.
         return [f"{device_type}:{i}" for i in range(world_size)]
-    
+
     return [f"{device_type}:{i}" for i in range(count)]
 
 
@@ -92,22 +96,27 @@ def distribute_tensor(tensor, layout):
     if isinstance(layout, TensorLayout):
         torch_mesh = layout.device_mesh.backend_mesh
         placements = _get_placements(layout)
-        
+
         if isinstance(tensor, DTensor):
-            if tensor.device_mesh == torch_mesh and tensor.placements == tuple(placements):
+            if tensor.device_mesh == torch_mesh and tensor.placements == tuple(
+                placements
+            ):
                 return tensor
             return tensor.redistribute(torch_mesh, placements)
-        
+
         if not isinstance(tensor, torch.Tensor):
             tensor = torch.as_tensor(tensor, device=get_device())
-        
+
         if get_device() == "meta":
             return tensor
 
         # Optimization: use from_local to avoid unnecessary communication
         # if the tensor is already on the correct device.
         # This is safe for initializers and pre-sharded data.
-        if not isinstance(tensor, DTensor) and tensor.device.type == torch_mesh.device_type:
+        if (
+            not isinstance(tensor, DTensor)
+            and tensor.device.type == torch_mesh.device_type
+        ):
             # For Shard, we need to slice the tensor locally
             local_tensor = tensor
             should_shard_locally = True
@@ -118,12 +127,14 @@ def distribute_tensor(tensor, layout):
                     if local_tensor.shape[shard_dim] % num_chunks != 0:
                         should_shard_locally = False
                         break
-                    
-                    # get_local_rank returns the rank of the current process 
+
+                    # get_local_rank returns the rank of the current process
                     # within the specific mesh dimension.
                     chunk_idx = torch_mesh.get_local_rank(mesh_dim=i)
-                    local_tensor = torch.chunk(local_tensor, num_chunks, dim=shard_dim)[chunk_idx]
-            
+                    local_tensor = torch.chunk(
+                        local_tensor, num_chunks, dim=shard_dim
+                    )[chunk_idx]
+
             if should_shard_locally:
                 return DTensor.from_local(local_tensor, torch_mesh, placements)
 
@@ -141,10 +152,11 @@ def distribute_tensor(tensor, layout):
 
 def _sync_tensors(*tensors):
     """Ensure all tensors are DTensors if any of them is a DTensor."""
-    # Handle Variables by extracting their value. 
+    # Handle Variables by extracting their value.
     # We must do this before any other operation to avoid recursion
     # in Variable.__torch_function__.
     from keras.src.backend.torch.core import Variable
+
     tensors = [t.value if isinstance(t, Variable) else t for t in tensors]
 
     has_dtensor = any(isinstance(t, DTensor) for t in tensors)
@@ -157,8 +169,9 @@ def _sync_tensors(*tensors):
 
     ref_dtensor = next(t for t in tensors if isinstance(t, DTensor))
     mesh = ref_dtensor.device_mesh
-    
+
     from torch.distributed.tensor import Partial
+
     new_tensors = []
     for t in tensors:
         if isinstance(t, DTensor):
@@ -170,9 +183,11 @@ def _sync_tensors(*tensors):
                 t = torch.empty_like(t, device=mesh.device_type)
             elif t.device.type != mesh.device_type:
                 t = t.to(mesh.device_type)
-            
+
             # Default to replicating regular tensors
-            new_tensors.append(distribute_tensor_torch(t, mesh, [Replicate()] * mesh.ndim))
+            new_tensors.append(
+                distribute_tensor_torch(t, mesh, [Replicate()] * mesh.ndim)
+            )
         else:
             new_tensors.append(t)
     return tuple(new_tensors)
@@ -185,24 +200,29 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name):
     if isinstance(layout, TensorLayout):
         torch_mesh = layout.device_mesh.backend_mesh
         placements = _get_placements(layout)
-        
+
         if not isinstance(per_process_batch, torch.Tensor):
-            per_process_batch = torch.as_tensor(per_process_batch, device=get_device())
-            
+            per_process_batch = torch.as_tensor(
+                per_process_batch, device=get_device()
+            )
+
         if per_process_batch.device.type != torch_mesh.device_type:
             per_process_batch = per_process_batch.to(torch_mesh.device_type)
 
         if isinstance(per_process_batch, DTensor):
             return per_process_batch.redistribute(torch_mesh, placements)
-        
-        return distribute_tensor_torch(per_process_batch, torch_mesh, placements)
-    
+
+        return distribute_tensor_torch(
+            per_process_batch, torch_mesh, placements
+        )
+
     return per_process_batch
 
 
 def initialize_rng():
     """Initializes the global random number generator across processes."""
     from keras.src.utils import rng_utils
+
     global_seed = rng_utils.get_random_seed()
     if global_seed is None:
         if dist.is_initialized():
@@ -211,7 +231,7 @@ def initialize_rng():
                 seed = np.random.randint(0, 2**31)
             else:
                 seed = 0
-            
+
             # Match tensor device to backend
             backend_name = dist.get_backend()
             if backend_name == "nccl":
@@ -220,13 +240,14 @@ def initialize_rng():
                 device = "xla"
             else:
                 device = "cpu"
-            
+
             if device == "cuda":
                 torch.cuda.set_device(rank % torch.cuda.device_count())
             elif device == "xla":
                 import torch_xla.core.xla_model as xm
+
                 device = xm.xla_device()
-            
+
             seed_tensor = torch.tensor([seed], dtype=torch.int64, device=device)
             # print(f"DEBUG: Rank {rank} entering RNG broadcast")
             dist.broadcast(seed_tensor, src=0)
@@ -240,6 +261,7 @@ def initialize(job_addresses, num_processes, process_id):
         return
 
     import os
+
     if job_addresses:
         coordinator_address = job_addresses.split(",")[0]
         if ":" in coordinator_address:
@@ -248,17 +270,18 @@ def initialize(job_addresses, num_processes, process_id):
             addr, port = coordinator_address, "12345"
         os.environ["MASTER_ADDR"] = addr
         os.environ["MASTER_PORT"] = port
-    
+
     if num_processes is not None:
         os.environ["WORLD_SIZE"] = str(num_processes)
     if process_id is not None:
         os.environ["RANK"] = str(process_id)
-        
+
     if torch.cuda.is_available():
         backend = "nccl"
     else:
         try:
             import torch_xla.core.xla_model as xm
+
             backend = "xla"
         except ImportError:
             backend = "gloo"
@@ -268,11 +291,12 @@ def initialize(job_addresses, num_processes, process_id):
         torch.cuda.set_device(local_rank)
     elif backend == "xla":
         import torch_xla.core.xla_model as xm
+
         # This call implicitly sets the device
         xm.xla_device()
 
     dist.init_process_group(backend=backend)
-    
+
     initialize_rng()
 
 
@@ -302,10 +326,10 @@ def _to_backend_mesh(device_mesh):
         device_type = device.split(":")[0]
     else:
         device_type = device
-    
+
     if device_type == "mps":
         device_type = "cpu"
-    
+
     return init_device_mesh(
         device_type, mesh_shape, mesh_dim_names=mesh_dim_names
     )
@@ -339,6 +363,7 @@ def _get_data_layout(shape, distribution):
         return distribution.get_data_layout(shape)
     except NotImplementedError:
         from keras.src.distribution import TensorLayout
+
         spec = [None] * len(shape)
         if distribution.batch_dim_name:
             spec[0] = distribution.batch_dim_name
@@ -370,6 +395,7 @@ def distribute_dataset(dataset, distribution):
         return dataset
 
     from keras.src.utils.module_utils import tensorflow as tf
+
     if tf.available and isinstance(dataset, tf.data.Dataset):
         return distribution.distribute_dataset(dataset)
 

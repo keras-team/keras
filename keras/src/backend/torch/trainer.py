@@ -16,7 +16,6 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
-from keras.src.utils.python_utils import pythonify_logs
 
 
 class TorchTrainer(base_trainer.Trainer):
@@ -537,7 +536,9 @@ def _distribute_data(data, layouts=None):
             layouts,
         )
     return tree.map_structure(
-        lambda x: torch.as_tensor(x, device=torch_distribution_lib.get_device()),
+        lambda x: torch.as_tensor(
+            x, device=torch_distribution_lib.get_device()
+        ),
         data,
     )
 

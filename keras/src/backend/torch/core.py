@@ -130,7 +130,9 @@ class Variable(KerasVariable):
             if self._layout is not None:
                 from keras.src.backend.torch import distribution_lib
 
-                value = distribution_lib.distribute_variable(value, self._layout)
+                value = distribution_lib.distribute_variable(
+                    value, self._layout
+                )
 
             requires_grad = self.trainable and torch.is_floating_point(value)
             self._value = torch.nn.Parameter(
@@ -138,16 +140,22 @@ class Variable(KerasVariable):
                 requires_grad=requires_grad,
             )
             is_sharded = (
-                getattr(value, "device_mesh", None) is not None or 
-                getattr(value, "placements", None) is not None or
-                (hasattr(value, "data") and (
-                    getattr(value.data, "device_mesh", None) is not None or 
-                    getattr(value.data, "placements", None) is not None
-                ))
+                getattr(value, "device_mesh", None) is not None
+                or getattr(value, "placements", None) is not None
+                or (
+                    hasattr(value, "data")
+                    and (
+                        getattr(value.data, "device_mesh", None) is not None
+                        or getattr(value.data, "placements", None) is not None
+                    )
+                )
             )
-            if not is_sharded and self._value.device.type != torch.device(get_device()).type:
+            if (
+                not is_sharded
+                and self._value.device.type != torch.device(get_device()).type
+            ):
                 self._value = self._value.to(get_device())
-            
+
             if self._layout is not None and requires_grad:
                 self._value.retain_grad()
 
@@ -155,6 +163,7 @@ class Variable(KerasVariable):
         self._initialize_layout()
         if self._layout is not None:
             from keras.src.backend.torch import distribution_lib
+
             value = distribution_lib.distribute_variable(value, self._layout)
         with torch.no_grad():
             self.value.copy_(value)
@@ -167,6 +176,7 @@ class Variable(KerasVariable):
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         if kwargs is None:
             kwargs = {}
+
         def _unwrap(x):
             if isinstance(x, Variable):
                 return x.value
@@ -176,22 +186,34 @@ class Variable(KerasVariable):
         unwrapped_kwargs = tree.map_structure(_unwrap, kwargs)
 
         from keras.src.backend.torch import distribution_lib
+
         is_view_op = False
         if hasattr(func, "__name__"):
             if func.__name__ in ("reshape", "view", "flatten"):
                 is_view_op = True
-        
+
         if is_view_op:
-            from torch.distributed.tensor import DTensor, Replicate, Shard, Partial
+            from torch.distributed.tensor import DTensor
+            from torch.distributed.tensor import Partial
+            from torch.distributed.tensor import Replicate
+            from torch.distributed.tensor import Shard
+
             def _replicate_if_needed(x):
                 if isinstance(x, DTensor):
-                    if any(isinstance(p, (Shard, Partial)) for p in x.placements):
+                    if any(
+                        isinstance(p, (Shard, Partial)) for p in x.placements
+                    ):
                         return x.redistribute(
                             x.device_mesh, [Replicate()] * x.device_mesh.ndim
                         )
                 return x
-            unwrapped_args = tree.map_structure(_replicate_if_needed, unwrapped_args)
-            unwrapped_kwargs = tree.map_structure(_replicate_if_needed, unwrapped_kwargs)
+
+            unwrapped_args = tree.map_structure(
+                _replicate_if_needed, unwrapped_args
+            )
+            unwrapped_kwargs = tree.map_structure(
+                _replicate_if_needed, unwrapped_kwargs
+            )
 
         unwrapped_args = distribution_lib._sync_tensors(*unwrapped_args)
         return func(*unwrapped_args, **unwrapped_kwargs)
@@ -645,6 +667,7 @@ def scatter_update(inputs, indices, updates, reduction=None):
     updates = convert_to_tensor(updates, dtype=inputs.dtype)
 
     from keras.src.backend.torch import distribution_lib
+
     inputs, updates = distribution_lib._sync_tensors(inputs, updates)
     indices = torch.transpose(indices, 0, 1)
     idx = tuple(indices)
@@ -698,6 +721,7 @@ def slice_update(inputs, start_indices, updates):
     updates = convert_to_tensor(updates)
 
     from keras.src.backend.torch import distribution_lib
+
     inputs, updates = distribution_lib._sync_tensors(inputs, updates)
 
     python_slice = __builtins__["slice"]

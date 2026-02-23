@@ -32,10 +32,15 @@ class TorchLayer(torch.nn.Module):
                     value
                 )
                 from torch.distributed.tensor import DTensor
+
                 if isinstance(value, DTensor):
-                    value = torch.nn.Parameter(value, requires_grad=requires_grad)
+                    value = torch.nn.Parameter(
+                        value, requires_grad=requires_grad
+                    )
                 else:
-                    value = torch.nn.Parameter(value, requires_grad=requires_grad).to(device)
+                    value = torch.nn.Parameter(
+                        value, requires_grad=requires_grad
+                    ).to(device)
             params[variable.path] = value
         self._torch_params = torch.nn.ParameterDict(params)
 
@@ -60,7 +65,9 @@ class TorchLayer(torch.nn.Module):
             from keras.src.backend.torch import distribution_lib
 
             args = distribution_lib._maybe_distribute_input(args, distribution)
-            kwargs = distribution_lib._maybe_distribute_input(kwargs, distribution)
+            kwargs = distribution_lib._maybe_distribute_input(
+                kwargs, distribution
+            )
 
         return Operation.__call__(self, *args, **kwargs)
 
