@@ -91,9 +91,6 @@ MathOpsCorrectnessTest::test_stft6
 RandomCorrectnessTest::test_beta0
 RandomCorrectnessTest::test_beta1
 RandomCorrectnessTest::test_beta2
-RandomCorrectnessTest::test_binomial0
-RandomCorrectnessTest::test_binomial1
-RandomCorrectnessTest::test_binomial2
 RandomCorrectnessTest::test_dropout
 RandomCorrectnessTest::test_dropout_noise_shape
 RandomCorrectnessTest::test_gamma0
@@ -115,10 +112,6 @@ RandomDTypeTest::test_beta_bfloat16
 RandomDTypeTest::test_beta_float16
 RandomDTypeTest::test_beta_float32
 RandomDTypeTest::test_beta_float64
-RandomDTypeTest::test_binomial_bfloat16
-RandomDTypeTest::test_binomial_float16
-RandomDTypeTest::test_binomial_float32
-RandomDTypeTest::test_binomial_float64
 RandomDTypeTest::test_dropout_bfloat16
 RandomDTypeTest::test_dropout_float16
 RandomDTypeTest::test_dropout_float32
