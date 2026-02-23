@@ -24,7 +24,7 @@ def list_devices(device_type=None):
             or `"tpu"` if available when device_type is not provided. Otherwise
             will return the `"cpu"` devices.
 
-    Return:
+    Returns:
         List of devices that are available for distribute computation.
     """
     if device_type is None:
@@ -46,21 +46,16 @@ def list_devices(device_type=None):
     if device_type == "cuda":
         count = torch.cuda.device_count()
     elif device_type == "xla":
-        try:
-            import torch_xla.core.xla_model as xm
+        import torch_xla.core.xla_model as xm
 
-            count = len(xm.get_xla_supported_devices())
-        except ImportError:
-            count = 0
+        count = len(xm.get_xla_supported_devices())
     elif device_type == "mps":
         count = 1 if torch.backends.mps.is_available() else 0
     else:
-        count = 1  # Default for CPU
+        count = 1
 
     if dist.is_initialized():
         world_size = dist.get_world_size()
-        # In a distributed setting, we return all global devices.
-        # Assuming one device per rank for simplicity here.
         return [f"{device_type}:{i}" for i in range(world_size)]
 
     return [f"{device_type}:{i}" for i in range(count)]
@@ -68,10 +63,12 @@ def list_devices(device_type=None):
 
 def get_device_count(device_type=None):
     """Returns the number of available devices.
+
     Args:
         device_type: Optional device type to count (e.g., "cpu", "gpu", "tpu").
             If `None`, it defaults to counting "gpu" or "tpu" devices if
             available, otherwise it counts "cpu" devices.
+
     Returns:
         int: The total number of devices for the specified type.
     """
@@ -79,18 +76,41 @@ def get_device_count(device_type=None):
 
 
 def distribute_value(value, layout):
-    """Distribute the value based on the layout."""
+    """Distribute the value based on the layout.
+
+    Args:
+        value: The value to distribute.
+        layout: The layout to use for distribution.
+
+    Returns:
+        The distributed value.
+    """
     return distribute_tensor(value, layout)
 
 
 def distribute_variable(value, layout):
-    """Create a distributed variable for Torch."""
+    """Create a distributed variable for Torch.
+
+    Args:
+        value: The initial value of the variable.
+        layout: The layout to use for distribution.
+
+    Returns:
+        The distributed variable value.
+    """
     return distribute_tensor(value, layout)
 
 
 def distribute_tensor(tensor, layout):
-    """Distribute the tensor based on the layout."""
-    # Avoid circular imports.
+    """Distribute the tensor based on the layout.
+
+    Args:
+        tensor: The tensor to distribute.
+        layout: The layout to use for distribution.
+
+    Returns:
+        The distributed tensor.
+    """
     from keras.src.distribution import TensorLayout
 
     if isinstance(layout, TensorLayout):
@@ -110,14 +130,10 @@ def distribute_tensor(tensor, layout):
         if get_device() == "meta":
             return tensor
 
-        # Optimization: use from_local to avoid unnecessary communication
-        # if the tensor is already on the correct device.
-        # This is safe for initializers and pre-sharded data.
         if (
             not isinstance(tensor, DTensor)
             and tensor.device.type == torch_mesh.device_type
         ):
-            # For Shard, we need to slice the tensor locally
             local_tensor = tensor
             should_shard_locally = True
             for i, placement in enumerate(placements):
@@ -128,8 +144,6 @@ def distribute_tensor(tensor, layout):
                         should_shard_locally = False
                         break
 
-                    # get_local_rank returns the rank of the current process
-                    # within the specific mesh dimension.
                     chunk_idx = torch_mesh.get_local_rank(mesh_dim=i)
                     local_tensor = torch.chunk(
                         local_tensor, num_chunks, dim=shard_dim
@@ -138,7 +152,6 @@ def distribute_tensor(tensor, layout):
             if should_shard_locally:
                 return DTensor.from_local(local_tensor, torch_mesh, placements)
 
-        # Ensure tensor is on the correct device for the mesh
         if tensor.device.type != torch_mesh.device_type:
             if tensor.is_meta:
                 tensor = torch.empty_like(tensor, device=torch_mesh.device_type)
@@ -151,10 +164,14 @@ def distribute_tensor(tensor, layout):
 
 
 def _sync_tensors(*tensors):
-    """Ensure all tensors are DTensors if any of them is a DTensor."""
-    # Handle Variables by extracting their value.
-    # We must do this before any other operation to avoid recursion
-    # in Variable.__torch_function__.
+    """Ensure all tensors are DTensors if any of them is a DTensor.
+
+    Args:
+        *tensors: The tensors to synchronize.
+
+    Returns:
+        A tuple of synchronized tensors.
+    """
     from keras.src.backend.torch.core import Variable
 
     tensors = [t.value if isinstance(t, Variable) else t for t in tensors]
@@ -163,7 +180,6 @@ def _sync_tensors(*tensors):
     if not has_dtensor:
         return tuple(tensors)
 
-    # If we are in meta scope, avoid sync.
     if any(isinstance(t, torch.Tensor) and t.is_meta for t in tensors):
         return tuple(tensors)
 
@@ -184,7 +200,6 @@ def _sync_tensors(*tensors):
             elif t.device.type != mesh.device_type:
                 t = t.to(mesh.device_type)
 
-            # Default to replicating regular tensors
             new_tensors.append(
                 distribute_tensor_torch(t, mesh, [Replicate()] * mesh.ndim)
             )
@@ -194,7 +209,16 @@ def _sync_tensors(*tensors):
 
 
 def distribute_data_input(per_process_batch, layout, batch_dim_name):
-    """Distribute the input data with the corresponding layout."""
+    """Distribute the input data with the corresponding layout.
+
+    Args:
+        per_process_batch: The batch of data for the current process.
+        layout: The layout to use for distribution.
+        batch_dim_name: The name of the batch dimension.
+
+    Returns:
+        The distributed input data.
+    """
     from keras.src.distribution import TensorLayout
 
     if isinstance(layout, TensorLayout):
@@ -232,7 +256,6 @@ def initialize_rng():
             else:
                 seed = 0
 
-            # Match tensor device to backend
             backend_name = dist.get_backend()
             if backend_name == "nccl":
                 device = "cuda"
@@ -249,14 +272,19 @@ def initialize_rng():
                 device = xm.xla_device()
 
             seed_tensor = torch.tensor([seed], dtype=torch.int64, device=device)
-            # print(f"DEBUG: Rank {rank} entering RNG broadcast")
             dist.broadcast(seed_tensor, src=0)
-            # print(f"DEBUG: Rank {rank} exited RNG broadcast")
             global_seed = int(seed_tensor.item())
             rng_utils.set_random_seed(global_seed)
 
 
 def initialize(job_addresses, num_processes, process_id):
+    """Initialize the distribution system.
+
+    Args:
+        job_addresses: Comma separated IP addresses for all the jobs.
+        num_processes: The number of worker/processes.
+        process_id: The ID number of the current worker/process.
+    """
     if dist.is_initialized():
         return
 
@@ -278,13 +306,12 @@ def initialize(job_addresses, num_processes, process_id):
 
     if torch.cuda.is_available():
         backend = "nccl"
-    else:
-        try:
-            import torch_xla.core.xla_model as xm
+    elif os.environ.get("TPU_NAME"):
+        import torch_xla.core.xla_model as xm
 
-            backend = "xla"
-        except ImportError:
-            backend = "gloo"
+        backend = "xla"
+    else:
+        backend = "gloo"
 
     if backend == "nccl":
         local_rank = int(os.environ.get("LOCAL_RANK", 0))
@@ -292,7 +319,6 @@ def initialize(job_addresses, num_processes, process_id):
     elif backend == "xla":
         import torch_xla.core.xla_model as xm
 
-        # This call implicitly sets the device
         xm.xla_device()
 
     dist.init_process_group(backend=backend)
@@ -301,21 +327,36 @@ def initialize(job_addresses, num_processes, process_id):
 
 
 def num_processes():
-    """Return the number of processes for the current distribution setting."""
+    """Return the number of processes for the current distribution setting.
+
+    Returns:
+        int: The number of processes.
+    """
     if dist.is_initialized():
         return dist.get_world_size()
     return 1
 
 
 def process_id():
-    """Return the current process ID for the distribution setting."""
+    """Return the current process ID for the distribution setting.
+
+    Returns:
+        int: The current process ID.
+    """
     if dist.is_initialized():
         return dist.get_rank()
     return 0
 
 
 def _to_backend_mesh(device_mesh):
-    """Convert the DeviceMesh to Torch backend specific Mesh."""
+    """Convert the DeviceMesh to Torch backend specific Mesh.
+
+    Args:
+        device_mesh: The DeviceMesh to convert.
+
+    Returns:
+        The Torch-specific DeviceMesh.
+    """
     from keras.src.backend.torch import core
 
     mesh_shape = device_mesh.devices.shape
@@ -336,12 +377,27 @@ def _to_backend_mesh(device_mesh):
 
 
 def _to_backend_layout(tensor_layout):
-    """Convert the TensorLayout to Torch backend specific Placements."""
+    """Convert the TensorLayout to Torch backend specific Placements.
+
+    Args:
+        tensor_layout: The TensorLayout to convert.
+
+    Returns:
+        A list of Shard/Replicate objects.
+    """
     return _get_placements(tensor_layout)
 
 
 def _maybe_distribute_input(x, distribution):
-    """Distribute the input data if it's not already a DTensor."""
+    """Distribute the input data if it's not already a DTensor.
+
+    Args:
+        x: The input data.
+        distribution: The distribution strategy to use.
+
+    Returns:
+        The distributed input data.
+    """
     from keras.src import tree
 
     if isinstance(x, torch.Tensor) and not isinstance(x, DTensor):
@@ -358,19 +414,32 @@ def _maybe_distribute_input(x, distribution):
 
 
 def _get_data_layout(shape, distribution):
-    """Default data layout if not provided."""
-    try:
-        return distribution.get_data_layout(shape)
-    except NotImplementedError:
-        from keras.src.distribution import TensorLayout
+    """Default data layout if not provided.
 
-        spec = [None] * len(shape)
-        if distribution.batch_dim_name:
-            spec[0] = distribution.batch_dim_name
-        return TensorLayout(spec, distribution.device_mesh)
+    Args:
+        shape: The shape of the data.
+        distribution: The distribution strategy.
+
+    Returns:
+        The TensorLayout for the data.
+    """
+    from keras.src.distribution import TensorLayout
+
+    spec = [None] * len(shape)
+    if distribution.batch_dim_name:
+        spec[0] = distribution.batch_dim_name
+    return TensorLayout(spec, distribution.device_mesh)
 
 
 def _get_placements(layout):
+    """Helper to get PyTorch placements from TensorLayout.
+
+    Args:
+        layout: The TensorLayout.
+
+    Returns:
+        A list of Shard/Replicate objects.
+    """
     mesh = layout.device_mesh
     axes = layout.axes
     placements = []
@@ -387,7 +456,15 @@ def _get_placements(layout):
 
 
 def distribute_dataset(dataset, distribution):
-    """Create a distributed dataset for Torch."""
+    """Create a distributed dataset for Torch.
+
+    Args:
+        dataset: The dataset to distribute.
+        distribution: The distribution strategy.
+
+    Returns:
+        The distributed dataset.
+    """
     if not dist.is_initialized():
         return dataset
 
