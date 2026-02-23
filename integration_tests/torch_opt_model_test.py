@@ -9,9 +9,8 @@ tf.config.set_visible_devices([], 'GPU')
 import torch
 import torch.distributed as dist
 import keras
-keras.config.disable_traceback_filtering()
-from keras.src import ops
-from keras.src import distribution
+from keras import ops
+from keras import distribution
 import numpy as np
 
 def setup_dist():
