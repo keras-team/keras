@@ -1363,6 +1363,11 @@ def nanprod(x, axis=None, keepdims=False):
     )
 
 
+def nanstd(x, axis=None, keepdims=False):
+    var_val = nanvar(x, axis=axis, keepdims=keepdims)
+    return torch.sqrt(var_val)
+
+
 def nansum(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)

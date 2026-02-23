@@ -2240,6 +2240,11 @@ def nanprod(x, axis=None, keepdims=False):
     return prod(x_safe, axis=axis, keepdims=keepdims)
 
 
+def nanstd(x, axis=None, keepdims=False):
+    var_val = nanvar(x, axis=axis, keepdims=keepdims)
+    return tf.sqrt(var_val)
+
+
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)

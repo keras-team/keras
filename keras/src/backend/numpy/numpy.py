@@ -1005,6 +1005,16 @@ def nanprod(x, axis=None, keepdims=False):
     return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def nanstd(x, axis=None, keepdims=False):
+    axis = standardize_axis_for_numpy(axis)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return np.nanstd(
+        x, axis=axis, keepdims=keepdims, dtype=compute_dtype
+    ).astype(result_dtype)
+
+
 def nansum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)

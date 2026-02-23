@@ -5500,6 +5500,58 @@ def nanprod(x, axis=None, keepdims=False):
     return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
 
 
+class Nanstd(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanstd(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanstd", "keras.ops.numpy.nanstd"])
+def nanstd(x, axis=None, keepdims=False):
+    """Compute the standard deviation along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the standard deviation is computed.
+            The default is to compute the std of the flattened tensor.
+        keepdims: If `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Output tensor containing the standard deviation ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanstd(x)
+    0.8291562
+
+    >>> ops.nanstd(x, axis=1)
+    array([1. , 0.5])
+
+    >>> ops.nanstd(x, axis=1, keepdims=True)
+    array([[1. ],
+           [0.5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanstd(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanstd(x, axis=axis, keepdims=keepdims)
+
+
 class Nansum(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
