@@ -784,6 +784,9 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    from keras.src.backend.torch import distribution_lib
+
+    target, output = distribution_lib._sync_tensors(target, output)
 
     if target.shape != output.shape:
         raise ValueError(
@@ -862,6 +865,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    from keras.src.backend.torch import distribution_lib
+
+    target, output = distribution_lib._sync_tensors(target, output)
 
     # We only apply the squeeze fix if we are on an MPS device,
     # as this change breaks tests on other platforms that
@@ -945,6 +951,11 @@ def batch_normalization(
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
+    from keras.src.backend.torch import distribution_lib
+
+    x, mean, variance, offset, scale = distribution_lib._sync_tensors(
+        x, mean, variance, offset, scale
+    )
 
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
@@ -952,12 +963,10 @@ def batch_normalization(
     variance = torch.reshape(variance, shape)
 
     if offset is not None:
-        offset = convert_to_tensor(offset)
         offset = torch.reshape(offset, shape)
     else:
         offset = torch.zeros_like(mean)
     if scale is not None:
-        scale = convert_to_tensor(scale)
         scale = torch.reshape(scale, shape)
     else:
         scale = torch.ones_like(variance)
@@ -974,6 +983,13 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
+    from keras.src.backend.torch import distribution_lib
+
+    target, output, target_length, output_length = (
+        distribution_lib._sync_tensors(
+            target, output, target_length, output_length
+        )
+    )
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
@@ -1082,6 +1098,9 @@ def psnr(x1, x2, max_val):
         convert_to_tensor(x2),
     )
     max_val = convert_to_tensor(max_val, dtype=x1.dtype)
+    from keras.src.backend.torch import distribution_lib
+
+    x1, x2, max_val = distribution_lib._sync_tensors(x1, x2, max_val)
     mse = torch.mean((x1 - x2) ** 2)
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr
@@ -1154,6 +1173,10 @@ def dot_product_attention(
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
+    from keras.src.backend.torch import distribution_lib
+
+    query, key, value = distribution_lib._sync_tensors(query, key, value)
+
     if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "
