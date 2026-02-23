@@ -810,6 +810,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
+    from keras.src.backend.torch import distribution_lib
+
+    target, output = distribution_lib._sync_tensors(target, output)
 
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
         target = torch.squeeze(target, dim=-1)
