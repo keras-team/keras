@@ -163,49 +163,51 @@ def distribute_tensor(tensor, layout):
     return tensor
 
 
-def _sync_tensors(*tensors):
+def _sync_tensors(*args):
     """Ensure all tensors are DTensors if any of them is a DTensor.
 
     Args:
-        *tensors: The tensors to synchronize.
+        *args: The structures (tensors, lists, dicts) to synchronize.
 
     Returns:
-        A tuple of synchronized tensors.
+        The synchronized structures.
     """
+    from keras.src import tree
     from keras.src.backend.torch.core import Variable
 
-    tensors = [t.value if isinstance(t, Variable) else t for t in tensors]
+    flat_args = tree.flatten(args)
+    flat_values = [t.value if isinstance(t, Variable) else t for t in flat_args]
 
-    has_dtensor = any(isinstance(t, DTensor) for t in tensors)
+    has_dtensor = any(isinstance(t, DTensor) for t in flat_values)
     if not has_dtensor:
-        return tuple(tensors)
+        return args
 
-    if any(isinstance(t, torch.Tensor) and t.is_meta for t in tensors):
-        return tuple(tensors)
+    if any(isinstance(t, torch.Tensor) and t.is_meta for t in flat_values):
+        return args
 
-    ref_dtensor = next(t for t in tensors if isinstance(t, DTensor))
+    ref_dtensor = next(t for t in flat_values if isinstance(t, DTensor))
     mesh = ref_dtensor.device_mesh
 
     from torch.distributed.tensor import Partial
 
-    new_tensors = []
-    for t in tensors:
+    def _sync_op(t):
+        if isinstance(t, Variable):
+            t = t.value
+
         if isinstance(t, DTensor):
             if any(isinstance(p, Partial) for p in t.placements):
-                t = t.redistribute(mesh, [Replicate()] * mesh.ndim)
-            new_tensors.append(t)
+                return t.redistribute(mesh, [Replicate()] * mesh.ndim)
+            return t
         elif isinstance(t, torch.Tensor):
             if t.is_meta:
                 t = torch.empty_like(t, device=mesh.device_type)
             elif t.device.type != mesh.device_type:
                 t = t.to(mesh.device_type)
 
-            new_tensors.append(
-                distribute_tensor_torch(t, mesh, [Replicate()] * mesh.ndim)
-            )
-        else:
-            new_tensors.append(t)
-    return tuple(new_tensors)
+            return distribute_tensor_torch(t, mesh, [Replicate()] * mesh.ndim)
+        return t
+
+    return tree.map_structure(_sync_op, args)
 
 
 def distribute_data_input(per_process_batch, layout, batch_dim_name):
@@ -293,7 +295,7 @@ def initialize(job_addresses, num_processes, process_id):
     if job_addresses:
         coordinator_address = job_addresses.split(",")[0]
         if ":" in coordinator_address:
-            addr, port = coordinator_address.split(":")
+            addr, _, port = coordinator_address.rpartition(":")
         else:
             addr, port = coordinator_address, "12345"
         os.environ["MASTER_ADDR"] = addr

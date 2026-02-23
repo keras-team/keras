@@ -111,16 +111,10 @@ class Variable(KerasVariable):
     def _initialize_layout(self):
         distribution = global_state.get_global_attribute("distribution")
         if self._layout is None and distribution is not None:
-            tensor_layout = distribution.get_variable_layout(self)
-            from keras.src.distribution import TensorLayout
-
-            if isinstance(tensor_layout, TensorLayout):
-                self._layout = tensor_layout
-            else:
-                self._layout = tensor_layout
+            self._layout = distribution.get_variable_layout(self)
 
     def _initialize(self, value):
-        self._shape = self._validate_shape(value.shape)
+        self._shape = self._validate_shape(np.shape(value))
         self._initialize_layout()
         if isinstance(value, torch.nn.Parameter):
             # Reuse same parameter
@@ -215,7 +209,9 @@ class Variable(KerasVariable):
                 _replicate_if_needed, unwrapped_kwargs
             )
 
-        unwrapped_args = distribution_lib._sync_tensors(*unwrapped_args)
+        unwrapped_args, unwrapped_kwargs = distribution_lib._sync_tensors(
+            unwrapped_args, unwrapped_kwargs
+        )
         return func(*unwrapped_args, **unwrapped_kwargs)
 
     def __array__(self, dtype=None):

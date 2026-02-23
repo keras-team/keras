@@ -2035,16 +2035,22 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
 
 def where(condition, x1=None, x2=None):
     condition = convert_to_tensor(condition, dtype=bool)
+    from keras.src.backend.torch import distribution_lib
+
     if x1 is not None and x2 is not None:
         x1 = convert_to_tensor(x1)
         x2 = convert_to_tensor(x2)
-        from keras.src.backend.torch import distribution_lib
 
         condition, x1, x2 = distribution_lib._sync_tensors(condition, x1, x2)
         return torch.where(condition, x1, x2)
     else:
-        if hasattr(condition, "device_mesh"):
-            pass
+        if isinstance(condition, distribution_lib.DTensor):
+            from torch.distributed.tensor import Replicate
+
+            condition = condition.redistribute(
+                condition.device_mesh,
+                [Replicate()] * condition.device_mesh.ndim,
+            )
         return torch.where(condition)
 
 
