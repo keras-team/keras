@@ -128,13 +128,11 @@ LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_cholesky_inverse
 LinalgOpsCorrectnessTest::test_norm_2_nuc
 LinalgOpsCorrectnessTest::test_qr
-LinalgOpsCorrectnessTest::test_solve
 LinalgOpsCorrectnessTest::test_solve_triangular
 LinalgOpsCorrectnessTest::test_svd
 LinalgOpsCorrectnessTest::test_det
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_eigh
-LinalgOpsCorrectnessTest::test_inv
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_lu_factor
 LinalgOpsCorrectnessTest::test_norm_2_-2
