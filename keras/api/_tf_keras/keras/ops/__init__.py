@@ -126,6 +126,7 @@ from keras.src.ops.numpy import abs as abs
 from keras.src.ops.numpy import absolute as absolute
 from keras.src.ops.numpy import add as add
 from keras.src.ops.numpy import all as all
+from keras.src.ops.numpy import allclose as allclose
 from keras.src.ops.numpy import amax as amax
 from keras.src.ops.numpy import amin as amin
 from keras.src.ops.numpy import angle as angle

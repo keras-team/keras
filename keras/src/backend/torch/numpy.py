@@ -186,12 +186,11 @@ def mean(x, axis=None, keepdims=False):
     # delimiter in the overloaded method signatures.
     # Additionally, we have to create a singleton-tuple
     # when `axis` is an int to match the existing fn signature
-    result = torch.mean(
-        x,
-        axis,
-        keepdims,
-        dtype=to_torch_dtype(compute_dtype),
-    )
+
+    # Cast input to compute dtype before mean to avoid dtype kwarg
+    # which causes issues with ONNX export (dtype kwarg not supported)
+    x = cast(x, compute_dtype)
+    result = torch.mean(x, axis, keepdims)
     return cast(result, result_dtype)
 
 
@@ -925,7 +924,22 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
-    return torch.isclose(x1, x2, rtol, atol, equal_nan)
+    if "float" in standardize_dtype(result_dtype):
+        return torch.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return torch.eq(x1, x2)
+
+
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = cast(x1, result_dtype)
+    x2 = cast(x2, result_dtype)
+    if "float" in standardize_dtype(result_dtype):
+        return torch.all(
+            torch.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+        )
+    return torch.all(torch.eq(x1, x2))
 
 
 def isfinite(x):
