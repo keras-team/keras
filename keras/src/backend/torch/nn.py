@@ -951,6 +951,11 @@ def batch_normalization(
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
+    if offset is not None:
+        offset = convert_to_tensor(offset)
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+
     from keras.src.backend.torch import distribution_lib
 
     x, mean, variance, offset, scale = distribution_lib._sync_tensors(
@@ -1173,9 +1178,18 @@ def dot_product_attention(
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+    if mask is not None:
+        mask = convert_to_tensor(mask, dtype="bool")
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+
     from keras.src.backend.torch import distribution_lib
 
-    query, key, value = distribution_lib._sync_tensors(query, key, value)
+    query, key, value, bias, mask, scale = distribution_lib._sync_tensors(
+        query, key, value, bias, mask, scale
+    )
 
     if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
@@ -1192,13 +1206,11 @@ def dot_product_attention(
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
 
-    mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
-        bias = convert_to_tensor(bias, dtype=compute_dtype)
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
 
     axis0, axis1 = 1, 2
