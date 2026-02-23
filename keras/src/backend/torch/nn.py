@@ -869,6 +869,7 @@ def binary_crossentropy(target, output, from_logits=False):
 
     target, output = distribution_lib._sync_tensors(target, output)
 
+    ori_target_shape = target.shape
     # We only apply the squeeze fix if we are on an MPS device,
     # as this change breaks tests on other platforms that
     # expect the original tensor shape to be preserved.
@@ -892,12 +893,16 @@ def binary_crossentropy(target, output, from_logits=False):
     # By default, PyTorch, does reduction of `sum` over all rows,
     # change reduction to `none` to keep dim
     if from_logits:
-        return tnn.binary_cross_entropy_with_logits(
+        result = tnn.binary_cross_entropy_with_logits(
             output, target, reduction="none"
         )
     else:
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
-        return tnn.binary_cross_entropy(output, target, reduction="none")
+        result = tnn.binary_cross_entropy(output, target, reduction="none")
+    
+    if result.shape != ori_target_shape:
+        result = torch.reshape(result, ori_target_shape)
+    return result
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
@@ -1002,6 +1007,18 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
     output = torch.transpose(output, 1, 0)
     logits = tnn.log_softmax(output, dim=-1)
+
+    device = logits.device
+    if device.type == "mps":
+        logits = logits.cpu()
+        target = target.cpu().to(torch.int64)
+        output_length = output_length.cpu().to(torch.int64)
+        target_length = target_length.cpu().to(torch.int64)
+    else:
+        target = target.to(torch.int64)
+        output_length = output_length.to(torch.int64)
+        target_length = target_length.to(torch.int64)
+
     loss = tnn.ctc_loss(
         logits,
         target,
@@ -1010,7 +1027,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
         blank=mask_index,
         reduction="none",
     )
-    return loss
+    return loss.to(device) if device.type == "mps" else loss
 
 
 def _ctc_greedy_decode(
@@ -1211,12 +1228,29 @@ def dot_product_attention(
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
-        mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
+        bias = cast(bias, compute_dtype)
+        if mask is not None:
+            mask = mask + bias
+        else:
+            mask = bias
+
+    if mask is not None and mask.dtype != torch.bool:
+        mask = cast(mask, compute_dtype)
 
     axis0, axis1 = 1, 2
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
+
+    if is_causal and mask is not None:
+        is_causal = False
+        q_len, k_len = query.shape[-2], key.shape[-2]
+        causal_mask = torch.ones(
+            (q_len, k_len), device=query.device, dtype=torch.bool
+        ).tril()
+        mask = mask + torch.where(
+            causal_mask, 0.0, _get_large_negative(query.dtype)
+        )
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
