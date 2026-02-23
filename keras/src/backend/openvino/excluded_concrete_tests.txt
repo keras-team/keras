@@ -1,5 +1,7 @@
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
+HistogramTest::test_histogram_predict_jit_compile_false
+HistogramTest::test_histogram_predict_jit_compile_true
 NumpyDtypeTest::test_nanstd
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
