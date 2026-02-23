@@ -105,7 +105,6 @@ SegmentSumTest::test_segment_sum_call
 SegmentMaxTest::test_segment_max_call
 TestMathErrors::test_istft_invalid_window_shape_2D_inputs
 LinalgOpsCorrectnessTest::test_cholesky
-LinalgOpsCorrectnessTest::test_cholesky_inverse
 LinalgOpsCorrectnessTest::test_norm_2_nuc
 LinalgOpsCorrectnessTest::test_qr
 LinalgOpsCorrectnessTest::test_solve_triangular
