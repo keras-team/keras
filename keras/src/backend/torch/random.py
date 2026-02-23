@@ -134,7 +134,19 @@ def _get_concrete_noise_shape(inputs, noise_shape):
     return concrete_noise_shape
 
 
+def _ensure_not_partial(inputs):
+    from torch.distributed.tensor import DTensor, Partial, Replicate
+    if isinstance(inputs, DTensor):
+        has_partial = any(isinstance(p, Partial) for p in inputs.placements)
+        if has_partial:
+            return inputs.redistribute(
+                inputs.device_mesh, [Replicate()] * inputs.device_mesh.ndim
+            )
+    return inputs
+
+
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    inputs = _ensure_not_partial(inputs)
     if (
         seed is not None
         and not (isinstance(seed, SeedGenerator) and seed._initial_seed is None)

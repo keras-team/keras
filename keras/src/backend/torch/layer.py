@@ -21,9 +21,23 @@ class TorchLayer(torch.nn.Module):
     def _track_variables(self):
         # set torch_params attribute will have module automatically track
         # parameters.
-        self._torch_params = torch.nn.ParameterDict(
-            {variable.path: variable.value for variable in self.variables}
-        )
+        from keras.src.backend.torch.core import get_device
+
+        params = {}
+        device = get_device()
+        for variable in self.variables:
+            value = variable.value
+            if not isinstance(value, torch.nn.Parameter):
+                requires_grad = variable.trainable and torch.is_floating_point(
+                    value
+                )
+                from torch.distributed.tensor import DTensor
+                if isinstance(value, DTensor):
+                    value = torch.nn.Parameter(value, requires_grad=requires_grad)
+                else:
+                    value = torch.nn.Parameter(value, requires_grad=requires_grad).to(device)
+            params[variable.path] = value
+        self._torch_params = torch.nn.ParameterDict(params)
 
     def named_parameters(
         self,
@@ -38,6 +52,16 @@ class TorchLayer(torch.nn.Module):
         )
 
     def forward(self, *args, **kwargs):
+        from keras.src.backend.common import global_state
+        from keras.src.backend.torch.core import get_device
+
+        distribution = global_state.get_global_attribute("distribution")
+        if distribution is not None and str(get_device()) != "meta":
+            from keras.src.backend.torch import distribution_lib
+
+            args = distribution_lib._maybe_distribute_input(args, distribution)
+            kwargs = distribution_lib._maybe_distribute_input(kwargs, distribution)
+
         return Operation.__call__(self, *args, **kwargs)
 
     def _setattr_hook(self, name, value):

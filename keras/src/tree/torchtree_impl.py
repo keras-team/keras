@@ -127,6 +127,8 @@ def map_structure(func, *structures, none_is_leaf=True):
     if not structures:
         raise ValueError("Must provide at least one structure")
 
+    structures = [lists_to_tuples(s) for s in structures]
+
     map_func = func
     if not none_is_leaf:
 
@@ -150,6 +152,9 @@ def map_structure_up_to(shallow_structure, func, *structures):
     if not structures:
         raise ValueError("Must provide at least one structure")
 
+    shallow_structure = lists_to_tuples(shallow_structure)
+    structures = [lists_to_tuples(s) for s in structures]
+
     # Add check that `shallow_structure` really is the shallowest.
     # Also only call `func` on `structures` and not `shallow_structure`.
     def func_with_check_without_shallow_structure(shallow, *args):
@@ -165,6 +170,9 @@ def map_structure_up_to(shallow_structure, func, *structures):
 
 
 def assert_same_structure(a, b):
+    a = lists_to_tuples(a)
+    b = lists_to_tuples(b)
+
     def check(a_leaf, b_leaf):
         if not _tree_is_leaf(a_leaf) or not _tree_is_leaf(b_leaf):
             raise ValueError("Structures don't have the same nested structure.")
