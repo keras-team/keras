@@ -333,12 +333,22 @@ class SavedModelExportArchive:
 
         # `tf.train.TrackableView` hardcodes the `save_type` to "checkpoint".
         # We need to subclass to use a `save_type` of "savedmodel".
-        savedmodel_cache = {}
-
         class SavedModelTrackableView(tf.train.TrackableView):
             @classmethod
             def children(cls, obj, save_type="savedmodel", **kwargs):
-                return super().children(obj, save_type, cache=savedmodel_cache)
+                try:
+                    return super().children(obj, save_type, **kwargs)
+                except TypeError:
+                    # TF's ``convert_to_trackable`` calls
+                    # ``tensor_util.is_tf_type(obj)`` which internally uses
+                    # ``inspect.getattr_static(obj, '__dict__')`` — this
+                    # raises ``TypeError`` for Keras 3 ``_DictWrapper``
+                    # objects.  Return an empty dict so the traversal skips
+                    # this subtree.  Variables are already tracked via
+                    # ``_list_variables_used_by_fns``; only
+                    # ``TrackableResource`` assets (lookup tables) on this
+                    # subtree would be missed, which is acceptable.
+                    return {}
 
         # Next, track lookup tables.
         # Hopefully, one day this will be automated at the tf.function level.
