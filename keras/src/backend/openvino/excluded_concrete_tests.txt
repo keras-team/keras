@@ -38,7 +38,7 @@ CoreOpsCorrectnessTest::test_fori_loop
 CoreOpsCorrectnessTest::test_map
 CoreOpsCorrectnessTest::test_scan
 CoreOpsCorrectnessTest::test_scatter
-CoreOpsCorrectnessTest::test_switch 
+CoreOpsCorrectnessTest::test_switch
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
 CoreOpsBehaviorTests::test_vectorized_map_serialization
@@ -47,12 +47,6 @@ MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_erfinv_operation_edge_cases
 MathOpsCorrectnessTest::test_extract_sequences
-MathOpsCorrectnessTest::test_fft
-MathOpsCorrectnessTest::test_fft2
-MathOpsCorrectnessTest::test_ifft2
-MathOpsCorrectnessTest::test_irfft0
-MathOpsCorrectnessTest::test_irfft1
-MathOpsCorrectnessTest::test_irfft2
 MathOpsCorrectnessTest::test_istft0
 MathOpsCorrectnessTest::test_istft1
 MathOpsCorrectnessTest::test_istft2
@@ -61,9 +55,6 @@ MathOpsCorrectnessTest::test_istft4
 MathOpsCorrectnessTest::test_istft5
 MathOpsCorrectnessTest::test_istft6
 MathOpsCorrectnessTest::test_logdet
-MathOpsCorrectnessTest::test_rfft0
-MathOpsCorrectnessTest::test_rfft1
-MathOpsCorrectnessTest::test_rfft2
 MathOpsCorrectnessTest::test_segment_reduce0
 MathOpsCorrectnessTest::test_segment_reduce1
 MathOpsCorrectnessTest::test_segment_reduce2
@@ -74,13 +65,6 @@ MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments2
 MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments3
 MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments4
 MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments5
-MathOpsCorrectnessTest::test_stft0
-MathOpsCorrectnessTest::test_stft1
-MathOpsCorrectnessTest::test_stft2
-MathOpsCorrectnessTest::test_stft3
-MathOpsCorrectnessTest::test_stft4
-MathOpsCorrectnessTest::test_stft5
-MathOpsCorrectnessTest::test_stft6
 RandomCorrectnessTest::test_beta0
 RandomCorrectnessTest::test_beta1
 RandomCorrectnessTest::test_beta2
@@ -119,11 +103,7 @@ RandomDTypeTest::test_truncated_normal_bfloat16
 RandomDTypeTest::test_uniform_bfloat16
 SegmentSumTest::test_segment_sum_call
 SegmentMaxTest::test_segment_max_call
-TestMathErrors::test_invalid_fft_length
 TestMathErrors::test_istft_invalid_window_shape_2D_inputs
-TestMathErrors::test_stft_invalid_input_type
-TestMathErrors::test_stft_invalid_window
-TestMathErrors::test_stft_invalid_window_shape
 LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_cholesky_inverse
 LinalgOpsCorrectnessTest::test_norm_2_nuc

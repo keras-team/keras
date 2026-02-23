@@ -1,8 +1,13 @@
+import numpy as np
 import openvino.opset15 as ov_opset
+import scipy.signal
 from openvino import Type
 
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
+from keras.src.backend.openvino.core import cast
 from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import standardize_dtype
+from keras.src.backend.openvino.numpy import stack
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
@@ -88,26 +93,225 @@ def extract_sequences(x, sequence_length, sequence_stride):
     )
 
 
+def _dft(x, axes_offsets, inverse=False):
+    """Shared helper for fft, fft2, and ifft2.
+
+    Args:
+        x: Tuple of (real, imag) KerasTensors.
+        axes_offsets: List of negative axis offsets relative to the
+            complex-data rank (e.g. [-2] for fft, [-3, -2] for fft2/ifft2).
+        inverse: If True, use ov_opset.idft; otherwise use ov_opset.dft.
+    """
+    ori_dtype = x[0].dtype
+    x0 = cast(x[0], "float32") if ori_dtype == "float64" else x[0]
+    x1 = cast(x[1], "float32") if ori_dtype == "float64" else x[1]
+
+    real = ov_opset.unsqueeze(
+        get_ov_output(x0), ov_opset.constant([-1], Type.i32)
+    ).output(0)
+    imag = ov_opset.unsqueeze(
+        get_ov_output(x1), ov_opset.constant([-1], Type.i32)
+    ).output(0)
+    complex_data = ov_opset.concat([real, imag], -1).output(0)
+
+    rank = len(x[0].shape) + 1
+    axes = ov_opset.constant(
+        [rank + off for off in axes_offsets], Type.i32
+    ).output(0)
+
+    op = ov_opset.idft if inverse else ov_opset.dft
+    result = op(complex_data, axes).output(0)
+
+    out_real = ov_opset.gather(
+        result, ov_opset.constant(0, Type.i32), ov_opset.constant(-1, Type.i32)
+    ).output(0)
+    out_imag = ov_opset.gather(
+        result, ov_opset.constant(1, Type.i32), ov_opset.constant(-1, Type.i32)
+    ).output(0)
+
+    if ori_dtype == "float64":
+        out_real = ov_opset.convert(out_real, Type.f64).output(0)
+        out_imag = ov_opset.convert(out_imag, Type.f64).output(0)
+
+    return OpenVINOKerasTensor(out_real), OpenVINOKerasTensor(out_imag)
+
+
 def fft(x):
-    raise NotImplementedError("`fft` is not supported with openvino backend")
+    # axes_offsets=[-2]: last axis of complex data (rank = input_rank + 1)
+    return _dft(x, axes_offsets=[-2], inverse=False)
 
 
 def fft2(x):
-    raise NotImplementedError("`fft2` is not supported with openvino backend")
+    # axes_offsets=[-3, -2]: two trailing axes of complex data
+    return _dft(x, axes_offsets=[-3, -2], inverse=False)
+
+
+def ifft2(x):
+    # Same axes as fft2 but with the inverse DFT
+    return _dft(x, axes_offsets=[-3, -2], inverse=True)
 
 
 def rfft(x, fft_length=None):
-    raise NotImplementedError("`rfft` is not supported with openvino backend")
+    ori_dtype = x.dtype
+    x = cast(x, "float32") if x.dtype == "float64" else x
+
+    x_node = get_ov_output(x)
+    rank = len(x_node.shape)
+    axes = ov_opset.constant([rank - 1], Type.i32).output(0)
+
+    if fft_length is not None:
+        signal_size = ov_opset.constant([fft_length], Type.i32).output(0)
+        # Pad input if signal_size > input_size (OpenVINO limitation)
+        last_dim = x_node.shape[-1]
+        if isinstance(last_dim, int) and last_dim < fft_length:
+            pad_begin = [0] * rank
+            pad_end = [0] * rank
+            pad_end[-1] = fft_length - last_dim
+            pad_begin_node = ov_opset.constant(pad_begin, Type.i32).output(0)
+            pad_end_node = ov_opset.constant(pad_end, Type.i32).output(0)
+            x_node = ov_opset.pad(
+                x_node, pad_begin_node, pad_end_node, "constant"
+            ).output(0)
+
+        rdft = ov_opset.rdft(x_node, axes, signal_size).output(0)
+    else:
+        rdft = ov_opset.rdft(x_node, axes).output(0)
+
+    out_real = ov_opset.gather(
+        rdft, ov_opset.constant(0, Type.i32), ov_opset.constant(-1, Type.i32)
+    ).output(0)
+    out_imag = ov_opset.gather(
+        rdft, ov_opset.constant(1, Type.i32), ov_opset.constant(-1, Type.i32)
+    ).output(0)
+
+    if ori_dtype == "float64":
+        out_real = ov_opset.convert(out_real, Type.f64).output(0)
+        out_imag = ov_opset.convert(out_imag, Type.f64).output(0)
+
+    return OpenVINOKerasTensor(out_real), OpenVINOKerasTensor(out_imag)
 
 
 def irfft(x, fft_length=None):
-    raise NotImplementedError("`irfft` is not supported with openvino backend")
+    ori_dtype = x[0].dtype
+    if ori_dtype == "float64":
+        x = (cast(x[0], "float32"), cast(x[1], "float32"))
+
+    complex_data = get_ov_output(stack(x, axis=-1))
+    rank = len(complex_data.shape)
+    axes = ov_opset.constant([rank - 2], Type.i32).output(0)
+
+    if fft_length is not None:
+        signal_size = ov_opset.constant([fft_length], Type.i32).output(0)
+        irdft = ov_opset.irdft(complex_data, axes, signal_size).output(0)
+    else:
+        irdft = ov_opset.irdft(complex_data, axes).output(0)
+
+    if ori_dtype == "float64":
+        irdft = ov_opset.convert(irdft, Type.f64).output(0)
+
+    return OpenVINOKerasTensor(irdft)
 
 
 def stft(
     x, sequence_length, sequence_stride, fft_length, window="hann", center=True
 ):
-    raise NotImplementedError("`stft` is not supported with openvino backend")
+    if standardize_dtype(x.dtype) not in {"float32", "float64"}:
+        raise TypeError(
+            "Invalid input type. Expected `float32` or `float64`. "
+            f"Received: input type={x.dtype}"
+        )
+    if fft_length < sequence_length:
+        raise ValueError(
+            "`fft_length` must equal or larger than `sequence_length`. "
+            f"Received: sequence_length={sequence_length}, "
+            f"fft_length={fft_length}"
+        )
+    if isinstance(window, str):
+        if window not in {"hann", "hamming"}:
+            raise ValueError(
+                "If a string is passed to `window`, it must be one of "
+                f'`"hann"`, `"hamming"`. Received: window={window}'
+            )
+
+    ori_dtype = x.dtype
+    x = get_ov_output(x)
+
+    ori_shape = x.shape
+    num_dims = len(ori_shape)
+
+    if num_dims > 2:
+        flatten_shape = ov_opset.constant([-1, ori_shape[-1]], Type.i32).output(
+            0
+        )
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+
+    if center:
+        # pad x with reflect mode
+        pad_begin = [0] * len(x.shape)
+        pad_end = [0] * len(x.shape)
+        pad_begin[-1] = fft_length // 2
+        pad_end[-1] = fft_length // 2
+        pad_begin_node = ov_opset.constant(pad_begin, Type.i32).output(0)
+        pad_end_node = ov_opset.constant(pad_end, Type.i32).output(0)
+        x = ov_opset.pad(x, pad_begin_node, pad_end_node, "reflect").output(0)
+
+    l_pad = (fft_length - sequence_length) // 2
+    r_pad = fft_length - sequence_length - l_pad
+
+    element_type = x.get_element_type()
+    if element_type == Type.f64:
+        x = ov_opset.convert(x, Type.f32).output(0)
+        element_type = Type.f32
+
+    if window is not None:
+        if isinstance(window, str):
+            win = scipy.signal.get_window(window, sequence_length)
+        else:
+            win = window
+        if len(win.shape) != 1 or win.shape[-1] != sequence_length:
+            raise ValueError(
+                "The shape of `window` must be equal to [sequence_length]."
+                f"Received: window shape={win.shape}"
+            )
+        win = np.pad(win, [[l_pad, r_pad]])
+        win_node = ov_opset.constant(win, element_type).output(0)
+    else:
+        win = np.ones((sequence_length + l_pad + r_pad))
+        win_node = ov_opset.constant(win, element_type).output(0)
+
+    frame_size_node = ov_opset.constant(fft_length, Type.i32).output(0)
+    frame_step_node = ov_opset.constant(sequence_stride, Type.i32).output(0)
+
+    stft_node = ov_opset.stft(
+        x, win_node, frame_size_node, frame_step_node, transpose_frames=False
+    ).output(0)
+
+    out_real = ov_opset.gather(
+        stft_node,
+        ov_opset.constant(0, Type.i32),
+        ov_opset.constant(-1, Type.i32),
+    ).output(0)
+    out_imag = ov_opset.gather(
+        stft_node,
+        ov_opset.constant(1, Type.i32),
+        ov_opset.constant(-1, Type.i32),
+    ).output(0)
+
+    if num_dims > 2:
+        target_shape = list(ori_shape[:-1]) + [-1, fft_length // 2 + 1]
+        target_shape_node = ov_opset.constant(target_shape, Type.i32).output(0)
+        out_real = ov_opset.reshape(out_real, target_shape_node, False).output(
+            0
+        )
+        out_imag = ov_opset.reshape(out_imag, target_shape_node, False).output(
+            0
+        )
+
+    if ori_dtype == "float64":
+        out_real = ov_opset.convert(out_real, Type.f64).output(0)
+        out_imag = ov_opset.convert(out_imag, Type.f64).output(0)
+
+    return OpenVINOKerasTensor(out_real), OpenVINOKerasTensor(out_imag)
 
 
 def istft(
