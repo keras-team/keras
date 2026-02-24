@@ -647,21 +647,6 @@ class OpenVINOKerasTensor:
             )
         return OpenVINOKerasTensor(ov_opset.squeeze(first, axes).output(0))
 
-    def __jax_array__(self):
-        raise ValueError(
-            "An OpenVINOKerasTensor cannot be used as input to a JAX "
-            "function. It is a symbolic placeholder for a shape and "
-            "dtype, used during inference with the OpenVINO backend."
-        )
-
-    def __tf_tensor__(self, dtype=None, name=None):
-        raise ValueError(
-            "An OpenVINOKerasTensor cannot be used as input to a "
-            "TensorFlow function. It is a symbolic placeholder for a "
-            "shape and dtype, used during inference with the OpenVINO "
-            "backend."
-        )
-
 
 def ov_to_keras_type(ov_type):
     for _keras_type, _ov_type in OPENVINO_DTYPES.items():
