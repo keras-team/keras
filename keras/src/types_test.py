@@ -24,3 +24,21 @@ class TypesTest(testing.TestCase):
         self.assertTrue(hasattr(keras.types, "Tensor"))
         self.assertTrue(hasattr(keras.types, "Shape"))
         self.assertTrue(hasattr(keras.types, "DType"))
+
+    def test_tensor_not_instantiable(self):
+        from keras.src.types import Tensor
+
+        with self.assertRaises(TypeError):
+            Tensor()
+
+    def test_shape_not_instantiable(self):
+        from keras.src.types import Shape
+
+        with self.assertRaises(TypeError):
+            Shape()
+
+    def test_dtype_not_instantiable(self):
+        from keras.src.types import DType
+
+        with self.assertRaises(TypeError):
+            DType()

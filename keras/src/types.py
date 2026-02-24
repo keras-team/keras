@@ -5,6 +5,11 @@ in code that works with any Keras backend. These types are designed
 to work with static type checkers (mypy, PyCharm) while not
 requiring any specific backend to be installed at runtime.
 
+These are **annotation-only** helpers. Under ``TYPE_CHECKING`` they
+resolve to concrete types (e.g. ``Union`` of backend tensors);
+at runtime they are lightweight markers used solely in type
+annotations and cannot be instantiated.
+
 Example usage:
 
 ```python
@@ -57,19 +62,21 @@ else:
 
     @keras_export("keras.types.Tensor")
     class Tensor:
-        """Backend-agnostic tensor type for use in type annotations.
+        """Annotation-only type representing any backend tensor.
 
-        Under type checking, this resolves to a ``Union`` of all
-        backend tensor types:
+        Use this in type hints to denote tensor arguments or return
+        values that work across all Keras backends. Under static
+        type checking, ``Tensor`` resolves to a ``Union`` of:
 
         - ``keras.KerasTensor`` (symbolic tensor)
         - ``numpy.ndarray``
-        - ``jax.Array`` (if JAX is installed)
-        - ``tensorflow.Tensor`` (if TensorFlow is installed)
-        - ``torch.Tensor`` (if PyTorch is installed)
+        - ``jax.Array``
+        - ``tensorflow.Tensor``
+        - ``torch.Tensor``
 
-        At runtime this is a placeholder class. Do not instantiate
-        it or use it with ``isinstance()``.
+        This type exists **only for annotations**. It cannot be
+        instantiated or used with ``isinstance()``. Keras
+        operations accept native backend tensors directly.
 
         Example:
 
@@ -81,19 +88,27 @@ else:
         ```
         """
 
-        pass
+        def __init__(self):
+            raise TypeError(
+                "keras.types.Tensor is an annotation-only type and "
+                "cannot be instantiated. Use it only in type hints."
+            )
+
+        def __init_subclass__(cls, **kwargs):
+            raise TypeError(
+                "keras.types.Tensor cannot be subclassed."
+            )
 
     @keras_export("keras.types.Shape")
     class Shape:
-        """Backend-agnostic shape type for use in type annotations.
+        """Annotation-only type representing a tensor shape.
 
-        Under type checking, this resolves to
-        ``Tuple[Optional[int], ...]``, a variable-length tuple where
-        each dimension is either an ``int`` (known) or ``None``
-        (unknown / dynamic).
+        Use this in type hints to denote shape arguments or return
+        values. Under static type checking, ``Shape`` resolves to
+        ``Tuple[Optional[int], ...]``.
 
-        At runtime this is a placeholder class. Do not instantiate
-        it or use it with ``isinstance()``.
+        This type exists **only for annotations**. Keras accepts
+        and returns plain ``tuple`` objects for shapes.
 
         Example:
 
@@ -105,18 +120,28 @@ else:
         ```
         """
 
-        pass
+        def __init__(self):
+            raise TypeError(
+                "keras.types.Shape is an annotation-only type and "
+                "cannot be instantiated. Use a plain tuple instead."
+            )
+
+        def __init_subclass__(cls, **kwargs):
+            raise TypeError(
+                "keras.types.Shape cannot be subclassed."
+            )
 
     @keras_export("keras.types.DType")
     class DType:
-        """Backend-agnostic dtype type for use in type annotations.
+        """Annotation-only type representing a data type.
 
-        Under type checking, this resolves to ``str``. Keras
-        standardizes all dtype representations to strings
-        (e.g. ``"float32"``, ``"int64"``, ``"bool"``).
+        Use this in type hints to denote dtype arguments or return
+        values. Under static type checking, ``DType`` resolves to
+        ``str``.
 
-        At runtime this is a placeholder class. Do not instantiate
-        it or use it with ``isinstance()``.
+        This type exists **only for annotations**. Keras uses
+        plain strings for dtypes (e.g. ``"float32"``,
+        ``"int64"``).
 
         Example:
 
@@ -128,4 +153,13 @@ else:
         ```
         """
 
-        pass
+        def __init__(self):
+            raise TypeError(
+                "keras.types.DType is an annotation-only type and "
+                "cannot be instantiated. Use a plain string instead."
+            )
+
+        def __init_subclass__(cls, **kwargs):
+            raise TypeError(
+                "keras.types.DType cannot be subclassed."
+            )
