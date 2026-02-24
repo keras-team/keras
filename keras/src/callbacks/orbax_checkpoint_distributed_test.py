@@ -3,17 +3,14 @@
 These tests verify that OrbaxCheckpoint correctly handles sharded model
 parameters when using JAX distribution APIs (ModelParallel).
 
-The tests run on CPU with 4 virtual devices created via XLA_FLAGS:
+The tests require a JAX backend with at least 2 real devices (GPU/TPU).
+Tests are automatically skipped when the required device count is not met.
 
     KERAS_BACKEND=jax pytest \\
         keras/src/callbacks/orbax_checkpoint_distributed_test.py -xvs
 """
 
 import os
-
-# Must be set before importing JAX to create virtual CPU devices.
-if "XLA_FLAGS" not in os.environ:
-    os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count=4"
 
 import jax
 import numpy as np
@@ -33,11 +30,17 @@ from keras.src.distribution import TensorLayout
 from keras.src.distribution import distribution as get_distribution
 from keras.src.distribution import set_distribution
 
-# All tests in this file require JAX backend.
-pytestmark = pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Sharding tests require JAX backend",
-)
+# All tests in this file require JAX backend with at least 2 devices.
+pytestmark = [
+    pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Sharding tests require JAX backend",
+    ),
+    pytest.mark.skipif(
+        backend.backend() == "jax" and len(jax.devices()) < 2,
+        reason="Sharding tests require at least 2 JAX devices",
+    ),
+]
 
 # --------------------------------------------------------------------------- #
 #  Helpers                                                                     #
@@ -49,11 +52,7 @@ def _jax_devices(n):
 
     devices = jax.devices()
     if len(devices) < n:
-        pytest.skip(
-            f"Need at least {n} devices, found {len(devices)}. "
-            "Ensure XLA_FLAGS=--xla_force_host_platform_device_count>=N "
-            "is set before importing JAX."
-        )
+        pytest.skip(f"Need at least {n} devices, found {len(devices)}.")
     return devices[:n]
 
 
@@ -90,6 +89,16 @@ def _setup_distribution(
 
 class _DistributedTestMixin:
     """Shared model builders, data helpers, and sharding introspection."""
+
+    # -- Distribution lifecycle -----------------------------------------------
+
+    def setUp(self):
+        super().setUp()
+        self._saved_distribution = get_distribution()
+
+    def tearDown(self):
+        set_distribution(self._saved_distribution)
+        super().tearDown()
 
     # -- Model builders -------------------------------------------------------
 
@@ -230,9 +239,7 @@ class OrbaxShardedWeightsTest(
                 "output_layer/bias": TensorLayout(axes=(None,)),
             },
         )
-        original_dist = get_distribution()
         set_distribution(dist)
-        self.addCleanup(set_distribution, original_dist)
 
         model = self._build_simple_model()
         x, y = self._make_data(64, 8, 4)
@@ -341,9 +348,7 @@ class OrbaxShardedFullModelTest(
                 "output_layer/kernel": TensorLayout(axes=(None, "model")),
             },
         )
-        original_dist = get_distribution()
         set_distribution(dist)
-        self.addCleanup(set_distribution, original_dist)
 
         model = self._build_simple_model()
         x, y = self._make_data(64, 8, 4)
@@ -433,9 +438,7 @@ class OrbaxShardedFullModelTest(
                 "dense_out/kernel": TensorLayout(axes=("model", None)),
             },
         )
-        original_dist = get_distribution()
         set_distribution(dist)
-        self.addCleanup(set_distribution, original_dist)
 
         # Write a vocabulary file so StringLookup stores it as an asset.
         vocab_dir = self.get_temp_dir()
@@ -548,9 +551,7 @@ class OrbaxShardedFileStructureTest(
                 "dense_layer/kernel": TensorLayout(axes=("model", None)),
             },
         )
-        original_dist = get_distribution()
         set_distribution(dist)
-        self.addCleanup(set_distribution, original_dist)
 
         model = self._build_simple_model()
         x, y = self._make_data(64, 8, 4)
@@ -692,9 +693,6 @@ class OrbaxShardedReshardingTest(
     ):
         """Parametrized resharding: weights remain identical after topology
         change."""
-
-        original_dist = get_distribution()
-        self.addCleanup(set_distribution, original_dist)
 
         # --- Save phase ---
         if save_devices > 0 and save_layout is not None:
