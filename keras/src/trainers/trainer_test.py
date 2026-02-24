@@ -79,6 +79,40 @@ class JaxCustomTrainTestStepModel(ExampleModel):
         return logs, state
 
 
+class SequentialSublayerInTrainStepModel(Trainer, layers.Layer):
+    """Model that calls a Sequential sublayer only inside train_step.
+
+    Used as a regression test for GitHub issue #18459, which reported
+    that calling a Sequential model from a custom train_step during
+    model.fit() incorrectly received KerasTensors instead of real
+    tensors, causing: "A KerasTensor cannot be used as input to a
+    TensorFlow function."
+    """
+
+    def __init__(self, units):
+        layers.Layer.__init__(self)
+        Trainer.__init__(self)
+        self.dense = layers.Dense(
+            units,
+            use_bias=False,
+            kernel_initializer=initializers.Ones(),
+        )
+        # Sequential sublayer used only in train_step, not in call().
+        self.sublayer = models.Sequential(
+            [layers.Rescaling(1.0 / 255.0)]
+        )
+
+    def call(self, x):
+        return self.dense(x)
+
+    def train_step(self, data):
+        x, y = data[0], data[1]
+        # Before the fix for #18459, `x` was a KerasTensor here,
+        # causing an error when passed to the Sequential sublayer.
+        x = self.sublayer(x, training=True)
+        return super().train_step((x, y))
+
+
 class StructModel(Trainer, layers.Layer):
     def __init__(self, units):
         layers.Layer.__init__(self)
@@ -756,6 +790,28 @@ class TestTrainer(testing.TestCase):
         self.assertIn("loss", history)
         self.assertIn("mean_squared_error", history)
         self.assertAllClose(history["my_custom_metric"], 10.0)
+
+    @pytest.mark.requires_trainable_backend
+    def test_sequential_sublayer_in_custom_train_step(self):
+        """Regression test for GitHub issue #18459.
+
+        Calling a Sequential sublayer from a custom train_step during
+        model.fit() must not raise a KerasTensor-related error.
+        """
+        if backend.backend() == "jax":
+            self.skipTest(
+                "JAX train_step uses a different (state, data) signature "
+                "and is not affected by this regression."
+            )
+        model = SequentialSublayerInTrainStepModel(units=3)
+        x = np.ones((32, 4))
+        y = np.zeros((32, 3))
+        model.compile(
+            optimizer=optimizers.SGD(),
+            loss=losses.MeanSquaredError(),
+        )
+        history = model.fit(x, y, batch_size=16)
+        self.assertIn("loss", history.history)
 
     @parameterized.named_parameters(
         named_product(
