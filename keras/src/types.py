@@ -95,9 +95,7 @@ else:
             )
 
         def __init_subclass__(cls, **kwargs):
-            raise TypeError(
-                "keras.types.Tensor cannot be subclassed."
-            )
+            raise TypeError("keras.types.Tensor cannot be subclassed.")
 
     @keras_export("keras.types.Shape")
     class Shape:
@@ -127,9 +125,7 @@ else:
             )
 
         def __init_subclass__(cls, **kwargs):
-            raise TypeError(
-                "keras.types.Shape cannot be subclassed."
-            )
+            raise TypeError("keras.types.Shape cannot be subclassed.")
 
     @keras_export("keras.types.DType")
     class DType:
@@ -160,6 +156,4 @@ else:
             )
 
         def __init_subclass__(cls, **kwargs):
-            raise TypeError(
-                "keras.types.DType cannot be subclassed."
-            )
+            raise TypeError("keras.types.DType cannot be subclassed.")
