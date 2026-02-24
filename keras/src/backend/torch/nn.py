@@ -1,3 +1,5 @@
+import contextlib
+
 import torch
 import torch.nn.functional as tnn
 
@@ -1195,10 +1197,11 @@ def dot_product_attention(
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
 
-    # Disable flash attention when mask or bias is present, as PyTorch's flash
-    # attention and memory-efficient kernels have known GPU issues with masks
-    # (see PyTorch issues #127523, #128119, #97514). The math kernel is the
-    # only reliable fallback.
+    # Criteria for flash attention: we only use it when no mask and no bias
+    # are present (mask is set above for user mask or when bias is used as
+    # mask). When mask or bias is set, PyTorch's flash/memory-efficient
+    # kernels have known GPU issues (see PyTorch issues #127523, #128119,
+    # #97514); we disable flash and use the math kernel instead.
     if mask is not None:
         flash_attention = False
     elif flash_attention is None:
@@ -1211,12 +1214,15 @@ def dot_product_attention(
         _can_use_flash_attention(
             query, key, value, mask, is_causal, raise_error=True
         )
+
+    # When we combined bias with causal mask above we set is_causal=False, so
+    # attn_mask_arg will be that combined mask here; we never discard it.
+    attn_mask_arg = None if is_causal else mask
+
     if flash_attention:
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
-            # We only enter this branch when mask is None and bias is None,
-            # so we can safely pass is_causal without checking for mask.
             attention_output = torch.nn.functional.scaled_dot_product_attention(
                 query,
                 key,
@@ -1226,26 +1232,16 @@ def dot_product_attention(
                 scale=scale,
             )
     else:
-        # Force the math kernel when mask is present, as PyTorch's flash
-        # attention and memory-efficient kernels have known GPU issues with
-        # masks (see PyTorch issues #127523, #128119, #97514). The math
-        # kernel is the only reliable fallback for masks on GPU.
-        attn_mask_arg = None if is_causal else mask
-        if mask is not None:
-            with torch.nn.attention.sdpa_kernel(
+        # Use math kernel when mask is present (avoids GPU issues); otherwise
+        # use default kernel selection.
+        kernel_ctx = (
+            torch.nn.attention.sdpa_kernel(
                 backends=[torch.nn.attention.SDPBackend.MATH],
-            ):
-                attention_output = (
-                    torch.nn.functional.scaled_dot_product_attention(
-                        query,
-                        key,
-                        value,
-                        attn_mask=attn_mask_arg,
-                        is_causal=is_causal,
-                        scale=scale,
-                    )
-                )
-        else:
+            )
+            if mask is not None
+            else contextlib.nullcontext()
+        )
+        with kernel_ctx:
             attention_output = torch.nn.functional.scaled_dot_product_attention(
                 query,
                 key,
