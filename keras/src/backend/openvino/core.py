@@ -602,18 +602,22 @@ class OpenVINOKerasTensor:
         return OpenVINOKerasTensor(ov_opset.logical_xor(other, first).output(0))
 
     def __int__(self):
-        raise ValueError(
-            "An OpenVINOKerasTensor is symbolic: it's a placeholder "
-            "for a shape and a dtype. It doesn't have any actual "
-            "numerical value. You cannot convert it to an int."
-        )
+        arr = self.output.get_node().data
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return int(arr)
 
     def __float__(self):
-        raise ValueError(
-            "An OpenVINOKerasTensor is symbolic: it's a placeholder "
-            "for a shape and a dtype. It doesn't have any actual "
-            "numerical value. You cannot convert it to a float."
-        )
+        arr = self.output.get_node().data
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return float(arr)
 
     def __repr__(self):
         return f"<OpenVINOKerasTensor shape={self.shape}, dtype={self.dtype}>"
