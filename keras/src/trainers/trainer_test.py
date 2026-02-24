@@ -98,17 +98,13 @@ class SequentialSublayerInTrainStepModel(Trainer, layers.Layer):
             kernel_initializer=initializers.Ones(),
         )
         # Sequential sublayer used only in train_step, not in call().
-        self.sublayer = models.Sequential(
-            [layers.Rescaling(1.0 / 255.0)]
-        )
+        self.sublayer = models.Sequential([layers.Rescaling(1.0 / 255.0)])
 
     def call(self, x):
         return self.dense(x)
 
     def train_step(self, data):
         x, y = data[0], data[1]
-        # Before the fix for #18459, `x` was a KerasTensor here,
-        # causing an error when passed to the Sequential sublayer.
         x = self.sublayer(x, training=True)
         return super().train_step((x, y))
 
