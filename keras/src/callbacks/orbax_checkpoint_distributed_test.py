@@ -10,6 +10,7 @@ Tests are automatically skipped when the required device count is not met.
         keras/src/callbacks/orbax_checkpoint_distributed_test.py -xvs
 """
 
+import contextlib
 import os
 
 import jax
@@ -87,17 +88,33 @@ def _setup_distribution(
     return ModelParallel(device_mesh=mesh, layout_map=layout_map)
 
 
+@contextlib.contextmanager
+def _dist_scope(dist):
+    """Context manager that activates *dist* (which may be ``None``) and
+    restores the previous distribution on exit.
+
+    ``Distribution.scope()`` only works on actual Distribution objects;
+    this helper handles the ``None`` (no-distribution) case used in the
+    resharding test variants where one phase is fully replicated.
+    """
+    prev = get_distribution()
+    set_distribution(dist)
+    try:
+        yield
+    finally:
+        set_distribution(prev)
+
+
 class _DistributedTestMixin:
     """Shared model builders, data helpers, and sharding introspection."""
 
     # -- Distribution lifecycle -----------------------------------------------
 
-    def setUp(self):
-        super().setUp()
-        self._saved_distribution = get_distribution()
-
     def tearDown(self):
-        set_distribution(self._saved_distribution)
+        # Clear JAX's JIT compilation cache so sharding state from this
+        # test cannot leak into subsequent tests.
+        if backend.backend() == "jax":
+            jax.clear_caches()
         super().tearDown()
 
     # -- Model builders -------------------------------------------------------
@@ -239,26 +256,34 @@ class OrbaxShardedWeightsTest(
                 "output_layer/bias": TensorLayout(axes=(None,)),
             },
         )
-        set_distribution(dist)
-
-        model = self._build_simple_model()
         x, y = self._make_data(64, 8, 4)
-
         ckpt_dir = os.path.join(self.get_temp_dir(), "weights_rt")
-        cb = OrbaxCheckpoint(
-            directory=ckpt_dir,
-            save_freq="epoch",
-            save_weights_only=True,
-            save_on_background=save_on_background,
-        )
-        model.fit(x, y, epochs=2, batch_size=16, callbacks=[cb], verbose=0)
+
+        # Create the model *inside* the distribution scope so that every
+        # variable — trainable weights, optimizer slots, and lazily-built
+        # metrics variables — is initialised with NamedSharding.  This is
+        # the canonical pattern recommended by the Keras distribution API:
+        #   keras.distribution.set_distribution(dist)
+        #   model = create_model()   # all vars get NamedSharding
+        #   model.compile(...)       # still inside scope
+        #   model.fit(...)           # optimizer/metrics vars also inside scope
+        with dist.scope():
+            model = self._build_simple_model()
+            cb = OrbaxCheckpoint(
+                directory=ckpt_dir,
+                save_freq="epoch",
+                save_weights_only=True,
+                save_on_background=save_on_background,
+            )
+            model.fit(x, y, epochs=2, batch_size=16, callbacks=[cb], verbose=0)
         cb.wait_until_finished()
 
         orig_specs = self._get_sharding_specs(model)
 
-        # Restore into a fresh model under the same distribution.
-        fresh = self._build_simple_model()
-        fresh.load_weights(ckpt_dir)
+        # Restore into a fresh model under the same distribution scope.
+        with dist.scope():
+            fresh = self._build_simple_model()
+            fresh.load_weights(ckpt_dir)
 
         # Global weight equality.
         self._assert_weights_equal(model, fresh)
@@ -348,19 +373,21 @@ class OrbaxShardedFullModelTest(
                 "output_layer/kernel": TensorLayout(axes=(None, "model")),
             },
         )
-        set_distribution(dist)
-
-        model = self._build_simple_model()
         x, y = self._make_data(64, 8, 4)
-
         ckpt_dir = os.path.join(self.get_temp_dir(), "full_rt")
-        cb = OrbaxCheckpoint(
-            directory=ckpt_dir,
-            save_freq="epoch",
-            save_weights_only=False,
-            save_on_background=save_on_background,
-        )
-        model.fit(x, y, epochs=2, batch_size=16, callbacks=[cb], verbose=0)
+
+        # Build and train entirely inside the distribution scope so that
+        # trainable weights, optimizer slots, and metrics variables are all
+        # created with NamedSharding (no SingleDeviceSharding mix).
+        with dist.scope():
+            model = self._build_simple_model()
+            cb = OrbaxCheckpoint(
+                directory=ckpt_dir,
+                save_freq="epoch",
+                save_weights_only=False,
+                save_on_background=save_on_background,
+            )
+            model.fit(x, y, epochs=2, batch_size=16, callbacks=[cb], verbose=0)
         cb.wait_until_finished()
 
         original_weights = model.get_weights()
@@ -438,7 +465,6 @@ class OrbaxShardedFullModelTest(
                 "dense_out/kernel": TensorLayout(axes=("model", None)),
             },
         )
-        set_distribution(dist)
 
         # Write a vocabulary file so StringLookup stores it as an asset.
         vocab_dir = self.get_temp_dir()
@@ -447,23 +473,30 @@ class OrbaxShardedFullModelTest(
         with open(vocab_file, "w") as f:
             f.write("\n".join(vocab_words))
 
-        string_lookup = layers.StringLookup(
-            vocabulary=vocab_file,
-            output_mode="int",
-            name="string_lookup_layer",
-        )
+        # Build and compile the model inside the distribution scope so that
+        # all Dense-layer variables are created with NamedSharding.
+        # (StringLookup / Embedding have no mapped tensors, so they default
+        # to fully-replicated NamedSharding inside the same scope.)
+        with dist.scope():
+            string_lookup = layers.StringLookup(
+                vocabulary=vocab_file,
+                output_mode="int",
+                name="string_lookup_layer",
+            )
 
-        # Build a model mixing asset layers with shardable Dense layers.
-        str_input = layers.Input(shape=(1,), dtype="string", name="str_input")
-        looked_up = string_lookup(str_input)
-        embedded = layers.Embedding(
-            input_dim=10, output_dim=8, name="embedding"
-        )(looked_up)
-        flat = layers.Flatten(name="flatten")(embedded)
-        # Dense with dim=4 sharded across 2 devices → (8, 4)
-        outputs = layers.Dense(4, name="dense_out")(flat)
-        model = models.Model(str_input, outputs, name="model_with_assets")
-        model.compile(optimizer="adam", loss="mse")
+            # Build a model mixing asset layers with shardable Dense layers.
+            str_input = layers.Input(
+                shape=(1,), dtype="string", name="str_input"
+            )
+            looked_up = string_lookup(str_input)
+            embedded = layers.Embedding(
+                input_dim=10, output_dim=8, name="embedding"
+            )(looked_up)
+            flat = layers.Flatten(name="flatten")(embedded)
+            # Dense with dim=4 sharded across 2 devices → (8, 4)
+            outputs = layers.Dense(4, name="dense_out")(flat)
+            model = models.Model(str_input, outputs, name="model_with_assets")
+            model.compile(optimizer="adam", loss="mse")
 
         original_vocab = string_lookup.get_vocabulary()
         original_weights = model.get_weights()
@@ -551,19 +584,20 @@ class OrbaxShardedFileStructureTest(
                 "dense_layer/kernel": TensorLayout(axes=("model", None)),
             },
         )
-        set_distribution(dist)
-
-        model = self._build_simple_model()
         x, y = self._make_data(64, 8, 4)
-
         ckpt_dir = os.path.join(self.get_temp_dir(), "struct")
-        cb = OrbaxCheckpoint(
-            directory=ckpt_dir,
-            save_freq="epoch",
-            save_weights_only=True,
-            max_to_keep=2,
-        )
-        model.fit(x, y, epochs=2, batch_size=16, callbacks=[cb], verbose=0)
+
+        # Create model and train inside distribution scope so every variable
+        # gets NamedSharding from the start.
+        with dist.scope():
+            model = self._build_simple_model()
+            cb = OrbaxCheckpoint(
+                directory=ckpt_dir,
+                save_freq="epoch",
+                save_weights_only=True,
+                max_to_keep=2,
+            )
+            model.fit(x, y, epochs=2, batch_size=16, callbacks=[cb], verbose=0)
         cb.wait_until_finished()
 
         # --- Directory structure checks ---
@@ -695,47 +729,46 @@ class OrbaxShardedReshardingTest(
         change."""
 
         # --- Save phase ---
-        if save_devices > 0 and save_layout is not None:
-            save_dist = _setup_distribution(
+        # Build the distribution (or None for fully-replicated) and create
+        # the model *inside* the scope so all variables get NamedSharding
+        # (or default replicated sharding) from the start.
+        save_dist = (
+            _setup_distribution(
                 save_devices,
-                {
-                    "dense_layer/kernel": TensorLayout(axes=save_layout),
-                },
+                {"dense_layer/kernel": TensorLayout(axes=save_layout)},
             )
-            set_distribution(save_dist)
-        else:
-            set_distribution(None)
-
-        model = self._build_simple_model()
-        x, y = self._make_data(64, 8, 4)
-
-        ckpt_dir = os.path.join(self.get_temp_dir(), "reshard")
-        cb = OrbaxCheckpoint(
-            directory=ckpt_dir,
-            save_freq="epoch",
-            save_weights_only=True,
+            if save_devices > 0 and save_layout is not None
+            else None
         )
-        model.fit(x, y, epochs=1, batch_size=16, callbacks=[cb], verbose=0)
+        x, y = self._make_data(64, 8, 4)
+        x_test, _ = self._make_data(8, 8, 4, seed=42)
+        ckpt_dir = os.path.join(self.get_temp_dir(), "reshard")
+
+        with _dist_scope(save_dist):
+            model = self._build_simple_model()
+            cb = OrbaxCheckpoint(
+                directory=ckpt_dir,
+                save_freq="epoch",
+                save_weights_only=True,
+            )
+            model.fit(x, y, epochs=1, batch_size=16, callbacks=[cb], verbose=0)
+            original_weights = model.get_weights()
+            original_preds = model.predict(x_test, verbose=0)
         cb.wait_until_finished()
 
-        original_weights = model.get_weights()
-        x_test, _ = self._make_data(8, 8, 4, seed=42)
-        original_preds = model.predict(x_test, verbose=0)
-
         # --- Load phase ---
-        if load_devices > 0 and load_layout is not None:
-            load_dist = _setup_distribution(
+        load_dist = (
+            _setup_distribution(
                 load_devices,
-                {
-                    "dense_layer/kernel": TensorLayout(axes=load_layout),
-                },
+                {"dense_layer/kernel": TensorLayout(axes=load_layout)},
             )
-            set_distribution(load_dist)
-        else:
-            set_distribution(None)
+            if load_devices > 0 and load_layout is not None
+            else None
+        )
 
-        fresh = self._build_simple_model()
-        fresh.load_weights(ckpt_dir)
+        with _dist_scope(load_dist):
+            fresh = self._build_simple_model()
+            fresh.load_weights(ckpt_dir)
 
         # Global weights identical regardless of topology.
         for o, l in zip(original_weights, fresh.get_weights()):
