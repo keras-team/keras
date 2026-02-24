@@ -1633,6 +1633,26 @@ def gcd(x1, x2):
     return gcd_val
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    start = convert_to_tensor(start)
+    stop = convert_to_tensor(stop)
+    log_start = tf.math.log(tf.cast(tf.abs(start), dtype or config.floatx()))
+    log_stop = tf.math.log(tf.cast(tf.abs(stop), dtype or config.floatx()))
+    log_base = tf.math.log(tf.constant(10.0, dtype=log_start.dtype))
+    result = logspace(
+        log_start / log_base,
+        log_stop / log_base,
+        num=num,
+        endpoint=endpoint,
+        base=10,
+        dtype=dtype,
+        axis=axis,
+    )
+    # Handle sign: start and stop must have the same sign (or be zero)
+    start_sign = tf.cast(tf.sign(tf.cast(start, log_start.dtype)), result.dtype)
+    return result * start_sign
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -2238,6 +2258,11 @@ def nanprod(x, axis=None, keepdims=False):
 
     x_safe = tf.where(tf.math.is_nan(x), tf.ones((), dtype=x.dtype), x)
     return prod(x_safe, axis=axis, keepdims=keepdims)
+
+
+def nanstd(x, axis=None, keepdims=False):
+    var_val = nanvar(x, axis=axis, keepdims=keepdims)
+    return tf.sqrt(var_val)
 
 
 def nansum(x, axis=None, keepdims=False):

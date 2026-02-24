@@ -1880,6 +1880,50 @@ def gcd(x1, x2):
     return results[0]
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    start = get_ov_output(start)
+    stop = get_ov_output(stop)
+
+    if dtype is None:
+        output_type = OPENVINO_DTYPES[config.floatx()]
+    else:
+        output_type = OPENVINO_DTYPES[dtype]
+
+    start = ov_opset.convert(start, output_type).output(0)
+    stop = ov_opset.convert(stop, output_type).output(0)
+
+    abs_start = ov_opset.abs(start).output(0)
+    abs_stop = ov_opset.abs(stop).output(0)
+
+    log_start = ov_opset.log(abs_start).output(0)
+    log_stop = ov_opset.log(abs_stop).output(0)
+
+    const_10 = ov_opset.constant(10.0, output_type).output(0)
+    log_10 = ov_opset.log(const_10).output(0)
+
+    log10_start = ov_opset.divide(log_start, log_10).output(0)
+    log10_stop = ov_opset.divide(log_stop, log_10).output(0)
+
+    result = logspace(
+        OpenVINOKerasTensor(log10_start),
+        OpenVINOKerasTensor(log10_stop),
+        num=num,
+        endpoint=endpoint,
+        base=10,
+        dtype=dtype,
+        axis=axis,
+    )
+
+    if num == 0:
+        return result
+
+    start_sign = ov_opset.sign(start).output(0)
+    result_output = get_ov_output(result)
+    return OpenVINOKerasTensor(
+        ov_opset.multiply(result_output, start_sign).output(0)
+    )
+
+
 def greater(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
@@ -2913,6 +2957,10 @@ def nanprod(x, axis=None, keepdims=False):
 
     result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
     return OpenVINOKerasTensor(result)
+
+
+def nanstd(x, axis=None, keepdims=False):
+    raise NotImplementedError("`nanstd` is not supported with openvino backend")
 
 
 def nansum(x, axis=None, keepdims=False):
