@@ -56,9 +56,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
         # Forward pass
         with tf.GradientTape() as tape:
             if self._call_has_training_arg:
-                y_pred = self(x, training=True, **self._call_context_kwargs)
+                y_pred = self(x, training=True)
             else:
-                y_pred = self(x, **self._call_context_kwargs)
+                y_pred = self(x)
             loss = self._compute_loss(
                 x=x,
                 y=y,
@@ -90,9 +90,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
     def test_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
         if self._call_has_training_arg:
-            y_pred = self(x, training=False, **self._call_context_kwargs)
+            y_pred = self(x, training=False)
         else:
-            y_pred = self(x, **self._call_context_kwargs)
+            y_pred = self(x)
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
@@ -107,9 +107,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
         if self._call_has_training_arg:
-            y_pred = self(x, training=False, **self._call_context_kwargs)
+            y_pred = self(x, training=False)
         else:
-            y_pred = self(x, **self._call_context_kwargs)
+            y_pred = self(x)
         return y_pred
 
     def _autoconvert_optionals(self, step_func):
@@ -330,9 +330,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         validation_steps=None,
         validation_batch_size=None,
         validation_freq=1,
-        **kwargs,
     ):
-        self._call_context_kwargs = kwargs
         self._assert_compile_called("fit")
         # Possibly cap epochs for debugging runs.
         max_epochs = config.max_epochs()
@@ -470,9 +468,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
         self._assert_compile_called("evaluate")
         # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
-        # Store remaining kwargs as call context kwargs for propagation
-        # to sublayers via _register_call_context_args.
-        self._call_context_kwargs = kwargs
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
 
         if use_cached_eval_dataset:
             epoch_iterator = self._eval_epoch_iterator
@@ -524,15 +521,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self,
-        x,
-        batch_size=None,
-        verbose="auto",
-        steps=None,
-        callbacks=None,
-        **kwargs,
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
-        self._call_context_kwargs = kwargs
         # Create an iterator that yields batches of input data.
         epoch_iterator = TFEpochIterator(
             x=x,

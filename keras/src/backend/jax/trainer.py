@@ -52,7 +52,6 @@ class JAXTrainer(base_trainer.Trainer):
         kwargs = {}
         if self._call_has_training_arg:
             kwargs["training"] = training
-        kwargs.update(self._call_context_kwargs)
 
         # Run stateless forward pass
         y_pred, non_trainable_variables, losses = self.stateless_call(
@@ -202,7 +201,6 @@ class JAXTrainer(base_trainer.Trainer):
         kwargs = {}
         if self._call_has_training_arg:
             kwargs["training"] = False
-        kwargs.update(self._call_context_kwargs)
 
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
         outputs, non_trainable_variables = self.stateless_call(
@@ -380,9 +378,7 @@ class JAXTrainer(base_trainer.Trainer):
         validation_steps=None,
         validation_batch_size=None,
         validation_freq=1,
-        **kwargs,
     ):
-        self._call_context_kwargs = kwargs
         self._assert_compile_called("fit")
         # Possibly cap epochs for debugging runs.
         max_epochs = config.max_epochs()
@@ -567,7 +563,8 @@ class JAXTrainer(base_trainer.Trainer):
         self._assert_compile_called("evaluate")
         # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
-        self._call_context_kwargs = kwargs
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
 
         if use_cached_eval_dataset:
             epoch_iterator = self._eval_epoch_iterator
@@ -655,15 +652,8 @@ class JAXTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self,
-        x,
-        batch_size=None,
-        verbose="auto",
-        steps=None,
-        callbacks=None,
-        **kwargs,
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
-        self._call_context_kwargs = kwargs
         # Create an iterator that yields batches of input data.
         epoch_iterator = JAXEpochIterator(
             x=x,

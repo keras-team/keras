@@ -29,9 +29,6 @@ class Trainer:
         self._compute_loss_has_training_arg = (
             "training" in inspect.signature(self.compute_loss).parameters
         )
-        # Custom call context kwargs (e.g. from _register_call_context_args)
-        # that should be forwarded to self() during train/test/predict steps.
-        self._call_context_kwargs = {}
 
         # Placeholders used in `compile`
         self._compile_loss = None
@@ -552,7 +549,6 @@ class Trainer:
         validation_steps=None,
         validation_batch_size=None,
         validation_freq=1,
-        **kwargs,
     ):
         """Trains the model for a fixed number of epochs (dataset iterations).
 
@@ -833,13 +829,7 @@ class Trainer:
         raise NotImplementedError
 
     def predict(
-        self,
-        x,
-        batch_size=None,
-        verbose="auto",
-        steps=None,
-        callbacks=None,
-        **kwargs,
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         """Generates output predictions for the input samples.
 

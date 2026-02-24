@@ -43,9 +43,9 @@ class TorchTrainer(base_trainer.Trainer):
 
         # Compute predictions
         if self._call_has_training_arg:
-            y_pred = self(x, training=True, **self._call_context_kwargs)
+            y_pred = self(x, training=True)
         else:
-            y_pred = self(x, **self._call_context_kwargs)
+            y_pred = self(x)
 
         # Call torch.nn.Module.zero_grad() to clear the leftover gradients
         # for the weights from the previous train step.
@@ -87,9 +87,9 @@ class TorchTrainer(base_trainer.Trainer):
             sample_weight,
         ) = data_adapter_utils.unpack_x_y_sample_weight(data)
         if self._call_has_training_arg:
-            y_pred = self(x, training=False, **self._call_context_kwargs)
+            y_pred = self(x, training=False)
         else:
-            y_pred = self(x, **self._call_context_kwargs)
+            y_pred = self(x)
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
@@ -104,9 +104,9 @@ class TorchTrainer(base_trainer.Trainer):
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
         if self._call_has_training_arg:
-            y_pred = self(x, training=False, **self._call_context_kwargs)
+            y_pred = self(x, training=False)
         else:
-            y_pred = self(x, **self._call_context_kwargs)
+            y_pred = self(x)
         return y_pred
 
     def make_train_function(self, force=False):
@@ -190,9 +190,7 @@ class TorchTrainer(base_trainer.Trainer):
         validation_steps=None,
         validation_batch_size=None,
         validation_freq=1,
-        **kwargs,
     ):
-        self._call_context_kwargs = kwargs
         if not self.compiled:
             raise ValueError(
                 "You must call `compile()` before calling `fit()`."
@@ -344,7 +342,8 @@ class TorchTrainer(base_trainer.Trainer):
     ):
         # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
-        self._call_context_kwargs = kwargs
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
 
         if use_cached_eval_dataset:
             epoch_iterator = self._eval_epoch_iterator
@@ -397,15 +396,8 @@ class TorchTrainer(base_trainer.Trainer):
 
     @traceback_utils.filter_traceback
     def predict(
-        self,
-        x,
-        batch_size=None,
-        verbose="auto",
-        steps=None,
-        callbacks=None,
-        **kwargs,
+        self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
-        self._call_context_kwargs = kwargs
         # Create an iterator that yields batches of input data.
         epoch_iterator = TorchEpochIterator(
             x=x,
