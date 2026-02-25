@@ -11,6 +11,12 @@ from keras.src import saving
 from keras.src import testing
 from keras.src import utils
 from keras.src.callbacks.orbax_checkpoint import OrbaxCheckpoint
+from keras.src.distribution import DeviceMesh
+from keras.src.distribution import LayoutMap
+from keras.src.distribution import ModelParallel
+from keras.src.distribution import TensorLayout
+from keras.src.distribution import distribution as get_distribution
+from keras.src.distribution import set_distribution
 from keras.src.saving import register_keras_serializable
 
 
@@ -29,6 +35,66 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         x = np.random.randn(num_samples, 10)
         y = np.random.randn(num_samples, 2)  # Match 2 outputs
         return x, y
+
+    # Shared constants for distributed tests — fixed sizes divisible by
+    # 1, 2, 4, and 8 devices.
+    _DIST_DENSE_UNITS = 32
+    _DIST_OUT_UNITS = 16
+    _DIST_NUM_SAMPLES = 64
+    _DIST_PREDICT_BATCH = 8
+
+    def _setup_distributed_test(self):
+        """Validate distributed prerequisites and return common objects.
+
+        Returns:
+            (num_devices, device_mesh, original_distribution)
+
+        Calls self.skipTest if fewer than 2 devices are available or if
+        the fixed layer sizes don't divide evenly by num_devices.
+        """
+        import jax
+
+        devices = jax.devices()
+        num_devices = len(devices)
+        if num_devices < 2:
+            self.skipTest(
+                "Test requires distributed setup with multiple devices"
+            )
+        if (
+            self._DIST_DENSE_UNITS % num_devices != 0
+            or self._DIST_OUT_UNITS % num_devices != 0
+        ):
+            self.skipTest(
+                f"num_devices={num_devices} does not evenly divide "
+                f"dense_units={self._DIST_DENSE_UNITS} or "
+                f"out_units={self._DIST_OUT_UNITS}"
+            )
+        device_mesh = DeviceMesh(
+            (num_devices,), axis_names=["data"], devices=devices
+        )
+        return num_devices, device_mesh, get_distribution()
+
+    def _build_distributed_model(self, dense_units, out_units):
+        """Build and compile the shared two-layer functional model."""
+        inputs_l = layers.Input(shape=(10,), name="input_layer")
+        h = layers.Dense(dense_units, name="dense_layer")(inputs_l)
+        outputs_l = layers.Dense(out_units, name="output_layer")(h)
+        model = models.Model(inputs_l, outputs_l, name="test_model")
+        model.compile(optimizer="adam", loss="mse")
+        return model
+
+    def _make_layout_map(self, device_mesh, *layer_names):
+        """Build a LayoutMap that shards kernel+bias for each named layer.
+
+        Each named Dense layer's kernel is sharded along the output-units
+        axis (axes=(None, "data")) and its bias along axis 0 (axes=("data",)).
+        Layers not listed are left replicated.
+        """
+        layout_map = LayoutMap(device_mesh)
+        for name in layer_names:
+            layout_map[f"{name}/kernel"] = TensorLayout(axes=(None, "data"))
+            layout_map[f"{name}/bias"] = TensorLayout(axes=("data",))
+        return layout_map
 
     @parameterized.parameters(
         {"save_freq": 10, "epochs": 1, "batch_size": 5},  # batch-level
@@ -298,102 +364,52 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         All predict/load calls stay inside the distribution scope so that
         JAX JIT sees the correct context mesh for sharded variables.
         """
-        import jax
-
-        from keras.src.distribution import DeviceMesh
-        from keras.src.distribution import LayoutMap
-        from keras.src.distribution import ModelParallel
-        from keras.src.distribution import TensorLayout
-        from keras.src.distribution import distribution as get_distribution
-        from keras.src.distribution import set_distribution
-
-        # Use all available devices; skip if fewer than 2.
-        devices = jax.devices()
-        num_devices = len(devices)
-        if num_devices < 2:
-            self.skipTest(
-                "Test requires distributed setup with multiple devices"
-            )
-
-        print(f"Available devices: {devices}, using {num_devices} devices")
-
-        # Build a 1-D mesh over all devices.
-        device_mesh = DeviceMesh(
-            (num_devices,), axis_names=["data"], devices=devices
-        )
-        layout_map = LayoutMap(device_mesh)
-        # Shard the output-units axis of each kernel — those are multiples of
-        # num_devices (set below), so sharding is always even.
-        layout_map["dense_layer/kernel"] = TensorLayout(axes=(None, "data"))
-        layout_map["dense_layer/bias"] = TensorLayout(axes=("data",))
-        layout_map["output_layer/kernel"] = TensorLayout(axes=(None, "data"))
-        layout_map["output_layer/bias"] = TensorLayout(axes=("data",))
-
-        distribution = ModelParallel(
-            device_mesh=device_mesh, layout_map=layout_map
+        num_devices, device_mesh, original_distribution = (
+            self._setup_distributed_test()
         )
 
-        original_distribution = get_distribution()
+        layout_map = self._make_layout_map(
+            device_mesh, "dense_layer", "output_layer"
+        )
+
+        dense_units = self._DIST_DENSE_UNITS
+        out_units = self._DIST_OUT_UNITS
+        predict_batch = self._DIST_PREDICT_BATCH
 
         try:
-            set_distribution(distribution)
+            set_distribution(ModelParallel(layout_map=layout_map))
+            model = self._build_distributed_model(dense_units, out_units)
 
-            # Layer sizes are multiples of num_devices → sharding always even.
-            dense_units = num_devices * 4
-            out_units = num_devices * 2
-            inputs_l = layers.Input(shape=(10,), name="input_layer")
-            h = layers.Dense(dense_units, name="dense_layer")(inputs_l)
-            outputs_l = layers.Dense(out_units, name="output_layer")(h)
-            model = models.Model(inputs_l, outputs_l, name="test_model")
-            model.compile(optimizer="adam", loss="mse")
-
-            # num_samples and predict_batch must be divisible by num_devices.
-            num_samples = num_devices * 8
-            predict_batch = num_devices * 2
-            x = np.random.randn(num_samples, 10)
-            y = np.random.randn(num_samples, out_units)
+            x = np.random.randn(self._DIST_NUM_SAMPLES, 10)
+            y = np.random.randn(self._DIST_NUM_SAMPLES, out_units)
 
             checkpoint_dir = os.path.join(
                 self.get_temp_dir(), "test_distributed_checkpoint"
             )
             callback = OrbaxCheckpoint(
-                directory=checkpoint_dir,
-                save_freq="epoch",
+                directory=checkpoint_dir, save_freq="epoch"
             )
-
-            # Train to create a full-model checkpoint (weights + optimizer).
             model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
 
             original_predictions = model.predict(x[:predict_batch], verbose=0)
             original_weights = model.get_weights()
             original_opt_vars = [v.numpy() for v in model.optimizer.variables]
 
-            # Load full model (config + weights + optimizer state) via
-            # saving.load_model — must stay inside the scope so JAX JIT
-            # compiles predict with the correct context mesh.
             loaded = saving.load_model(checkpoint_dir)
 
-            # Weights match.
             for orig, lw in zip(original_weights, loaded.get_weights()):
                 self.assertAllClose(orig, lw)
-
-            # Optimizer state matches.
             for orig, lv in zip(original_opt_vars, loaded.optimizer.variables):
                 self.assertAllClose(orig, lv)
 
-            # Predictions match.
             loaded_predictions = loaded.predict(x[:predict_batch], verbose=0)
             self.assertAllClose(original_predictions, loaded_predictions)
 
-            # Architecture and compilation restored.
             self.assertEqual(model.name, loaded.name)
             self.assertEqual(len(model.layers), len(loaded.layers))
             self.assertTrue(loaded.compiled)
-
-            # Distribution still active and correct type.
             self.assertEqual(type(get_distribution()), ModelParallel)
 
-            # Variable sharding specs match between original and loaded model.
             original_shardings = {
                 var.path: var.value.sharding
                 for var in model.variables
@@ -412,7 +428,98 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
                         f"Sharding mismatch for variable {path}",
                     )
 
-            print("Distributed checkpoint functionality and sharding verified")
+        finally:
+            if original_distribution is not None:
+                set_distribution(original_distribution)
+            else:
+                try:
+                    set_distribution(None)
+                except Exception:
+                    pass
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Requires JAX backend for distribution",
+    )
+    def test_distributed_checkpoint_resharding(self):
+        """Test that a checkpoint saved under one LayoutMap can be loaded
+        under a different LayoutMap (resharding on load).
+
+        Saves with dense_layer sharded, loads with output_layer sharded
+        instead, verifying that weights are correctly mapped regardless
+        of the change in sharding layout.
+        """
+        num_devices, device_mesh, original_distribution = (
+            self._setup_distributed_test()
+        )
+
+        # Layout A: shard dense_layer only.
+        layout_map_a = self._make_layout_map(device_mesh, "dense_layer")
+        # Layout B: shard output_layer only.
+        layout_map_b = self._make_layout_map(device_mesh, "output_layer")
+
+        dense_units = self._DIST_DENSE_UNITS
+        out_units = self._DIST_OUT_UNITS
+        predict_batch = self._DIST_PREDICT_BATCH
+        checkpoint_dir = os.path.join(
+            self.get_temp_dir(), "test_distributed_resharding"
+        )
+
+        try:
+            set_distribution(ModelParallel(layout_map=layout_map_a))
+            model = self._build_distributed_model(dense_units, out_units)
+
+            x = np.random.randn(self._DIST_NUM_SAMPLES, 10)
+            y = np.random.randn(self._DIST_NUM_SAMPLES, out_units)
+
+            callback = OrbaxCheckpoint(
+                directory=checkpoint_dir, save_freq="epoch"
+            )
+            model.fit(x, y, epochs=1, callbacks=[callback], verbose=0)
+            original_weights = model.get_weights()
+            original_predictions = model.predict(x[:predict_batch], verbose=0)
+
+            def _shard_shape(model, var_path):
+                """Return the per-device shard shape for a variable.
+
+                A sharded axis holds full_size/num_devices elements per
+                device; a replicated axis holds the full size.
+                """
+                var = next(v for v in model.variables if v.path == var_path)
+                return var.value.addressable_shards[0].data.shape
+
+            # Under Layout A: dense_layer/kernel (10, 32) is sharded along
+            # axis 1 → shard shape (10, 32//num_devices).
+            # output_layer/kernel (32, 16) is replicated → full shape (32, 16).
+            self.assertEqual(
+                _shard_shape(model, "dense_layer/kernel"),
+                (10, dense_units // num_devices),
+            )
+            self.assertEqual(
+                _shard_shape(model, "output_layer/kernel"),
+                (dense_units, out_units),
+            )
+
+            set_distribution(ModelParallel(layout_map=layout_map_b))
+            loaded = saving.load_model(checkpoint_dir)
+
+            for orig, lw in zip(original_weights, loaded.get_weights()):
+                self.assertAllClose(orig, lw)
+
+            loaded_predictions = loaded.predict(x[:predict_batch], verbose=0)
+            self.assertAllClose(original_predictions, loaded_predictions)
+
+            # After resharding to Layout B: output_layer/kernel (32, 16) is
+            # now sharded along axis 1 → shard shape (32, 16//num_devices).
+            # dense_layer/kernel (10, 32) is now replicated → full shape.
+            self.assertEqual(
+                _shard_shape(loaded, "output_layer/kernel"),
+                (dense_units, out_units // num_devices),
+            )
+            self.assertEqual(
+                _shard_shape(loaded, "dense_layer/kernel"),
+                (10, dense_units),
+            )
 
         finally:
             if original_distribution is not None:
