@@ -33,9 +33,6 @@ from keras.src.distribution import set_distribution
 
 # All tests in this file require JAX backend with at least 2 devices.
 pytestmark = [
-    pytest.mark.skip(
-        reason="Temporarily disabled: pending fix for GPU CI sharding failures"
-    ),
     pytest.mark.skipif(
         backend.backend() != "jax",
         reason="Sharding tests require JAX backend",
@@ -301,68 +298,70 @@ class OrbaxShardedWeightsTest(
         orig_specs = self._get_sharding_specs(model)
 
         # Restore into a fresh model under the same distribution scope.
+        # All assertions — including predict() — must stay inside the scope
+        # so that JAX JIT sees the correct context mesh for sharded vars.
+        x_test, _ = self._make_data(8, 8, 4, seed=42)
         with dist.scope():
             fresh = self._build_simple_model()
             fresh.load_weights(ckpt_dir)
 
-        # Global weight equality.
-        self._assert_weights_equal(model, fresh)
+            # Global weight equality.
+            self._assert_weights_equal(model, fresh)
 
-        # Per-shard data equality.
-        self._assert_shards_equal(model, fresh)
+            # Per-shard data equality.
+            self._assert_shards_equal(model, fresh)
 
-        # Sharding spec equality.
-        loaded_specs = self._get_sharding_specs(fresh)
-        for path, spec in orig_specs.items():
-            if path in loaded_specs:
-                self.assertEqual(
-                    str(spec),
-                    str(loaded_specs[path]),
-                    msg=f"Sharding spec mismatch for {path}",
-                )
+            # Sharding spec equality.
+            loaded_specs = self._get_sharding_specs(fresh)
+            for path, spec in orig_specs.items():
+                if path in loaded_specs:
+                    self.assertEqual(
+                        str(spec),
+                        str(loaded_specs[path]),
+                        msg=f"Sharding spec mismatch for {path}",
+                    )
 
-        # Prediction equality.
-        x_test, _ = self._make_data(8, 8, 4, seed=42)
-        self._assert_predictions_equal(model, fresh, x_test)
+            # Prediction equality (predict() JIT-compiles with context mesh).
+            self._assert_predictions_equal(model, fresh, x_test)
 
-        # --- Verify default replication for un-mapped variables ---
-        # Variables NOT in the LayoutMap (e.g. biases when only
-        # kernels are mapped) must default to fully replicated.
-        # If a variable accidentally gets sharded when it shouldn't
-        # be, it causes silent calculation errors or broadcasting
-        # issues.
-        #
-        # The layout_entries above map dense_layer/kernel,
-        # dense_layer/bias, output_layer/kernel, output_layer/bias.
-        # Optimizer variables that do NOT correspond to any mapped
-        # variable, and any other non-mapped model var, should be
-        # fully replicated (PartitionSpec with all None axes).
-        explicitly_mapped = {
-            "dense_layer/kernel",
-            "dense_layer/bias",
-            "output_layer/kernel",
-            "output_layer/bias",
-        }
-        for var in fresh.variables:
-            jax_arr = var.value
-            if not hasattr(jax_arr, "sharding"):
-                continue
-            # Skip variables that were explicitly mapped.
-            is_mapped = any(pat in var.path for pat in explicitly_mapped)
-            if is_mapped:
-                continue
-            # This variable was NOT in the LayoutMap — it must be
-            # fully replicated (all axes None in PartitionSpec).
-            sharding = jax_arr.sharding
-            if isinstance(sharding, jax.sharding.NamedSharding):
-                self.assertTrue(
-                    all(a is None for a in sharding.spec),
-                    msg=(
-                        f"Variable {var.path} is NOT in the "
-                        f"LayoutMap but has non-trivial sharding "
-                        f"{sharding.spec}; expected fully replicated"
-                    ),
-                )
+            # --- Verify default replication for un-mapped variables ---
+            # Variables NOT in the LayoutMap (e.g. biases when only
+            # kernels are mapped) must default to fully replicated.
+            # If a variable accidentally gets sharded when it shouldn't
+            # be, it causes silent calculation errors or broadcasting
+            # issues.
+            #
+            # The layout_entries above map dense_layer/kernel,
+            # dense_layer/bias, output_layer/kernel, output_layer/bias.
+            # Optimizer variables that do NOT correspond to any mapped
+            # variable, and any other non-mapped model var, should be
+            # fully replicated (PartitionSpec with all None axes).
+            explicitly_mapped = {
+                "dense_layer/kernel",
+                "dense_layer/bias",
+                "output_layer/kernel",
+                "output_layer/bias",
+            }
+            for var in fresh.variables:
+                jax_arr = var.value
+                if not hasattr(jax_arr, "sharding"):
+                    continue
+                # Skip variables that were explicitly mapped.
+                is_mapped = any(pat in var.path for pat in explicitly_mapped)
+                if is_mapped:
+                    continue
+                # This variable was NOT in the LayoutMap — it must be
+                # fully replicated (all axes None in PartitionSpec).
+                sharding = jax_arr.sharding
+                if isinstance(sharding, jax.sharding.NamedSharding):
+                    self.assertTrue(
+                        all(a is None for a in sharding.spec),
+                        msg=(
+                            f"Variable {var.path} is NOT in the "
+                            f"LayoutMap but has non-trivial sharding "
+                            f"{sharding.spec}; expected fully replicated"
+                        ),
+                    )
 
 
 # =========================================================================== #
@@ -412,60 +411,63 @@ class OrbaxShardedFullModelTest(
 
         original_weights = model.get_weights()
 
-        loaded = saving.load_model(ckpt_dir)
-
-        # Weights match.
-        for o, l in zip(original_weights, loaded.get_weights()):
-            self.assertAllClose(o, l)
-
-        # Predictions match.
+        # load_model and all predictions/assertions must stay inside the
+        # distribution scope so JAX JIT sees the correct context mesh.
         x_test, _ = self._make_data(8, 8, 4, seed=42)
-        self._assert_predictions_equal(model, loaded, x_test)
+        with dist.scope():
+            loaded = saving.load_model(ckpt_dir)
 
-        # Architecture and compilation restored.
-        self.assertEqual(model.name, loaded.name)
-        self.assertEqual(len(model.layers), len(loaded.layers))
-        self.assertTrue(loaded.compiled)
+            # Weights match.
+            for o, l in zip(original_weights, loaded.get_weights()):
+                self.assertAllClose(o, l)
 
-        # --- Verify optimizer state sharding ---
-        # Optimizer variables whose name references a sharded
-        # model variable should themselves be sharded.
-        sharded_kernel_names = [
-            "dense_layer/kernel",
-            "output_layer/kernel",
-        ]
-        for opt_var in loaded.optimizer.variables:
-            opt_arr = opt_var.value
-            if not hasattr(opt_arr, "sharding"):
-                continue
-            # Adam vars have paths like
-            # "adam/dense_layer_kernel_momentum" or similar.
-            for kernel_name in sharded_kernel_names:
-                # Normalise: "dense_layer/kernel" → "dense_layer_kernel"
-                key = kernel_name.replace("/", "_")
-                if key in opt_var.path:
-                    self.assertIsInstance(
-                        opt_arr.sharding,
-                        jax.sharding.NamedSharding,
-                        msg=(
-                            f"Optimizer var {opt_var.path} should "
-                            f"inherit NamedSharding from {kernel_name}, "
-                            f"got {type(opt_arr.sharding)}"
-                        ),
-                    )
-                    # The partition spec must be non-trivial (not
-                    # all-None) to prove actual sharding.
-                    spec_axes = opt_arr.sharding.spec
-                    self.assertTrue(
-                        any(a is not None for a in spec_axes),
-                        msg=(
-                            f"Optimizer var {opt_var.path} has a "
-                            f"trivially replicated PartitionSpec "
-                            f"{spec_axes}; expected sharding matching "
-                            f"{kernel_name}"
-                        ),
-                    )
-                    break
+            # Predictions match.
+            self._assert_predictions_equal(model, loaded, x_test)
+
+            # Architecture and compilation restored.
+            self.assertEqual(model.name, loaded.name)
+            self.assertEqual(len(model.layers), len(loaded.layers))
+            self.assertTrue(loaded.compiled)
+
+            # --- Verify optimizer state sharding ---
+            # Optimizer variables whose name references a sharded
+            # model variable should themselves be sharded.
+            sharded_kernel_names = [
+                "dense_layer/kernel",
+                "output_layer/kernel",
+            ]
+            for opt_var in loaded.optimizer.variables:
+                opt_arr = opt_var.value
+                if not hasattr(opt_arr, "sharding"):
+                    continue
+                # Adam vars have paths like
+                # "adam/dense_layer_kernel_momentum" or similar.
+                for kernel_name in sharded_kernel_names:
+                    # Normalise: "dense_layer/kernel" → "dense_layer_kernel"
+                    key = kernel_name.replace("/", "_")
+                    if key in opt_var.path:
+                        self.assertIsInstance(
+                            opt_arr.sharding,
+                            jax.sharding.NamedSharding,
+                            msg=(
+                                f"Optimizer var {opt_var.path} should "
+                                f"inherit NamedSharding from {kernel_name}, "
+                                f"got {type(opt_arr.sharding)}"
+                            ),
+                        )
+                        # The partition spec must be non-trivial (not
+                        # all-None) to prove actual sharding.
+                        spec_axes = opt_arr.sharding.spec
+                        self.assertTrue(
+                            any(a is not None for a in spec_axes),
+                            msg=(
+                                f"Optimizer var {opt_var.path} has a "
+                                f"trivially replicated PartitionSpec "
+                                f"{spec_axes}; expected sharding matching "
+                                f"{kernel_name}"
+                            ),
+                        )
+                        break
 
     @parameterized.named_parameters(
         dict(testcase_name="async", save_on_background=True),
@@ -786,70 +788,75 @@ class OrbaxShardedReshardingTest(
             else None
         )
 
+        # All assertions — predict(), shard shape checks, spec checks —
+        # must stay inside the load scope so JAX JIT uses the correct
+        # context mesh for sharded variables.
         with _dist_scope(load_dist):
             fresh = self._build_simple_model()
             fresh.load_weights(ckpt_dir)
 
-        # Global weights identical regardless of topology.
-        for o, l in zip(original_weights, fresh.get_weights()):
-            self.assertAllClose(o, l)
+            # Global weights identical regardless of topology.
+            for o, l in zip(original_weights, fresh.get_weights()):
+                self.assertAllClose(o, l)
 
-        # Predictions identical.
-        self.assertAllClose(original_preds, fresh.predict(x_test, verbose=0))
-
-        # For row-to-col resharding, verify shard shapes actually differ.
-        if (
-            save_layout is not None
-            and load_layout is not None
-            and save_layout != load_layout
-            and save_devices == load_devices
-        ):
-            save_shapes = self._get_shard_shapes(model)
-            load_shapes = self._get_shard_shapes(fresh)
-            kp = self._find_var_path(save_shapes, "dense_layer", "kernel")
-            if kp and kp in load_shapes:
-                self.assertNotEqual(
-                    save_shapes[kp],
-                    load_shapes[kp],
-                    "Shard shapes should differ after re-partitioning",
-                )
-
-        # Verify that the loaded model's sharding reflects the *new*
-        # mesh (Phase 2), proving Orbax redistributed the data from
-        # the save-time layout to the load-time layout.
-        if load_devices > 0 and load_layout is not None:
-            loaded_specs = self._get_sharding_specs(fresh)
-            kernel_path = self._find_var_path(
-                loaded_specs, "dense_layer", "kernel"
+            # Predictions identical (predict() JIT-compiles here with mesh).
+            self.assertAllClose(
+                original_preds, fresh.predict(x_test, verbose=0)
             )
-            if kernel_path:
-                loaded_sharding = loaded_specs[kernel_path]
-                self.assertIsInstance(
-                    loaded_sharding,
-                    jax.sharding.NamedSharding,
-                    msg=(
-                        "Loaded model should have NamedSharding, "
-                        f"got {type(loaded_sharding)}"
-                    ),
+
+            # For row-to-col resharding, verify shard shapes actually differ.
+            if (
+                save_layout is not None
+                and load_layout is not None
+                and save_layout != load_layout
+                and save_devices == load_devices
+            ):
+                save_shapes = self._get_shard_shapes(model)
+                load_shapes = self._get_shard_shapes(fresh)
+                kp = self._find_var_path(save_shapes, "dense_layer", "kernel")
+                if kp and kp in load_shapes:
+                    self.assertNotEqual(
+                        save_shapes[kp],
+                        load_shapes[kp],
+                        "Shard shapes should differ after re-partitioning",
+                    )
+
+            # Verify that the loaded model's sharding reflects the *new*
+            # mesh (Phase 2), proving Orbax redistributed the data from
+            # the save-time layout to the load-time layout.
+            if load_devices > 0 and load_layout is not None:
+                loaded_specs = self._get_sharding_specs(fresh)
+                kernel_path = self._find_var_path(
+                    loaded_specs, "dense_layer", "kernel"
                 )
-                # The mesh used by the loaded variable must match the
-                # load-phase mesh, not the save-phase mesh.
-                loaded_mesh = loaded_sharding.mesh
-                expected_ndevices = load_devices
-                self.assertEqual(
-                    loaded_mesh.size,
-                    expected_ndevices,
-                    msg=(
-                        f"Loaded mesh should use {expected_ndevices} "
-                        f"devices, got {loaded_mesh.size}"
-                    ),
-                )
-                # Verify PartitionSpec matches load_layout.
-                self.assertEqual(
-                    loaded_sharding.spec,
-                    jax.sharding.PartitionSpec(*load_layout),
-                    msg=(
-                        f"Loaded PartitionSpec should be "
-                        f"{load_layout}, got {loaded_sharding.spec}"
-                    ),
-                )
+                if kernel_path:
+                    loaded_sharding = loaded_specs[kernel_path]
+                    self.assertIsInstance(
+                        loaded_sharding,
+                        jax.sharding.NamedSharding,
+                        msg=(
+                            "Loaded model should have NamedSharding, "
+                            f"got {type(loaded_sharding)}"
+                        ),
+                    )
+                    # The mesh used by the loaded variable must match the
+                    # load-phase mesh, not the save-phase mesh.
+                    loaded_mesh = loaded_sharding.mesh
+                    expected_ndevices = load_devices
+                    self.assertEqual(
+                        loaded_mesh.size,
+                        expected_ndevices,
+                        msg=(
+                            f"Loaded mesh should use {expected_ndevices} "
+                            f"devices, got {loaded_mesh.size}"
+                        ),
+                    )
+                    # Verify PartitionSpec matches load_layout.
+                    self.assertEqual(
+                        loaded_sharding.spec,
+                        jax.sharding.PartitionSpec(*load_layout),
+                        msg=(
+                            f"Loaded PartitionSpec should be "
+                            f"{load_layout}, got {loaded_sharding.spec}"
+                        ),
+                    )
