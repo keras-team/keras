@@ -1239,6 +1239,31 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     )
 
 
+def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """Native PyTorch implementation of Fold.
+    Combine an array of sliding local blocks into a large tensor (col2im).
+
+    Args:
+        input: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+    return tnn.fold(
+        input,
+        output_size=output_size,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )
+
+
 def depth_to_space(x, block_size, data_format="channels_last"):
     """PyTorch implementation of depth_to_space.
 

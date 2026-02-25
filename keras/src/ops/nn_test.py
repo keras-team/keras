@@ -3497,6 +3497,80 @@ class NNOpsBehaviorTest(testing.TestCase):
         )
         self.assertAllClose(unfold_result, except_result)
 
+    def test_fold(self):
+        if keras.config.backend() in ["openvino"]:
+            pytest.skip("Backend does not support fold operation")
+
+        # test 1: non-overlapping roundtrip (stride == kernel_size)
+        x = ops.arange(16, dtype="float32")
+        x = ops.reshape(x, [1, 1, 4, 4])
+        patches = knn.unfold(x, kernel_size=2, stride=2)
+        y = knn.fold(patches, output_size=(4, 4), kernel_size=2, stride=2)
+        self.assertAllClose(y, x)
+
+        # test 2: overlapping roundtrip — fold(unfold(x)) / fold(ones) == x
+        x = ops.arange(16, dtype="float32")
+        x = ops.reshape(x, [1, 1, 4, 4])
+        patches = knn.unfold(x, kernel_size=3, stride=1)
+        folded = knn.fold(patches, output_size=(4, 4), kernel_size=3, stride=1)
+        ones = ops.ones_like(x)
+        ones_patches = knn.unfold(ones, kernel_size=3, stride=1)
+        divisor = knn.fold(
+            ones_patches, output_size=(4, 4), kernel_size=3, stride=1
+        )
+        result = folded / divisor
+        self.assertAllClose(result, x)
+
+        # test 3: multi-channel non-overlapping roundtrip
+        x = ops.arange(32, dtype="float32")
+        x = ops.reshape(x, [1, 2, 4, 4])
+        patches = knn.unfold(x, kernel_size=2, stride=2)
+        y = knn.fold(patches, output_size=(4, 4), kernel_size=2, stride=2)
+        self.assertAllClose(y, x)
+
+        # test 4: dilation + padding roundtrip
+        x = ops.arange(32, dtype="float32")
+        x = ops.reshape(x, [1, 2, 4, 4])
+        patches = knn.unfold(x, kernel_size=2, dilation=2, padding=1)
+        y = knn.fold(
+            patches,
+            output_size=(4, 4),
+            kernel_size=2,
+            dilation=2,
+            padding=1,
+        )
+        ones = ops.ones_like(x)
+        ones_patches = knn.unfold(
+            ones, kernel_size=2, dilation=2, padding=1
+        )
+        divisor = knn.fold(
+            ones_patches,
+            output_size=(4, 4),
+            kernel_size=2,
+            dilation=2,
+            padding=1,
+        )
+        result = y / divisor
+        self.assertAllClose(result, x)
+
+        # test 5: explicit known values — single 1x1x2x2 non-overlap
+        x = ops.convert_to_tensor(
+            [[[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]]],
+            dtype="float32",
+        )
+        # x shape: (1, 2, 4) — as if C=2, kernel=1x1, L=4
+        y = knn.fold(x, output_size=(2, 2), kernel_size=1, stride=1)
+        expected = ops.convert_to_tensor(
+            [[[[1.0, 2.0], [3.0, 4.0]], [[5.0, 6.0], [7.0, 8.0]]]],
+            dtype="float32",
+        )
+        self.assertAllClose(y, expected)
+
+        # test 6: input validation — must be 3D
+        x_bad = ops.ones((1, 2, 3, 4))
+        with self.assertRaisesRegex(ValueError, "3D"):
+            knn.fold(x_bad, output_size=(4, 4), kernel_size=2)
+
     def test_depth_to_space(self):
         # Test channels_last (default)
         # Input: (1, 2, 2, 12) -> Output: (1, 4, 4, 3)
