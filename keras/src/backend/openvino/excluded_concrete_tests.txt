@@ -1,3 +1,4 @@
+
 NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
 HistogramTest::test_histogram_predict_jit_compile_false
@@ -84,17 +85,14 @@ MathOpsCorrectnessTest::test_stft6
 RandomCorrectnessTest::test_beta0
 RandomCorrectnessTest::test_beta1
 RandomCorrectnessTest::test_beta2
-<<<<<<< openvino-binomial
 RandomCorrectnessTest::test_dropout
 RandomCorrectnessTest::test_dropout_noise_shape
 RandomCorrectnessTest::test_gamma0
 RandomCorrectnessTest::test_gamma1
 RandomCorrectnessTest::test_gamma2
-=======
 RandomCorrectnessTest::test_binomial0
 RandomCorrectnessTest::test_binomial1
 RandomCorrectnessTest::test_binomial2
->>>>>>> master
 RandomCorrectnessTest::test_truncated_normal0
 RandomCorrectnessTest::test_truncated_normal1
 RandomCorrectnessTest::test_truncated_normal2
@@ -111,7 +109,6 @@ RandomDTypeTest::test_beta_bfloat16
 RandomDTypeTest::test_beta_float16
 RandomDTypeTest::test_beta_float32
 RandomDTypeTest::test_beta_float64
-<<<<<<< openvino-binomial
 RandomDTypeTest::test_dropout_bfloat16
 RandomDTypeTest::test_dropout_float16
 RandomDTypeTest::test_dropout_float32
@@ -120,12 +117,10 @@ RandomDTypeTest::test_gamma_bfloat16
 RandomDTypeTest::test_gamma_float16
 RandomDTypeTest::test_gamma_float32
 RandomDTypeTest::test_gamma_float64
-=======
 RandomDTypeTest::test_binomial_bfloat16
 RandomDTypeTest::test_binomial_float16
 RandomDTypeTest::test_binomial_float32
 RandomDTypeTest::test_binomial_float64
->>>>>>> master
 RandomDTypeTest::test_normal_bfloat16
 RandomDTypeTest::test_randint_int16
 RandomDTypeTest::test_randint_int32
@@ -147,13 +142,11 @@ LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_cholesky_inverse
 LinalgOpsCorrectnessTest::test_norm_2_nuc
 LinalgOpsCorrectnessTest::test_qr
-LinalgOpsCorrectnessTest::test_solve
 LinalgOpsCorrectnessTest::test_solve_triangular
 LinalgOpsCorrectnessTest::test_svd
 LinalgOpsCorrectnessTest::test_det
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_eigh
-LinalgOpsCorrectnessTest::test_inv
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_lu_factor
 LinalgOpsCorrectnessTest::test_norm_2_-2
