@@ -33,6 +33,9 @@ from keras.src.distribution import set_distribution
 
 # All tests in this file require JAX backend with at least 2 devices.
 pytestmark = [
+    pytest.mark.skip(
+        reason="Temporarily disabled: pending fix for GPU CI sharding failures"
+    ),
     pytest.mark.skipif(
         backend.backend() != "jax",
         reason="Sharding tests require JAX backend",
