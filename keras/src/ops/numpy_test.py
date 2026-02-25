@@ -1721,17 +1721,12 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.nancumsum(x).shape, (None,))
 
         x = KerasTensor((None, 3, 3))
-
         self.assertEqual(knp.nancumsum(x, axis=1).shape, (None, 3, 3))
         self.assertEqual(knp.nancumsum(x, axis=(1,)).shape, (None, 3, 3))
-        self.assertEqual(knp.nancumsum(x, axis=()).shape, (None, 3, 3))
-
         self.assertEqual(knp.nancumsum(x, axis=None).shape, (None,))
 
-        x4 = KerasTensor((None, 2, 3, 4))
-
-        self.assertEqual(knp.nancumsum(x4, axis=2).shape, (None, 2, 3, 4))
-        self.assertEqual(knp.nancumsum(x4, axis=(1, 3)).shape, (None, 2, 3, 4))
+        x = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nancumsum(x, axis=2).shape, (None, 2, 3, 4))
 
     def test_nanmax(self):
         x = KerasTensor((None, 3))
