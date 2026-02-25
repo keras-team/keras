@@ -110,6 +110,14 @@ class _DistributedTestMixin:
 
     # -- Distribution lifecycle -----------------------------------------------
 
+    def setUp(self):
+        super().setUp()
+        # Clear any stale JIT-compiled functions before each test so that
+        # cached out_shardings from other tests cannot set a wrong context
+        # mesh for our compilation.
+        if backend.backend() == "jax":
+            jax.clear_caches()
+
     def tearDown(self):
         # Clear JAX's JIT compilation cache so sharding state from this
         # test cannot leak into subsequent tests.
@@ -124,12 +132,21 @@ class _DistributedTestMixin:
         """Dense model with dims divisible by both 2 and 4.
 
         Kernel shapes: dense_layer (8, 12), output_layer (12, 4).
+
+        jit_compile is left at its default (True for JAX backend) so that
+        make_train_function takes the jax.jit(..., out_shardings=...) code
+        path.  That path calls _get_state_sharding_spec() while the
+        distribution scope is active, derives the correct context mesh from
+        the NamedSharding variables, and sets it for the JIT compilation.
+        Setting jit_compile=False bypasses that entire path and leaves JAX
+        to infer the context mesh from the current global state, which can
+        be wrong if any previous test left stale state.
         """
         inputs = layers.Input(shape=(8,), name="input_layer")
         x = layers.Dense(12, name="dense_layer")(inputs)
         outputs = layers.Dense(4, name="output_layer")(x)
         model = models.Model(inputs, outputs, name="sharding_test_model")
-        model.compile(optimizer="adam", loss="mse", jit_compile=False)
+        model.compile(optimizer="adam", loss="mse")
         return model
 
     # -- Data helpers ---------------------------------------------------------
