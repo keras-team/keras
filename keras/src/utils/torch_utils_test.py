@@ -238,6 +238,35 @@ class TorchUtilsTest(testing.TestCase):
         for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
             self.assertAllClose(ref_w, new_w, atol=1e-5)
 
+    def test_from_config_legacy_bytes_format(self):
+        """Test loading configs saved by Keras < 3.11.0.
+
+        Before v3.11.0, TorchModuleWrapper.get_config() stored the module
+        as raw bytes (buffer.getvalue()) instead of a base64 string.
+        The serialization pipeline wrapped those bytes as:
+            {'class_name': '__bytes__', 'config': {'value': ...}}
+        Since from_config receives the raw serialized inner config (not
+        recursively deserialized), it must handle this dict format.
+        """
+        import base64
+
+        module = torch.nn.Sequential(torch.nn.Linear(2, 4))
+        mw = TorchModuleWrapper(module)
+        config = mw.get_config()
+
+        # Simulate the legacy __bytes__ dict format that
+        # serialize_keras_object produces for bytes values
+        b64_str = config["module"]  # current format: base64 string
+        config["module"] = {
+            "class_name": "__bytes__",
+            "config": {"value": b64_str},
+        }
+
+        keras.config.enable_unsafe_deserialization()
+        new_mw = TorchModuleWrapper.from_config(config)
+        for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
+            self.assertAllClose(ref_w, new_w, atol=1e-5)
+
     def test_build_model(self):
         x = keras.Input([4])
         z = TorchModuleWrapper(torch.nn.Linear(4, 8), output_shape=[None, 8])(x)
