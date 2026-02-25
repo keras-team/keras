@@ -248,7 +248,6 @@ class TorchUtilsTest(testing.TestCase):
         Since from_config receives the raw serialized inner config (not
         recursively deserialized), it must handle this dict format.
         """
-        import base64
 
         module = torch.nn.Sequential(torch.nn.Linear(2, 4))
         mw = TorchModuleWrapper(module)
