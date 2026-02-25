@@ -68,7 +68,13 @@ def _segment_reduction_fn(
         ).output(0)
 
     if reduction_method == "max":
-        init_val = np.array(-np.inf, dtype=np.float32)
+        from keras.src.backend.openvino.core import DTYPES_MIN
+
+        data_type = data.get_element_type()
+        if data_type.is_real():
+            init_val = np.array(-np.inf, dtype=np.float32)
+        else:
+            init_val = DTYPES_MIN[data_type]
     else:
         init_val = 0
 
