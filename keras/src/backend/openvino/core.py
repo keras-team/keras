@@ -151,7 +151,10 @@ class OpenVINOKerasTensor:
         x_type = x.get_element_type()
         x_keras_type = ov_to_keras_type(x_type)
         self.output = x
-        self.shape = tuple(x_keras_shape)
+        if x_keras_shape is not None:
+            self.shape = tuple(x_keras_shape)
+        else:
+            self.shape = None
         self.dtype = x_keras_type
         self.ndim = None
         self.data = data
