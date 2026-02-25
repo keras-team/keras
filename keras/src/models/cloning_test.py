@@ -288,9 +288,7 @@ class CloneModelTest(testing.TestCase):
 
         # Every Dense in the deepest level should have been cloned
         # (i.e. clone_function was applied), not shared.
-        for l1, l2 in zip(
-            model._flatten_layers(), new_model._flatten_layers()
-        ):
+        for l1, l2 in zip(model._flatten_layers(), new_model._flatten_layers()):
             if isinstance(l2, layers.Dense):
                 self.assertFalse(hasattr(l1, "flag"))
                 self.assertTrue(hasattr(l2, "flag"))
@@ -308,9 +306,7 @@ class CloneModelTest(testing.TestCase):
         new_model.set_weights(model.get_weights())
         self.assert_models_equal(model, new_model, ref_input)
 
-        for l1, l2 in zip(
-            model._flatten_layers(), new_model._flatten_layers()
-        ):
+        for l1, l2 in zip(model._flatten_layers(), new_model._flatten_layers()):
             if isinstance(l2, layers.Dense):
                 self.assertFalse(hasattr(l1, "flag"))
                 self.assertTrue(hasattr(l2, "flag"))
