@@ -1325,6 +1325,11 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
+def nancumsum(x, axis=None, dtype=None):
+    x = nan_to_num(x)
+    return cumsum(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
