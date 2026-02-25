@@ -108,13 +108,6 @@ RandomDTypeTest::test_binomial_float16
 RandomDTypeTest::test_binomial_float32
 RandomDTypeTest::test_binomial_float64
 RandomDTypeTest::test_normal_bfloat16
-RandomDTypeTest::test_randint_int16
-RandomDTypeTest::test_randint_int32
-RandomDTypeTest::test_randint_int64
-RandomDTypeTest::test_randint_int8
-RandomDTypeTest::test_randint_uint16
-RandomDTypeTest::test_randint_uint32
-RandomDTypeTest::test_randint_uint8
 RandomDTypeTest::test_truncated_normal_bfloat16
 RandomDTypeTest::test_uniform_bfloat16
 SegmentSumTest::test_segment_sum_call
