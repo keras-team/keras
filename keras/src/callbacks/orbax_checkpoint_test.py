@@ -291,7 +291,13 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         reason="Requires JAX backend for distribution",
     )
     def test_distributed_checkpoint_functionality(self):
-        """Test OrbaxCheckpoint with distributed training."""
+        """Test OrbaxCheckpoint with distributed training.
+
+        Verifies that a full-model checkpoint (weights + optimizer state +
+        config) round-trips correctly under ModelParallel sharding.
+        All predict/load calls stay inside the distribution scope so that
+        JAX JIT sees the correct context mesh for sharded variables.
+        """
         import jax
 
         from keras.src.distribution import DeviceMesh
@@ -301,17 +307,9 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         from keras.src.distribution import distribution as get_distribution
         from keras.src.distribution import set_distribution
 
-        # Check if we have at least 1 device
+        # Use all available devices; skip if fewer than 2.
         devices = jax.devices()
-
-        # Skip test if more than 2 devices, as these tests are designed
-        # for 2-device scenarios and may not work with more devices
-        if len(devices) > 2:
-            self.skipTest(f"Test requires 2 devices, found {len(devices)}")
-
-        num_devices = min(2, len(devices))
-
-        # Skip if only single device - distributed functionality can't be tested
+        num_devices = len(devices)
         if num_devices < 2:
             self.skipTest(
                 "Test requires distributed setup with multiple devices"
@@ -319,28 +317,41 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
 
         print(f"Available devices: {devices}, using {num_devices} devices")
 
-        # Set up multi-device distribution
-        device_mesh = DeviceMesh((num_devices,), axis_names=["data"])
+        # Build a 1-D mesh over all devices.
+        device_mesh = DeviceMesh(
+            (num_devices,), axis_names=["data"], devices=devices
+        )
         layout_map = LayoutMap(device_mesh)
-        layout_map["dense_layer/kernel"] = TensorLayout(axes=("data", None))
-        layout_map["dense_layer/bias"] = TensorLayout(axes=(None,))
+        # Shard the output-units axis of each kernel — those are multiples of
+        # num_devices (set below), so sharding is always even.
+        layout_map["dense_layer/kernel"] = TensorLayout(axes=(None, "data"))
+        layout_map["dense_layer/bias"] = TensorLayout(axes=("data",))
         layout_map["output_layer/kernel"] = TensorLayout(axes=(None, "data"))
-        layout_map["output_layer/bias"] = TensorLayout(axes=(None,))
+        layout_map["output_layer/bias"] = TensorLayout(axes=("data",))
 
         distribution = ModelParallel(
             device_mesh=device_mesh, layout_map=layout_map
         )
 
-        # Save original distribution state
         original_distribution = get_distribution()
 
         try:
-            # Set distribution
             set_distribution(distribution)
 
-            # Create and train model with distribution
-            model = self._create_test_model()
-            x, y = self._create_dummy_data(num_samples=50)
+            # Layer sizes are multiples of num_devices → sharding always even.
+            dense_units = num_devices * 4
+            out_units = num_devices * 2
+            inputs_l = layers.Input(shape=(10,), name="input_layer")
+            h = layers.Dense(dense_units, name="dense_layer")(inputs_l)
+            outputs_l = layers.Dense(out_units, name="output_layer")(h)
+            model = models.Model(inputs_l, outputs_l, name="test_model")
+            model.compile(optimizer="adam", loss="mse")
+
+            # num_samples and predict_batch must be divisible by num_devices.
+            num_samples = num_devices * 8
+            predict_batch = num_devices * 2
+            x = np.random.randn(num_samples, 10)
+            y = np.random.randn(num_samples, out_units)
 
             checkpoint_dir = os.path.join(
                 self.get_temp_dir(), "test_distributed_checkpoint"
@@ -350,68 +361,66 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
                 save_freq="epoch",
             )
 
-            # Train to create checkpoint
+            # Train to create a full-model checkpoint (weights + optimizer).
             model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
 
-            # Get original model predictions and weights
-            original_predictions = model.predict(x[:5], verbose=0)
+            original_predictions = model.predict(x[:predict_batch], verbose=0)
             original_weights = model.get_weights()
+            original_opt_vars = [v.numpy() for v in model.optimizer.variables]
 
-            # Load checkpoint using load_weights
+            # Load full model (config + weights + optimizer state) via
+            # saving.load_model — must stay inside the scope so JAX JIT
+            # compiles predict with the correct context mesh.
+            loaded = saving.load_model(checkpoint_dir)
 
-            # Create fresh model and load weights
-            fresh_model = self._create_test_model()
-            fresh_model.load_weights(checkpoint_dir)
-            loaded_weights = fresh_model.get_weights()
+            # Weights match.
+            for orig, lw in zip(original_weights, loaded.get_weights()):
+                self.assertAllClose(orig, lw)
 
-            # Verify loaded weights match original
-            for orig, loaded in zip(original_weights, loaded_weights):
-                self.assertAllClose(orig, loaded)
+            # Optimizer state matches.
+            for orig, lv in zip(original_opt_vars, loaded.optimizer.variables):
+                self.assertAllClose(orig, lv)
 
-            # Verify loaded model produces same predictions
-            loaded_predictions = fresh_model.predict(x[:5], verbose=0)
+            # Predictions match.
+            loaded_predictions = loaded.predict(x[:predict_batch], verbose=0)
             self.assertAllClose(original_predictions, loaded_predictions)
 
-            # Verify sharding is maintained after loading
-            # Check that both models have the same distribution
-            current_dist = get_distribution()
-            self.assertIsNotNone(current_dist)
-            self.assertEqual(type(current_dist), ModelParallel)
+            # Architecture and compilation restored.
+            self.assertEqual(model.name, loaded.name)
+            self.assertEqual(len(model.layers), len(loaded.layers))
+            self.assertTrue(loaded.compiled)
 
-            # Verify model variables are sharded correctly
-            # In JAX, sharded variables should have different sharding info
+            # Distribution still active and correct type.
+            self.assertEqual(type(get_distribution()), ModelParallel)
 
-            # Get sharding info for original model variables
-            original_shardings = {}
-            for name, var in model.variables.items():
-                if hasattr(var, "sharding"):
-                    original_shardings[name] = var.sharding
-
-            # Get sharding info for loaded model variables
-            loaded_shardings = {}
-            for name, var in fresh_model.variables.items():
-                if hasattr(var, "sharding"):
-                    loaded_shardings[name] = var.sharding
-
-            # Verify shardings match
-            for name in original_shardings:
-                if name in loaded_shardings:
+            # Variable sharding specs match between original and loaded model.
+            original_shardings = {
+                var.path: var.value.sharding
+                for var in model.variables
+                if hasattr(var.value, "sharding")
+            }
+            loaded_shardings = {
+                var.path: var.value.sharding
+                for var in loaded.variables
+                if hasattr(var.value, "sharding")
+            }
+            for path, spec in original_shardings.items():
+                if path in loaded_shardings:
                     self.assertEqual(
-                        original_shardings[name],
-                        loaded_shardings[name],
-                        f"Sharding mismatch for variable {name}",
+                        spec,
+                        loaded_shardings[path],
+                        f"Sharding mismatch for variable {path}",
                     )
 
             print("Distributed checkpoint functionality and sharding verified")
 
         finally:
-            # Restore original distribution
             if original_distribution is not None:
                 set_distribution(original_distribution)
             else:
                 try:
                     set_distribution(None)
-                except:
+                except Exception:
                     pass
 
     @pytest.mark.requires_trainable_backend

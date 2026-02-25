@@ -344,8 +344,23 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 
         loaded_state = loaded_checkpointables["pytree"]
 
-        # Set the model state directly from the loaded state
-        model.set_state_tree(loaded_state)
+        # Filter to only variable keys that set_state_tree understands.
+        # A full-model checkpoint (save_weights_only=False) embeds a
+        # "model_config" string inside the pytree; passing it to
+        # set_state_tree causes _flatten_nested_dict to call .items() on
+        # a str → AttributeError.  We silently ignore any key that does
+        # not correspond to a variable group so that load_weights works
+        # on both weights-only and full-model checkpoints.
+        _VARIABLE_KEYS = {
+            "trainable_variables",
+            "non_trainable_variables",
+            "optimizer_variables",
+            "metrics_variables",
+        }
+        state_tree = {
+            k: v for k, v in loaded_state.items() if k in _VARIABLE_KEYS
+        }
+        model.set_state_tree(state_tree)
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
