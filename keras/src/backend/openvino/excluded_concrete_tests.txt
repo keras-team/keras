@@ -98,8 +98,6 @@ RandomDTypeTest::test_randint_uint32
 RandomDTypeTest::test_randint_uint8
 RandomDTypeTest::test_truncated_normal_bfloat16
 RandomDTypeTest::test_uniform_bfloat16
-SegmentSumTest::test_segment_sum_call
-SegmentMaxTest::test_segment_max_call
 TestMathErrors::test_istft_invalid_window_shape_2D_inputs
 LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_cholesky_inverse
