@@ -622,19 +622,22 @@ def lstm(
     if mask is not None:
         mask = mask.to(device)
 
-    return _cudnn_lstm(
-        inputs,
-        initial_state_h,
-        initial_state_c,
-        kernel,
-        recurrent_kernel,
-        bias,
-        mask,
-        batch_first,
-        go_backwards,
-        return_sequences,
-        device,
-    )
+    try:
+        return _cudnn_lstm(
+            inputs,
+            initial_state_h,
+            initial_state_c,
+            kernel,
+            recurrent_kernel,
+            bias,
+            mask,
+            batch_first,
+            go_backwards,
+            return_sequences,
+            device,
+        )
+    except RuntimeError:
+        raise NotImplementedError
 
 
 def _cudnn_lstm(
@@ -711,9 +714,6 @@ def _cudnn_lstm(
         # Run LSTM without packing for fixed-length sequences
         outputs, (h_n, c_n) = lstm(inputs, (initial_state_h, initial_state_c))
 
-    outputs = outputs.detach().clone()
-    h_n = h_n.detach().clone()
-    c_n = c_n.detach().clone()
     # Reshape hidden states for return
     h_n = h_n.squeeze(batch_axis)
     c_n = c_n.squeeze(batch_axis)
