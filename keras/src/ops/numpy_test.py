@@ -9432,7 +9432,7 @@ class NumpyDtypeTest(testing.TestCase):
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
 
-        expected_dtype = standardize_dtype(jnp.cumsum(x_jax).dtype)
+        expected_dtype = standardize_dtype(jnp.nancumsum(x_jax).dtype)
 
         self.assertEqual(
             standardize_dtype(knp.nancumsum(x).dtype),
