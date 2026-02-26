@@ -52,6 +52,12 @@ class Softmax(Layer):
 
     def call(self, inputs, mask=None):
         if mask is not None:
+            if inputs.shape != mask.shape:
+                raise ValueError(
+                    "The `mask` must have the same shape as `inputs`. "
+                    f"Received: inputs.shape={inputs.shape}, "
+                    f"mask.shape={mask.shape}"
+                )
             # We keep the positions where the mask is True or > 0.5, and set the
             # other (masked) positions to -1e.9.
             if backend.standardize_dtype(mask.dtype) != "bool":

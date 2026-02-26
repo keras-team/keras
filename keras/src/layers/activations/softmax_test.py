@@ -86,3 +86,10 @@ class SoftmaxTest(testing.TestCase):
         result = softmax_layer(input, mask=mask)
 
         self.assertAllClose(result, expected_output)
+
+    def test_softmax_mask_shape_mismatch(self):
+        softmax_layer = softmax.Softmax()
+        inputs = np.array([[1.0, 2.0, 1.0]])
+        mask = np.array([[1.0, 0.0, 1.0], [0.0, 1.0, 0.0]])
+        with self.assertRaisesRegex(ValueError, "same shape"):
+            softmax_layer(inputs, mask=mask)
