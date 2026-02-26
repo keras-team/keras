@@ -182,6 +182,23 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertAllClose(np.sum(x, axis=1), ops.sum(y, axis=1))
         self.assertNotAllClose(np.sum(x, axis=0), ops.sum(y, axis=0))
 
+    @pytest.mark.skipif(
+        backend.backend() != "openvino",
+        reason=(
+            "This specifically tests the OpenVINO C++ "
+            "uint32/int32 binding boundary."
+        ),
+    )
+    def test_openvino_large_seed_boundary(self):
+        # 2**31 - 1 is the max for signed int32.
+        # 2**31 is where the overflow/sign-flip occurs in C++.
+        # 2**32 - 1 is the max for uint32.
+        boundary_seeds = [2147483647, 2147483648, 4294967295]
+
+        for s in boundary_seeds:
+            res = random.uniform((2, 2), seed=s)
+            self.assertEqual(res.shape, (2, 2))
+
     @parameterized.parameters(
         {"seed": 10, "shape": (5, 2), "alpha": 2.0, "dtype": "float16"},
         {"seed": 10, "shape": (2,), "alpha": 1.5, "dtype": "float32"},
