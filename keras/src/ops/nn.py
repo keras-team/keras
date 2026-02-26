@@ -2997,11 +2997,13 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if scale is not None:
         scale = backend.convert_to_tensor(scale, x.dtype)
 
+    if isinstance(axis, (tuple, list)):
+        axis = sorted(axis)
     if backend.backend() == "torch" and is_continuous_axis(axis):
         import torch.nn.functional as F
 
         if isinstance(axis, (tuple, list)):
-            normalized_shape = tuple([x.shape[dim] for dim in axis])
+            normalized_shape = tuple(x.shape[dim] for dim in axis)
         else:
             normalized_shape = (x.shape[axis],)
         outputs = F.rms_norm(x, normalized_shape, scale, epsilon)
@@ -3124,6 +3126,7 @@ def _layer_normalization(
     broadcast_shape = [1] * ndims
     if isinstance(axis, int):
         axis = [axis]
+    axis = sorted(axis)
     for dim in axis:
         broadcast_shape[dim] = input_shape[dim]
 
@@ -3142,7 +3145,7 @@ def _layer_normalization(
         # when using torch backend,use kernel to improve performance
         import torch.nn.functional as F
 
-        normalized_shape = tuple([input_shape[dim] for dim in axis])
+        normalized_shape = tuple(input_shape[dim] for dim in axis)
         outputs = F.layer_norm(x, normalized_shape, gamma, beta, epsilon)
     else:
         # Calculate the mean & variance along self.axis (layer activations).
