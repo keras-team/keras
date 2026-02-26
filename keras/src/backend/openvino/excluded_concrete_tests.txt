@@ -85,9 +85,6 @@ MathOpsCorrectnessTest::test_stft6
 RandomCorrectnessTest::test_beta0
 RandomCorrectnessTest::test_beta1
 RandomCorrectnessTest::test_beta2
-RandomCorrectnessTest::test_binomial0
-RandomCorrectnessTest::test_binomial1
-RandomCorrectnessTest::test_binomial2
 RandomCorrectnessTest::test_truncated_normal0
 RandomCorrectnessTest::test_truncated_normal1
 RandomCorrectnessTest::test_truncated_normal2
