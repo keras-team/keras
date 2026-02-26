@@ -2833,6 +2833,12 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nancumsum(x, axis=None, dtype=None):
+    raise NotImplementedError(
+        "`nancumsum` is not supported with openvino backend"
+    )
+
+
 def nanmax(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
         # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264

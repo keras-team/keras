@@ -986,6 +986,14 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
+def nancumsum(x, axis=None, dtype=None):
+    axis = standardize_axis_for_numpy(axis)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.nancumsum(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     return np.nanmax(x, axis=axis, keepdims=keepdims)
 
