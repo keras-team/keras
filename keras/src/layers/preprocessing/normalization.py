@@ -264,11 +264,20 @@ class Normalization(DataLayer):
         if isinstance(data, np.ndarray) or backend.is_tensor(data):
             input_shape = data.shape
         elif isinstance(data, tf.data.Dataset):
-            input_shape = tuple(data.element_spec.shape)
+
+            def get_input_shape(d):
+                element_spec = d.element_spec
+                x_spec = (
+                    element_spec[0]
+                    if isinstance(element_spec, tuple)
+                    else element_spec
+                )
+                return tuple(x_spec.shape)
+
+            input_shape = get_input_shape(data)
             if len(input_shape) == 1:
-                # Batch dataset if it isn't batched
                 data = data.batch(128)
-            input_shape = tuple(data.element_spec.shape)
+                input_shape = get_input_shape(data)
         elif isinstance(data, PyDataset):
             data = data[0]
             if isinstance(data, tuple):
@@ -305,6 +314,8 @@ class Normalization(DataLayer):
             total_var = ops.zeros(self._mean_and_var_shape)
             total_count = 0
             for batch in data:
+                if isinstance(batch, tuple):
+                    batch = batch[0]
                 batch = backend.convert_to_tensor(
                     batch, dtype=self.compute_dtype
                 )

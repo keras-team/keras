@@ -1716,6 +1716,18 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             knp.moveaxis(x, [0, 1], [-2, -1]).shape, (4, 5, None, 3)
         )
 
+    def test_nancumsum(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.nancumsum(x).shape, (None,))
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.nancumsum(x, axis=1).shape, (None, 3, 3))
+        self.assertEqual(knp.nancumsum(x, axis=(1,)).shape, (None, 3, 3))
+        self.assertEqual(knp.nancumsum(x, axis=None).shape, (None,))
+
+        x = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nancumsum(x, axis=2).shape, (None, 2, 3, 4))
+
     def test_nanmax(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.nanmax(x).shape, ())
@@ -2562,6 +2574,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.moveaxis(x, [0, 1], [-1, -2]).shape, (4, 5, 3, 2))
         self.assertEqual(knp.moveaxis(x, [0, 1], [1, 0]).shape, (3, 2, 4, 5))
         self.assertEqual(knp.moveaxis(x, [0, 1], [-2, -1]).shape, (4, 5, 2, 3))
+
+    def test_nancumsum(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.nancumsum(x).shape, (6,))
+        self.assertEqual(knp.nancumsum(x, axis=0).shape, (2, 3))
+        self.assertEqual(knp.nancumsum(x, axis=1).shape, (2, 3))
+        self.assertEqual(knp.nancumsum(x, axis=(1,)).shape, (2, 3))
+        self.assertEqual(knp.nancumsum(x, axis=()).shape, (2, 3))
 
     def test_nanmax(self):
         x = KerasTensor((2, 3))
@@ -5943,6 +5963,36 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         out = knp.slogdet(x)
         self.assertEqual(out[0].shape, ())
         self.assertEqual(out[1].shape, (2, 4))
+
+    def test_nancumsum(self):
+        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
+
+        self.assertAllClose(knp.nancumsum(x), np.nancumsum(x))
+        self.assertAllClose(knp.nancumsum(x, axis=0), np.nancumsum(x, axis=0))
+        self.assertAllClose(knp.nancumsum(x, axis=1), np.nancumsum(x, axis=1))
+        self.assertAllClose(knp.Nancumsum()(x), np.nancumsum(x))
+        self.assertAllClose(knp.Nancumsum(axis=1)(x), np.nancumsum(x, axis=1))
+
+        x_3d = np.array(
+            [
+                [[1.0, np.nan], [2.0, 3.0]],
+                [[np.nan, 4.0], [5.0, np.nan]],
+            ]
+        )
+
+        self.assertAllClose(knp.nancumsum(x_3d), np.nancumsum(x_3d))
+        self.assertAllClose(
+            knp.nancumsum(x_3d, axis=0), np.nancumsum(x_3d, axis=0)
+        )
+        self.assertAllClose(
+            knp.nancumsum(x_3d, axis=1), np.nancumsum(x_3d, axis=1)
+        )
+
+        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+        self.assertAllClose(knp.nancumsum(x_all_nan), np.nancumsum(x_all_nan))
+        self.assertAllClose(
+            knp.nancumsum(x_all_nan, axis=1), np.nancumsum(x_all_nan, axis=1)
+        )
 
     def test_nanmax(self):
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -np.inf]])
@@ -9373,6 +9423,25 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             knp.Moveaxis(-2, -1).symbolic_call(x).dtype, expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nancumsum(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.nancumsum(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.nancumsum(x).dtype),
+            expected_dtype,
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Nancumsum().symbolic_call(x).dtype),
+            expected_dtype,
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))

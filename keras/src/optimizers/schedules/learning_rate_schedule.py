@@ -651,7 +651,8 @@ class CosineDecay(LearningRateSchedule):
         initial_learning_rate: A Python float. The initial learning rate.
         decay_steps: A Python int. Number of steps to decay over.
         alpha: A Python float. Minimum learning rate value for decay as a
-            fraction of `initial_learning_rate`.
+            fraction of `warmup_target` or, if `warmup_target` is None,
+            `initial_learning_rate`.
         name: String. Optional name of the operation.  Defaults to
             `"CosineDecay"`.
         warmup_target: A Python float. The target learning rate for our

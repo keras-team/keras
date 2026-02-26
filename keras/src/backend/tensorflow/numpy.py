@@ -2189,6 +2189,11 @@ def moveaxis(x, source, destination):
     return tf.transpose(x, perm)
 
 
+def nancumsum(x, axis=None, dtype=None):
+    x = nan_to_num(x)
+    return cumsum(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 

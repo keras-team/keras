@@ -17,9 +17,20 @@ def cholesky(a, upper=False):
 
 
 def cholesky_inverse(a, upper=False):
-    raise NotImplementedError(
-        "`cholesky_inverse` is not supported with openvino backend."
-    )
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    if upper:
+        # Reconstruct A = U^T @ U, then invert
+        reconstructed_matrix = ov_opset.matmul(a_ov, a_ov, True, False).output(
+            0
+        )
+    else:
+        # Reconstruct A = L @ L^T, then invert
+        reconstructed_matrix = ov_opset.matmul(a_ov, a_ov, False, True).output(
+            0
+        )
+    result = ov_opset.inverse(reconstructed_matrix, adjoint=False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def det(a):
