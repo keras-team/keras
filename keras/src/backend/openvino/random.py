@@ -372,4 +372,15 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    raise NotImplementedError("`beta` is not supported with openvino backend")
+    seed1 = seed
+    seed2 = seed
+    if isinstance(seed, int):
+        seed2 += 123
+
+    gamma_a = gamma(shape, alpha, dtype=dtype, seed=seed1).output
+    gamma_b = gamma(shape, beta, dtype=dtype, seed=seed2).output
+    
+    sum_ab = ov_opset.add(gamma_a, gamma_b).output(0)
+    z = ov_opset.divide(gamma_a, sum_ab).output(0)
+    
+    return OpenVINOKerasTensor(z)
