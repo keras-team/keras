@@ -78,6 +78,7 @@ RandomCorrectnessTest::test_uniform1
 RandomCorrectnessTest::test_uniform2
 RandomCorrectnessTest::test_uniform3
 RandomCorrectnessTest::test_uniform4
+RandomBehaviorTest::test_beta_tf_data_compatibility
 RandomDTypeTest::test_binomial_bfloat16
 RandomDTypeTest::test_binomial_float16
 RandomDTypeTest::test_binomial_float32
