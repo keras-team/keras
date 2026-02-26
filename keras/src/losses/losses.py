@@ -2344,6 +2344,8 @@ def sparse_categorical_crossentropy(
         y_true = ops.squeeze(y_true, axis=-1)
 
     if ignore_class is not None:
+        y_true = ops.convert_to_tensor(y_true)
+        y_pred = ops.convert_to_tensor(y_pred)
         res_shape = ops.shape(y_pred)[:-1]
         valid_mask = ops.not_equal(y_true, ops.cast(ignore_class, y_pred.dtype))
         y_true = y_true * ops.cast(valid_mask, y_true.dtype)
