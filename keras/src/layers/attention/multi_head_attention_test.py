@@ -712,7 +712,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         for sublayer in layer._flatten_layers():
             try:
                 sublayer.quantize("int8")
-            except:
+            except Exception:
                 pass
 
         # Verify weights dtype

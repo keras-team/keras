@@ -164,7 +164,7 @@ class Sequential(Model):
     def build(self, input_shape=None):
         try:
             input_shape = standardize_shape(input_shape)
-        except:
+        except Exception:
             # Do not attempt to build if the model does not have a single
             # input tensor.
             return

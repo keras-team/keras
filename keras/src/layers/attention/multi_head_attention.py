@@ -132,7 +132,7 @@ class MultiHeadAttention(Layer):
                 output_shape = (output_shape,)
             try:
                 output_shape = tuple(output_shape)
-            except:
+            except Exception:
                 raise ValueError(
                     f"Invalid `output_shape`: {output_shape}. When "
                     "specified, the `output_shape` should be of type tuple, "

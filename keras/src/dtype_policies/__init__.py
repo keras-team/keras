@@ -106,7 +106,7 @@ def get(identifier):
             return DTypePolicy(identifier)
     try:
         return DTypePolicy(backend.standardize_dtype(identifier))
-    except:
+    except Exception:
         raise ValueError(
             "Cannot interpret `dtype` argument. Expected a string "
             f"or an instance of DTypePolicy. Received: dtype={identifier}"

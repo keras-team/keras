@@ -194,7 +194,7 @@ def pythonify_logs(logs):
                 if backend.is_tensor(value):
                     value = backend.convert_to_numpy(value)
                 value = float(value)
-            except:
+            except Exception:
                 pass
             result[key] = value
     return result

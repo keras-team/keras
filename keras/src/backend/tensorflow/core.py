@@ -199,7 +199,7 @@ def shape(x):
         if shape[i] is None:
             try:
                 shape[i] = dynamic[i]
-            except:
+            except Exception:
                 # With RaggedTensors, accessing a ragged dimension will fail,
                 # we leave it as None.
                 pass

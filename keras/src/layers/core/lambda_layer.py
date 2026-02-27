@@ -91,7 +91,7 @@ class Lambda(Layer):
                 )
                 output_spec = backend.compute_output_spec(self.call, inputs)
                 return tree.map_structure(lambda x: x.shape, output_spec)
-            except:
+            except Exception:
                 raise NotImplementedError(
                     "We could not automatically infer the shape of "
                     "the Lambda's output. Please specify the `output_shape` "

@@ -223,7 +223,7 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                             weights_file_path.name, mode="w"
                         )
                         write_zf = True
-                except:
+                except Exception:
                     # If we can't use the local disk for any reason, write the
                     # weights into memory first, which consumes more memory.
                     weights_store = H5IOStore(
@@ -249,7 +249,7 @@ def _save_model_to_fileobj(model, fileobj, weights_format):
                 inner_path="",
                 visited_saveables=set(),
             )
-        except:
+        except Exception:
             # Skip the final `zf.write` if any exception is raised
             write_zf = False
             if weights_store:
@@ -469,7 +469,7 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
                             pathlib.Path(extract_dir.name, _VARS_FNAME_H5),
                             mode="r",
                         )
-                except:
+                except Exception:
                     # If we can't use the local disk for any reason, read the
                     # weights from the zip archive on the fly, which is less
                     # efficient.

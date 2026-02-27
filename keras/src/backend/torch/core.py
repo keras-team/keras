@@ -330,7 +330,7 @@ def compute_output_spec(fn, *args, **kwargs):
                     (args, kwargs),
                 )
                 return fn(*meta_args, **meta_kwargs)
-        except:
+        except Exception:
             with device_scope(DEFAULT_DEVICE):
                 # If the `"meta"` device placement fails, fall back to tracing
                 # eagerly with tensors on the default device. This will be
@@ -738,7 +738,7 @@ class CustomGradientFunction(torch.autograd.Function):
         ctx.save_for_backward(*args)
         try:
             output, ctx.grad_fn = forward_fn(*args, **kwargs)
-        except:
+        except Exception:
             output = forward_fn(*args, **kwargs)
             ctx.grad_fn = lambda *args, **kwargs: torch.full((), float("nan"))
         return output
