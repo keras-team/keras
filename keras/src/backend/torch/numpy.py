@@ -1325,6 +1325,24 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
+def nanargmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return x
+
+    if not torch.is_floating_point(x):
+        return argmin(x, axis=axis, keepdims=keepdims)
+
+    x_clean = torch.where(torch.isnan(x), float("-inf"), x)
+
+    return torch.where(
+        torch.isnan(x).all(dim=axis, keepdim=keepdims),
+        torch.tensor(-1, dtype=torch.int32, device=get_device()),
+        argmin(x_clean, axis=axis, keepdims=keepdims),
+    )
+
+
 def nancumsum(x, axis=None, dtype=None):
     x = nan_to_num(x)
     return cumsum(x, axis=axis, dtype=dtype)
