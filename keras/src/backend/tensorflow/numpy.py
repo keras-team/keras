@@ -2201,7 +2201,7 @@ def nanargmin(x, axis=None, keepdims=False):
         tf.reduce_all(nan_mask, axis=axis, keepdims=keepdims),
         tf.constant(-1, dtype=tf.int32),
         argmin(
-            tf.where(nan_mask, tf.constant(float("-inf"), dtype=x.dtype), x),
+            tf.where(nan_mask, tf.constant(float("inf"), dtype=x.dtype), x),
             axis=axis,
             keepdims=keepdims,
         ),

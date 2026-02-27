@@ -1328,13 +1328,10 @@ def moveaxis(x, source, destination):
 def nanargmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
-    if axis == () or axis == []:
-        return x
-
     if not torch.is_floating_point(x):
         return argmin(x, axis=axis, keepdims=keepdims)
 
-    x_clean = torch.where(torch.isnan(x), float("-inf"), x)
+    x_clean = torch.where(torch.isnan(x), float("inf"), x)
 
     return torch.where(
         torch.isnan(x).all(dim=axis, keepdim=keepdims),
