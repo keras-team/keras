@@ -415,6 +415,7 @@ class NormalizationTest(testing.TestCase):
         output = backend.convert_to_numpy(output)
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+
     def test_adapt_tf_dataset_with_labels(self):
         """Normalization.adapt should support supervised tf.data.Dataset."""
         import tensorflow as tf
