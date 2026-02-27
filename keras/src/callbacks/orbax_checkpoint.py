@@ -269,19 +269,35 @@ class OrbaxCheckpoint(MonitorCallback):
             config_json, _ = saving_lib._serialize_model_as_json(self.model)
             composite_state["model_config"] = config_json
 
+        # Collect assets if saving full model (not just weights)
+        assets_dict = None
+        if not self.save_weights_only:
+            assets_dict = saving_lib._save_assets_to_dict(self.model)
+
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
             # Determine sync vs async based on save_on_background setting
             use_sync = not self.save_on_background
 
-            if use_sync:
-                # Synchronous save
-                self.checkpointer.save_pytree(step, composite_state)
+            # Always use checkpointables API for consistency
+            # If no assets, just pass pytree alone
+            if assets_dict is not None:
+                payload = {
+                    "pytree": composite_state,
+                    "assets": assets_dict,
+                }
             else:
-                # Async save
-                future = self.checkpointer.save_pytree_async(
-                    step, composite_state
+                payload = {
+                    "pytree": composite_state,
+                }
+
+            # Execute save based on sync/async mode
+            if use_sync:
+                self.checkpointer.save_checkpointables(step, payload)
+            else:
+                future = self.checkpointer.save_checkpointables_async(
+                    step, payload
                 )
                 self._async_futures.append(future)
 

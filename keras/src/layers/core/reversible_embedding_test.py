@@ -437,11 +437,11 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         ("grouped_block_4", 4),
         ("grouped_block_8", 8),
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_subchannel_g_idx_created(self, block_size):
         """Test that g_idx is created for sub-channel int4 quantization."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 10, 16
         layer = layers.ReversibleEmbedding(
             input_dim=input_dim, output_dim=output_dim
@@ -461,11 +461,11 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         expected_g_idx = np.arange(output_dim) // block_size
         self.assertAllClose(layer.g_idx, expected_g_idx)
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_perchannel_no_g_idx(self):
         """Test that per-channel int4 does NOT create g_idx."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.ReversibleEmbedding(input_dim=10, output_dim=16)
         layer.build()
 
@@ -475,11 +475,11 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         # Verify g_idx is NOT created for per-channel
         self.assertFalse(hasattr(layer, "g_idx"))
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_subchannel_g_idx_serialization(self):
         """Test that g_idx is properly serialized and deserialized."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 10, 16
         block_size = 8
 

@@ -16,7 +16,6 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
-from keras.src.utils import traceback_utils
 
 
 class MockRemat:
@@ -243,12 +242,11 @@ class LayerTest(testing.TestCase):
             layer.build((2, 4))
             layer.dtype_policy = "gptq/4/-1_from_float32"
 
+    @pytest.mark.skipif(
+        backend.backend() in ("openvino", "numpy"),
+        reason="remat not supported on OpenVino and Numpy",
+    )
     def test_functional_model_with_remat(self):
-        if backend.backend() in ("openvino", "numpy"):
-            self.skipTest(
-                "remat is not supported in openvino and numpy backends."
-            )
-        traceback_utils.enable_traceback_filtering()
         mock_remat = MockRemat()
         with mock.patch(
             "keras.src.backend.common.remat.remat", wraps=mock_remat
@@ -1855,3 +1853,22 @@ class LayerTest(testing.TestCase):
         # foo_mode omitted -> foo_mode defaults to False -> no change
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)
+
+    def test_layer_build_with_attention_mask_arg(self):
+        test = self
+
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, attention_mask=None):
+                if attention_mask is not None:
+                    return inputs * ops.cast(attention_mask, x.dtype)
+                return inputs
+
+            def build(self, inputs_shape, attention_mask_shape=None):
+                test.assertIsNotNone(attention_mask_shape)
+                self.built = True
+
+        layer = CustomLayer()
+        x = np.ones((2, 3), dtype="float32")
+        mask = np.ones((2, 1), dtype="float32")
+        y = layer(x, attention_mask=mask)
+        self.assertEqual(y.shape, (2, 3))

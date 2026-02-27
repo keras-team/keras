@@ -1478,6 +1478,27 @@ def dot(x1, x2):
     return tf.cast(output, result_dtype)
 
 
+def dstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    if len(xs) > 1:
+        unique_dtypes = {x.dtype for x in xs}
+        if len(unique_dtypes) > 1:
+            dtype = dtypes.result_type(*[x.dtype for x in xs])
+            xs = [cast(x, dtype) for x in xs]
+    xs_reshaped = []
+    for x in xs:
+        shape = x.shape
+        if len(shape) == 0:
+            x = tf.reshape(x, (1, 1, 1))
+        elif len(shape) == 1:
+            x = tf.expand_dims(x, axis=0)
+            x = tf.expand_dims(x, axis=2)
+        elif len(shape) == 2:
+            x = tf.expand_dims(x, axis=2)
+        xs_reshaped.append(x)
+    return tf.concat(xs_reshaped, axis=2)
+
+
 def empty(shape, dtype=None):
     dtype = dtype or config.floatx()
     return tf.zeros(shape, dtype=dtype)
@@ -1612,6 +1633,26 @@ def gcd(x1, x2):
     return gcd_val
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    start = convert_to_tensor(start)
+    stop = convert_to_tensor(stop)
+    log_start = tf.math.log(tf.cast(tf.abs(start), dtype or config.floatx()))
+    log_stop = tf.math.log(tf.cast(tf.abs(stop), dtype or config.floatx()))
+    log_base = tf.math.log(tf.constant(10.0, dtype=log_start.dtype))
+    result = logspace(
+        log_start / log_base,
+        log_stop / log_base,
+        num=num,
+        endpoint=endpoint,
+        base=10,
+        dtype=dtype,
+        axis=axis,
+    )
+    # Handle sign: start and stop must have the same sign (or be zero)
+    start_sign = tf.cast(tf.sign(tf.cast(start, log_start.dtype)), result.dtype)
+    return result * start_sign
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1638,6 +1679,13 @@ def hstack(xs):
     if len(xs[0].shape) == 1:
         return tf.concat(xs, axis=0)
     return tf.concat(xs, axis=1)
+
+
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if x.ndim == 1:
+        return split(x, indices_or_sections, axis=0)
+    return split(x, indices_or_sections, axis=1)
 
 
 def hypot(x1, x2):
@@ -1684,6 +1732,24 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         return result
     else:
         return tf.equal(x1, x2)
+
+
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+
+    if "float" in standardize_dtype(dtype):
+        finite = tf.math.is_finite(x1) & tf.math.is_finite(x2)
+        close = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        result = (finite & close) | tf.equal(x1, x2)
+        if equal_nan:
+            result = result | (is_nan(x1) & is_nan(x2))
+        return tf.reduce_all(result)
+    else:
+        return tf.reduce_all(tf.equal(x1, x2))
 
 
 @sparse.densifying_unary(True)
@@ -2123,6 +2189,11 @@ def moveaxis(x, source, destination):
     return tf.transpose(x, perm)
 
 
+def nancumsum(x, axis=None, dtype=None):
+    x = nan_to_num(x)
+    return cumsum(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
@@ -2194,6 +2265,11 @@ def nanprod(x, axis=None, keepdims=False):
     return prod(x_safe, axis=axis, keepdims=keepdims)
 
 
+def nanstd(x, axis=None, keepdims=False):
+    var_val = nanvar(x, axis=axis, keepdims=keepdims)
+    return tf.sqrt(var_val)
+
+
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
@@ -2208,6 +2284,31 @@ def nansum(x, axis=None, keepdims=False):
     x_clean = cast(x_clean, dtype)
 
     return tf.reduce_sum(x_clean, axis=axis, keepdims=keepdims)
+
+
+def nanvar(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, result_dtype)
+
+    mean = nanmean(x, axis=axis, keepdims=True)
+
+    valid = ~tf.math.is_nan(x)
+
+    centered = tf.where(valid, x - mean, tf.zeros_like(x))
+
+    if centered.dtype.is_complex:
+        centered = tf.math.real(centered * tf.math.conj(centered))
+    else:
+        centered = tf.square(centered)
+
+    count = tf.reduce_sum(
+        tf.cast(valid, centered.dtype), axis=axis, keepdims=keepdims
+    )
+
+    var = tf.reduce_sum(centered, axis=axis, keepdims=keepdims) / count
+
+    return var
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
@@ -3007,6 +3108,10 @@ def vstack(xs):
         dtype = dtypes.result_type(*dtype_set)
         xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
     return tf.concat(xs, axis=0)
+
+
+def vsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=0)
 
 
 def _vmap_fn(fn, in_axes=0):

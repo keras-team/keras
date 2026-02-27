@@ -1,3 +1,4 @@
+ConvTransposeBasicTest
 ExportArchiveTest::test_jax_endpoint_registration_tf_function
 ExportArchiveTest::test_jax_multi_unknown_endpoint_registration
 ExportArchiveTest::test_layer_export

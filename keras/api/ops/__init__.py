@@ -77,6 +77,7 @@ from keras.src.ops.nn import conv as conv
 from keras.src.ops.nn import conv_transpose as conv_transpose
 from keras.src.ops.nn import ctc_decode as ctc_decode
 from keras.src.ops.nn import ctc_loss as ctc_loss
+from keras.src.ops.nn import depth_to_space as depth_to_space
 from keras.src.ops.nn import depthwise_conv as depthwise_conv
 from keras.src.ops.nn import dot_product_attention as dot_product_attention
 from keras.src.ops.nn import elu as elu
@@ -110,6 +111,7 @@ from keras.src.ops.nn import soft_shrink as soft_shrink
 from keras.src.ops.nn import softmax as softmax
 from keras.src.ops.nn import softplus as softplus
 from keras.src.ops.nn import softsign as softsign
+from keras.src.ops.nn import space_to_depth as space_to_depth
 from keras.src.ops.nn import (
     sparse_categorical_crossentropy as sparse_categorical_crossentropy,
 )
@@ -124,6 +126,7 @@ from keras.src.ops.numpy import abs as abs
 from keras.src.ops.numpy import absolute as absolute
 from keras.src.ops.numpy import add as add
 from keras.src.ops.numpy import all as all
+from keras.src.ops.numpy import allclose as allclose
 from keras.src.ops.numpy import amax as amax
 from keras.src.ops.numpy import amin as amin
 from keras.src.ops.numpy import angle as angle
@@ -179,6 +182,7 @@ from keras.src.ops.numpy import digitize as digitize
 from keras.src.ops.numpy import divide as divide
 from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
+from keras.src.ops.numpy import dstack as dstack
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
 from keras.src.ops.numpy import empty_like as empty_like
@@ -194,6 +198,7 @@ from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like
 from keras.src.ops.numpy import gcd as gcd
+from keras.src.ops.numpy import geomspace as geomspace
 from keras.src.ops.numpy import get_item as get_item
 from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
@@ -201,6 +206,7 @@ from keras.src.ops.numpy import hamming as hamming
 from keras.src.ops.numpy import hanning as hanning
 from keras.src.ops.numpy import heaviside as heaviside
 from keras.src.ops.numpy import histogram as histogram
+from keras.src.ops.numpy import hsplit as hsplit
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import hypot as hypot
 from keras.src.ops.numpy import identity as identity
@@ -245,11 +251,14 @@ from keras.src.ops.numpy import mod as mod
 from keras.src.ops.numpy import moveaxis as moveaxis
 from keras.src.ops.numpy import multiply as multiply
 from keras.src.ops.numpy import nan_to_num as nan_to_num
+from keras.src.ops.numpy import nancumsum as nancumsum
 from keras.src.ops.numpy import nanmax as nanmax
 from keras.src.ops.numpy import nanmean as nanmean
 from keras.src.ops.numpy import nanmin as nanmin
 from keras.src.ops.numpy import nanprod as nanprod
+from keras.src.ops.numpy import nanstd as nanstd
 from keras.src.ops.numpy import nansum as nansum
+from keras.src.ops.numpy import nanvar as nanvar
 from keras.src.ops.numpy import ndim as ndim
 from keras.src.ops.numpy import negative as negative
 from keras.src.ops.numpy import nextafter as nextafter
@@ -310,6 +319,7 @@ from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize
 from keras.src.ops.numpy import view as view
+from keras.src.ops.numpy import vsplit as vsplit
 from keras.src.ops.numpy import vstack as vstack
 from keras.src.ops.numpy import where as where
 from keras.src.ops.numpy import zeros as zeros

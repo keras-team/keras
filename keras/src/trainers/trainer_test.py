@@ -499,18 +499,6 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_fit_flow(self, run_eagerly, jit_compile, use_steps_per_epoch):
-        if not run_eagerly and not jit_compile and use_steps_per_epoch:
-            if False and backend.backend() == "tensorflow":
-                self.skipTest(
-                    "TODO: Graph mode without XLA in TF backend leads to "
-                    "unexpected logs, need further checks."
-                )
-        if jit_compile and backend.backend() == "torch":
-            self.skipTest(
-                "TODO: compilation with torch backend leads to "
-                "unexpected logs, need further checks."
-            )
-
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -706,13 +694,6 @@ class TestTrainer(testing.TestCase):
     def test_fit_with_val_split(
         self, run_eagerly, jit_compile, use_steps_per_epoch
     ):
-        if not run_eagerly and not jit_compile and use_steps_per_epoch:
-            if backend.backend() == "tensorflow":
-                self.skipTest(
-                    "TODO: Graph mode without XLA in TF backend leads to "
-                    "unexpected logs, need further checks."
-                )
-
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -2893,9 +2874,8 @@ class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
         ("single_device", False),
         ("distributed", True),
     )
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
     def test_jit_fit_with_out_shardings_logic(self, distributed):
-        if keras.backend.backend() != "jax":
-            self.skipTest("This test requires the JAX backend.")
         x = np.random.rand(64, 8).astype("float32")
         y = np.random.rand(64, 1).astype("float32")
 

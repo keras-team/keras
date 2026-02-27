@@ -616,3 +616,98 @@ class IndexLookupLayerTest(testing.TestCase):
         ):
             input_data = ["sample", "data"]
             layer(input_data)
+
+    def test_save_and_load_assets_string_vocab(self):
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 1,
+            "mask_token": "<mask>",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        vocabulary = ["apple", "banana", "cherry"]
+        layer.set_vocabulary(vocabulary)
+
+        vocab_before = layer.get_vocabulary(include_special_tokens=True)
+        vocab_before_no_special = layer.get_vocabulary(
+            include_special_tokens=False
+        )
+
+        sample_input = ["apple", "banana", "unknown"]
+        output_before = layer(sample_input).numpy()
+
+        tmpdir = self.get_temp_dir()
+
+        layer.save_assets(tmpdir)
+
+        layer2 = layers.IndexLookup(**kwargs)
+        layer2.load_assets(tmpdir)
+
+        vocab_after = layer2.get_vocabulary(include_special_tokens=True)
+        vocab_after_no_special = layer2.get_vocabulary(
+            include_special_tokens=False
+        )
+
+        self.assertEqual(vocab_before, vocab_after)
+        self.assertEqual(vocab_before_no_special, vocab_after_no_special)
+
+        output_after = layer2(sample_input).numpy()
+        np.testing.assert_array_equal(output_before, output_after)
+
+    def test_save_and_load_assets_with_multiple_oov_indices(self):
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 2,
+            "mask_token": "<mask>",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        vocabulary = ["apple", "banana"]
+        layer.set_vocabulary(vocabulary)
+
+        vocab_before = layer.get_vocabulary(include_special_tokens=True)
+
+        self.assertEqual(len(vocab_before), 5)
+        self.assertEqual(vocab_before[0], "<mask>")
+        self.assertEqual(vocab_before[1], "[OOV]")
+        self.assertEqual(vocab_before[2], "[OOV]")
+
+        tmpdir = self.get_temp_dir()
+
+        layer.save_assets(tmpdir)
+
+        layer2 = layers.IndexLookup(**kwargs)
+        layer2.load_assets(tmpdir)
+
+        vocab_after = layer2.get_vocabulary(include_special_tokens=True)
+        self.assertEqual(vocab_before, vocab_after)
+
+    def test_load_assets_handles_trailing_newlines(self):
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 1,
+            "mask_token": "<mask>",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        vocabulary = ["apple", "banana", "cherry"]
+        layer.set_vocabulary(vocabulary)
+        vocab_expected = layer.get_vocabulary(include_special_tokens=True)
+
+        tmpdir = self.get_temp_dir()
+
+        vocab_file = os.path.join(tmpdir, "vocabulary.txt")
+        with open(vocab_file, "w") as f:
+            f.write("<mask>\n[OOV]\napple\nbanana\ncherry\n")
+
+        layer2 = layers.IndexLookup(**kwargs)
+        layer2.load_assets(tmpdir)
+
+        vocab_loaded = layer2.get_vocabulary(include_special_tokens=True)
+        self.assertEqual(vocab_expected, vocab_loaded)

@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -214,9 +215,11 @@ class IntegerLookupTest(testing.TestCase):
         with self.assertRaises(ValueError):
             layers.IntegerLookup(num_oov_indices=-1)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="sparse=True only supported on TensorFlow",
+    )
     def test_sparse_output(self):
-        if backend.backend() != "tensorflow":
-            self.skipTest("sparse=True only supported on TensorFlow")
         layer = layers.IntegerLookup(
             vocabulary=[1, 2, 3],
             output_mode="multi_hot",

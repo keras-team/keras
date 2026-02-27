@@ -57,9 +57,17 @@ class GrainDatasetAdapter(DataAdapter):
         return batch_size, output_signature
 
     def get_numpy_iterator(self):
-        from grain._src.python.shared_memory_array import (
-            SharedMemoryArrayMetadata,
-        )
+        # Workaround for internal change in Grain which isn't a part of a
+        # release yet.
+        # TODO(abheesht17): Remove this after the next Grain release.
+        try:
+            from grain._src.python.shared_memory_array import (
+                SharedMemoryArrayMetadata,
+            )
+        except ImportError:
+            from grain._src.python.ipc.shared_memory_array import (
+                SharedMemoryArrayMetadata,
+            )
 
         def convert_to_numpy(x):
             if isinstance(x, (np.ndarray, SharedMemoryArrayMetadata)):

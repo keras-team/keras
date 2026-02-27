@@ -1,3 +1,5 @@
+import math
+
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
@@ -316,12 +318,12 @@ def should_shard_at_init(init_layout, shape):
     if not isinstance(init_layout, jax.sharding.NamedSharding):
         return False
 
-    if all(dim is None for dim in init_layout.spec):
-        return False
-
     size_threshold = 250 * 1024 * 1024
-    array_size = np.prod(shape) * 4
-    return array_size >= size_threshold
+    # We multiply by the mesh size here to take into account the worst case
+    # scenario of the array being first duplicated in the memory of one device
+    # before being transferred to the other devices.
+    size = math.prod(shape) * 4 * init_layout.mesh.devices.size
+    return size >= size_threshold
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
@@ -518,12 +520,23 @@ def scatter(indices, values, shape):
     return zeros.at[key].add(values)
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = jnp.array(indices)
     indices = jnp.transpose(indices)
-    inputs = inputs.at[tuple(indices)].set(updates)
-    return inputs
+    idx = tuple(indices)
+    if reduction is None:
+        return inputs.at[idx].set(updates)
+    elif reduction == "add":
+        return inputs.at[idx].add(updates)
+    elif reduction == "max":
+        return inputs.at[idx].max(updates)
+    elif reduction == "min":
+        return inputs.at[idx].min(updates)
+    elif reduction == "mul":
+        return inputs.at[idx].multiply(updates)
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
 
 
 def slice(inputs, start_indices, shape):

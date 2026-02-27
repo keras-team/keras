@@ -680,20 +680,12 @@ class BaseOptimizer(KerasSaveable):
             self.apply(grads)
 
         # Gather updated variables
-        trainable_variables = []
-        for v in self._trainable_variables:
-            new_v = scope.get_current_value(v)
-            if new_v is not None:
-                trainable_variables.append(new_v)
-            else:
-                trainable_variables.append(v)
-        optimizer_variables = []
-        for v in self.variables:
-            new_v = scope.get_current_value(v)
-            if new_v is not None:
-                optimizer_variables.append(new_v)
-            else:
-                optimizer_variables.append(v)
+        trainable_variables = [
+            scope.get_current_value(v) for v in self._trainable_variables
+        ]
+        optimizer_variables = [
+            scope.get_current_value(v) for v in self.variables
+        ]
         return trainable_variables, optimizer_variables
 
     def scale_loss(self, loss):

@@ -1486,3 +1486,83 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
 
     # ---- reshape -> (N, C*kH*kW, L) ----
     return patches.reshape(N, C * k[0] * k[1], -1)
+
+
+def depth_to_space(x, block_size, data_format="channels_last"):
+    """NumPy implementation of depth_to_space (pixel shuffle).
+
+    Rearranges data from depth into blocks of spatial data.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H*block_size, W*block_size, C/block_size**2)
+        for channels_last or (N, C/block_size**2, H*block_size, W*block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        # NHWC format
+        n, h, w, c = x.shape
+        new_c = c // (block_size**2)
+        # Reshape: (N, H, W, C) -> (N, H, W, block_size, block_size, new_C)
+        x = np.reshape(x, (n, h, w, block_size, block_size, new_c))
+        # Transpose to (N, H, bH, W, bW, new_C) to interleave spatial blocks.
+        x = np.transpose(x, (0, 1, 3, 2, 4, 5))
+        # Reshape to the final spatial dimensions.
+        x = np.reshape(x, (n, h * block_size, w * block_size, new_c))
+    else:
+        # NCHW format
+        n, c, h, w = x.shape
+        new_c = c // (block_size**2)
+        # Reshape: (N, C, H, W) -> (N, new_C, block_size, block_size, H, W)
+        x = np.reshape(x, (n, new_c, block_size, block_size, h, w))
+        # Transpose: (N, C, bH, bW, H, W) -> (N, C, H, bH, W, bW)
+        x = np.transpose(x, (0, 1, 4, 2, 5, 3))
+        # Reshape: (N, C, H, bH, W, bW) -> (N, C, H*bH, W*bW)
+        x = np.reshape(x, (n, new_c, h * block_size, w * block_size))
+    return x
+
+
+def space_to_depth(x, block_size, data_format="channels_last"):
+    """NumPy implementation of space_to_depth (pixel unshuffle).
+
+    Rearranges blocks of spatial data into depth.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H/block_size, W/block_size, C*block_size**2)
+        for channels_last or (N, C*block_size**2, H/block_size, W/block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        # NHWC format
+        n, h, w, c = x.shape
+        new_h = h // block_size
+        new_w = w // block_size
+        # Reshape: (N, H, W, C) -> (N, new_H, bH, new_W, bW, C)
+        x = np.reshape(x, (n, new_h, block_size, new_w, block_size, c))
+        # Transpose: -> (N, new_H, new_W, bH, bW, C)
+        x = np.transpose(x, (0, 1, 3, 2, 4, 5))
+        # Reshape: -> (N, new_H, new_W, C*bH*bW)
+        x = np.reshape(x, (n, new_h, new_w, c * block_size**2))
+    else:
+        # NCHW format
+        n, c, h, w = x.shape
+        new_h = h // block_size
+        new_w = w // block_size
+        # Reshape: (N, C, H, W) -> (N, C, new_H, bH, new_W, bW)
+        x = np.reshape(x, (n, c, new_h, block_size, new_w, block_size))
+        # Transpose: -> (N, C, bH, bW, new_H, new_W)
+        x = np.transpose(x, (0, 1, 3, 5, 2, 4))
+        # Reshape: -> (N, C*bH*bW, new_H, new_W)
+        x = np.reshape(x, (n, c * block_size**2, new_h, new_w))
+    return x

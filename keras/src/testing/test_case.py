@@ -1,7 +1,6 @@
 import json
 import shutil
 import tempfile
-import unittest
 from pathlib import Path
 
 import numpy as np
@@ -20,7 +19,7 @@ from keras.src.models import Model
 from keras.src.utils import traceback_utils
 
 
-class TestCase(parameterized.TestCase, unittest.TestCase):
+class TestCase(parameterized.TestCase):
     maxDiff = None
 
     def __init__(self, *args, **kwargs):

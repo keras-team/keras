@@ -12,7 +12,6 @@ from keras.src.saving import serialization_lib
 from keras.src.trainers.compile_utils import CompileLoss
 from keras.src.trainers.compile_utils import CompileMetrics
 from keras.src.trainers.data_adapters import data_adapter_utils
-from keras.src.utils import python_utils
 from keras.src.utils import traceback_utils
 from keras.src.utils import tracking
 
@@ -139,6 +138,29 @@ class Trainer:
                 `"mixed_float16"`, the passed optimizer will be automatically
                 wrapped in a `LossScaleOptimizer`, which will dynamically
                 scale the loss to prevent underflow.
+
+        Note:
+            Trainable variables are determined at `compile()` time. If you
+            modify the `trainable` property of a layer after calling
+            `compile()`, those changes will not take effect during `fit()`
+            unless `compile()` is called again.
+
+            Recommended workflow when changing trainable variables:
+            ```python
+            # Initial training with some layers
+            model.compile(optimizer="adam", loss="mse")
+            model.fit(x_train, y_train)
+
+            # Change trainable flags
+            layer.trainable = False  # or True
+
+            # Recompile for the change to take effect
+            model.compile(optimizer="adam", loss="mse")
+            model.fit(x_train, y_train)
+            ```
+
+            This behavior applies to all Keras backends and is also documented
+            in the transfer learning guide.
         """
         optimizer = optimizers.get(optimizer)
         self.optimizer = optimizer
@@ -507,7 +529,7 @@ class Trainer:
                 return_metrics.update(result)
             else:
                 return_metrics[metric.name] = result
-        return python_utils.pythonify_logs(return_metrics)
+        return return_metrics
 
     def fit(
         self,

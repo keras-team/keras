@@ -1621,3 +1621,59 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     )  # (N, C, kH, kW, nH, nW)
     patches = tf.reshape(patches, [N, C * k[0] * k[1], nH * nW])
     return patches
+
+
+def depth_to_space(x, block_size, data_format="channels_last"):
+    """TensorFlow implementation of depth_to_space.
+
+    Rearranges data from depth into blocks of spatial data.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H*block_size, W*block_size, C/block_size**2)
+        for channels_last or (N, C/block_size**2, H*block_size, W*block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        return tf.nn.depth_to_space(x, block_size, data_format="NHWC")
+    else:
+        # NCHW format is not supported on CPU, so we transpose manually
+        # NCHW -> NHWC
+        x = tf.transpose(x, [0, 2, 3, 1])
+        x = tf.nn.depth_to_space(x, block_size, data_format="NHWC")
+        # NHWC -> NCHW
+        x = tf.transpose(x, [0, 3, 1, 2])
+        return x
+
+
+def space_to_depth(x, block_size, data_format="channels_last"):
+    """TensorFlow implementation of space_to_depth.
+
+    Rearranges blocks of spatial data into depth.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H/block_size, W/block_size, C*block_size**2)
+        for channels_last or (N, C*block_size**2, H/block_size, W/block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        return tf.nn.space_to_depth(x, block_size, data_format="NHWC")
+    else:
+        # NCHW format is not supported on CPU, so we transpose manually
+        # NCHW -> NHWC
+        x = tf.transpose(x, [0, 2, 3, 1])
+        x = tf.nn.space_to_depth(x, block_size, data_format="NHWC")
+        # NHWC -> NCHW
+        x = tf.transpose(x, [0, 3, 1, 2])
+        return x
