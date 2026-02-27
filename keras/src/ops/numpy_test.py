@@ -5982,7 +5982,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out[1].shape, (2, 4))
 
     def test_nanargmin(self):
-        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
+        x = np.array([[1.0, np.nan, np.inf], [np.nan, 2.0, -1.0]])
 
         self.assertAllClose(knp.nanargmin(x), np.nanargmin(x))
         self.assertAllClose(knp.nanargmin(x, axis=0), np.nanargmin(x, axis=0))

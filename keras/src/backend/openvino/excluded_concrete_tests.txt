@@ -2,6 +2,7 @@ NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
+NumpyDtypeTest::test_nanargmin
 NumpyDtypeTest::test_nancumsum
 NumpyDtypeTest::test_nanstd
 NumpyDtypeTest::test_maximum_python_types
@@ -13,6 +14,7 @@ NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
+NumpyOneInputOpsCorrectnessTest::test_nanargmin
 NumpyOneInputOpsCorrectnessTest::test_nancumsum
 NumpyOneInputOpsCorrectnessTest::test_nanstd
 NumpyOneInputOpsCorrectnessTest::test_real

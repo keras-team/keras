@@ -2833,6 +2833,12 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nanargmin(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanargmin` is not supported with openvino backend"
+    )
+
+
 def nancumsum(x, axis=None, dtype=None):
     raise NotImplementedError(
         "`nancumsum` is not supported with openvino backend"
