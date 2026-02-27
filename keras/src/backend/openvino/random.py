@@ -292,8 +292,8 @@ def gamma(shape, alpha, dtype=None, seed=None):
         seed1, seed2 = convert_to_numpy(seed_val)
     else:
         seed1, seed2 = seed_val.data
-    seed1 = int(seed1)
-    seed2 = int(seed2)
+    seed1 = abs(int(seed1))
+    seed2 = abs(int(seed2))
     if isinstance(shape, (list, tuple)):
         shape = ov_opset.constant(list(shape), Type.i32).output(0)
     elif isinstance(shape, OpenVINOKerasTensor):
@@ -371,4 +371,16 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    raise NotImplementedError("`beta` is not supported with openvino backend")
+    if isinstance(seed, int):
+        seed1 = seed
+        seed2 = seed + 1
+    else:
+        seed1 = seed
+        seed2 = seed
+
+    gamma1 = gamma(shape, alpha, dtype=dtype, seed=seed1)
+    gamma2 = gamma(shape, beta, dtype=dtype, seed=seed2)
+
+    return gamma1 / (gamma1 + gamma2)
+
+    
