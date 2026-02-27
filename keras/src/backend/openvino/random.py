@@ -382,5 +382,3 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     gamma2 = gamma(shape, beta, dtype=dtype, seed=seed2)
 
     return gamma1 / (gamma1 + gamma2)
-
-    
