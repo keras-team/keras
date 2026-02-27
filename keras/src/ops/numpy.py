@@ -5331,12 +5331,10 @@ class Nanargmin(Operation):
         )
 
     def compute_output_spec(self, x):
-        if self.keepdims:
-            return KerasTensor(x.shape, dtype="int32")
-        if self.axis is None:
-            return KerasTensor([], dtype="int32")
+        axis = [self.axis] if self.axis is not None else None
         return KerasTensor(
-            reduce_shape(x.shape, axis=[self.axis]), dtype="int32"
+            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
+            dtype="int32",
         )
 
 
