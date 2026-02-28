@@ -2,6 +2,9 @@ import openvino.opset15 as ov_opset
 from openvino import Model
 from openvino import Type
 from keras.src import backend
+from keras.src import activations
+from keras.src import ops
+
 from keras.src.backend.openvino.numpy import split, concatenate
 from keras.src import tree
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
@@ -412,9 +415,6 @@ def cudnn_ok(
     use_bias,
     reset_after=None,
 ):
-    from keras.src import activations
-    from keras.src import ops
-
     if reset_after is None:
         return (
             activation in (activations.tanh, ops.tanh)
