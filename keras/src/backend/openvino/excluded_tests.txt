@@ -38,3 +38,4 @@ keras/src/trainers/compile_utils_test.py
 keras/src/trainers/epoch_iterator_test.py
 keras/src/trainers/trainer_test.py
 keras/src/utils
+keras/src/layers/rnn/gru_test.py
