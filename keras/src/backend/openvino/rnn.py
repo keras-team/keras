@@ -1,11 +1,9 @@
 import openvino.opset15 as ov_opset
 from openvino import Model
 from openvino import Type
-from keras.src import backend
+
 from keras.src import activations
 from keras.src import ops
-
-from keras.src.backend.openvino.numpy import split, concatenate
 from keras.src import tree
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
@@ -179,7 +177,9 @@ def rnn(
     sliced_inputs_t = []
     for p in sliced_inputs_params:
         p_out = p.output(0)
-        p_out = ov_opset.squeeze(p_out, ov_opset.constant([0], dtype=Type.i32).output(0)).output(0)
+        p_out = ov_opset.squeeze(
+            p_out, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
         sliced_inputs_t.append(OpenVINOKerasTensor(p_out))
     merged_states_t = [
         OpenVINOKerasTensor(p.output(0)) for p in merged_states_params
@@ -198,7 +198,9 @@ def rnn(
     final_last_output_list = []
     if mask is not None:
         mask_t = sliced_mask_params[0].output(0)
-        mask_t = ov_opset.squeeze(mask_t, ov_opset.constant([0], dtype=Type.i32).output(0)).output(0)
+        mask_t = ov_opset.squeeze(
+            mask_t, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
         for i, (new_st, old_st) in enumerate(
             zip(flat_step_new_states, merged_states_t)
         ):
@@ -233,10 +235,14 @@ def rnn(
         final_output_list = [get_ov_output(x) for x in flat_step_output]
         final_last_output_list = [get_ov_output(x) for x in flat_step_output]
     zero_const = ov_opset.constant([0], dtype=Type.i32).output(0)
-    final_output_list = [ov_opset.unsqueeze(x, zero_const).output(0) for x in final_output_list]
+    final_output_list = [
+        ov_opset.unsqueeze(x, zero_const).output(0) for x in final_output_list
+    ]
     cond_const = ov_opset.constant(True, Type.boolean).output(0)
     zero_const = ov_opset.constant([0], dtype=Type.i32).output(0)
-    final_output_list = [ov_opset.unsqueeze(x, zero_const).output(0) for x in final_output_list]
+    final_output_list = [
+        ov_opset.unsqueeze(x, zero_const).output(0) for x in final_output_list
+    ]
     results = (
         [cond_const]
         + final_states_list
@@ -294,6 +300,7 @@ def rnn(
         outputs = tree.map_structure(swap_batch_timestep, outputs)
     return last_output, outputs, new_states
 
+
 def lstm(
     inputs,
     initial_state_h,
@@ -309,8 +316,6 @@ def lstm(
     unroll=False,
     time_major=False,
 ):
-    from keras.src import backend
-    from keras.src.backend.openvino.numpy import split, concatenate
     if mask is not None:
         raise NotImplementedError("lstm sequence with mask is not supported")
         mask = get_ov_output(mask)
@@ -321,48 +326,100 @@ def lstm(
     recurrent_kernel = get_ov_output(recurrent_kernel)
     shape = ov_opset.shape_of(inputs, Type.i32).output(0)
     if not time_major:
-        batch_size = ov_opset.gather(shape, ov_opset.constant([0], Type.i32), ov_opset.constant(0, Type.i32)).output(0)
-        seq_length = ov_opset.gather(shape, ov_opset.constant([1], Type.i32), ov_opset.constant(0, Type.i32)).output(0)
+        batch_size = ov_opset.gather(
+            shape,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+        seq_length = ov_opset.gather(
+            shape,
+            ov_opset.constant([1], Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
     else:
-        batch_size = ov_opset.gather(shape, ov_opset.constant([1], Type.i32), ov_opset.constant(0, Type.i32)).output(0)
-        seq_length = ov_opset.gather(shape, ov_opset.constant([0], Type.i32), ov_opset.constant(0, Type.i32)).output(0)
+        batch_size = ov_opset.gather(
+            shape,
+            ov_opset.constant([1], Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+        seq_length = ov_opset.gather(
+            shape,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
     seq_length_tensor = ov_opset.broadcast(seq_length, batch_size).output(0)
     if time_major:
         axes = ov_opset.constant([1, 0, 2], Type.i32).output(0)
         inputs = ov_opset.transpose(inputs, axes).output(0)
-    kernel_T = ov_opset.transpose(kernel, ov_opset.constant([1, 0], Type.i32)).output(0)
-    k_i, k_f, k_c, k_o = ov_opset.split(kernel_T, ov_opset.constant(0, Type.i32), 4).outputs()
+    kernel_T = ov_opset.transpose(
+        kernel, ov_opset.constant([1, 0], Type.i32)
+    ).output(0)
+    k_i, k_f, k_c, k_o = ov_opset.split(
+        kernel_T, ov_opset.constant(0, Type.i32), 4
+    ).outputs()
     W = ov_opset.concat([k_f, k_i, k_c, k_o], axis=0).output(0)
     W = ov_opset.unsqueeze(W, ov_opset.constant([0], Type.i32)).output(0)
-    recurrent_kernel_T = ov_opset.transpose(recurrent_kernel, ov_opset.constant([1, 0], Type.i32)).output(0)
-    r_i, r_f, r_c, r_o = ov_opset.split(recurrent_kernel_T, ov_opset.constant(0, Type.i32), 4).outputs()
+    recurrent_kernel_T = ov_opset.transpose(
+        recurrent_kernel, ov_opset.constant([1, 0], Type.i32)
+    ).output(0)
+    r_i, r_f, r_c, r_o = ov_opset.split(
+        recurrent_kernel_T, ov_opset.constant(0, Type.i32), 4
+    ).outputs()
     R = ov_opset.concat([r_f, r_i, r_c, r_o], axis=0).output(0)
     R = ov_opset.unsqueeze(R, ov_opset.constant([0], Type.i32)).output(0)
     if bias is not None:
         bias = get_ov_output(bias)
-        b_i, b_f, b_c, b_o = ov_opset.split(bias, ov_opset.constant(0, Type.i32), 4).outputs()
+        b_i, b_f, b_c, b_o = ov_opset.split(
+            bias, ov_opset.constant(0, Type.i32), 4
+        ).outputs()
         B = ov_opset.concat([b_f, b_i, b_c, b_o], axis=0).output(0)
     else:
         W_shape = ov_opset.shape_of(W, Type.i32).output(0)
-        B_size = ov_opset.gather(W_shape, ov_opset.constant([1], Type.i32), ov_opset.constant(0, Type.i32)).output(0)
-        B = ov_opset.broadcast(ov_opset.constant(0, inputs.get_element_type()), B_size).output(0)
+        B_size = ov_opset.gather(
+            W_shape,
+            ov_opset.constant([1], Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+        B = ov_opset.broadcast(
+            ov_opset.constant(0, inputs.get_element_type()), B_size
+        ).output(0)
     B = ov_opset.unsqueeze(B, ov_opset.constant([0], Type.i32)).output(0)
-    initial_state_h = ov_opset.unsqueeze(initial_state_h, ov_opset.constant([1], Type.i32)).output(0)
-    initial_state_c = ov_opset.unsqueeze(initial_state_c, ov_opset.constant([1], Type.i32)).output(0)
+    initial_state_h = ov_opset.unsqueeze(
+        initial_state_h, ov_opset.constant([1], Type.i32)
+    ).output(0)
+    initial_state_c = ov_opset.unsqueeze(
+        initial_state_c, ov_opset.constant([1], Type.i32)
+    ).output(0)
     direction = "forward"
     if go_backwards:
         direction = "reverse"
+
     def get_activation_name(act):
         from keras.src import activations
-        if act == activations.tanh: return "tanh"
-        if act == activations.sigmoid: return "sigmoid"
-        if act == activations.relu: return "relu"
-        if act == activations.linear: return "linear"
+
+        if act == activations.tanh:
+            return "tanh"
+        if act == activations.sigmoid:
+            return "sigmoid"
+        if act == activations.relu:
+            return "relu"
+        if act == activations.linear:
+            return "linear"
         if hasattr(act, "__name__"):
             return act.__name__
         return "tanh"
-    act_names = [get_activation_name(recurrent_activation), get_activation_name(activation), get_activation_name(activation)]
-    hidden_size = R.get_partial_shape()[2].get_length() if R.get_partial_shape().rank.is_static and R.get_partial_shape()[2].is_static else -1
+
+    act_names = [
+        get_activation_name(recurrent_activation),
+        get_activation_name(activation),
+        get_activation_name(activation),
+    ]
+    hidden_size = (
+        R.get_partial_shape()[2].get_length()
+        if R.get_partial_shape().rank.is_static
+        and R.get_partial_shape()[2].is_static
+        else -1
+    )
     lstm_node = ov_opset.lstm_sequence(
         X=inputs,
         initial_hidden_state=initial_state_h,
@@ -373,7 +430,7 @@ def lstm(
         B=B,
         hidden_size=hidden_size,
         direction=direction,
-        activations=act_names
+        activations=act_names,
     )
     Y = lstm_node.output(0)
     Ho = lstm_node.output(1)
@@ -388,11 +445,20 @@ def lstm(
         outputs = ov_opset.transpose(Y, axes).output(0)
     if not return_sequences:
         if time_major:
-            outputs = ov_opset.unsqueeze(Ho, ov_opset.constant([0], Type.i32)).output(0)
+            outputs = ov_opset.unsqueeze(
+                Ho, ov_opset.constant([0], Type.i32)
+            ).output(0)
         else:
-            outputs = ov_opset.unsqueeze(Ho, ov_opset.constant([1], Type.i32)).output(0)
+            outputs = ov_opset.unsqueeze(
+                Ho, ov_opset.constant([1], Type.i32)
+            ).output(0)
     last_output = Ho
-    return OpenVINOKerasTensor(last_output), OpenVINOKerasTensor(outputs), [OpenVINOKerasTensor(Ho), OpenVINOKerasTensor(Co)]
+    return (
+        OpenVINOKerasTensor(last_output),
+        OpenVINOKerasTensor(outputs),
+        [OpenVINOKerasTensor(Ho), OpenVINOKerasTensor(Co)],
+    )
+
 
 def gru(*args, **kwargs):
     raise NotImplementedError("`gru` is not supported with openvino backend")
