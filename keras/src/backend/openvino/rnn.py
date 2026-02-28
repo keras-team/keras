@@ -232,6 +232,8 @@ def rnn(
         final_states_list = [get_ov_output(x) for x in flat_step_new_states]
         final_output_list = [get_ov_output(x) for x in flat_step_output]
         final_last_output_list = [get_ov_output(x) for x in flat_step_output]
+    zero_const = ov_opset.constant([0], dtype=Type.i32).output(0)
+    final_output_list = [ov_opset.unsqueeze(x, zero_const).output(0) for x in final_output_list]
     cond_const = ov_opset.constant(True, Type.boolean).output(0)
     zero_const = ov_opset.constant([0], dtype=Type.i32).output(0)
     final_output_list = [ov_opset.unsqueeze(x, zero_const).output(0) for x in final_output_list]
