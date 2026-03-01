@@ -17,6 +17,10 @@ class CLAHE(BaseImagePreprocessingLayer):
     boundaries. This algorithm can be applied to improve the contrast of an
     image.
 
+    **Note:** This layer computes histograms using `ops.one_hot`, which can be
+    highly memory-intensive. For large batch sizes or high-resolution images,
+    it may lead to high memory consumption or out-of-memory errors.
+
     Args:
         value_range: Optional list/tuple of 2 floats specifying the lower
             and upper limits of the input data values. Defaults to `(0, 255)`.
@@ -41,13 +45,15 @@ class CLAHE(BaseImagePreprocessingLayer):
 
     Output shape:
         3D (unbatched) or 4D (batched) tensor with shape:
-        `(..., target_height, target_width, channels)`,
-        or `(..., channels, target_height, target_width)`,
+        `(..., height, width, channels)`,
+        or `(..., channels, height, width)`,
         in `"channels_first"` format.
 
     Example:
 
-    ```python
+    ```
+    import keras
+    import numpy as np
     # Create a CLAHE layer with default parameters
     clahe = keras.layers.CLAHE()
 
