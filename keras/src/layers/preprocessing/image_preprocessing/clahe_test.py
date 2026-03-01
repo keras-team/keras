@@ -3,12 +3,13 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
+from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
 
 
-class CLAHETest(testing.TestCase):
+class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
     def assertAllInRange(self, array, min_val, max_val):
         self.assertTrue(np.all(array >= min_val))
         self.assertTrue(np.all(array <= max_val))
@@ -16,7 +17,7 @@ class CLAHETest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
-            layers.CLAHE,
+            layers.ContrastLimitedAdaptiveHistogramEqualization,
             init_kwargs={
                 "value_range": (0, 255),
                 "data_format": "channels_last",
@@ -28,7 +29,7 @@ class CLAHETest(testing.TestCase):
         )
 
         self.run_layer_test(
-            layers.CLAHE,
+            layers.ContrastLimitedAdaptiveHistogramEqualization,
             init_kwargs={
                 "value_range": (0, 255),
                 "data_format": "channels_first",
@@ -43,7 +44,9 @@ class CLAHETest(testing.TestCase):
         xs = np.random.uniform(size=(2, 64, 64, 3), low=0, high=255).astype(
             np.float32
         )
-        layer = layers.CLAHE(value_range=(0, 255))
+        layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
+            value_range=(0, 255)
+        )
         xs_out = layer(xs)
         self.assertAllInRange(ops.convert_to_numpy(xs_out), 0, 255)
         self.assertEqual(xs_out.shape, (2, 64, 64, 3))
@@ -55,7 +58,9 @@ class CLAHETest(testing.TestCase):
         xs = np.random.uniform(size=(2, 32, 32, 3), low=0, high=255).astype(
             dtype
         )
-        layer = layers.CLAHE(value_range=(0, 255))
+        layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
+            value_range=(0, 255)
+        )
         xs_out = ops.convert_to_numpy(layer(xs))
         self.assertAllInRange(xs_out, 0, 255)
 
@@ -64,19 +69,32 @@ class CLAHETest(testing.TestCase):
         xs = np.random.uniform(
             size=(2, 32, 32, 3), low=lower, high=upper
         ).astype(np.float32)
-        layer = layers.CLAHE(value_range=(lower, upper))
+        layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
+            value_range=(lower, upper)
+        )
         xs_out = ops.convert_to_numpy(layer(xs))
         self.assertAllInRange(xs_out, lower, upper)
 
     def test_grayscale_images(self):
         xs = np.random.uniform(0, 255, size=(2, 32, 32, 1)).astype(np.float32)
-        layer = layers.CLAHE(value_range=(0, 255), data_format="channels_last")
+        layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
+            value_range=(0, 255), data_format="channels_last"
+        )
         out = ops.convert_to_numpy(layer(xs))
         self.assertEqual(out.shape[-1], 1)
         self.assertAllInRange(out, 0, 255)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason=(
+            "tf.data compatibility map strictly requires the "
+            "tensorflow backend."
+        ),
+    )
     def test_tf_data_compatibility(self):
-        layer = layers.CLAHE(value_range=(0, 255))
+        layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
+            value_range=(0, 255)
+        )
         input_data = np.random.random((2, 16, 16, 3)) * 255
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):

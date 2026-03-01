@@ -211,7 +211,7 @@ from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
     CenterCrop as CenterCrop,
 )
 from keras.src.layers.preprocessing.image_preprocessing.clahe import (
-    CLAHE as CLAHE,
+    ContrastLimitedAdaptiveHistogramEqualization as ContrastLimitedAdaptiveHistogramEqualization,
 )
 from keras.src.layers.preprocessing.image_preprocessing.cut_mix import (
     CutMix as CutMix,

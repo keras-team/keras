@@ -6,8 +6,8 @@ from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing
 )
 
 
-@keras_export("keras.layers.CLAHE")
-class CLAHE(BaseImagePreprocessingLayer):
+@keras_export("keras.layers.ContrastLimitedAdaptiveHistogramEqualization")
+class ContrastLimitedAdaptiveHistogramEqualization(BaseImagePreprocessingLayer):
     """Contrast Limited Adaptive Histogram Equalization (CLAHE) layer.
 
     CLAHE is a variant of Adaptive Histogram Equalization (AHE) which takes care
@@ -51,19 +51,22 @@ class CLAHE(BaseImagePreprocessingLayer):
 
     Example:
 
-    ```
+    ```python
     import keras
     import numpy as np
+
     # Create a CLAHE layer with default parameters
-    clahe = keras.layers.CLAHE()
+    clahe = keras.layers.ContrastLimitedAdaptiveHistogramEqualization()
 
     # Apply CLAHE to an image
     # image values should be in the range [0, 255] by default
     input_image = np.random.randint(0, 256, (1, 256, 256, 3))
     output_image = clahe(input_image)
 
-    # For normalized images [0, 1]
-    clahe_normalized = keras.layers.CLAHE(value_range=(0.0, 1.0))
+    # For normalized images[0, 1]
+    clahe_normalized=keras.layers.ContrastLimitedAdaptiveHistogramEqualization(
+        value_range=(0.0, 1.0)
+    )
     norm_image = np.random.rand(1, 256, 256, 3)
     output_norm = clahe_normalized(norm_image)
     ```
@@ -85,7 +88,7 @@ class CLAHE(BaseImagePreprocessingLayer):
 
     def transform_images(self, images, transformation=None, training=True):
         if self.data_format == "channels_first":
-            if len(ops.shape(images)) == 4:
+            if len(images.shape) == 4:
                 images = ops.transpose(images, (0, 2, 3, 1))
             else:
                 images = ops.transpose(images, (1, 2, 0))
@@ -104,7 +107,7 @@ class CLAHE(BaseImagePreprocessingLayer):
         images = ops.cast(images, original_dtype)
 
         if self.data_format == "channels_first":
-            if len(ops.shape(images)) == 4:
+            if len(images.shape) == 4:
                 images = ops.transpose(images, (0, 3, 1, 2))
             else:
                 images = ops.transpose(images, (2, 0, 1))
@@ -113,14 +116,17 @@ class CLAHE(BaseImagePreprocessingLayer):
 
     def _clahe(self, images):
         unbatched = False
-        if len(ops.shape(images)) == 3:
+        if len(images.shape) == 3:
             images = ops.expand_dims(images, axis=0)
             unbatched = True
 
-        batch_size = ops.shape(images)[0]
-        height = ops.shape(images)[1]
-        width = ops.shape(images)[2]
-        channels = ops.shape(images)[3]
+        shape = ops.shape(images)
+        batch_size = (
+            images.shape[0] if images.shape[0] is not None else shape[0]
+        )
+        height = images.shape[1] if images.shape[1] is not None else shape[1]
+        width = images.shape[2] if images.shape[2] is not None else shape[2]
+        channels = images.shape[3] if images.shape[3] is not None else shape[3]
 
         grid_h, grid_w = self.tile_grid_size
 
@@ -130,12 +136,23 @@ class CLAHE(BaseImagePreprocessingLayer):
         pad_h = (tile_h * grid_h) - height
         pad_w = (tile_w * grid_w) - width
 
-        padded_images = ops.pad(
-            images, [[0, 0], [0, pad_h], [0, pad_w], [0, 0]], mode="reflect"
-        )
+        if (
+            isinstance(pad_h, int)
+            and isinstance(pad_w, int)
+            and pad_h == 0
+            and pad_w == 0
+        ):
+            padded_images = images
+        else:
+            images_nchw = ops.transpose(images, (0, 3, 1, 2))
+            padded_images_nchw = ops.pad(
+                images_nchw,
+                [[0, 0], [0, 0], [0, pad_h], [0, pad_w]],
+                mode="symmetric",
+            )
+            padded_images = ops.transpose(padded_images_nchw, (0, 2, 3, 1))
 
         # Compute Histograms per tile
-
         tiled = ops.reshape(
             padded_images,
             (batch_size, grid_h, tile_h, grid_w, tile_w, channels),
@@ -176,13 +193,13 @@ class CLAHE(BaseImagePreprocessingLayer):
         cdf_norm = numerator / denominator
         cdf_norm = ops.clip(cdf_norm, 0, 255)
 
-        # Interpolation
+        top = cdf_norm[:, 0:1, :, :, :]
+        bottom = cdf_norm[:, -1:, :, :, :]
+        cdf_padded = ops.concatenate([top, cdf_norm, bottom], axis=1)
 
-        cdf_padded = ops.pad(
-            cdf_norm,
-            [[0, 0], [1, 1], [1, 1], [0, 0], [0, 0]],
-            mode="symmetric",
-        )
+        left = cdf_padded[:, :, 0:1, :, :]
+        right = cdf_padded[:, :, -1:, :, :]
+        cdf_padded = ops.concatenate([left, cdf_padded, right], axis=2)
 
         H_padded = tile_h * grid_h
         W_padded = tile_w * grid_w
@@ -250,9 +267,9 @@ class CLAHE(BaseImagePreprocessingLayer):
         idx_se = base_idx + y1_e * stride_y + x1_e * stride_x
         val_se = ops.take(cdf_flat, idx_se)
 
-        top = val_nw * (1.0 - wx_e) + val_ne * wx_e
-        bot = val_sw * (1.0 - wx_e) + val_se * wx_e
-        result = top * (1.0 - wy_e) + bot * wy_e
+        top_interp = val_nw * (1.0 - wx_e) + val_ne * wx_e
+        bot_interp = val_sw * (1.0 - wx_e) + val_se * wx_e
+        result = top_interp * (1.0 - wy_e) + bot_interp * wy_e
 
         result = result[:, :height, :width, :]
 
