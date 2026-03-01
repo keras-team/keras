@@ -224,7 +224,7 @@ class Sequential(Model):
                 if len(required_positional_args) > 1:
                     raise ValueError(
                         "Layers added to a Sequential model "
-                        "can only have a single positional argument, "
+                        "can only have a single required positional argument, "
                         f"the input tensor. Layer "
                         f"{layer.__class__.__name__} has multiple "
                         f"required positional arguments: "
