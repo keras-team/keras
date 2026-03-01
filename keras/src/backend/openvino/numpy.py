@@ -20,7 +20,14 @@ from keras.src.backend.openvino.core import ov_to_keras_type
 from keras.src.backend.openvino.core import while_loop
 
 
-def add(x1, x2):
+def _promote_binary_types(x1, x2, op_name):
+    """Promote x1 and x2 to a common dtype using JAX weak-type semantics.
+
+    Handles Python scalars (int/float), numpy arrays, and OpenVINO tensors,
+    mirroring the type-promotion behaviour of JAX for binary ops.
+
+    Returns a pair of aligned ov.Output objects ready for use in an OV op.
+    """
     t1 = (
         ov_to_keras_type(x1.get_element_type())
         if isinstance(x1, ov.Output)
@@ -34,7 +41,11 @@ def add(x1, x2):
     target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
     x1 = get_ov_output(x1, target_type)
     x2 = get_ov_output(x2, target_type)
-    x1, x2 = _align_operand_types(x1, x2, "add()")
+    return _align_operand_types(x1, x2, op_name)
+
+
+def add(x1, x2):
+    x1, x2 = _promote_binary_types(x1, x2, "add()")
     if x1.get_element_type() == Type.boolean:
         return OpenVINOKerasTensor(ov_opset.logical_or(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.add(x1, x2).output(0))
@@ -73,20 +84,7 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    t1 = (
-        ov_to_keras_type(x1.get_element_type())
-        if isinstance(x1, ov.Output)
-        else getattr(x1, "dtype", type(x1))
-    )
-    t2 = (
-        ov_to_keras_type(x2.get_element_type())
-        if isinstance(x2, ov.Output)
-        else getattr(x2, "dtype", type(x2))
-    )
-    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
-    x1 = get_ov_output(x1, target_type)
-    x2 = get_ov_output(x2, target_type)
-    x1, x2 = _align_operand_types(x1, x2, "subtract()")
+    x1, x2 = _promote_binary_types(x1, x2, "subtract()")
     if x1.get_element_type() == Type.boolean:
         return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.subtract(x1, x2).output(0))
@@ -115,20 +113,7 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    t1 = (
-        ov_to_keras_type(x1.get_element_type())
-        if isinstance(x1, ov.Output)
-        else getattr(x1, "dtype", type(x1))
-    )
-    t2 = (
-        ov_to_keras_type(x2.get_element_type())
-        if isinstance(x2, ov.Output)
-        else getattr(x2, "dtype", type(x2))
-    )
-    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
-    x1 = get_ov_output(x1, target_type)
-    x2 = get_ov_output(x2, target_type)
-    x1, x2 = _align_operand_types(x1, x2, "multiply()")
+    x1, x2 = _promote_binary_types(x1, x2, "multiply()")
     if x1.get_element_type() == Type.boolean:
         return OpenVINOKerasTensor(ov_opset.logical_and(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
@@ -2622,20 +2607,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    t1 = (
-        ov_to_keras_type(x1.get_element_type())
-        if isinstance(x1, ov.Output)
-        else getattr(x1, "dtype", type(x1))
-    )
-    t2 = (
-        ov_to_keras_type(x2.get_element_type())
-        if isinstance(x2, ov.Output)
-        else getattr(x2, "dtype", type(x2))
-    )
-    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
-    x1 = get_ov_output(x1, target_type)
-    x2 = get_ov_output(x2, target_type)
-    x1, x2 = _align_operand_types(x1, x2, "maximum()")
+    x1, x2 = _promote_binary_types(x1, x2, "maximum()")
     return OpenVINOKerasTensor(ov_opset.maximum(x1, x2).output(0))
 
 
@@ -2823,20 +2795,7 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    t1 = (
-        ov_to_keras_type(x1.get_element_type())
-        if isinstance(x1, ov.Output)
-        else getattr(x1, "dtype", type(x1))
-    )
-    t2 = (
-        ov_to_keras_type(x2.get_element_type())
-        if isinstance(x2, ov.Output)
-        else getattr(x2, "dtype", type(x2))
-    )
-    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
-    x1 = get_ov_output(x1, target_type)
-    x2 = get_ov_output(x2, target_type)
-    x1, x2 = _align_operand_types(x1, x2, "minimum()")
+    x1, x2 = _promote_binary_types(x1, x2, "minimum()")
     return OpenVINOKerasTensor(ov_opset.minimum(x1, x2).output(0))
 
 
