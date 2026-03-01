@@ -288,8 +288,170 @@ def lstm(*args, **kwargs):
     raise NotImplementedError("`lstm` is not supported with openvino backend")
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError("`gru` is not supported with openvino backend")
+def _do_gru_arguments_support_openvino(
+    activation,
+    recurrent_activation,
+    unroll,
+    use_bias,
+):
+    from keras.src import activations
+    from keras.src import ops
+
+    return (
+        activation in (activations.tanh, ops.tanh)
+        and recurrent_activation in (activations.sigmoid, ops.sigmoid)
+        and not unroll
+        and use_bias
+    )
+
+
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    time_major=False,
+    reset_after=True,
+):
+    openvino_supported = _do_gru_arguments_support_openvino(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    )
+    if not openvino_supported:
+        raise NotImplementedError(
+            "`gru` is not supported with openvino backend for these arguments"
+        )
+    inputs = get_ov_output(inputs)
+    initial_state = get_ov_output(initial_state)
+    kernel = get_ov_output(kernel)
+    recurrent_kernel = get_ov_output(recurrent_kernel)
+    bias = get_ov_output(bias)
+    element_type = inputs.get_element_type()
+    if time_major:
+        inputs = ov_opset.transpose(
+            inputs, ov_opset.constant([1, 0, 2], dtype=Type.i32).output(0)
+        ).output(0)
+    shape = ov_opset.shape_of(inputs, Type.i32).output(0)
+    batch_size = ov_opset.gather(
+        shape,
+        ov_opset.constant([0], dtype=Type.i32).output(0),
+        ov_opset.constant(0, dtype=Type.i32).output(0),
+    ).output(0)
+    seq_length = ov_opset.gather(
+        shape,
+        ov_opset.constant([1], dtype=Type.i32).output(0),
+        ov_opset.constant(0, dtype=Type.i32).output(0),
+    ).output(0)
+    if mask is not None:
+        mask = get_ov_output(mask)
+        mask = ov_opset.convert(mask, Type.i32).output(0)
+        sequence_lengths = ov_opset.reduce_sum(
+            mask,
+            ov_opset.constant([-1], dtype=Type.i32).output(0),
+            keep_dims=False,
+        ).output(0)
+    else:
+        sequence_lengths = ov_opset.broadcast(seq_length, batch_size).output(0)
+    initial_state = ov_opset.unsqueeze(
+        initial_state, ov_opset.constant([1], dtype=Type.i32).output(0)
+    ).output(0)
+    kernel_t = ov_opset.transpose(
+        kernel, ov_opset.constant([1, 0], dtype=Type.i32).output(0)
+    ).output(0)
+    kernel_ov = ov_opset.unsqueeze(
+        kernel_t, ov_opset.constant([0], dtype=Type.i32).output(0)
+    ).output(0)
+    recurrent_kernel_t = ov_opset.transpose(
+        recurrent_kernel, ov_opset.constant([1, 0], dtype=Type.i32).output(0)
+    ).output(0)
+    recurrent_kernel_ov = ov_opset.unsqueeze(
+        recurrent_kernel_t, ov_opset.constant([0], dtype=Type.i32).output(0)
+    ).output(0)
+    if reset_after:
+        bias_flat = ov_opset.reshape(
+            bias,
+            ov_opset.constant([-1], dtype=Type.i32).output(0),
+            special_zero=False,
+        ).output(0)
+        bias_W = ov_opset.gather(
+            bias,
+            ov_opset.constant([0], dtype=Type.i32).output(0),
+            ov_opset.constant(0, dtype=Type.i32).output(0)
+        ).output(0)
+        bias_R = ov_opset.gather(
+            bias,
+            ov_opset.constant([1], dtype=Type.i32).output(0),
+            ov_opset.constant(0, dtype=Type.i32).output(0)
+        ).output(0)
+        shape_dim = ov_opset.shape_of(bias_W, Type.i32).output(0)
+        units = ov_opset.divide(
+            ov_opset.gather(shape_dim, ov_opset.constant([0], dtype=Type.i32).output(0), ov_opset.constant(0, dtype=Type.i32).output(0)).output(0),
+            ov_opset.constant(3, dtype=Type.i32).output(0)
+        ).output(0)
+        units_x2 = ov_opset.multiply(units, ov_opset.constant(2, dtype=Type.i32).output(0)).output(0)
+        Wb_zr = ov_opset.slice(bias_W, ov_opset.constant([0], dtype=Type.i32).output(0), ov_opset.unsqueeze(units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)).output(0), ov_opset.constant([1], dtype=Type.i32).output(0)).output(0)
+        Wb_h = ov_opset.slice(bias_W, ov_opset.unsqueeze(units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)).output(0), ov_opset.constant([2147483647], dtype=Type.i32).output(0), ov_opset.constant([1], dtype=Type.i32).output(0)).output(0)
+        
+        Rb_zr = ov_opset.slice(bias_R, ov_opset.constant([0], dtype=Type.i32).output(0), ov_opset.unsqueeze(units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)).output(0), ov_opset.constant([1], dtype=Type.i32).output(0)).output(0)
+        Rb_h = ov_opset.slice(bias_R, ov_opset.unsqueeze(units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)).output(0), ov_opset.constant([2147483647], dtype=Type.i32).output(0), ov_opset.constant([1], dtype=Type.i32).output(0)).output(0)
+        Wb_zr_plus_Rb_zr = ov_opset.add(Wb_zr, Rb_zr).output(0)
+        bias_ov = ov_opset.concat([Wb_zr_plus_Rb_zr, Wb_h, Rb_h], axis=0).output(0)
+        bias_ov = ov_opset.unsqueeze(bias_ov, ov_opset.constant([0], dtype=Type.i32).output(0)).output(0)
+    else:
+        bias_ov = ov_opset.unsqueeze(
+            bias, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
+    hidden_size = ov_opset.gather(
+        ov_opset.shape_of(initial_state, Type.i32).output(0),
+        ov_opset.constant([2], dtype=Type.i32).output(0),
+        ov_opset.constant(0, dtype=Type.i32).output(0),
+    ).output(0)
+    units_int = recurrent_kernel.get_partial_shape()[0].get_length()
+    direction = "reverse" if go_backwards else "forward"
+    rnn_node = ov_opset.gru_sequence(
+        inputs,
+        initial_state,
+        sequence_lengths,
+        kernel_ov,
+        recurrent_kernel_ov,
+        bias_ov,
+        hidden_size=units_int,
+        direction=direction,
+        activations=["sigmoid", "tanh"],
+        linear_before_reset=reset_after,
+    )
+    outputs = rnn_node.output(0)
+    last_state = rnn_node.output(1)
+    outputs = ov_opset.squeeze(
+        outputs, ov_opset.constant([1], dtype=Type.i32).output(0)
+    ).output(0)
+    last_state = ov_opset.squeeze(
+        last_state, ov_opset.constant([1], dtype=Type.i32).output(0)
+    ).output(0)
+    if not return_sequences:
+        outputs = last_state
+        outputs = ov_opset.unsqueeze(
+            outputs, ov_opset.constant([0 if time_major else 1], dtype=Type.i32).output(0)
+        ).output(0)
+    else:
+        if time_major:
+            outputs = ov_opset.transpose(
+                outputs, ov_opset.constant([1, 0, 2], dtype=Type.i32).output(0)
+            ).output(0)
+    return (
+        OpenVINOKerasTensor(last_state),
+        OpenVINOKerasTensor(outputs),
+        [OpenVINOKerasTensor(last_state)],
+    )
 
 
 def unstack(x, axis=0):
