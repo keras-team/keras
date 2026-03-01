@@ -224,6 +224,19 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.gcd(x, y).shape, (2, 3))
 
+    def test_geomspace(self):
+        start = KerasTensor((None, 3, 4))
+        stop = KerasTensor((2, 3, 4))
+        self.assertEqual(
+            knp.geomspace(start, stop, 10, axis=1).shape, (2, 10, 3, 4)
+        )
+
+        start = KerasTensor((None, 3))
+        stop = 2
+        self.assertEqual(
+            knp.geomspace(start, stop, 10, axis=1).shape, (None, 10, 3)
+        )
+
     def test_greater(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -793,6 +806,16 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.gcd(x, y)
+
+    def test_geomspace(self):
+        start = KerasTensor((2, 3, 4))
+        stop = KerasTensor((2, 3, 4))
+        self.assertEqual(knp.geomspace(start, stop, 10).shape, (10, 2, 3, 4))
+
+        with self.assertRaises(ValueError):
+            start = KerasTensor((2, 3))
+            stop = KerasTensor((2, 3, 4))
+            knp.geomspace(start, stop)
 
     def test_greater(self):
         x = KerasTensor((2, 3))
@@ -1693,6 +1716,18 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             knp.moveaxis(x, [0, 1], [-2, -1]).shape, (4, 5, None, 3)
         )
 
+    def test_nancumsum(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.nancumsum(x).shape, (None,))
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.nancumsum(x, axis=1).shape, (None, 3, 3))
+        self.assertEqual(knp.nancumsum(x, axis=(1,)).shape, (None, 3, 3))
+        self.assertEqual(knp.nancumsum(x, axis=None).shape, (None,))
+
+        x = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nancumsum(x, axis=2).shape, (None, 2, 3, 4))
+
     def test_nanmax(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.nanmax(x).shape, ())
@@ -1784,6 +1819,29 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x4 = KerasTensor((None, 2, 3, 4))
         self.assertEqual(knp.nanprod(x4, axis=2).shape, (None, 2, 4))
         self.assertEqual(knp.nanprod(x4, axis=(1, 3)).shape, (None, 3))
+
+    def test_nanstd(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.nanstd(x).shape, ())
+
+        x = KerasTensor((None, 3, 3))
+        self.assertEqual(knp.nanstd(x, axis=1).shape, (None, 3))
+        self.assertEqual(
+            knp.nanstd(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
+
+        self.assertEqual(knp.nanstd(x, axis=(1,)).shape, (None, 3))
+
+        self.assertEqual(knp.nanstd(x, axis=(1, 2)).shape, (None,))
+        self.assertEqual(
+            knp.nanstd(x, axis=(1, 2), keepdims=True).shape, (None, 1, 1)
+        )
+
+        self.assertEqual(knp.nanstd(x, axis=()).shape, (None, 3, 3))
+
+        x4 = KerasTensor((None, 2, 3, 4))
+        self.assertEqual(knp.nanstd(x4, axis=2).shape, (None, 2, 4))
+        self.assertEqual(knp.nanstd(x4, axis=(1, 3)).shape, (None, 3))
 
     def test_nansum(self):
         x = KerasTensor((None, 3))
@@ -2517,6 +2575,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.moveaxis(x, [0, 1], [1, 0]).shape, (3, 2, 4, 5))
         self.assertEqual(knp.moveaxis(x, [0, 1], [-2, -1]).shape, (4, 5, 2, 3))
 
+    def test_nancumsum(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.nancumsum(x).shape, (6,))
+        self.assertEqual(knp.nancumsum(x, axis=0).shape, (2, 3))
+        self.assertEqual(knp.nancumsum(x, axis=1).shape, (2, 3))
+        self.assertEqual(knp.nancumsum(x, axis=(1,)).shape, (2, 3))
+        self.assertEqual(knp.nancumsum(x, axis=()).shape, (2, 3))
+
     def test_nanmax(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.nanmax(x).shape, ())
@@ -2545,6 +2611,13 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.nanprod(x, axis=0).shape, (3,))
         self.assertEqual(knp.nanprod(x, axis=1).shape, (2,))
         self.assertEqual(knp.nanprod(x, axis=1, keepdims=True).shape, (2, 1))
+
+    def test_nanstd_(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.nanstd(x).shape, ())
+        self.assertEqual(knp.nanstd(x, axis=0).shape, (3,))
+        self.assertEqual(knp.nanstd(x, axis=1).shape, (2,))
+        self.assertEqual(knp.nanstd(x, axis=1, keepdims=True).shape, (2, 1))
 
     def test_nansum_(self):
         x = KerasTensor((2, 3))
@@ -3326,6 +3399,46 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Gcd()(x, y), np.gcd(x, y))
         self.assertAllClose(knp.Gcd()(x, 2), np.gcd(x, 2))
         self.assertAllClose(knp.Gcd()(2, x), np.gcd(2, x))
+
+    def test_geomspace(self):
+        self.assertAllClose(knp.geomspace(1, 1000, 4), np.geomspace(1, 1000, 4))
+        self.assertAllClose(
+            knp.geomspace(1, 1000, 4, endpoint=False),
+            np.geomspace(1, 1000, 4, endpoint=False),
+        )
+        self.assertAllClose(
+            knp.Geomspace(num=4)(1, 1000), np.geomspace(1, 1000, 4)
+        )
+        self.assertAllClose(
+            knp.Geomspace(num=4, endpoint=False)(1, 1000),
+            np.geomspace(1, 1000, 4, endpoint=False),
+        )
+
+        start = np.array([1.0, 2.0, 3.0])
+        stop = np.array([1000.0, 2000.0, 3000.0])
+
+        self.assertAllClose(
+            knp.geomspace(start, stop, 4),
+            np.geomspace(start, stop, 4),
+            atol=1e-5,
+            rtol=1e-5,
+        )
+        self.assertAllClose(
+            knp.geomspace(start, stop, 4, endpoint=False),
+            np.geomspace(start, stop, 4, endpoint=False),
+            atol=1e-5,
+            rtol=1e-5,
+        )
+        self.assertAllClose(
+            knp.Geomspace(num=4)(start, stop),
+            np.geomspace(start, stop, 4),
+            atol=1e-5,
+            rtol=1e-5,
+        )
+        self.assertAllClose(
+            knp.Geomspace(num=4, endpoint=False)(start, stop),
+            np.geomspace(start, stop, 4, endpoint=False),
+        )
 
     def test_greater(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -5851,6 +5964,36 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(out[0].shape, ())
         self.assertEqual(out[1].shape, (2, 4))
 
+    def test_nancumsum(self):
+        x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
+
+        self.assertAllClose(knp.nancumsum(x), np.nancumsum(x))
+        self.assertAllClose(knp.nancumsum(x, axis=0), np.nancumsum(x, axis=0))
+        self.assertAllClose(knp.nancumsum(x, axis=1), np.nancumsum(x, axis=1))
+        self.assertAllClose(knp.Nancumsum()(x), np.nancumsum(x))
+        self.assertAllClose(knp.Nancumsum(axis=1)(x), np.nancumsum(x, axis=1))
+
+        x_3d = np.array(
+            [
+                [[1.0, np.nan], [2.0, 3.0]],
+                [[np.nan, 4.0], [5.0, np.nan]],
+            ]
+        )
+
+        self.assertAllClose(knp.nancumsum(x_3d), np.nancumsum(x_3d))
+        self.assertAllClose(
+            knp.nancumsum(x_3d, axis=0), np.nancumsum(x_3d, axis=0)
+        )
+        self.assertAllClose(
+            knp.nancumsum(x_3d, axis=1), np.nancumsum(x_3d, axis=1)
+        )
+
+        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+        self.assertAllClose(knp.nancumsum(x_all_nan), np.nancumsum(x_all_nan))
+        self.assertAllClose(
+            knp.nancumsum(x_all_nan, axis=1), np.nancumsum(x_all_nan, axis=1)
+        )
+
     def test_nanmax(self):
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -np.inf]])
 
@@ -6001,6 +6144,45 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.nanprod(x_3d, axis=(1, 2)),
             np.nanprod(x_3d, axis=(1, 2)),
+        )
+
+    def test_nanstd(self):
+        x = np.array([[[1.0, np.nan, 3.0], [np.nan, 2.0, 1.0]]])
+
+        self.assertAllClose(knp.nanstd(x), np.nanstd(x))
+        self.assertAllClose(knp.nanstd(x, axis=()), np.nanstd(x, axis=()))
+        self.assertAllClose(knp.nanstd(x, axis=0), np.nanstd(x, axis=0))
+        self.assertAllClose(knp.nanstd(x, axis=1), np.nanstd(x, axis=1))
+        self.assertAllClose(knp.nanstd(x, axis=(1,)), np.nanstd(x, axis=(1,)))
+        self.assertAllClose(
+            knp.nanstd(x, axis=1, keepdims=True),
+            np.nanstd(x, axis=1, keepdims=True),
+        )
+
+        self.assertAllClose(knp.Nanstd()(x), np.nanstd(x))
+        self.assertAllClose(knp.Nanstd(axis=1)(x), np.nanstd(x, axis=1))
+        self.assertAllClose(
+            knp.Nanstd(axis=1, keepdims=True)(x),
+            np.nanstd(x, axis=1, keepdims=True),
+        )
+
+        x_all_nan = np.array([[np.nan, np.nan], [np.nan, np.nan]])
+        self.assertAllClose(knp.nanstd(x_all_nan), np.nanstd(x_all_nan))
+        self.assertAllClose(
+            knp.nanstd(x_all_nan, axis=1),
+            np.nanstd(x_all_nan, axis=1),
+        )
+
+        x_3d = np.array(
+            [
+                [[1.0, np.nan], [2.0, 3.0]],
+                [[np.nan, 4.0], [5.0, np.nan]],
+            ]
+        )
+        self.assertAllClose(knp.nanstd(x_3d), np.nanstd(x_3d))
+        self.assertAllClose(
+            knp.nanstd(x_3d, axis=(1, 2)),
+            np.nanstd(x_3d, axis=(1, 2)),
         )
 
     def test_nansum(self):
@@ -8943,6 +9125,41 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(
+        named_product(
+            start_and_stop=[
+                [1, 1000],
+                [0.5, 10.5],
+                [
+                    np.array([1, 2], "float32"),
+                    np.array([100, 200], "float32"),
+                ],
+            ],
+            num=[0, 1, 5],
+            dtype=FLOAT_DTYPES + [None],
+        )
+    )
+    def test_geomspace(self, start_and_stop, num, dtype):
+        import jax.numpy as jnp
+
+        start, stop = start_and_stop
+        expected_dtype = standardize_dtype(
+            jnp.geomspace(start, stop, num, dtype=dtype).dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(
+                knp.geomspace(start, stop, num, dtype=dtype).dtype
+            ),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(
+                knp.Geomspace(num, dtype=dtype).symbolic_call(start, stop).dtype
+            ),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_logical_and(self, dtypes):
@@ -9209,6 +9426,25 @@ class NumpyDtypeTest(testing.TestCase):
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nancumsum(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.nancumsum(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.nancumsum(x).dtype),
+            expected_dtype,
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Nancumsum().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_nanmax(self, dtype):
         import jax.numpy as jnp
 
@@ -9278,6 +9514,28 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Nanprod().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nanstd(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.nanstd(x_jax).dtype)
+
+        if backend.backend() == "torch" and expected_dtype == "uint32":
+            expected_dtype = "int32"
+
+        self.assertEqual(
+            standardize_dtype(knp.nanstd(x).dtype),
+            expected_dtype,
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Nanstd().symbolic_call(x).dtype),
             expected_dtype,
         )
 

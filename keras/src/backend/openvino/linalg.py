@@ -17,9 +17,20 @@ def cholesky(a, upper=False):
 
 
 def cholesky_inverse(a, upper=False):
-    raise NotImplementedError(
-        "`cholesky_inverse` is not supported with openvino backend."
-    )
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    if upper:
+        # Reconstruct A = U^T @ U, then invert
+        reconstructed_matrix = ov_opset.matmul(a_ov, a_ov, True, False).output(
+            0
+        )
+    else:
+        # Reconstruct A = L @ L^T, then invert
+        reconstructed_matrix = ov_opset.matmul(a_ov, a_ov, False, True).output(
+            0
+        )
+    result = ov_opset.inverse(reconstructed_matrix, adjoint=False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def det(a):
@@ -35,7 +46,10 @@ def eigh(a):
 
 
 def inv(a):
-    raise NotImplementedError("`inv` is not supported with openvino backend")
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    result = ov_opset.inverse(a_ov, adjoint=False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def lu_factor(a):
@@ -221,7 +235,20 @@ def qr(x, mode="reduced"):
 
 
 def solve(a, b):
-    raise NotImplementedError("`solve` is not supported with openvino backend")
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    a_ov = get_ov_output(a)
+    b_ov = get_ov_output(b)
+    squeeze = b.ndim == a.ndim - 1
+    if squeeze:
+        minus_one = ov_opset.constant([-1], Type.i32).output(0)
+        b_ov = ov_opset.unsqueeze(b_ov, minus_one).output(0)
+    a_inv = ov_opset.inverse(a_ov, adjoint=False).output(0)
+    result = ov_opset.matmul(a_inv, b_ov, False, False).output(0)
+    if squeeze:
+        minus_one = ov_opset.constant([-1], Type.i32).output(0)
+        result = ov_opset.squeeze(result, minus_one).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def solve_triangular(a, b, lower=False):

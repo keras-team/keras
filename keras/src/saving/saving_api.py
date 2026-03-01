@@ -324,9 +324,9 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
         filepath = str(filepath)
 
         # Determine if this is a root directory or a step directory
-        items = os.listdir(filepath)
+        items = file_utils.listdir(filepath)
         has_step_subdirs = any(
-            os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
+            file_utils.isdir(file_utils.join(filepath, item)) and item.isdigit()
             for item in items
         )
 

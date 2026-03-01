@@ -80,6 +80,7 @@ from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like
 from keras.src.ops.numpy import gcd as gcd
+from keras.src.ops.numpy import geomspace as geomspace
 from keras.src.ops.numpy import get_item as get_item
 from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
@@ -132,10 +133,12 @@ from keras.src.ops.numpy import mod as mod
 from keras.src.ops.numpy import moveaxis as moveaxis
 from keras.src.ops.numpy import multiply as multiply
 from keras.src.ops.numpy import nan_to_num as nan_to_num
+from keras.src.ops.numpy import nancumsum as nancumsum
 from keras.src.ops.numpy import nanmax as nanmax
 from keras.src.ops.numpy import nanmean as nanmean
 from keras.src.ops.numpy import nanmin as nanmin
 from keras.src.ops.numpy import nanprod as nanprod
+from keras.src.ops.numpy import nanstd as nanstd
 from keras.src.ops.numpy import nansum as nansum
 from keras.src.ops.numpy import nanvar as nanvar
 from keras.src.ops.numpy import ndim as ndim

@@ -778,6 +778,11 @@ def stft(
        [0.0, 0.64951905],
        [0.0, -0.64951905]]))
     """
+    if not isinstance(sequence_stride, int) or sequence_stride <= 0:
+        raise ValueError(
+            "`sequence_stride` must be a positive integer. "
+            f"Received: sequence_stride={sequence_stride}"
+        )
     if any_symbolic_tensors((x,)):
         return STFT(
             sequence_length=sequence_length,
@@ -904,6 +909,11 @@ def istft(
     >>> istft(stft(x, 1, 1, 1), 1, 1, 1)
     array([0.0, 1.0, 2.0, 3.0, 4.0])
     """
+    if not isinstance(sequence_stride, int) or sequence_stride <= 0:
+        raise ValueError(
+            "`sequence_stride` must be a positive integer. "
+            f"Received: sequence_stride={sequence_stride}"
+        )
     if any_symbolic_tensors(x):
         return ISTFT(
             sequence_length=sequence_length,

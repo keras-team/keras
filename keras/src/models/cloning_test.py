@@ -40,6 +40,25 @@ def get_nested_sequential_model():
     return model
 
 
+def get_doubly_nested_functional_model():
+    """Outer -> middle (Functional) -> inner (Functional), 3 nesting levels."""
+    inputs = layers.Input(shape=(5,))
+    x = layers.Dense(4)(inputs)
+    middle = get_nested_functional_model()  # already contains an inner mlp
+    x = middle(x)
+    outputs = layers.Dense(2)(x)
+    return models.Model(inputs, outputs)
+
+
+def get_doubly_nested_sequential_model():
+    """Outer -> middle (Sequential) -> inner (Sequential), 3 nesting levels."""
+    model = models.Sequential()
+    model.add(layers.Dense(3))
+    model.add(get_nested_sequential_model())
+    model.add(layers.Dense(2))
+    return model
+
+
 def get_cnn_functional_model(shared_layers=False):
     inputs = layers.Input(shape=(7, 3))
     x = layers.Conv1D(2, 2, padding="same")(inputs)
@@ -238,6 +257,55 @@ class CloneModelTest(testing.TestCase):
         new_model(ref_input)  # Maybe needed to build the model
         new_model.set_weights(model.get_weights())
         self.assert_models_equal(model, new_model, ref_input)
+        for l1, l2 in zip(model._flatten_layers(), new_model._flatten_layers()):
+            if isinstance(l2, layers.Dense):
+                self.assertFalse(hasattr(l1, "flag"))
+                self.assertTrue(hasattr(l2, "flag"))
+
+    def test_recursive_multi_level(self):
+        # Functional: 3 nesting levels (outer -> middle -> inner).
+        # Before the fix, recursive=True was not forwarded in the
+        # recursive clone_model() calls, so only the first nesting
+        # level was entered. The inner-most Dense layers would be
+        # shared rather than cloned.
+        model = get_doubly_nested_functional_model()
+
+        def clone_function(layer):
+            layer = layer.__class__.from_config(layer.get_config())
+            layer.flag = True
+            return layer
+
+        new_model = clone_model(
+            model,
+            clone_function=clone_function,
+            recursive=True,
+        )
+        ref_input = np.random.random((2, 5))
+        model(ref_input)
+        new_model(ref_input)
+        new_model.set_weights(model.get_weights())
+        self.assert_models_equal(model, new_model, ref_input)
+
+        # Every Dense in the deepest level should have been cloned
+        # (i.e. clone_function was applied), not shared.
+        for l1, l2 in zip(model._flatten_layers(), new_model._flatten_layers()):
+            if isinstance(l2, layers.Dense):
+                self.assertFalse(hasattr(l1, "flag"))
+                self.assertTrue(hasattr(l2, "flag"))
+
+        # Sequential: 3 nesting levels.
+        model = get_doubly_nested_sequential_model()
+        new_model = clone_model(
+            model,
+            clone_function=clone_function,
+            recursive=True,
+        )
+        ref_input = np.random.random((2, 5))
+        model(ref_input)
+        new_model(ref_input)
+        new_model.set_weights(model.get_weights())
+        self.assert_models_equal(model, new_model, ref_input)
+
         for l1, l2 in zip(model._flatten_layers(), new_model._flatten_layers()):
             if isinstance(l2, layers.Dense):
                 self.assertFalse(hasattr(l1, "flag"))

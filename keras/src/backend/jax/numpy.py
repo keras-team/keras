@@ -774,6 +774,12 @@ def gcd(x1, x2):
     return jnp.gcd(x1, x2)
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    return jnp.geomspace(
+        start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
+    )
+
+
 def greater(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -1037,6 +1043,11 @@ def moveaxis(x, source, destination):
     return jnp.moveaxis(x, source=source, destination=destination)
 
 
+def nancumsum(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    return jnp.nancumsum(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanmax(x, axis=axis, keepdims=keepdims)
@@ -1055,6 +1066,11 @@ def nanmin(x, axis=None, keepdims=False):
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanprod(x, axis=axis, keepdims=keepdims)
+
+
+def nanstd(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanstd(x, axis=axis, keepdims=keepdims)
 
 
 def nansum(x, axis=None, keepdims=False):
