@@ -11,19 +11,6 @@ from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 from keras.src.utils.module_utils import tensorflow as tf
 
 
-def _is_iterable_of_batches(data):
-    """True if data is an iterable of batches, not Dataset/array/tensor."""
-    if isinstance(data, (np.ndarray, str, bytes)):
-        return False
-    if backend.is_tensor(data):
-        return False
-    if tf is not None and isinstance(data, tf.data.Dataset):
-        return False
-    if isinstance(data, PyDataset):
-        return False
-    return hasattr(data, "__iter__") and not hasattr(data, "shape")
-
-
 def _extract_batch(batch):
     """Return input from batch; handle (x, y) or (x, y, sample_weight)."""
     if isinstance(batch, tuple):
@@ -302,12 +289,8 @@ class Normalization(DataLayer):
                 data = data.batch(128)
                 input_shape = get_input_shape(data)
         elif isinstance(data, PyDataset):
-            data = data[0]
-            if isinstance(data, tuple):
-                # handling (x, y) or (x, y, sample_weight)
-                data = data[0]
-            input_shape = data.shape
-        elif _is_iterable_of_batches(data):
+            input_shape = _extract_batch(data[0]).shape
+        elif hasattr(data, "__iter__"):
             data_is_iterable = True
             # Consume first batch to infer input_shape; then chain it back for
             # accumulation so we iterate over (first_batch, *rest).
@@ -363,28 +346,24 @@ class Normalization(DataLayer):
             total_var = ops.zeros(self._mean_and_var_shape)
             total_count = 0
             for batch in data:
-                if data_is_iterable:
-                    batch = _extract_batch(batch)
-                if isinstance(batch, tuple):
-                    batch = batch[0]
+                batch = _extract_batch(batch)
                 batch = backend.convert_to_tensor(
                     batch, dtype=self.compute_dtype
                 )
-                if self.built and data_is_iterable:
-                    for d in self._keep_axis:
-                        batch_dim = batch.shape[d]
-                        expected = self._build_input_shape[d]
-                        if (
-                            batch_dim is not None
-                            and expected is not None
-                            and batch_dim != expected
-                        ):
-                            raise ValueError(
-                                "adapt() iterable yielded a batch with "
-                                "incompatible shape. Expected "
-                                f"{self._build_input_shape}, got "
-                                f"{tuple(batch.shape)}."
-                            )
+                for d in self._keep_axis:
+                    batch_dim = batch.shape[d]
+                    expected = self._build_input_shape[d]
+                    if (
+                        batch_dim is not None
+                        and expected is not None
+                        and batch_dim != expected
+                    ):
+                        raise ValueError(
+                            "adapt() yielded a batch with incompatible "
+                            "shape. Expected "
+                            f"{self._build_input_shape}, got "
+                            f"{tuple(batch.shape)}."
+                        )
                 batch_mean = ops.mean(batch, axis=self._reduce_axis)
                 batch_var = ops.var(batch, axis=self._reduce_axis)
                 if self._reduce_axis:

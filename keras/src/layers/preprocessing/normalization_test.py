@@ -416,6 +416,19 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
+    @pytest.mark.requires_trainable_backend
+    def test_adapt_grain_dataset(self):
+        grain = pytest.importorskip("grain")
+        x = np.random.random((24, 3)).astype("float32")
+        ds = grain.MapDataset.source(x).to_iter_dataset().batch(8)
+        layer = layers.Normalization(axis=-1)
+        layer.adapt(ds)
+        self.assertTrue(layer.built)
+        output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
+        self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
+
     def test_adapt_tf_dataset_with_labels(self):
         """Normalization.adapt should support supervised tf.data.Dataset."""
         import tensorflow as tf
