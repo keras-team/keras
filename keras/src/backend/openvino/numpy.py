@@ -592,9 +592,7 @@ def argsort(x, axis=-1):
 
 
 def array(x, dtype=None):
-    if dtype is not None:
-        return np.array(x, dtype=dtype)
-    return np.array(x)
+    return convert_to_tensor(x, dtype=dtype)
 
 
 def view(x, dtype=None):
@@ -2610,8 +2608,19 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    x1 = get_ov_output(x1)
-    x2 = get_ov_output(x2)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "maximum()")
     return OpenVINOKerasTensor(ov_opset.maximum(x1, x2).output(0))
 
@@ -2800,8 +2809,19 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    x1 = get_ov_output(x1)
-    x2 = get_ov_output(x2)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "minimum()")
     return OpenVINOKerasTensor(ov_opset.minimum(x1, x2).output(0))
 
@@ -3445,7 +3465,9 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = get_ov_output(x)
-    if isinstance(newshape, tuple):
+    if isinstance(newshape, int):
+        newshape = [newshape]
+    elif isinstance(newshape, tuple):
         newshape = list(newshape)
     newshape = ov_opset.constant(newshape, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.reshape(x, newshape, False).output(0))
@@ -3597,6 +3619,9 @@ def split(x, indices_or_sections, axis=0):
     dim_at_axis_tensor = ov_opset.gather(
         shape_tensor, axis_i32, ov_opset.constant(0, dtype=Type.i32)
     )
+
+    if isinstance(indices_or_sections, OpenVINOKerasTensor):
+        indices_or_sections = indices_or_sections.output.get_node().get_data()
 
     if isinstance(indices_or_sections, int):
         num_splits = indices_or_sections
