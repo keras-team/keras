@@ -41,6 +41,12 @@ class PReLU(Layer):
     ):
         super().__init__(**kwargs)
         self.supports_masking = True
+        if alpha_initializer is None:
+            raise ValueError(
+                "The `alpha_initializer` argument of `PReLU` cannot be "
+                "`None`. Pass a valid Keras initializer instead, e.g. "
+                '`alpha_initializer="zeros"`.'
+            )
         self.alpha_initializer = initializers.get(alpha_initializer)
         self.alpha_regularizer = regularizers.get(alpha_regularizer)
         self.alpha_constraint = constraints.get(alpha_constraint)
