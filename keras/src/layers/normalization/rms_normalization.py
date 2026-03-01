@@ -14,7 +14,6 @@ class RMSNormalization(Layer):
     [Root Mean Square Layer Normalization](https://arxiv.org/pdf/1910.07467)
     by Biao Zhang et al.
 
-
     If `scale` is enabled, the layer will scale the normalized outputs via
     a learnable scaling factor.
 
@@ -39,7 +38,8 @@ class RMSNormalization(Layer):
         dtype=float32)
 
     Args:
-        axis: int. The axis on which to perform the normalization.
+        axis: int or list/tuple of ints. The axis or axes on which to
+            perform the normalization.
         epsilon: float. A small number to add to avoid division by zero.
     """
 
@@ -71,10 +71,6 @@ class RMSNormalization(Layer):
         """
         Applies RMS normalization to the input tensor.
 
-        RMS Normalization scales the input by the reciprocal of the root mean
-        square of the activations. Unlike Layer Normalization, it does not
-        subtract the mean (centering).
-
         Args:
             x: Input tensor of arbitrary shape. The dimensions specified in
                 `self.axis` will be used to compute the RMS value.
@@ -83,14 +79,13 @@ class RMSNormalization(Layer):
             A tensor with the same shape as `x`, where the values along `axis`
             have been normalized and scaled by the learnable `scale` parameter.
         """
-        # Cast for backend compatibility
         x = ops.cast(x, self.compute_dtype)
-        # Explicit decomposition to solve PyTorch contiguity bugs
-        pow_2 = ops.square(x)
-        ms = ops.mean(pow_2, axis=self.axis, keepdims=True)
-        rms = ops.sqrt(ms + self.epsilon)
-        normalized = x / rms
-        return normalized * self.scale
+        return ops.rms_normalization(
+            x,
+            scale=self.scale,
+            axis=self.axis,
+            epsilon=self.epsilon,
+        )
 
     def compute_output_shape(self, input_shape):
         return input_shape

@@ -949,6 +949,26 @@ def batch_normalization(
     )
 
 
+def rms_normalization(x, scale, axis, epsilon):
+    x = torch.as_tensor(x)
+    scale = torch.as_tensor(scale)
+    if isinstance(axis, int):
+        axis = (axis,)
+
+    ndim = x.ndim
+    pos_axes = tuple(ax if ax >= 0 else ax + ndim for ax in axis)
+    s = torch.mean(torch.square(x), dim=pos_axes, keepdim=True)
+
+    x_normed = x * torch.rsqrt(s + epsilon)
+    broadcast_shape = [1] * ndim
+    for ax, dim in zip(pos_axes, scale.shape):
+        broadcast_shape[ax] = dim
+
+    scale_reshaped = scale.reshape(broadcast_shape)
+
+    return x_normed * scale_reshaped
+
+
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
