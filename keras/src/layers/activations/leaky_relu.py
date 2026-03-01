@@ -1,4 +1,5 @@
 import warnings
+import math
 
 from keras.src import activations
 from keras.src.api_export import keras_export
