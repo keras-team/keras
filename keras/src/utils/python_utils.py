@@ -7,7 +7,7 @@ import types as python_types
 
 def is_continuous_axis(axis):
     # Used to determine whether the dimensions in an axis are continuous
-    if isinstance(axis,int) or len(axis) <= 1:
+    if isinstance(axis, int) or len(axis) <= 1:
         return True
 
     step = axis[1] - axis[0]
