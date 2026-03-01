@@ -1683,15 +1683,9 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
                 # x_single[:, i, j, :, :] has shape (C, nH, nW)
                 patch = x_single[:, i, j, :, :]
                 # Build indices for scatter
-                c_idx = tf.repeat(
-                    tf.range(C), nH * nW
-                )  # (C*nH*nW,)
-                h_idx = tf.tile(
-                    tf.repeat(h_indices, nW), [C]
-                )  # (C*nH*nW,)
-                w_idx = tf.tile(
-                    tf.tile(w_indices, [nH]), [C]
-                )  # (C*nH*nW,)
+                c_idx = tf.repeat(tf.range(C), nH * nW)  # (C*nH*nW,)
+                h_idx = tf.tile(tf.repeat(h_indices, nW), [C])  # (C*nH*nW,)
+                w_idx = tf.tile(tf.tile(w_indices, [nH]), [C])  # (C*nH*nW,)
                 indices = tf.stack(
                     [c_idx, h_idx, w_idx], axis=1
                 )  # (C*nH*nW, 3)
