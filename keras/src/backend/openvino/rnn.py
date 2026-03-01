@@ -335,7 +335,6 @@ def gru(
     kernel = get_ov_output(kernel)
     recurrent_kernel = get_ov_output(recurrent_kernel)
     bias = get_ov_output(bias)
-    element_type = inputs.get_element_type()
     if time_major:
         inputs = ov_opset.transpose(
             inputs, ov_opset.constant([1, 0, 2], dtype=Type.i32).output(0)
@@ -377,11 +376,6 @@ def gru(
         recurrent_kernel_t, ov_opset.constant([0], dtype=Type.i32).output(0)
     ).output(0)
     if reset_after:
-        bias_flat = ov_opset.reshape(
-            bias,
-            ov_opset.constant([-1], dtype=Type.i32).output(0),
-            special_zero=False,
-        ).output(0)
         bias_W = ov_opset.gather(
             bias,
             ov_opset.constant([0], dtype=Type.i32).output(0),
@@ -410,11 +404,6 @@ def gru(
         bias_ov = ov_opset.unsqueeze(
             bias, ov_opset.constant([0], dtype=Type.i32).output(0)
         ).output(0)
-    hidden_size = ov_opset.gather(
-        ov_opset.shape_of(initial_state, Type.i32).output(0),
-        ov_opset.constant([2], dtype=Type.i32).output(0),
-        ov_opset.constant(0, dtype=Type.i32).output(0),
-    ).output(0)
     units_int = recurrent_kernel.get_partial_shape()[0].get_length()
     direction = "reverse" if go_backwards else "forward"
     rnn_node = ov_opset.gru_sequence(
