@@ -307,13 +307,19 @@ def map_graph(inputs, outputs):
     # Handle inputs that are not connected to outputs.
     # We do not error out here because the inputs may be used to compute losses
     # and metrics.
+    # Only add the input's producing operation if it is an actual InputLayer
+    # (i.e. its node is marked as an input node). For intermediate tensors
+    # used as Function inputs, the producing operation is outside the graph.
     for input_t in inputs:
         input_operation = input_t._keras_history[0]
         if input_operation and input_operation not in operations_depths:
-            operations_depths[input_operation] = 0
-            operation_indices[input_operation] = -1
-            nodes_depths[input_operation._inbound_nodes[0]] = 0
-            network_nodes.add(make_node_key(input_operation, 0))
+            node_index = input_t._keras_history[1]
+            node = input_operation._inbound_nodes[node_index]
+            if node.is_input:
+                operations_depths[input_operation] = 0
+                operation_indices[input_operation] = -1
+                nodes_depths[node] = 0
+                network_nodes.add(make_node_key(input_operation, node_index))
 
     # Build a dict {depth: list of nodes with this depth}
     nodes_by_depth = collections.defaultdict(list)
@@ -439,6 +445,14 @@ def _build_map_helper(
     if node in finished_nodes:
         return
 
+    # If this tensor is one of the declared inputs and its producing
+    # operation is not an InputLayer, stop traversal here. The operation
+    # that produced this tensor is outside the Function's graph.
+    flat_inputs = tree.flatten(inputs)
+    if not node.is_input and tensor in flat_inputs:
+        finished_nodes.add(node)
+        return
+
     # Prevent cycles.
     if node in nodes_in_progress:
         raise ValueError(
@@ -452,11 +466,11 @@ def _build_map_helper(
 
     # Propagate to all previous tensors connected to this node.
     nodes_in_progress.add(node)
-    if not node.is_input and tensor not in tree.flatten(inputs):
-        for tensor in node.input_tensors:
+    if not node.is_input:
+        for input_tensor in node.input_tensors:
             _build_map_helper(
                 inputs,
-                tensor,
+                input_tensor,
                 finished_nodes,
                 nodes_in_progress,
                 nodes_in_decreasing_depth,
