@@ -232,6 +232,7 @@ def _wrap_clone_function(
                 clone = clone_model(
                     layer,
                     clone_function=clone_function,
+                    recursive=True,
                     cache=cache,
                 )
                 cache[id(layer)] = clone
@@ -241,6 +242,7 @@ def _wrap_clone_function(
                     layer,
                     clone_function=clone_function,
                     call_function=call_function,
+                    recursive=True,
                     cache=cache,
                 )
                 cache[id(layer)] = clone
