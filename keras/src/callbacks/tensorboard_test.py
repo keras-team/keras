@@ -347,7 +347,10 @@ class TestTensorBoardV2(testing.TestCase):
         )
         self.assertEqual(
             self._strip_layer_names(summary_file.histograms, "sequential"),
-            {_ObservedSummary(logdir=train_dir, tag="histogram")},
+            {
+                _ObservedSummary(logdir=train_dir, tag="kernel/histogram"),
+                _ObservedSummary(logdir=train_dir, tag="bias/histogram"),
+            },
         )
 
     @pytest.mark.requires_trainable_backend
@@ -398,7 +401,8 @@ class TestTensorBoardV2(testing.TestCase):
         self.assertEqual(
             self._strip_layer_names(summary_file.histograms, model_type),
             {
-                _ObservedSummary(logdir=train_dir, tag="histogram"),
+                _ObservedSummary(logdir=train_dir, tag="kernel/histogram"),
+                _ObservedSummary(logdir=train_dir, tag="bias/histogram"),
             },
         )
         expected_image_summaries = {
@@ -406,7 +410,7 @@ class TestTensorBoardV2(testing.TestCase):
             _ObservedSummary(logdir=train_dir, tag="kernel/image"),
         }
         self.assertEqual(
-            self._strip_variable_names(summary_file.images),
+            self._strip_layer_names(summary_file.images, model_type),
             expected_image_summaries,
         )
 
