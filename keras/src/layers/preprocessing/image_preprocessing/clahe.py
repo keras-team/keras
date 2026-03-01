@@ -59,7 +59,7 @@ class ContrastLimitedAdaptiveHistogramEqualization(BaseImagePreprocessingLayer):
     clahe = keras.layers.ContrastLimitedAdaptiveHistogramEqualization()
 
     # Apply CLAHE to an image
-    # image values should be in the range [0, 255] by default
+    # image values should be in the range[0, 255] by default
     input_image = np.random.randint(0, 256, (1, 256, 256, 3))
     output_image = clahe(input_image)
 
@@ -145,12 +145,15 @@ class ContrastLimitedAdaptiveHistogramEqualization(BaseImagePreprocessingLayer):
             padded_images = images
         else:
             images_nchw = ops.transpose(images, (0, 3, 1, 2))
-            padded_images_nchw = ops.pad(
-                images_nchw,
-                [[0, 0], [0, 0], [0, pad_h], [0, pad_w]],
-                mode="symmetric",
+
+            images_3d = ops.reshape(images_nchw, (-1, height, width))
+            padded_3d = ops.pad(
+                images_3d, [[0, 0], [0, pad_h], [0, pad_w]], mode="symmetric"
             )
-            padded_images = ops.transpose(padded_images_nchw, (0, 2, 3, 1))
+            padded_nchw = ops.reshape(
+                padded_3d, (-1, channels, height + pad_h, width + pad_w)
+            )
+            padded_images = ops.transpose(padded_nchw, (0, 2, 3, 1))
 
         # Compute Histograms per tile
         tiled = ops.reshape(
@@ -193,6 +196,7 @@ class ContrastLimitedAdaptiveHistogramEqualization(BaseImagePreprocessingLayer):
         cdf_norm = numerator / denominator
         cdf_norm = ops.clip(cdf_norm, 0, 255)
 
+        # Interpolation
         top = cdf_norm[:, 0:1, :, :, :]
         bottom = cdf_norm[:, -1:, :, :, :]
         cdf_padded = ops.concatenate([top, cdf_norm, bottom], axis=1)
