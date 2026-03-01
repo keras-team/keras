@@ -275,6 +275,7 @@ def map_graph(inputs, outputs):
     # "depth" is number of operations between output Node and the Node.
     # Nodes are ordered from inputs -> outputs.
     nodes_in_decreasing_depth, operation_indices = _build_map(inputs, outputs)
+    nodes_in_graph = set(nodes_in_decreasing_depth)
     network_nodes = {
         make_node_key(node.operation, node.operation._inbound_nodes.index(node))
         for node in nodes_in_decreasing_depth
@@ -300,22 +301,26 @@ def map_graph(inputs, outputs):
         # Update the depth of inbound nodes.
         # The "depth" of a node is the max of the depths
         # of all nodes it is connected to + 1.
+        # Only update nodes that are actually part of the graph.
         for node_dep in node.parent_nodes:
+            if node_dep not in nodes_in_graph:
+                continue
             previous_depth = nodes_depths.get(node_dep, 0)
             nodes_depths[node_dep] = max(depth + 1, previous_depth)
 
     # Handle inputs that are not connected to outputs.
     # We do not error out here because the inputs may be used to compute losses
     # and metrics.
-    # Only add the input's producing operation if it is an actual InputLayer
-    # (i.e. its node is marked as an input node). For intermediate tensors
-    # used as Function inputs, the producing operation is outside the graph.
     for input_t in inputs:
         input_operation = input_t._keras_history[0]
         if input_operation and input_operation not in operations_depths:
             node_index = input_t._keras_history[1]
             node = input_operation._inbound_nodes[node_index]
-            if node.is_input:
+            # Only add the operation if its node is in the graph
+            # (i.e. it was found during traversal). For intermediate tensors
+            # used as Function inputs, the producing operation is outside
+            # the graph boundary and should not be added.
+            if node in nodes_in_graph:
                 operations_depths[input_operation] = 0
                 operation_indices[input_operation] = -1
                 nodes_depths[node] = 0
