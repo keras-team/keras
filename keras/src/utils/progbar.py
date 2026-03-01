@@ -120,11 +120,11 @@ class Progbar:
                 message += "\n"
 
             if self.target is not None:
-                numdigits = int(math.log10(self.target)) + 1
+                numdigits = int(math.log10(max(1, self.target))) + 1
                 bar = (f"%{numdigits}d/%d") % (current, self.target)
                 bar = f"\x1b[1m{bar}\x1b[0m "
                 special_char_len += 8
-                prog = float(current) / self.target
+                prog = float(current) / self.target if self.target > 0 else 1
                 prog_width = int(self.width * prog)
 
                 if prog_width > 0:
@@ -187,7 +187,7 @@ class Progbar:
 
         elif self.verbose == 2:
             if finalize:
-                numdigits = int(math.log10(self.target)) + 1
+                numdigits = int(math.log10(max(1, self.target))) + 1
                 count = f"%{numdigits}d/%d" % (current, self.target)
                 info = f"{count} - {now - self._start:.0f}s"
                 info += f" -{self._format_time(time_per_unit, self.unit_name)}"
