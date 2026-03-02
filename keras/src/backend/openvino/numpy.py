@@ -298,7 +298,7 @@ def angle(x):
     pi = ov_opset.constant(float(np.pi), x_type).output(0)
     is_negative = ov_opset.less(x, zero).output(0)
     result = ov_opset.select(is_negative, pi, zero).output(0)
-    
+
     return OpenVINOKerasTensor(result)
 
 
