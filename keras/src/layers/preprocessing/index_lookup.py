@@ -824,7 +824,11 @@ class IndexLookup(Layer):
 
     def load_own_variables(self, store):
         if self.output_mode == "tf_idf":
-            self.idf_weights.assign(store["idf_weights"])
+            idf_weights = store["idf_weights"]
+            if hasattr(self, "idf_weights"):
+                self.idf_weights.assign(idf_weights)
+            else:
+                self.idf_weights = tf.Variable(idf_weights, trainable=False)
             self.idf_weights_const = self.idf_weights.value()
 
     def save_assets(self, dir_path):
@@ -852,7 +856,8 @@ class IndexLookup(Layer):
             else:
                 values = [int(line) for line in lines]
             if self.output_mode == "tf_idf":
-                self.set_vocabulary(values, idf_weights=False)
+                idf_weights = self.idf_weights_const.numpy()
+                self.set_vocabulary(values, idf_weights=idf_weights)
             else:
                 self.set_vocabulary(values)
 
