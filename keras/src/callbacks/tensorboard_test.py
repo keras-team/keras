@@ -347,10 +347,7 @@ class TestTensorBoardV2(testing.TestCase):
         )
         self.assertEqual(
             self._strip_layer_names(summary_file.histograms, "sequential"),
-            {
-                _ObservedSummary(logdir=train_dir, tag="kernel/histogram"),
-                _ObservedSummary(logdir=train_dir, tag="bias/histogram"),
-            },
+            {_ObservedSummary(logdir=train_dir, tag="histogram")},
         )
 
     @pytest.mark.requires_trainable_backend
@@ -401,13 +398,11 @@ class TestTensorBoardV2(testing.TestCase):
         self.assertEqual(
             self._strip_layer_names(summary_file.histograms, model_type),
             {
-                _ObservedSummary(logdir=train_dir, tag="kernel/histogram"),
-                _ObservedSummary(logdir=train_dir, tag="bias/histogram"),
+                _ObservedSummary(logdir=train_dir, tag="histogram"),
             },
         )
         expected_image_summaries = {
-            _ObservedSummary(logdir=train_dir, tag="bias/image"),
-            _ObservedSummary(logdir=train_dir, tag="kernel/image"),
+            _ObservedSummary(logdir=train_dir, tag="image"),
         }
         self.assertEqual(
             self._strip_layer_names(summary_file.images, model_type),
@@ -583,8 +578,7 @@ class TestTensorBoardV2(testing.TestCase):
         for s in summaries:
             if "/" not in s.tag:
                 raise ValueError(f"tag has no layer name: {s.tag!r}")
-            start_from = 2 if "subclass" in model_type else 1
-            new_tag = "/".join(s.tag.split("/")[start_from:])
+            new_tag = s.tag.split("/")[-1]
             result.add(s._replace(tag=new_tag))
         return result
 
