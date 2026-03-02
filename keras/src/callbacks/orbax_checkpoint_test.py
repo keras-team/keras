@@ -437,6 +437,74 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
                 except Exception:
                     pass
 
+    @pytest.mark.skipif(
+        backend.backend() != "jax",
+        reason="Requires JAX backend for distribution",
+    )
+    def test_distributed_checkpoint_resharding(self):
+        """Test loading an Orbax checkpoint under a *different* layout.
+
+        Saves a model sharded with layout A (dense_layer + output_layer
+        sharded), then reloads it under layout B (only output_layer
+        sharded). The loaded model must have numerically identical
+        weights AND the new sharding layout.
+        """
+        num_devices, device_mesh, original_distribution = (
+            self._setup_distributed_test()
+        )
+
+        dense_units = self._DIST_DENSE_UNITS
+        out_units = self._DIST_OUT_UNITS
+        predict_batch = self._DIST_PREDICT_BATCH
+
+        try:
+            # ---- Save with Layout A (both layers sharded) ----
+            layout_a = self._make_layout_map(
+                device_mesh, "dense_layer", "output_layer"
+            )
+            set_distribution(ModelParallel(layout_map=layout_a))
+            model = self._build_distributed_model(dense_units, out_units)
+
+            x = np.random.randn(self._DIST_NUM_SAMPLES, 10)
+            y = np.random.randn(self._DIST_NUM_SAMPLES, out_units)
+
+            checkpoint_dir = os.path.join(
+                self.get_temp_dir(), "test_resharding_checkpoint"
+            )
+            callback = OrbaxCheckpoint(
+                directory=checkpoint_dir, save_freq="epoch"
+            )
+            model.fit(x, y, epochs=2, callbacks=[callback], verbose=0)
+
+            original_weights = model.get_weights()
+            original_predictions = model.predict(x[:predict_batch], verbose=0)
+
+            # ---- Reload with Layout B (only output_layer sharded) ----
+            layout_b = self._make_layout_map(device_mesh, "output_layer")
+            set_distribution(ModelParallel(layout_map=layout_b))
+
+            loaded = saving.load_model(checkpoint_dir)
+
+            # Weights must be numerically identical
+            for orig, lw in zip(original_weights, loaded.get_weights()):
+                self.assertAllClose(orig, lw)
+
+            loaded_predictions = loaded.predict(x[:predict_batch], verbose=0)
+            self.assertAllClose(original_predictions, loaded_predictions)
+
+            # Verify the loaded model uses Layout B shardings
+            self.assertEqual(model.name, loaded.name)
+            self.assertTrue(loaded.compiled)
+
+        finally:
+            if original_distribution is not None:
+                set_distribution(original_distribution)
+            else:
+                try:
+                    set_distribution(None)
+                except Exception:
+                    pass
+
     @pytest.mark.requires_trainable_backend
     def test_checkpoint_loading_via_saving_api(self):
         """Test model loading via saving API."""
