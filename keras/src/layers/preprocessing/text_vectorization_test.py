@@ -85,6 +85,9 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         model = saving.load_model(temp_filepath)
         self.assertAllClose(output, model(input_data))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
     def test_save_load_tf_idf_mode(self):
         input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
         model = Sequential(
