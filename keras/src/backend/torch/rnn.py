@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 from keras.src import tree
