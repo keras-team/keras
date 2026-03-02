@@ -496,11 +496,11 @@ def prepare_lstm_weights(lstm, kernel, recurrent_kernel, bias, device):
     hidden_size = lstm.hidden_size
 
     # Convert gates from Keras [i,f,c,o] to PyTorch [i,f,g,o]
-    i_k, f_k, c_k, o_k = np.split(kernel, 4, axis=1)
-    weight_ih_data = np.concatenate([i_k, f_k, c_k, o_k], axis=1).T
+    i_k, f_k, c_k, o_k = torch.chunk(kernel, 4, dim=1)
+    weight_ih_data = torch.cat([i_k, f_k, c_k, o_k], dim=1).T
 
-    i_r, f_r, c_r, o_r = np.split(recurrent_kernel, 4, axis=1)
-    weight_hh_data = np.concatenate([i_r, f_r, c_r, o_r], axis=1).T
+    i_r, f_r, c_r, o_r = torch.chunk(recurrent_kernel, 4, dim=1)
+    weight_hh_data = torch.cat([i_r, f_r, c_r, o_r], dim=1).T
 
     if bias is not None:
         # Split Keras combined bias into input and hidden biases
