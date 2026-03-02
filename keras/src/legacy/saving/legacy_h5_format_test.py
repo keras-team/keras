@@ -216,6 +216,24 @@ class LegacyH5WholeModelTest(testing.TestCase):
         ref_input = np.array([5])
         self._check_reloading_model(ref_input, model)
 
+    def test_custom_function_from_custom_objects_no_registration(self):
+        from keras.src.saving import custom_object_scope
+
+        def custom_fn(x):
+            return x * 2.0
+
+        class MyDense(layers.Dense):
+            def call(self, inputs):
+                return custom_fn(super().call(inputs))
+
+        inputs = layers.Input(shape=[1])
+        outputs = MyDense(1)(inputs)
+        model = models.Model(inputs, outputs)
+
+        ref_input = np.array([[5.0]])
+        with custom_object_scope({"MyDense": MyDense, "custom_fn": custom_fn}):
+            self._check_reloading_model(ref_input, model)
+
     def test_nested_layers(self):
         class MyLayer(layers.Layer):
             def __init__(self, sublayers, **kwargs):
@@ -388,6 +406,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         # Compare output
         self.assertAllClose(ref_output, output, atol=1e-5)
 
+    @pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
     def test_custom_sequential_registered_no_scope(self):
         @tf_keras.saving.register_keras_serializable(package="my_package")
         class MyDense(tf_keras.layers.Dense):
@@ -411,6 +430,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         ref_input = np.array([5])
         self._check_reloading_model(ref_input, model, tf_keras_model)
 
+    @pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
     def test_custom_functional_registered_no_scope(self):
         @tf_keras.saving.register_keras_serializable(package="my_package")
         class MyDense(tf_keras.layers.Dense):

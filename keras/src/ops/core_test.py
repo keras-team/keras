@@ -309,11 +309,38 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         shape = (-1, -1)
         self.assertEqual(core.slice(inputs, start_indices, shape).shape, (2, 2))
 
-    def test_slice_negative_one_shape_raises(self):
+    def test_slice_negative_one_shape_tensor_indices(self):
         inputs = KerasTensor(shape=(3, 3), dtype="float32")
         start_indices = KerasTensor(shape=(2,), dtype="int32")
         shape = (-1, -1)
-        with self.assertRaises(ValueError):
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, None)
+        )
+
+    def test_slice_negative_one_shape_dynamic_input_shape(self):
+        inputs = KerasTensor(shape=(None, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (-1, -1)
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, 2)
+        )
+
+    def test_slice_invalid_inputs(self):
+        inputs = KerasTensor(shape=(3, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (2, 2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `inputs` must match.* dimensions in `shape`",
+        ):
+            core.slice(inputs, start_indices, shape)
+
+        start_indices = (1, 1, 1)
+        shape = (2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `start_indices` must match.* dimensions in `inputs`",
+        ):
             core.slice(inputs, start_indices, shape)
 
     def test_slice_update(self):
@@ -1083,6 +1110,50 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             core.ScatterUpdate()(inputs, indices, updates),
             np.array([[0, 20], [10, 0]]),
         )
+
+    def test_scatter_update_with_reduction(self):
+        # Test add reduction with duplicate indices
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
+
+        # Test add reduction 2D
+        inputs = np.zeros((3, 3))
+        indices = [[0, 0], [1, 1], [0, 0]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result[0, 0], 4.0)
+        self.assertAllClose(result[1, 1], 2.0)
+
+        # Test max reduction with duplicates
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="max")
+        self.assertAllClose(result, [5.0, 2.0, 0.0, 0.0])
+
+        # Test min reduction
+        inputs = np.array([10.0, 10.0, 10.0, 10.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="min")
+        self.assertAllClose(result, [3.0, 2.0, 10.0, 10.0])
+
+        # Test mul reduction
+        inputs = np.array([2.0, 3.0, 1.0, 1.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="mul")
+        self.assertAllClose(result, [30.0, 6.0, 1.0, 1.0])
+
+        # Test Operation call with reduction
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.ScatterUpdate(reduction="add")(inputs, indices, updates)
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
 
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))

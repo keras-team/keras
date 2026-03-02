@@ -82,12 +82,14 @@ class Function(Operation):
         self._nodes_by_depth = nodes_by_depth
         self._operations = operations
         self._operations_by_depth = operations_by_depth
-        for input in self._inputs:
-            if (
-                input._keras_history.operation
-                and not input._keras_history.operation._outbound_nodes
-            ):
-                raise ValueError("`inputs` not connected to `outputs`")
+
+        # Run through the graph to check all ouputs are connected to the inputs.
+        def empty_op_outputs(op, *args, **kwargs):
+            return [None] * len(tree.flatten(op.output))
+
+        self._run_through_graph(
+            [None] * len(self._inputs), call_fn=empty_op_outputs
+        )
 
         # Special handling for NNX to ensure consistent operation instance usage
         if is_nnx_enabled():
@@ -166,9 +168,11 @@ class Function(Operation):
     def call(self, inputs):
         """Computes output tensors for new inputs."""
         self._assert_input_compatibility(inputs)
-        return self._run_through_graph(inputs, operation_fn=lambda op: op)
+        return self._run_through_graph(inputs)
 
-    def _run_through_graph(self, inputs, operation_fn, call_fn=None):
+    def _run_through_graph(
+        self, inputs, operation_fn=lambda op: op, call_fn=None
+    ):
         """Execute the graph.
 
         At each node we compute outputs via
@@ -210,7 +214,13 @@ class Function(Operation):
                     tensor_dict[id(x)] = y
 
         output_tensors = []
-        for x in self.outputs:
+        for i, x in enumerate(self.outputs):
+            if id(x) not in tensor_dict:
+                path = tree.flatten_with_path(self._outputs_struct)[i][0]
+                path = ".".join(str(p) for p in path)
+                raise ValueError(
+                    f"Output with path `{path}` is not connected to `inputs`"
+                )
             output_tensors.append(tensor_dict[id(x)])
 
         return tree.pack_sequence_as(self._outputs_struct, output_tensors)

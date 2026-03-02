@@ -1876,7 +1876,7 @@ class OneHot(Operation):
         super().__init__(name=name)
         self.num_classes = num_classes
         self.axis = axis
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = dtype
         self.sparse = sparse
 
     def call(self, x):
@@ -1937,6 +1937,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
            [0. 0. 1. 0.]
            [1. 0. 0. 0.]], shape=(4, 4), dtype=float32)
     """
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OneHot(
             num_classes, axis=axis, dtype=dtype, sparse=sparse
@@ -2274,6 +2275,7 @@ def multi_hot(
     if num_classes is None:
         raise ValueError("Argument `num_classes` must be specified.")
 
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((inputs,)):
         return MultiHot(num_classes, axis, dtype, sparse).symbolic_call(inputs)
 
@@ -3402,6 +3404,11 @@ def depth_to_space(x, block_size, data_format="channels_last"):
     (1, 3, 4, 4)
     """
     data_format = standardize_data_format(data_format)
+    if block_size < 2:
+        raise ValueError(
+            "`block_size` must be at least 2. "
+            f"Received: block_size={block_size}"
+        )
     if any_symbolic_tensors((x,)):
         return DepthToSpace(block_size, data_format=data_format).symbolic_call(
             x
@@ -3501,6 +3508,11 @@ def space_to_depth(x, block_size, data_format="channels_last"):
     (1, 12, 2, 2)
     """
     data_format = standardize_data_format(data_format)
+    if block_size < 2:
+        raise ValueError(
+            "`block_size` must be at least 2. "
+            f"Received: block_size={block_size}"
+        )
     if any_symbolic_tensors((x,)):
         return SpaceToDepth(block_size, data_format=data_format).symbolic_call(
             x

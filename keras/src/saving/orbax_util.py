@@ -2,6 +2,7 @@
 
 import os
 
+from keras.src.utils import file_utils
 from keras.src.utils.module_utils import ocp
 
 
@@ -11,12 +12,12 @@ def is_orbax_checkpoint(filepath):
     This function implements custom detection logic instead of relying on
     Orbax APIs which may be unreliable in some environments.
     """
-    if not os.path.exists(filepath) or not os.path.isdir(filepath):
+    if not file_utils.exists(filepath) or not file_utils.isdir(filepath):
         return False
 
     try:
         # List directory contents
-        contents = os.listdir(filepath)
+        contents = file_utils.listdir(filepath)
 
         # A set is more efficient for membership testing
         orbax_indicators = {
@@ -32,7 +33,10 @@ def is_orbax_checkpoint(filepath):
         # Check for step directories or temporary files in a single pass
         return any(
             ".orbax-checkpoint-tmp" in item
-            or (item.isdigit() and os.path.isdir(os.path.join(filepath, item)))
+            or (
+                item.isdigit()
+                and file_utils.isdir(file_utils.join(filepath, item))
+            )
             for item in contents
         )
 

@@ -3307,8 +3307,6 @@ class NNOpsBehaviorTest(testing.TestCase):
             knn.layer_normalization(x, rms_scaling=True)
 
     def test_unfold(self):
-        if keras.config.backend() in ["openvino"]:
-            pytest.skip("Backend does not support unfold operation")
         # test 1 kernel_size=2
         x = ops.arange(8, dtype="float32")
         x = ops.reshape(x, [1, 1, 2, 4])
@@ -3600,3 +3598,43 @@ class NNOpsBehaviorTest(testing.TestCase):
         y = knn.depth_to_space(x, block_size=2, data_format="channels_first")
         z = knn.space_to_depth(y, block_size=2, data_format="channels_first")
         self.assertAllClose(x, z)
+
+    def test_depth_to_space_block_size_validation(self):
+        x = ops.arange(48, dtype="float32")
+        x = ops.reshape(x, [1, 2, 2, 12])
+
+        # block_size must be at least 2
+        with self.assertRaisesRegex(
+            ValueError, "`block_size` must be at least 2"
+        ):
+            knn.depth_to_space(x, block_size=0)
+
+        with self.assertRaisesRegex(
+            ValueError, "`block_size` must be at least 2"
+        ):
+            knn.depth_to_space(x, block_size=1)
+
+        with self.assertRaisesRegex(
+            ValueError, "`block_size` must be at least 2"
+        ):
+            knn.depth_to_space(x, block_size=-1)
+
+    def test_space_to_depth_block_size_validation(self):
+        x = ops.arange(48, dtype="float32")
+        x = ops.reshape(x, [1, 4, 4, 3])
+
+        # block_size must be at least 2
+        with self.assertRaisesRegex(
+            ValueError, "`block_size` must be at least 2"
+        ):
+            knn.space_to_depth(x, block_size=0)
+
+        with self.assertRaisesRegex(
+            ValueError, "`block_size` must be at least 2"
+        ):
+            knn.space_to_depth(x, block_size=1)
+
+        with self.assertRaisesRegex(
+            ValueError, "`block_size` must be at least 2"
+        ):
+            knn.space_to_depth(x, block_size=-1)

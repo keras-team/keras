@@ -4,7 +4,7 @@ import warnings
 
 import numpy as np
 import openvino as ov
-import openvino.opset14 as ov_opset
+import openvino.opset15 as ov_opset
 from openvino import Model
 from openvino import Tensor
 from openvino import Type
@@ -124,6 +124,8 @@ def get_ov_output(x, ov_type=None):
         x = ov_opset.constant(x.value.data).output(0)
     elif isinstance(x, OpenVINOKerasTensor):
         x = x.output
+    elif isinstance(x, ov.Output):
+        return x
     elif isinstance(x, Tensor):
         x = ov_opset.constant(x.data).output(0)
     else:
@@ -149,7 +151,10 @@ class OpenVINOKerasTensor:
         x_type = x.get_element_type()
         x_keras_type = ov_to_keras_type(x_type)
         self.output = x
-        self.shape = tuple(x_keras_shape)
+        if x_keras_shape is not None:
+            self.shape = tuple(x_keras_shape)
+        else:
+            self.shape = None
         self.dtype = x_keras_type
         self.ndim = None
         self.data = data
@@ -494,6 +499,9 @@ class OpenVINOKerasTensor:
         assert ov_shape[0].is_static, "the first dimension must be static"
         return ov_shape[0].get_length()
 
+    def __bool__(self):
+        return bool(self.numpy())
+
     def __mod__(self, other):
         first = self.output
         other = get_ov_output(other)
@@ -516,6 +524,138 @@ class OpenVINOKerasTensor:
 
     def numpy(self):
         return self.__array__()
+
+    def __rmod__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rmod__"
+        )
+        return OpenVINOKerasTensor(ov_opset.mod(other, first).output(0))
+
+    def __matmul__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__matmul__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.matmul(first, other, False, False).output(0)
+        )
+
+    def __rmatmul__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rmatmul__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.matmul(other, first, False, False).output(0)
+        )
+
+    def __div__(self, other):
+        return self.__truediv__(other)
+
+    def __rdiv__(self, other):
+        return self.__rtruediv__(other)
+
+    def __and__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__and__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_and(first, other).output(0))
+
+    def __rand__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rand__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_and(other, first).output(0))
+
+    def __or__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__or__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_or(first, other).output(0))
+
+    def __ror__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__ror__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_or(other, first).output(0))
+
+    def __xor__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__xor__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_xor(first, other).output(0))
+
+    def __rxor__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rxor__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_xor(other, first).output(0))
+
+    def __int__(self):
+        arr = self.output.get_node().data
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return int(arr)
+
+    def __float__(self):
+        arr = self.output.get_node().data
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return float(arr)
+
+    def __repr__(self):
+        return f"<OpenVINOKerasTensor shape={self.shape}, dtype={self.dtype}>"
+
+    def __round__(self, ndigits=None):
+        first = self.output
+        decimals = ndigits or 0
+        if decimals == 0:
+            result = ov_opset.round(first, "half_to_even")
+        else:
+            factor = ov_opset.constant(10.0**decimals, first.get_element_type())
+            scaled = ov_opset.multiply(first, factor)
+            rounded = ov_opset.round(scaled, "half_to_even")
+            result = ov_opset.divide(rounded, factor)
+        return OpenVINOKerasTensor(result.output(0))
+
+    def reshape(self, new_shape):
+        first = self.output
+        shape_const = get_ov_output(new_shape)
+        return OpenVINOKerasTensor(
+            ov_opset.reshape(first, shape_const, False).output(0)
+        )
+
+    def squeeze(self, axis=None):
+        first = self.output
+        if axis is not None:
+            axes = get_ov_output([axis] if isinstance(axis, int) else axis)
+        else:
+            axes = get_ov_output(
+                [i for i, d in enumerate(self.shape) if d == 1]
+            )
+        return OpenVINOKerasTensor(ov_opset.squeeze(first, axes).output(0))
 
 
 def ov_to_keras_type(ov_type):
@@ -763,15 +903,41 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
 
 
 def scatter(indices, values, shape):
-    raise NotImplementedError(
-        "`scatter` is not supported with openvino backend"
-    )
+    indices = get_ov_output(indices)
+    values = get_ov_output(values)
+
+    # Create a zeros tensor of the target shape.
+    shape = get_ov_output(shape)
+    zero_const = ov_opset.constant(0, values.get_element_type())
+    zeros = ov_opset.broadcast(zero_const, shape).output(0)
+
+    return scatter_update(zeros, indices, values, "add")
 
 
-def scatter_update(inputs, indices, updates):
-    raise NotImplementedError(
-        "`scatter_update` is not supported with openvino backend"
-    )
+def scatter_update(inputs, indices, updates, reduction=None):
+    inputs = get_ov_output(inputs)
+    indices = get_ov_output(indices)
+    updates = get_ov_output(updates)
+
+    inputs, updates = align_operand_types(inputs, updates, "scatter_update")
+
+    # Map Keras reduction to OpenVINO ScatterNDUpdate reduction.
+    # OpenVINO Opset 15 supports: "none", "sum", "sub", "prod", "min", "max".
+    if reduction is None:
+        ov_reduction = "none"
+    elif reduction == "add":
+        ov_reduction = "sum"
+    elif reduction == "mul":
+        ov_reduction = "prod"
+    elif reduction in ("max", "min"):
+        ov_reduction = reduction
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
+
+    result = ov_opset.scatter_nd_update(
+        inputs, indices, updates, reduction=ov_reduction
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def slice(inputs, start_indices, shape):

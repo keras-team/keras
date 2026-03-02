@@ -741,5 +741,146 @@ def _cudnn_lstm(
     return last_output, outputs, [h_n, c_n]
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+):
+    cudnn_supported = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    )
+
+    if not cudnn_supported or not reset_after or mask is not None:
+        raise NotImplementedError
+
+    # Get device from inputs
+    device = get_device()
+
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+
+    inputs = convert_to_tensor(inputs, dtype="float32")
+    initial_state = convert_to_tensor(initial_state, dtype="float32")
+
+    # Preprocess for go_backwards by flipping the sequence
+    if go_backwards:
+        inputs = torch.flip(inputs, dims=[1])
+
+    # Move all tensors to the same device
+    inputs = inputs.to(device)
+    initial_state = initial_state.to(device)
+
+    try:
+        return _cudnn_gru(
+            inputs,
+            initial_state,
+            kernel,
+            recurrent_kernel,
+            bias,
+            return_sequences=return_sequences,
+            device=device,
+        )
+    except Exception:
+        raise NotImplementedError
+
+
+def prepare_gru_params(kernel, recurrent_kernel, bias, device):
+    """Prepares Keras GRU weights for PyTorch's functional GRU.
+
+    Reorders gates from Keras [z, r, h] to PyTorch [r, z, h] format
+    and returns weight tensors that maintain gradient connections.
+
+    Args:
+        kernel: The kernel weights tensor with shape (input_dim, 3*units).
+        recurrent_kernel: The recurrent kernel weights tensor
+            with shape (units, 3*units).
+        bias: The bias tensor with shape (2, 3*units) for reset_after=True.
+        device: The device to place the tensors on.
+
+    Returns:
+        A list of weight tensors [weight_ih, weight_hh, bias_ih, bias_hh]
+        suitable for torch._VF.gru.
+    """
+    # Split Keras weights by gate: [z, r, h]
+    z_k, r_k, h_k = torch.chunk(kernel, 3, dim=1)
+    z_r, r_r, h_r = torch.chunk(recurrent_kernel, 3, dim=1)
+
+    # Reorder to PyTorch format [r, z, h] and transpose
+    weight_ih = torch.cat([r_k, z_k, h_k], dim=1).T.contiguous().to(device)
+    weight_hh = torch.cat([r_r, z_r, h_r], dim=1).T.contiguous().to(device)
+
+    if bias is not None:
+        # bias shape is (2, 3*units) for reset_after=True
+        # Row 0 is input bias, Row 1 is recurrent bias
+        z_bi, r_bi, h_bi = torch.chunk(bias[0], 3)
+        z_bh, r_bh, h_bh = torch.chunk(bias[1], 3)
+
+        # Reorder to [r, z, h]
+        bias_ih = torch.cat([r_bi, z_bi, h_bi]).contiguous().to(device)
+        bias_hh = torch.cat([r_bh, z_bh, h_bh]).contiguous().to(device)
+    else:
+        hidden_size = recurrent_kernel.shape[0]
+        bias_ih = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            3 * hidden_size, dtype=kernel.dtype, device=device
+        )
+
+    return [weight_ih, weight_hh, bias_ih, bias_hh]
+
+
+def _cudnn_gru(
+    inputs,
+    initial_state,
+    kernel,
+    recurrent_kernel,
+    bias,
+    return_sequences,
+    device,
+):
+    # If shape is [batch, hidden]; Make [1, batch, hidden]
+    if initial_state.dim() == 2:
+        initial_state = initial_state.unsqueeze(0)
+    # If shape is [batch, 1, hidden]
+    elif initial_state.dim() == 3 and initial_state.shape[1] == 1:
+        initial_state = initial_state.permute(1, 0, 2)
+
+    params = prepare_gru_params(kernel, recurrent_kernel, bias, device)
+
+    # Use functional GRU to maintain gradient flow through weight tensors
+    outputs, h_n = torch._VF.gru(
+        inputs,
+        initial_state,
+        params,
+        bias is not None,  # has_biases
+        1,  # num_layers
+        0.0,  # dropout
+        torch.is_grad_enabled(),  # training: must be True for backward pass
+        False,  # bidirectional
+        True,  # batch_first
+    )
+
+    # Reshape hidden state for return
+    h_n = h_n.squeeze(0)
+    last_output = outputs[:, -1]
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, [h_n]

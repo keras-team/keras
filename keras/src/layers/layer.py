@@ -1821,7 +1821,7 @@ class Layer(BackendLayer, Operation):
 
         # Tell the Sequential model to propagate foo_mode down
         # the call-stack
-        seq.register_call_context_args("foo_mode")
+        seq._register_call_context_args("foo_mode")
 
         # foo_mode=True -> input + 1
         out_true = seq(sample_input, foo_mode=True)
@@ -1930,7 +1930,7 @@ def get_shapes_dict(call_spec):
 
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():
-        if k == "mask" or k.endswith("_mask"):
+        if k == "mask":
             # Do not include mask tensors in shapes dict
             continue
         if k == "kwargs" or k == "args":
