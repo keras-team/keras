@@ -316,11 +316,10 @@ def map_graph(inputs, outputs):
         if input_operation and input_operation not in operations_depths:
             node_index = input_t._keras_history[1]
             node = input_operation._inbound_nodes[node_index]
-            # Only add the operation if its node is in the graph
-            # (i.e. it was found during traversal). For intermediate tensors
-            # used as Function inputs, the producing operation is outside
-            # the graph boundary and should not be added.
-            if node in nodes_in_graph:
+            # Add InputLayer operations (unused inputs) unconditionally.
+            # Skip non-InputLayer operations, as they produce intermediate
+            # tensors used as Function inputs and are outside the graph.
+            if node.is_input:
                 operations_depths[input_operation] = 0
                 operation_indices[input_operation] = -1
                 nodes_depths[node] = 0
