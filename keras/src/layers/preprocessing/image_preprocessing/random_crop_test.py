@@ -126,6 +126,25 @@ class RandomCropTest(testing.TestCase):
             run_training_check=False,
         )
 
+    def test_inference_center_crop(self):
+        """RandomCrop should center-crop at inference, not return input."""
+        np.random.seed(42)
+        height, width = 4, 4
+        if backend.config.image_data_format() == "channels_last":
+            input_shape = (2, 8, 8, 3)
+        else:
+            input_shape = (2, 3, 8, 8)
+        inp = np.random.random(input_shape)
+        layer = layers.RandomCrop(height, width)
+        output = layer(inp, training=False)
+        out_shape = output.shape
+        if backend.config.image_data_format() == "channels_last":
+            self.assertEqual(out_shape, (2, 4, 4, 3))
+        else:
+            self.assertEqual(out_shape, (2, 3, 4, 4))
+        # Output must differ from input since it's cropped
+        self.assertNotEqual(inp.shape, output.shape)
+
     def test_tf_data_compatibility(self):
         layer = layers.RandomCrop(8, 9)
         if backend.config.image_data_format() == "channels_last":
