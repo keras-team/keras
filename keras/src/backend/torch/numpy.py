@@ -186,12 +186,11 @@ def mean(x, axis=None, keepdims=False):
     # delimiter in the overloaded method signatures.
     # Additionally, we have to create a singleton-tuple
     # when `axis` is an int to match the existing fn signature
-    result = torch.mean(
-        x,
-        axis,
-        keepdims,
-        dtype=to_torch_dtype(compute_dtype),
-    )
+
+    # Cast input to compute dtype before mean to avoid dtype kwarg
+    # which causes issues with ONNX export (dtype kwarg not supported)
+    x = cast(x, compute_dtype)
+    result = torch.mean(x, axis, keepdims)
     return cast(result, result_dtype)
 
 
@@ -863,6 +862,33 @@ def gcd(x1, x2):
     return torch.gcd(x1, x2)
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if axis != 0:
+        raise ValueError(
+            "torch does not support an `axis` argument for geomspace. "
+            f"Received axis={axis}"
+        )
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = to_torch_dtype(dtype)
+
+    start = convert_to_tensor(start, dtype=dtype)
+    stop = convert_to_tensor(stop, dtype=dtype)
+
+    log_start = torch.log10(torch.abs(start))
+    log_stop = torch.log10(torch.abs(stop))
+
+    result = logspace(
+        log_start, log_stop, num=num, endpoint=endpoint, base=10, dtype=dtype
+    )
+    return result * torch.sign(start)
+
+
 def greater(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.greater(x1, x2)
@@ -876,6 +902,13 @@ def greater_equal(x1, x2):
 def hstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
     return torch.hstack(xs)
+
+
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
+    return list(torch.hsplit(x, indices_or_sections))
 
 
 def hypot(x1, x2):
@@ -918,7 +951,22 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
-    return torch.isclose(x1, x2, rtol, atol, equal_nan)
+    if "float" in standardize_dtype(result_dtype):
+        return torch.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    return torch.eq(x1, x2)
+
+
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    x1 = cast(x1, result_dtype)
+    x2 = cast(x2, result_dtype)
+    if "float" in standardize_dtype(result_dtype):
+        return torch.all(
+            torch.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+        )
+    return torch.all(torch.eq(x1, x2))
 
 
 def isfinite(x):
@@ -1277,6 +1325,11 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
+def nancumsum(x, axis=None, dtype=None):
+    x = nan_to_num(x)
+    return cumsum(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
@@ -1342,6 +1395,11 @@ def nanprod(x, axis=None, keepdims=False):
     )
 
 
+def nanstd(x, axis=None, keepdims=False):
+    var_val = nanvar(x, axis=axis, keepdims=keepdims)
+    return torch.sqrt(var_val)
+
+
 def nansum(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
@@ -1354,6 +1412,30 @@ def nansum(x, axis=None, keepdims=False):
     if axis == () or axis == []:
         return cast(torch.nan_to_num(x, nan=0), dtype)
     return cast(torch.nansum(x, dim=axis, keepdim=keepdims), dtype)
+
+
+def nanvar(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    result_dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, result_dtype)
+
+    if axis == () or axis == []:
+        return torch.where(torch.isnan(x), x, torch.zeros(()))
+
+    mean = nanmean(x, axis=axis, keepdims=True)
+
+    valid = ~torch.isnan(x)
+    centered = torch.where(valid, x - mean, torch.zeros_like(x))
+
+    if torch.is_complex(centered):
+        centered = centered.real * centered.real + centered.imag * centered.imag
+    else:
+        centered = centered.square()
+
+    count = valid.sum(dim=axis, keepdim=keepdims)
+    var = centered.sum(dim=axis, keepdim=keepdims) / count
+    return var
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):

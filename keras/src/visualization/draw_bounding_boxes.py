@@ -121,9 +121,9 @@ def draw_bounding_boxes(
     images = ops.convert_to_numpy(images)
     if images.dtype.kind == "f" and images.size > 0:
         if images.max() <= 1.0:
-            images = ops.clip(images, 0, 1) * 255
+            images = np.clip(images, 0, 1) * 255
         else:
-            images = ops.clip(images, 0, 255)
+            images = np.clip(images, 0, 255)
     images = images.astype("uint8")
     boxes = ops.convert_to_numpy(bounding_boxes["boxes"])
     labels = ops.convert_to_numpy(bounding_boxes["labels"])

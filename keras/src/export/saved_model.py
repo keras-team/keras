@@ -1,46 +1,114 @@
 """Library for exporting SavedModel for Keras models/layers."""
 
 from keras.src import backend
-from keras.src import layers
-from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.export.export_utils import get_input_signature
-from keras.src.export.export_utils import make_tf_tensor_spec
-from keras.src.utils import io_utils
-from keras.src.utils.module_utils import tensorflow as tf
+
+# Re-export for backward compatibility (used by tfsm_layer.py)
+from keras.src.export.saved_model_export_archive import (  # noqa: F401
+    _list_variables_used_by_fns,
+)
 
 if backend.backend() == "tensorflow":
     from keras.src.backend.tensorflow.export import (
-        TFExportArchive as BackendExportArchive,
+        TFExportArchive as BackendSavedModelExportArchive,
     )
 elif backend.backend() == "jax":
     from keras.src.backend.jax.export import (
-        JaxExportArchive as BackendExportArchive,
+        JaxExportArchive as BackendSavedModelExportArchive,
     )
 elif backend.backend() == "torch":
     from keras.src.backend.torch.export import (
-        TorchExportArchive as BackendExportArchive,
+        TorchExportArchive as BackendSavedModelExportArchive,
     )
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.export import (
-        NumpyExportArchive as BackendExportArchive,
+        NumpyExportArchive as BackendSavedModelExportArchive,
     )
 elif backend.backend() == "openvino":
     from keras.src.backend.openvino.export import (
-        OpenvinoExportArchive as BackendExportArchive,
+        OpenvinoExportArchive as BackendSavedModelExportArchive,
     )
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement ExportArchive."
     )
 
-
 DEFAULT_ENDPOINT_NAME = "serve"
 
 
+def export_saved_model(
+    model, filepath, verbose=None, input_signature=None, **kwargs
+):
+    """Export the model as a TensorFlow SavedModel artifact for inference.
+
+    This method lets you export a model to a lightweight SavedModel artifact
+    that contains the model's forward pass only (its `call()` method)
+    and can be served via e.g. TensorFlow Serving. The forward pass is
+    registered under the name `serve()` (see example below).
+
+    The original code of the model (including any custom layers you may
+    have used) is *no longer* necessary to reload the artifact -- it is
+    entirely standalone.
+
+    Args:
+        filepath: `str` or `pathlib.Path` object. The path to save the artifact.
+        verbose: `bool`. Whether to print a message during export. Defaults to
+            `None`, which uses the default value set by different backends and
+            formats.
+        input_signature: Optional. Specifies the shape and dtype of the model
+            inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
+            `backend.KerasTensor`, or backend tensor. If not provided, it will
+            be automatically computed. Defaults to `None`.
+        **kwargs: Additional keyword arguments:
+            - Specific to the JAX backend:
+                - `is_static`: Optional `bool`. Indicates whether `fn` is
+                    static. Set to `False` if `fn` involves state updates
+                    (e.g., RNG seeds).
+                - `jax2tf_kwargs`: Optional `dict`. Arguments for
+                    `jax2tf.convert`. See [`jax2tf.convert`](
+                        https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
+                    If `native_serialization` and `polymorphic_shapes` are not
+                    provided, they are automatically computed.
+
+    **Note:** This feature is currently supported only with TensorFlow, JAX and
+    Torch backends. Support for the Torch backend is experimental.
+
+    **Note:** The dynamic shape feature is not yet supported with Torch
+    backend. As a result, you must fully define the shapes of the inputs using
+    `input_signature`. If `input_signature` is not provided, all instances of
+    `None` (such as the batch size) will be replaced with `1`.
+
+    Example:
+
+    ```python
+    # Export the model as a TensorFlow SavedModel artifact
+    model.export("path/to/location", format="tf_saved_model")
+
+    # Load the artifact in a different process/environment
+    reloaded_artifact = tf.saved_model.load("path/to/location")
+    predictions = reloaded_artifact.serve(input_data)
+    ```
+
+    If you would like to customize your serving endpoints, you can
+    use the lower-level `keras.export.ExportArchive` class. The
+    `export()` method relies on `ExportArchive` internally.
+    """
+    if verbose is None:
+        verbose = True  # Defaults to `True` for all backends.
+    export_archive = ExportArchive()
+    if input_signature is None:
+        input_signature = get_input_signature(model)
+
+    export_archive.track_and_add_endpoint(
+        DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
+    )
+    export_archive.write_out(filepath, verbose=verbose)
+
+
 @keras_export("keras.export.ExportArchive")
-class ExportArchive(BackendExportArchive):
-    """ExportArchive is used to write SavedModel artifacts (e.g. for inference).
+class ExportArchive:
+    """ExportArchive is used to write SavedModel artifacts for inference.
 
     If you have a Keras model or layer that you want to export as SavedModel for
     serving (e.g. via TensorFlow-Serving), you can use `ExportArchive`
@@ -105,34 +173,23 @@ class ExportArchive(BackendExportArchive):
     `non_trainable_variables` on the revived archive.
     """
 
-    def __init__(self):
-        super().__init__()
-        if backend.backend() not in ("tensorflow", "jax", "torch"):
+    def __new__(cls, format="saved_model", **kwargs):
+        if format == "saved_model":
+            export_model = kwargs.get("export_model", "backend_saved_model")
+            if export_model == "backend_saved_model":
+                return BackendSavedModelExportArchive()
+            elif export_model == "orbax_export":
+                raise NotImplementedError(
+                    "Orbax ExportArchive is not supported in Keras 3 yet."
+                )
+            else:
+                raise ValueError(f"Unsupported export_model: {export_model}")
+        elif format == "orbax_model":
             raise NotImplementedError(
-                "`ExportArchive` is only compatible with TensorFlow, JAX and "
-                "Torch backends."
+                "Orbax ExportArchive is not supported in Keras 3 yet."
             )
-
-        self._endpoint_names = []
-        self._endpoint_signatures = {}
-        self.tensorflow_version = tf.__version__
-
-        self._tf_trackable = tf.__internal__.tracking.AutoTrackable()
-        self._tf_trackable.variables = []
-        self._tf_trackable.trainable_variables = []
-        self._tf_trackable.non_trainable_variables = []
-
-    @property
-    def variables(self):
-        return self._tf_trackable.variables
-
-    @property
-    def trainable_variables(self):
-        return self._tf_trackable.trainable_variables
-
-    @property
-    def non_trainable_variables(self):
-        return self._tf_trackable.non_trainable_variables
+        else:
+            raise ValueError(f"Unsupported format: {format}")
 
     def track(self, resource):
         """Track the variables (of a layer or model) and other assets.
@@ -147,28 +204,9 @@ class ExportArchive(BackendExportArchive):
         Args:
             resource: A layer, model or a TensorFlow trackable resource.
         """
-        if isinstance(resource, layers.Layer) and not resource.built:
-            raise ValueError(
-                "The layer provided has not yet been built. "
-                "It must be built before export."
-            )
-
-        # Note: with the TensorFlow backend, Layers and Models fall into both
-        # the Layer case and the Trackable case. The Trackable case is needed
-        # for preprocessing layers in order to track lookup tables.
-        if isinstance(resource, tf.__internal__.tracking.Trackable):
-            if not hasattr(self, "_tracked"):
-                self._tracked = []
-            self._tracked.append(resource)
-
-        if isinstance(resource, layers.Layer):
-            self._track_layer(resource)
-        elif not isinstance(resource, tf.__internal__.tracking.Trackable):
-            raise ValueError(
-                "Invalid resource type. Expected a Keras `Layer` or `Model` "
-                "or a TensorFlow `Trackable` object. "
-                f"Received object {resource} of type '{type(resource)}'. "
-            )
+        raise NotImplementedError(
+            "track() is not implemented for this backend."
+        )
 
     def add_endpoint(self, name, fn, input_signature=None, **kwargs):
         """Register a new serving endpoint.
@@ -313,59 +351,9 @@ class ExportArchive(BackendExportArchive):
         export_archive.add_endpoint(name="serve", fn=serving_fn)
         ```
         """
-        if name in self._endpoint_names:
-            raise ValueError(f"Endpoint name '{name}' is already taken.")
-
-        if backend.backend() != "jax":
-            if "jax2tf_kwargs" in kwargs or "is_static" in kwargs:
-                raise ValueError(
-                    "'jax2tf_kwargs' and 'is_static' are only supported with "
-                    f"the jax backend. Current backend: {backend.backend()}"
-                )
-
-        # The fast path if `fn` is already a `tf.function`.
-        if input_signature is None:
-            if isinstance(fn, tf.types.experimental.GenericFunction):
-                if not fn._list_all_concrete_functions():
-                    raise ValueError(
-                        f"The provided tf.function '{fn}' "
-                        "has never been called. "
-                        "To specify the expected shape and dtype "
-                        "of the function's arguments, "
-                        "you must either provide a function that "
-                        "has been called at least once, or alternatively pass "
-                        "an `input_signature` argument in `add_endpoint()`."
-                    )
-                decorated_fn = fn
-            else:
-                raise ValueError(
-                    "If the `fn` argument provided is not a `tf.function`, "
-                    "you must provide an `input_signature` argument to "
-                    "specify the shape and dtype of the function arguments. "
-                    "Example:\n\n"
-                    "export_archive.add_endpoint(\n"
-                    "    name='call',\n"
-                    "    fn=model.call,\n"
-                    "    input_signature=[\n"
-                    "        keras.InputSpec(\n"
-                    "            shape=(None, 224, 224, 3),\n"
-                    "            dtype='float32',\n"
-                    "        )\n"
-                    "    ],\n"
-                    ")"
-                )
-            setattr(self._tf_trackable, name, decorated_fn)
-            self._endpoint_names.append(name)
-            return decorated_fn
-
-        input_signature = tree.map_structure(
-            make_tf_tensor_spec, input_signature
+        raise NotImplementedError(
+            "add_endpoint() is not implemented for this backend."
         )
-        decorated_fn = super().add_endpoint(name, fn, input_signature, **kwargs)
-        self._endpoint_signatures[name] = input_signature
-        setattr(self._tf_trackable, name, decorated_fn)
-        self._endpoint_names.append(name)
-        return decorated_fn
 
     def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
         """Track the variables and register a new serving endpoint.
@@ -395,45 +383,9 @@ class ExportArchive(BackendExportArchive):
                         not provided, they are automatically computed.
 
         """
-        if name in self._endpoint_names:
-            raise ValueError(f"Endpoint name '{name}' is already taken.")
-        if not isinstance(resource, layers.Layer):
-            raise ValueError(
-                "Invalid resource type. Expected an instance of a Keras "
-                "`Layer` or `Model`. "
-                f"Received: resource={resource} (of type {type(resource)})"
-            )
-        if not resource.built:
-            raise ValueError(
-                "The layer provided has not yet been built. "
-                "It must be built before export."
-            )
-        if backend.backend() != "jax":
-            if "jax2tf_kwargs" in kwargs or "is_static" in kwargs:
-                raise ValueError(
-                    "'jax2tf_kwargs' and 'is_static' are only supported with "
-                    f"the jax backend. Current backend: {backend.backend()}"
-                )
-
-        input_signature = tree.map_structure(
-            make_tf_tensor_spec, input_signature
+        raise NotImplementedError(
+            "track_and_add_endpoint() is not implemented for this backend."
         )
-
-        if not hasattr(BackendExportArchive, "track_and_add_endpoint"):
-            # Default behavior.
-            self.track(resource)
-            return self.add_endpoint(
-                name, resource.__call__, input_signature, **kwargs
-            )
-        else:
-            # Special case for the torch backend.
-            decorated_fn = super().track_and_add_endpoint(
-                name, resource, input_signature, **kwargs
-            )
-            self._endpoint_signatures[name] = input_signature
-            setattr(self._tf_trackable, name, decorated_fn)
-            self._endpoint_names.append(name)
-            return decorated_fn
 
     def add_variable_collection(self, name, variables):
         """Register a set of variables to be retrieved after reloading.
@@ -464,26 +416,9 @@ class ExportArchive(BackendExportArchive):
         optimizer_variables = revived_object.optimizer_variables
         ```
         """
-        if not isinstance(variables, (list, tuple, set)):
-            raise ValueError(
-                "Expected `variables` to be a list/tuple/set. "
-                f"Received instead object of type '{type(variables)}'."
-            )
-        # Ensure that all variables added are either tf.Variables
-        # or Variables created by Keras 3 with the TF or JAX backends.
-        if not all(
-            isinstance(v, (tf.Variable, backend.Variable)) for v in variables
-        ):
-            raise ValueError(
-                "Expected all elements in `variables` to be "
-                "`tf.Variable` instances. Found instead the following types: "
-                f"{list(set(type(v) for v in variables))}"
-            )
-        if backend.backend() == "jax":
-            variables = tree.flatten(
-                tree.map_structure(self._convert_to_tf_variable, variables)
-            )
-        setattr(self._tf_trackable, name, list(variables))
+        raise NotImplementedError(
+            "add_variable_collection() is not implemented for this backend."
+        )
 
     def write_out(self, filepath, options=None, verbose=True):
         """Write the corresponding SavedModel to disk.
@@ -503,191 +438,6 @@ class ExportArchive(BackendExportArchive):
         `"serving_default"` was already registered manually),
         since TF-Serving requires this endpoint to be set.
         """
-        if not self._endpoint_names:
-            raise ValueError(
-                "No endpoints have been set yet. Call add_endpoint()."
-            )
-        self._filter_and_track_resources()
-
-        signatures = {}
-        for name in self._endpoint_names:
-            signatures[name] = self._get_concrete_fn(name)
-        # Add "serving_default" signature key for TFServing
-        if "serving_default" not in self._endpoint_names:
-            signatures["serving_default"] = self._get_concrete_fn(
-                self._endpoint_names[0]
-            )
-
-        tf.saved_model.save(
-            self._tf_trackable,
-            filepath,
-            options=options,
-            signatures=signatures,
+        raise NotImplementedError(
+            "write_out() is not implemented for this backend."
         )
-
-        # Print out available endpoints
-        if verbose:
-            endpoints = "\n\n".join(
-                _print_signature(
-                    getattr(self._tf_trackable, name), name, verbose=verbose
-                )
-                for name in self._endpoint_names
-            )
-            io_utils.print_msg(
-                f"Saved artifact at '{filepath}'. "
-                "The following endpoints are available:\n\n"
-                f"{endpoints}"
-            )
-
-    def _convert_to_tf_variable(self, backend_variable):
-        if not isinstance(backend_variable, backend.Variable):
-            raise TypeError(
-                "`backend_variable` must be a `backend.Variable`. "
-                f"Recevied: backend_variable={backend_variable} of type "
-                f"({type(backend_variable)})"
-            )
-        return tf.Variable(
-            backend_variable.value,
-            dtype=backend_variable.dtype,
-            trainable=backend_variable.trainable,
-            name=backend_variable.name,
-        )
-
-    def _get_concrete_fn(self, endpoint):
-        """Workaround for some SavedModel quirks."""
-        if endpoint in self._endpoint_signatures:
-            return getattr(self._tf_trackable, endpoint)
-        else:
-            traces = getattr(self._tf_trackable, endpoint)._trackable_children(
-                "saved_model"
-            )
-            return list(traces.values())[0]
-
-    def _get_variables_used_by_endpoints(self):
-        fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
-        return _list_variables_used_by_fns(fns)
-
-    def _filter_and_track_resources(self):
-        """Track resources used by endpoints / referenced in `track()` calls."""
-        # Start by extracting variables from endpoints.
-        fns = [self._get_concrete_fn(name) for name in self._endpoint_names]
-        tvs, ntvs = _list_variables_used_by_fns(fns)
-        self._tf_trackable._all_variables = list(tvs + ntvs)
-
-        # Next, track lookup tables.
-        # Hopefully, one day this will be automated at the tf.function level.
-        self._tf_trackable._misc_assets = []
-        from tensorflow.saved_model.experimental import TrackableResource
-
-        if hasattr(self, "_tracked"):
-            for root in self._tracked:
-                descendants = tf.train.TrackableView(root).descendants()
-                for trackable in descendants:
-                    if isinstance(trackable, TrackableResource):
-                        self._tf_trackable._misc_assets.append(trackable)
-
-
-def export_saved_model(
-    model, filepath, verbose=None, input_signature=None, **kwargs
-):
-    """Export the model as a TensorFlow SavedModel artifact for inference.
-
-    This method lets you export a model to a lightweight SavedModel artifact
-    that contains the model's forward pass only (its `call()` method)
-    and can be served via e.g. TensorFlow Serving. The forward pass is
-    registered under the name `serve()` (see example below).
-
-    The original code of the model (including any custom layers you may
-    have used) is *no longer* necessary to reload the artifact -- it is
-    entirely standalone.
-
-    Args:
-        filepath: `str` or `pathlib.Path` object. The path to save the artifact.
-        verbose: `bool`. Whether to print a message during export. Defaults to
-            `None`, which uses the default value set by different backends and
-            formats.
-        input_signature: Optional. Specifies the shape and dtype of the model
-            inputs. Can be a structure of `keras.InputSpec`, `tf.TensorSpec`,
-            `backend.KerasTensor`, or backend tensor. If not provided, it will
-            be automatically computed. Defaults to `None`.
-        **kwargs: Additional keyword arguments:
-            - Specific to the JAX backend:
-                - `is_static`: Optional `bool`. Indicates whether `fn` is
-                    static. Set to `False` if `fn` involves state updates
-                    (e.g., RNG seeds).
-                - `jax2tf_kwargs`: Optional `dict`. Arguments for
-                    `jax2tf.convert`. See [`jax2tf.convert`](
-                        https://github.com/google/jax/blob/main/jax/experimental/jax2tf/README.md).
-                    If `native_serialization` and `polymorphic_shapes` are not
-                    provided, they are automatically computed.
-
-    **Note:** This feature is currently supported only with TensorFlow, JAX and
-    Torch backends. Support for the Torch backend is experimental.
-
-    **Note:** The dynamic shape feature is not yet supported with Torch
-    backend. As a result, you must fully define the shapes of the inputs using
-    `input_signature`. If `input_signature` is not provided, all instances of
-    `None` (such as the batch size) will be replaced with `1`.
-
-    Example:
-
-    ```python
-    # Export the model as a TensorFlow SavedModel artifact
-    model.export("path/to/location", format="tf_saved_model")
-
-    # Load the artifact in a different process/environment
-    reloaded_artifact = tf.saved_model.load("path/to/location")
-    predictions = reloaded_artifact.serve(input_data)
-    ```
-
-    If you would like to customize your serving endpoints, you can
-    use the lower-level `keras.export.ExportArchive` class. The
-    `export()` method relies on `ExportArchive` internally.
-    """
-    if verbose is None:
-        verbose = True  # Defaults to `True` for all backends.
-    export_archive = ExportArchive()
-    if input_signature is None:
-        input_signature = get_input_signature(model)
-
-    export_archive.track_and_add_endpoint(
-        DEFAULT_ENDPOINT_NAME, model, input_signature, **kwargs
-    )
-    export_archive.write_out(filepath, verbose=verbose)
-
-
-def _print_signature(fn, name, verbose=True):
-    concrete_fn = fn._list_all_concrete_functions()[0]
-    pprinted_signature = concrete_fn.pretty_printed_signature(verbose=verbose)
-    lines = pprinted_signature.split("\n")
-    lines = [f"* Endpoint '{name}'"] + lines[1:]
-    endpoint = "\n".join(lines)
-    return endpoint
-
-
-def _list_variables_used_by_fns(fns):
-    trainable_variables = []
-    non_trainable_variables = []
-    trainable_variables_ids = set()
-    non_trainable_variables_ids = set()
-    for fn in fns:
-        if hasattr(fn, "concrete_functions"):
-            concrete_functions = fn.concrete_functions
-        elif hasattr(fn, "get_concrete_function"):
-            concrete_functions = [fn.get_concrete_function()]
-        else:
-            concrete_functions = [fn]
-        for concrete_fn in concrete_functions:
-            for v in concrete_fn.trainable_variables:
-                if id(v) not in trainable_variables_ids:
-                    trainable_variables.append(v)
-                    trainable_variables_ids.add(id(v))
-
-            for v in concrete_fn.variables:
-                if (
-                    id(v) not in trainable_variables_ids
-                    and id(v) not in non_trainable_variables_ids
-                ):
-                    non_trainable_variables.append(v)
-                    non_trainable_variables_ids.add(id(v))
-    return trainable_variables, non_trainable_variables

@@ -3,10 +3,7 @@ import math
 import jax
 import jax.numpy as jnp
 
-from keras.src.backend import config
 from keras.src.backend import standardize_dtype
-from keras.src.backend.common import dtypes
-from keras.src.backend.jax.core import cast
 from keras.src.backend.jax.core import convert_to_tensor
 from keras.src.utils.module_utils import scipy
 
@@ -277,16 +274,6 @@ def solve(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
     return jnp.linalg.solve(a, b)
-
-
-def norm(x, ord=None, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
-    x = cast(x, dtype)
-    return jnp.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
 
 
 def logdet(x):
