@@ -762,7 +762,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                     for item in tree.flatten(x)
                 ]
             )
-        x = np.array(x, dtype=dtype)
+        # Use astype (unsafe casting) rather than np.array(..., dtype=dtype)
+        # to avoid OverflowError on NumPy >=1.24 when values exceed the target
+        # dtype range (e.g. a uint32 seed value stored in an int32 tensor).
+        x = np.asarray(x).astype(dtype)
         ov_type = OPENVINO_DTYPES[dtype]
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
     elif isinstance(x, (float, int, bool)):
@@ -1298,7 +1301,11 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    return "uint32"
+    # OpenVINO arithmetic promotes uint32 * int32 → int32 (Python ints are
+    # i32 in get_ov_output), so the seed tensor from SeedGenerator.next()
+    # ends up as int32. Returning int32 keeps the declared dtype consistent
+    # with what the backend actually produces.
+    return "int32"
 
 
 def custom_gradient(fun):
