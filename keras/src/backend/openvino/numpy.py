@@ -205,26 +205,21 @@ def all(x, axis=None, keepdims=False):
 
 
 def angle(x):
-    """Returns the angle of a complex tensor.
-    The angle is computed as `atan2(imaginary_part, real_part)`.
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
 
-    Note: Uses existing `arctan2` implementation.
+    # angle() is defined over real values in OpenVINO backend.
+    # Cast integral and boolean to floatx
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
+        x_type = x.get_element_type()
 
-    Args:
-        x: Input tensor. Can be a Python scalar, list, or a NumPy array.
-
-    Returns:
-        A tensor containing the angle of each element in `x`.
-    """
-    # Extract real and imaginary parts
-    if np.iscomplexobj(x):
-        real = np.real(x)
-        imag = np.imag(x)
-    else:
-        real = x
-        imag = 0
-
-    return arctan2(imag, real)
+    zero = ov_opset.constant(0, x_type).output(0)
+    pi = ov_opset.constant(float(np.pi), x_type).output(0)
+    is_negative = ov_opset.less(x, zero).output(0)
+    result = ov_opset.select(is_negative, pi, zero).output(0)
+    
+    return OpenVINOKerasTensor(result)
 
 
 def any(x, axis=None, keepdims=False):
