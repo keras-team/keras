@@ -41,7 +41,13 @@ def sticky_attribute_assignment(trackable, name, value):
         The value which should be stored in the attribute.
     """
     if isinstance(
-        value, (tracking.TrackedList, tracking.TrackedDict, tracking.TrackedSet)
+        value,
+        (
+            tracking.TrackedList,
+            tracking.TrackedDict,
+            tracking.TrackedOrderedDict,
+            tracking.TrackedSet,
+        ),
     ) and hasattr(trackable, "_tracked"):
         trackable._tracked.append(name)
     if not tracking.is_tracking_enabled():

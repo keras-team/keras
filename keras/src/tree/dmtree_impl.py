@@ -247,11 +247,11 @@ def assert_same_structure(a, b):
     # Don't handle OrderedDict as a registered class, use the normal dict path
     # so that OrderedDict is equivalent to dict per optree behavior.
     a_registration = REGISTERED_CLASSES.get(type(a), None)
-    if isinstance(a, collections.OrderedDict):
+    if type(a) is collections.OrderedDict:
         a_registration = None
 
     b_registration = REGISTERED_CLASSES.get(type(b), None)
-    if isinstance(b, collections.OrderedDict):
+    if type(b) is collections.OrderedDict:
         b_registration = None
 
     if a_registration != b_registration:
