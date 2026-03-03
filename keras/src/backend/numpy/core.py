@@ -397,8 +397,8 @@ def while_loop(
     maximum_iterations=None,
 ):
     current_iter = 0
-    iteration_check = (
-        lambda iter: maximum_iterations is None or iter < maximum_iterations
+    iteration_check = lambda iter: (
+        maximum_iterations is None or iter < maximum_iterations
     )
     is_tuple = isinstance(loop_vars, (tuple, list))
     loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)

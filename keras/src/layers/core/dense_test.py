@@ -1267,9 +1267,62 @@ class DenseTest(testing.TestCase):
 
         self.assertEqual(layer.kernel_scale.shape, expected_scale_shape)
 
+        # --- Diagnostic: verify unpack_int4 roundtrip on device ---
+        test_vals = np.array([[-3, 7, 2, 0], [-8, 1, -1, 5]], dtype=np.int8)
+        # Test general path (axis=-1, same as layer inference)
+        packed_t, _, orig_len_t = quantizers.pack_int4(test_vals, axis=-1)
+        unpacked_t = quantizers.unpack_int4(packed_t, orig_len_t, axis=-1)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(unpacked_t),
+            test_vals,
+            err_msg="unpack_int4 axis=-1 roundtrip failed on device",
+        )
+        # Test fast path (axis=0) for comparison
+        packed_t0, _, orig_len_t0 = quantizers.pack_int4(test_vals, axis=0)
+        unpacked_t0 = quantizers.unpack_int4(packed_t0, orig_len_t0, axis=0)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(unpacked_t0),
+            test_vals,
+            err_msg="unpack_int4 axis=0 roundtrip failed on device",
+        )
+
+        # --- Diagnostic: verify kernel values are in int4 range ---
+        unpacked_kernel = quantizers.unpack_int4(
+            ops.convert_to_tensor(layer._kernel),
+            layer._orig_output_dim,
+            axis=-1,
+        )
+        unpacked_np = ops.convert_to_numpy(unpacked_kernel)
+        self.assertGreaterEqual(
+            np.min(unpacked_np),
+            -8,
+            msg=f"Kernel values below int4 min: {np.min(unpacked_np)}",
+        )
+        self.assertLessEqual(
+            np.max(unpacked_np),
+            7,
+            msg=f"Kernel values above int4 max: {np.max(unpacked_np)}",
+        )
+
+        # --- Diagnostic: compare dequantize-first approach ---
+        if block_size is None or block_size == -1:
+            float_kernel = ops.divide(
+                ops.cast(unpacked_kernel, "float32"),
+                ops.convert_to_tensor(layer.kernel_scale),
+            )
+            y_alt = ops.matmul(ops.cast(x, "float32"), float_kernel)
+            if layer.bias is not None:
+                y_alt = ops.add(y_alt, layer.bias)
+            mse_alt = float(ops.mean(ops.square(y_float - y_alt)))
+            print(
+                f"DIAG[block_size={block_size}]: "
+                f"mse_dequant_first={mse_alt:.6f}"
+            )
+
         # Verify outputs are reasonable
         y_quantized = layer(x)
-        mse = ops.mean(ops.square(y_float - y_quantized))
+        mse = float(ops.mean(ops.square(y_float - y_quantized)))
+        print(f"DIAG[block_size={block_size}]: mse_layer={mse:.6f}")
         self.assertLess(mse, 0.01)  # Reasonable accuracy
 
     @parameterized.named_parameters(
