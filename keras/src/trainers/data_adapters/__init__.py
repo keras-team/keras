@@ -1,5 +1,6 @@
 import types
 
+from keras.src import backend
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import array_data_adapter
 from keras.src.trainers.data_adapters import data_adapter
@@ -38,6 +39,7 @@ def get_data_adapter(
         and getattr(distribution, "_is_multi_process", False)
         and getattr(distribution, "auto_shard_dataset", False)
         and not is_tf_dataset(x)
+        and backend.backend() != "torch"
     ):
         raise ValueError(
             "When using a multi-worker distribution with auto-sharding enabled, "

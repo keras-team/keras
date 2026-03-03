@@ -750,13 +750,27 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     # If axis is not last, change output to axis and shift remaining elements.
     x = convert_to_tensor(x, dtype=torch.long)
     zero = convert_to_tensor(0, dtype=torch.long)
+    from keras.src.backend.torch import distribution_lib
+
+    x, zero = distribution_lib._sync_tensors(x, zero)
 
     # Torch one_hot does not natively handle negative values, so we add some
     # manual handling for negatives in the input to one_hot by using max(x, 0).
     # The output will have some invalid results, so we set them back to 0 using
     # `where` afterwards.
-    output = tnn.one_hot(torch.clamp(x, min=0), num_classes)
-    output = where(expand_dims(x, axis=-1) >= 0, output, zero)
+    if isinstance(x, distribution_lib.DTensor):
+        from torch.distributed.tensor import DTensor
+
+        local_output = tnn.one_hot(
+            torch.clamp(x.to_local(), min=0), num_classes
+        )
+        output = DTensor.from_local(
+            local_output, x.device_mesh, x.placements, run_check=False
+        )
+    else:
+        output = tnn.one_hot(torch.clamp(x, min=0), num_classes)
+
+    output = where(expand_dims(x, axis=-1) >= zero, output, zero)
     output = convert_to_tensor(output, dtype=dtype)
     dims = output.dim()
     if axis != -1 and axis != dims:
@@ -784,6 +798,9 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    from keras.src.backend.torch import distribution_lib
+
+    target, output = distribution_lib._sync_tensors(target, output)
 
     if target.shape != output.shape:
         raise ValueError(
@@ -810,6 +827,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
+    from keras.src.backend.torch import distribution_lib
+
+    target, output = distribution_lib._sync_tensors(target, output)
 
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
         target = torch.squeeze(target, dim=-1)
@@ -859,7 +879,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
+    from keras.src.backend.torch import distribution_lib
 
+    target, output = distribution_lib._sync_tensors(target, output)
+
+    ori_target_shape = target.shape
     # We only apply the squeeze fix if we are on an MPS device,
     # as this change breaks tests on other platforms that
     # expect the original tensor shape to be preserved.
@@ -883,12 +907,16 @@ def binary_crossentropy(target, output, from_logits=False):
     # By default, PyTorch, does reduction of `sum` over all rows,
     # change reduction to `none` to keep dim
     if from_logits:
-        return tnn.binary_cross_entropy_with_logits(
+        result = tnn.binary_cross_entropy_with_logits(
             output, target, reduction="none"
         )
     else:
         output = torch.clip(output, backend.epsilon(), 1.0 - backend.epsilon())
-        return tnn.binary_cross_entropy(output, target, reduction="none")
+        result = tnn.binary_cross_entropy(output, target, reduction="none")
+
+    if result.shape != ori_target_shape:
+        result = torch.reshape(result, ori_target_shape)
+    return result
 
 
 def moments(x, axes, keepdims=False, synchronized=False):
@@ -942,6 +970,16 @@ def batch_normalization(
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
+    if offset is not None:
+        offset = convert_to_tensor(offset)
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+
+    from keras.src.backend.torch import distribution_lib
+
+    x, mean, variance, offset, scale = distribution_lib._sync_tensors(
+        x, mean, variance, offset, scale
+    )
 
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
@@ -949,12 +987,10 @@ def batch_normalization(
     variance = torch.reshape(variance, shape)
 
     if offset is not None:
-        offset = convert_to_tensor(offset)
         offset = torch.reshape(offset, shape)
     else:
         offset = torch.zeros_like(mean)
     if scale is not None:
-        scale = convert_to_tensor(scale)
         scale = torch.reshape(scale, shape)
     else:
         scale = torch.ones_like(variance)
@@ -971,6 +1007,13 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length)
     output_length = convert_to_tensor(output_length)
+    from keras.src.backend.torch import distribution_lib
+
+    target, output, target_length, output_length = (
+        distribution_lib._sync_tensors(
+            target, output, target_length, output_length
+        )
+    )
 
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
@@ -978,6 +1021,18 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
 
     output = torch.transpose(output, 1, 0)
     logits = tnn.log_softmax(output, dim=-1)
+
+    device = logits.device
+    if device.type == "mps":
+        logits = logits.cpu()
+        target = target.cpu().to(torch.int64)
+        output_length = output_length.cpu().to(torch.int64)
+        target_length = target_length.cpu().to(torch.int64)
+    else:
+        target = target.to(torch.int64)
+        output_length = output_length.to(torch.int64)
+        target_length = target_length.to(torch.int64)
+
     loss = tnn.ctc_loss(
         logits,
         target,
@@ -986,7 +1041,7 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
         blank=mask_index,
         reduction="none",
     )
-    return loss
+    return loss.to(device) if device.type == "mps" else loss
 
 
 def _ctc_greedy_decode(
@@ -1079,6 +1134,9 @@ def psnr(x1, x2, max_val):
         convert_to_tensor(x2),
     )
     max_val = convert_to_tensor(max_val, dtype=x1.dtype)
+    from keras.src.backend.torch import distribution_lib
+
+    x1, x2, max_val = distribution_lib._sync_tensors(x1, x2, max_val)
     mse = torch.mean((x1 - x2) ** 2)
     psnr = 20 * torch.log10(max_val) - 10 * torch.log10(mse)
     return psnr
@@ -1151,6 +1209,19 @@ def dot_product_attention(
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
+    if mask is not None:
+        mask = convert_to_tensor(mask, dtype="bool")
+    if scale is not None:
+        scale = convert_to_tensor(scale)
+
+    from keras.src.backend.torch import distribution_lib
+
+    query, key, value, bias, mask, scale = distribution_lib._sync_tensors(
+        query, key, value, bias, mask, scale
+    )
+
     if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "
@@ -1166,19 +1237,34 @@ def dot_product_attention(
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
 
-    mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
-        bias = convert_to_tensor(bias, dtype=compute_dtype)
-        mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
+        bias = cast(bias, compute_dtype)
+        if mask is not None:
+            mask = mask + bias
+        else:
+            mask = bias
+
+    if mask is not None and mask.dtype != torch.bool:
+        mask = cast(mask, compute_dtype)
 
     axis0, axis1 = 1, 2
     query = torch.transpose(query, axis0, axis1)
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
+
+    if is_causal and mask is not None:
+        is_causal = False
+        q_len, k_len = query.shape[-2], key.shape[-2]
+        causal_mask = torch.ones(
+            (q_len, k_len), device=query.device, dtype=torch.bool
+        ).tril()
+        mask = mask + torch.where(
+            causal_mask, 0.0, _get_large_negative(query.dtype)
+        )
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
