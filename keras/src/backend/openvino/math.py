@@ -10,16 +10,100 @@ from keras.src.backend.openvino.core import standardize_dtype
 from keras.src.backend.openvino.numpy import stack
 
 
-def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError(
-        "`segment_sum` is not supported with openvino backend"
+def _segment_reduction_fn(
+    data, segment_ids, reduction_method, num_segments, sorted
+):
+    data = get_ov_output(data)
+    segment_ids = get_ov_output(segment_ids)
+
+    if num_segments is None:
+        max_id = ov_opset.reduce_max(
+            segment_ids, ov_opset.constant([0], Type.i32), keep_dims=False
+        ).output(0)
+        num_segments = ov_opset.add(
+            max_id, ov_opset.constant(1, max_id.get_element_type())
+        ).output(0)
+    else:
+        num_segments = ov_opset.constant(
+            num_segments, segment_ids.get_element_type()
+        ).output(0)
+
+    is_negative = ov_opset.less(
+        segment_ids, ov_opset.constant(0, segment_ids.get_element_type())
+    ).output(0)
+    safe_segment_ids = ov_opset.select(
+        is_negative, num_segments, segment_ids
+    ).output(0)
+    indices = ov_opset.unsqueeze(
+        safe_segment_ids, ov_opset.constant(-1, Type.i32)
+    ).output(0)
+
+    num_segments_plus_1 = ov_opset.add(
+        num_segments, ov_opset.constant(1, num_segments.get_element_type())
+    ).output(0)
+
+    data_shape = data.get_partial_shape()
+    rank = data_shape.rank.get_length() if data_shape.rank.is_static else -1
+
+    if rank > 1:
+        data_shape_node = ov_opset.shape_of(data, output_type=Type.i32).output(
+            0
+        )
+        rest_shape = ov_opset.slice(
+            data_shape_node,
+            start=ov_opset.constant([1], Type.i32),
+            stop=ov_opset.constant([2147483647], Type.i32),
+            step=ov_opset.constant([1], Type.i32),
+            axes=ov_opset.constant([0], Type.i32),
+        ).output(0)
+        num_seg_node = ov_opset.unsqueeze(
+            num_segments_plus_1, ov_opset.constant(0, Type.i32)
+        ).output(0)
+        buffer_shape = ov_opset.concat(
+            [num_seg_node, rest_shape], axis=0
+        ).output(0)
+    else:
+        buffer_shape = ov_opset.unsqueeze(
+            num_segments_plus_1, ov_opset.constant(0, Type.i32)
+        ).output(0)
+
+    if reduction_method == "max":
+        from keras.src.backend.openvino.core import DTYPES_MIN
+
+        data_type = data.get_element_type()
+        if data_type.is_real():
+            init_val = np.array(-np.inf, dtype=np.float32)
+        else:
+            init_val = DTYPES_MIN[data_type]
+    else:
+        init_val = 0
+
+    init_val_node = ov_opset.constant(init_val, data.get_element_type()).output(
+        0
     )
+    buffer = ov_opset.broadcast(init_val_node, buffer_shape).output(0)
+
+    scattered = ov_opset.scatter_nd_update(
+        buffer, indices, data, reduction=reduction_method
+    ).output(0)
+
+    start = ov_opset.constant([0], Type.i32).output(0)
+    end = ov_opset.unsqueeze(
+        num_segments, ov_opset.constant(0, Type.i32)
+    ).output(0)
+    axes = ov_opset.constant([0], Type.i32).output(0)
+    step = ov_opset.constant([1], Type.i32).output(0)
+    result = ov_opset.slice(scattered, start, end, step, axes).output(0)
+
+    return OpenVINOKerasTensor(result)
+
+
+def segment_sum(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(data, segment_ids, "sum", num_segments, sorted)
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError(
-        "`segment_max` is not supported with openvino backend"
-    )
+    return _segment_reduction_fn(data, segment_ids, "max", num_segments, sorted)
 
 
 def top_k(x, k, sorted=True):

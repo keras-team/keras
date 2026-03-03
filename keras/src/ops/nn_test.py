@@ -3307,8 +3307,6 @@ class NNOpsBehaviorTest(testing.TestCase):
             knn.layer_normalization(x, rms_scaling=True)
 
     def test_unfold(self):
-        if keras.config.backend() in ["openvino"]:
-            pytest.skip("Backend does not support unfold operation")
         # test 1 kernel_size=2
         x = ops.arange(8, dtype="float32")
         x = ops.reshape(x, [1, 1, 2, 4])
