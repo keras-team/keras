@@ -312,6 +312,7 @@ ImageDatasetFromDirectoryTest::test_sample_count_grain
 ImageOpsBehaviorTests::test_affine_transform
 ImageOpsBehaviorTests::test_elastic_transform
 ImageOpsBehaviorTests::test_gaussian_blur
+ImageOpsBehaviorTests::test_sobel_edges
 ImageOpsBehaviorTests::test_map_coordinates
 ImageOpsBehaviorTests::test_perspective_transform
 ImageOpsBehaviorTests::test_resize
@@ -320,6 +321,7 @@ ImageOpsCorrectnessTest::test_crop_images
 ImageOpsCorrectnessTest::test_elastic_transform
 ImageOpsCorrectnessTest::test_extract_patches
 ImageOpsCorrectnessTest::test_gaussian_blur
+ImageOpsCorrectnessTest::test_sobel_edges
 ImageOpsCorrectnessTest::test_map_coordinates
 ImageOpsCorrectnessTest::test_pad_images
 ImageOpsCorrectnessTest::test_perspective_transform
@@ -328,6 +330,7 @@ ImageOpsCorrectnessTest::test_scale_and_translate
 ImageOpsDtypeTest::test_affine_transform
 ImageOpsDtypeTest::test_elastic_transform
 ImageOpsDtypeTest::test_gaussian_blur
+ImageOpsDtypeTest::test_sobel_edges
 ImageOpsDtypeTest::test_map_coordinates
 ImageOpsDtypeTest::test_perspective_transform
 ImageOpsDtypeTest::test_resize

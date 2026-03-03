@@ -221,6 +221,18 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.gaussian_blur(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
 
+    def test_sobel_edges(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.sobel_edges(x)
+        self.assertEqual(out.shape, (None, 20, 20, 3, 2))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        out = kimage.sobel_edges(x)
+        self.assertEqual(out.shape, (None, 3, 20, 20, 2))
+
     def test_elastic_transform(self):
         # Test channels_last
         x = KerasTensor([None, 20, 20, 3])
@@ -1902,6 +1914,34 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+
+    def test_sobel_edges(self):
+        # Test channels_last
+        backend.set_image_data_format("channels_last")
+        np.random.seed(42)
+        x = np.random.uniform(size=(2, 10, 10, 3)).astype("float32")
+        out = kimage.sobel_edges(x, data_format="channels_last")
+        self.assertEqual(out.shape, (2, 10, 10, 3, 2))
+
+        # Test single image
+        x_single = np.random.uniform(size=(10, 10, 3)).astype("float32")
+        out_single = kimage.sobel_edges(x_single, data_format="channels_last")
+        self.assertEqual(out_single.shape, (10, 10, 3, 2))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x_cf = np.random.uniform(size=(2, 3, 10, 10)).astype("float32")
+        out_cf = kimage.sobel_edges(x_cf, data_format="channels_first")
+        self.assertEqual(out_cf.shape, (2, 3, 10, 10, 2))
+
+        # Test edge detection on known pattern: vertical edge
+        backend.set_image_data_format("channels_last")
+        img = np.zeros((1, 5, 5, 1), dtype="float32")
+        img[0, :, 3:, 0] = 1.0
+        result = kimage.sobel_edges(img, data_format="channels_last")
+        dx = result[0, :, :, 0, 1]
+        # The horizontal gradient should be non-zero near the edge
+        self.assertTrue(np.any(np.abs(np.array(dx)) > 0))
 
     def test_gaussian_blur_even_kernel_size(self):
         """Test gaussian_blur with even kernel sizes"""
