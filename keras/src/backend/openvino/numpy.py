@@ -2848,9 +2848,13 @@ def moveaxis(x, source, destination):
 
 
 def nancumsum(x, axis=None, dtype=None):
-    raise NotImplementedError(
-        "`nancumsum` is not supported with openvino backend"
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if not x_type.is_integral() and x_type != Type.boolean:
+        nan_mask = ov_opset.is_nan(x)
+        zero = ov_opset.constant(0, x_type)
+        x = ov_opset.select(nan_mask, zero, x).output(0)
+    return cumsum(OpenVINOKerasTensor(x), axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -2980,7 +2984,9 @@ def nanprod(x, axis=None, keepdims=False):
 
 
 def nanstd(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nanstd` is not supported with openvino backend")
+    var = nanvar(x, axis=axis, keepdims=keepdims)
+    var_out = get_ov_output(var)
+    return OpenVINOKerasTensor(ov_opset.sqrt(var_out).output(0))
 
 
 def nansum(x, axis=None, keepdims=False):
