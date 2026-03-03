@@ -811,22 +811,30 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
 
-    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
-        target = torch.squeeze(target, dim=-1)
-
     if len(output.shape) < 1:
         raise ValueError(
             "Argument `output` must be at least rank 1. "
             "Received: "
             f"output.shape={output.shape}"
         )
-    output_shape_without_class_dim = list(output.shape)
-    del output_shape_without_class_dim[axis]
 
-    if list(target.shape) != output_shape_without_class_dim:
+    # Normalize axis to positive index
+    positive_axis = axis if axis >= 0 else len(output.shape) + axis
+
+    # Squeeze target if it has an extra dimension of size 1 at the axis
+    if (
+        len(target.shape) == len(output.shape)
+        and target.shape[positive_axis] == 1
+    ):
+        target = torch.squeeze(target, dim=positive_axis)
+
+    output_shape_without_class = list(output.shape)
+    del output_shape_without_class[positive_axis]
+
+    if list(target.shape) != output_shape_without_class:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape "
-            "up until the last dimension: "
+            f"except for the class dimension at axis={axis}: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
     # Use PyTorch native cross-entropy ops to avoid allocating a full

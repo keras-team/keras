@@ -868,8 +868,6 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = np.array(target, dtype="int32")
     output = np.array(output)
-    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
-        target = np.squeeze(target, axis=-1)
 
     if len(output.shape) < 1:
         raise ValueError(
@@ -877,10 +875,25 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
             "Received: "
             f"output.shape={output.shape}"
         )
-    if target.shape != output.shape[:-1]:
+
+    # Normalize axis to positive index
+    positive_axis = axis if axis >= 0 else len(output.shape) + axis
+
+    # Squeeze target if it has an extra dimension of size 1 at the axis
+    if (
+        len(target.shape) == len(output.shape)
+        and target.shape[positive_axis] == 1
+    ):
+        target = np.squeeze(target, axis=positive_axis)
+
+    # Compute expected shape by removing the class dimension from output
+    output_shape_without_class = list(output.shape)
+    del output_shape_without_class[positive_axis]
+
+    if list(target.shape) != output_shape_without_class:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape "
-            "up until the last dimension: "
+            f"except for the class dimension at axis={axis}: "
             f"target.shape={target.shape}, output.shape={output.shape}"
         )
     if from_logits:

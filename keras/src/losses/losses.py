@@ -2339,16 +2339,26 @@ def sparse_categorical_crossentropy(
     >>> loss
     array([0.0513, 2.303], dtype=float32)
     """
+    # Normalize axis to positive index
+    y_pred_rank = len(y_pred.shape)
+    positive_axis = axis if axis >= 0 else y_pred_rank + axis
 
-    if len(y_true.shape) == len(y_pred.shape) and y_true.shape[-1] == 1:
-        y_true = ops.squeeze(y_true, axis=-1)
+    # Squeeze y_true if it has an extra dimension of size 1 at the axis
+    if (
+        len(y_true.shape) == len(y_pred.shape)
+        and y_true.shape[positive_axis] == 1
+    ):
+        y_true = ops.squeeze(y_true, axis=positive_axis)
 
     if ignore_class is not None:
-        res_shape = ops.shape(y_pred)[:-1]
+        # Compute result shape by removing the class dimension from y_pred
+        res_shape = list(ops.shape(y_pred)[:positive_axis]) + list(
+            ops.shape(y_pred)[positive_axis + 1 :]
+        )
         valid_mask = ops.not_equal(y_true, ops.cast(ignore_class, y_pred.dtype))
         y_true = y_true * ops.cast(valid_mask, y_true.dtype)
         y_pred = y_pred * ops.cast(
-            ops.expand_dims(valid_mask, -1), y_pred.dtype
+            ops.expand_dims(valid_mask, positive_axis), y_pred.dtype
         )
 
     res = ops.sparse_categorical_crossentropy(
