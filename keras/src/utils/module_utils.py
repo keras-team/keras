@@ -58,25 +58,6 @@ class OrbaxLazyModule(LazyModule):
         return getattr(self.module, name)
 
 
-class OrbaxExportLazyModule(LazyModule):
-    def initialize(self):
-        try:
-            parent_module = importlib.import_module("orbax.export")
-            self.module = parent_module.v1
-            self.parent_module = parent_module
-        except ImportError:
-            raise ImportError(self.import_error_msg)
-
-    def __getattr__(self, name):
-        if name == "_api_checkpoint_path":
-            raise AttributeError
-        if self.module is None:
-            self.initialize()
-        if name == "multihost":
-            return self.parent_module.multihost
-        return getattr(self.module, name)
-
-
 tensorflow = LazyModule("tensorflow")
 gfile = LazyModule("tensorflow.io.gfile", pip_name="tensorflow")
 tensorflow_io = LazyModule("tensorflow_io")
@@ -107,11 +88,4 @@ ocp = OrbaxLazyModule(
         "You can install it via pip install orbax-checkpoint"
     ),
 )
-oex = OrbaxExportLazyModule(
-    "orbax.export.v1",
-    pip_name="orbax-export",
-    import_error_msg=(
-        "OrbaxExport requires the 'orbax-export' package. "
-        "You can install it via pip install orbax-export"
-    ),
-)
+orbax_export = LazyModule("orbax.export", "orbax-export")
