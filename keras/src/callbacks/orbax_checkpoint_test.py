@@ -507,7 +507,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
             else:
                 try:
                     set_distribution(None)
-                except Exception:
+                except:
                     pass
 
     @pytest.mark.requires_trainable_backend

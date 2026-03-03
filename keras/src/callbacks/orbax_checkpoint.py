@@ -13,8 +13,6 @@ from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
 
-# Context and AsyncOptions are accessed through the lazy-loaded ocp module
-
 # JAX monitoring compatibility: ensure record_scalar exists
 # to prevent AttributeError in older JAX versions
 try:
