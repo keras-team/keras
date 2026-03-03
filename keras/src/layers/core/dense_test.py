@@ -1248,11 +1248,6 @@ class DenseTest(testing.TestCase):
 
         # Save original kernel for CPU-side comparison
         kernel_np = ops.convert_to_numpy(layer.kernel).copy()
-        bias_np = (
-            ops.convert_to_numpy(layer.bias).copy()
-            if layer.bias is not None
-            else None
-        )
 
         # --- Diagnostic: kernel statistics ---
         print(
@@ -1289,7 +1284,7 @@ class DenseTest(testing.TestCase):
 
         self.assertEqual(layer.kernel_scale.shape, expected_scale_shape)
 
-        # --- Diagnostic: unpack kernel and dequantize on CPU ---
+        # --- Diagnostic: manual re-quantization from kernel_np ---
         unpacked_kernel = quantizers.unpack_int4(
             ops.convert_to_tensor(layer._kernel),
             layer._orig_output_dim,
@@ -1298,11 +1293,62 @@ class DenseTest(testing.TestCase):
         unpacked_np = ops.convert_to_numpy(unpacked_kernel)
         scale_np = ops.convert_to_numpy(layer.kernel_scale)
 
+        from keras.src import backend as K
+
+        eps = K.epsilon()
         if block_size is None or block_size == -1:
-            # Per-channel: dequant on CPU
+            # Manually re-quantize kernel_np (same formula as
+            # abs_max_quantize with to_numpy=True)
+            manual_scale = np.divide(
+                7.0,
+                np.add(np.max(np.abs(kernel_np), axis=0, keepdims=True), eps),
+            )
+            manual_scale_sq = manual_scale.squeeze(axis=0).astype(np.float32)
+            manual_quantized = np.clip(
+                np.round(kernel_np * manual_scale), -8, 7
+            ).astype(np.int8)
+
+            # Compare scales
+            scale_diff = np.max(np.abs(scale_np - manual_scale_sq))
+            print(f"DIAG[{block_size}]: scale max_diff={scale_diff:.10f}")
+            print(f"DIAG[{block_size}]: stored_scale[:5]={scale_np[:5]}")
+            print(f"DIAG[{block_size}]: manual_scale[:5]={manual_scale_sq[:5]}")
+
+            # Compare quantized values
+            diff_count = int(np.sum(unpacked_np != manual_quantized))
+            print(
+                f"DIAG[{block_size}]: quantized diff at "
+                f"{diff_count}/{unpacked_np.size} positions"
+            )
+            if diff_count > 0:
+                idx = np.argwhere(unpacked_np != manual_quantized)[:10]
+                for i, j in idx:
+                    print(
+                        f"  ({i},{j}): unpacked={unpacked_np[i, j]}, "
+                        f"manual={manual_quantized[i, j]}, "
+                        f"orig={kernel_np[i, j]:.8f}"
+                    )
+
+            # Manual kernel MSE (ground truth for quantization error)
+            manual_dequant = manual_quantized.astype(np.float32) / (
+                manual_scale_sq
+            )
+            manual_mse = float(np.mean((kernel_np - manual_dequant) ** 2))
+            print(f"DIAG[{block_size}]: manual_kernel_mse={manual_mse:.8f}")
+
+            # Layer's stored kernel MSE
             dequant_cpu = unpacked_np.astype(np.float32) / scale_np
+            kernel_mse = float(np.mean((kernel_np - dequant_cpu) ** 2))
+            print(f"DIAG[{block_size}]: stored_kernel_mse={kernel_mse:.8f}")
+
+            # Print sample of unpacked vs manual at first 5 positions
+            print(f"DIAG[{block_size}]: unpacked[0,:5]={unpacked_np[0, :5]}")
+            print(
+                f"DIAG[{block_size}]: manual_q[0,:5]={manual_quantized[0, :5]}"
+            )
+            print(f"DIAG[{block_size}]: kernel[0,:5]={kernel_np[0, :5]}")
         else:
-            # Sub-channel: dequant on CPU
+            # Sub-channel: just print stored values for now
             g_idx_np = ops.convert_to_numpy(layer.g_idx).astype(np.int32)
             zero_np = ops.convert_to_numpy(layer.kernel_zero)
             scales_mapped = scale_np[g_idx_np]
@@ -1310,20 +1356,12 @@ class DenseTest(testing.TestCase):
             dequant_cpu = (
                 unpacked_np.astype(np.float32) - zeros_mapped
             ) * scales_mapped
-
-        # Kernel-level MSE (quantization error)
-        kernel_mse = np.mean((kernel_np - dequant_cpu) ** 2)
-        print(f"DIAG[{block_size}]: kernel_mse(CPU dequant)={kernel_mse:.6f}")
-
-        # Output MSE computed entirely on CPU (ground truth)
-        y_float_cpu = x @ kernel_np
-        if bias_np is not None:
-            y_float_cpu = y_float_cpu + bias_np
-        y_quant_cpu = x @ dequant_cpu
-        if bias_np is not None:
-            y_quant_cpu = y_quant_cpu + bias_np
-        mse_cpu_only = np.mean((y_float_cpu - y_quant_cpu) ** 2)
-        print(f"DIAG[{block_size}]: mse_cpu_only={mse_cpu_only:.6f}")
+            kernel_mse = float(np.mean((kernel_np - dequant_cpu) ** 2))
+            print(f"DIAG[{block_size}]: stored_kernel_mse={kernel_mse:.8f}")
+            print(f"DIAG[{block_size}]: scale[:2,:3]={scale_np[:2, :3]}")
+            print(f"DIAG[{block_size}]: zero[:2,:3]={zero_np[:2, :3]}")
+            print(f"DIAG[{block_size}]: unpacked[0,:5]={unpacked_np[0, :5]}")
+            print(f"DIAG[{block_size}]: kernel[0,:5]={kernel_np[0, :5]}")
 
         # Verify outputs are reasonable
         y_quantized = layer(x)
