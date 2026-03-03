@@ -712,6 +712,32 @@ def pack_int4(arr, axis=0, dtype="int8"):
     if axis < 0:
         axis += rank
 
+    # Fast path for last-axis packing (common for Dense/EinsumDense kernels).
+    # Operates directly on the last axis without transpose, avoiding
+    # transpose+reshape issues on some accelerators (e.g. TPU).
+    if axis == rank - 1 and rank >= 2:
+        cols = ops.shape(arr)[-1]
+        needs_pad = ops.equal(ops.mod(cols, 2), 1)
+
+        # Always append one zero column for static shape; slice if unneeded.
+        zero_col = arr[..., :1] * 0
+        padded_full = ops.concatenate([arr, zero_col], axis=-1)
+        cols_padded = cols + ops.cast(needs_pad, "int32")
+        padded = padded_full[..., :cols_padded]
+
+        low = padded[..., ::2]
+        high = padded[..., 1::2]
+
+        mask = ops.array(0x0F, dtype=dtype)
+        low_u = ops.bitwise_and(low, mask)
+        high_u = ops.bitwise_and(high, mask)
+
+        packed = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
+        packed = ops.cast(packed, dtype)
+
+        orig_len = cols
+        return packed, ops.shape(packed), orig_len
+
     # 1. Bring `axis` to the front.
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
@@ -852,9 +878,8 @@ def unpack_int4(packed, orig_len, axis=0, dtype="int8"):
     if axis < 0:
         axis += rank
 
-    # Fast path for the most common case in Dense layers
+    # Fast path for axis==0 (common case in Dense layers)
     if axis == 0 and rank == 2:
-        # The result of the bitwise op is a wider dtype (e.g., int32).
         mask = ops.array(0x0F, dtype=packed.dtype)
         low_unpacked = ops.bitwise_and(packed, mask)
         high_unpacked = ops.bitwise_and(ops.right_shift(packed, 4), mask)
@@ -866,12 +891,35 @@ def unpack_int4(packed, orig_len, axis=0, dtype="int8"):
         low_final = ops.cast(low_unpacked, dtype)
         high_final = ops.cast(high_unpacked, dtype)
 
-        # Interleave and reshape
+        # Interleave along axis 0 and reshape
         stacked = ops.stack([low_final, high_final], axis=1)
         unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(packed)[1:]))
 
         # Remove padding and return
         return unpacked[:orig_len, ...]
+
+    # Fast path for last-axis unpacking (common for Dense/EinsumDense kernels
+    # packed along the output dimension). Operates directly on the last axis
+    # without transpose, avoiding transpose+reshape issues on some
+    # accelerators (e.g. TPU).
+    if axis == rank - 1 and rank >= 2:
+        mask = ops.array(0x0F, dtype=packed.dtype)
+        low_unpacked = ops.bitwise_and(packed, mask)
+        high_unpacked = ops.bitwise_and(ops.right_shift(packed, 4), mask)
+
+        if dtype == "int8":
+            low_unpacked = to_signed(low_unpacked)
+            high_unpacked = to_signed(high_unpacked)
+
+        low_final = ops.cast(low_unpacked, dtype)
+        high_final = ops.cast(high_unpacked, dtype)
+
+        # Interleave along last axis: (..., packed_cols, 2) -> (..., cols)
+        stacked = ops.stack([low_final, high_final], axis=-1)
+        unpacked = ops.reshape(stacked, tuple(ops.shape(packed)[:-1]) + (-1,))
+
+        # Remove padding along last axis and return
+        return unpacked[..., :orig_len]
 
     # General case
     perm = [axis] + [i for i in range(rank) if i != axis]
@@ -1228,11 +1276,8 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx, group_axis=-1):
     zeros_mapped = ops.take(zero, groups, axis=group_axis)
     zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
 
-    # Explicitly cast weights to float to avoid relying on implicit
-    # int8→float type promotion, which can produce incorrect results on TPU.
-    weights_float = ops.cast(weights_matrix, scales_mapped.dtype)
     dequantized = ops.multiply(
-        ops.subtract(weights_float, zeros_mapped), scales_mapped
+        ops.subtract(weights_matrix, zeros_mapped), scales_mapped
     )
 
     return dequantized

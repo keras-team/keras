@@ -850,19 +850,16 @@ class Dense(Layer):
                     return (inputs_grad, None, None)
 
                 # Forward pass: per-channel dequantization
-                float_kernel = ops.divide(
-                    ops.cast(unpacked_kernel, dtype=self.compute_dtype),
-                    kernel_scale,
-                )
+                output_scale = kernel_scale
                 if self.inputs_quantizer:
                     inputs, inputs_scale = self.inputs_quantizer(
                         inputs, axis=-1
                     )
-                    x = ops.matmul(inputs, float_kernel)
-                    x = ops.cast(x, self.compute_dtype)
-                    x = ops.divide(x, inputs_scale)
-                else:
-                    x = ops.matmul(inputs, float_kernel)
+                    output_scale = ops.multiply(output_scale, inputs_scale)
+
+                x = ops.matmul(inputs, unpacked_kernel)
+                x = ops.cast(x, self.compute_dtype)
+                x = ops.divide(x, output_scale)
                 return x, grad_fn
 
             x = matmul_per_channel_with_inputs_gradient(
