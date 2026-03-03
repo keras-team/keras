@@ -356,16 +356,14 @@ class Layer(BackendLayer, Operation):
                     trainable_variables,
                 ),
                 "non_trainable_variables": (
-                    lambda x: (
-                        isinstance(x, backend.Variable) and not x.trainable
-                    ),
+                    lambda x: isinstance(x, backend.Variable)
+                    and not x.trainable,
                     non_trainable_variables,
                 ),
                 "metrics": (lambda x: isinstance(x, Metric), metrics),
                 "layers": (
-                    lambda x: (
-                        isinstance(x, Layer) and not isinstance(x, Metric)
-                    ),
+                    lambda x: isinstance(x, Layer)
+                    and not isinstance(x, Metric),
                     layers,
                 ),
                 "seed_generators": (
