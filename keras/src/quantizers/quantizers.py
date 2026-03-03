@@ -871,29 +871,6 @@ def unpack_int4(packed, orig_len, axis=0, dtype="int8"):
         # Remove padding and return
         return unpacked[:orig_len, ...]
 
-    # Fast path for last-axis unpacking (common for Dense/EinsumDense kernels
-    # packed along the output dimension). Operates directly on the last axis
-    # without transpose, avoiding transpose+reshape issues on some
-    # accelerators (e.g. TPU).
-    if axis == rank - 1 and rank >= 2:
-        mask = ops.array(0x0F, dtype=packed.dtype)
-        low_unpacked = ops.bitwise_and(packed, mask)
-        high_unpacked = ops.bitwise_and(ops.right_shift(packed, 4), mask)
-
-        if dtype == "int8":
-            low_unpacked = to_signed(low_unpacked)
-            high_unpacked = to_signed(high_unpacked)
-
-        low_final = ops.cast(low_unpacked, dtype)
-        high_final = ops.cast(high_unpacked, dtype)
-
-        # Interleave along last axis: (..., packed_cols, 2) -> (..., cols)
-        stacked = ops.stack([low_final, high_final], axis=-1)
-        unpacked = ops.reshape(stacked, tuple(ops.shape(packed)[:-1]) + (-1,))
-
-        # Remove padding along last axis and return
-        return unpacked[..., :orig_len]
-
     # General case
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
