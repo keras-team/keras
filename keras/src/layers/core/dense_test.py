@@ -1254,19 +1254,22 @@ class DenseTest(testing.TestCase):
             else None
         )
 
+        # --- Diagnostic: kernel statistics ---
+        print(
+            f"DIAG[{block_size}]: kernel dtype={layer.kernel.dtype}, "
+            f"compute_dtype={layer.compute_dtype}, "
+            f"variable_dtype={layer.variable_dtype}"
+        )
+        print(
+            f"DIAG[{block_size}]: kernel stats: "
+            f"min={np.min(kernel_np):.6f}, "
+            f"max={np.max(kernel_np):.6f}, "
+            f"std={np.std(kernel_np):.6f}, "
+            f"absmax={np.max(np.abs(kernel_np)):.6f}"
+        )
+
         x = np.random.random((2, input_dim)).astype("float32")
         y_float = layer(x)
-        y_float_np = ops.convert_to_numpy(y_float)
-
-        # --- Diagnostic: check y_float TPU vs CPU ---
-        y_float_cpu = x @ kernel_np
-        if bias_np is not None:
-            y_float_cpu = y_float_cpu + bias_np
-        y_float_diff = np.max(np.abs(y_float_np - y_float_cpu))
-        print(
-            f"DIAG[{block_size}]: "
-            f"y_float TPU-vs-CPU max_diff={y_float_diff:.6f}"
-        )
 
         # Create config with specified block_size
         config = Int4QuantizationConfig(block_size=block_size)
@@ -1313,18 +1316,14 @@ class DenseTest(testing.TestCase):
         print(f"DIAG[{block_size}]: kernel_mse(CPU dequant)={kernel_mse:.6f}")
 
         # Output MSE computed entirely on CPU (ground truth)
+        y_float_cpu = x @ kernel_np
+        if bias_np is not None:
+            y_float_cpu = y_float_cpu + bias_np
         y_quant_cpu = x @ dequant_cpu
         if bias_np is not None:
             y_quant_cpu = y_quant_cpu + bias_np
         mse_cpu_only = np.mean((y_float_cpu - y_quant_cpu) ** 2)
         print(f"DIAG[{block_size}]: mse_cpu_only={mse_cpu_only:.6f}")
-
-        # Cross comparison: TPU y_float vs CPU y_quant
-        mse_cross = np.mean((y_float_np - y_quant_cpu) ** 2)
-        print(
-            "DIAG[{block_size}]: mse_cross(TPU_ref vs CPU_quant)="
-            f"{mse_cross:.6f}"
-        )
 
         # Verify outputs are reasonable
         y_quantized = layer(x)
