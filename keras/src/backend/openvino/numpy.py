@@ -285,7 +285,21 @@ def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
 
 
 def angle(x):
-    raise NotImplementedError("`angle` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    keras_x_type = ov_to_keras_type(x_type)
+    result_dtype = dtypes.result_type(keras_x_type, float)
+    ov_type = OPENVINO_DTYPES[result_dtype]
+    x = ov_opset.convert(x, ov_type).output(0)
+    # OpenVINO does not support complex dtypes, so the imaginary part is zero.
+    # angle(x) = atan2(imag(x), real(x)) = atan2(0, x)
+    zero = ov_opset.constant(0.0, ov_type)
+    zeros_like_x = ov_opset.broadcast(
+        zero, ov_opset.shape_of(x)
+    ).output(0)
+    return arctan2(
+        OpenVINOKerasTensor(zeros_like_x), OpenVINOKerasTensor(x)
+    )
 
 
 def any(x, axis=None, keepdims=False):
