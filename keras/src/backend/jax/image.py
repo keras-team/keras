@@ -921,20 +921,20 @@ def sobel_edges(images, data_format=None):
     images = jnp.pad(images, ((0, 0), (1, 1), (1, 1), (0, 0)), mode="edge")
 
     dy = (
-        -1 * images[:, :-2, :-2, :]
-        + -2 * images[:, :-2, 1:-1, :]
-        + -1 * images[:, :-2, 2:, :]
-        + 1 * images[:, 2:, :-2, :]
+        -images[:, :-2, :-2, :]
+        - 2 * images[:, :-2, 1:-1, :]
+        - images[:, :-2, 2:, :]
+        + images[:, 2:, :-2, :]
         + 2 * images[:, 2:, 1:-1, :]
-        + 1 * images[:, 2:, 2:, :]
+        + images[:, 2:, 2:, :]
     )
     dx = (
-        -1 * images[:, :-2, :-2, :]
-        + -2 * images[:, 1:-1, :-2, :]
-        + -1 * images[:, 2:, :-2, :]
-        + 1 * images[:, :-2, 2:, :]
+        -images[:, :-2, :-2, :]
+        - 2 * images[:, 1:-1, :-2, :]
+        - images[:, 2:, :-2, :]
+        + images[:, :-2, 2:, :]
         + 2 * images[:, 1:-1, 2:, :]
-        + 1 * images[:, 2:, 2:, :]
+        + images[:, 2:, 2:, :]
     )
 
     result = jnp.stack([dy, dx], axis=-1)
