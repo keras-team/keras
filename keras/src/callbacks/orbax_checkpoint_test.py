@@ -18,16 +18,21 @@ from keras.src.distribution import TensorLayout
 from keras.src.distribution import distribution as get_distribution
 from keras.src.distribution import set_distribution
 from keras.src.saving import register_keras_serializable
+from keras.src.testing.test_utils import named_product
 
 
 class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
-    def _create_test_model(self):
+    def _create_test_model(self, steps_per_execution=1):
         """Create a simple test model compatible with 2-device sharding."""
         inputs = layers.Input(shape=(10,), name="input_layer")
         x = layers.Dense(6, name="dense_layer")(inputs)  # 6 units (div by 2)
         outputs = layers.Dense(2, name="output_layer")(x)
         model = models.Model(inputs, outputs, name="test_model")
-        model.compile(optimizer="adam", loss="mse")
+        model.compile(
+            optimizer="adam",
+            loss="mse",
+            steps_per_execution=steps_per_execution,
+        )
         return model
 
     def _create_dummy_data(self, num_samples=100):
@@ -685,3 +690,37 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         loaded_vocab = loaded_string_lookup.get_vocabulary()
 
         self.assertEqual(original_vocab, loaded_vocab)
+
+    @parameterized.named_parameters(named_product(steps_per_execution=(1, 2)))
+    @pytest.mark.requires_trainable_backend
+    def test_training_resumption(self, steps_per_execution):
+        if backend.backend() == "torch" and steps_per_execution != 1:
+            pytest.skip("steps_per_execution unsupported on torch")
+
+        model = self._create_test_model(steps_per_execution)
+        x, y = self._create_dummy_data(num_samples=50)
+        checkpoint_dir = self.get_temp_dir()
+
+        # Train with specified configuration
+        oc1 = OrbaxCheckpoint(checkpoint_dir, save_freq=1, max_to_keep=10)
+        model.fit(x, y, epochs=2, batch_size=25, callbacks=[oc1], verbose=0)
+
+        # Verify checkpoint files were created
+        checkpoint_files_1 = os.listdir(checkpoint_dir)
+        self.assertGreater(
+            len(checkpoint_files_1), 0, "Should have checkpoint files"
+        )
+
+        reloaded_model = saving.load_model(checkpoint_dir)
+        # Resume training with the same folder for checkpoints
+        oc2 = OrbaxCheckpoint(checkpoint_dir, save_freq=1, max_to_keep=10)
+        reloaded_model.fit(
+            x, y, epochs=1, batch_size=25, callbacks=[oc2], verbose=0
+        )
+
+        checkpoint_files_2 = os.listdir(checkpoint_dir)
+        self.assertGreater(
+            len(checkpoint_files_2),
+            len(checkpoint_files_1),
+            "Should have more checkpoint files",
+        )

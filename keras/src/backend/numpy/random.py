@@ -67,11 +67,14 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    if rate == 1.0:
+        return np.zeros_like(inputs)
+    if rate == 0.0:
+        return inputs
     dtype = inputs.dtype
     seed = draw_seed(seed)
 
     keep_prob = 1.0 - rate
-
     # If noise_shape is not provided, use the shape of inputs
     if noise_shape is None:
         noise_shape = inputs.shape

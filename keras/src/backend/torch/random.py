@@ -135,6 +135,10 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    if rate == 1.0:
+        return torch.zeros_like(inputs, device=get_device())
+    if rate == 0.0:
+        return inputs
     if (
         seed is not None
         and not (isinstance(seed, SeedGenerator) and seed._initial_seed is None)
