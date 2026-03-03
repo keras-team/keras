@@ -1074,3 +1074,37 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    input_dtype = backend.standardize_dtype(images.dtype)
+    compute_dtype = backend.result_type(input_dtype, "float32")
+    images = tf.cast(images, compute_dtype)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = tf.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    # tf.image.sobel_edges expects channels_last (b, h, w, c)
+    # and returns (b, h, w, c, 2) where last dim is [dy, dx]
+    result = tf.image.sobel_edges(images)
+
+    if data_format == "channels_first":
+        result = tf.transpose(result, (0, 3, 1, 2, 4))
+
+    if need_squeeze:
+        result = tf.squeeze(result, axis=0)
+
+    return result

@@ -895,3 +895,54 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    input_dtype = backend.standardize_dtype(images.dtype)
+    compute_dtype = backend.result_type(input_dtype, "float32")
+    images = images.astype(compute_dtype)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = jnp.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = jnp.transpose(images, (0, 2, 3, 1))
+
+    images = jnp.pad(images, ((0, 0), (1, 1), (1, 1), (0, 0)), mode="edge")
+
+    dy = (
+        -1 * images[:, :-2, :-2, :]
+        + -2 * images[:, :-2, 1:-1, :]
+        + -1 * images[:, :-2, 2:, :]
+        + 1 * images[:, 2:, :-2, :]
+        + 2 * images[:, 2:, 1:-1, :]
+        + 1 * images[:, 2:, 2:, :]
+    )
+    dx = (
+        -1 * images[:, :-2, :-2, :]
+        + -2 * images[:, 1:-1, :-2, :]
+        + -1 * images[:, 2:, :-2, :]
+        + 1 * images[:, :-2, 2:, :]
+        + 2 * images[:, 1:-1, 2:, :]
+        + 1 * images[:, 2:, 2:, :]
+    )
+
+    result = jnp.stack([dy, dx], axis=-1)
+
+    if data_format == "channels_first":
+        result = jnp.transpose(result, (0, 3, 1, 2, 4))
+
+    if need_squeeze:
+        result = jnp.squeeze(result, axis=0)
+
+    return result
