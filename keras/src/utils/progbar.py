@@ -83,20 +83,17 @@ class Progbar:
             if k not in self._values_order:
                 self._values_order.append(k)
             if k not in self.stateful_metrics:
-                # In the case that progress bar doesn't have a target value in
-                # the first epoch, both on_batch_end and on_epoch_end will be
-                # called, which will cause 'current' and 'self._seen_so_far' to
-                # have the same value. Force the minimal value to 1 here,
-                # otherwise stateful_metric will be 0s.
-                if finalize:
-                    self._values[k] = [v, 1]
+                # For non-stateful metrics, compute a running average.
+                # `value_base` is clamped to at least 1 so that we don't
+                # produce zeros when `current == self._seen_so_far` (which
+                # can happen when both on_batch_end and on_epoch_end fire
+                # at the same step).
+                value_base = max(current - self._seen_so_far, 1)
+                if k not in self._values:
+                    self._values[k] = [v * value_base, value_base]
                 else:
-                    value_base = max(current - self._seen_so_far, 1)
-                    if k not in self._values:
-                        self._values[k] = [v * value_base, value_base]
-                    else:
-                        self._values[k][0] += v * value_base
-                        self._values[k][1] += value_base
+                    self._values[k][0] += v * value_base
+                    self._values[k][1] += value_base
             else:
                 # Stateful metrics output a numeric value. This representation
                 # means "take an average from a single value" but keeps the
