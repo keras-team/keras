@@ -1,6 +1,7 @@
 import openvino.opset15 as ov_opset
 from openvino import Type
 
+import keras.src.backend.openvino.numpy as onp
 from keras.src import backend
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
@@ -860,7 +861,35 @@ def dot_product_attention(
 
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
-    raise NotImplementedError("`unfold` is not supported with openvino backend")
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = onp.pad(input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])))
+
+    # ---- extract patches ----
+    patches = ov_opset.extract_image_patches(
+        image=input,
+        sizes=[k[0], k[1]],
+        strides=[s[0], s[1]],
+        rates=[d[0], d[1]],
+        auto_pad="VALID",
+    )  # (N, kH*kW*C, nH, nW)
+    N, D, nH, nW = patches.shape
+    patches = ov_opset.reshape(patches, [N, k[0], k[1], C, nH, nW], False)
+    patches = ov_opset.transpose(
+        patches, [0, 3, 1, 2, 4, 5]
+    )  # (N, C, kH, kW, nH, nW)
+    patches = ov_opset.reshape(patches, [N, C * k[0] * k[1], nH * nW], False)
+    return OpenVINOKerasTensor(patches.output(0))
 
 
 def depth_to_space(x, block_size, data_format="channels_last"):
