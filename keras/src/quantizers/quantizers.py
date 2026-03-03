@@ -707,74 +707,47 @@ def pack_int4(arr, axis=0, dtype="int8"):
             f"{backend.standardize_dtype(arr.dtype)}."
         )
 
-    rank = getattr(arr.shape, "rank", None) or len(arr.shape)
+    # Perform packing in numpy. Packing is only called during
+    # quantization (not inference), and numpy correctly handles int8
+    # overflow in bitwise operations. Some accelerators (e.g. TPU) may
+    # produce incorrect results for int8 left_shift that overflows, so
+    # using numpy avoids device-specific issues.
+    arr_np = ops.convert_to_numpy(arr)
+    np_dtype = np.dtype(dtype)
 
+    rank = len(arr_np.shape)
     if axis < 0:
         axis += rank
 
-    # Fast path for last-axis packing (common for Dense/EinsumDense kernels).
-    # Operates directly on the last axis without transpose, avoiding
-    # transpose+reshape issues on some accelerators (e.g. TPU).
-    if axis == rank - 1 and rank >= 2:
-        cols = ops.shape(arr)[-1]
-        needs_pad = ops.equal(ops.mod(cols, 2), 1)
+    # Move the pack axis to the front for uniform handling.
+    arr_np = np.moveaxis(arr_np, axis, 0)
 
-        # Always append one zero column for static shape; slice if unneeded.
-        zero_col = arr[..., :1] * 0
-        padded_full = ops.concatenate([arr, zero_col], axis=-1)
-        cols_padded = cols + ops.cast(needs_pad, "int32")
-        padded = padded_full[..., :cols_padded]
+    # Pad to even length along the front axis.
+    n = arr_np.shape[0]
+    if n % 2 == 1:
+        pad_shape = (1,) + arr_np.shape[1:]
+        arr_np = np.concatenate(
+            [arr_np, np.zeros(pad_shape, dtype=arr_np.dtype)], axis=0
+        )
 
-        low = padded[..., ::2]
-        high = padded[..., 1::2]
+    # Group in pairs and pack nibbles.
+    low = arr_np[::2]
+    high = arr_np[1::2]
 
-        mask = ops.array(0x0F, dtype=dtype)
-        low_u = ops.bitwise_and(low, mask)
-        high_u = ops.bitwise_and(high, mask)
+    mask = np.array(0x0F, dtype=np_dtype)
+    low_u = np.bitwise_and(low.astype(np_dtype), mask)
+    high_u = np.bitwise_and(high.astype(np_dtype), mask)
 
-        packed = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
-        packed = ops.cast(packed, dtype)
+    packed_np = np.bitwise_or(
+        low_u, np.left_shift(high_u, np.array(4, dtype=np_dtype))
+    )
+    packed_np = packed_np.astype(np_dtype)
 
-        orig_len = cols
-        return packed, ops.shape(packed), orig_len
+    # Move the pack axis back to its original position.
+    packed_np = np.moveaxis(packed_np, 0, axis)
 
-    # 1. Bring `axis` to the front.
-    perm = [axis] + [i for i in range(rank) if i != axis]
-    inv_perm = [perm.index(i) for i in range(rank)]
-    transposed = ops.transpose(arr, perm)
-
-    # 2. Pad to even length.
-    rows = ops.shape(transposed)[0]
-    needs_pad = ops.equal(ops.mod(rows, 2), 1)
-
-    # Always append one zero row so the tensor shape is static for JAX. If no
-    # padding is actually needed, we'll slice it away later.
-    zero_row = transposed[:1, ...] * 0  # same dtype/shape (1, ...)
-    padded_full = ops.concatenate([transposed, zero_row], axis=0)
-
-    # Number of valid rows after (possible) padding:
-    # rows + (1 if needs_pad else 0)
-    rows_packed = rows + ops.cast(needs_pad, "int32")
-
-    # Slice to keep only the valid rows. This keeps the shape rank static while
-    # allowing the row count to be dynamic.
-    padded = padded_full[:rows_packed, ...]
-
-    # 3-4. Group in pairs and pack.
-    low = padded[::2, ...]
-    high = padded[1::2, ...]
-
-    mask = ops.array(0x0F, dtype=dtype)
-    low_u = ops.bitwise_and(low, mask)
-    high_u = ops.bitwise_and(high, mask)
-
-    packed = ops.bitwise_or(low_u, ops.left_shift(high_u, 4))
-    packed = ops.cast(packed, dtype)
-
-    # 5-6. Restore shape.
-    packed = ops.transpose(packed, inv_perm)  # back to original order
-    orig_len = rows  # number of slices before padding
-    return packed, ops.shape(packed), orig_len
+    packed = ops.convert_to_tensor(packed_np)
+    return packed, tuple(packed_np.shape), n
 
 
 @keras_export("keras.quantizers.unpack_int4")
