@@ -60,23 +60,23 @@ def build_orbax_abstract_pytree(checkpoint_path, ref_state=None):
     """Build an abstract pytree for Orbax loading with target shardings.
 
     On JAX with an active distribution, returns a pytree of
-    ``jax.ShapeDtypeStruct`` so that Orbax reshards arrays onto the
+    `jax.ShapeDtypeStruct` so that Orbax reshards arrays onto the
     current distribution layout instead of restoring saved shardings.
     On all other backends, or when no distribution is active, returns
-    ``None`` (Orbax will use saved shardings — fine when the topology
+    `None` (Orbax will use saved shardings — fine when the topology
     hasn't changed).
 
     Args:
         checkpoint_path: Path to a specific Orbax checkpoint step
-            directory (e.g. ``<root>/2``).
+            directory (e.g. `<root>/2`).
         ref_state: Optional reference state tree (from
-            ``model.get_state_tree()``) whose variables carry the
-            target shardings. If ``None``, shardings default to
-            ``None`` per leaf (Orbax uses saved shardings).
+            `model.get_state_tree()`) whose variables carry the
+            target shardings. If `None`, shardings default to
+            `None` per leaf (Orbax uses saved shardings).
 
     Returns:
-        A pytree of ``jax.ShapeDtypeStruct`` matching the checkpoint
-        structure, or ``None`` when resharding is not needed.
+        A pytree of `jax.ShapeDtypeStruct` matching the checkpoint
+        structure, or `None` when resharding is not needed.
     """
     if backend.backend() != "jax":
         return None
@@ -88,49 +88,19 @@ def build_orbax_abstract_pytree(checkpoint_path, ref_state=None):
 
     pytree_meta = ocp.pytree_metadata(checkpoint_path).metadata
 
-    # ---- collect variable → sharding from reference state ----
-    def _collect_shardings(tree, path=()):
-        """Flatten a nested dict tree into {keypath: sharding}."""
-        if hasattr(tree, "sharding"):
-            return {path: tree.sharding}
-        if isinstance(tree, dict):
-            out = {}
-            for k, v in tree.items():
-                out.update(_collect_shardings(v, path + (k,)))
-            return out
-        return {}
-
-    ref_shardings = {}
-    if ref_state:
-        for group in (
-            "trainable_variables",
-            "non_trainable_variables",
-        ):
-            ref_shardings.update(_collect_shardings(ref_state.get(group, {})))
-
-    # ---- recursively build the abstract tree ----
-    def _to_abstract(meta, ref=None, path=()):
-        """Convert metadata leaf → jax.ShapeDtypeStruct with sharding."""
+    def _to_abstract(meta, ref=None):
+        """Convert metadata leaf to `jax.ShapeDtypeStruct` with sharding."""
         if hasattr(meta, "shape") and hasattr(meta, "dtype"):
-            # Array leaf: use ref sharding when available, otherwise
-            # try matching an optimizer slot path to a model variable
-            # path (strip the optimizer-name prefix and slot-name
-            # suffix: path[1:-1]).
             sharding = getattr(ref, "sharding", None)
-            if sharding is None and len(path) >= 3:
-                sharding = ref_shardings.get(path[1:-1])
             return jax.ShapeDtypeStruct(
                 meta.shape, meta.dtype, sharding=sharding
             )
         if isinstance(meta, dict):
             r = ref if isinstance(ref, dict) else {}
-            return {
-                k: _to_abstract(v, r.get(k), path + (k,))
-                for k, v in meta.items()
-            }
+            return {k: _to_abstract(v, r.get(k)) for k, v in meta.items()}
         return None
 
     return {
-        key: _to_abstract(val, (ref_state or {}).get(key), (key,))
+        key: _to_abstract(val, (ref_state or {}).get(key))
         for key, val in pytree_meta.items()
     }

@@ -365,12 +365,12 @@ def _load_model_from_orbax_checkpoint(
 ):
     """Load a model from an Orbax checkpoint directory.
 
-    ``model_config`` is stored as its own checkpointable (separate from
-    ``pytree``), so loading proceeds in two simple steps:
+    `model_config` is stored as its own checkpointable (separate from
+    `pytree`), so loading proceeds in two simple steps:
 
-      1. Load the ``model_config`` checkpointable to obtain the model
+      1. Load the `model_config` checkpointable to obtain the model
          configuration string and rebuild the model.
-      2. Load the ``pytree`` checkpointable (all arrays).  When a JAX
+      2. Load the `pytree` checkpointable (all arrays).  When a JAX
          distribution is active, an abstract pytree with target
          shardings is provided so that Orbax reshards arrays onto the
          current layout.
