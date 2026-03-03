@@ -1217,20 +1217,20 @@ def sobel_edges(images, data_format=None):
     images = images.permute(0, 2, 3, 1)
 
     dy = (
-        -1 * images[:, :-2, :-2, :]
-        + -2 * images[:, :-2, 1:-1, :]
-        + -1 * images[:, :-2, 2:, :]
-        + 1 * images[:, 2:, :-2, :]
+        -images[:, :-2, :-2, :]
+        - 2 * images[:, :-2, 1:-1, :]
+        - images[:, :-2, 2:, :]
+        + images[:, 2:, :-2, :]
         + 2 * images[:, 2:, 1:-1, :]
-        + 1 * images[:, 2:, 2:, :]
+        + images[:, 2:, 2:, :]
     )
     dx = (
-        -1 * images[:, :-2, :-2, :]
-        + -2 * images[:, 1:-1, :-2, :]
-        + -1 * images[:, 2:, :-2, :]
-        + 1 * images[:, :-2, 2:, :]
+        -images[:, :-2, :-2, :]
+        - 2 * images[:, 1:-1, :-2, :]
+        - images[:, 2:, :-2, :]
+        + images[:, :-2, 2:, :]
         + 2 * images[:, 1:-1, 2:, :]
-        + 1 * images[:, 2:, 2:, :]
+        + images[:, 2:, 2:, :]
     )
 
     result = torch.stack([dy, dx], dim=-1)
