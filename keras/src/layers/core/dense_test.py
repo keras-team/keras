@@ -1304,7 +1304,7 @@ class DenseTest(testing.TestCase):
             msg=f"Kernel values above int4 max: {np.max(unpacked_np)}",
         )
 
-        # --- Diagnostic: compare dequantize-first approach ---
+        # --- Diagnostic: compare manual dequantization approach ---
         if block_size is None or block_size == -1:
             float_kernel = ops.divide(
                 ops.cast(unpacked_kernel, "float32"),
@@ -1317,6 +1317,26 @@ class DenseTest(testing.TestCase):
             print(
                 f"DIAG[block_size={block_size}]: "
                 f"mse_dequant_first={mse_alt:.6f}"
+            )
+        else:
+            # Sub-channel: manually dequantize and compare
+            from keras.src.quantizers.quantizers import dequantize_with_sz_map
+
+            float_kernel = dequantize_with_sz_map(
+                unpacked_kernel,
+                ops.convert_to_tensor(layer.kernel_scale),
+                ops.convert_to_tensor(layer.kernel_zero),
+                ops.convert_to_tensor(layer.g_idx),
+                group_axis=0,
+            )
+            float_kernel = ops.cast(float_kernel, "float32")
+            y_alt = ops.matmul(ops.cast(x, "float32"), float_kernel)
+            if layer.bias is not None:
+                y_alt = ops.add(y_alt, layer.bias)
+            mse_alt = float(ops.mean(ops.square(y_float - y_alt)))
+            print(
+                f"DIAG[block_size={block_size}]: "
+                f"mse_manual_dequant={mse_alt:.6f}"
             )
 
         # Verify outputs are reasonable

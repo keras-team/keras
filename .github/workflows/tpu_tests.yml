@@ -46,7 +46,7 @@ jobs:
 
       - name: Run Tests
         run: >-
-          pytest -xvs
+          pytest -vs
           keras/src/layers/core/dense_test.py::DenseTest::test_int4_quantization_block_size_grouped_block_64
           keras/src/layers/core/dense_test.py::DenseTest::test_int4_quantization_block_size_grouped_block_128
           keras/src/layers/core/dense_test.py::DenseTest::test_int4_quantization_block_size_per_channel_none

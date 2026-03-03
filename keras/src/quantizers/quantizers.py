@@ -1228,8 +1228,11 @@ def dequantize_with_sz_map(weights_matrix, scale, zero, g_idx, group_axis=-1):
     zeros_mapped = ops.take(zero, groups, axis=group_axis)
     zeros_mapped = ops.cast(zeros_mapped, scales_mapped.dtype)
 
+    # Explicitly cast weights to float to avoid relying on implicit
+    # int8→float type promotion, which can produce incorrect results on TPU.
+    weights_float = ops.cast(weights_matrix, scales_mapped.dtype)
     dequantized = ops.multiply(
-        ops.subtract(weights_matrix, zeros_mapped), scales_mapped
+        ops.subtract(weights_float, zeros_mapped), scales_mapped
     )
 
     return dequantized
