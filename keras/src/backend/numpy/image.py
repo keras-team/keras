@@ -1233,21 +1233,21 @@ def sobel_edges(images, data_format=None):
     # Sobel kernels
     # Vertical (dy)
     dy = (
-        -1 * images[:, :-2, :-2, :]
-        + -2 * images[:, :-2, 1:-1, :]
-        + -1 * images[:, :-2, 2:, :]
-        + 1 * images[:, 2:, :-2, :]
+        -images[:, :-2, :-2, :]
+        - 2 * images[:, :-2, 1:-1, :]
+        - images[:, :-2, 2:, :]
+        + images[:, 2:, :-2, :]
         + 2 * images[:, 2:, 1:-1, :]
-        + 1 * images[:, 2:, 2:, :]
+        + images[:, 2:, 2:, :]
     )
     # Horizontal (dx)
     dx = (
-        -1 * images[:, :-2, :-2, :]
-        + -2 * images[:, 1:-1, :-2, :]
-        + -1 * images[:, 2:, :-2, :]
-        + 1 * images[:, :-2, 2:, :]
+        -images[:, :-2, :-2, :]
+        - 2 * images[:, 1:-1, :-2, :]
+        - images[:, 2:, :-2, :]
+        + images[:, :-2, 2:, :]
         + 2 * images[:, 1:-1, 2:, :]
-        + 1 * images[:, 2:, 2:, :]
+        + images[:, 2:, 2:, :]
     )
 
     result = np.stack([dy, dx], axis=-1)
