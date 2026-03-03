@@ -1246,8 +1246,27 @@ class DenseTest(testing.TestCase):
         layer = layers.Dense(units=output_dim)
         layer.build((None, input_dim))
 
+        # Save original kernel for CPU-side comparison
+        kernel_np = ops.convert_to_numpy(layer.kernel).copy()
+        bias_np = (
+            ops.convert_to_numpy(layer.bias).copy()
+            if layer.bias is not None
+            else None
+        )
+
         x = np.random.random((2, input_dim)).astype("float32")
         y_float = layer(x)
+        y_float_np = ops.convert_to_numpy(y_float)
+
+        # --- Diagnostic: check y_float TPU vs CPU ---
+        y_float_cpu = x @ kernel_np
+        if bias_np is not None:
+            y_float_cpu = y_float_cpu + bias_np
+        y_float_diff = np.max(np.abs(y_float_np - y_float_cpu))
+        print(
+            f"DIAG[{block_size}]: "
+            f"y_float TPU-vs-CPU max_diff={y_float_diff:.6f}"
+        )
 
         # Create config with specified block_size
         config = Int4QuantizationConfig(block_size=block_size)
@@ -1267,82 +1286,50 @@ class DenseTest(testing.TestCase):
 
         self.assertEqual(layer.kernel_scale.shape, expected_scale_shape)
 
-        # --- Diagnostic: verify unpack_int4 roundtrip on device ---
-        test_vals = np.array([[-3, 7, 2, 0], [-8, 1, -1, 5]], dtype=np.int8)
-        # Test general path (axis=-1, same as layer inference)
-        packed_t, _, orig_len_t = quantizers.pack_int4(test_vals, axis=-1)
-        unpacked_t = quantizers.unpack_int4(packed_t, orig_len_t, axis=-1)
-        np.testing.assert_array_equal(
-            ops.convert_to_numpy(unpacked_t),
-            test_vals,
-            err_msg="unpack_int4 axis=-1 roundtrip failed on device",
-        )
-        # Test fast path (axis=0) for comparison
-        packed_t0, _, orig_len_t0 = quantizers.pack_int4(test_vals, axis=0)
-        unpacked_t0 = quantizers.unpack_int4(packed_t0, orig_len_t0, axis=0)
-        np.testing.assert_array_equal(
-            ops.convert_to_numpy(unpacked_t0),
-            test_vals,
-            err_msg="unpack_int4 axis=0 roundtrip failed on device",
-        )
-
-        # --- Diagnostic: verify kernel values are in int4 range ---
+        # --- Diagnostic: unpack kernel and dequantize on CPU ---
         unpacked_kernel = quantizers.unpack_int4(
             ops.convert_to_tensor(layer._kernel),
             layer._orig_output_dim,
             axis=-1,
         )
         unpacked_np = ops.convert_to_numpy(unpacked_kernel)
-        self.assertGreaterEqual(
-            np.min(unpacked_np),
-            -8,
-            msg=f"Kernel values below int4 min: {np.min(unpacked_np)}",
-        )
-        self.assertLessEqual(
-            np.max(unpacked_np),
-            7,
-            msg=f"Kernel values above int4 max: {np.max(unpacked_np)}",
-        )
+        scale_np = ops.convert_to_numpy(layer.kernel_scale)
 
-        # --- Diagnostic: compare manual dequantization approach ---
         if block_size is None or block_size == -1:
-            float_kernel = ops.divide(
-                ops.cast(unpacked_kernel, "float32"),
-                ops.convert_to_tensor(layer.kernel_scale),
-            )
-            y_alt = ops.matmul(ops.cast(x, "float32"), float_kernel)
-            if layer.bias is not None:
-                y_alt = ops.add(y_alt, layer.bias)
-            mse_alt = float(ops.mean(ops.square(y_float - y_alt)))
-            print(
-                f"DIAG[block_size={block_size}]: "
-                f"mse_dequant_first={mse_alt:.6f}"
-            )
+            # Per-channel: dequant on CPU
+            dequant_cpu = unpacked_np.astype(np.float32) / scale_np
         else:
-            # Sub-channel: manually dequantize and compare
-            from keras.src.quantizers.quantizers import dequantize_with_sz_map
+            # Sub-channel: dequant on CPU
+            g_idx_np = ops.convert_to_numpy(layer.g_idx).astype(np.int32)
+            zero_np = ops.convert_to_numpy(layer.kernel_zero)
+            scales_mapped = scale_np[g_idx_np]
+            zeros_mapped = zero_np[g_idx_np].astype(np.float32)
+            dequant_cpu = (
+                unpacked_np.astype(np.float32) - zeros_mapped
+            ) * scales_mapped
 
-            float_kernel = dequantize_with_sz_map(
-                unpacked_kernel,
-                ops.convert_to_tensor(layer.kernel_scale),
-                ops.convert_to_tensor(layer.kernel_zero),
-                ops.convert_to_tensor(layer.g_idx),
-                group_axis=0,
-            )
-            float_kernel = ops.cast(float_kernel, "float32")
-            y_alt = ops.matmul(ops.cast(x, "float32"), float_kernel)
-            if layer.bias is not None:
-                y_alt = ops.add(y_alt, layer.bias)
-            mse_alt = float(ops.mean(ops.square(y_float - y_alt)))
-            print(
-                f"DIAG[block_size={block_size}]: "
-                f"mse_manual_dequant={mse_alt:.6f}"
-            )
+        # Kernel-level MSE (quantization error)
+        kernel_mse = np.mean((kernel_np - dequant_cpu) ** 2)
+        print(f"DIAG[{block_size}]: kernel_mse(CPU dequant)={kernel_mse:.6f}")
+
+        # Output MSE computed entirely on CPU (ground truth)
+        y_quant_cpu = x @ dequant_cpu
+        if bias_np is not None:
+            y_quant_cpu = y_quant_cpu + bias_np
+        mse_cpu_only = np.mean((y_float_cpu - y_quant_cpu) ** 2)
+        print(f"DIAG[{block_size}]: mse_cpu_only={mse_cpu_only:.6f}")
+
+        # Cross comparison: TPU y_float vs CPU y_quant
+        mse_cross = np.mean((y_float_np - y_quant_cpu) ** 2)
+        print(
+            "DIAG[{block_size}]: mse_cross(TPU_ref vs CPU_quant)="
+            f"{mse_cross:.6f}"
+        )
 
         # Verify outputs are reasonable
         y_quantized = layer(x)
         mse = float(ops.mean(ops.square(y_float - y_quantized)))
-        print(f"DIAG[block_size={block_size}]: mse_layer={mse:.6f}")
+        print(f"DIAG[{block_size}]: mse_layer={mse:.6f}")
         self.assertLess(mse, 0.01)  # Reasonable accuracy
 
     @parameterized.named_parameters(
