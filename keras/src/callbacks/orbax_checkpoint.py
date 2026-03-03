@@ -135,8 +135,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_on_background = save_on_background
         self.save_weights_only = save_weights_only
         self._batches_seen_since_last_saving = 0
-        self._last_batch_seen = 0
-        self._current_epoch = 0  # Keep track of epoch
+        self._last_batch_seen = None
         self._total_batches_seen = 0  # Global batch counter for step tracking
         self._async_futures = []  # Track async save futures
 
@@ -180,6 +179,12 @@ class OrbaxCheckpoint(MonitorCallback):
                 1
             ),
         )
+
+    def set_model(self, model):
+        super().set_model(model)
+        if hasattr(model, "optimizer") and model.optimizer is not None:
+            # Recover the number of batches seen for a reloaded model
+            self._total_batches_seen = int(model.optimizer.iterations)
 
     def _is_multihost_initialized(self):
         """Check if multi-host environment is initialized."""
@@ -234,7 +239,8 @@ class OrbaxCheckpoint(MonitorCallback):
         if self.save_freq == "epoch":
             return False
 
-        if batch <= self._last_batch_seen:  # New epoch.
+        if self._last_batch_seen is None or batch <= self._last_batch_seen:
+            # New epoch.
             add_batches = batch + 1
         else:
             add_batches = batch - self._last_batch_seen
@@ -326,7 +332,6 @@ class OrbaxCheckpoint(MonitorCallback):
                 self._save_checkpoint(step=step, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):
-        self._current_epoch = epoch
         if self.monitor_op is None:
             self._set_monitor_op()  # From MonitorCallback
 
