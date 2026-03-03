@@ -3,13 +3,10 @@ import zipfile
 
 from absl import logging
 
-from keras.src import backend
 from keras.src.api_export import keras_export
-from keras.src.distribution import distribution as get_distribution
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
 from keras.src.saving.orbax_util import build_orbax_abstract_pytree
-from keras.src.saving.orbax_util import build_pass1_abstract_pytree
 from keras.src.saving.orbax_util import find_latest_orbax_checkpoint
 from keras.src.saving.orbax_util import is_orbax_checkpoint
 from keras.src.utils import file_utils
@@ -368,19 +365,15 @@ def _load_model_from_orbax_checkpoint(
 ):
     """Load a model from an Orbax checkpoint directory.
 
-    On JAX with an active distribution this uses a two-pass strategy so
-    that arrays are restored with the **target** sharding (from the
-    current ``LayoutMap``) rather than the sharding that was saved:
+    ``model_config`` is stored as its own checkpointable (separate from
+    ``pytree``), so loading proceeds in two simple steps:
 
-      Pass 1 — load only string leaves (``model_config``) while
-               skipping all array leaves (``ocp.PLACEHOLDER`` / ``...``).
-      Pass 2 — rebuild the model under the active distribution (which
-               assigns target shardings to variables), then reload
-               arrays with ``jax.ShapeDtypeStruct`` carrying those
-               target shardings.
-
-    On other backends (or when no distribution is active) a single
-    ``pytree=None`` pass suffices.
+      1. Load the ``model_config`` checkpointable to obtain the model
+         configuration string and rebuild the model.
+      2. Load the ``pytree`` checkpointable (all arrays).  When a JAX
+         distribution is active, an abstract pytree with target
+         shardings is provided so that Orbax reshards arrays onto the
+         current layout.
     """
     # Ensure orbax is available
     ocp.initialize()
@@ -399,10 +392,6 @@ def _load_model_from_orbax_checkpoint(
         "metrics_variables",
     ]
 
-    needs_resharding = False
-    if backend.backend() == "jax":
-        needs_resharding = get_distribution() is not None
-
     with ocp.Context():
         # Check which checkpointables were saved so we only request
         # keys that actually exist (Orbax raises KeyError otherwise).
@@ -410,66 +399,36 @@ def _load_model_from_orbax_checkpoint(
             checkpointer.checkpointables_metadata(step).metadata.keys()
         )
 
-        if needs_resharding:
-            # Pass 1: load only string leaves; skip all arrays.
-            pass1_target = build_pass1_abstract_pytree(checkpoint_path)
-            pass1_req = {"pytree": pass1_target}
-            if "assets" in saved_keys:
-                pass1_req["assets"] = None
-
-            pass1 = checkpointer.load_checkpointables(step, pass1_req)
-            pass1_state = pass1["pytree"]
-            assets_data = pass1.get("assets")
-
-            if "model_config" not in pass1_state:
-                raise ValueError(
-                    "Checkpoint does not contain model configuration. "
-                    "This checkpoint may have been saved with "
-                    "save_weights_only=True."
-                )
-
-            # Build model under the current distribution — variables
-            # get target shardings from the active LayoutMap.
-            model = saving_lib._model_from_config(
-                pass1_state["model_config"],
-                custom_objects=custom_objects,
-                compile=compile,
-                safe_mode=safe_mode,
+        # Step 1: Load model_config to rebuild the model.
+        if "model_config" not in saved_keys:
+            raise ValueError(
+                "Checkpoint does not contain model configuration. "
+                "This checkpoint may have been saved with "
+                "save_weights_only=True."
             )
 
-            # Pass 2: reload arrays with explicit target shardings.
-            pass2_abstract = build_orbax_abstract_pytree(
-                checkpoint_path, model.get_state_tree()
-            )
-            pass2 = checkpointer.load_checkpointables(
-                step, {"pytree": pass2_abstract}
-            )
-            composite_state = pass2["pytree"]
-        else:
-            # Non-JAX or no distribution: single pass is fine.
-            request = {"pytree": None}
-            if "assets" in saved_keys:
-                request["assets"] = None
+        config_loaded = checkpointer.load_checkpointables(
+            step, {"model_config": None}
+        )
+        model = saving_lib._model_from_config(
+            config_loaded["model_config"]["config"],
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
+        )
 
-            loaded_checkpointables = checkpointer.load_checkpointables(
-                step, request
-            )
-            composite_state = loaded_checkpointables["pytree"]
-            assets_data = loaded_checkpointables.get("assets")
+        # Step 2: Load pytree (arrays) with optional resharding.
+        abstract_pytree = build_orbax_abstract_pytree(
+            checkpoint_path, model.get_state_tree()
+        )
 
-            if "model_config" not in composite_state:
-                raise ValueError(
-                    "Checkpoint does not contain model configuration. "
-                    "This checkpoint may have been saved with "
-                    "save_weights_only=True."
-                )
+        request = {"pytree": abstract_pytree}
+        if "assets" in saved_keys:
+            request["assets"] = None
 
-            model = saving_lib._model_from_config(
-                composite_state["model_config"],
-                custom_objects=custom_objects,
-                compile=compile,
-                safe_mode=safe_mode,
-            )
+        loaded = checkpointer.load_checkpointables(step, request)
+        composite_state = loaded["pytree"]
+        assets_data = loaded.get("assets")
 
     state_tree = {
         key: composite_state[key]

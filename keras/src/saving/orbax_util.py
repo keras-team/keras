@@ -56,40 +56,6 @@ def find_latest_orbax_checkpoint(checkpoint_dir):
     return os.path.join(checkpoint_dir, str(latest.step))
 
 
-def build_pass1_abstract_pytree(checkpoint_path):
-    """Build an abstract pytree that loads only string leaves.
-
-    Array leaves are replaced with ``...`` (``ocp.PLACEHOLDER``) so
-    they are skipped during loading.  String leaves use ``str`` and
-    everything else uses ``None``.
-
-    This is used as the first pass of a two-pass loading strategy:
-    load the model config (string) without touching any arrays, build
-    the model under the target distribution, then reload arrays with
-    explicit target shardings in the second pass.
-
-    Args:
-        checkpoint_path: Path to a specific Orbax checkpoint step
-            directory.
-
-    Returns:
-        A pytree (nested dict) suitable for
-        ``ocp.load_checkpointables(step, {"pytree": <result>})``.
-    """
-    pytree_meta = ocp.pytree_metadata(checkpoint_path).metadata
-
-    def _to_pass1(meta):
-        if hasattr(meta, "shape") and hasattr(meta, "dtype"):
-            return ...  # PLACEHOLDER -- skip array
-        if meta == "string":
-            return str
-        if isinstance(meta, dict):
-            return {k: _to_pass1(v) for k, v in meta.items()}
-        return None
-
-    return {k: _to_pass1(v) for k, v in pytree_meta.items()}
-
-
 def build_orbax_abstract_pytree(checkpoint_path, ref_state=None):
     """Build an abstract pytree for Orbax loading with target shardings.
 
@@ -109,9 +75,8 @@ def build_orbax_abstract_pytree(checkpoint_path, ref_state=None):
             ``None`` per leaf (Orbax uses saved shardings).
 
     Returns:
-        A pytree of ``jax.ShapeDtypeStruct`` / ``str`` / ``...`` matching
-        the checkpoint structure, or ``None`` when resharding is not
-        needed.
+        A pytree of ``jax.ShapeDtypeStruct`` matching the checkpoint
+        structure, or ``None`` when resharding is not needed.
     """
     if backend.backend() != "jax":
         return None
@@ -157,8 +122,6 @@ def build_orbax_abstract_pytree(checkpoint_path, ref_state=None):
             return jax.ShapeDtypeStruct(
                 meta.shape, meta.dtype, sharding=sharding
             )
-        if meta == "string":
-            return str
         if isinstance(meta, dict):
             r = ref if isinstance(ref, dict) else {}
             return {

@@ -13,6 +13,8 @@ from keras.src.utils.module_utils import ocp
 
 # Context and AsyncOptions are accessed through the lazy-loaded ocp module
 
+# Context and AsyncOptions are accessed through the lazy-loaded ocp module
+
 # JAX monitoring compatibility: ensure record_scalar exists
 # to prevent AttributeError in older JAX versions
 try:
@@ -264,33 +266,24 @@ class OrbaxCheckpoint(MonitorCallback):
             }
         else:
             composite_state = state_tree
-            # Include model configuration for full model restoration
-            # Use saving_lib helper to properly handle shared objects
-            config_json, _ = saving_lib._serialize_model_as_json(self.model)
-            composite_state["model_config"] = config_json
 
-        # Collect assets if saving full model (not just weights)
-        assets_dict = None
+        # Build payload with pytree (pure arrays) and optional
+        # model_config / assets as separate checkpointables.
+        payload = {"pytree": composite_state}
+
         if not self.save_weights_only:
+            config_json, _ = saving_lib._serialize_model_as_json(self.model)
+            payload["model_config"] = {"config": config_json}
+
             assets_dict = saving_lib._save_assets_to_dict(self.model)
+            if assets_dict is not None:
+                payload["assets"] = assets_dict
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
         with ocp.Context():
             # Determine sync vs async based on save_on_background setting
             use_sync = not self.save_on_background
-
-            # Always use checkpointables API for consistency
-            # If no assets, just pass pytree alone
-            if assets_dict is not None:
-                payload = {
-                    "pytree": composite_state,
-                    "assets": assets_dict,
-                }
-            else:
-                payload = {
-                    "pytree": composite_state,
-                }
 
             # Execute save based on sync/async mode
             if use_sync:
