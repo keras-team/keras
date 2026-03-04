@@ -553,6 +553,7 @@ def _overlap_sequences_ov(x, sequence_stride, fft_length):
 
     return x, output_size
 
+
 def istft(
     x,
     sequence_length,
