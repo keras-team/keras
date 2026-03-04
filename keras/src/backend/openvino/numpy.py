@@ -3415,16 +3415,16 @@ def repeat(x, repeats, axis=None):
         x = ov_opset.reshape(x, const_neg_1, special_zero=False)
         axis = 0
 
-    if isinstance(repeats, (int, np.integer)) or (
+    if isinstance(repeats, np.integer):
+        repeats = int(repeats)
+    elif (
         isinstance(repeats, np.ndarray)
-        and repeats.ndim == 1
         and repeats.size == 1
+        and repeats.ndim <= 1
     ):
-        repeats_val = (
-            int(repeats)
-            if isinstance(repeats, (np.integer, np.ndarray))
-            else repeats
-        )
+        repeats = int(repeats.item())
+
+    if isinstance(repeats, int):
         dim_len = ov_opset.gather(
             ov_opset.shape_of(x, Type.i32),
             ov_opset.constant([axis], Type.i32),
@@ -3436,7 +3436,7 @@ def repeat(x, repeats, axis=None):
         )
         idx_range = ov_opset.unsqueeze(idx_range, const_1)
         tiled = ov_opset.tile(
-            idx_range, ov_opset.constant([1, repeats_val], Type.i32)
+            idx_range, ov_opset.constant([1, repeats], Type.i32)
         )
         idx = ov_opset.reshape(tiled, const_neg_1, special_zero=False)
         result = ov_opset.gather(x, idx, ov_opset.constant(axis, Type.i32))
