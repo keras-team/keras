@@ -280,7 +280,6 @@ class NormalizationTest(testing.TestCase):
         self.assertEqual(tuple(layer.mean.shape), (1, 7))
         self.assertAllClose(layer.mean, [[5.0] * 7])
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_list_of_batches(self):
         x = np.random.random((32, 4)).astype("float32")
         batches = [x[:8], x[8:16], x[16:24], x[24:32]]
@@ -292,7 +291,6 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_generator(self):
         x = np.random.random((32, 4)).astype("float32")
 
@@ -308,7 +306,6 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_iterable_same_result_as_ndarray(self):
         x = np.random.random((64, 5)).astype("float32")
         list_of_batches = [x[i : i + 16] for i in range(0, 64, 16)]
@@ -322,7 +319,6 @@ class NormalizationTest(testing.TestCase):
         out_ndarray = backend.convert_to_numpy(out_ndarray)
         self.assertAllClose(out_list, out_ndarray, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_iterable_with_tuples(self):
         x = np.random.random((24, 3)).astype("float32")
         batches = [(x[i : i + 8], np.zeros(8)) for i in range(0, 24, 8)]
@@ -334,7 +330,6 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_iterable_axis_none(self):
         x = np.random.random((20, 2, 3)).astype("float32")
         batches = [x[i : i + 5] for i in range(0, 20, 5)]
@@ -381,7 +376,6 @@ class NormalizationTest(testing.TestCase):
         with self.assertRaisesRegex(TypeError, "`.shape`"):
             layer.adapt(gen_no_shape())
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_iterable_single_batch(self):
         x = np.random.random((16, 4)).astype("float32")
         layer = layers.Normalization(axis=-1)
@@ -392,7 +386,6 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_iterable_high_dim_axis_tuple(self):
         x = np.random.random((32, 4, 3, 5)).astype("float32")
         batches = [x[i : i + 8] for i in range(0, 32, 8)]
@@ -404,7 +397,6 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(np.var(output, axis=(0, 3)), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=(0, 3)), 0.0, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_iterator_of_batches(self):
         x = np.random.random((24, 3)).astype("float32")
         list_of_batches = [x[i : i + 6] for i in range(0, 24, 6)]
