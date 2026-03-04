@@ -3,7 +3,6 @@ import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
@@ -84,13 +83,6 @@ class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
         self.assertEqual(out.shape[-1], 1)
         self.assertAllInRange(out, 0, 255)
 
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason=(
-            "tf.data compatibility map strictly requires the "
-            "tensorflow backend."
-        ),
-    )
     def test_tf_data_compatibility(self):
         layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
             value_range=(0, 255)
