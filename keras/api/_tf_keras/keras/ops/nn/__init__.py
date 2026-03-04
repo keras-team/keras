@@ -21,6 +21,7 @@ from keras.src.ops.nn import depth_to_space as depth_to_space
 from keras.src.ops.nn import depthwise_conv as depthwise_conv
 from keras.src.ops.nn import dot_product_attention as dot_product_attention
 from keras.src.ops.nn import elu as elu
+from keras.src.ops.nn import fold as fold
 from keras.src.ops.nn import gelu as gelu
 from keras.src.ops.nn import glu as glu
 from keras.src.ops.nn import hard_shrink as hard_shrink
