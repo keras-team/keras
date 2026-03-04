@@ -1623,12 +1623,12 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches
 
 
-def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     """TensorFlow implementation of Fold (col2im).
     Combine an array of sliding local blocks into a large tensor.
 
     Args:
-        input: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
         output_size: int or (oH, oW)
         kernel_size: int or (kH, kW)
         dilation: int or (dH, dW), default 1
@@ -1652,8 +1652,8 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
     p = (padding, padding) if isinstance(padding, int) else padding
     s = (stride, stride) if isinstance(stride, int) else stride
 
-    N = tf.shape(input)[0]
-    CKK = input.shape[1]
+    N = tf.shape(x)[0]
+    CKK = x.shape[1]
     kH, kW = k
     oH, oW = o
     C = CKK // (kH * kW)
@@ -1663,7 +1663,7 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
     nW = (oW + 2 * p[1] - d[1] * (kW - 1) - 1) // s[1] + 1
 
     # Reshape: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
-    x = tf.reshape(input, [N, C, kH, kW, nH, nW])
+    x = tf.reshape(x, [N, C, kH, kW, nH, nW])
 
     # Padded output size
     oH_pad = oH + 2 * p[0]
@@ -1673,7 +1673,7 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
     # Process one sample at a time using vectorized_map
     def _fold_single(x_single):
         # x_single: (C, kH, kW, nH, nW)
-        output = tf.zeros([C, oH_pad, oW_pad], dtype=input.dtype)
+        output = tf.zeros([C, oH_pad, oW_pad], dtype=x.dtype)
         for i in range(kH):
             for j in range(kW):
                 h_start = i * d[0]

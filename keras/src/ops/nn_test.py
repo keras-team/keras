@@ -3498,9 +3498,6 @@ class NNOpsBehaviorTest(testing.TestCase):
         self.assertAllClose(unfold_result, except_result)
 
     def test_fold(self):
-        if keras.config.backend() in ["openvino"]:
-            pytest.skip("Backend does not support fold operation")
-
         # test 1: non-overlapping roundtrip (stride == kernel_size)
         x = ops.arange(16, dtype="float32")
         x = ops.reshape(x, [1, 1, 4, 4])
@@ -3571,9 +3568,6 @@ class NNOpsBehaviorTest(testing.TestCase):
 
     def test_fold_tuple_params(self):
         """Test fold with tuple parameters to cover _pair branches."""
-        if keras.config.backend() in ["openvino"]:
-            pytest.skip("Backend does not support fold operation")
-
         # Non-square kernel and stride as tuples
         x = ops.arange(48, dtype="float32")
         x = ops.reshape(x, [1, 1, 6, 8])
@@ -3615,9 +3609,6 @@ class NNOpsBehaviorTest(testing.TestCase):
 
     def test_fold_no_padding(self):
         """Test fold with padding=0 to cover the skip-padding branch."""
-        if keras.config.backend() in ["openvino"]:
-            pytest.skip("Backend does not support fold operation")
-
         x = ops.arange(36, dtype="float32")
         x = ops.reshape(x, [1, 1, 6, 6])
         patches = knn.unfold(x, kernel_size=3, stride=3, padding=0)
@@ -3632,9 +3623,6 @@ class NNOpsBehaviorTest(testing.TestCase):
 
     def test_fold_non_square_output(self):
         """Test fold with non-square spatial dimensions."""
-        if keras.config.backend() in ["openvino"]:
-            pytest.skip("Backend does not support fold operation")
-
         x = ops.arange(24, dtype="float32")
         x = ops.reshape(x, [1, 1, 4, 6])
         patches = knn.unfold(x, kernel_size=2, stride=2)
@@ -3643,9 +3631,6 @@ class NNOpsBehaviorTest(testing.TestCase):
 
     def test_fold_batch_and_channels(self):
         """Test fold with larger batch and channel counts."""
-        if keras.config.backend() in ["openvino"]:
-            pytest.skip("Backend does not support fold operation")
-
         x = np.random.normal(size=(4, 8, 6, 6)).astype("float32")
         x = ops.convert_to_tensor(x)
         patches = knn.unfold(x, kernel_size=2, stride=2)

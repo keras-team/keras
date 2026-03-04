@@ -3357,13 +3357,13 @@ class Fold(Operation):
         return KerasTensor(shape=(N, C, oH, oW), dtype=x.dtype)
 
     def call(self, x):
-        return _fold(
+        return backend.nn.fold(
             x,
-            self.output_size,
-            self.kernel_size,
-            self.dilation,
-            self.padding,
-            self.stride,
+            output_size=self.output_size,
+            kernel_size=self.kernel_size,
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
         )
 
 
@@ -3416,11 +3416,6 @@ def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
         return Fold(
             output_size, kernel_size, dilation, padding, stride
         ).symbolic_call(x)
-    return _fold(x, output_size, kernel_size, dilation, padding, stride)
-
-
-def _fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
-    """Internal implementation of fold."""
     return backend.nn.fold(
         x,
         output_size=output_size,

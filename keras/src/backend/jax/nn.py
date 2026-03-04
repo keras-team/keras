@@ -1895,12 +1895,15 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches.reshape(N, CKK, oH * oW)
 
 
-def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     """JAX implementation of Fold (col2im).
     Combine an array of sliding local blocks into a large tensor.
 
+    Uses ``lax.conv_transpose`` with an identity kernel so that the
+    entire operation is JIT-compilable and runs on XLA.
+
     Args:
-        input: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
         output_size: int or (oH, oW)
         kernel_size: int or (kH, kW)
         dilation: int or (dH, dW), default 1
@@ -1911,8 +1914,8 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
         4-D tensor, shape (N, C, oH, oW)
     """
 
-    def _pair(x):
-        return (x, x) if isinstance(x, int) else x
+    def _pair(val):
+        return (val, val) if isinstance(val, int) else val
 
     oH, oW = _pair(output_size)
     kH, kW = _pair(kernel_size)
@@ -1920,31 +1923,40 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
     pH, pW = _pair(padding)
     sH, sW = _pair(stride)
 
-    N, CKK, L = input.shape
+    N, CKK, L = x.shape
     C = CKK // (kH * kW)
 
     # Number of output patches along each dimension
     nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
     nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
 
-    # Reshape: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
-    x = jnp.reshape(input, (N, C, kH, kW, nH, nW))
+    # Reshape: (N, C*kH*kW, L) -> (N, C*kH*kW, nH, nW)
+    x = jnp.reshape(x, (N, CKK, nH, nW))
+
+    # Identity kernel: maps each (c, i, j) input channel to output
+    # channel c at kernel position (i, j).
+    # eye(CKK) -> (CKK, CKK) -> reshape (CKK, C, kH, kW) ->
+    # transpose to HWIO: (kH, kW, CKK, C)
+    kernel = jnp.eye(CKK, dtype=x.dtype)
+    kernel = kernel.reshape(CKK, C, kH, kW)
+    kernel = kernel.transpose(2, 3, 0, 1)  # -> (kH, kW, CKK, C)
+    # conv_transpose flips the kernel spatially, so pre-flip to cancel
+    kernel = jnp.flip(kernel, axis=(0, 1))
 
     # Padded output size
     oH_pad = oH + 2 * pH
     oW_pad = oW + 2 * pW
 
-    output = jnp.zeros((N, C, oH_pad, oW_pad), dtype=input.dtype)
-
-    for i in range(kH):
-        for j in range(kW):
-            h_start = i * dH
-            w_start = j * dW
-            h_indices = h_start + jnp.arange(nH) * sH
-            w_indices = w_start + jnp.arange(nW) * sW
-            # Use ix_ to create an open mesh for advanced indexing
-            h_ix, w_ix = jnp.ix_(h_indices, w_indices)
-            output = output.at[:, :, h_ix, w_ix].add(x[:, :, i, j, :, :])
+    # conv_transpose with padding="VALID" produces output of size:
+    #   (nH - 1) * sH + (kH - 1) * dH + 1  (= oH_pad)
+    output = lax.conv_transpose(
+        x,
+        kernel,
+        strides=(sH, sW),
+        padding="VALID",
+        rhs_dilation=(dH, dW),
+        dimension_numbers=("NCHW", "HWIO", "NCHW"),
+    )
 
     # Remove padding
     if pH > 0 or pW > 0:

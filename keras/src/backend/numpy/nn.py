@@ -1488,12 +1488,12 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches.reshape(N, C * k[0] * k[1], -1)
 
 
-def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     """NumPy implementation of Fold (col2im).
     Combine an array of sliding local blocks into a large tensor.
 
     Args:
-        input: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
         output_size: int or (oH, oW)
         kernel_size: int or (kH, kW)
         dilation: int or (dH, dW), default 1
@@ -1504,8 +1504,8 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
         4-D tensor, shape (N, C, oH, oW)
     """
 
-    def _pair(x):
-        return (x, x) if isinstance(x, int) else x
+    def _pair(val):
+        return (val, val) if isinstance(val, int) else val
 
     oH, oW = _pair(output_size)
     kH, kW = _pair(kernel_size)
@@ -1513,7 +1513,7 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
     pH, pW = _pair(padding)
     sH, sW = _pair(stride)
 
-    N, CKK, L = input.shape
+    N, CKK, L = x.shape
     C = CKK // (kH * kW)
 
     # Number of output patches along each dimension
@@ -1521,13 +1521,13 @@ def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
     nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
 
     # Reshape: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
-    x = np.reshape(input, (N, C, kH, kW, nH, nW))
+    x = np.reshape(x, (N, C, kH, kW, nH, nW))
 
     # Padded output size
     oH_pad = oH + 2 * pH
     oW_pad = oW + 2 * pW
 
-    output = np.zeros((N, C, oH_pad, oW_pad), dtype=input.dtype)
+    output = np.zeros((N, C, oH_pad, oW_pad), dtype=x.dtype)
 
     for i in range(kH):
         for j in range(kW):

@@ -892,7 +892,7 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return OpenVINOKerasTensor(patches.output(0))
 
 
-def fold(input, output_size, kernel_size, dilation=1, padding=0, stride=1):
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     raise NotImplementedError("`fold` is not supported with openvino backend")
 
 
