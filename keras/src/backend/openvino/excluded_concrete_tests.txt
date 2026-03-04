@@ -487,7 +487,6 @@ NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
-NumpyDtypeTest::test_angle
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
@@ -495,7 +494,6 @@ NumpyDtypeTest::test_nancumsum
 NumpyDtypeTest::test_nanstd
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_view
-NumpyOneInputOpsCorrectnessTest::test_angle
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
@@ -505,9 +503,7 @@ NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
-NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_view
-NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_view
 OptimizerTest::test_constraints_are_applied
 OptimizerTest::test_ema
