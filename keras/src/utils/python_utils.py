@@ -7,7 +7,6 @@ import types as python_types
 
 def is_continuous_axis(axis):
     # Used to determine whether the dimensions in an axis are continuous
-    # space between axis and int is necessary
     if isinstance(axis, int) or len(axis) <= 1:
         return True
 

@@ -83,6 +83,10 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    if rate == 1.0:
+        return tf.zeros_like(inputs)
+    if rate == 0.0:
+        return inputs
     seed = _cast_seed(draw_seed(seed))
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
     return tf.nn.experimental.stateless_dropout(
