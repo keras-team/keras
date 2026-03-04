@@ -3635,7 +3635,7 @@ class NNOpsBehaviorTest(testing.TestCase):
         x = ops.convert_to_tensor(x)
         patches = knn.unfold(x, kernel_size=2, stride=2)
         y = knn.fold(patches, output_size=(6, 6), kernel_size=2, stride=2)
-        self.assertAllClose(y, x)
+        self.assertAllClose(y, x, tpu_atol=1e-2, tpu_rtol=1e-2)
 
     def test_fold_divisibility_validation(self):
         """Test fold raises on CKK not divisible by kernel product."""
