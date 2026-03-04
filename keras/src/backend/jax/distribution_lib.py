@@ -80,9 +80,7 @@ def distribute_tensor(tensor, layout):
     if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
 
-    # TODO(scottzhu): This might not be a cheap check, we should consider
-    # have some proper JAX API for doing this check.
-    if jax_utils.is_in_jax_tracing_scope():
+    if jax_utils.is_in_jax_tracing_scope(tensor):
         return jax.lax.with_sharding_constraint(tensor, layout)
 
     # Skip relayout if unnecessary.
