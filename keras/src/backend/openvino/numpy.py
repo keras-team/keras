@@ -2847,6 +2847,12 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nanargmax(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanargmax` is not supported with openvino backend"
+    )
+
+
 def nanargmin(x, axis=None, keepdims=False):
     raise NotImplementedError(
         "`nanargmin` is not supported with openvino backend"
