@@ -49,7 +49,6 @@ class RMSNormalization(Layer):
 
     def build(self, input_shape):
         if isinstance(self.axis, list):
-            self.axis = sorted(self.axis)
             shape = tuple([input_shape[dim] for dim in self.axis])
         else:
             shape = (input_shape[self.axis],)
