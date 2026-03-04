@@ -431,13 +431,6 @@ MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_erfinv_operation_edge_cases
 MathOpsCorrectnessTest::test_extract_sequences
-MathOpsCorrectnessTest::test_istft0
-MathOpsCorrectnessTest::test_istft1
-MathOpsCorrectnessTest::test_istft2
-MathOpsCorrectnessTest::test_istft3
-MathOpsCorrectnessTest::test_istft4
-MathOpsCorrectnessTest::test_istft5
-MathOpsCorrectnessTest::test_istft6
 MathOpsCorrectnessTest::test_logdet
 MaxPoolingBasicTest::test_max_pooling1d0
 MaxPoolingBasicTest::test_max_pooling1d1
@@ -648,7 +641,6 @@ StackedRNNTest::test_return_state_stacked_lstm_cell
 StackedRNNTest::test_stacked_lstm_cell_mask
 StackedRNNTest::test_statefullness_single_state_stack
 StackedRNNTest::test_statefullness_two_states_stack
-TestMathErrors::test_istft_invalid_window_shape_2D_inputs
 TestNumericalUtils::test_build_pos_neg_masks
 TestTrainer::test_evaluate_flow_eager
 TestTrainer::test_evaluate_flow_graph_fn
