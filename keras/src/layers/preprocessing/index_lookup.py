@@ -570,7 +570,14 @@ class IndexLookup(Layer):
             if self.pad_to_max_tokens
             else self._frozen_vocab_size
         )
-        return (input_shape[0], depth)
+        input_shape = tuple(input_shape)
+        if self.output_mode == "one_hot":
+            # One-hot encodes each element: (batch, d1, ..., dN) -> (batch, d1,
+            # ..., dN, depth)
+            return input_shape + (depth,)
+        # multi_hot, count, tf_idf: treat last dim as sample dim, output
+        # (batch, ..., depth)
+        return input_shape[:-1] + (depth,)
 
     def compute_output_spec(self, inputs):
         if self.output_mode == "int":
