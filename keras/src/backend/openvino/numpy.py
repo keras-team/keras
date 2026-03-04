@@ -2854,19 +2854,17 @@ def nanargmin(x, axis=None, keepdims=False):
 
 
 def nancumsum(x, axis=None, dtype=None):
-    raise NotImplementedError(
-        "`nancumsum` is not supported with openvino backend"
-    )
+    return cumsum(nan_to_num(x, nan=0.0), axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2896,12 +2894,12 @@ def nanmax(x, axis=None, keepdims=False):
 
 def nanmean(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2927,12 +2925,12 @@ def nanmean(x, axis=None, keepdims=False):
 
 def nanmin(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2962,12 +2960,12 @@ def nanmin(x, axis=None, keepdims=False):
 
 def nanprod(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2986,7 +2984,7 @@ def nanprod(x, axis=None, keepdims=False):
 
 
 def nanstd(x, axis=None, keepdims=False):
-    raise NotImplementedError("`nanstd` is not supported with openvino backend")
+    return sqrt(nanvar(x, axis=axis, keepdims=keepdims))
 
 
 def nansum(x, axis=None, keepdims=False):
@@ -3075,7 +3073,7 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     if dtype.is_integral():
         return OpenVINOKerasTensor(x)
     isfloat64 = True if dtype == Type.f64 else False
-    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         dtype = Type.f32
     nan_val = ov_opset.constant(nan, dtype).output(0)
