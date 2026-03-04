@@ -2189,6 +2189,25 @@ def moveaxis(x, source, destination):
     return tf.transpose(x, perm)
 
 
+def nanargmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not x.dtype.is_floating:
+        return argmin(x, axis=axis, keepdims=keepdims)
+
+    nan_mask = tf.math.is_nan(x)
+
+    return tf.where(
+        tf.reduce_all(nan_mask, axis=axis, keepdims=keepdims),
+        tf.constant(-1, dtype=tf.int32),
+        argmin(
+            tf.where(nan_mask, tf.constant(float("inf"), dtype=x.dtype), x),
+            axis=axis,
+            keepdims=keepdims,
+        ),
+    )
+
+
 def nancumsum(x, axis=None, dtype=None):
     x = nan_to_num(x)
     return cumsum(x, axis=axis, dtype=dtype)

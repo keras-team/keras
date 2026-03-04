@@ -5319,6 +5319,65 @@ def moveaxis(x, source, destination):
     return backend.numpy.moveaxis(x, source=source, destination=destination)
 
 
+class Nanargmin(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanargmin(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        axis = [self.axis] if self.axis is not None else None
+        return KerasTensor(
+            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
+            dtype="int32",
+        )
+
+
+@keras_export(["keras.ops.nanargmin", "keras.ops.numpy.nanargmin"])
+def nanargmin(x, axis=None, keepdims=False):
+    """Returns the indices of the minimum values along an axis, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: By default, the index is into the flattened tensor, otherwise
+            along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+                in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Tensor of indices. It has the same shape as `x`, with the dimension
+        along `axis` removed. NaN values are ignored when computing the minimum.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 0.0]])
+
+    >>> ops.nanargmin(x)
+    array(5, dtype=int32)
+
+    >>> ops.nanargmin(x, axis=0)
+    array([0, 1, 1], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1)
+    array([0, 2], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1, keepdims=True)
+    array([[0],
+           [2]], dtype=int32)
+    """
+
+    if any_symbolic_tensors((x,)):
+        return Nanargmin(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+
+
 class Nancumsum(Operation):
     def __init__(self, axis=None, dtype=None, *, name=None):
         super().__init__(name=name)

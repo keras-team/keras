@@ -490,6 +490,7 @@ NNOpsDynamicShapeTest::test_glu
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
+NumpyDtypeTest::test_nanargmin
 NumpyDtypeTest::test_nancumsum
 NumpyDtypeTest::test_nanstd
 NumpyDtypeTest::test_power
@@ -498,6 +499,7 @@ NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
+NumpyOneInputOpsCorrectnessTest::test_nanargmin
 NumpyOneInputOpsCorrectnessTest::test_nancumsum
 NumpyOneInputOpsCorrectnessTest::test_nanstd
 NumpyOneInputOpsCorrectnessTest::test_real
