@@ -476,18 +476,5 @@ def numpy_scan(f, init, xs, reverse=False, mask=None):
     )
 
 
-def cudnn_ok(
-    activation,
-    recurrent_activation,
-    unroll,
-    use_bias,
-    reset_after=None,
-):
-    if reset_after is None:
-        return (
-            activation in (activations.tanh, ops.tanh)
-            and recurrent_activation in (activations.sigmoid, ops.sigmoid)
-            and not unroll
-        )
-    else:
-        return False
+def cudnn_ok(*args , **kwargs):
+    return False

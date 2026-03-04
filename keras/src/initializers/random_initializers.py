@@ -2,14 +2,13 @@ import math
 
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend import random 
 from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
 
 
 class RandomInitializer(Initializer):
     def __init__(self, seed=None):
-        from keras.src.backend import random
-
         self._init_seed = seed
         if seed is None:
             seed = random.make_default_seed()
@@ -70,8 +69,6 @@ class RandomNormal(RandomInitializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
-        from keras.src.backend import random
-
         return random.normal(
             shape=shape,
             mean=self.mean,
@@ -131,8 +128,6 @@ class TruncatedNormal(RandomInitializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
-        from keras.src.backend import random
-
         return random.truncated_normal(
             shape=shape,
             mean=self.mean,
@@ -189,8 +184,6 @@ class RandomUniform(RandomInitializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
-        from keras.src.backend import random
-
         return random.uniform(
             shape=shape,
             minval=self.minval,
@@ -290,8 +283,6 @@ class VarianceScaling(RandomInitializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
-        from keras.src.backend import random
-
         scale = self.scale
         fan_in, fan_out = compute_fans(shape)
         if self.mode == "fan_in":
@@ -692,8 +683,6 @@ class Orthogonal(RandomInitializer):
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
-        from keras.src.backend import random
-
         if len(shape) < 2:
             raise ValueError(
                 "The tensor to initialize must be "
