@@ -1040,13 +1040,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         out = kimage.rgb_to_grayscale(x)
         ref_out = tf.image.rgb_to_grayscale(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         x = np.random.random((2, 50, 50, 3)).astype("float32") * 255
         out = kimage.rgb_to_grayscale(x)
         ref_out = tf.image.rgb_to_grayscale(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1055,18 +1055,18 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         ref_out = tf.image.rgb_to_grayscale(np.transpose(x, [1, 2, 0]))
         ref_out = tf.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         x = np.random.random((2, 3, 50, 50)).astype("float32") * 255
         out = kimage.rgb_to_grayscale(x)
         ref_out = tf.image.rgb_to_grayscale(np.transpose(x, [0, 2, 3, 1]))
         ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         # Test class
         out = kimage.RGBToGrayscale()(x)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
     def test_rgb_to_hsv(self):
         # Test channels_last
@@ -1074,13 +1074,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         out = kimage.rgb_to_hsv(x)
         ref_out = tf.image.rgb_to_hsv(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         x = np.random.random((2, 50, 50, 3)).astype("float32")
         out = kimage.rgb_to_hsv(x)
         ref_out = tf.image.rgb_to_hsv(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1089,18 +1089,18 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         ref_out = tf.image.rgb_to_hsv(np.transpose(x, [1, 2, 0]))
         ref_out = tf.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         x = np.random.random((2, 3, 50, 50)).astype("float32")
         out = kimage.rgb_to_hsv(x)
         ref_out = tf.image.rgb_to_hsv(np.transpose(x, [0, 2, 3, 1]))
         ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         # Test class
         out = kimage.RGBToHSV()(x)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
     def test_hsv_to_rgb(self):
         # Test channels_last
@@ -1108,13 +1108,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         out = kimage.hsv_to_rgb(x)
         ref_out = tf.image.hsv_to_rgb(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         x = np.random.random((2, 50, 50, 3)).astype("float32")
         out = kimage.hsv_to_rgb(x)
         ref_out = tf.image.hsv_to_rgb(x)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1123,18 +1123,18 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         ref_out = tf.image.hsv_to_rgb(np.transpose(x, [1, 2, 0]))
         ref_out = tf.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         x = np.random.random((2, 3, 50, 50)).astype("float32")
         out = kimage.hsv_to_rgb(x)
         ref_out = tf.image.hsv_to_rgb(np.transpose(x, [0, 2, 3, 1]))
         ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
         # Test class
         out = kimage.HSVToRGB()(x)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(ref_out.numpy(), out)
 
     @parameterized.named_parameters(
         named_product(

@@ -17,7 +17,7 @@ def is_continuous_axis(axis):
 
     negative_order_flag = True
     for i in range(len(axis) - 1):
-        if axis[i + 1] - axis[i] != 1:
+        if axis[i + 1] - axis[i] != -1:
             negative_order_flag = False
             break
     return positive_order_flag or negative_order_flag

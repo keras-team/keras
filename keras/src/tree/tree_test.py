@@ -16,6 +16,7 @@ from keras.src.utils.module_utils import dmtree
 from keras.src.utils.module_utils import optree
 from keras.src.utils.tracking import TrackedDict
 from keras.src.utils.tracking import TrackedList
+from keras.src.utils.tracking import TrackedOrderedDict
 from keras.src.utils.tracking import TrackedSet
 
 TEST_CASES = []
@@ -84,6 +85,7 @@ class TreeTest(testing.TestCase):
             dmtree_impl.register_tree_node_class(TrackedList)
             dmtree_impl.register_tree_node_class(TrackedSet)
             dmtree_impl.register_tree_node_class(TrackedDict)
+            dmtree_impl.register_tree_node_class(TrackedOrderedDict)
         super().setUp()
 
     def assertEqualStrict(self, a, b):
@@ -153,6 +155,9 @@ class TreeTest(testing.TestCase):
         self.assertTrue(t.is_nested(TrackedDict({})))
         self.assertTrue(t.is_nested(TrackedDict({"a": 1})))
         self.assertTrue(t.is_nested(TrackedDict({"b": 2, "a": 1})))
+        self.assertTrue(t.is_nested(TrackedOrderedDict({})))
+        self.assertTrue(t.is_nested(TrackedOrderedDict({"a": 1})))
+        self.assertTrue(t.is_nested(TrackedOrderedDict({"b": 2, "a": 1})))
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
     def test_is_nested_tf_wrappers(self, t):
@@ -220,6 +225,11 @@ class TreeTest(testing.TestCase):
         self.assertEqualStrict(t.flatten(TrackedDict({})), [])
         self.assertEqualStrict(t.flatten(TrackedDict({"a": 1})), [1])
         self.assertEqualStrict(t.flatten(TrackedDict({"b": 2, "a": 1})), [1, 2])
+        self.assertEqualStrict(t.flatten(TrackedOrderedDict({})), [])
+        self.assertEqualStrict(t.flatten(TrackedOrderedDict({"a": 1})), [1])
+        self.assertEqualStrict(
+            t.flatten(TrackedOrderedDict({"b": 2, "a": 1})), [2, 1]
+        )
 
         # Deeper nested structures.
         self.assertEqualStrict(
@@ -378,6 +388,18 @@ class TreeTest(testing.TestCase):
             t.flatten_with_path(TrackedDict({"b": 2, "a": 1})),
             [(("a",), 1), (("b",), 2)],
         )
+        self.assertEqualStrict(
+            t.flatten_with_path(TrackedOrderedDict({})),
+            [],
+        )
+        self.assertEqualStrict(
+            t.flatten_with_path(TrackedOrderedDict({"a": 1})),
+            [(("a",), 1)],
+        )
+        self.assertEqualStrict(
+            t.flatten_with_path(TrackedOrderedDict({"b": 2, "a": 1})),
+            [(("b",), 2), (("a",), 1)],
+        )
 
         # Deeper nested structures.
         self.assertEqualStrict(
@@ -515,6 +537,18 @@ class TreeTest(testing.TestCase):
         self.assertEqualStrict(
             t.pack_sequence_as(TrackedDict({"b": 20, "a": 10}), [1, 2]),
             TrackedDict({"a": 1, "b": 2}),
+        )
+        self.assertEqualStrict(
+            t.pack_sequence_as(TrackedOrderedDict({}), []),
+            TrackedOrderedDict({}),
+        )
+        self.assertEqualStrict(
+            t.pack_sequence_as(TrackedOrderedDict({"a": 10}), [1]),
+            TrackedOrderedDict({"a": 1}),
+        )
+        self.assertEqualStrict(
+            t.pack_sequence_as(TrackedOrderedDict({"b": 20, "a": 10}), [2, 1]),
+            TrackedOrderedDict({"b": 2, "a": 1}),
         )
 
         # Deeper nested structures.
@@ -669,6 +703,18 @@ class TreeTest(testing.TestCase):
         self.assertEqualStrict(
             t.map_structure(f1, TrackedDict({"b": 2, "a": 1})),
             TrackedDict({"a": 11, "b": 12}),
+        )
+        self.assertEqualStrict(
+            t.map_structure(f1, TrackedOrderedDict()),
+            TrackedOrderedDict(),
+        )
+        self.assertEqualStrict(
+            t.map_structure(f1, TrackedOrderedDict({"a": 1})),
+            TrackedOrderedDict({"a": 11}),
+        )
+        self.assertEqualStrict(
+            t.map_structure(f1, TrackedOrderedDict({"b": 2, "a": 1})),
+            TrackedOrderedDict({"b": 12, "a": 11}),
         )
 
         # Deeper nested structures.
@@ -881,6 +927,31 @@ class TreeTest(testing.TestCase):
                 TrackedDict({"a": 10, "b": 20}),
             ),
             TrackedDict({"a": 11, "b": 22}),
+        )
+
+        self.assertEqualStrict(
+            t.map_structure(
+                f2,
+                TrackedOrderedDict({}),
+                TrackedOrderedDict({}),
+            ),
+            TrackedOrderedDict({}),
+        )
+        self.assertEqualStrict(
+            t.map_structure(
+                f2,
+                TrackedOrderedDict({"a": 1}),
+                TrackedOrderedDict({"a": 10}),
+            ),
+            TrackedOrderedDict({"a": 11}),
+        )
+        self.assertEqualStrict(
+            t.map_structure(
+                f2,
+                TrackedOrderedDict({"b": 2, "a": 1}),
+                TrackedOrderedDict({"b": 20, "a": 10}),
+            ),
+            TrackedOrderedDict({"b": 22, "a": 11}),
         )
 
         # Deeper nested structures.
@@ -1189,6 +1260,18 @@ class TreeTest(testing.TestCase):
             TrackedDict({"b": 2, "a": 1}),
             TrackedDict({"a": 10, "b": 20}),
         )
+        t.assert_same_structure(
+            TrackedOrderedDict({}),
+            TrackedOrderedDict({}),
+        )
+        t.assert_same_structure(
+            TrackedOrderedDict({"a": 1}),
+            TrackedOrderedDict({"a": 10}),
+        )
+        t.assert_same_structure(
+            TrackedOrderedDict({"b": 2, "a": 1}),
+            TrackedOrderedDict({"b": 20, "a": 10}),
+        )
 
         # Deeper nested structures.
         t.assert_same_structure(
@@ -1257,6 +1340,12 @@ class TreeTest(testing.TestCase):
             t.assert_same_structure(1, TrackedDict([]))
         with self.assertRaisesRegex(ValueError, "[Ee]xpected.*TrackedDict"):
             t.assert_same_structure(TrackedDict([]), 1)
+        with self.assertRaisesRegex(ValueError, "(nested|TrackedOrderedDict)"):
+            t.assert_same_structure(1, TrackedOrderedDict([]))
+        with self.assertRaisesRegex(
+            ValueError, "[Ee]xpected.*TrackedOrderedDict"
+        ):
+            t.assert_same_structure(TrackedOrderedDict([]), 1)
 
         # list, tuple, deque and namedtuple are not considered equivalent.
         # Test all 6 combinations:
@@ -1351,6 +1440,18 @@ class TreeTest(testing.TestCase):
             t.assert_same_structure(
                 {"b": 2, "a": 1}, TrackedDict({"a": 10, "b": 20})
             )
+        with self.assertRaisesRegex(
+            ValueError, "[Ee]xpected.*TrackedOrderedDict"
+        ):
+            t.assert_same_structure(
+                TrackedOrderedDict({"b": 2, "a": 1}),
+                OrderedDict({"b": 20, "a": 10}),
+            )
+        with self.assertRaisesRegex(ValueError, "[Ee]xpected.*OrderedDict"):
+            t.assert_same_structure(
+                OrderedDict({"b": 2, "a": 1}),
+                TrackedOrderedDict({"b": 20, "a": 10}),
+            )
 
         # Mismatched key count.
         with self.assertRaisesRegex(
@@ -1412,6 +1513,29 @@ class TreeTest(testing.TestCase):
             t.assert_same_structure(
                 TrackedDict({"a": 1}),
                 TrackedDict({"b": 2}),
+            )
+
+        # Mismatched key count and keys and order with TrackedOrderedDict.
+        with self.assertRaisesRegex(
+            ValueError, "Mismatch custom node data|Node arity mismatch"
+        ):
+            t.assert_same_structure(
+                TrackedOrderedDict({"a": 1, "b": 2}),
+                TrackedOrderedDict({"a": 1}),
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Mismatch custom node data|Node context mismatch"
+        ):
+            t.assert_same_structure(
+                TrackedOrderedDict({"a": 1}),
+                TrackedOrderedDict({"b": 2}),
+            )
+        with self.assertRaisesRegex(
+            ValueError, "Mismatch custom node data|Node context mismatch"
+        ):
+            t.assert_same_structure(
+                TrackedOrderedDict({"a": 1, "b": 2}),
+                TrackedOrderedDict({"b": 2, "a": 1}),
             )
 
     @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
@@ -1529,6 +1653,18 @@ class TreeTest(testing.TestCase):
         t.assert_same_paths(
             TrackedDict({"b": 2, "a": 1}),
             TrackedDict({"a": 10, "b": 20}),
+        )
+        t.assert_same_paths(
+            TrackedOrderedDict({}),
+            TrackedOrderedDict({}),
+        )
+        t.assert_same_paths(
+            TrackedOrderedDict({"a": 1}),
+            TrackedOrderedDict({"a": 10}),
+        )
+        t.assert_same_paths(
+            TrackedOrderedDict({"b": 2, "a": 1}),
+            TrackedOrderedDict({"a": 10, "b": 20}),
         )
 
         # Deeper nested structures.
@@ -1797,6 +1933,26 @@ class TreeTest(testing.TestCase):
         )
         self.assertEqualStrict(
             v.visited(), [TrackedDict({"a": 1, "b": 2}), 1, 2]
+        )
+
+        self.assertEqualStrict(
+            t.traverse(v, TrackedOrderedDict()),
+            TrackedOrderedDict(),
+        )
+        self.assertEqualStrict(v.visited(), [TrackedOrderedDict()])
+
+        self.assertEqualStrict(
+            t.traverse(v, TrackedOrderedDict({"a": 1})),
+            TrackedOrderedDict({"a": 11}),
+        )
+        self.assertEqualStrict(v.visited(), [TrackedOrderedDict({"a": 1}), 1])
+
+        self.assertEqualStrict(
+            t.traverse(v, TrackedOrderedDict({"b": 2, "a": 1})),
+            TrackedOrderedDict({"b": 12, "a": 11}),
+        )
+        self.assertEqualStrict(
+            v.visited(), [TrackedOrderedDict({"b": 2, "a": 1}), 2, 1]
         )
 
         # Deeper nested structures.
@@ -2083,6 +2239,26 @@ class TreeTest(testing.TestCase):
         )
         self.assertEqualStrict(
             v.visited(), [1, 2, TrackedDict({"a": 11, "b": 12})]
+        )
+
+        self.assertEqualStrict(
+            traverse_u(v, TrackedOrderedDict()),
+            TrackedOrderedDict(),
+        )
+        self.assertEqualStrict(v.visited(), [TrackedOrderedDict()])
+
+        self.assertEqualStrict(
+            traverse_u(v, TrackedOrderedDict({"a": 1})),
+            TrackedOrderedDict({"a": 11}),
+        )
+        self.assertEqualStrict(v.visited(), [1, TrackedOrderedDict({"a": 11})])
+
+        self.assertEqualStrict(
+            traverse_u(v, TrackedOrderedDict({"b": 2, "a": 1})),
+            TrackedOrderedDict({"b": 12, "a": 11}),
+        )
+        self.assertEqualStrict(
+            v.visited(), [2, 1, TrackedOrderedDict({"b": 12, "a": 11})]
         )
 
         # Deeper nested structures.

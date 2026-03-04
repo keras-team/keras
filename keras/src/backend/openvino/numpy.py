@@ -285,7 +285,21 @@ def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
 
 
 def angle(x):
-    raise NotImplementedError("`angle` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    # angle() is defined over real values in OpenVINO backend.
+    # Cast integral and boolean to floatx
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
+        x_type = x.get_element_type()
+
+    zero = ov_opset.constant(0, x_type).output(0)
+    pi = ov_opset.constant(float(np.pi), x_type).output(0)
+    is_negative = ov_opset.less(x, zero).output(0)
+    result = ov_opset.select(is_negative, pi, zero).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def any(x, axis=None, keepdims=False):
