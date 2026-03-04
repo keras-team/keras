@@ -3320,6 +3320,112 @@ def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
     )
 
 
+class Fold(Operation):
+    def __init__(
+        self,
+        output_size,
+        kernel_size,
+        dilation=1,
+        padding=0,
+        stride=1,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.output_size = output_size
+        self.kernel_size = kernel_size
+        self.dilation = dilation
+        self.padding = padding
+        self.stride = stride
+
+    def compute_output_spec(self, x):
+        N, CKK, L = x.shape
+
+        def _pair(v):
+            return (v, v) if isinstance(v, int) else v
+
+        kH, kW = _pair(self.kernel_size)
+        oH, oW = _pair(self.output_size)
+
+        if CKK is not None and CKK % (kH * kW) != 0:
+            raise ValueError(
+                f"The second dimension of the input ({CKK}) must be "
+                f"divisible by kernel_size product ({kH * kW})."
+            )
+
+        C = CKK // (kH * kW) if CKK is not None else None
+        return KerasTensor(shape=(N, C, oH, oW), dtype=x.dtype)
+
+    def call(self, x):
+        return backend.nn.fold(
+            x,
+            output_size=self.output_size,
+            kernel_size=self.kernel_size,
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
+        )
+
+
+@keras_export(["keras.ops.fold", "keras.ops.nn.fold"])
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """Combines an array of sliding local blocks into a large containing
+    tensor (reverses `unfold`).
+
+    This operation is known as **col2im** when used with convolution.
+    It takes a 3-D tensor of flattened patches and reconstructs a 4-D
+    image tensor by summing overlapping patches.
+
+    Args:
+        x: A 3-D tensor of shape `(N, C * kH * kW, L)` where `L` is
+            the total number of blocks.
+        output_size: int or tuple of two ints `(oH, oW)`, the spatial
+            shape of the output tensor.
+        kernel_size: int or tuple of two ints, the size of the sliding
+            window `(kH, kW)`.  If a single int is given, it is used
+            for both dimensions.
+        dilation: int or tuple of two ints, the spacing between kernel
+            points. Default: 1.
+        padding: int or tuple of two ints, the amount of zero-padding
+            that was applied to the input of `unfold`. Default: 0.
+        stride: int or tuple of two ints, the step size of the sliding
+            window. Default: 1.
+
+    Returns:
+        A 4-D tensor of shape `(N, C, oH, oW)`.
+
+    Example:
+
+    >>> x = keras.ops.ones((1, 2, 4, 4))
+    >>> patches = keras.ops.unfold(x, kernel_size=2, stride=2)
+    >>> patches.shape
+    (1, 8, 4)
+    >>> y = keras.ops.fold(patches, output_size=(4, 4),
+    ...     kernel_size=2, stride=2)
+    >>> y.shape
+    (1, 2, 4, 4)
+
+    """
+    input_shape = x.shape
+    ndims = len(input_shape)
+    if ndims != 3:
+        raise ValueError(
+            f"Input must be a 3D tensor. Received: input.shape={input_shape}"
+        )
+    if any_symbolic_tensors((x,)):
+        return Fold(
+            output_size, kernel_size, dilation, padding, stride
+        ).symbolic_call(x)
+    return backend.nn.fold(
+        x,
+        output_size=output_size,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )
+
+
 class DepthToSpace(Operation):
     def __init__(self, block_size, data_format="channels_last", *, name=None):
         super().__init__(name=name)
