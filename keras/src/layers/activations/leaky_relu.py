@@ -42,10 +42,18 @@ class LeakyReLU(Layer):
                 "Argument `alpha` is deprecated. Use `negative_slope` instead."
             )
         super().__init__(**kwargs)
+        import math
+
         if negative_slope is None or negative_slope < 0:
             raise ValueError(
                 "The negative_slope value of a Leaky ReLU layer "
                 "cannot be None or negative value. Expected a float."
+                f" Received: negative_slope={negative_slope}"
+            )
+        if isinstance(negative_slope, float) and math.isnan(negative_slope):
+            raise ValueError(
+                "The negative_slope value of a Leaky ReLU layer "
+                "cannot be NaN. Expected a valid float."
                 f" Received: negative_slope={negative_slope}"
             )
         self.negative_slope = negative_slope

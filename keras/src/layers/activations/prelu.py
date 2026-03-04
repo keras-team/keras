@@ -41,6 +41,12 @@ class PReLU(Layer):
     ):
         super().__init__(**kwargs)
         self.supports_masking = True
+        if alpha_initializer is None:
+            raise ValueError(
+                "The `alpha_initializer` argument for PReLU cannot be None. "
+                "Expected a valid initializer. "
+                f"Received: alpha_initializer={alpha_initializer}"
+            )
         self.alpha_initializer = initializers.get(alpha_initializer)
         self.alpha_regularizer = regularizers.get(alpha_regularizer)
         self.alpha_constraint = constraints.get(alpha_constraint)
