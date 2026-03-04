@@ -574,6 +574,8 @@ class IndexLookup(Layer):
         if self.output_mode == "one_hot":
             # One-hot encodes each element: (batch, d1, ..., dN) -> (batch, d1,
             # ..., dN, depth)
+            if len(input_shape) > 1 and input_shape[-1] == 1:
+                return input_shape[:-1] + (depth,)
             return input_shape + (depth,)
         # multi_hot, count, tf_idf: treat last dim as sample dim, output
         # (batch, ..., depth)
