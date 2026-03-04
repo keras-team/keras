@@ -499,6 +499,10 @@ class OpenVINOKerasTensor:
         assert ov_shape[0].is_static, "the first dimension must be static"
         return ov_shape[0].get_length()
 
+    def __iter__(self):
+        for index in range(len(self)):
+            yield self[index]
+
     def __bool__(self):
         return bool(self.numpy())
 
