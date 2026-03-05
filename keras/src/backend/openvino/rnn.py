@@ -287,12 +287,14 @@ def rnn(
 def lstm(*args, **kwargs):
     raise NotImplementedError("`lstm` is not supported with openvino backend")
 
+
 def _get_activation_name(activation):
     if hasattr(activation, "__name__"):
         return activation.__name__
     if isinstance(activation, str):
         return activation
     return str(activation)
+
 
 def _do_gru_arguments_support_openvino(
     activation,
