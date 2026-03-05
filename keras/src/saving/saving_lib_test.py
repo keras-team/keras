@@ -1158,9 +1158,7 @@ class SavingBattleTest(testing.TestCase):
         x = np.random.random((2, 4))
         ref_out = model(x)
 
-        temp_filepath = os.path.join(
-            self.get_temp_dir(), "nested_list.keras"
-        )
+        temp_filepath = os.path.join(self.get_temp_dir(), "nested_list.keras")
         model.save(temp_filepath)
         new_model = keras.saving.load_model(temp_filepath)
         out = new_model(x)
