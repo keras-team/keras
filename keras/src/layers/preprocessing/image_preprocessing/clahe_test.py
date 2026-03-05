@@ -44,7 +44,7 @@ class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
             np.float32
         )
         layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
-            value_range=(0, 255)
+            value_range=(0, 255), data_format="channels_last"
         )
         xs_out = layer(xs)
         self.assertAllInRange(ops.convert_to_numpy(xs_out), 0, 255)
@@ -58,7 +58,7 @@ class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
             dtype
         )
         layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
-            value_range=(0, 255)
+            value_range=(0, 255), data_format="channels_last"
         )
         xs_out = ops.convert_to_numpy(layer(xs))
         self.assertAllInRange(xs_out, 0, 255)
@@ -69,7 +69,7 @@ class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
             size=(2, 32, 32, 3), low=lower, high=upper
         ).astype(np.float32)
         layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
-            value_range=(lower, upper)
+            value_range=(lower, upper), data_format="channels_last"
         )
         xs_out = ops.convert_to_numpy(layer(xs))
         self.assertAllInRange(xs_out, lower, upper)
@@ -85,7 +85,7 @@ class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
 
     def test_tf_data_compatibility(self):
         layer = layers.ContrastLimitedAdaptiveHistogramEqualization(
-            value_range=(0, 255)
+            value_range=(0, 255), data_format="channels_last"
         )
         input_data = np.random.random((2, 16, 16, 3)) * 255
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
