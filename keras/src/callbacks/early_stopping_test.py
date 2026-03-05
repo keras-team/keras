@@ -136,9 +136,7 @@ class EarlyStoppingTest(testing.TestCase):
         data = np.random.random((100, 1))
         labels = np.where(data > 0.5, 1, 0)
 
-        stopper = callbacks.EarlyStopping(
-            monitor="loss", patience=patience
-        )
+        stopper = callbacks.EarlyStopping(monitor="loss", patience=patience)
 
         for _ in range(3):
             model = models.Sequential(
