@@ -1,4 +1,3 @@
-import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
 
@@ -1011,19 +1010,41 @@ def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     sH, sW = _pair(stride)
 
     x = get_ov_output(x)
-    CKK = x.get_partial_shape()[1].get_length()
-    C = CKK // (kH * kW)
+
+    # Derive CKK and C dynamically from the input shape to support dynamic dims.
+    shape_x = ov_opset.shape_of(x).output(0)
+    one_i64 = ov_opset.constant([1], Type.i64).output(0)
+    two_i64 = ov_opset.constant([2], Type.i64).output(0)
+    step_i64 = ov_opset.constant([1], Type.i64).output(0)
+    CKK_1d = ov_opset.slice(shape_x, one_i64, two_i64, step_i64).output(0)
+    KK_node = ov_opset.constant([kH * kW], Type.i64).output(0)
+    C_1d = ov_opset.divide(CKK_1d, KK_node).output(0)
+    CKK_scalar = ov_opset.squeeze(CKK_1d, [0]).output(0)
 
     nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
     nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
 
-    # Reshape: (N, CKK, L) -> (N, CKK, nH, nW)
-    new_shape = ov_opset.constant([0, CKK, nH, nW], Type.i64).output(0)
+    # Reshape: (N, CKK, L) -> (N, CKK, nH, nW); 0 copies the dim from input.
+    new_shape = ov_opset.constant([0, 0, nH, nW], Type.i64).output(0)
     x = ov_opset.reshape(x, new_shape, True).output(0)
 
-    # identity[ckk, c, kh, kw] = 1 iff ckk == c*kH*kW + kh*kW + kw
-    identity = np.eye(CKK, dtype=np.float32).reshape(CKK, C, kH, kW)
-    kernel = ov_opset.constant(identity).output(0)
+    # Build identity kernel dynamically: shape (CKK, CKK) via one_hot,
+    # then reshape to (CKK, C, kH, kW).
+    indices = ov_opset.range(
+        ov_opset.constant(0, Type.i64),
+        CKK_scalar,
+        ov_opset.constant(1, Type.i64),
+        Type.i64,
+    ).output(0)
+    on_val = ov_opset.constant(1, Type.f32).output(0)
+    off_val = ov_opset.constant(0, Type.f32).output(0)
+    eye = ov_opset.one_hot(
+        indices, depth=CKK_scalar, on_value=on_val, off_value=off_val, axis=-1
+    ).output(0)
+    kernel_shape = ov_opset.concat(
+        [CKK_1d, C_1d, ov_opset.constant([kH, kW], Type.i64).output(0)], axis=0
+    ).output(0)
+    kernel = ov_opset.reshape(eye, kernel_shape, False).output(0)
     kernel = ov_opset.convert(kernel, x.get_element_type()).output(0)
 
     oH_pad = oH + 2 * pH
