@@ -4,7 +4,6 @@ from openvino import Type
 
 import keras.src.backend.openvino.numpy as onp
 from keras.src import backend
-from keras.src.backend.common import KerasVariable
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
