@@ -3452,6 +3452,8 @@ def reshape(x, newshape):
         newshape = [newshape]
     elif isinstance(newshape, tuple):
         newshape = list(newshape)
+    # Replace None (dynamic dims) with -1, which OpenVINO uses for inference
+    newshape = [-1 if d is None else d for d in newshape]
     newshape = ov_opset.constant(newshape, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.reshape(x, newshape, False).output(0))
 
