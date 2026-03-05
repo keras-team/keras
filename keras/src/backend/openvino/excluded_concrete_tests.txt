@@ -490,8 +490,8 @@ NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
-NumpyDtypeTest::test_nancumsum
-NumpyDtypeTest::test_nanstd
+NumpyDtypeTest::test_nanargmax
+NumpyDtypeTest::test_nanargmin
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_view
 NumpyOneInputOpsCorrectnessTest::test_conj
