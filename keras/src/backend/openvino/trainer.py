@@ -91,13 +91,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
                 parametrize_data[elem_name] = param_elem
         elif isinstance(data, np.ndarray) or np.isscalar(data):
             ov_type = OPENVINO_DTYPES[str(data.dtype)]
-            # Used -1 for the batch dimension so the compiled model
-            # accepts any batch size (dynamic shape).
-            ov_shape = (
-                [-1] + list(data.shape[1:])
-                if data.ndim > 0
-                else list(data.shape)
-            )
+            ov_shape = list(data.shape)
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
             parametrize_data = OpenVINOKerasTensor(param.output(0))
         elif isinstance(data, int):
@@ -110,10 +104,21 @@ class OpenVINOTrainer(base_trainer.Trainer):
             raise "Unknown type of input data {}".format(type(data))
         return parametrize_data
 
+    def _get_data_shapes(self, data):
+        shapes = []
+        for x in tree.flatten(data):
+            if isinstance(x, np.ndarray):
+                shapes.append(x.shape)
+            else:
+                shapes.append(None)
+        return shapes
+
     def _get_compiled_model(self, data):
+        current_shapes = self._get_data_shapes(data)
         if (
             self.ov_compiled_model is not None
             and get_device() == self.ov_device
+            and getattr(self, "ov_input_shapes", None) == current_shapes
         ):
             return self.ov_compiled_model
 
@@ -136,6 +141,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
         ov_model = ov.Model(results=results, parameters=parameters)
         self.ov_compiled_model = ov.compile_model(ov_model, get_device())
         self.ov_device = get_device()
+        self.ov_input_shapes = current_shapes
         return self.ov_compiled_model
 
     def make_predict_function(self, force=False):
