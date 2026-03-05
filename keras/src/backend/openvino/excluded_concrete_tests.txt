@@ -348,7 +348,6 @@ LayerTest::test_stateless_call
 LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_det
 LinalgOpsCorrectnessTest::test_eig
-LinalgOpsCorrectnessTest::test_eigh
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_lu_factor
 LinalgOpsCorrectnessTest::test_norm_2_-2
