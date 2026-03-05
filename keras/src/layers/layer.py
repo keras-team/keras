@@ -1645,8 +1645,7 @@ class Layer(BackendLayer, Operation):
             and hasattr(self, "_tracker")
             and hasattr(self, name)
             and tracking.is_tracking_enabled()
-            and type(self).__module__
-            not in self._RESERVED_ATTR_EXEMPT_MODULES
+            and type(self).__module__ not in self._RESERVED_ATTR_EXEMPT_MODULES
         ):
             warnings.warn(
                 f"`{name}` is a reserved attribute in Keras layers and "
