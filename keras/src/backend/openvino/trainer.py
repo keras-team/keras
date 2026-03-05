@@ -93,7 +93,11 @@ class OpenVINOTrainer(base_trainer.Trainer):
             ov_type = OPENVINO_DTYPES[str(data.dtype)]
             # Used -1 for the batch dimension so the compiled model
             # accepts any batch size (dynamic shape).
-            ov_shape = [-1] + list(data.shape[1:]) if data.ndim > 0 else list(data.shape)
+            ov_shape = (
+                [-1] + list(data.shape[1:])
+                if data.ndim > 0
+                else list(data.shape)
+            )
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
             parametrize_data = OpenVINOKerasTensor(param.output(0))
         elif isinstance(data, int):
