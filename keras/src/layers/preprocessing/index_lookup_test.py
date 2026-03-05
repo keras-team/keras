@@ -711,3 +711,20 @@ class IndexLookupLayerTest(testing.TestCase):
 
         vocab_loaded = layer2.get_vocabulary(include_special_tokens=True)
         self.assertEqual(vocab_expected, vocab_loaded)
+
+    def test_oov_method_ignored_for_string_dtype(self):
+        vocabulary = ["cat", "dog", "fish"]
+        oov_data = ["aaa", "bbb", "ccc", "ddd", "eee", "fff"]
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 4,
+            "mask_token": "",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+            "vocabulary": vocabulary,
+        }
+        layer_floormod = layers.IndexLookup(oov_method="floormod", **kwargs)
+        layer_farmhash = layers.IndexLookup(oov_method="farmhash", **kwargs)
+        out_floormod = backend.convert_to_numpy(layer_floormod(oov_data))
+        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_data))
+        self.assertAllClose(out_floormod, out_farmhash)
