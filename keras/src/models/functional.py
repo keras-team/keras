@@ -220,17 +220,17 @@ class Functional(Function, Model):
             # Allow list/tuple with matching length (positional matching)
             if isinstance(inputs, (list, tuple)):
                 if len(inputs) == len(self._inputs_struct):
-                    return super(
-                        Model, self
-                    )._assert_input_compatibility(inputs)
+                    return super(Model, self)._assert_input_compatibility(
+                        inputs
+                    )
             keys = list(self._inputs_struct.keys())
             raise ValueError(
                 f'Model "{self.name}" expects inputs as a `dict` with '
                 f"the following keys: {keys}. Instead received "
                 f"{type(inputs).__name__}. Pass your data as "
-                "`model.fit({" + ", ".join(
-                    f"'{k}': ..." for k in keys
-                ) + "}, ...)`."
+                "`model.fit({"
+                + ", ".join(f"'{k}': ..." for k in keys)
+                + "}, ...)`."
             )
         return super(Model, self)._assert_input_compatibility(inputs)
 
