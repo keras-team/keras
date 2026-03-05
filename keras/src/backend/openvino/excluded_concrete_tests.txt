@@ -346,7 +346,6 @@ LayerTest::test_end_to_end_masking
 LayerTest::test_quantized_layer_with_remat
 LayerTest::test_stateless_call
 LinalgOpsCorrectnessTest::test_cholesky
-LinalgOpsCorrectnessTest::test_det
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_eigh
 LinalgOpsCorrectnessTest::test_lstsq
