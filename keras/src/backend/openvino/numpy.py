@@ -3448,14 +3448,17 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = get_ov_output(x)
-    if isinstance(newshape, int):
-        newshape = [newshape]
-    elif isinstance(newshape, tuple):
-        newshape = list(newshape)
-    # Replace None (dynamic dims) with -1, which OpenVINO uses for inference
-    newshape = [-1 if d is None else d for d in newshape]
-    newshape = ov_opset.constant(newshape, Type.i32).output(0)
-    return OpenVINOKerasTensor(ov_opset.reshape(x, newshape, False).output(0))
+    if isinstance(newshape, (OpenVINOKerasTensor, ov.Output)):
+        shape_tensor = get_ov_output(newshape)
+    else:
+        if isinstance(newshape, int):
+            newshape = [newshape]
+        elif isinstance(newshape, tuple):
+            newshape = list(newshape)
+        # Replace None (dynamic dims) with -1, which OpenVINO uses for inference
+        newshape = [-1 if d is None else d for d in newshape]
+        shape_tensor = ov_opset.constant(newshape, Type.i32).output(0)
+    return OpenVINOKerasTensor(ov_opset.reshape(x, shape_tensor, False).output(0))
 
 
 def roll(x, shift, axis=None):
