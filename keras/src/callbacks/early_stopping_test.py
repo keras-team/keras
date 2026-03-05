@@ -127,6 +127,33 @@ class EarlyStoppingTest(testing.TestCase):
         self.assertGreaterEqual(len(history2.epoch), patience)
 
     @pytest.mark.requires_trainable_backend
+    def test_early_stopping_reuse_across_models(self):
+        # Regression test for https://github.com/keras-team/keras/issues/20256
+        # When reusing EarlyStopping across multiple model.fit() calls with
+        # different models, self.best must be reset so that the new model
+        # isn't compared against a stale best value from a previous run.
+        patience = 5
+        data = np.random.random((100, 1))
+        labels = np.where(data > 0.5, 1, 0)
+
+        stopper = callbacks.EarlyStopping(
+            monitor="loss", patience=patience
+        )
+
+        for _ in range(3):
+            model = models.Sequential(
+                [
+                    layers.Dense(10, activation="relu"),
+                    layers.Dense(1, activation="sigmoid"),
+                ]
+            )
+            model.compile(optimizer="sgd", loss="binary_crossentropy")
+            history = model.fit(
+                data, labels, callbacks=[stopper], verbose=0, epochs=50
+            )
+            self.assertGreater(len(history.epoch), patience)
+
+    @pytest.mark.requires_trainable_backend
     def test_early_stopping_with_baseline(self):
         baseline = 0.6
         x_train = np.random.random((10, 5))
