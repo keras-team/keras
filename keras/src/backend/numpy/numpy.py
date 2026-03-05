@@ -1225,6 +1225,16 @@ def sin(x):
     return np.sin(x)
 
 
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
+    return np.sinc(x).astype(dtype)
+
+
 def sinh(x):
     x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
