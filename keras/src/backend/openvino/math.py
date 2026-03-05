@@ -717,7 +717,3 @@ def erf(x):
 
 def erfinv(x):
     raise NotImplementedError("`erfinv` is not supported with openvino backend")
-
-
-def solve(a, b):
-    raise NotImplementedError("`solve` is not supported with openvino backend")
