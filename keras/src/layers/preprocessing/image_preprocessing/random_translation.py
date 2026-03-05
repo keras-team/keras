@@ -171,11 +171,8 @@ class RandomTranslation(BaseImagePreprocessingLayer):
                 + f"Received: input_number={input_number}"
             )
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training:
-            return self._translate_inputs(images, transformation)
-        return images
+    def _transform_images(self, images, transformation, interpolation):
+        return self._translate_inputs(images, transformation, interpolation)
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
@@ -275,13 +272,6 @@ class RandomTranslation(BaseImagePreprocessingLayer):
 
         return bounding_boxes
 
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
-
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None
@@ -330,7 +320,7 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         )
         return {"translations": translations, "input_shape": images_shape}
 
-    def _translate_inputs(self, inputs, transformation):
+    def _translate_inputs(self, inputs, transformation, interpolation):
         if transformation is None:
             return inputs
 
@@ -343,7 +333,7 @@ class RandomTranslation(BaseImagePreprocessingLayer):
         outputs = self.backend.image.affine_transform(
             inputs,
             transform=self._get_translation_matrix(translations),
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
             data_format=self.data_format,

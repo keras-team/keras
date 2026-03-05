@@ -497,13 +497,8 @@ class JaxLayer(Layer):
             return None
 
     def _initialize_weights(self, input_shape):
-        if jax_utils.is_in_jax_tracing_scope() or tf.inside_function():
-            # This exception is not actually shown, it is caught and a detailed
-            # warning about calling 'build' is printed.
-            raise ValueError(
-                "'JaxLayer' cannot be built in tracing scope"
-                "or inside tf function"
-            )
+        if tf.inside_function():
+            raise ValueError("'JaxLayer' cannot be built inside tf function")
 
         # Initialize `params` and `state` if needed by calling `init_fn`.
         def create_input(shape):
@@ -511,6 +506,11 @@ class JaxLayer(Layer):
             return jax.numpy.ones(shape)
 
         init_inputs = tree.map_shape_structure(create_input, input_shape)
+        if backend.backend() == "jax" and jax_utils.is_in_jax_tracing_scope(
+            tree.flatten(init_inputs)[0]
+        ):
+            raise ValueError("'JaxLayer' cannot be built in a tracing scope")
+
         init_args = []
         for argument_name in self.init_fn_arguments:
             if argument_name == "rng":
