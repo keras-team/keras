@@ -314,7 +314,7 @@ def map_graph(inputs, outputs):
     for input_t in inputs:
         input_operation = input_t._keras_history[0]
         if input_operation and input_operation not in operations_depths:
-            node_index = input_t._keras_history[1]
+            node_index = input_t._keras_history.node_index
             node = input_operation._inbound_nodes[node_index]
             # Add InputLayer operations (unused inputs) unconditionally.
             # Skip non-InputLayer operations, as they produce intermediate
