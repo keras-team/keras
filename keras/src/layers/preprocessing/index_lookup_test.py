@@ -311,7 +311,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
 
     def test_one_hot_compute_output_shape_multi_hot_consistency(self):
-        """compute_output_shape for multi_hot/count/tf_idf uses last dim as sample."""
+        """multi_hot/count/tf_idf use last dim as sample in compute_output_shape."""
         kwargs = {
             "max_tokens": 10,
             "num_oov_indices": 1,
@@ -320,14 +320,16 @@ class IndexLookupLayerTest(testing.TestCase):
             "vocabulary_dtype": "string",
             "vocabulary": ["a", "b", "c"],
         }
+        # depth = vocab size (3) + OOV (1) = 4 when pad_to_max_tokens is False
+        depth = 4
         # multi_hot: (batch, sample_len) -> (batch, depth)
         layer_multi = layers.IndexLookup(**kwargs, output_mode="multi_hot")
         shape_multi = layer_multi.compute_output_shape((None, 5))
-        self.assertEqual(shape_multi, (None, 10))
+        self.assertEqual(shape_multi, (None, depth))
         # one_hot: (batch, d1, d2) -> (batch, d1, d2, depth)
         layer_one = layers.IndexLookup(**kwargs, output_mode="one_hot")
         shape_one = layer_one.compute_output_shape((None, 2, 2))
-        self.assertEqual(shape_one, (None, 2, 2, 10))
+        self.assertEqual(shape_one, (None, 2, 2, depth))
 
     def test_one_hot_compute_output_spec_preserves_input_dims(self):
         """compute_output_spec for one_hot must preserve all input dims."""

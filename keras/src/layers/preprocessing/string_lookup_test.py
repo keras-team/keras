@@ -223,7 +223,7 @@ class StringLookupTest(testing.TestCase):
         self.assertEqual(vocab, ["a", "b", "c"])
 
     def test_one_hot_symbolic_output_shape_nested_input(self):
-        """StringLookup one_hot symbolic output shape matches eager for nested input.
+        """StringLookup one_hot symbolic shape matches eager for nested input.
 
         Regression test for gh-22336: symbolic output was (None, max_tokens)
         instead of (None, d1, d2, ..., max_tokens).
