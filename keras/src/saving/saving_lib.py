@@ -949,17 +949,15 @@ def _load_container_state(
             # exist in the store, fall back to class-name-based path
             # (the format used before this fix).
             if not _store_has_path(weights_store, candidate_path):
-                class_name = naming.to_snake_case(
-                    saveable.__class__.__name__
-                )
+                class_name = naming.to_snake_case(saveable.__class__.__name__)
                 if class_name in used_class_names:
                     used_class_names[class_name] += 1
                     class_name = f"{class_name}_{used_class_names[class_name]}"
                 else:
                     used_class_names[class_name] = 0
-                fallback_path = file_utils.join(
-                    inner_path, class_name
-                ).replace("\\", "/")
+                fallback_path = file_utils.join(inner_path, class_name).replace(
+                    "\\", "/"
+                )
                 if _store_has_path(weights_store, fallback_path):
                     candidate_path = fallback_path
 

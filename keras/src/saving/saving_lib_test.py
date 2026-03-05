@@ -1150,9 +1150,7 @@ class SavingBattleTest(testing.TestCase):
         into a model using the base class, and vice versa, when the layer
         names match (issue #20322)."""
 
-        @keras.saving.register_keras_serializable(
-            package="custom_lstm_test"
-        )
+        @keras.saving.register_keras_serializable(package="custom_lstm_test")
         class CustomLSTM(keras.layers.LSTM):
             pass
 
