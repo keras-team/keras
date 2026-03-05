@@ -689,6 +689,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = get_ov_output(target)
     output = get_ov_output(output)
+    if target.get_element_type() != output.get_element_type():
+        output = ov_opset.convert(output, target.get_element_type()).output(0)
 
     if target.shape != output.shape:
         raise ValueError(
