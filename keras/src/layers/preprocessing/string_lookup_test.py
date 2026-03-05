@@ -225,8 +225,7 @@ class StringLookupTest(testing.TestCase):
     @pytest.mark.skipif(
         backend.backend() == "numpy",
         reason=(
-            "StringLookup symbolic string Input not supported "
-            "on numpy backend."
+            "StringLookup symbolic string Input not supported on numpy backend."
         ),
     )
     def test_one_hot_symbolic_output_shape_nested_input(self):
