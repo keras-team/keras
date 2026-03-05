@@ -1058,6 +1058,11 @@ def nancumsum(x, axis=None, dtype=None):
     return jnp.nancumsum(x, axis=axis, dtype=dtype)
 
 
+def nancumprod(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    return jnp.nancumprod(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanmax(x, axis=axis, keepdims=keepdims)
