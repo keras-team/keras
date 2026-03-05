@@ -287,6 +287,12 @@ def rnn(
 def lstm(*args, **kwargs):
     raise NotImplementedError("`lstm` is not supported with openvino backend")
 
+def _get_activation_name(activation):
+    if hasattr(activation, "__name__"):
+        return activation.__name__
+    if isinstance(activation, str):
+        return activation
+    return str(activation)
 
 def _do_gru_arguments_support_openvino(
     activation,
@@ -294,12 +300,12 @@ def _do_gru_arguments_support_openvino(
     unroll,
     use_bias,
 ):
-    from keras.src import activations
-    from keras.src import ops
-
+    ctivation_name = _get_activation_name(activation)
+    recurrent_activation_name = _get_activation_name(recurrent_activation)
+    supported_activations = ("relu", "sigmoid", "tanh")
     return (
-        activation in (activations.tanh, ops.tanh)
-        and recurrent_activation in (activations.sigmoid, ops.sigmoid)
+        activation_name in supported_activations
+        and recurrent_activation_name in supported_activations
         and not unroll
         and use_bias
     )
@@ -444,6 +450,8 @@ def gru(
         ).output(0)
     units_int = recurrent_kernel.get_partial_shape()[0].get_length()
     direction = "reverse" if go_backwards else "forward"
+    activation_name = _get_activation_name(activation)
+    recurrent_activation_name = _get_activation_name(recurrent_activation)
     rnn_node = ov_opset.gru_sequence(
         inputs,
         initial_state,
@@ -453,7 +461,7 @@ def gru(
         bias_ov,
         hidden_size=units_int,
         direction=direction,
-        activations=["sigmoid", "tanh"],
+        activations=[recurrent_activation_name, activation_name],
         linear_before_reset=reset_after,
     )
     outputs = rnn_node.output(0)
