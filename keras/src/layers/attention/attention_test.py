@@ -404,9 +404,7 @@ class AttentionTest(testing.TestCase):
         self.assertEqual(output.shape, (2, 8, 6, 4))
 
         # With return_attention_scores
-        output, scores = layer(
-            [query, value], return_attention_scores=True
-        )
+        output, scores = layer([query, value], return_attention_scores=True)
         self.assertEqual(output.shape, (2, 8, 6, 4))
         self.assertEqual(scores.shape, (2, 8, 6, 6))
 
