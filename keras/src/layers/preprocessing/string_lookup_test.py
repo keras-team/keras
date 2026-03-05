@@ -222,6 +222,10 @@ class StringLookupTest(testing.TestCase):
 
         self.assertEqual(vocab, ["a", "b", "c"])
 
+    @pytest.mark.skipif(
+        backend.backend() == "numpy",
+        reason="StringLookup symbolic string Input not supported on numpy backend.",
+    )
     def test_one_hot_symbolic_output_shape_nested_input(self):
         """StringLookup one_hot symbolic shape matches eager for nested input.
 

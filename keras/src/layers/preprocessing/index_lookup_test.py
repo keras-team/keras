@@ -311,7 +311,7 @@ class IndexLookupLayerTest(testing.TestCase):
         )
 
     def test_one_hot_compute_output_shape_multi_hot_consistency(self):
-        """multi_hot/count/tf_idf use last dim as sample in compute_output_shape."""
+        """multi_hot/count/tf_idf last dim is sample in output shape."""
         kwargs = {
             "max_tokens": 10,
             "num_oov_indices": 1,
