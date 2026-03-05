@@ -4,6 +4,7 @@ import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
+from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.variables import standardize_dtype
@@ -573,6 +574,10 @@ def argmin(x, axis=None, keepdims=False):
 
 
 def argsort(x, axis=-1):
+    # Non-OV inputs (e.g. plain lists from ops/nn.py tuple-axis dispatch)
+    # must not enter the OV graph path to avoid constant-folding deadlocks.
+    if not isinstance(x, (OpenVINOKerasTensor, ov.Output, KerasVariable)):
+        return np.argsort(x, axis=axis).astype(np.int32)
     x = get_ov_output(x)
     x_shape = x.get_partial_shape()
     rank = x_shape.rank.get_length()
