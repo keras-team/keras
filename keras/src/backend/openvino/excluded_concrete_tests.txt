@@ -469,6 +469,7 @@ NNOpsBehaviorTest::test_fold_no_padding
 NNOpsBehaviorTest::test_fold_non_square_output
 NNOpsBehaviorTest::test_fold_tuple_params
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
+NNOpsBehaviorTest::test_logit_recovery_binary_crossentropy
 NNOpsCorrectnessTest::test_conv_transpose_
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_fold
