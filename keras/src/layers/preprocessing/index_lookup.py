@@ -87,8 +87,8 @@ class IndexLookup(Layer):
             If `True`, returns a `SparseTensor` instead of a dense `Tensor`.
             Defaults to `False`.
         oov_method: Only relevant when `num_oov_indices > 1` and the input
-            dtype is integer (i.e. for `IntegerLookup`). Controls how OOV
-            tokens are assigned to OOV buckets.
+            dtype is integer (i.e. for `IntegerLookup`). Controls how
+            Out-Of-Vocabulary (OOV) tokens are assigned to OOV buckets.
             - `"floormod"` (default): uses `token % num_oov_indices`.
               Preserves backwards compatibility but can produce severe bucket
               imbalance when input IDs share a common factor with
