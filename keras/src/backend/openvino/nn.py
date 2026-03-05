@@ -171,6 +171,8 @@ def softmax(x, axis=-1):
             ov_opset.reshape(softmax_x, x_shape, False).output(0)
         )
     if isinstance(axis, (tuple, list)):
+        if not axis:
+            return OpenVINOKerasTensor(x)
         axes_const = ov_opset.constant(sorted(axis), Type.i32).output(0)
         x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
         exp_x = ov_opset.exp(ov_opset.subtract(x, x_max).output(0)).output(0)
@@ -181,6 +183,8 @@ def softmax(x, axis=-1):
 
 def log_softmax(x, axis=-1):
     x = get_ov_output(x)
+    if isinstance(axis, (tuple, list)) and not axis:
+        return OpenVINOKerasTensor(x)
     restore_shape = None
     if axis is None:
         restore_shape = ov_opset.shape_of(x)
