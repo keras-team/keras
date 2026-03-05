@@ -213,8 +213,26 @@ class Functional(Function, Model):
             return output_shapes[0]
         return output_shapes
 
-    def _assert_input_compatibility(self, *args):
-        return super(Model, self)._assert_input_compatibility(*args)
+    def _assert_input_compatibility(self, inputs):
+        if isinstance(self._inputs_struct, dict) and not isinstance(
+            inputs, dict
+        ):
+            # Allow list/tuple with matching length (positional matching)
+            if isinstance(inputs, (list, tuple)):
+                if len(inputs) == len(self._inputs_struct):
+                    return super(
+                        Model, self
+                    )._assert_input_compatibility(inputs)
+            keys = list(self._inputs_struct.keys())
+            raise ValueError(
+                f'Model "{self.name}" expects inputs as a `dict` with '
+                f"the following keys: {keys}. Instead received "
+                f"{type(inputs).__name__}. Pass your data as "
+                "`model.fit({" + ", ".join(
+                    f"'{k}': ..." for k in keys
+                ) + "}, ...)`."
+            )
+        return super(Model, self)._assert_input_compatibility(inputs)
 
     def _maybe_warn_inputs_struct_mismatch(self, inputs, raise_exception=False):
         try:
