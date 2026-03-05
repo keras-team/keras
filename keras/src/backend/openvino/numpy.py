@@ -3458,7 +3458,9 @@ def reshape(x, newshape):
         # Replace None (dynamic dims) with -1, which OpenVINO uses for inference
         newshape = [-1 if d is None else d for d in newshape]
         shape_tensor = ov_opset.constant(newshape, Type.i32).output(0)
-    return OpenVINOKerasTensor(ov_opset.reshape(x, shape_tensor, False).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.reshape(x, shape_tensor, False).output(0)
+    )
 
 
 def roll(x, shift, axis=None):
