@@ -300,7 +300,6 @@ def _do_gru_arguments_support_openvino(
     unroll,
     use_bias,
 ):
-    ctivation_name = _get_activation_name(activation)
     recurrent_activation_name = _get_activation_name(recurrent_activation)
     supported_activations = ("relu", "sigmoid", "tanh")
     return (
