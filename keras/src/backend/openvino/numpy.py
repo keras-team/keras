@@ -3463,8 +3463,8 @@ def repeat(x, repeats, axis=None):
 
 def reshape(x, newshape):
     x = get_ov_output(x)
-    if isinstance(newshape, tuple):
-        newshape = list(newshape)
+    if isinstance(newshape, (tuple, list)):
+        newshape = [-1 if d is None else d for d in newshape]
     newshape = ov_opset.constant(newshape, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.reshape(x, newshape, False).output(0))
 
