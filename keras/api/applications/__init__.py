@@ -72,12 +72,12 @@ from keras.src.applications.mobilenet_v3 import (
 )
 from keras.src.applications.nasnet import NASNetLarge as NASNetLarge
 from keras.src.applications.nasnet import NASNetMobile as NASNetMobile
+from keras.src.applications.resnet import ResNet50 as ResNet50
 from keras.src.applications.resnet import ResNet101 as ResNet101
 from keras.src.applications.resnet import ResNet152 as ResNet152
-from keras.src.applications.resnet import ResNet50 as ResNet50
+from keras.src.applications.resnet_v2 import ResNet50V2 as ResNet50V2
 from keras.src.applications.resnet_v2 import ResNet101V2 as ResNet101V2
 from keras.src.applications.resnet_v2 import ResNet152V2 as ResNet152V2
-from keras.src.applications.resnet_v2 import ResNet50V2 as ResNet50V2
 from keras.src.applications.vgg16 import VGG16 as VGG16
 from keras.src.applications.vgg19 import VGG19 as VGG19
 from keras.src.applications.xception import Xception as Xception
