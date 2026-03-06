@@ -98,19 +98,23 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
 
     def test_qr(self):
         x = KerasTensor((None, 4, 3), dtype="float32")
-        q, r = linalg.qr(x, mode="reduced")
-        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="reduced")
-        qref_shape = (None,) + qref.shape[1:]
-        rref_shape = (None,) + rref.shape[1:]
-        self.assertEqual(q.shape, qref_shape)
-        self.assertEqual(r.shape, rref_shape)
+        for mode in ["reduced", "complete"]:
+            q, r = linalg.qr(x, mode=mode)
+            q_np = backend.convert_to_numpy(q)
+            r_np = backend.convert_to_numpy(r)
 
-        q, r = linalg.qr(x, mode="complete")
-        qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="complete")
-        qref_shape = (None,) + qref.shape[1:]
-        rref_shape = (None,) + rref.shape[1:]
-        self.assertEqual(q.shape, qref_shape)
-        self.assertEqual(r.shape, rref_shape)
+            # QR decomposition is unique only up to the signs of the columns of Q and rows of R.
+            # Thus, we test the mathematical properties rather than exact equality with NumPy.
+            # 1. A = Q @ R
+            self.assertAllClose(x, np.matmul(q_np, r_np), atol=1e-5)
+
+            # 2. Q is orthogonal (Q^T @ Q = I)
+            qt_q = np.matmul(np.transpose(q_np, (1, 0)), q_np)
+            eye = np.eye(q_np.shape[1])
+            self.assertAllClose(eye, qt_q, atol=1e-5)
+
+            # 3. R is upper triangular
+            self.assertAllClose(np.tril(r_np, -1), np.zeros_like(r_np), atol=1e-5)
 
     def test_qr_invalid_mode(self):
         # backend agnostic error message
