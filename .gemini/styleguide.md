@@ -208,7 +208,7 @@ Alternatively, you can use the loss function `sparse_categorical_crossentropy` i
 
 When performing code reviews on pull requests, you must strictly adhere to the following principles in addition to the API design guidelines above:
 
-1. **Question the Necessity of Changes**: Do not assume that the pull request changes are strictly necessary. Critically review the proposed changes to ensure they add real value. Point out any code that solving a non-existent problem or adding unnecessary complexity.
+1. **Question the Necessity of Changes**: Do not assume that the pull request changes are strictly necessary. Critically review the proposed changes to ensure they add real value. Point out any code that is solving a non-existent problem or adding unnecessary complexity.
 
 2. **Call out "AI Slop"**: Actively look for and identify "AI slop"—generic, overly verbose, or hallucinated code that lacks context or violates best practices. If you suspect the code is AI slop, explicitly call it out.
 
