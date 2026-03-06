@@ -441,6 +441,51 @@ class JaxDistributionLibTest(testing.TestCase):
         for shard in result.addressable_shards:
             self.assertEqual(shard.data.shape, (3, 4))
 
+    def test_all_reduce(self):
+        devices = jax.devices()
+        num_devices = len(devices)
+        mesh = jax.sharding.Mesh(np.array(devices), axis_names=("batch",))
+        sharding = jax.sharding.NamedSharding(
+            mesh, jax.sharding.PartitionSpec("batch")
+        )
+
+        input_data = jax.device_put(
+            np.ones((num_devices, 2), dtype="float32"), sharding
+        )
+
+        result_sum = backend_dlib.all_reduce(
+            input_data, op="sum", axis_name="batch"
+        )
+
+        expected_sum = np.full((num_devices, 2), num_devices, dtype="float32")
+        self.assertAllClose(result_sum, expected_sum)
+
+        result_mean = backend_dlib.all_reduce(
+            input_data, op="mean", axis_name="batch"
+        )
+        self.assertAllClose(result_mean, input_data)
+
+    def test_all_gather(self):
+        devices = jax.devices()
+        num_devices = len(devices)
+        mesh = jax.sharding.Mesh(np.array(devices), axis_names=("batch",))
+        sharding = jax.sharding.NamedSharding(
+            mesh, jax.sharding.PartitionSpec("batch")
+        )
+
+        input_data = jax.device_put(
+            np.arange(num_devices, dtype="float32").reshape((num_devices, 1)),
+            sharding,
+        )
+
+        results = backend_dlib.all_gather(input_data, axis=0, axis_name="batch")
+
+        expected_gathered = np.arange(num_devices, dtype="float32").reshape(
+            num_devices, 1
+        )
+        expected_results = np.stack([expected_gathered] * num_devices)
+        self.assertAllClose(results, expected_results)
+
 
 class ShardingCaptureLayer(layers.Layer):
     def __init__(self, **kwargs):
