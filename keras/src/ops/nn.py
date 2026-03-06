@@ -964,10 +964,8 @@ def softmax(x, axis=-1):
         x = backend.nn.softmax(x_reshaped, axis=-1)
 
         x = backend.numpy.reshape(x, x_transposed.shape)
-        combined = [*axis_to_keep, *axis]
         x = backend.numpy.transpose(
-            x,
-            axes=sorted(range(len(combined)), key=combined.__getitem__),
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
         )
         return x
     else:
@@ -1027,10 +1025,8 @@ def log_softmax(x, axis=-1):
         x = backend.nn.log_softmax(x_reshaped, axis=-1)
 
         x = backend.numpy.reshape(x, x_transposed.shape)
-        combined = [*axis_to_keep, *axis]
         x = backend.numpy.transpose(
-            x,
-            axes=sorted(range(len(combined)), key=combined.__getitem__),
+            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
         )
         return x
     else:
