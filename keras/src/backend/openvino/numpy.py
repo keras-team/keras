@@ -574,10 +574,6 @@ def argmin(x, axis=None, keepdims=False):
 
 
 def argsort(x, axis=-1):
-    # Non-OV inputs (e.g. plain lists from ops/nn.py tuple-axis dispatch)
-    # must not enter the OV graph path to avoid constant-folding deadlocks.
-    if not isinstance(x, (OpenVINOKerasTensor, ov.Output, KerasVariable)):
-        return np.argsort(x, axis=axis).astype(np.int32)
     x = get_ov_output(x)
     x_shape = x.get_partial_shape()
     rank = x_shape.rank.get_length()
