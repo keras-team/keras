@@ -689,9 +689,10 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    # uint32 doesn't exist in torch. Use int64 so that seed values up to
-    # 2**63-1 are representable without silent sign-flip or collision.
-    return "int64"
+    # uint32 doesn't exist in torch. Seeds are conceptually uint32 values;
+    # int32 is used here and the bit pattern is reinterpreted as uint32 at
+    # each call site (torch_seed_generator / torch.manual_seed) via & 0xFFFFFFFF.
+    return "int32"
 
 
 def remat(f):
