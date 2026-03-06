@@ -64,16 +64,10 @@ class Variable(
             )
         with tf.init_scope():
             self._initialize_with_initializer(self._initializer)
+            self._initializer = None
 
     def _direct_assign(self, value):
-        dtype = (
-            self._dtype
-            if getattr(self, "_value", None) is None
-            else self._value.dtype
-        )
-        casted = tf.cast(value, dtype)
-        self._value.assign(casted)
-        return None
+        self._value.assign(tf.cast(value, self._value.dtype))
 
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
