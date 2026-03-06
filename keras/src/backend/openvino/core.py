@@ -762,10 +762,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                     for item in tree.flatten(x)
                 ]
             )
-        # Use astype (unsafe casting) rather than np.array(..., dtype=dtype)
-        # to avoid OverflowError on NumPy >=1.24 when values exceed the target
-        # dtype range (e.g. a uint32 seed value stored in an int32 tensor).
-        x = np.asarray(x).astype(dtype)
+        x = np.array(x, dtype=dtype)
         ov_type = OPENVINO_DTYPES[dtype]
         return OpenVINOKerasTensor(ov_opset.constant(x, ov_type).output(0), x)
     elif isinstance(x, (float, int, bool)):
