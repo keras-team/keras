@@ -3552,6 +3552,12 @@ def sin(x):
     return OpenVINOKerasTensor(ov_opset.sin(x).output(0))
 
 
+def sinc(x):
+    raise NotImplementedError(
+        "`sinc` is not supported with the OpenVINO backend."
+    )
+
+
 def sinh(x):
     x = get_ov_output(x)
     x_type = x.get_element_type()
