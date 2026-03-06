@@ -1575,7 +1575,46 @@ class Layer(BackendLayer, Operation):
     def __str__(self):
         return self.__repr__()
 
+    # Attribute names reserved for internal tracking by the Layer class.
+    # Overriding these in subclasses will silently break weight
+    # saving/loading and other functionality.
+    _RESERVED_LAYER_ATTRIBUTES = frozenset(
+        {
+            "_layers",
+            "_metrics",
+            "_trainable_variables",
+            "_non_trainable_variables",
+            "_seed_generators",
+        }
+    )
+
+    # Internal modules that legitimately reassign reserved attributes.
+    _RESERVED_ATTR_EXEMPT_MODULES = frozenset(
+        {
+            "keras.src.models.sequential",
+            "keras.src.models.functional",
+        }
+    )
+
     def __setattr__(self, name, value):
+        # Warn if user code reassigns a reserved tracked attribute.
+        if (
+            name in self._RESERVED_LAYER_ATTRIBUTES
+            and hasattr(self, "_tracker")
+            and hasattr(self, name)
+            and tracking.is_tracking_enabled()
+        ):
+            caller_frame = inspect.currentframe().f_back
+            caller_module = caller_frame.f_globals.get("__name__", "")
+            if caller_module not in self._RESERVED_ATTR_EXEMPT_MODULES:
+                warnings.warn(
+                    f"`{name}` is a reserved attribute in Keras layers and "
+                    "should not be used as a variable name in a Layer "
+                    "subclass. Assigning to it can break weight saving, "
+                    "metric tracking, and other functionality. "
+                    f"Please use a different attribute name.",
+                    stacklevel=2,
+                )
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
         if name != "_tracker":
