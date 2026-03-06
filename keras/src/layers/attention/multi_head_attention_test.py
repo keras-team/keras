@@ -68,6 +68,43 @@ class MultiHeadAttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+        self.run_layer_test(
+            layers.MultiHeadAttention,
+            init_kwargs={
+                "num_heads": 2,
+                "key_dim": 2,
+                "use_gate": True,
+            },
+            input_shape={"query_shape": (2, 8, 16), "value_shape": (2, 4, 16)},
+            expected_output_shape=(2, 8, 16),
+            expected_num_trainable_weights=10,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+            run_training_check=False,
+        )
+
+        self.run_layer_test(
+            layers.MultiHeadAttention,
+            init_kwargs={
+                "num_heads": 2,
+                "key_dim": 2,
+                "value_dim": 4,
+                "use_bias": False,
+                "dropout": 0.5,
+                "use_gate": True,
+            },
+            input_shape={"query_shape": (2, 8, 16), "value_shape": (2, 4, 16)},
+            expected_output_shape=(2, 8, 16),
+            expected_num_trainable_weights=5,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=1,
+            expected_num_losses=0,
+            supports_masking=True,
+            run_training_check=False,
+        )
+
     @pytest.mark.skipif(
         backend.backend() not in ("jax", "torch"),
         reason="Flash attention only supported on JAX and Torch",
@@ -202,6 +239,27 @@ class MultiHeadAttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+        self.run_layer_test(
+            layers.MultiHeadAttention,
+            init_kwargs={
+                "num_heads": 2,
+                "key_dim": 2,
+                "use_gate": True,
+                "attention_axes": attention_axes,
+            },
+            input_shape={
+                "query_shape": query_shape,
+                "value_shape": value_shape,
+            },
+            expected_output_shape=query_shape,
+            expected_num_trainable_weights=10,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+            run_training_check=False,
+        )
+
     def test_attention_axes_negative_indexing(self):
         x = np.random.normal(size=(2, 3, 8, 4))
 
@@ -211,6 +269,33 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
         mha_neg = layers.MultiHeadAttention(
             num_heads=2, key_dim=4, attention_axes=-2
+        )
+
+        # Initialize both layers
+        _ = mha_pos(x, x)
+        _ = mha_neg(x, x)
+
+        # Set same weights for fair comparison
+        mha_neg.set_weights(mha_pos.get_weights())
+
+        # Get outputs and attention scores
+        z_pos, a_pos = mha_pos(x, x, return_attention_scores=True)
+        z_neg, a_neg = mha_neg(x, x, return_attention_scores=True)
+
+        # Verify shapes match
+        self.assertEqual(z_pos.shape, z_neg.shape)
+        self.assertEqual(a_pos.shape, a_neg.shape)
+
+        # Verify outputs are identical
+        self.assertAllClose(z_pos, z_neg, rtol=1e-5, atol=1e-5)
+        self.assertAllClose(a_pos, a_neg, rtol=1e-5, atol=1e-5)
+
+        # Create two layers with equivalent positive and negative indices
+        mha_pos = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, attention_axes=2, use_gate=True
+        )
+        mha_neg = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, attention_axes=-2, use_gate=True
         )
 
         # Initialize both layers
@@ -285,6 +370,35 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
         self.assertEqual(output.shape, comp_output_shape)
 
+        layer = layers.MultiHeadAttention(
+            num_heads=2,
+            key_dim=2,
+            value_dim=2,
+            output_shape=output_shape,
+            use_gate=True,
+        )
+        batch_size = 7
+        query_shape = (batch_size,) + query_dims
+        value_shape = (batch_size,) + value_dims
+        key_shape = (batch_size,) + key_dims if key_dims else None
+
+        query = np.ones(query_shape)
+        value = np.ones(value_shape)
+        key = np.ones(key_shape) if key_shape else None
+        output = layer(query=query, value=value, key=key)
+        comp_output_shape = layer.compute_output_shape(
+            query_shape, value_shape, key_shape
+        )
+        self.assertEqual(output.shape, comp_output_shape)
+
+        # Test shapes as lists.
+        comp_output_shape = layer.compute_output_shape(
+            list(query_shape),
+            list(value_shape),
+            list(key_shape) if key_shape is not None else None,
+        )
+        self.assertEqual(output.shape, comp_output_shape)
+
     @parameterized.named_parameters(
         ("query_value_dim_mismatch", (2, 4, 8), (2, 2, 7), (2,)),
         ("key_value_dim_mismatch", (2, 4, 8), (2, 2, 8), (2, 1, 7)),
@@ -314,6 +428,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         layer = layers.MultiHeadAttention(
             num_heads=12,
             key_dim=64,
+            use_gate=True,
             kernel_initializer=initializers.TruncatedNormal(stddev=0.02),
         )
         layer.build((2, 4, 8), (2, 4, 8))
@@ -330,6 +445,10 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertNotAllClose(
             layer._query_dense.kernel,
             layer._output_dense.kernel,
+        )
+        self.assertNotAllClose(
+            layer._query_dense.kernel,
+            layer._gate_dense.kernel,
         )
 
     @pytest.mark.skipif(
@@ -496,6 +615,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         layer = layers.MultiHeadAttention(
             num_heads=num_heads,
             key_dim=key_dim,
+            use_gate=True,
             kernel_constraint="non_neg",
         )
         layer.build(query.shape, key.shape, value.shape)
@@ -508,9 +628,13 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertIsInstance(
             layer._key_dense.kernel.constraint, constraints.NonNeg
         )
+        self.assertIsInstance(
+            layer._gate_dense.kernel.constraint, constraints.NonNeg
+        )
         layer = layers.MultiHeadAttention(
             num_heads=num_heads,
             key_dim=key_dim,
+            use_gate=True,
             bias_constraint="non_neg",
         )
         layer.build(query.shape, key.shape, value.shape)
@@ -523,6 +647,9 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertIsInstance(
             layer._key_dense.bias.constraint, constraints.NonNeg
         )
+        self.assertIsInstance(
+            layer._gate_dense.bias.constraint, constraints.NonNeg
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora(self):
@@ -533,6 +660,7 @@ class MultiHeadAttentionTest(testing.TestCase):
             num_heads=3,
             key_dim=8,
             use_bias=False,
+            use_gate=True,
         )
         layer.build(query.shape, key.shape, value.shape)
         layer.query_dense.enable_lora(2)
@@ -725,3 +853,24 @@ class MultiHeadAttentionTest(testing.TestCase):
         output_quantized = layer(query, key, value)
         mse = ops.mean(ops.square(output_float - output_quantized))
         self.assertLess(mse, 1e-3)  # A weak correctness test
+
+        layer = layers.MultiHeadAttention(
+            num_heads=3,
+            key_dim=8,
+            use_gate=True,
+            use_bias=False,
+        )
+        layer.build(query.shape, value.shape, key.shape)
+        output_float = layer(query, key, value)
+        for sublayer in layer._flatten_layers():
+            try:
+                sublayer.quantize("int8")
+            except:
+                pass
+
+        # Verify weights dtype
+        self.assertDType(layer._query_dense._kernel, "int8")
+        self.assertDType(layer._key_dense._kernel, "int8")
+        self.assertDType(layer._value_dense._kernel, "int8")
+        self.assertDType(layer._gate_dense._kernel, "int8")
+        self.assertDType(layer._output_dense._kernel, "int8")
