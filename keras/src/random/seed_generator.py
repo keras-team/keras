@@ -154,12 +154,13 @@ def draw_seed(seed):
         return seed.next()
     elif isinstance(seed, int):
         dtype = random_seed_dtype()
-        # Seeds are conceptually uint32 values but some backends declare their
-        # seed dtype as a signed type (e.g. "int32").  np.array(x, dtype="int32")
-        # raises OverflowError on NumPy >= 1.24 for values >= 2**31.  Perform
-        # an explicit 2's-complement bit-cast via uint32 so that the integer
-        # passed to convert_to_tensor is always in the representable range of
-        # the declared dtype while preserving the full 32-bit entropy.
+        # Seeds are conceptually uint32 values but some backends declare
+        # their seed dtype as a signed type (e.g. "int32"). np.array(x,
+        # dtype="int32") raises OverflowError on NumPy >= 1.24 for values
+        # >= 2**31. Perform an explicit 2's-complement bit-cast via uint32
+        # so that the integer passed to convert_to_tensor is always in the
+        # representable range of the declared dtype while preserving full
+        # 32-bit entropy.
         if dtype == "int32":
             seed = int(
                 np.array(seed & 0xFFFFFFFF, dtype=np.uint32).view(np.int32)
