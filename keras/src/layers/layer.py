@@ -1603,16 +1603,18 @@ class Layer(BackendLayer, Operation):
             and hasattr(self, "_tracker")
             and hasattr(self, name)
             and tracking.is_tracking_enabled()
-            and type(self).__module__ not in self._RESERVED_ATTR_EXEMPT_MODULES
         ):
-            warnings.warn(
-                f"`{name}` is a reserved attribute in Keras layers and "
-                "should not be used as a variable name in a Layer "
-                "subclass. Assigning to it can break weight saving, "
-                "metric tracking, and other functionality. "
-                f"Please use a different attribute name.",
-                stacklevel=2,
-            )
+            caller_frame = inspect.currentframe().f_back
+            caller_module = caller_frame.f_globals.get("__name__", "")
+            if caller_module not in self._RESERVED_ATTR_EXEMPT_MODULES:
+                warnings.warn(
+                    f"`{name}` is a reserved attribute in Keras layers and "
+                    "should not be used as a variable name in a Layer "
+                    "subclass. Assigning to it can break weight saving, "
+                    "metric tracking, and other functionality. "
+                    f"Please use a different attribute name.",
+                    stacklevel=2,
+                )
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
         if name != "_tracker":
