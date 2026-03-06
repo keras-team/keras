@@ -66,7 +66,7 @@ class MultiHeadAttention(Layer):
         bias_constraint: Constraint for dense layer kernels.
         use_gate: Boolean, whether to apply a gated attention mechanism.
             When True, an additional gating branch is added based on the
-            "Gated Attention for Large Language Models" paper (NeurIPS 2025).
+            (NeurIPS 2025 Best Paper)[https://arxiv.org/abs/2505.06708].
             It applies a sigmoid-activated linear projection to the query
             which then gates the attention output. This helps improve training
             stability and eliminates "attention sinks".
@@ -593,7 +593,7 @@ class MultiHeadAttention(Layer):
         if self._use_gate:
             attention_output = self._output_dense(attention_output * gate)
         else:
-            attention_output = self._output_dense(attention_output * gate)
+            attention_output = self._output_dense(attention_output)
 
         # Set mask on output if needed
         if query_mask is not None:

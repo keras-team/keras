@@ -51,7 +51,7 @@ class GroupedQueryAttention(Layer):
         bias_constraint: Constraint for dense layer kernels.
         use_gate: Boolean, whether to apply a gated attention mechanism.
             When True, an additional gating branch is added based on the
-            "Gated Attention for Large Language Models" paper (NeurIPS 2025).
+            (NeurIPS 2025 Best Paper)[https://arxiv.org/abs/2505.06708].
             It applies a sigmoid-activated linear projection to the query
             which then gates the attention output. This helps improve training
             stability and eliminates "attention sinks".
@@ -180,9 +180,10 @@ class GroupedQueryAttention(Layer):
         self._key_dense.build(key_shape)
         if self.use_gate:
             self._gate_dense = EinsumDense(
-                "bkm,mvh->bkvh",
-                output_shape=(None, self.num_key_value_heads, self.head_dim),
-                bias_axes="vh" if self.use_bias else None,
+                "bqm,muh->bquh",
+                output_shape=(None, self.num_query_heads, self.head_dim),
+                bias_axes="uh" if self.use_bias else None,
+                activation="sigmoid",
                 name="gate",
                 **self._get_common_kwargs_for_sublayer(),
             )
