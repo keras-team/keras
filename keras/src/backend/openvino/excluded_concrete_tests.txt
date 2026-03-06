@@ -501,14 +501,14 @@ NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
+NumpyOneInputOpsCorrectnessTest::test_nanargmax
+NumpyOneInputOpsCorrectnessTest::test_nanargmin
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
-NumpyOneInputOpsDynamicShapeTest::test_angle
 NumpyOneInputOpsDynamicShapeTest::test_view
-NumpyOneInputOpsStaticShapeTest::test_angle
 NumpyOneInputOpsStaticShapeTest::test_view
 OptimizerTest::test_constraints_are_applied
 OptimizerTest::test_ema
