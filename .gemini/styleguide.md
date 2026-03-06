@@ -203,3 +203,17 @@ y_binary = to_categorical(y_int)
 
 Alternatively, you can use the loss function `sparse_categorical_crossentropy` instead, which does expect integer targets.
 ```
+
+---
+
+When performing code reviews on pull requests, you must strictly adhere to the following principles in addition to the API design guidelines above:
+
+1. **Question the Necessity of Changes**: Do not assume that the pull request changes are strictly necessary. Critically review the proposed changes to ensure they add real value. Point out any code that solving a non-existent problem or adding unnecessary complexity.
+
+2. **Call out "AI Slop"**: Actively look for and identify "AI slop"—generic, overly verbose, or hallucinated code that lacks context or violates best practices. If you suspect the code is AI slop, explicitly call it out.
+
+3. **Poke Holes in the Implementation**: Your goal is to critically test the logic. Actively search for and point out failing edge cases, race conditions, or unhandled exceptions in the implementation.
+
+4. **Demand Robustness**: Do not accept fragile code. If the proposed code is not robust enough or lacks proper error handling, explicitly tell the author why the current approach is brittle and what must be done to reinforce it.
+
+5. **Respect Existing Repo Patterns**: Before suggesting review comments (like asking users to add boilerplate or specific patterns), actively check for existing design patterns across the repository. Do not suggest adding useless code or structures that contradict or fall outside the established Keras repo coding style.
