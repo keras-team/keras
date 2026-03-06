@@ -489,7 +489,7 @@ class FunctionalTest(testing.TestCase):
 
         # Dict input
         model = Functional({"a": input_a, "b": input_b}, outputs)
-        with self.assertRaisesRegex(ValueError, "expects 2 input"):
+        with self.assertRaisesRegex(ValueError, r"expects inputs as a `dict`"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
