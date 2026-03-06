@@ -281,17 +281,22 @@ class MultiHeadAttention(Layer):
         )
         self._key_dense.build(key_shape)
         if self._use_gate:
+            query_einsum_equation, query_bias_axes, query_output_rank = (
+                _build_proj_equation(
+                    query_rank - 1, bound_dims=1, output_dims=2
+                )
+            )
             self._gate_dense = EinsumDense(
-                einsum_equation,
+                query_einsum_equation,
                 output_shape=_get_output_shape(
-                    output_rank - 1, [self._num_heads, self._key_dim]
+                    query_output_rank - 1, [self._num_heads, self._value_dim]
                 ),
-                bias_axes=bias_axes if self._use_bias else None,
+                bias_axes=query_bias_axes if self._use_bias else None,
                 activation="sigmoid",
                 name="gate",
                 **self._get_common_kwargs_for_sublayer(),
             )
-            self._gate_dense.build(key_shape)
+            self._gate_dense.build(query_shape)
         einsum_equation, bias_axes, output_rank = _build_proj_equation(
             value_rank - 1, bound_dims=1, output_dims=2
         )
