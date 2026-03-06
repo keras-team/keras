@@ -88,6 +88,7 @@ class EarlyStopping(MonitorCallback):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
+        self.best = None
         self.best_weights = None
         self.best_epoch = 0
 
