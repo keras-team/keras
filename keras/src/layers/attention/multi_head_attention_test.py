@@ -238,28 +238,27 @@ class MultiHeadAttentionTest(testing.TestCase):
             supports_masking=True,
             run_training_check=False,
         )
-        if backend.backend() != "openvino":
-            # OpenVINO backend has a known bug in layer tests."
-            self.run_layer_test(
-                layers.MultiHeadAttention,
-                init_kwargs={
-                    "num_heads": 2,
-                    "key_dim": 2,
-                    "use_gate": True,
-                    "attention_axes": attention_axes,
-                },
-                input_shape={
-                    "query_shape": query_shape,
-                    "value_shape": value_shape,
-                },
-                expected_output_shape=query_shape,
-                expected_num_trainable_weights=10,
-                expected_num_non_trainable_weights=0,
-                expected_num_seed_generators=0,
-                expected_num_losses=0,
-                supports_masking=True,
-                run_training_check=False,
-            )
+
+        self.run_layer_test(
+            layers.MultiHeadAttention,
+            init_kwargs={
+                "num_heads": 2,
+                "key_dim": 2,
+                "use_gate": True,
+                "attention_axes": attention_axes,
+            },
+            input_shape={
+                "query_shape": query_shape,
+                "value_shape": value_shape,
+            },
+            expected_output_shape=query_shape,
+            expected_num_trainable_weights=10,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+            run_training_check=False,
+        )
 
     def test_attention_axes_negative_indexing(self):
         x = np.random.normal(size=(2, 3, 8, 4))
