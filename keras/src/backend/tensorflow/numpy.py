@@ -2304,41 +2304,57 @@ def nanprod(x, axis=None, keepdims=False):
 
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
-    def _get_nanquantile(s):
-        valid_data = tf.boolean_mask(s, ~tf.math.is_nan(s))
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=x.dtype)
+
+    def _get_nanquantile(slice_1d):
+        valid = tf.boolean_mask(slice_1d, ~tf.math.is_nan(slice_1d))
         return tf.cond(
-            tf.size(valid_data) > 0,
-            lambda: quantile(valid_data, q, method=method),
-            lambda: tf.constant(float("nan"), dtype=s.dtype),
+            tf.size(valid) > 0,
+            lambda: quantile(valid, q, method=method, keepdims=False),
+            lambda: tf.constant(float("nan"), dtype=x.dtype),
         )
 
-    x = convert_to_tensor(x)
-    q = cast(q, x.dtype)
-
     if axis is None:
-        mask = ~tf.math.is_nan(x)
-        valid_data = tf.boolean_mask(x, mask)
+        valid = tf.boolean_mask(x, ~tf.math.is_nan(x))
 
         return tf.cond(
-            tf.size(valid_data) > 0,
-            lambda: quantile(valid_data, q, method=method, keepdims=keepdims),
+            tf.size(valid) > 0,
+            lambda: quantile(valid, q, method=method, keepdims=keepdims),
             lambda: tf.constant(float("nan"), dtype=x.dtype),
         )
 
     if isinstance(axis, int):
         axis = [axis]
+    elif isinstance(axis, tuple):
+        axis = list(axis)
+
     ndims = x.shape.rank
     axis = [a if a >= 0 else a + ndims for a in axis]
 
     other_axes = [i for i in range(ndims) if i not in axis]
-    permutation = other_axes + axis
-    x_permuted = tf.transpose(x, permutation)
+    perm = other_axes + axis
 
-    other_shape = [tf.shape(x)[i] for i in other_axes]
-    reduction_shape_prod = tf.reduce_prod([tf.shape(x)[i] for i in axis])
-    x_reshaped = tf.reshape(x_permuted, [-1, reduction_shape_prod])
+    x = tf.transpose(x, perm)
 
-    results = tf.map_fn(_get_nanquantile, x_reshaped)
+    shape = tf.shape(x)
+    reduction_size = tf.reduce_prod(tf.gather(shape, axis))
+    batch_size = tf.reduce_prod(tf.gather(shape, other_axes))
+
+    x = tf.reshape(x, [batch_size, reduction_size])
+
+    q_shape = tf.shape(q)
+
+    results = tf.map_fn(
+        _get_nanquantile,
+        x,
+        fn_output_signature=tf.TensorSpec(shape=q_shape, dtype=x.dtype),
+    )
+
+    if tf.rank(q) > 0:
+        results = tf.transpose(results)
+
+    other_shape = tf.gather(tf.shape(x), tf.range(len(other_axes)))
 
     if keepdims:
         final_shape = [
