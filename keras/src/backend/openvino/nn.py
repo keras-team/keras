@@ -290,14 +290,150 @@ def average_pool(
     )
 
 
+def _compute_adaptive_gather_indices(
+    input_dim, output_size, small_window, big_window
+):
+    """Compute gather indices for the two-pool gather method."""
+    window_starts = np.floor(
+        np.arange(output_size) * input_dim / output_size
+    ).astype(np.int32)
+    window_ends = np.minimum(
+        np.ceil(np.arange(1, output_size + 1) * input_dim / output_size).astype(
+            np.int32
+        ),
+        input_dim,
+    )
+    window_starts = np.minimum(window_starts, input_dim - 1)
+    window_sizes = window_ends - window_starts
+    small_pool_len = max(1, input_dim - small_window + 1)
+    return np.where(
+        window_sizes == big_window,
+        window_starts + small_pool_len,
+        window_starts,
+    ).tolist()
+
+
+def _adaptive_pool_ov(
+    inputs, output_size, pool_type, data_format, num_spatial_dims
+):
+    """Shared OpenVINO implementation for adaptive average/max pooling.
+
+    Uses the two-pool gather method: for each spatial axis independently,
+    apply pooling with the small and big kernel sizes (stride=1, VALID),
+    concatenate the results, then gather the correct output positions.
+    """
+    if isinstance(output_size, int):
+        output_size = (output_size,) * num_spatial_dims
+
+    data_format = backend.standardize_data_format(data_format)
+    inputs = get_ov_output(inputs)
+
+    current = _adjust_input(inputs, num_spatial_dims, data_format)
+
+    for spatial_idx in range(num_spatial_dims):
+        gather_axis = 2 + spatial_idx
+        current_ps = current.get_partial_shape()
+        input_dim = current_ps[gather_axis].get_length()
+        output_dim = output_size[spatial_idx]
+
+        if input_dim == output_dim:
+            continue
+
+        small_w = int(np.ceil(input_dim / output_dim))
+        big_w = small_w + 1
+        gather_indices = _compute_adaptive_gather_indices(
+            input_dim, output_dim, small_w, big_w
+        )
+
+        strides = [1] * num_spatial_dims
+
+        small_kernel = [1] * num_spatial_dims
+        small_kernel[spatial_idx] = small_w
+
+        if pool_type == "avg":
+            small_pool = ov_opset.avg_pool(
+                current,
+                strides=strides,
+                pads_begin=[],
+                pads_end=[],
+                kernel_shape=small_kernel,
+                exclude_pad=True,
+                auto_pad="VALID",
+            ).output(0)
+        else:
+            small_pool = ov_opset.max_pool(
+                current,
+                strides=strides,
+                dilations=[1] * num_spatial_dims,
+                pads_begin=[],
+                pads_end=[],
+                kernel_shape=small_kernel,
+                auto_pad="VALID",
+            ).output(0)
+
+        if big_w <= input_dim:
+            big_kernel = [1] * num_spatial_dims
+            big_kernel[spatial_idx] = big_w
+
+            if pool_type == "avg":
+                big_pool = ov_opset.avg_pool(
+                    current,
+                    strides=strides,
+                    pads_begin=[],
+                    pads_end=[],
+                    kernel_shape=big_kernel,
+                    exclude_pad=True,
+                    auto_pad="VALID",
+                ).output(0)
+            else:
+                big_pool = ov_opset.max_pool(
+                    current,
+                    strides=strides,
+                    dilations=[1] * num_spatial_dims,
+                    pads_begin=[],
+                    pads_end=[],
+                    kernel_shape=big_kernel,
+                    auto_pad="VALID",
+                ).output(0)
+
+            combined = ov_opset.concat(
+                [small_pool, big_pool], gather_axis
+            ).output(0)
+        else:
+            # big_w > input_dim: the big pool produces no outputs and all
+            # gather indices come from the small pool, so skip the big pool.
+            combined = small_pool
+
+        indices_node = ov_opset.constant(gather_indices, Type.i32).output(0)
+        axis_node = ov_opset.constant(gather_axis, Type.i32).output(0)
+        current = ov_opset.gather(combined, indices_node, axis_node).output(0)
+
+    result = _adjust_outputs(current, num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(result)
+
+
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    """Adaptive average pooling - OpenVINO backend not yet supported."""
-    raise NotImplementedError("Adaptive pooling not implemented for OpenVINO.")
+    inputs_ov = get_ov_output(inputs)
+    num_spatial_dims = inputs_ov.get_partial_shape().rank.get_length() - 2
+    if num_spatial_dims not in (1, 2, 3):
+        raise ValueError(
+            "adaptive_average_pool supports 1D, 2D, or 3D inputs only."
+        )
+    return _adaptive_pool_ov(
+        inputs, output_size, "avg", data_format, num_spatial_dims
+    )
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    """Adaptive max pooling - OpenVINO backend not yet supported."""
-    raise NotImplementedError("Adaptive pooling not implemented for OpenVINO.")
+    inputs_ov = get_ov_output(inputs)
+    num_spatial_dims = inputs_ov.get_partial_shape().rank.get_length() - 2
+    if num_spatial_dims not in (1, 2, 3):
+        raise ValueError(
+            "adaptive_max_pool supports 1D, 2D, or 3D inputs only."
+        )
+    return _adaptive_pool_ov(
+        inputs, output_size, "max", data_format, num_spatial_dims
+    )
 
 
 def _pool(
