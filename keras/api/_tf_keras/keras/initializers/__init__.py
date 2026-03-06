@@ -7,9 +7,6 @@ since your modifications would be overwritten.
 from keras.src.initializers import deserialize as deserialize
 from keras.src.initializers import get as get
 from keras.src.initializers import serialize as serialize
-from keras.src.initializers.constant_initializers import STFT as STFT
-from keras.src.initializers.constant_initializers import STFT as STFTInitializer
-from keras.src.initializers.constant_initializers import STFT as stft
 from keras.src.initializers.constant_initializers import Constant as Constant
 from keras.src.initializers.constant_initializers import Constant as constant
 from keras.src.initializers.constant_initializers import Identity as Identity
@@ -19,6 +16,9 @@ from keras.src.initializers.constant_initializers import (
 from keras.src.initializers.constant_initializers import Identity as identity
 from keras.src.initializers.constant_initializers import Ones as Ones
 from keras.src.initializers.constant_initializers import Ones as ones
+from keras.src.initializers.constant_initializers import STFT as STFT
+from keras.src.initializers.constant_initializers import STFT as STFTInitializer
+from keras.src.initializers.constant_initializers import STFT as stft
 from keras.src.initializers.constant_initializers import Zeros as Zeros
 from keras.src.initializers.constant_initializers import Zeros as zeros
 from keras.src.initializers.initializer import Initializer as Initializer
