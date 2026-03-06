@@ -176,13 +176,15 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
 
     def test_associative_scan_dynamic_scan_body_unknown_length(self):
         """fully unknown leading dim forces the TF symbolic path."""
-        xs = KerasTensor((None, 6))
+        import tensorflow as tf
+        xs = tf.TensorSpec(shape=[None, 6], dtype=tf.float32)
         ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
         self.assertEqual(ys.shape, (None, 6))
 
     def test_associative_scan_dynamic_scan_body_unknown_length_structured(self):
         """symbolic path with structured (tuple) input."""
-        xs = (KerasTensor((None, 4)), KerasTensor((None, 4)))
+        import tensorflow as tf
+        xs = (tf.TensorSpec(shape=[None, 4], dtype=tf.float32), tf.TensorSpec(shape=[None, 4], dtype=tf.float32))
 
         def _add(a, b):
             return (a[0] + b[0], a[1] + b[1])
@@ -193,7 +195,8 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
 
     def test_associative_scan_dynamic_scan_body_unknown_length_reverse(self):
         """symbolic path with reverse=True."""
-        xs = KerasTensor((None, 3))
+        import tensorflow as tf
+        xs = tf.TensorSpec(shape=[None, 3], dtype=tf.float32)
         ys = core.associative_scan(
             f=operator.add, elems=xs, axis=0, reverse=True
         )
