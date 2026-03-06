@@ -4,7 +4,6 @@ import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
-from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.variables import standardize_dtype
