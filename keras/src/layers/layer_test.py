@@ -1335,17 +1335,28 @@ class LayerTest(testing.TestCase):
         ):
             MyLayer3()
 
-        # Case 4: too many positional arguments
+        # Case 4: positional shape / initializer / dtype must remain valid.
         class MyLayer4(layers.Layer):
             def __init__(self):
                 super().__init__()
-                self.w = self.add_weight("name", (3, 4))
+                self.w = self.add_weight((3, 4), "zeros", "float32")
+
+        layer = MyLayer4()
+        self.assertEqual(layer.w.shape, (3, 4))
+        self.assertEqual(layer.w.dtype, "float32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w), np.zeros((3, 4)))
+
+        # Case 5: too many positional arguments
+        class MyLayer5(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), "zeros", "float32", "name")
 
         with self.assertRaisesRegex(
             TypeError,
-            "takes at most 1 positional argument",
+            "takes at most 3 positional arguments",
         ):
-            MyLayer4()
+            MyLayer5()
 
     def test_remove_weight(self):
         class MyLayer(layers.Layer):

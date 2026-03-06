@@ -565,25 +565,38 @@ class Layer(BackendLayer, Operation):
         """
         self._check_super_called()
         if args:
-            if len(args) > 1:
+            if len(args) > 3:
                 raise TypeError(
-                    f"add_weight() takes at most 1 positional argument "
+                    f"add_weight() takes at most 3 positional arguments "
                     f"but {len(args)} were given."
                 )
-            arg = args[0]
-            if isinstance(arg, str):
+            shape_arg = args[0]
+            if isinstance(shape_arg, str):
                 raise ValueError(
                     f"`name` must be passed as a keyword argument. "
-                    f"Received: add_weight('{arg}', ...). "
-                    f"Use: add_weight(shape=..., name='{arg}')."
+                    f"Received: add_weight('{shape_arg}', ...). "
+                    f"Use: add_weight(shape=..., name='{shape_arg}')."
                 )
-            else:
-                if shape is not None:
+            if shape is not None:
+                raise ValueError(
+                    "`shape` was passed both positionally and as "
+                    "a keyword argument."
+                )
+            shape = shape_arg
+            if len(args) > 1:
+                if initializer is not None:
                     raise ValueError(
-                        "`shape` was passed both positionally and as "
-                        "a keyword argument."
+                        "`initializer` was passed both positionally and "
+                        "as a keyword argument."
                     )
-                shape = arg
+                initializer = args[1]
+            if len(args) > 2:
+                if dtype is not None:
+                    raise ValueError(
+                        "`dtype` was passed both positionally and as a "
+                        "keyword argument."
+                    )
+                dtype = args[2]
         if shape is None:
             shape = ()
         if dtype is not None:
