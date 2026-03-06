@@ -42,7 +42,24 @@ def eig(a):
 
 
 def eigh(a):
-    raise NotImplementedError("`eigh` is not supported with openvino backend")
+    import numpy as np
+
+    from keras.src.backend.openvino.core import convert_to_numpy
+
+    a = convert_to_tensor(a)
+    try:
+        a_np = convert_to_numpy(a)
+    except Exception as e:
+        raise ValueError(
+            "eigh is only supported for static eager tensors "
+            "in the openvino backend. Received a dynamic or symbolic tensor."
+        ) from e
+
+    w, v = np.linalg.eigh(a_np)
+    return (
+        ov_opset.constant(w).output(0),
+        ov_opset.constant(v).output(0),
+    )
 
 
 def inv(a):
