@@ -2178,6 +2178,7 @@ def fmod(x1, x2):
     x2 = tf.cast(x2, dtype)
     quotient = x1 / x2
     truncated = tf.sign(quotient) * tf.math.floor(tf.math.abs(quotient))
+    truncated = tf.cast(truncated, dtype)
     return x1 - truncated * x2
 
 
