@@ -267,7 +267,6 @@ EmbeddingTest::test_quantize_by_setting_dtype_policy_int4
 EmbeddingTest::test_quantize_int_int4
 EmbeddingTest::test_quantize_on_subclass_int4
 EmbeddingTest::test_quantize_when_already_quantized_int4
-ExtractSequencesOpTest::test_extract_sequences_call
 FalseNegativesTest::test_unweighted
 FalseNegativesTest::test_weighted
 FalsePositivesTest::test_unweighted
@@ -429,8 +428,6 @@ LSTMTest::test_pass_initial_state
 LSTMTest::test_statefulness
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
-MathOpsCorrectnessTest::test_erfinv_operation_edge_cases
-MathOpsCorrectnessTest::test_extract_sequences
 MathOpsCorrectnessTest::test_logdet
 MaxPoolingBasicTest::test_max_pooling1d0
 MaxPoolingBasicTest::test_max_pooling1d1
