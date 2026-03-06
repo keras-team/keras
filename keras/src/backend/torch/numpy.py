@@ -1425,6 +1425,13 @@ def nanprod(x, axis=None, keepdims=False):
     )
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    return torch.nanquantile(
+        x, q, dim=axis, keepdim=keepdims, interpolation=method
+    )
+
+
 def nanstd(x, axis=None, keepdims=False):
     var_val = nanvar(x, axis=axis, keepdims=keepdims)
     return torch.sqrt(var_val)

@@ -2303,6 +2303,53 @@ def nanprod(x, axis=None, keepdims=False):
     return prod(x_safe, axis=axis, keepdims=keepdims)
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    def _get_nanquantile(s):
+        valid_data = tf.boolean_mask(s, ~tf.math.is_nan(s))
+        return tf.cond(
+            tf.size(valid_data) > 0,
+            lambda: quantile(valid_data, q, method=method),
+            lambda: tf.constant(float("nan"), dtype=s.dtype),
+        )
+
+    x = convert_to_tensor(x)
+    q = cast(q, x.dtype)
+
+    if axis is None:
+        mask = ~tf.math.is_nan(x)
+        valid_data = tf.boolean_mask(x, mask)
+
+        return tf.cond(
+            tf.size(valid_data) > 0,
+            lambda: quantile(valid_data, q, method=method, keepdims=keepdims),
+            lambda: tf.constant(float("nan"), dtype=x.dtype),
+        )
+
+    if isinstance(axis, int):
+        axis = [axis]
+    ndims = x.shape.rank
+    axis = [a if a >= 0 else a + ndims for a in axis]
+
+    other_axes = [i for i in range(ndims) if i not in axis]
+    permutation = other_axes + axis
+    x_permuted = tf.transpose(x, permutation)
+
+    other_shape = [tf.shape(x)[i] for i in other_axes]
+    reduction_shape_prod = tf.reduce_prod([tf.shape(x)[i] for i in axis])
+    x_reshaped = tf.reshape(x_permuted, [-1, reduction_shape_prod])
+
+    results = tf.map_fn(_get_nanquantile, x_reshaped)
+
+    if keepdims:
+        final_shape = [
+            tf.shape(x)[i] if i in other_axes else 1 for i in range(ndims)
+        ]
+    else:
+        final_shape = other_shape
+
+    return tf.reshape(results, final_shape)
+
+
 def nanstd(x, axis=None, keepdims=False):
     var_val = nanvar(x, axis=axis, keepdims=keepdims)
     return tf.sqrt(var_val)

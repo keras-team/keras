@@ -1050,6 +1050,10 @@ def nanprod(x, axis=None, keepdims=False):
     return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    return np.nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def nanstd(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
