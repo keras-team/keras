@@ -408,16 +408,12 @@ def gru(
         Wb_zr = ov_opset.slice(
             bias_W,
             ov_opset.constant([0], dtype=Type.i32).output(0),
-            ov_opset.unsqueeze(
-                units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)
-            ).output(0),
+            units_x2,
             ov_opset.constant([1], dtype=Type.i32).output(0),
         ).output(0)
         Wb_h = ov_opset.slice(
             bias_W,
-            ov_opset.unsqueeze(
-                units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)
-            ).output(0),
+            units_x2,
             ov_opset.constant([2147483647], dtype=Type.i32).output(0),
             ov_opset.constant([1], dtype=Type.i32).output(0),
         ).output(0)
@@ -425,16 +421,12 @@ def gru(
         Rb_zr = ov_opset.slice(
             bias_R,
             ov_opset.constant([0], dtype=Type.i32).output(0),
-            ov_opset.unsqueeze(
-                units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)
-            ).output(0),
+            units_x2,
             ov_opset.constant([1], dtype=Type.i32).output(0),
         ).output(0)
         Rb_h = ov_opset.slice(
             bias_R,
-            ov_opset.unsqueeze(
-                units_x2, ov_opset.constant([0], dtype=Type.i32).output(0)
-            ).output(0),
+            units_x2,
             ov_opset.constant([2147483647], dtype=Type.i32).output(0),
             ov_opset.constant([1], dtype=Type.i32).output(0),
         ).output(0)
