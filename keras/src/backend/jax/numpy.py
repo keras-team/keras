@@ -160,6 +160,7 @@ def matmul(x1, x2):
     x2_dtype = standardize_dtype(x2.dtype)
     if x1_dtype == "int8" and x2_dtype == "int8":
         preferred_element_type = "int32"
+        print("### matmul", x1.shape, x2.shape)
     else:
         preferred_element_type = None
     if isinstance(x1, jax_sparse.JAXSparse) or isinstance(
