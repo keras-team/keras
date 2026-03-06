@@ -479,6 +479,11 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _scan(elems):
         elem_length = _get_dim(elems[0])
+        # Handle trivial cases: 0 or 1 elements need no scanning.
+        # Without this guard, the recursion never reaches the base
+        # cases (elem_length 2 or 3) and overflows the stack.
+        if isinstance(elem_length, int) and elem_length <= 1:
+            return elems
         a = [slice_along_axis(elem, 0, -1, step=2, axis=axis) for elem in elems]
         b = [
             slice_along_axis(elem, 1, None, step=2, axis=axis) for elem in elems

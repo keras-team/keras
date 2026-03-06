@@ -470,6 +470,16 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(H_seq, H_par)
 
+        # Test axis size 1 (should not cause infinite recursion)
+        single = np.array([5])
+        result = core.associative_scan(f=operator.add, elems=single)
+        self.assertAllEqual(result, [5])
+
+        # Test axis size 0
+        empty = np.array([], dtype="float32")
+        result = core.associative_scan(f=operator.add, elems=empty)
+        self.assertEqual(result.shape, (0,))
+
         # Test Operation call.
         xs = np.arange(5, dtype="float32")
         self.assertAllClose(
