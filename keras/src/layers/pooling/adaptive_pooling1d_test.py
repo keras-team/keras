@@ -5,7 +5,7 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 
-SKIP_BACKENDS = ["openvino"]
+SKIP_BACKENDS = []
 
 pytestmark = pytest.mark.skipif(
     backend.backend() in SKIP_BACKENDS,
