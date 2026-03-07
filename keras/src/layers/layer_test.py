@@ -1291,6 +1291,73 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w5.dtype, "float32")
         self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
 
+    def test_add_weight_string_as_first_positional_arg(self):
+        """Test that passing a string as first positional arg to add_weight
+        raises a clear error guiding users to use name= keyword."""
+
+        # Case 1: String as only positional arg (e.g. add_weight("matrix"))
+        class MyLayer1(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight("my_weight")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "name.*keyword argument",
+        ):
+            MyLayer1()
+
+        # Case 2: String positional + shape kwarg — the exact bug from
+        # https://github.com/keras-team/keras/issues/22265
+        # In Keras 2 this was valid: add_weight("matrix", shape=(3, 4))
+        class MyLayer2(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight(
+                    "matrix", shape=(3, 4), initializer="zeros"
+                )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "name.*keyword argument",
+        ):
+            MyLayer2()
+
+        # Case 3: shape passed both positionally and as keyword
+        class MyLayer3(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), shape=(3, 4))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`shape` was passed both positionally and as a keyword argument",
+        ):
+            MyLayer3()
+
+        # Case 4: positional shape / initializer / dtype must remain valid.
+        class MyLayer4(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), "zeros", "float32")
+
+        layer = MyLayer4()
+        self.assertEqual(layer.w.shape, (3, 4))
+        self.assertEqual(layer.w.dtype, "float32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w), np.zeros((3, 4)))
+
+        # Case 5: too many positional arguments
+        class MyLayer5(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), "zeros", "float32", "name")
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "takes at most 3 positional arguments",
+        ):
+            MyLayer5()
+
     def test_remove_weight(self):
         class MyLayer(layers.Layer):
             def __init__(self):
