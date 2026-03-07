@@ -955,9 +955,12 @@ def map_coordinates(
     Args:
         inputs: The input array.
         coordinates: The coordinates at which inputs is evaluated.
-        order: The order of the spline interpolation. The order must be `0` or
-            `1`. `0` indicates the nearest neighbor and `1` indicates the linear
-            interpolation.
+        order: The order of the spline interpolation (0-5). `0` indicates
+            nearest neighbor, `1` indicates linear interpolation, and `2`-`5`
+            indicate B-spline interpolation of the corresponding order.
+            Note: orders 2-5 are supported by the PyTorch and NumPy
+            backends. The JAX and TensorFlow backends support orders
+            0-1 only.
         fill_mode: Points outside the boundaries of the inputs are filled
             according to the given mode. Available methods are `"constant"`,
             `"nearest"`, `"wrap"` and `"mirror"` and `"reflect"`. Defaults to

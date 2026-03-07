@@ -930,13 +930,24 @@ def map_coordinates(
             f"{set(MAP_COORDINATES_FILL_MODES.keys())}. Received: "
             f"fill_mode={fill_mode}"
         )
-    if order not in range(2):
+    if order not in range(6):
         raise ValueError(
             "Invalid value for argument `order`. Expected one of "
-            f"{[0, 1]}. Received: order={order}"
+            f"{[0, 1, 2, 3, 4, 5]}. Received: order={order}"
         )
+    # For order > 1, scipy handles boundary conditions correctly via its
+    # internal prefilter + interpolation, so call it directly.
+    if order > 1:
+        data = inputs
+        if backend.is_float_dtype(data.dtype):
+            data = data.astype("float32")
+        result = scipy.ndimage.map_coordinates(
+            data, coordinates, order=order, mode=fill_mode, cval=fill_value
+        )
+        return result.astype(inputs.dtype)
+
     # SciPy's implementation of map_coordinates handles boundaries incorrectly,
-    # unless mode='reflect'. For order=1, this only affects interpolation
+    # unless mode='reflect'. For order<=1, this only affects interpolation
     # outside the bounds of the original array.
     # https://github.com/scipy/scipy/issues/2640
     padding = [
