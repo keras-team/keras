@@ -609,7 +609,6 @@ SavingTest::test_partial_load
 ScheduleFreeAdamWTest::test_multiple_steps
 ScheduleFreeAdamWTest::test_warmup
 ScheduleFreeAdamWTest::test_weight_decay
-SeedGeneratorTest::test_seed_generator_dtype
 SeparableConvBasicTest::test_separable_conv1d_basic0
 SeparableConvBasicTest::test_separable_conv1d_basic1
 SeparableConvBasicTest::test_separable_conv1d_basic2
