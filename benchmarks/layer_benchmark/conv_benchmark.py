@@ -6,9 +6,30 @@ flag to your custom value:
 ```
 python3 -m benchmarks.layer_benchmark.conv_benchmark \
     --benchmark_name=benchmark_conv2D \
-    --num_samples=2046 \
+    --num_samples=2048 \
     --batch_size=256 \
     --jit_compile=True
+```
+
+To compare across backends:
+
+```
+python3 -m benchmarks.layer_benchmark.conv_benchmark \
+    --benchmark_name=benchmark_conv2D \
+    --num_samples=2048 \
+    --batch_size=256 \
+    --backend=jax,torch,tensorflow
+```
+
+To get JSON output instead of a table:
+
+```
+python3 -m benchmarks.layer_benchmark.conv_benchmark \
+    --benchmark_name=benchmark_conv2D \
+    --num_samples=2048 \
+    --batch_size=256 \
+    --backend=jax,torch,tensorflow \
+    --output_format=json
 ```
 """
 
@@ -16,6 +37,7 @@ from absl import app
 from absl import flags
 
 from benchmarks.layer_benchmark.base_benchmark import LayerBenchmark
+from benchmarks.layer_benchmark.base_benchmark import run_multi_backend_benchmark
 
 FLAGS = flags.FLAGS
 
@@ -317,13 +339,20 @@ BENCHMARK_NAMES = {
 
 
 def main(_):
+    if FLAGS.backend:
+        run_multi_backend_benchmark(
+            module_path="benchmarks.layer_benchmark.conv_benchmark",
+            benchmark_fn_map=BENCHMARK_NAMES,
+        )
+        return
+
     benchmark_name = FLAGS.benchmark_name
     num_samples = FLAGS.num_samples
     batch_size = FLAGS.batch_size
     jit_compile = FLAGS.jit_compile
 
     if benchmark_name is None:
-        for name, benchmark_fn in BENCHMARK_NAMES:
+        for name, benchmark_fn in BENCHMARK_NAMES.items():
             benchmark_fn(num_samples, batch_size, jit_compile)
         return
 
