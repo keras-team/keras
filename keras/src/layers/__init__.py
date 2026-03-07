@@ -104,6 +104,9 @@ from keras.src.layers.preprocessing.image_preprocessing.auto_contrast import (
 from keras.src.layers.preprocessing.image_preprocessing.center_crop import (
     CenterCrop,
 )
+from keras.src.layers.preprocessing.image_preprocessing.clahe import (
+    ContrastLimitedAdaptiveHistogramEqualization,
+)
 from keras.src.layers.preprocessing.image_preprocessing.cut_mix import CutMix
 from keras.src.layers.preprocessing.image_preprocessing.equalization import (
     Equalization,

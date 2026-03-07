@@ -202,14 +202,33 @@ class Sequential(Model):
                 positional_args = [
                     param
                     for param in signature.parameters.values()
+                    if param.kind
+                    in (
+                        inspect.Parameter.POSITIONAL_ONLY,
+                        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    )
+                ]
+                required_positional_args = [
+                    param
+                    for param in positional_args
                     if param.default == inspect.Parameter.empty
                 ]
-                if len(positional_args) != 1:
+                if not positional_args:
                     raise ValueError(
-                        "Layers added to a Sequential model "
-                        "can only have a single positional argument, "
-                        f"the input tensor. Layer {layer.__class__.__name__} "
-                        f"has multiple positional arguments: {positional_args}"
+                        "Layers added to a Sequential model should "
+                        "have a single positional argument, the "
+                        "input tensor. Layer "
+                        f"{layer.__class__.__name__} has no "
+                        "positional arguments."
+                    )
+                if len(required_positional_args) > 1:
+                    raise ValueError(
+                        "Layers added to a Sequential model can "
+                        "only have a single required positional "
+                        "argument, the input tensor. Layer "
+                        f"{layer.__class__.__name__} has multiple "
+                        "required positional arguments: "
+                        f"{required_positional_args}"
                     )
                 raise e
         outputs = x

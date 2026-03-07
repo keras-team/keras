@@ -270,12 +270,6 @@ def erfinv(x):
     return jax.lax.erf_inv(x)
 
 
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return jnp.linalg.solve(a, b)
-
-
 def logdet(x):
     from keras.src.backend.jax.numpy import slogdet
 

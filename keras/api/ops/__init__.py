@@ -81,6 +81,7 @@ from keras.src.ops.nn import depth_to_space as depth_to_space
 from keras.src.ops.nn import depthwise_conv as depthwise_conv
 from keras.src.ops.nn import dot_product_attention as dot_product_attention
 from keras.src.ops.nn import elu as elu
+from keras.src.ops.nn import fold as fold
 from keras.src.ops.nn import gelu as gelu
 from keras.src.ops.nn import glu as glu
 from keras.src.ops.nn import hard_shrink as hard_shrink
@@ -251,6 +252,7 @@ from keras.src.ops.numpy import mod as mod
 from keras.src.ops.numpy import moveaxis as moveaxis
 from keras.src.ops.numpy import multiply as multiply
 from keras.src.ops.numpy import nan_to_num as nan_to_num
+from keras.src.ops.numpy import nanargmax as nanargmax
 from keras.src.ops.numpy import nanargmin as nanargmin
 from keras.src.ops.numpy import nancumsum as nancumsum
 from keras.src.ops.numpy import nanmax as nanmax
