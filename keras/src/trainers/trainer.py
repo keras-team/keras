@@ -1116,19 +1116,33 @@ class Trainer:
             ) = data_adapter_utils.unpack_x_y_sample_weight(data_batch)
 
             # Build all model state with `backend.compute_output_spec`.
+            used_test_step_build = False
             try:
                 y_pred = backend.compute_output_spec(self, x, training=False)
             except Exception as e:
-                raise RuntimeError(
-                    "Unable to automatically build the model. "
-                    "Please build it yourself before calling "
-                    "fit/evaluate/predict. "
-                    "A model is 'built' when its variables have "
-                    "been created and its `self.built` attribute "
-                    "is True. Usually, calling the model on a batch "
-                    "of data is the right way to build it.\n"
-                    "Exception encountered:\n"
-                    f"'{e}'"
+                if len(inspect.signature(self.test_step).parameters) == 1:
+                    try:
+                        backend.compute_output_spec(self.test_step, data_batch)
+                        used_test_step_build = True
+                        y_pred = None
+                    except Exception:
+                        pass
+                if not used_test_step_build:
+                    raise RuntimeError(
+                        "Unable to automatically build the model for "
+                        "fit/evaluate/predict. Build it first by calling "
+                        "the model on a batch of data.\n"
+                        "Exception encountered:\n"
+                        f"'{e}'"
+                    ) from e
+            if used_test_step_build:
+                compile_metrics_unbuilt = (
+                    self._compile_metrics is not None
+                    and not self._compile_metrics.built
+                )
+                compile_loss_unbuilt = (
+                    self._compile_loss is not None
+                    and not self._compile_loss.built
                 )
             if compile_metrics_unbuilt:
                 # Build all metric state with `backend.compute_output_spec`.
