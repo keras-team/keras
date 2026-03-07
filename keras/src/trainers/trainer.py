@@ -1119,6 +1119,13 @@ class Trainer:
             try:
                 y_pred = backend.compute_output_spec(self, x, training=False)
             except Exception as e:
+                # If the underlying failure is a ValueError (e.g. invalid
+                # inputs provided by the user), propagate it so callers
+                # (and tests) can observe the original error type. For
+                # other unexpected exceptions, raise a RuntimeError with
+                # context to guide the user.
+                if isinstance(e, ValueError):
+                    raise
                 raise RuntimeError(
                     "Unable to automatically build the model. "
                     "Please build it yourself before calling "

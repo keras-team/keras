@@ -225,12 +225,26 @@ class Functional(Function, Model):
                 tree.lists_to_tuples(self._inputs_struct),
             )
         except:
+
+            def _safe_name(x):
+                if x is None:
+                    return "None"
+                if isinstance(x, backend.KerasTensor):
+                    return x.name
+                return repr(x)
+
+            def _safe_inputs_repr(x):
+                if x is None:
+                    return "None"
+                if isinstance(x, backend.KerasTensor):
+                    return f"Tensor(shape={x.shape})"
+                return repr(x)
+
             model_inputs_struct = tree.map_structure(
-                lambda x: x.name, self._inputs_struct
+                _safe_name,
+                self._inputs_struct,
             )
-            inputs_struct = tree.map_structure(
-                lambda x: f"Tensor(shape={x.shape})", inputs
-            )
+            inputs_struct = tree.map_structure(_safe_inputs_repr, inputs)
             msg = (
                 "The structure of `inputs` doesn't match the expected "
                 f"structure.\nExpected: {model_inputs_struct}\n"
@@ -242,14 +256,39 @@ class Functional(Function, Model):
 
     def _convert_inputs_to_tensors(self, flat_inputs):
         converted = []
-        for x, input in zip(flat_inputs, self._inputs):
-            if x is None:  # TODO: check if optional
+        for x, input_tensor in zip(flat_inputs, self._inputs):
+            if x is None:
+                # Only enforce optional semantics when the input tensor was
+                # created by an `InputLayer`. For other kinds of tensors
+                # (e.g. tensors produced dynamically) preserve previous
+                # behavior and allow None to pass through.
+                input_layer = None
+                if (
+                    hasattr(input_tensor, "_keras_history")
+                    and input_tensor._keras_history
+                ):
+                    input_layer = input_tensor._keras_history.operation
+
+                if isinstance(input_layer, InputLayer):
+                    is_optional = getattr(input_layer, "optional", False)
+                    if not is_optional:
+                        input_name = getattr(input_tensor, "name", "unknown")
+                        raise ValueError(
+                            (
+                                f"The input '{input_name}' is not optional, "
+                                "but None was passed. "
+                                "Please provide a valid tensor."
+                            )
+                        )
+                # If input_layer is not an InputLayer, fall back to previous
+                # behavior and accept None.
                 converted.append(x)
             else:
+                # Preserve dtype and sparse settings from input_tensor
+                dtype = getattr(input_tensor, "dtype", None)
+                sparse = getattr(input_tensor, "sparse", False)
                 converted.append(
-                    ops.convert_to_tensor(
-                        x, dtype=input.dtype, sparse=input.sparse
-                    )
+                    ops.convert_to_tensor(x, dtype=dtype, sparse=sparse)
                 )
         return converted
 
