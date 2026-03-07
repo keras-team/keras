@@ -353,10 +353,8 @@ LinalgOpsCorrectnessTest::test_lu_factor
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc
-LinalgOpsCorrectnessTest::test_qr
 LinalgOpsCorrectnessTest::test_solve_triangular
 LinalgOpsCorrectnessTest::test_svd
-LinalgOpsDynamicShapeTest::test_qr
 LionTest::test_correctness_with_golden
 LionTest::test_weight_decay
 LoadModelTests::test_basic_load_bfloat16

@@ -231,7 +231,237 @@ def norm(x, ord=None, axis=None, keepdims=False):
 
 
 def qr(x, mode="reduced"):
-    raise NotImplementedError("`qr` is not supported with openvino backend")
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+
+    x = convert_to_tensor(x)
+    x_ov = get_ov_output(x)
+
+    shape = ov_opset.shape_of(x_ov).output(0)
+    dtype = x_ov.get_element_type()
+    zero_const = ov_opset.constant(0, Type.i64).output(0)
+    one_const = ov_opset.constant(1, Type.i64).output(0)
+    neg_1 = ov_opset.constant(-1, Type.i64).output(0)
+    neg_2 = ov_opset.constant(-2, Type.i64).output(0)
+
+    M = ov_opset.gather(shape, neg_2, zero_const).output(0)
+    N = ov_opset.gather(shape, neg_1, zero_const).output(0)
+
+    shape_len = ov_opset.shape_of(shape).output(0)
+    batch_dims_len = ov_opset.subtract(
+        shape_len, ov_opset.constant([2], Type.i64).output(0)
+    ).output(0)
+    start = ov_opset.constant([0], Type.i64).output(0)
+    end = batch_dims_len
+    step = ov_opset.constant([1], Type.i64).output(0)
+    axes = ov_opset.constant([0], Type.i64).output(0)
+    batch_dims = ov_opset.slice(shape, start, end, step, axes).output(0)
+
+    # Calculate batch size carefully. If batch_dims is empty, it returns 1.
+    batch_size = ov_opset.reduce_prod(batch_dims, zero_const, False).output(0)
+
+    # To avoid OpenVINO CPU plugin bug with f64 in loop body, cast to f32 before loop
+    loop_dtype = Type.f32 if dtype == Type.f64 else dtype
+    x_ov_loop = ov_opset.convert(x_ov, loop_dtype).output(0) if dtype == Type.f64 else x_ov
+
+    flat_shape = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(batch_size, zero_const).output(0),
+            ov_opset.unsqueeze(M, zero_const).output(0),
+            ov_opset.unsqueeze(N, zero_const).output(0),
+        ],
+        0,
+    ).output(0)
+    A_flat = ov_opset.reshape(x_ov_loop, flat_shape, False).output(0)
+
+    # Simplified eye creation logic
+    range_m = ov_opset.range(
+        zero_const, M, ov_opset.constant(1, Type.i64).output(0), Type.i64
+    ).output(0)
+    range_m_reshaped_h = ov_opset.unsqueeze(
+        range_m, ov_opset.constant(1, Type.i64).output(0)
+    ).output(0)
+    range_m_reshaped_w = ov_opset.unsqueeze(
+        range_m, ov_opset.constant(0, Type.i64).output(0)
+    ).output(0)
+    eq = ov_opset.equal(range_m_reshaped_h, range_m_reshaped_w).output(0)
+    eye_mat = ov_opset.convert(eq, loop_dtype).output(0)
+
+    eye_reshaped = ov_opset.unsqueeze(eye_mat, zero_const).output(0)
+    Q_flat_shape = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(batch_size, zero_const).output(0),
+            ov_opset.unsqueeze(M, zero_const).output(0),
+            ov_opset.unsqueeze(M, zero_const).output(0),
+        ],
+        0,
+    ).output(0)
+    Q_flat = ov_opset.broadcast(eye_reshaped, Q_flat_shape).output(0)
+
+    K = ov_opset.minimum(M, N).output(0)
+
+    loop = ov_opset.loop(K, ov_opset.constant(True, Type.boolean).output(0))
+    k_body = ov_opset.parameter([], Type.i64)
+    r_body = ov_opset.parameter([-1, -1, -1], loop_dtype)
+    q_body = ov_opset.parameter([-1, -1, -1], loop_dtype)
+    M_body = ov_opset.parameter([], Type.i64)
+
+    k_idx = ov_opset.unsqueeze(k_body, zero_const).output(0)
+
+    col = ov_opset.gather(
+        r_body, k_idx, ov_opset.constant(2, Type.i64).output(0)
+    ).output(0)
+    col = ov_opset.squeeze(col, ov_opset.constant([2], Type.i64).output(0)).output(0)
+
+    range_m_body = ov_opset.range(zero_const, M_body, one_const, Type.i64).output(0)
+    mask = ov_opset.greater_equal(range_m_body, k_idx).output(0)
+    mask_float = ov_opset.unsqueeze(
+        ov_opset.convert(mask, loop_dtype).output(0), zero_const
+    ).output(0)
+
+    x_mask = ov_opset.multiply(col, mask_float).output(0)
+
+    one_hot_k_float = ov_opset.unsqueeze(
+        ov_opset.convert(ov_opset.equal(range_m_body, k_idx).output(0), loop_dtype).output(0),
+        zero_const,
+    ).output(0)
+
+    x_k = ov_opset.reduce_sum(
+        ov_opset.multiply(x_mask, one_hot_k_float).output(0),
+        ov_opset.constant([-1], Type.i64).output(0),
+        True,
+    ).output(0)
+
+    norm_x = ov_opset.sqrt(
+        ov_opset.reduce_sum(
+            ov_opset.multiply(x_mask, x_mask).output(0),
+            ov_opset.constant([-1], Type.i64).output(0),
+            True,
+        ).output(0)
+    ).output(0)
+
+    s = ov_opset.sign(x_k).output(0)
+    s = ov_opset.select(
+        ov_opset.equal(s, ov_opset.constant(0, loop_dtype).output(0)).output(0),
+        ov_opset.constant(1, loop_dtype).output(0),
+        s,
+    ).output(0)
+
+    add_term = ov_opset.multiply(
+        one_hot_k_float, ov_opset.multiply(s, norm_x).output(0)
+    ).output(0)
+    v = ov_opset.add(x_mask, add_term).output(0)
+
+    norm_v = ov_opset.sqrt(
+        ov_opset.reduce_sum(
+            ov_opset.multiply(v, v).output(0),
+            ov_opset.constant([-1], Type.i64).output(0),
+            True,
+        ).output(0)
+    ).output(0)
+    safe_norm_v = ov_opset.select(
+        ov_opset.equal(norm_v, ov_opset.constant(0, loop_dtype).output(0)).output(0),
+        ov_opset.constant(1, loop_dtype).output(0),
+        norm_v,
+    ).output(0)
+
+    v = ov_opset.divide(v, safe_norm_v).output(0)
+    v = ov_opset.unsqueeze(v, ov_opset.constant([-1], Type.i64).output(0)).output(0)
+    v_t = ov_opset.transpose(
+        v, ov_opset.constant([0, 2, 1], Type.i64).output(0)
+    ).output(0)
+
+    v_t_R = ov_opset.matmul(v_t, r_body, False, False).output(0)
+    two_v_v_t_R = ov_opset.multiply(
+        ov_opset.constant(2, loop_dtype).output(0),
+        ov_opset.matmul(v, v_t_R, False, False).output(0),
+    ).output(0)
+    new_r = ov_opset.subtract(r_body, two_v_v_t_R).output(0)
+
+    Q_v = ov_opset.matmul(q_body, v, False, False).output(0)
+    two_Q_v_v_t = ov_opset.multiply(
+        ov_opset.constant(2, loop_dtype).output(0),
+        ov_opset.matmul(Q_v, v_t, False, False).output(0),
+    ).output(0)
+    new_q = ov_opset.subtract(q_body, two_Q_v_v_t).output(0)
+
+    cond_out = ov_opset.constant(True, Type.boolean).output(0)
+    from openvino import Model
+    body = Model([cond_out, new_r, new_q], [k_body, r_body, q_body, M_body])
+    loop.set_function(body)
+    loop.set_special_body_ports([0, 0])
+
+    loop.set_merged_input(r_body, A_flat, new_r)
+    loop.set_merged_input(q_body, Q_flat, new_q)
+    loop.set_invariant_input(M_body, M)
+
+    res_r = loop.get_iter_value(new_r, -1)
+    res_q = loop.get_iter_value(new_q, -1)
+
+    if dtype == Type.f64:
+        res_q = ov_opset.convert(res_q, Type.f64).output(0)
+        res_r = ov_opset.convert(res_r, Type.f64).output(0)
+
+    if mode == "reduced":
+        q_target_shape = ov_opset.concat(
+            [
+                batch_dims,
+                ov_opset.unsqueeze(M, zero_const).output(0),
+                ov_opset.unsqueeze(K, zero_const).output(0),
+            ],
+            0,
+        ).output(0)
+        q_slice = ov_opset.slice(
+            res_q,
+            ov_opset.constant([0], Type.i64).output(0),
+            ov_opset.unsqueeze(K, zero_const).output(0),
+            ov_opset.constant([1], Type.i64).output(0),
+            ov_opset.constant([-1], Type.i64).output(0),
+        ).output(0)
+        res_q = ov_opset.reshape(q_slice, q_target_shape, False).output(0)
+
+        r_target_shape = ov_opset.concat(
+            [
+                batch_dims,
+                ov_opset.unsqueeze(K, zero_const).output(0),
+                ov_opset.unsqueeze(N, zero_const).output(0),
+            ],
+            0,
+        ).output(0)
+        r_slice = ov_opset.slice(
+            res_r,
+            ov_opset.constant([0], Type.i64).output(0),
+            ov_opset.unsqueeze(K, zero_const).output(0),
+            ov_opset.constant([1], Type.i64).output(0),
+            ov_opset.constant([-2], Type.i64).output(0),
+        ).output(0)
+        res_r = ov_opset.reshape(r_slice, r_target_shape, False).output(0)
+    else:
+        q_target_shape = ov_opset.concat(
+            [
+                batch_dims,
+                ov_opset.unsqueeze(M, zero_const).output(0),
+                ov_opset.unsqueeze(M, zero_const).output(0),
+            ],
+            0,
+        ).output(0)
+        res_q = ov_opset.reshape(res_q, q_target_shape, False).output(0)
+
+        r_target_shape = ov_opset.concat(
+            [
+                batch_dims,
+                ov_opset.unsqueeze(M, zero_const).output(0),
+                ov_opset.unsqueeze(N, zero_const).output(0),
+            ],
+            0,
+        ).output(0)
+        res_r = ov_opset.reshape(res_r, r_target_shape, False).output(0)
+
+    return OpenVINOKerasTensor(res_q), OpenVINOKerasTensor(res_r)
 
 
 def solve(a, b):
