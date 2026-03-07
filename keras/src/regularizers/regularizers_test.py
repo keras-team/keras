@@ -132,6 +132,21 @@ class RegularizersTest(testing.TestCase):
         self.assertAlmostEqual(config_from_config["factor"], factor, 7)
         self.assertEqual(config_from_config["mode"], mode)
 
+    def test_plain_callable_regularizer(self):
+        def my_regularizer(x):
+            return 0.01 * backend.convert_to_numpy(x).sum()
+
+        obj = regularizers.get(my_regularizer)
+        self.assertIsInstance(obj, regularizers.Regularizer)
+
+    def test_plain_callable_regularizer_get_config_raises(self):
+        def my_regularizer(x):
+            return 0.0
+
+        obj = regularizers.get(my_regularizer)
+        with self.assertRaises(NotImplementedError):
+            obj.get_config()
+
 
 class ValidateFloatArgTest(testing.TestCase):
     def test_validate_float_with_valid_args(self):

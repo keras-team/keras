@@ -99,3 +99,21 @@ class ConstraintsTest(testing.TestCase):
             "axis": 1,
         }
         self.assertEqual(config, expected_config)
+
+    def test_plain_callable_constraint(self):
+        def my_constraint(w):
+            return w * 0.5
+
+        obj = constraints.get(my_constraint)
+        self.assertIsInstance(obj, constraints.Constraint)
+        x = np.array([2.0, 4.0, 6.0])
+        output = obj(x)
+        self.assertAllClose(output, [1.0, 2.0, 3.0])
+
+    def test_plain_callable_constraint_get_config_raises(self):
+        def my_constraint(w):
+            return w
+
+        obj = constraints.get(my_constraint)
+        with self.assertRaises(NotImplementedError):
+            obj.get_config()
