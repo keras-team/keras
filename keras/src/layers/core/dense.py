@@ -1,4 +1,5 @@
 import math
+import operator
 
 import ml_dtypes
 
@@ -98,7 +99,14 @@ class Dense(Layer):
         quantization_config=None,
         **kwargs,
     ):
-        if not isinstance(units, int) or units <= 0:
+        try:
+            units = operator.index(units)
+        except (TypeError, OverflowError):
+            raise ValueError(
+                "Received an invalid value for `units`, expected a positive "
+                f"integer. Received: units={units}"
+            )
+        if units <= 0:
             raise ValueError(
                 "Received an invalid value for `units`, expected a positive "
                 f"integer. Received: units={units}"
