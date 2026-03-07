@@ -2168,6 +2168,20 @@ def mod(x1, x2):
     return tf.math.mod(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = tf.cast(x1, dtype)
+    x2 = tf.cast(x2, dtype)
+    quotient = x1 / x2
+    truncated = tf.sign(quotient) * tf.math.floor(tf.math.abs(quotient))
+    truncated = tf.cast(truncated, dtype)
+    return x1 - truncated * x2
+
+
 def moveaxis(x, source, destination):
     x = convert_to_tensor(x)
 
