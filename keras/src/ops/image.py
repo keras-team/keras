@@ -1910,3 +1910,66 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+class SobelEdges(Operation):
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.sobel_edges(images, data_format=self.data_format)
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) != 4:
+            raise ValueError(
+                "Invalid images rank: expected rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        # Output adds an extra dimension of size 2 for [dy, dx]
+        output_shape = images_shape + [2]
+        return KerasTensor(shape=output_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.sobel_edges")
+def sobel_edges(images, data_format=None):
+    """Computes Sobel edge detection on images.
+
+    The Sobel operator computes the gradient of the image intensity at each
+    pixel, giving the direction of the largest increase from light to dark
+    and the rate of change in that direction.
+
+    Args:
+        images: Input tensor of shape `(batch, height, width, channels)` if
+            `data_format="channels_last"`, or
+            `(batch, channels, height, width)` if
+            `data_format="channels_first"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        A tensor containing the Sobel edges. For `data_format="channels_last"`,
+        the output shape is `(batch, height, width, channels, 2)` where the
+        last dimension contains `[dy, dx]` representing the vertical and
+        horizontal gradients. For `data_format="channels_first"`, the output
+        shape is `(batch, channels, height, width, 2)`.
+
+    Example:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> # Create image with vertical edge
+    >>> image = np.zeros((1, 8, 8, 1), dtype="float32")
+    >>> image[0, :, 4:, 0] = 1.0
+    >>> edges = ops.image.sobel_edges(image)
+    >>> edges.shape
+    (1, 8, 8, 1, 2)
+    """
+    if any_symbolic_tensors((images,)):
+        return SobelEdges(data_format=data_format).symbolic_call(images)
+    return backend.image.sobel_edges(
+        images, data_format=backend.standardize_data_format(data_format)
+    )
