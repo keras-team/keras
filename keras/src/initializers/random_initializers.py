@@ -2,7 +2,7 @@ import math
 
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.backend import random 
+from keras.src.backend import random
 from keras.src.initializers.initializer import Initializer
 from keras.src.saving import serialization_lib
 

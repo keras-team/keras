@@ -3,7 +3,6 @@ from openvino import Model
 from openvino import Type
 
 from keras.src import activations
-from keras.src import ops
 from keras.src import tree
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
@@ -395,7 +394,6 @@ def lstm(
         direction = "reverse"
 
     def get_activation_name(act):
-        from keras.src import activations
 
         if act == activations.tanh:
             return "tanh"
@@ -476,5 +474,5 @@ def numpy_scan(f, init, xs, reverse=False, mask=None):
     )
 
 
-def cudnn_ok(*args , **kwargs):
+def cudnn_ok(*args, **kwargs):
     return False
