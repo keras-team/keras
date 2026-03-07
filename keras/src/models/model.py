@@ -601,7 +601,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 try:
                     self.build(config["input_shape"])
                     status = True
-                except:
+                except Exception:
                     pass
             self._build_shapes_dict = config
 
@@ -613,7 +613,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 try:
                     self.build(**config["shapes_dict"])
                     status = True
-                except:
+                except Exception:
                     pass
             self._build_shapes_dict = config["shapes_dict"]
 

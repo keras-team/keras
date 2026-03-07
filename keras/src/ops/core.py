@@ -1104,7 +1104,7 @@ class Cond(Operation):
     def _check_output_spec(self, true_fn_spec, false_fn_spec):
         try:
             tree.assert_same_structure(true_fn_spec, false_fn_spec)
-        except:
+        except Exception:
             return False
 
         def check_leaf(t_spec, f_spec):

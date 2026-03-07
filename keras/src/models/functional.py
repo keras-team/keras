@@ -224,7 +224,7 @@ class Functional(Function, Model):
                 tree.lists_to_tuples(inputs),
                 tree.lists_to_tuples(self._inputs_struct),
             )
-        except:
+        except Exception:
             model_inputs_struct = tree.map_structure(
                 lambda x: x.name, self._inputs_struct
             )

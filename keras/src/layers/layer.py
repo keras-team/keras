@@ -1182,7 +1182,7 @@ class Layer(BackendLayer, Operation):
             if not isinstance(output_shape, (list, tuple, dict)):
                 try:
                     output_shape = tuple(output_shape)
-                except:
+                except Exception:
                     raise ValueError(
                         "Method `compute_output_shape()` of layer "
                         f"{self.__class__.__name__} is returning "
@@ -1546,7 +1546,7 @@ class Layer(BackendLayer, Operation):
         try:
             backend.compute_output_spec(self.call, input_tensors)
             return True
-        except:
+        except Exception:
             return False
 
     def _build_by_run_for_kwargs(self, shapes_dict):
@@ -1561,7 +1561,7 @@ class Layer(BackendLayer, Operation):
             try:
                 backend.compute_output_spec(self.call, **input_tensors)
                 return True
-            except:
+            except Exception:
                 return False
         else:
             # Not supported: nested input keyword arguments.

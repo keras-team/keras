@@ -2002,7 +2002,7 @@ class TestTrainer(testing.TestCase):
                     y_test.reshape((-1, 16, 3)),
                 ),
             )
-        except:
+        except Exception:
             pass
 
         # Try model.fit with correct validation_data this should work.

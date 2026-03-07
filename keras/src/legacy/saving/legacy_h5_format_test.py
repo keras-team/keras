@@ -18,7 +18,7 @@ from keras.src.saving import serialization_lib
 
 try:
     import tf_keras
-except:
+except Exception:
     tf_keras = None
 
 
