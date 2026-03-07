@@ -1,5 +1,7 @@
 import warnings
 
+import numpy as np
+
 from keras.src import activations
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
@@ -47,6 +49,11 @@ class LeakyReLU(Layer):
                 "The negative_slope value of a Leaky ReLU layer "
                 "cannot be None or negative value. Expected a float."
                 f" Received: negative_slope={negative_slope}"
+            )
+        if np.isnan(negative_slope):
+            raise ValueError(
+                "The `negative_slope` argument for LeakyReLU cannot be NaN."
+                "Please provide a valid float value."
             )
         self.negative_slope = negative_slope
         self.supports_masking = True
