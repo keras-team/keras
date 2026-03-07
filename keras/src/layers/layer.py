@@ -20,6 +20,7 @@ import collections
 import functools
 import inspect
 import math
+import os
 import warnings
 from functools import wraps
 
@@ -66,6 +67,46 @@ else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."
     )
+
+
+def _parse_max_tensor_elements(env_value):
+    if env_value is None:
+        return int(1e8)
+    try:
+        value = int(env_value)
+    except (TypeError, ValueError):
+        raise ValueError("KERAS_MAX_TENSOR_ELEMENTS must be a positive integer")
+    if value <= 0:
+        raise ValueError("KERAS_MAX_TENSOR_ELEMENTS must be > 0")
+    return value
+
+
+MAX_TENSOR_ELEMENTS = _parse_max_tensor_elements(
+    os.environ.get("KERAS_MAX_TENSOR_ELEMENTS")
+)
+
+
+def _validate_tensor_size(tensor):
+    shape = tensor.shape
+    if shape is None:
+        return
+
+    num_elements = 1
+    for dim in shape:
+        if dim is None:
+            return  # dynamic shape, skip
+        num_elements *= int(dim)
+        if num_elements > MAX_TENSOR_ELEMENTS:
+            break
+
+    if num_elements > MAX_TENSOR_ELEMENTS:
+        raise ValueError(
+            f"A tensor of size {num_elements} was created, which is larger "
+            f"than the maximum allowed size of {MAX_TENSOR_ELEMENTS}. "
+            "This is a safeguard to prevent excessive memory allocation. "
+            "If this allocation is intended, you can increase the limit by "
+            "setting the `KERAS_MAX_TENSOR_ELEMENTS` environment variable."
+        )
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
@@ -957,6 +998,14 @@ class Layer(BackendLayer, Operation):
                         outputs = super().__call__(*args, **kwargs)
                 else:
                     outputs = super().__call__(*args, **kwargs)
+
+                # ---- BEGIN tensor size safety check ----
+                for output in tree.flatten(outputs):
+                    if backend.is_tensor(output) and not isinstance(
+                        output, KerasTensor
+                    ):
+                        _validate_tensor_size(output)
+                # ---- END tensor size safety check ----
                 # Change the layout for the layer output if needed.
                 # This is useful for relayout intermediate tensor in the model
                 # to achieve the optimal performance.
@@ -974,7 +1023,9 @@ class Layer(BackendLayer, Operation):
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
-                        if backend.is_tensor(output):
+                        if backend.is_tensor(output) and not isinstance(
+                            output, KerasTensor
+                        ):
                             loss = self.activity_regularizer(output)
                             if output.ndim > 0:
                                 # Normalize by batch size to ensure consistent
