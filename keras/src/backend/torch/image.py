@@ -13,6 +13,7 @@ from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.core import to_torch_dtype
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = {
     "bilinear": "bilinear",
@@ -1190,3 +1191,42 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = images.unsqueeze(0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = images.permute(0, 2, 3, 1)
+
+    device = images.device
+    images_np = images.float().cpu().numpy()
+    batch_size, height, width, channels = images_np.shape
+    output = np.empty((batch_size, height, width, channels), dtype="float32")
+
+    for b in range(batch_size):
+        for c in range(channels):
+            output[b, :, :, c] = scipy.ndimage.distance_transform_edt(
+                images_np[b, :, :, c] != 0
+            ).astype("float32")
+
+    result = torch.from_numpy(output).to(device)
+
+    if data_format == "channels_first":
+        result = result.permute(0, 3, 1, 2)
+    if need_squeeze:
+        result = result.squeeze(0)
+    return result

@@ -2,10 +2,12 @@ import functools
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from keras.src import backend
 from keras.src.backend.jax.core import convert_to_tensor
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -895,3 +897,46 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = jnp.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = jnp.transpose(images, (0, 2, 3, 1))
+
+    def _edt_scipy(image_np):
+        h, w, c = image_np.shape
+        output = np.empty((h, w, c), dtype="float32")
+        for ch in range(c):
+            output[:, :, ch] = scipy.ndimage.distance_transform_edt(
+                image_np[:, :, ch] != 0
+            ).astype("float32")
+        return output
+
+    def _edt_single(image):
+        output_shape = jax.ShapeDtypeStruct(image.shape, jnp.float32)
+        return jax.pure_callback(
+            _edt_scipy, output_shape, image, vmap_method="sequential"
+        )
+
+    result = jax.vmap(_edt_single)(images)
+
+    if data_format == "channels_first":
+        result = jnp.transpose(result, (0, 3, 1, 2))
+    if need_squeeze:
+        result = jnp.squeeze(result, axis=0)
+    return result
