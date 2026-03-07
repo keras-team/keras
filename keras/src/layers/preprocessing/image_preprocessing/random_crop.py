@@ -283,9 +283,10 @@ class RandomCrop(BaseImagePreprocessingLayer):
         return config
 
 
-RandomCrop.__doc__ = RandomCrop.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandomCrop"
-    ),
-)
+if RandomCrop.__doc__ is not None:
+    RandomCrop.__doc__ = RandomCrop.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomCrop"
+        ),
+    )
