@@ -506,15 +506,55 @@ class FeatureSpace(Layer):
         return adaptable_preprocessors
 
     def adapt(self, dataset):
+        """Adapt the FeatureSpace to the provided dataset.
+
+        This method computes statistics (vocabulary, mean/variance, etc.) for
+        each adaptable preprocessing layer based on the provided data.
+
+        Args:
+            dataset: The data to adapt on. Can be:
+                - A `tf.data.Dataset` (must yield dicts of features)
+                - A dict of arrays/lists
+                - Any iterable that yields dicts of features. Note: for
+                  iterables, the entire dataset will be loaded into memory.
+        """
         if not isinstance(dataset, tf.data.Dataset):
             if isinstance(dataset, dict):
                 dataset = tf.data.Dataset.from_tensor_slices(dataset)
             else:
-                raise ValueError(
-                    "`adapt()` can only be called on a tf.data.Dataset or a "
-                    "dict of arrays/lists. "
-                    f"Received instead: {dataset} (of type {type(dataset)})"
-                )
+                try:
+                    iterator = iter(dataset)
+                    # Collect all samples from the iterable
+                    samples = list(iterator)
+                    if not samples:
+                        raise ValueError(
+                            "`adapt()` received an empty iterable."
+                        )
+                    # Check if samples are dicts
+                    if isinstance(samples[0], dict):
+                        # Combine all dicts into a single dict of lists
+                        combined_dict = {}
+                        for sample in samples:
+                            for key, value in sample.items():
+                                if key not in combined_dict:
+                                    combined_dict[key] = []
+                                combined_dict[key].append(value)
+                        dataset = tf.data.Dataset.from_tensor_slices(
+                            combined_dict
+                        )
+                    else:
+                        raise ValueError(
+                            "`adapt()` requires data to be dicts of features. "
+                            "Received iterable with elements of type "
+                            f"{type(samples[0])}."
+                        )
+                except TypeError:
+                    raise ValueError(
+                        "`adapt()` can be called on a tf.data.Dataset, a dict "
+                        "of arrays/lists, or any iterable yielding dicts of "
+                        "features. Received instead: "
+                        f"{dataset} (of type {type(dataset)})"
+                    )
 
         for name in self._list_adaptable_preprocessors():
             # Call adapt() on each individual adaptable layer.
