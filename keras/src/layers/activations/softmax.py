@@ -36,8 +36,10 @@ class Softmax(Layer):
 
     Call arguments:
         inputs: The inputs (logits) to the softmax layer.
-        mask: A boolean mask of the same shape as `inputs`. The mask
-            specifies 1 to keep and 0 to mask. Defaults to `None`.
+        mask: A boolean mask that is broadcastable to `inputs`. The mask
+            specifies 1 to keep and 0 to mask. Each dimension of the mask
+            must either be 1 or match the corresponding dimension of
+            `inputs`; it must not be larger. Defaults to `None`.
 
     Returns:
         Softmaxed output with the same shape as `inputs`.
@@ -52,6 +54,24 @@ class Softmax(Layer):
 
     def call(self, inputs, mask=None):
         if mask is not None:
+            if len(mask.shape) > len(inputs.shape):
+                raise ValueError(
+                    "The `mask` must be broadcastable to `inputs` "
+                    "and must not have more dimensions. "
+                    f"Received: inputs.shape={inputs.shape}, "
+                    f"mask.shape={mask.shape}"
+                )
+            for m_dim, i_dim in zip(mask.shape[::-1], inputs.shape[::-1]):
+                if m_dim is not None and i_dim is not None:
+                    if m_dim != 1 and m_dim != i_dim:
+                        raise ValueError(
+                            "The `mask` must be broadcastable to "
+                            "`inputs`. Each mask dimension must be 1 "
+                            "or match the corresponding input "
+                            "dimension. Received: "
+                            f"inputs.shape={inputs.shape}, "
+                            f"mask.shape={mask.shape}"
+                        )
             # We keep the positions where the mask is True or > 0.5, and set the
             # other (masked) positions to -1e.9.
             if backend.standardize_dtype(mask.dtype) != "bool":
