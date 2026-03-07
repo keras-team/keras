@@ -281,13 +281,6 @@ GPTQQuantizerTest::test_zero_scale_guard_no_nans_for_finite_inputs
 GroupedQuantizationParametersTest::test_grouped_weight_shapes_divisible
 GroupedQuantizationParametersTest::test_grouped_weight_shapes_non_divisible
 GroupedQueryAttentionTest::test_basics
-GRUTest::test_correctness0
-GRUTest::test_correctness1
-GRUTest::test_legacy_implementation_argument
-GRUTest::test_masking
-GRUTest::test_pass_initial_state
-GRUTest::test_pass_return_state
-GRUTest::test_statefulness
 HingeTest::test_dtype_arg
 HingeTest::test_unweighted
 HingeTest::test_weighted
