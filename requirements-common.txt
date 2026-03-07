@@ -12,6 +12,7 @@ requests
 h5py
 ml-dtypes
 protobuf
+tensorboard
 tensorboard-plugin-profile
 rich
 build
