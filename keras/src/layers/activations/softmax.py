@@ -75,11 +75,13 @@ class Softmax(Layer):
             outputs = activations.softmax(inputs, axis=self.axis)
 
         if mask is not None:
-            # Apply the mask to the softmax output to ensure that masked
-            # values are set to 0 in case the entire axis is masked.
-            outputs = backend.numpy.multiply(
-                outputs, backend.cast(mask, outputs.dtype)
-            )
+            # Free pre-softmax masked inputs to reduce peak GPU memory.
+            # Without this, the masked inputs, softmax outputs, and
+            # post-masked outputs all exist simultaneously.
+            del inputs
+            # Zero out masked positions in case the entire axis is masked
+            # (where softmax would output a uniform distribution).
+            outputs = backend.numpy.where(mask, outputs, 0.0)
 
         return outputs
 
