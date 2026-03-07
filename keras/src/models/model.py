@@ -665,7 +665,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, `"litert"`,
+                and `"torch"`.
                 Defaults to `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
@@ -748,22 +749,51 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             interpreter.get_output_details()[0]['index']
         )
         ```
+
+        Here's how to export a PyTorch ExportedProgram for inference.
+
+        ```python
+        # Export the model as a PyTorch ExportedProgram
+        model.export("path/to/model.pt2", format="torch")
+
+        # Load the artifact in a different process/environment
+        import torch
+        loaded_program = torch.export.load("path/to/model.pt2")
+        predictions = loaded_program.module()(input_tensor)
+        ```
         """
         from keras.src.export import export_litert
         from keras.src.export import export_onnx
         from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
+        from keras.src.export import export_torch
 
-        available_formats = ("tf_saved_model", "onnx", "openvino", "litert")
+        available_formats = (
+            "tf_saved_model",
+            "onnx",
+            "openvino",
+            "litert",
+            "torch",
+        )
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
                 f"{list(available_formats)}."
             )
 
-        # Check if LiteRT export is available (requires TensorFlow backend)
-        if format == "litert" and backend.backend() != "tensorflow":
-            raise ImportError("LiteRT export requires TensorFlow backend.")
+        # Check if LiteRT export is available (requires
+        # TensorFlow or PyTorch backend)
+        if format == "litert" and backend.backend() not in (
+            "tensorflow",
+            "torch",
+        ):
+            raise ImportError(
+                "LiteRT export requires TensorFlow or PyTorch backend."
+            )
+
+        # Check if Torch export is available (requires PyTorch backend)
+        if format == "torch" and backend.backend() != "torch":
+            raise ImportError("Torch export requires PyTorch backend.")
 
         if format == "tf_saved_model":
             export_saved_model(
@@ -793,6 +823,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             export_litert(
                 self,
                 filepath,
+                input_signature=input_signature,
+                verbose=verbose,
+                **kwargs,
+            )
+        elif format == "torch":
+            export_torch(
+                self,
+                filepath,
+                verbose=verbose,
                 input_signature=input_signature,
                 **kwargs,
             )
