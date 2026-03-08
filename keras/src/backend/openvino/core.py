@@ -608,7 +608,7 @@ class OpenVINOKerasTensor:
         return OpenVINOKerasTensor(ov_opset.logical_xor(other, first).output(0))
 
     def __int__(self):
-        arr = self.output.get_node().data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -617,7 +617,7 @@ class OpenVINOKerasTensor:
         return int(arr)
 
     def __float__(self):
-        arr = self.output.get_node().data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -815,7 +815,7 @@ def convert_to_numpy(x):
         node = x.output.get_node()
         if node.get_type_name() == "Constant":
             return node.data
-    except AttributeError:
+    except Exception:
         # fall back to the slow path.
         pass
     try:
