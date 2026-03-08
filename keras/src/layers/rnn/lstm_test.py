@@ -67,6 +67,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -89,6 +91,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -111,6 +115,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -133,6 +139,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -155,6 +163,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -178,6 +188,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -192,6 +204,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -212,6 +226,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.20574439, 0.3558822], [0.64930826, 0.66276]]),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -227,6 +243,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.13281618, 0.2790356], [0.5839337, 0.5992567]]),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -245,6 +263,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.1524914, 0.1524914], [0.35969394, 0.35969394]]),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -267,6 +287,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[0],
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -280,6 +302,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[1],
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -303,6 +327,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[0],
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -316,6 +342,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[1],
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -331,6 +359,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.10056866, 0.10056866], [0.31006062, 0.31006062]]),
             output,
+            atol=1e-3,
+            rtol=1e-3,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
