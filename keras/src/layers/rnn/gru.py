@@ -583,6 +583,25 @@ class GRU(RNN):
                     # since cuDNN ops aren't XLA compatible.
                     if backend.backend() == "tensorflow":
                         self.supports_jit = False
+                     if getattr(self, "zero_output_for_mask", False) and mask is not None:
+                        last_output, outputs, new_states = out
+                        mask_expanded = ops.expand_dims(
+                            ops.cast(mask, "bool"), axis=-1
+                        )
+                        outputs = ops.where(
+                            mask_expanded, outputs, ops.zeros_like(outputs)
+                        )
+
+                        last_mask = mask[:, 0] if self.go_backwards else mask[:, -1]
+                        last_mask_expanded = ops.expand_dims(
+                            ops.cast(last_mask, "bool"), axis=-1
+                        )
+                        last_output = ops.where(
+                            last_mask_expanded, last_output, ops.zeros_like(last_output)
+                        )
+
+                        out = (last_output, outputs, new_states)
+
                     return out
                 except NotImplementedError:
                     pass
