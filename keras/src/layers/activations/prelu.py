@@ -39,6 +39,10 @@ class PReLU(Layer):
         shared_axes=None,
         **kwargs,
     ):
+        if alpha_initializer is None:
+            raise ValueError(
+                "The `alpha_initializer` argument for PReLU cannot be None."
+            )
         super().__init__(**kwargs)
         self.supports_masking = True
         self.alpha_initializer = initializers.get(alpha_initializer)
