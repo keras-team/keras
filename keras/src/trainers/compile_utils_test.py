@@ -232,7 +232,7 @@ class TestCompileMetrics(testing.TestCase):
         compile_metrics.update_state(y_true, y_pred, sample_weight=None)
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-        self.assertEquals(list(result.keys()), ["my_custom_metric"])
+        self.assertEqual(list(result.keys()), ["my_custom_metric"])
 
     def test_dict_outputs_uses_output_names(self):
         """Tests that when output_names match the metrics dict keys, and the
@@ -276,7 +276,7 @@ class TestCompileMetrics(testing.TestCase):
 
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-        self.assertEquals(
+        self.assertEqual(
             list(result.keys()),
             ["dense_1_mean_squared_error", "dense_2_mean_squared_error"],
         )
@@ -326,7 +326,7 @@ class TestCompileMetrics(testing.TestCase):
 
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-        self.assertEquals(
+        self.assertEqual(
             list(result.keys()),
             [
                 "dense_1_mean_squared_error",
@@ -381,7 +381,7 @@ class TestCompileMetrics(testing.TestCase):
 
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-        self.assertEquals(
+        self.assertEqual(
             list(result.keys()),
             ["a_mean_squared_error", "b_mean_absolute_percentage_error"],
         )
@@ -431,7 +431,7 @@ class TestCompileMetrics(testing.TestCase):
 
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-        self.assertEquals(
+        self.assertEqual(
             list(result.keys()),
             ["a_mean_squared_error", "b_mean_squared_error"],
         )
@@ -504,7 +504,7 @@ class TestCompileMetrics(testing.TestCase):
 
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-        self.assertEquals(
+        self.assertEqual(
             list(result.keys()),
             ["mse_a", "mse_c", "mse_d1", "mse_d2"],
         )
