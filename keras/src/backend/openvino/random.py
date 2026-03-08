@@ -28,7 +28,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         seed_data = convert_to_numpy(seed_val)
     else:
         seed_data = seed_val.data
-    rng = np.random.default_rng(seed_data)
+    rng = np.random.default_rng(np.abs(seed_data))
     random_values = rng.uniform(minval, maxval, size=shape).astype(dtype)
     return OpenVINOKerasTensor(ov_opset.constant(random_values).output(0))
 
