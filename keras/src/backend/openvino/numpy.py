@@ -4631,9 +4631,171 @@ def select(condlist, choicelist, default=0):
 
 
 def slogdet(x):
-    raise NotImplementedError(
-        "`slogdet` is not supported with openvino backend"
+    x = get_ov_output(x)
+    x_shape = ov_opset.shape_of(x, Type.i32).output(0)
+
+    x_type = x.get_element_type()
+    is_f64 = x_type == Type.f64
+    if is_f64:
+        x = ov_opset.convert(x, Type.f32).output(0)
+
+    x_type_compute = x.get_element_type()
+
+    rank = ov_opset.shape_of(x_shape, Type.i32).output(0)
+    rank_minus_1 = ov_opset.subtract(
+        rank, ov_opset.constant([1], Type.i32)
+    ).output(0)
+
+    N = ov_opset.gather(
+        x_shape, rank_minus_1, ov_opset.constant(0, Type.i32)
+    ).output(0)
+    N_scalar = ov_opset.squeeze(N, ov_opset.constant([0], Type.i32)).output(0)
+
+    is_n_zero = ov_opset.equal(N_scalar, ov_opset.constant(0, Type.i32)).output(
+        0
     )
+
+    safe_N_scalar = ov_opset.select(
+        is_n_zero, ov_opset.constant(1, Type.i32).output(0), N_scalar
+    ).output(0)
+
+    safe_x_shape = ov_opset.concat(
+        [
+            ov_opset.slice(
+                x_shape,
+                ov_opset.constant([0], Type.i32),
+                ov_opset.constant([-2], Type.i32),
+                ov_opset.constant([1], Type.i32),
+                ov_opset.constant([0], Type.i32),
+            ).output(0),
+            ov_opset.unsqueeze(
+                safe_N_scalar, ov_opset.constant([0], Type.i32)
+            ).output(0),
+            ov_opset.unsqueeze(
+                safe_N_scalar, ov_opset.constant([0], Type.i32)
+            ).output(0),
+        ],
+        axis=0,
+    ).output(0)
+
+    pad_val = ov_opset.select(
+        is_n_zero,
+        ov_opset.constant(1, Type.i32).output(0),
+        ov_opset.constant(0, Type.i32).output(0),
+    ).output(0)
+    pads_begin = ov_opset.broadcast(
+        ov_opset.constant(0, Type.i32), rank
+    ).output(0)
+
+    zeros_except_last2 = ov_opset.broadcast(
+        ov_opset.constant(0, Type.i32),
+        ov_opset.subtract(rank, ov_opset.constant(2, Type.i32)).output(0),
+    ).output(0)
+    pads_end = ov_opset.concat(
+        [
+            zeros_except_last2,
+            ov_opset.unsqueeze(
+                pad_val, ov_opset.constant([0], Type.i32)
+            ).output(0),
+            ov_opset.unsqueeze(
+                pad_val, ov_opset.constant([0], Type.i32)
+            ).output(0),
+        ],
+        axis=0,
+    ).output(0)
+
+    safe_x = ov_opset.pad(
+        x,
+        pads_begin,
+        pads_end,
+        "constant",
+        ov_opset.constant(0.0, x_type_compute),
+    ).output(0)
+
+    I = ov_opset.eye(
+        safe_N_scalar,
+        safe_N_scalar,
+        ov_opset.constant(0, Type.i32),
+        output_type=x_type_compute,
+    ).output(0)
+
+    I = ov_opset.broadcast(I, safe_x_shape).output(0)
+
+    M_init = OpenVINOKerasTensor(I)
+    k_init = OpenVINOKerasTensor(ov_opset.constant(1, Type.i32).output(0))
+
+    c_init_tensor = ov_opset.broadcast(
+        ov_opset.constant(0.0, x_type_compute), safe_x_shape
+    ).output(0)
+    c_init = OpenVINOKerasTensor(c_init_tensor)
+
+    def cond(M, k, c):
+        k = get_ov_output(k)
+        return OpenVINOKerasTensor(
+            ov_opset.less_equal(k, safe_N_scalar).output(0)
+        )
+
+    def body(M, k, c):
+        M = get_ov_output(M)
+        k = get_ov_output(k)
+        c = get_ov_output(c)
+
+        AM = ov_opset.matmul(safe_x, M, False, False).output(0)
+
+        trace_AM = ov_opset.reduce_sum(
+            ov_opset.multiply(AM, I).output(0),
+            ov_opset.constant([-2, -1], Type.i32),
+            keep_dims=True,
+        ).output(0)
+
+        k_float = ov_opset.convert(k, x_type_compute).output(0)
+
+        next_c_small = ov_opset.divide(trace_AM, k_float).output(0)
+        next_c = ov_opset.broadcast(next_c_small, safe_x_shape).output(0)
+
+        next_M = ov_opset.subtract(
+            AM, ov_opset.multiply(next_c, I).output(0)
+        ).output(0)
+
+        next_k = ov_opset.add(
+            k, ov_opset.constant(1, Type.i32).output(0)
+        ).output(0)
+
+        return (
+            OpenVINOKerasTensor(next_M),
+            OpenVINOKerasTensor(next_k),
+            OpenVINOKerasTensor(next_c),
+        )
+
+    result_tuple = while_loop(cond, body, (M_init, k_init, c_init))
+    c_final = get_ov_output(result_tuple[2])
+
+    if is_f64:
+        c_final = ov_opset.convert(c_final, Type.f64).output(0)
+
+    N_mod_2 = ov_opset.mod(N_scalar, ov_opset.constant(2, Type.i32)).output(0)
+    is_odd = ov_opset.equal(N_mod_2, ov_opset.constant(1, Type.i32)).output(0)
+
+    c_final = ov_opset.reduce_mean(
+        c_final, ov_opset.constant([-2, -1], Type.i32), keep_dims=False
+    ).output(0)
+
+    det = ov_opset.select(
+        is_odd, c_final, ov_opset.negative(c_final).output(0)
+    ).output(0)
+
+    one = ov_opset.constant(1.0, x_type).output(0)
+
+    det = ov_opset.select(
+        is_n_zero,
+        ov_opset.broadcast(one, ov_opset.shape_of(det)).output(0),
+        det,
+    ).output(0)
+
+    sign = ov_opset.sign(det).output(0)
+    log_abs_det = ov_opset.log(ov_opset.abs(det).output(0)).output(0)
+
+    return OpenVINOKerasTensor(sign), OpenVINOKerasTensor(log_abs_det)
 
 
 def argpartition(x, kth, axis=-1):

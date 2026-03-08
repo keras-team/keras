@@ -502,7 +502,6 @@ NumpyOneInputOpsCorrectnessTest::test_nanargmax
 NumpyOneInputOpsCorrectnessTest::test_nanargmin
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
-NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyOneInputOpsDynamicShapeTest::test_view
