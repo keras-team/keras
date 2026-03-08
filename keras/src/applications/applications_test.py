@@ -253,10 +253,10 @@ class ApplicationsTest(testing.TestCase):
         backend.set_image_data_format(image_data_format)
 
         if image_data_format == "channels_first":
-            input_shape = (4, 123, 123)
+            input_shape = (4, 200, 200)
             last_dim_axis = 1
         else:
-            input_shape = (123, 123, 4)
+            input_shape = (200, 200, 4)
             last_dim_axis = -1
 
         inputs_custom = Input(shape=input_shape, name="custom_input")

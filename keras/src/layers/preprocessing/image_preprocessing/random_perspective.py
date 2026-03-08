@@ -166,30 +166,23 @@ class RandomPerspective(BaseImagePreprocessingLayer):
             "input_shape": images_shape,
         }
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training and transformation is not None:
-            images = self._perspective_inputs(images, transformation)
-            images = self.backend.cast(images, self.compute_dtype)
-        return images
-
-    def _perspective_inputs(self, inputs, transformation):
+    def _transform_images(self, images, transformation, interpolation):
         if transformation is None:
-            return inputs
+            return images
 
-        inputs_shape = self.backend.shape(inputs)
+        inputs_shape = self.backend.shape(images)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+            images = self.backend.numpy.expand_dims(images, axis=0)
 
         start_points = transformation["start_points"]
         end_points = transformation["end_points"]
 
         outputs = self.backend.image.perspective_transform(
-            inputs,
+            images,
             start_points,
             end_points,
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             fill_value=self.fill_value,
             data_format=self.data_format,
         )
@@ -198,7 +191,7 @@ class RandomPerspective(BaseImagePreprocessingLayer):
         outputs = self.backend.numpy.where(
             apply_perspective[:, None, None, None],
             outputs,
-            inputs,
+            images,
         )
 
         if unbatched:
@@ -322,13 +315,6 @@ class RandomPerspective(BaseImagePreprocessingLayer):
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
-
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
 
     def compute_output_shape(self, input_shape):
         return input_shape

@@ -421,6 +421,11 @@ LossScaleOptimizerTest::test_iterations_update_stateful
 LossScaleOptimizerTest::test_iterations_update_stateless
 LossScaleOptimizerTest::test_upscaling_stateful
 LossScaleOptimizerTest::test_upscaling_stateless
+LSTMTest::test_correctness0
+LSTMTest::test_correctness1
+LSTMTest::test_masking
+LSTMTest::test_pass_initial_state
+LSTMTest::test_statefulness
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_logdet
