@@ -340,6 +340,18 @@ def amin(x, axis=None, keepdims=False):
 
 
 def _resolve_axis(x, axis):
+    if hasattr(axis, "__class__") and "Output" in axis.__class__.__name__:
+        axis_node = axis.get_node()
+        if hasattr(axis_node, "get_data"):
+            axis_val = axis_node.get_data()
+            if axis_val is not None:
+                if hasattr(axis_val, "ndim") and axis_val.ndim > 0 and axis_val.size > 0:
+                    axis = int(axis_val[0])
+                elif hasattr(axis_val, "size") and axis_val.size == 1:
+                    axis = int(axis_val.item())
+                else:
+                    axis = int(axis_val)
+
     if axis == () or axis == []:
         return x, None
     if axis is None:
@@ -522,6 +534,21 @@ def argmax(x, axis=None, keepdims=False):
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
     else:
+        if isinstance(axis, ov.Output) or (hasattr(axis, "__class__") and "Output" in axis.__class__.__name__):
+            axis_node = axis.get_node()
+            if hasattr(axis_node, "get_data"):
+                axis_val = axis_node.get_data()
+                if axis_val is not None:
+                    if hasattr(axis_val, "ndim") and axis_val.ndim > 0 and axis_val.size > 0:
+                        axis = int(axis_val[0])
+                    elif hasattr(axis_val, "size") and axis_val.size == 1:
+                        axis = int(axis_val.item())
+                    else:
+                        axis = int(axis_val)
+                else:
+                    raise ValueError("axis must be static for argmax")
+            else:
+                raise ValueError("axis must be static for argmax")
         if axis < 0:
             axis = rank + axis
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -554,6 +581,21 @@ def argmin(x, axis=None, keepdims=False):
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
     else:
+        if isinstance(axis, ov.Output) or (hasattr(axis, "__class__") and "Output" in axis.__class__.__name__):
+            axis_node = axis.get_node()
+            if hasattr(axis_node, "get_data"):
+                axis_val = axis_node.get_data()
+                if axis_val is not None:
+                    if hasattr(axis_val, "ndim") and axis_val.ndim > 0 and axis_val.size > 0:
+                        axis = int(axis_val[0])
+                    elif hasattr(axis_val, "size") and axis_val.size == 1:
+                        axis = int(axis_val.item())
+                    else:
+                        axis = int(axis_val)
+                else:
+                    raise ValueError("axis must be static for argmin")
+            else:
+                raise ValueError("axis must be static for argmin")
         if axis < 0:
             axis = rank + axis
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -2848,15 +2890,75 @@ def moveaxis(x, source, destination):
 
 
 def nanargmax(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanargmax` is not supported with openvino backend"
-    )
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
+        x = x.astype(np.float32)
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type == Type.f64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
 
+    if x_type.is_integral() or x_type == Type.boolean:
+        return argmax(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+
+    nan_mask = ov_opset.is_nan(x)
+    neg_inf = ov_opset.constant(np.array(-np.inf, dtype=np.float32))
+    if x_type != Type.f32:
+        neg_inf = ov_opset.convert(neg_inf, x_type)
+    x_replaced = ov_opset.select(nan_mask, neg_inf, x).output(0)
+
+    result = argmax(OpenVINOKerasTensor(x_replaced), axis=axis, keepdims=keepdims)
+    result_ov = get_ov_output(result)
+
+    all_nan = ov_opset.reduce_logical_and(nan_mask, axis, keepdims).output(0)
+    nan_value = ov_opset.constant(-1, Type.i32).output(0)
+    if result_ov.get_element_type() != Type.i32:
+        nan_value = ov_opset.convert(nan_value, result_ov.get_element_type())
+    result_ov = ov_opset.select(all_nan, nan_value, result_ov).output(0)
+
+    return OpenVINOKerasTensor(result_ov)
 
 def nanargmin(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanargmin` is not supported with openvino backend"
-    )
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
+        x = x.astype(np.float32)
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type == Type.f64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        return argmin(OpenVINOKerasTensor(x), axis=axis, keepdims=keepdims)
+
+    x, axis = _resolve_axis(x, axis)
+    if axis is None:
+        return OpenVINOKerasTensor(x)
+
+    nan_mask = ov_opset.is_nan(x)
+    pos_inf = ov_opset.constant(np.array(np.inf, dtype=np.float32))
+    if x_type != Type.f32:
+        pos_inf = ov_opset.convert(pos_inf, x_type)
+    x_replaced = ov_opset.select(nan_mask, pos_inf, x).output(0)
+
+    result = argmin(OpenVINOKerasTensor(x_replaced), axis=axis, keepdims=keepdims)
+    result_ov = get_ov_output(result)
+
+    all_nan = ov_opset.reduce_logical_and(nan_mask, axis, keepdims).output(0)
+    nan_value = ov_opset.constant(-1, Type.i32).output(0)
+    if result_ov.get_element_type() != Type.i32:
+        nan_value = ov_opset.convert(nan_value, result_ov.get_element_type())
+    result_ov = ov_opset.select(all_nan, nan_value, result_ov).output(0)
+
+    return OpenVINOKerasTensor(result_ov)
+
 
 
 def nancumsum(x, axis=None, dtype=None):
