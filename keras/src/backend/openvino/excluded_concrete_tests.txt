@@ -29,7 +29,6 @@ AveragePoolingBasicTest::test_average_pooling2d6
 AveragePoolingBasicTest::test_average_pooling3d0
 AveragePoolingBasicTest::test_average_pooling3d1
 AveragePoolingBasicTest::test_average_pooling3d2
-BinaryCrossentropyTest::test_label_smoothing
 CircleTest::test_correctness
 CircleTest::test_correctness_weighted
 CircleTest::test_dtype_arg
@@ -475,12 +474,7 @@ NNOpsCorrectnessTest::test_fold_no_padding
 NNOpsCorrectnessTest::test_fold_non_square_output
 NNOpsCorrectnessTest::test_fold_tuple_params
 NNOpsCorrectnessTest::test_glu
-NNOpsCorrectnessTest::test_log_softmax_correctness_with_axis_tuple
-NNOpsCorrectnessTest::test_moments
-NNOpsCorrectnessTest::test_normalize
 NNOpsCorrectnessTest::test_polar_corectness
-NNOpsCorrectnessTest::test_rms_normalization_10.0
-NNOpsCorrectnessTest::test_softmax_correctness_with_axis_tuple
 NNOpsCorrectnessTest::test_sparsemax
 NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
