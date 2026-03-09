@@ -187,8 +187,6 @@ def slogdet(a):
     logabsdet_result = ov_opset.reshape(log_abs_det, out_shape, False).output(0)
 
     return OpenVINOKerasTensor(sign_result), OpenVINOKerasTensor(logabsdet_result)
-    
-    # raise NotImplementedError("`slogdet` is not supported with openvino backend")
 
 
 def eig(a):

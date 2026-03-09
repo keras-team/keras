@@ -4631,11 +4631,7 @@ def select(condlist, choicelist, default=0):
     return OpenVINOKerasTensor(result)
 
 
-def slogdet(x): 
-
-    # raise NotImplementedError(
-    #     "`slogdet` is not supported with openvino backend"
-    # )
+def slogdet(x):
     return _slogdet(x)
 
 
