@@ -17,7 +17,8 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
-from keras.src.backend.openvino.core import while_loop
+from keras.src.backend.openvino.core import while_loop 
+from keras.src.backend.openvino.linalg import slogdet as _slogdet
 
 
 def add(x1, x2):
@@ -4630,10 +4631,12 @@ def select(condlist, choicelist, default=0):
     return OpenVINOKerasTensor(result)
 
 
-def slogdet(x):
-    raise NotImplementedError(
-        "`slogdet` is not supported with openvino backend"
-    )
+def slogdet(x): 
+
+    # raise NotImplementedError(
+    #     "`slogdet` is not supported with openvino backend"
+    # )
+    return _slogdet(x)
 
 
 def argpartition(x, kth, axis=-1):
