@@ -1479,8 +1479,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         reason="Dynamic scan fallback is TF-specific.",
     )
     def test_associative_scan_dynamic_scan_body_tf_tensorspec_reverse(self):
-        """Dynamic fallback with reverse=True, lengths <= 3 to avoid the
-        iterative unwind path that hits the slice_along_axis bug."""
+        """Dynamic fallback with reverse=True."""
         import tensorflow as tf
 
         # length == 3 with reverse
@@ -1512,6 +1511,33 @@ class CoreOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(ra, np.cumsum(a.numpy(), axis=0))
         self.assertAllClose(rb, np.cumsum(b.numpy(), axis=0))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_function_dynamic_lengths(
+        self,
+    ):
+        """Exercises the recursive unwind path for lengths > 3 under
+        tf.function with fully dynamic input_signature."""
+        import tensorflow as tf
+
+        @tf.function(input_signature=[tf.TensorSpec([None, 4])])
+        def run_scan(x):
+            return core.associative_scan(f=operator.add, elems=x, axis=0)
+
+        for length in [4, 5, 7, 8, 16]:
+            x = tf.constant(
+                np.arange(length * 4, dtype="float32").reshape(length, 4)
+            )
+            result = run_scan(x)
+            expected = np.cumsum(x.numpy(), axis=0)
+            self.assertAllClose(
+                result,
+                expected,
+                msg=f"Failed for dynamic length={length}",
+            )
 
 
 class CoreOpsDtypeTest(testing.TestCase):
