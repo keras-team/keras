@@ -12,6 +12,7 @@ from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from keras.src.utils.python_utils import pythonify_logs
 
 
 class OpenVINOTrainer(base_trainer.Trainer):
@@ -30,9 +31,21 @@ class OpenVINOTrainer(base_trainer.Trainer):
         return x
 
     def test_step(self, data):
-        raise NotImplementedError(
-            "`test_step` is not supported with openvino backend"
+        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        ov_compiled_model = self._get_compiled_model(x)
+        flatten_x = tree.flatten(x)
+        y_pred = ov_compiled_model(flatten_x)
+        y_pred = self._unpack_singleton(
+            tree.pack_sequence_as(self.struct_outputs, y_pred.to_tuple())
         )
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
+        )
+        loss = backend.convert_to_numpy(loss)
+        self._loss_tracker.update_state(
+            loss, sample_weight=tree.flatten(x)[0].shape[0]
+        )
+        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -91,10 +104,21 @@ class OpenVINOTrainer(base_trainer.Trainer):
             raise "Unknown type of input data {}".format(type(data))
         return parametrize_data
 
+    def _get_data_shapes(self, data):
+        shapes = []
+        for x in tree.flatten(data):
+            if isinstance(x, np.ndarray):
+                shapes.append(x.shape)
+            else:
+                shapes.append(None)
+        return shapes
+
     def _get_compiled_model(self, data):
+        current_shapes = self._get_data_shapes(data)
         if (
             self.ov_compiled_model is not None
             and get_device() == self.ov_device
+            and getattr(self, "ov_input_shapes", None) == current_shapes
         ):
             return self.ov_compiled_model
 
@@ -117,6 +141,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
         ov_model = ov.Model(results=results, parameters=parameters)
         self.ov_compiled_model = ov.compile_model(ov_model, get_device())
         self.ov_device = get_device()
+        self.ov_input_shapes = current_shapes
         return self.ov_compiled_model
 
     def make_predict_function(self, force=False):
@@ -236,9 +261,50 @@ class OpenVINOTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
-        raise NotImplementedError(
-            "`evaluate` is not supported with openvino backend"
-        )
+        use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
+
+        if use_cached_eval_dataset:
+            epoch_iterator = self._eval_epoch_iterator
+        else:
+            epoch_iterator = EpochIterator(
+                x=x,
+                y=y,
+                sample_weight=sample_weight,
+                batch_size=batch_size,
+                steps_per_epoch=steps,
+                shuffle=False,
+                steps_per_execution=self.steps_per_execution,
+            )
+
+        if not isinstance(callbacks, callbacks_module.CallbackList):
+            callbacks = callbacks_module.CallbackList(
+                callbacks,
+                add_progbar=verbose != 0,
+                verbose=verbose,
+                epochs=1,
+                steps=epoch_iterator.num_batches,
+                model=self,
+            )
+
+        self.make_test_function()
+        self.stop_evaluating = False
+        callbacks.on_test_begin()
+        logs = {}
+        self.reset_metrics()
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_test_batch_begin(begin_step)
+            logs = self.test_function(data)
+            callbacks.on_test_batch_end(end_step, logs)
+            if self.stop_evaluating:
+                break
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
+        callbacks.on_test_end(logs)
+
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
 
     def train_on_batch(
         self,
@@ -259,9 +325,14 @@ class OpenVINOTrainer(base_trainer.Trainer):
         sample_weight=None,
         return_dict=False,
     ):
-        raise NotImplementedError(
-            "`test_on_batch` is not supported with openvino backend"
-        )
+        self._assert_compile_called("test_on_batch")
+        self.make_test_function()
+        self.reset_metrics()
+        logs = self.test_function([(x, y, sample_weight)])
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
         self.make_predict_function()
