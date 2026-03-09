@@ -4,11 +4,11 @@ from openvino import Type
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
 from keras.src.backend.openvino.core import convert_to_tensor
-from keras.src.backend.openvino.core import get_ov_output 
-from keras.src.backend.openvino.core import OPENVINO_DTYPES 
+from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
 
 
@@ -36,7 +36,8 @@ def cholesky_inverse(a, upper=False):
 
 
 def det(a):
-    raise NotImplementedError("`det` is not supported with openvino backend") 
+    raise NotImplementedError("`det` is not supported with openvino backend")
+
 
 def slogdet(a):
     a = convert_to_tensor(a)
@@ -68,16 +69,16 @@ def slogdet(a):
     batch_size = ov_opset.gather(
         batch_shape,
         ov_opset.constant([0], Type.i32).output(0),
-        ov_opset.constant(0, Type.i32).output(0)
+        ov_opset.constant(0, Type.i32).output(0),
     ).output(0)
 
     zero = ov_opset.constant(0.0, a_ov_type).output(0)
-    one  = ov_opset.constant(1.0, a_ov_type).output(0)
-    two  = ov_opset.constant(2.0, a_ov_type).output(0)
+    one = ov_opset.constant(1.0, a_ov_type).output(0)
+    two = ov_opset.constant(2.0, a_ov_type).output(0)
 
     # Accumulators — one value per batch element
     log_abs_det = ov_opset.broadcast(zero, batch_size).output(0)
-    sign_det    = ov_opset.broadcast(one,  batch_size).output(0)
+    sign_det = ov_opset.broadcast(one, batch_size).output(0)
 
     row_axis = ov_opset.constant(1, Type.i32).output(0)
     col_axis = ov_opset.constant(2, Type.i32).output(0)
@@ -85,7 +86,9 @@ def slogdet(a):
     # LU decomposition with partial pivoting
     for k in range(n):
         # Find pivot row: max |value| in column k, from row k downward
-        col_k     = ov_opset.gather(a_batched, ov_opset.constant(k, Type.i32).output(0), col_axis).output(0)
+        col_k = ov_opset.gather(
+            a_batched, ov_opset.constant(k, Type.i32).output(0), col_axis
+        ).output(0)
         abs_col_k = ov_opset.absolute(col_k).output(0)
 
         # Slice rows [k:n] of the column
@@ -94,35 +97,56 @@ def slogdet(a):
             ov_opset.constant([0, k], Type.i32).output(0),
             ov_opset.constant([2**30, n], Type.i32).output(0),
             ov_opset.constant([1, 1], Type.i32).output(0),
-            ov_opset.constant([0, 1], Type.i32).output(0)
+            ov_opset.constant([0, 1], Type.i32).output(0),
         ).output(0)
 
-        topk_result   = ov_opset.topk(abs_col_k_sub, ov_opset.constant(1, Type.i32).output(0), axis=1, mode="max", sort="none")
+        topk_result = ov_opset.topk(
+            abs_col_k_sub,
+            ov_opset.constant(1, Type.i32).output(0),
+            axis=1,
+            mode="max",
+            sort="none",
+        )
         local_max_idx = ov_opset.squeeze(
             ov_opset.convert(topk_result.output(1), Type.i32).output(0),
-            ov_opset.constant([1], Type.i32).output(0)
+            ov_opset.constant([1], Type.i32).output(0),
         ).output(0)
 
         # Absolute pivot row index (local index is relative to row k)
-        pivot_row = ov_opset.add(local_max_idx, ov_opset.constant(k, Type.i32).output(0)).output(0)
+        pivot_row = ov_opset.add(
+            local_max_idx, ov_opset.constant(k, Type.i32).output(0)
+        ).output(0)
 
         # Track sign change caused by row swap
-        swap_needed = ov_opset.not_equal(pivot_row, ov_opset.constant(k, Type.i32).output(0)).output(0)
+        swap_needed = ov_opset.not_equal(
+            pivot_row, ov_opset.constant(k, Type.i32).output(0)
+        ).output(0)
         swap_needed_f = ov_opset.convert(swap_needed, a_ov_type).output(0)
         # sign_flip = 1 - 2*swap_needed_f  →  no swap: +1, swap: -1
         sign_flip = ov_opset.subtract(
             ov_opset.broadcast(one, batch_size).output(0),
-            ov_opset.multiply(two, swap_needed_f).output(0)
+            ov_opset.multiply(two, swap_needed_f).output(0),
         ).output(0)
         sign_det = ov_opset.multiply(sign_det, sign_flip).output(0)
 
         # Swap row k with pivot_row
-        row_k        = ov_opset.gather(a_batched, ov_opset.constant([k], Type.i32).output(0), row_axis).output(0)
-        pivot_row_2d = ov_opset.unsqueeze(pivot_row, ov_opset.constant([1], Type.i32).output(0)).output(0)
-        pivot_row_data = ov_opset.gather(a_batched, pivot_row_2d, row_axis, batch_dims=1).output(0)
+        row_k = ov_opset.gather(
+            a_batched, ov_opset.constant([k], Type.i32).output(0), row_axis
+        ).output(0)
+        pivot_row_2d = ov_opset.unsqueeze(
+            pivot_row, ov_opset.constant([1], Type.i32).output(0)
+        ).output(0)
+        pivot_row_data = ov_opset.gather(
+            a_batched, pivot_row_2d, row_axis, batch_dims=1
+        ).output(0)
 
         # Write pivot row data into position k
-        a_batched = ov_opset.scatter_update(a_batched, ov_opset.constant([k], Type.i32).output(0), pivot_row_data, row_axis).output(0)
+        a_batched = ov_opset.scatter_update(
+            a_batched,
+            ov_opset.constant([k], Type.i32).output(0),
+            pivot_row_data,
+            row_axis,
+        ).output(0)
 
         # Write old row k into position pivot_row (mask-based scatter)
         all_row_indices = ov_opset.unsqueeze(
@@ -132,61 +156,83 @@ def slogdet(a):
                 ov_opset.constant(1, Type.i32).output(0),
                 output_type=Type.i32,
             ).output(0),
-            ov_opset.constant([0, 2], Type.i32).output(0)
+            ov_opset.constant([0, 2], Type.i32).output(0),
         ).output(0)
 
-        pivot_row_3d   = ov_opset.unsqueeze(pivot_row_2d, ov_opset.constant([2], Type.i32).output(0)).output(0)
-        swap_mask      = ov_opset.equal(all_row_indices, pivot_row_3d).output(0)
-        row_k_tiled    = ov_opset.broadcast(row_k, ov_opset.shape_of(a_batched, Type.i32).output(0)).output(0)
-        a_batched      = ov_opset.select(swap_mask, row_k_tiled, a_batched).output(0)
+        pivot_row_3d = ov_opset.unsqueeze(
+            pivot_row_2d, ov_opset.constant([2], Type.i32).output(0)
+        ).output(0)
+        swap_mask = ov_opset.equal(all_row_indices, pivot_row_3d).output(0)
+        row_k_tiled = ov_opset.broadcast(
+            row_k, ov_opset.shape_of(a_batched, Type.i32).output(0)
+        ).output(0)
+        a_batched = ov_opset.select(swap_mask, row_k_tiled, a_batched).output(0)
 
         # Extract pivot element and accumulate log|det| and sign
-        k_idx         = ov_opset.constant([k], Type.i32).output(0)
+        k_idx = ov_opset.constant([k], Type.i32).output(0)
         pivot_row_cur = ov_opset.gather(a_batched, k_idx, row_axis).output(0)
-        pivot_elem    = ov_opset.gather(pivot_row_cur, k_idx, col_axis).output(0)
-        pivot_scalar  = ov_opset.squeeze(pivot_elem, ov_opset.constant([1, 2], Type.i32).output(0)).output(0)
+        pivot_elem = ov_opset.gather(pivot_row_cur, k_idx, col_axis).output(0)
+        pivot_scalar = ov_opset.squeeze(
+            pivot_elem, ov_opset.constant([1, 2], Type.i32).output(0)
+        ).output(0)
 
-        abs_pivot    = ov_opset.absolute(pivot_scalar).output(0)
-        safe_abs     = ov_opset.maximum(abs_pivot, ov_opset.constant(1e-38, a_ov_type).output(0)).output(0)
-        log_abs_det  = ov_opset.add(log_abs_det, ov_opset.log(safe_abs).output(0)).output(0)
-        sign_det     = ov_opset.multiply(sign_det, ov_opset.sign(pivot_scalar).output(0)).output(0)
+        abs_pivot = ov_opset.absolute(pivot_scalar).output(0)
+        safe_abs = ov_opset.maximum(
+            abs_pivot, ov_opset.constant(1e-38, a_ov_type).output(0)
+        ).output(0)
+        log_abs_det = ov_opset.add(
+            log_abs_det, ov_opset.log(safe_abs).output(0)
+        ).output(0)
+        sign_det = ov_opset.multiply(
+            sign_det, ov_opset.sign(pivot_scalar).output(0)
+        ).output(0)
 
         # Protect against division by zero during elimination
         safe_pivot = ov_opset.select(
-            ov_opset.equal(pivot_elem, ov_opset.constant(0.0, a_ov_type).output(0)).output(0),
+            ov_opset.equal(
+                pivot_elem, ov_opset.constant(0.0, a_ov_type).output(0)
+            ).output(0),
             ov_opset.constant(1.0, a_ov_type).output(0),
-            pivot_elem
+            pivot_elem,
         ).output(0)
 
         # Gaussian elimination: zero out entries below pivot
         for i in range(k + 1, n):
-            i_idx      = ov_opset.constant([i], Type.i32).output(0)
-            row_i      = ov_opset.gather(a_batched, i_idx, row_axis).output(0)
-            elem_ik    = ov_opset.gather(row_i, k_idx, col_axis).output(0)
+            i_idx = ov_opset.constant([i], Type.i32).output(0)
+            row_i = ov_opset.gather(a_batched, i_idx, row_axis).output(0)
+            elem_ik = ov_opset.gather(row_i, k_idx, col_axis).output(0)
             multiplier = ov_opset.divide(elem_ik, safe_pivot).output(0)
-            row_i_new  = ov_opset.subtract(row_i, ov_opset.multiply(multiplier, pivot_row_cur).output(0)).output(0)
-            a_batched  = ov_opset.scatter_update(a_batched, i_idx, row_i_new, row_axis).output(0)
+            row_i_new = ov_opset.subtract(
+                row_i, ov_opset.multiply(multiplier, pivot_row_cur).output(0)
+            ).output(0)
+            a_batched = ov_opset.scatter_update(
+                a_batched, i_idx, row_i_new, row_axis
+            ).output(0)
 
     # For singular matrices: sign=0, logabsdet=-inf
-    is_singular = ov_opset.equal(sign_det, ov_opset.broadcast(zero, batch_size).output(0)).output(0)
-    neg_inf     = ov_opset.constant(float('-inf'), a_ov_type).output(0)
+    is_singular = ov_opset.equal(
+        sign_det, ov_opset.broadcast(zero, batch_size).output(0)
+    ).output(0)
+    neg_inf = ov_opset.constant(float("-inf"), a_ov_type).output(0)
     log_abs_det = ov_opset.select(
         is_singular,
         ov_opset.broadcast(neg_inf, batch_size).output(0),
-        log_abs_det
+        log_abs_det,
     ).output(0)
 
     # Reshape outputs back to batch shape (drop last two dims)
     if a_rank > 2:
         batch_dims = [a_shape[i].get_length() for i in range(a_rank - 2)]
-        out_shape  = ov_opset.constant(batch_dims, Type.i32).output(0)
+        out_shape = ov_opset.constant(batch_dims, Type.i32).output(0)
     else:
         out_shape = ov_opset.constant([], Type.i32).output(0)
 
-    sign_result      = ov_opset.reshape(sign_det,    out_shape, False).output(0)
+    sign_result = ov_opset.reshape(sign_det, out_shape, False).output(0)
     logabsdet_result = ov_opset.reshape(log_abs_det, out_shape, False).output(0)
 
-    return OpenVINOKerasTensor(sign_result), OpenVINOKerasTensor(logabsdet_result)
+    return OpenVINOKerasTensor(sign_result), OpenVINOKerasTensor(
+        logabsdet_result
+    )
 
 
 def eig(a):
