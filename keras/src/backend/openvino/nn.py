@@ -1,3 +1,4 @@
+import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
 
@@ -169,20 +170,42 @@ def softmax(x, axis=-1):
         return OpenVINOKerasTensor(
             ov_opset.reshape(softmax_x, x_shape, False).output(0)
         )
+    if isinstance(axis, (tuple, list)):
+        if not axis:
+            return OpenVINOKerasTensor(x)
+        axes_const = ov_opset.constant(sorted(axis), Type.i32).output(0)
+        x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
+        exp_x = ov_opset.exp(ov_opset.subtract(x, x_max).output(0)).output(0)
+        sum_exp = ov_opset.reduce_sum(exp_x, axes_const, True).output(0)
+        return OpenVINOKerasTensor(ov_opset.divide(exp_x, sum_exp).output(0))
     return OpenVINOKerasTensor(ov_opset.softmax(x, axis).output(0))
 
 
 def log_softmax(x, axis=-1):
     x = get_ov_output(x)
+    if isinstance(axis, (tuple, list)) and not axis:
+        return OpenVINOKerasTensor(x)
+    restore_shape = None
     if axis is None:
-        x_shape = ov_opset.shape_of(x)
+        restore_shape = ov_opset.shape_of(x)
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        flatten_x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        log_softmax_x = ov_opset.log_softmax(flatten_x, 0).output(0)
-        return OpenVINOKerasTensor(
-            ov_opset.reshape(log_softmax_x, x_shape, False).output(0)
-        )
-    return OpenVINOKerasTensor(ov_opset.log_softmax(x, axis).output(0))
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        axes = [0]
+    elif isinstance(axis, (tuple, list)):
+        axes = sorted(axis)
+    else:
+        axes = [axis]
+    axes_const = ov_opset.constant(axes, Type.i32).output(0)
+    x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
+    x_shifted = ov_opset.subtract(x, x_max).output(0)
+    sum_exp = ov_opset.reduce_sum(
+        ov_opset.exp(x_shifted).output(0), axes_const, True
+    ).output(0)
+    log_sum_exp = ov_opset.log(sum_exp).output(0)
+    result = ov_opset.subtract(x_shifted, log_sum_exp).output(0)
+    if restore_shape is not None:
+        result = ov_opset.reshape(result, restore_shape, False).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def squareplus(x, b=4):
@@ -669,6 +692,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = get_ov_output(target)
     output = get_ov_output(output)
+    if target.get_element_type() != output.get_element_type():
+        output = ov_opset.convert(output, target.get_element_type()).output(0)
 
     if target.shape != output.shape:
         raise ValueError(
@@ -678,7 +703,18 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     if from_logits:
-        output = ov_opset.sigmoid(output).output(0)
+        one = ov_opset.constant(1, target.get_element_type()).output(0)
+        neg_output = ov_opset.negative(output).output(0)
+        one_minus_target = ov_opset.subtract(one, target).output(0)
+        bce = ov_opset.add(
+            ov_opset.multiply(
+                target, ov_opset.softplus(neg_output).output(0)
+            ).output(0),
+            ov_opset.multiply(
+                one_minus_target, ov_opset.softplus(output).output(0)
+            ).output(0),
+        ).output(0)
+        return OpenVINOKerasTensor(bce)
 
     output = ov_opset.clamp(
         output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
@@ -699,19 +735,28 @@ def binary_crossentropy(target, output, from_logits=False):
 
 def moments(x, axes, keepdims=False, synchronized=False):
     x = get_ov_output(x)
-    axes = ov_opset.constant(axes, Type.i32).output(0)
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    mean = ov_opset.reduce_mean(x, axes, keepdims).output(0)
+    ori_type = x.get_element_type()
+    if ori_type == Type.f16:
+        x = ov_opset.convert(x, Type.f32).output(0)
+    axes_c = ov_opset.constant(axes, Type.i32).output(0)
     const_two = ov_opset.constant(2, x.get_element_type()).output(0)
-    squared_x = ov_opset.power(x, const_two).output(0)
-    squared_mean = ov_opset.power(mean, const_two).output(0)
-    squared_x_mean = ov_opset.reduce_mean(squared_x, axes, keepdims)
-    mean = OpenVINOKerasTensor(mean)
-    variance = OpenVINOKerasTensor(
-        ov_opset.subtract(squared_x_mean, squared_mean).output(0)
-    )
-    return mean, variance
+    mean = ov_opset.reduce_mean(x, axes_c, keepdims).output(0)
+    squared_x_mean = ov_opset.reduce_mean(
+        ov_opset.power(x, const_two).output(0), axes_c, keepdims
+    ).output(0)
+    variance = ov_opset.subtract(
+        squared_x_mean, ov_opset.power(mean, const_two).output(0)
+    ).output(0)
+    if ori_type == Type.f16:
+        fp16_max = float(np.finfo(np.float16).max)
+        fp16_min = float(np.finfo(np.float16).min)
+        mean = ov_opset.convert(
+            ov_opset.clamp(mean, fp16_min, fp16_max).output(0), Type.f16
+        ).output(0)
+        variance = ov_opset.convert(
+            ov_opset.clamp(variance, 0.0, fp16_max).output(0), Type.f16
+        ).output(0)
+    return OpenVINOKerasTensor(mean), OpenVINOKerasTensor(variance)
 
 
 def batch_normalization(
