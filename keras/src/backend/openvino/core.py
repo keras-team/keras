@@ -1298,7 +1298,11 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    return "uint32"
+    # OpenVINO arithmetic promotes uint32 * int32 → int32 (Python ints are
+    # i32 in get_ov_output), so the seed tensor from SeedGenerator.next()
+    # ends up as int32. Returning int32 keeps the declared dtype consistent
+    # with what the backend actually produces.
+    return "int32"
 
 
 def custom_gradient(fun):
