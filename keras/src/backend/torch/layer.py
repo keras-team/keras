@@ -46,13 +46,6 @@ class TorchLayer(torch.nn.Module):
         )
 
     def forward(self, *args, **kwargs):
-        if hasattr(self, "_ddp_wrapper") and not getattr(
-            self, "_in_ddp_forward", False
-        ):
-            self._in_ddp_forward = True
-            res = self._ddp_wrapper(*args, **kwargs)
-            self._in_ddp_forward = False
-            return res
         return Operation.__call__(self, *args, **kwargs)
 
     def _setattr_hook(self, name, value):
