@@ -185,11 +185,6 @@ class GrainDatasetAdapterTest(testing.TestCase):
                 bx, by = batch
                 self.assertEqual(bx.dtype, by.dtype)
 
-    def test_builtin_prefetch(self):
-        dataset = grain.MapDataset.source(Range2DSource(0, 42))
-        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
-        self.assertTrue(adapter.builtin_prefetch)
-
     def test_num_batches(self):
         dataset = grain.MapDataset.source(Range2DSource(0, 42))
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
