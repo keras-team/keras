@@ -1,4 +1,3 @@
-from keras.src import backend
 from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.pooling.base_global_pooling import BaseGlobalPooling
