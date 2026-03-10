@@ -1,3 +1,4 @@
+import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
 
