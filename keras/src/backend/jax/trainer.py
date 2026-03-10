@@ -1,4 +1,3 @@
-import collections
 import itertools
 import warnings
 from functools import partial
@@ -1088,10 +1087,8 @@ class JAXEpochIterator(EpochIterator):
         distribution = distribution_lib.distribution()
         if distribution is not None:
             return self._get_distributed_iterator(distribution)
-        if self.data_adapter.builtin_prefetch:
-            return self.data_adapter.get_jax_iterator()
         else:
-            return self._prefetch_numpy_iterator(
+            return self._one_batch_ahead_iterator(
                 self.data_adapter.get_jax_iterator()
             )
 
@@ -1108,27 +1105,23 @@ class JAXEpochIterator(EpochIterator):
                 )
             yield _distribute_data(data, layouts)
 
-    def _prefetch_numpy_iterator(self, numpy_iterator):
-        """Shard and prefetch batches on device.
+    def _one_batch_ahead_iterator(self, numpy_iterator):
+        """Initiate transfers to the device one batch ahead.
 
-        Most of the implementation has been borrowed from
-        `flax.jax_utils.prefetch_to_device`
-
-        This utility takes an iterator and returns a new iterator which fills an
-        on device prefetch buffer. Eager prefetching can improve the performance
-        of training loops significantly by overlapping compute and data
-        transfer.
+        This utility takes an iterator and returns a new iterator which
+        initiates the transfer to device one step ahead. This can improve the
+        performance of training loops significantly by overlapping compute and
+        data transfer.
         """
-        queue = collections.deque()
+        next_batch = None
+        for batch in numpy_iterator:
+            batch = _distribute_data(batch)
+            if next_batch is None:
+                next_batch = batch
+            else:
+                current_batch = next_batch
+                next_batch = batch
+                yield current_batch
 
-        # If you're training on GPUs, 2 is generally the best choice because
-        # this guarantees that you can overlap a training step on GPU with a
-        # data prefetch step on CPU.
-        def enqueue(n=2):
-            for data in itertools.islice(numpy_iterator, n):
-                queue.append(_distribute_data(data))
-
-        enqueue(n=2)  # TODO: should we make `n` configurable?
-        while queue:
-            yield queue.popleft()
-            enqueue(1)
+        if next_batch is not None:
+            yield next_batch
