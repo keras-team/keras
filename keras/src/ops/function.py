@@ -452,8 +452,7 @@ def _build_map_helper(
     # If this tensor is one of the declared inputs and its producing
     # operation is not an InputLayer, stop traversal here. The operation
     # that produced this tensor is outside the Function's graph.
-    flat_inputs = tree.flatten(inputs)
-    if not node.is_input and tensor in flat_inputs:
+    if not node.is_input and tensor in inputs:
         finished_nodes.add(node)
         return
 
