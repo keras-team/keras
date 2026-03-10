@@ -3140,9 +3140,11 @@ def _layer_normalization(
         return v
 
     if rms_scaling:
-        variance = backend.numpy.var(x, axis=axis, keepdims=True)
-        inv = backend.math.rsqrt(variance + epsilon)
-        outputs = outputs = x * inv
+        mean_square = backend.numpy.mean(
+            backend.numpy.square(x), axis=axis, keepdims=True
+        )
+        inv = backend.math.rsqrt(mean_square + epsilon)
+        outputs = x * inv
         if gamma is not None:
             outputs = outputs * backend.cast(_broadcast(gamma), x.dtype)
     elif backend.config.backend() == "torch" and is_continuous_axis(axis):
