@@ -1281,9 +1281,12 @@ class Layer(BackendLayer, Operation):
         if backend.in_stateless_scope():
             scope = backend.get_stateless_scope()
             if scope.collect_losses:
-                for x in scope.losses:
-                    if id(x) in self._loss_ids:
-                        scope.losses.remove(x)
+                # Filter by identity (id) rather than using list.remove(),
+                # which compares by value. Value comparison on JAX tracers
+                # during JIT causes TracerBoolConversionError.
+                scope.losses[:] = [
+                    x for x in scope.losses if id(x) not in self._loss_ids
+                ]
         self._losses.clear()
         self._loss_ids.clear()
         for layer in self._layers:
