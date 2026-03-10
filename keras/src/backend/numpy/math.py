@@ -297,12 +297,6 @@ def erfinv(x):
     return np.array(scipy.special.erfinv(x))
 
 
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return np.linalg.solve(a, b)
-
-
 def logdet(x):
     from keras.src.backend.numpy.numpy import slogdet
 

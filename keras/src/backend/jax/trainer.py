@@ -1,4 +1,3 @@
-import collections
 import itertools
 import warnings
 from functools import partial
@@ -916,11 +915,93 @@ class JAXTrainer(base_trainer.Trainer):
         else:
             optimizer_shardings = []
         metrics_shardings = [v.value.sharding for v in self.metrics_variables]
+
+        self._check_sharding_consistency(
+            trainable_shardings,
+            non_trainable_shardings,
+            optimizer_shardings,
+            metrics_shardings,
+        )
+
         return (
             trainable_shardings,
             non_trainable_shardings,
             optimizer_shardings,
             metrics_shardings,
+        )
+
+    def _check_sharding_consistency(
+        self,
+        trainable_shardings,
+        non_trainable_shardings,
+        optimizer_shardings,
+        metrics_shardings,
+    ):
+        """Warn if there is a mix of local and distributed variable shardings.
+
+        When some variables have SingleDeviceSharding (created outside the
+        distribution scope) and others have mesh-aware shardings (created
+        inside), passing them together as `out_shardings` to `jax.jit`
+        raises ``ValueError: Received incompatible devices for jitted
+        computation``. This helper detects the mismatch early and emits
+        an actionable warning.
+        """
+        if distribution_lib.distribution() is None:
+            return
+
+        var_shard_pairs = itertools.chain(
+            zip(self.trainable_variables, trainable_shardings),
+            zip(self.non_trainable_variables, non_trainable_shardings),
+            zip(
+                (
+                    self.optimizer.variables
+                    if hasattr(self, "optimizer") and self.optimizer
+                    else []
+                ),
+                optimizer_shardings,
+            ),
+            zip(self.metrics_variables, metrics_shardings),
+        )
+
+        first_local_var_path = None
+        has_mesh = False
+        for v, s in var_shard_pairs:
+            if isinstance(s, jax.sharding.SingleDeviceSharding):
+                if first_local_var_path is None:
+                    first_local_var_path = v.path
+            else:
+                has_mesh = True
+            # Early exit: we know there is a mix as soon as we have
+            # seen at least one of each kind.
+            if first_local_var_path and has_mesh:
+                break
+
+        if not (first_local_var_path and has_mesh):
+            return
+
+        warnings.warn(
+            "Detected a mix of local (SingleDeviceSharding) and "
+            "distributed (mesh-aware) variables. This will cause "
+            "a 'ValueError: Received incompatible devices for "
+            "jitted computation' when JAX tries to compile the "
+            "training step.\n\n"
+            f"First local variable found: {first_local_var_path!r}\n\n"
+            "This typically happens when the model is built or "
+            "weights are loaded before the distribution is set. "
+            "To fix this, call set_distribution() before creating "
+            "any Keras objects:\n\n"
+            "    import keras\n"
+            "    keras.distribution.set_distribution(distribution)\n"
+            "    model = create_model()\n"
+            "    model.compile(...)\n"
+            "    model.fit(...)\n\n"
+            "Alternatively, use the distribution scope context "
+            "manager:\n\n"
+            "    with distribution.scope():\n"
+            "        model = create_model()\n"
+            "        model.compile(...)\n"
+            "        model.fit(...)\n",
+            stacklevel=3,
         )
 
     def _purge_model_variables(
@@ -1006,10 +1087,8 @@ class JAXEpochIterator(EpochIterator):
         distribution = distribution_lib.distribution()
         if distribution is not None:
             return self._get_distributed_iterator(distribution)
-        if self.data_adapter.builtin_prefetch:
-            return self.data_adapter.get_jax_iterator()
         else:
-            return self._prefetch_numpy_iterator(
+            return self._one_batch_ahead_iterator(
                 self.data_adapter.get_jax_iterator()
             )
 
@@ -1026,27 +1105,23 @@ class JAXEpochIterator(EpochIterator):
                 )
             yield _distribute_data(data, layouts)
 
-    def _prefetch_numpy_iterator(self, numpy_iterator):
-        """Shard and prefetch batches on device.
+    def _one_batch_ahead_iterator(self, numpy_iterator):
+        """Initiate transfers to the device one batch ahead.
 
-        Most of the implementation has been borrowed from
-        `flax.jax_utils.prefetch_to_device`
-
-        This utility takes an iterator and returns a new iterator which fills an
-        on device prefetch buffer. Eager prefetching can improve the performance
-        of training loops significantly by overlapping compute and data
-        transfer.
+        This utility takes an iterator and returns a new iterator which
+        initiates the transfer to device one step ahead. This can improve the
+        performance of training loops significantly by overlapping compute and
+        data transfer.
         """
-        queue = collections.deque()
+        next_batch = None
+        for batch in numpy_iterator:
+            batch = _distribute_data(batch)
+            if next_batch is None:
+                next_batch = batch
+            else:
+                current_batch = next_batch
+                next_batch = batch
+                yield current_batch
 
-        # If you're training on GPUs, 2 is generally the best choice because
-        # this guarantees that you can overlap a training step on GPU with a
-        # data prefetch step on CPU.
-        def enqueue(n=2):
-            for data in itertools.islice(numpy_iterator, n):
-                queue.append(_distribute_data(data))
-
-        enqueue(n=2)  # TODO: should we make `n` configurable?
-        while queue:
-            yield queue.popleft()
-            enqueue(1)
+        if next_batch is not None:
+            yield next_batch

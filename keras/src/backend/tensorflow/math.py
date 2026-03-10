@@ -271,12 +271,6 @@ def erfinv(x):
     return tf.math.erfinv(x)
 
 
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return tf.linalg.solve(a, b)
-
-
 def logdet(x):
     x = convert_to_tensor(x)
     return tf.linalg.logdet(x)

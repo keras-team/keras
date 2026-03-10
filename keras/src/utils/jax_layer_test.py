@@ -271,11 +271,11 @@ class TestJaxLayer(testing.TestCase):
         for before, after in zip(ntw1_before_fit, ntw1_after_fit):
             self.assertNotAllClose(before, after)
 
-        expected_ouput_shape = (ops.shape(x_test)[0], num_classes)
+        expected_output_shape = (ops.shape(x_test)[0], num_classes)
         output1 = model1(x_test)
-        self.assertEqual(output1.shape, expected_ouput_shape)
+        self.assertEqual(output1.shape, expected_output_shape)
         predict1 = model1.predict(x_test, steps=1)
-        self.assertEqual(predict1.shape, expected_ouput_shape)
+        self.assertEqual(predict1.shape, expected_output_shape)
 
         # verify both trainable and non-trainable weights did not change
         tw1_after_call = tree.map_structure(

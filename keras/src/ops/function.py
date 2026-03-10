@@ -83,7 +83,7 @@ class Function(Operation):
         self._operations = operations
         self._operations_by_depth = operations_by_depth
 
-        # Run through the graph to check all ouputs are connected to the inputs.
+        # Run through graph to check all outputs are connected to the inputs.
         def empty_op_outputs(op, *args, **kwargs):
             return [None] * len(tree.flatten(op.output))
 

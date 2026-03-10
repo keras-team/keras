@@ -986,6 +986,36 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
+def nanargmax(x, axis=None, keepdims=False):
+    if not np.issubdtype(x.dtype, np.floating):
+        return argmax(x, axis=axis, keepdims=keepdims)
+
+    nan_mask = np.isnan(x)
+
+    return np.where(
+        np.all(nan_mask, axis=axis, keepdims=keepdims),
+        -1,
+        np.nanargmax(
+            np.where(nan_mask, -np.inf, x), axis=axis, keepdims=keepdims
+        ).astype("int32"),
+    )
+
+
+def nanargmin(x, axis=None, keepdims=False):
+    if not np.issubdtype(x.dtype, np.floating):
+        return argmin(x, axis=axis, keepdims=keepdims)
+
+    nan_mask = np.isnan(x)
+
+    return np.where(
+        np.all(nan_mask, axis=axis, keepdims=keepdims),
+        -1,
+        np.nanargmin(
+            np.where(nan_mask, np.inf, x), axis=axis, keepdims=keepdims
+        ).astype("int32"),
+    )
+
+
 def nancumsum(x, axis=None, dtype=None):
     axis = standardize_axis_for_numpy(axis)
     dtype = dtypes.result_type(dtype or x.dtype)

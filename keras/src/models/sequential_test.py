@@ -357,7 +357,7 @@ class SequentialTest(testing.TestCase):
 
         model.add(BadLayer())
         with self.assertRaisesRegex(
-            ValueError, "can only have a single positional"
+            ValueError, "can only have a single.*positional"
         ):
             model.build((None, 2))
 
