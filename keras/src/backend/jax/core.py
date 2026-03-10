@@ -68,7 +68,7 @@ class JaxVariable(KerasVariable):
 
     def _direct_assign(self, value):
         if self._layout is not None:
-            value = distribution_lib.distribute_variable(value, self._layout)
+            value = distribution_lib.distribute_tensor(value, self._layout)
         self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
@@ -216,9 +216,7 @@ if config.is_nnx_enabled():
         def _direct_assign(self, value):
             # Apply JAX-specific distribution if layout is present
             if self._layout is not None:
-                value = distribution_lib.distribute_variable(
-                    value, self._layout
-                )
+                value = distribution_lib.distribute_tensor(value, self._layout)
 
             # Apply on_set_value hook if it exists
             if (
