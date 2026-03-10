@@ -443,6 +443,7 @@ class BatchNormalization(Layer):
         mask_broadcasted = ops.broadcast_to(
             mask_broadcasted, ops.shape(inputs)
         )
+        mask_broadcasted = ops.cast(mask_broadcasted, "bool")
         masked_inputs = ops.where(mask_broadcasted, inputs, 0)
 
         masked_input_sum = ops.sum(

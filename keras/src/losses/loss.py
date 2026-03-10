@@ -211,7 +211,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
             )
             valid = ops.sum(ops.cast(mask, dtype=dtype))  # May be 0!
             mask_weight = ops.divide_no_nan(total, valid)
-            float_mask = ops.where(mask, mask_weight, 0)
+            float_mask = ops.where(ops.cast(mask, "bool"), mask_weight, 0)
         else:
             float_mask = ops.cast(mask, dtype=dtype)
 

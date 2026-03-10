@@ -74,6 +74,7 @@ class GlobalAveragePooling1D(BaseGlobalPooling):
             mask_expanded = ops.expand_dims(
                 mask, 2 if self.data_format == "channels_last" else 1
             )
+            mask_expanded = ops.cast(mask_expanded, "bool")
             inputs = ops.where(mask_expanded, inputs, 0)
             float_mask = ops.cast(mask_expanded, inputs.dtype)
             return ops.sum(
