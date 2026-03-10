@@ -162,9 +162,8 @@ def draw_seed(seed):
         # representable range of the declared dtype while preserving full
         # 32-bit entropy.
         if dtype == "int32":
-            seed = int(
-                np.array(seed & 0xFFFFFFFF, dtype=np.uint32).view(np.int32)
-            )
+            # Re-interpret the bits of a uint32 as an int32.
+            seed = (seed & 0xFFFFFFFF ^ 0x80000000) - 0x80000000
         return convert_to_tensor([seed, 0], dtype=dtype)
     elif seed is None:
         return global_seed_generator().next(ordered=False)

@@ -29,7 +29,6 @@ AveragePoolingBasicTest::test_average_pooling2d6
 AveragePoolingBasicTest::test_average_pooling3d0
 AveragePoolingBasicTest::test_average_pooling3d1
 AveragePoolingBasicTest::test_average_pooling3d2
-BinaryCrossentropyTest::test_label_smoothing
 CircleTest::test_correctness
 CircleTest::test_correctness_weighted
 CircleTest::test_dtype_arg
@@ -267,7 +266,6 @@ EmbeddingTest::test_quantize_by_setting_dtype_policy_int4
 EmbeddingTest::test_quantize_int_int4
 EmbeddingTest::test_quantize_on_subclass_int4
 EmbeddingTest::test_quantize_when_already_quantized_int4
-ExtractSequencesOpTest::test_extract_sequences_call
 FalseNegativesTest::test_unweighted
 FalseNegativesTest::test_weighted
 FalsePositivesTest::test_unweighted
@@ -429,8 +427,6 @@ LSTMTest::test_pass_initial_state
 LSTMTest::test_statefulness
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
-MathOpsCorrectnessTest::test_erfinv_operation_edge_cases
-MathOpsCorrectnessTest::test_extract_sequences
 MathOpsCorrectnessTest::test_logdet
 MaxPoolingBasicTest::test_max_pooling1d0
 MaxPoolingBasicTest::test_max_pooling1d1
@@ -470,7 +466,6 @@ NNOpsBehaviorTest::test_fold_no_padding
 NNOpsBehaviorTest::test_fold_non_square_output
 NNOpsBehaviorTest::test_fold_tuple_params
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
-NNOpsBehaviorTest::test_logit_recovery_binary_crossentropy
 NNOpsCorrectnessTest::test_conv_transpose_
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_fold
@@ -479,12 +474,7 @@ NNOpsCorrectnessTest::test_fold_no_padding
 NNOpsCorrectnessTest::test_fold_non_square_output
 NNOpsCorrectnessTest::test_fold_tuple_params
 NNOpsCorrectnessTest::test_glu
-NNOpsCorrectnessTest::test_log_softmax_correctness_with_axis_tuple
-NNOpsCorrectnessTest::test_moments
-NNOpsCorrectnessTest::test_normalize
 NNOpsCorrectnessTest::test_polar_corectness
-NNOpsCorrectnessTest::test_rms_normalization_10.0
-NNOpsCorrectnessTest::test_softmax_correctness_with_axis_tuple
 NNOpsCorrectnessTest::test_sparsemax
 NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
@@ -653,14 +643,6 @@ StackedRNNTest::test_stacked_lstm_cell_mask
 StackedRNNTest::test_statefullness_single_state_stack
 StackedRNNTest::test_statefullness_two_states_stack
 TestNumericalUtils::test_build_pos_neg_masks
-TestTrainer::test_evaluate_flow_eager
-TestTrainer::test_evaluate_flow_graph_fn
-TestTrainer::test_evaluate_flow_jit
-TestTrainer::test_evaluate_return_list_respect_metrics_order
-TestTrainer::test_evaluate_with_different_batch_size_same_loss
-TestTrainer::test_on_batch_methods_without_training_eager
-TestTrainer::test_on_batch_methods_without_training_graph_fn
-TestTrainer::test_on_batch_methods_without_training_jit
 TestTrainer::test_predict_dropout
 TestTrainer::test_predict_flow_eager
 TestTrainer::test_predict_flow_graph_fn
@@ -674,7 +656,6 @@ TestTrainer::test_predict_preserve_order_1_non_jit
 TestTrainer::test_predict_preserve_order_50_eager
 TestTrainer::test_predict_preserve_order_50_jit
 TestTrainer::test_predict_preserve_order_50_non_jit
-TestTrainer::test_steps_per_execution_steps_count_without_training
 TestTrainer::test_symbolic_build
 TextDatasetFromDirectoryTest::test_sample_count_grain
 TextDatasetFromDirectoryTest::test_text_dataset_from_directory_binary_grain
