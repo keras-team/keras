@@ -393,9 +393,6 @@ def gru(
     outputs = jnp.swapaxes(outputs, 0, 1)
     last_output = h_last
 
-    if go_backwards and return_sequences:
-        outputs = jnp.flip(outputs, axis=1)
-
     if not return_sequences:
         outputs = last_output[:, jnp.newaxis, :]
 
