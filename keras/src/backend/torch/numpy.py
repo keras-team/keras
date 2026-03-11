@@ -1721,6 +1721,11 @@ def sin(x):
     return torch.sin(x)
 
 
+def sinc(x):
+    x = convert_to_tensor(x)
+    return torch.sinc(x)
+
+
 def sinh(x):
     x = convert_to_tensor(x)
     return torch.sinh(x)

@@ -6923,6 +6923,43 @@ def sin(x):
     return backend.numpy.sin(x)
 
 
+class Sinc(Operation):
+    def call(self, x):
+        return backend.numpy.sinc(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.sinc", "keras.ops.numpy.sinc"])
+def sinc(x):
+    """Return the normalized sinc function.
+
+    The sinc function is equal to `sin(pi*x) / (pi*x)` for any argument
+    `x != 0`, and `sinc(0)` takes the limit value 1, making `sinc` not
+    just everywhere continuous but also infinitely differentiable.
+
+    Arguments:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of same shape as `x`.
+
+    Examples:
+    >>> x = keras.ops.convert_to_tensor([0.0, 1.0, 2.0])
+    >>> keras.ops.sinc(x)
+    array([1., 0., 0.], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Sinc().symbolic_call(x)
+    return backend.numpy.sinc(x)
+
+
 class Sinh(Operation):
     def call(self, x):
         return backend.numpy.sinh(x)
