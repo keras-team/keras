@@ -608,7 +608,7 @@ class OpenVINOKerasTensor:
         return OpenVINOKerasTensor(ov_opset.logical_xor(other, first).output(0))
 
     def __int__(self):
-        arr = self.output.get_node().data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -617,7 +617,7 @@ class OpenVINOKerasTensor:
         return int(arr)
 
     def __float__(self):
-        arr = self.output.get_node().data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -698,21 +698,14 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     def __array__(self):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            return self.value.output.get_node().data
-        return self.value.data
+        return convert_to_numpy(self)
 
     def __getitem__(self, idx):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            arr = self.value.output.get_node().data
-            return arr.__getitem__(idx)
-        return self.value.__getitem__(idx)
+        arr = convert_to_numpy(self)
+        return arr.__getitem__(idx)
 
     def __int__(self):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            arr = self.value.output.get_node().data
-        else:
-            arr = self.value.data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -721,10 +714,7 @@ class Variable(KerasVariable):
         return int(arr)
 
     def __float__(self):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            arr = self.value.output.get_node().data
-        else:
-            arr = self.value.data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -819,6 +809,15 @@ def convert_to_numpy(x):
             type(x)
         )
     )
+    # if the tensor is backed by a Constant OV node, extract
+    # its data array directly without compiling a model.
+    try:
+        node = x.output.get_node()
+        if node.get_type_name() == "Constant":
+            return node.data
+    except Exception:
+        # fall back to the slow path.
+        pass
     try:
         ov_result = x.output
         ov_model = Model(results=[ov_result], parameters=[])
