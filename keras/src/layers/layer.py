@@ -517,6 +517,7 @@ class Layer(BackendLayer, Operation):
 
     def add_weight(
         self,
+        *args,
         shape=None,
         initializer=None,
         dtype=None,
@@ -563,6 +564,42 @@ class Layer(BackendLayer, Operation):
             name: String name of the variable. Useful for debugging purposes.
         """
         self._check_super_called()
+        if args:
+            # `args` is only kept to detect the legacy Keras 2 call style
+            # (`add_weight(shape, initializer, dtype, ...)`) and raise a clear
+            # error for positional `name`.
+            if len(args) > 3:
+                raise TypeError(
+                    "add_weight() takes at most 3 positional arguments "
+                    f"but {len(args)} were given."
+                )
+            shape_arg = args[0]
+            if isinstance(shape_arg, str):
+                raise ValueError(
+                    "`name` must be passed as a keyword argument. "
+                    f"Received: add_weight('{shape_arg}', ...). "
+                    f"Use: add_weight(shape=..., name='{shape_arg}')."
+                )
+            if shape is not None:
+                raise ValueError(
+                    "`shape` was passed both positionally and as "
+                    "a keyword argument."
+                )
+            shape = shape_arg
+            if len(args) > 1:
+                if initializer is not None:
+                    raise ValueError(
+                        "`initializer` was passed both positionally and "
+                        "as a keyword argument."
+                    )
+                initializer = args[1]
+            if len(args) > 2:
+                if dtype is not None:
+                    raise ValueError(
+                        "`dtype` was passed both positionally and as a "
+                        "keyword argument."
+                    )
+                dtype = args[2]
         if shape is None:
             shape = ()
         if dtype is not None:
