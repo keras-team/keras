@@ -14,6 +14,8 @@ from torch.distributed.tensor.parallel import ColwiseParallel
 from torch.distributed.tensor.parallel import RowwiseParallel
 from torch.distributed.tensor.parallel import parallelize_module
 
+from keras.src.backend.common import global_state
+
 
 def list_devices(device_type=None):
     """List all available devices for the given type.
@@ -180,6 +182,30 @@ def _to_backend_layout(tensor_layout):
     return (torch_mesh, placements)
 
 
+class DDPModelWrapper(torch.nn.Module):
+    """A wrapper for Keras models to be used with PyTorch DDP.
+
+    This wrapper avoids DDP's recursive traversal of Keras layer attributes,
+    which can lead to infinite recursion due to the way Keras tracks variables
+    and layers.
+    """
+
+    def __init__(self, keras_model):
+        super().__init__()
+        self._keras_model = [keras_model]
+
+    def parameters(self, recurse=True):
+        for var in self._keras_model[0].variables:
+            yield var.value
+
+    def named_parameters(self, prefix="", recurse=True, remove_duplicate=True):
+        for var in self._keras_model[0].variables:
+            yield prefix + var.path, var.value
+
+    def forward(self, *args, **kwargs):
+        return self._keras_model[0](*args, **kwargs)
+
+
 def distribute_variable(value, layout):
     """Distribute a Torch variable based on the given layout.
 
@@ -216,6 +242,7 @@ def distribute_tensor(tensor, layout):
     Returns:
         A distributed Torch tensor (DTensor).
     """
+    from keras.src.distribution import DataParallel
     from keras.src.distribution import TensorLayout
 
     if isinstance(layout, TensorLayout):
@@ -223,6 +250,13 @@ def distribute_tensor(tensor, layout):
 
     mesh, placements = layout
     mesh_device_type = mesh.device_type
+
+    distribution = global_state.get_global_attribute("distribution")
+    if (
+        isinstance(distribution, DataParallel)
+        and distribution._is_multi_process
+    ):
+        return tensor
 
     if hasattr(tensor, "device_mesh"):
         return tensor.redistribute(mesh, placements)
@@ -259,10 +293,13 @@ def parallelize_layer(layer, distribution):
         layer: The Keras Layer or Model instance to parallelize.
         distribution: The Keras Distribution instance.
     """
+    from torch.nn.parallel import DistributedDataParallel as DDP
+
     from keras.src.backend.torch.core import Variable
+    from keras.src.distribution import DataParallel
     from keras.src.distribution import ModelParallel
 
-    if not isinstance(distribution, ModelParallel):
+    if not isinstance(distribution, (ModelParallel, DataParallel)):
         return
 
     if getattr(layer, "_is_parallelized", False):
@@ -270,68 +307,87 @@ def parallelize_layer(layer, distribution):
 
     mesh = distribution.device_mesh.backend_mesh
 
-    layout_map = distribution._layout_map
-    variable_to_attr = {}
-    param_id_to_var = {id(var.value): var for var in layer.variables}
+    if isinstance(distribution, ModelParallel):
+        layout_map = distribution._layout_map
+        variable_to_attr = {}
+        param_id_to_var = {id(var.value): var for var in layer.variables}
 
-    def find_variables(obj):
-        if isinstance(obj, Variable):
-            return
+        def find_variables(obj):
+            if isinstance(obj, Variable):
+                return
 
-        for _, child in obj.named_children():
-            find_variables(child)
+            for _, child in obj.named_children():
+                find_variables(child)
 
-        for name, param in obj.named_parameters(recurse=False):
-            var = param_id_to_var.get(id(param))
-            if var is not None:
-                style = _infer_parallel_style(var, layout_map, name)
-                if style is not None:
-                    variable_to_attr[var.path] = (var, obj, name, style)
+            for name, param in obj.named_parameters(recurse=False):
+                var = param_id_to_var.get(id(param))
+                if var is not None:
+                    style = _infer_parallel_style(var, layout_map, name)
+                    if style is not None:
+                        variable_to_attr[var.path] = (var, obj, name, style)
 
-    find_variables(layer)
+        find_variables(layer)
 
-    module_plans = {}
-    for var_path, (
-        var,
-        module,
-        attr_name,
-        style,
-    ) in variable_to_attr.items():
-        if module not in module_plans:
-            module_plans[module] = {}
-        module_plans[module][attr_name] = style
-        setattr(module, attr_name, var.value)
+        module_plans = {}
+        for var_path, (
+            var,
+            module,
+            attr_name,
+            style,
+        ) in variable_to_attr.items():
+            if module not in module_plans:
+                module_plans[module] = {}
+            module_plans[module][attr_name] = style
+            setattr(module, attr_name, var.value)
 
-    tp_mesh = mesh
-    if "model" in distribution.device_mesh.axis_names:
-        tp_mesh = mesh["model"]
+        tp_mesh = mesh
+        if "model" in distribution.device_mesh.axis_names:
+            tp_mesh = mesh["model"]
 
-    for module, sub_plan in module_plans.items():
-        if isinstance(module, torch.nn.ParameterDict):
-            continue
-        parallelize_module(module, tp_mesh, sub_plan)
+        for module, sub_plan in module_plans.items():
+            if isinstance(module, torch.nn.ParameterDict):
+                continue
+            parallelize_module(module, tp_mesh, sub_plan)
 
-    for var_path, (
-        var,
-        module,
-        attr_name,
-        style,
-    ) in variable_to_attr.items():
-        sharded_param = getattr(module, attr_name)
-        if not hasattr(sharded_param, "placements"):
-            layout = layout_map[var.path]
-            sharded_param = distribute_variable(var.value, layout)
-            setattr(module, attr_name, sharded_param)
+        for var_path, (
+            var,
+            module,
+            attr_name,
+            style,
+        ) in variable_to_attr.items():
+            sharded_param = getattr(module, attr_name)
+            if not hasattr(sharded_param, "placements"):
+                layout = layout_map[var.path]
+                sharded_param = distribute_variable(var.value, layout)
+                setattr(module, attr_name, sharded_param)
 
-        if not isinstance(sharded_param, Variable):
-            var._value = sharded_param
-            if not hasattr(sharded_param, "constraint"):
-                sharded_param.constraint = var.constraint
+            if not isinstance(sharded_param, Variable):
+                var._value = sharded_param
+                if not hasattr(sharded_param, "constraint"):
+                    sharded_param.constraint = var.constraint
 
-    if hasattr(layer, "_torch_params"):
-        for var in layer.variables:
-            if var.path in layer.torch_params:
-                layer.torch_params[var.path] = var.value
+        if hasattr(layer, "_torch_params"):
+            for var in layer.variables:
+                if var.path in layer.torch_params:
+                    layer.torch_params[var.path] = var.value
+
+    if (
+        isinstance(distribution, DataParallel)
+        and distribution._is_multi_process
+    ):
+        from keras.src.models import Model
+
+        if isinstance(layer, Model):
+            from keras.src.backend.torch.core import get_device
+
+            device = get_device()
+
+            wrapper_module = DDPModelWrapper(layer)
+            if "cuda" in str(device):
+                device_ids = [torch.cuda.current_device()]
+                layer._ddp_wrapper = DDP(wrapper_module, device_ids=device_ids)
+            else:
+                layer._ddp_wrapper = DDP(wrapper_module)
 
     layer._is_parallelized = True
 
