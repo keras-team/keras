@@ -982,14 +982,15 @@ def maybe_distribute_tensor(res):
     distribution = global_state.get_global_attribute("distribution")
     if distribution is not None:
         _DISTRIBUTION_AWARE_ACTIVE.active = True
-        from keras.src.backend.torch import distribution_lib
-        from keras.src.distribution import TensorLayout
+        try:
+            from keras.src.backend.torch import distribution_lib
+            from keras.src.distribution import TensorLayout
 
-        mesh = distribution.device_mesh.backend_mesh
-        if str(res.device).split(":")[0] != mesh.device_type:
-            res = res.to(mesh.device_type)
-        layout = TensorLayout([None] * res.ndim, distribution.device_mesh)
-        res = distribution_lib.distribute_tensor(res, layout)
-        _DISTRIBUTION_AWARE_ACTIVE.active = False
-        return res
+            mesh = distribution.device_mesh.backend_mesh
+            if str(res.device).split(":")[0] != mesh.device_type:
+                res = res.to(mesh.device_type)
+            layout = TensorLayout([None] * res.ndim, distribution.device_mesh)
+            return distribution_lib.distribute_tensor(res, layout)
+        finally:
+            _DISTRIBUTION_AWARE_ACTIVE.active = False
     return res
