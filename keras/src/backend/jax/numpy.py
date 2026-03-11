@@ -1249,6 +1249,16 @@ def sin(x):
     return jnp.sin(x)
 
 
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
+    return jnp.sinc(x)
+
+
 @sparse.elementwise_unary(linear=False)
 def sinh(x):
     x = convert_to_tensor(x)

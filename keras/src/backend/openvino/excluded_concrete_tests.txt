@@ -357,6 +357,7 @@ NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_nanargmax
 NumpyDtypeTest::test_nanargmin
 NumpyDtypeTest::test_power
+NumpyDtypeTest::test_sinc
 NumpyDtypeTest::test_view
 NumpyOneInputOpsCorrectnessTest::test_array
 NumpyOneInputOpsCorrectnessTest::test_conj
@@ -366,10 +367,13 @@ NumpyOneInputOpsCorrectnessTest::test_nanargmax
 NumpyOneInputOpsCorrectnessTest::test_nanargmin
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
+NumpyOneInputOpsCorrectnessTest::test_sinc
 NumpyOneInputOpsCorrectnessTest::test_slogdet
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
+NumpyOneInputOpsDynamicShapeTest::test_sinc
 NumpyOneInputOpsDynamicShapeTest::test_view
+NumpyOneInputOpsStaticShapeTest::test_sinc
 NumpyOneInputOpsStaticShapeTest::test_view
 OptimizerTest::test_constraints_are_applied
 OptimizerTest::test_ema
