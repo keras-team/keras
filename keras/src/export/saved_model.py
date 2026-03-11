@@ -178,17 +178,9 @@ class ExportArchive:
 
     def __new__(cls, format="saved_model", **kwargs):
         if format == "saved_model":
-            export_model = kwargs.get("export_model", "backend_saved_model")
-            if export_model == "backend_saved_model":
-                return BackendSavedModelExportArchive()
-            elif export_model == "orbax_export":
-                return NeptuneModelExportArchive()
-            else:
-                raise ValueError(f"Unsupported export_model: {export_model}")
-        elif format == "orbax_model":
-            raise NotImplementedError(
-                "Orbax ExportArchive is not supported in Keras 3 yet."
-            )
+            return BackendSavedModelExportArchive()
+        elif format == "neptune_model":
+            return NeptuneModelExportArchive()
         else:
             raise ValueError(f"Unsupported format: {format}")
 
