@@ -4,6 +4,9 @@ from openvino import Type
 
 import keras.src.backend.openvino.numpy as onp
 from keras.src import backend
+from keras.src.backend.common.backend_utils import (
+    _get_output_shape_given_tf_padding,
+)
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
@@ -604,15 +607,13 @@ def conv_transpose(
             else output_padding[i]
         )
         if in_dim.is_static and k_dim.is_static:
-            out_dim = (
-                backend.common.backend_utils._get_output_shape_given_tf_padding(
-                    input_size=in_dim.get_length(),
-                    kernel_size=k_dim.get_length(),
-                    strides=s,
-                    padding=padding,
-                    output_padding=op_i,
-                    dilation_rate=d,
-                )
+            out_dim = _get_output_shape_given_tf_padding(
+                input_size=in_dim.get_length(),
+                kernel_size=k_dim.get_length(),
+                strides=s,
+                padding=padding,
+                output_padding=op_i,
+                dilation_rate=d,
             )
             spatial_output_shape.append(out_dim)
         else:
