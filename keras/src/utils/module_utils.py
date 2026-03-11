@@ -88,4 +88,3 @@ ocp = OrbaxLazyModule(
         "You can install it via pip install orbax-checkpoint"
     ),
 )
-orbax_export = LazyModule("orbax.export", "orbax-export")
