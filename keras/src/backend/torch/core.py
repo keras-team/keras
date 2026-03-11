@@ -7,8 +7,8 @@ import threading
 import ml_dtypes
 import numpy as np
 import torch
-import torch.func
 
+import torch.func
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
@@ -950,8 +950,6 @@ def _distribution_aware_creation_op(fn):
 
     return wrapper
 
-
-import torch.func
 
 torch.func.jvp(lambda x: x, (torch.tensor(1.0),), (torch.tensor(1.0),))
 
