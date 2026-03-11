@@ -366,7 +366,8 @@ NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanargmax
 NumpyOneInputOpsCorrectnessTest::test_nanargmin
 NumpyOneInputOpsCorrectnessTest::test_real
-NumpyOneInputOpsCorrectnessTest::test_reshape
+NumpyOneInputOpsCorrectnessTest::test_reshape 
+NumpyOneInputOpsCorrectnessTest::test_sinc
 NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyOneInputOpsDynamicShapeTest::test_sinc
