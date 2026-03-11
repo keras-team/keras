@@ -5,17 +5,6 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 
-SKIP_BACKENDS = []
-
-pytestmark = pytest.mark.skipif(
-    backend.backend() in SKIP_BACKENDS,
-    reason=(
-        "Adaptive pooling tests not supported for backend: {}".format(
-            backend.backend()
-        )
-    ),
-)
-
 
 class AdaptivePooling1DLayerTest(testing.TestCase):
     """Tests for AdaptiveAveragePooling1D and AdaptiveMaxPooling1D."""
