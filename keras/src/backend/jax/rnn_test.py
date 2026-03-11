@@ -54,9 +54,6 @@ def _gru_reference(
         h = z * h + (1 - z) * hh
         all_outputs.append(h.copy())
 
-    if go_backwards:
-        all_outputs = list(reversed(all_outputs))
-
     outputs = np.stack(all_outputs, axis=1)
     last_output = h
     if not return_sequences:
