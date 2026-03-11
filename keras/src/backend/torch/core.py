@@ -7,6 +7,7 @@ import threading
 import ml_dtypes
 import numpy as np
 import torch
+import torch.func
 
 from keras.src import tree
 from keras.src.backend.common import KerasVariable
@@ -948,6 +949,11 @@ def _distribution_aware_creation_op(fn):
         return maybe_distribute_tensor(res)
 
     return wrapper
+
+
+import torch.func
+
+torch.func.jvp(lambda x: x, (torch.tensor(1.0),), (torch.tensor(1.0),))
 
 
 for name in [
