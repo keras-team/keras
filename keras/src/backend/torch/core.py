@@ -121,8 +121,6 @@ class Variable(KerasVariable):
                 self._layout = TensorLayout(
                     [None] * len(self._shape), distribution.device_mesh
                 )
-            if hasattr(self._layout, "backend_layout"):
-                self._layout = self._layout.backend_layout
 
     def _initialize(self, value):
         self._shape = self._validate_shape(value.shape)
