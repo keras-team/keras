@@ -3,7 +3,9 @@
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.export.export_utils import get_input_signature
-from keras.src.export.orbax_export_archive import OrbaxExportArchive
+from keras.src.export.neptune_model_export_archive import (
+    NeptuneModelExportArchive,
+)
 
 # Re-export for backward compatibility (used by tfsm_layer.py)
 from keras.src.export.saved_model_export_archive import (  # noqa: F401
@@ -180,7 +182,7 @@ class ExportArchive:
             if export_model == "backend_saved_model":
                 return BackendSavedModelExportArchive()
             elif export_model == "orbax_export":
-                return OrbaxExportArchive()
+                return NeptuneModelExportArchive()
             else:
                 raise ValueError(f"Unsupported export_model: {export_model}")
         elif format == "orbax_model":
