@@ -248,12 +248,15 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if dtype is None:
         if isinstance(x, bool):
             res = torch.as_tensor(x, dtype=torch.bool, device=get_device())
+            return maybe_distribute_tensor(res)
         elif isinstance(x, int):
             res = torch.as_tensor(x, dtype=torch.int32, device=get_device())
+            return maybe_distribute_tensor(res)
         elif isinstance(x, float):
             res = torch.as_tensor(
                 x, dtype=to_torch_dtype(floatx()), device=get_device()
             )
+            return maybe_distribute_tensor(res)
 
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):

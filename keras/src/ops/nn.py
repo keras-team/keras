@@ -2921,7 +2921,6 @@ def dot_product_attention(
             mask=mask,
             scale=scale,
         )
-
     return backend.nn.dot_product_attention(
         query,
         key,
@@ -3143,14 +3142,10 @@ def _layer_normalization(
     if rms_scaling:
         variance = backend.numpy.var(x, axis=axis, keepdims=True)
         inv = backend.math.rsqrt(variance + epsilon)
-        outputs = x * inv
+        outputs = outputs = x * inv
         if gamma is not None:
             outputs = outputs * backend.cast(_broadcast(gamma), x.dtype)
-    elif (
-        backend.config.backend() == "torch"
-        and is_continuous_axis(axis)
-        and not hasattr(x, "device_mesh")
-    ):
+    elif backend.config.backend() == "torch" and is_continuous_axis(axis):
         # when using torch backend,use kernel to improve performance
         import torch.nn.functional as F
 
