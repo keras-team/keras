@@ -2863,6 +2863,10 @@ def nancumsum(x, axis=None, dtype=None):
     return cumsum(nan_to_num(x, nan=0.0), axis=axis, dtype=dtype)
 
 
+def nancumprod(x, axis=None, dtype=None):
+    return cumprod(nan_to_num(x, nan=1.0), axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
         # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
