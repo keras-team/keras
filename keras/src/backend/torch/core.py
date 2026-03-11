@@ -249,13 +249,13 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             res = torch.as_tensor(x, dtype=torch.bool, device=get_device())
             return maybe_distribute_tensor(res)
         elif isinstance(x, int):
-            res = torch.as_tensor(x, dtype=torch.int32, device=get_device())
-            return maybe_distribute_tensor(res)
             if x < -(2**31) or x >= 2**31:
-                return torch.as_tensor(
+                res = torch.as_tensor(
                     x, dtype=torch.int64, device=get_device()
                 )
-            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
+            else:
+                res = torch.as_tensor(x, dtype=torch.int32, device=get_device())
+            return maybe_distribute_tensor(res)
         elif isinstance(x, float):
             res = torch.as_tensor(
                 x, dtype=to_torch_dtype(floatx()), device=get_device()
