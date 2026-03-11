@@ -2232,6 +2232,11 @@ def nancumsum(x, axis=None, dtype=None):
     return cumsum(x, axis=axis, dtype=dtype)
 
 
+def nancumprod(x, axis=None, dtype=None):
+    x = nan_to_num(x, nan=1.0)
+    return cumprod(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
@@ -2700,6 +2705,21 @@ def sin(x):
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
     return tf.math.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    pi_x = x * tf.constant(np.pi, dtype=x.dtype)
+    return tf.where(
+        tf.equal(x, 0),
+        tf.ones_like(x),
+        tf.math.sin(pi_x) / pi_x,
+    )
 
 
 @sparse.elementwise_unary

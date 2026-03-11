@@ -135,6 +135,7 @@ from keras.src.ops.numpy import multiply as multiply
 from keras.src.ops.numpy import nan_to_num as nan_to_num
 from keras.src.ops.numpy import nanargmax as nanargmax
 from keras.src.ops.numpy import nanargmin as nanargmin
+from keras.src.ops.numpy import nancumprod as nancumprod
 from keras.src.ops.numpy import nancumsum as nancumsum
 from keras.src.ops.numpy import nanmax as nanmax
 from keras.src.ops.numpy import nanmean as nanmean
@@ -170,6 +171,7 @@ from keras.src.ops.numpy import select as select
 from keras.src.ops.numpy import sign as sign
 from keras.src.ops.numpy import signbit as signbit
 from keras.src.ops.numpy import sin as sin
+from keras.src.ops.numpy import sinc as sinc
 from keras.src.ops.numpy import sinh as sinh
 from keras.src.ops.numpy import size as size
 from keras.src.ops.numpy import slogdet as slogdet

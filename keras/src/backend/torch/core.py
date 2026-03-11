@@ -210,6 +210,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if isinstance(x, bool):
             return torch.as_tensor(x, dtype=torch.bool, device=get_device())
         elif isinstance(x, int):
+            if x < -(2**31) or x >= 2**31:
+                return torch.as_tensor(
+                    x, dtype=torch.int64, device=get_device()
+                )
             return torch.as_tensor(x, dtype=torch.int32, device=get_device())
         elif isinstance(x, float):
             return torch.as_tensor(
@@ -685,7 +689,9 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    # uint32 doesn't exist in torch, use int32 instead.
+    # uint32 doesn't exist in torch. Seeds are conceptually uint32 values;
+    # int32 is used and the bit pattern is reinterpreted as uint32 at each
+    # call site (torch_seed_generator / torch.manual_seed) via & 0xFFFFFFFF.
     return "int32"
 
 
