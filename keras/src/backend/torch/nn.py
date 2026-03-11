@@ -322,21 +322,6 @@ def _transpose_conv_kernel(kernel):
     return kernel
 
 
-def _get_channels_last_memory_format(ndim):
-    if ndim == 4:
-        return torch.channels_last
-    elif ndim == 5:
-        return torch.channels_last_3d
-    return None
-
-
-def _maybe_convert_to_channels_last(tensor):
-    mem_fmt = _get_channels_last_memory_format(tensor.ndim)
-    if mem_fmt is not None and not tensor.is_contiguous(memory_format=mem_fmt):
-        return tensor.contiguous(memory_format=mem_fmt)
-    return tensor
-
-
 def max_pool(
     inputs,
     pool_size,
@@ -581,10 +566,6 @@ def conv(
 
     kernel = _transpose_conv_kernel(kernel)
 
-    if data_format == "channels_last":
-        inputs = _maybe_convert_to_channels_last(inputs)
-        kernel = _maybe_convert_to_channels_last(kernel)
-
     # calc. groups snippet
     in_channels = inputs.shape[1]
     kernel_in_channels = kernel.shape[1]
@@ -720,11 +701,6 @@ def conv_transpose(
         inputs = _transpose_spatial_inputs(inputs)
     # Transpose kernel from keras format to torch format.
     kernel = _transpose_conv_kernel(kernel)
-
-    if data_format == "channels_last":
-        inputs = _maybe_convert_to_channels_last(inputs)
-        kernel = _maybe_convert_to_channels_last(kernel)
-
     kernel_spatial_shape = kernel.shape[2:]
     if isinstance(dilation_rate, int):
         dilation_rate = [dilation_rate] * len(kernel_spatial_shape)
@@ -1185,56 +1161,6 @@ def dot_product_attention(
         raise ValueError(
             "Only one of `bias` and `mask` can be provided. Received both."
         )
-
-    if (
-        hasattr(query, "device_mesh")
-        or hasattr(key, "device_mesh")
-        or hasattr(value, "device_mesh")
-    ):
-        if scale is None:
-            scale = query.shape[-1] ** 0.5
-        q = query.permute(0, 2, 1, 3)
-        k = key.permute(0, 2, 1, 3)
-        v = value.permute(0, 2, 1, 3)
-
-        logits = torch.matmul(q, k.transpose(-1, -2)) / scale
-
-        if is_causal:
-            t = logits.shape[-2]
-            s = logits.shape[-1]
-            i = torch.arange(t, device=logits.device)[:, None]
-            j = torch.arange(s, device=logits.device)
-            mask_causal = i < j
-            logits = torch.where(mask_causal, -float("inf"), logits)
-
-        if mask is not None:
-            mask = convert_to_tensor(mask, dtype="bool")
-            if len(mask.shape) == 4:
-                mask_t = mask.permute(0, 2, 1, 3)
-            else:
-                mask_t = mask
-            logits = torch.where(mask_t, logits, -float("inf"))
-        if bias is not None:
-            bias = convert_to_tensor(bias)
-            if len(bias.shape) == 4:
-                bias_t = bias.permute(0, 2, 1, 3)
-            else:
-                bias_t = bias
-            logits = logits + bias_t
-
-        probs = softmax(logits, axis=-1)
-        res = torch.matmul(probs, v)
-        out = res.permute(0, 2, 1, 3)
-        if hasattr(out, "device_mesh") and hasattr(out, "placements"):
-            from torch.distributed.tensor import Replicate
-            from torch.distributed.tensor import Shard
-
-            if any(isinstance(p, Shard) for p in out.placements):
-                out = out.redistribute(
-                    out.device_mesh, [Replicate()] * out.device_mesh.ndim
-                )
-        return out
-
     compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
