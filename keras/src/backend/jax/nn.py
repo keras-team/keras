@@ -1895,6 +1895,76 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     return patches.reshape(N, CKK, oH * oW)
 
 
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """JAX implementation of Fold (col2im).
+    Combine an array of sliding local blocks into a large tensor.
+
+    Uses ``lax.conv_transpose`` with an identity kernel so that the
+    entire operation is JIT-compilable and runs on XLA.
+
+    Args:
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+
+    def _pair(val):
+        return (val, val) if isinstance(val, int) else val
+
+    oH, oW = _pair(output_size)
+    kH, kW = _pair(kernel_size)
+    dH, dW = _pair(dilation)
+    pH, pW = _pair(padding)
+    sH, sW = _pair(stride)
+
+    N, CKK, L = x.shape
+    C = CKK // (kH * kW)
+
+    # Number of output patches along each dimension
+    nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
+    nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
+
+    # Reshape: (N, C*kH*kW, L) -> (N, C*kH*kW, nH, nW)
+    x = jnp.reshape(x, (N, CKK, nH, nW))
+
+    # Identity kernel: maps each (c, i, j) input channel to output
+    # channel c at kernel position (i, j).
+    # eye(CKK) -> (CKK, CKK) -> reshape (CKK, C, kH, kW) ->
+    # transpose to HWIO: (kH, kW, CKK, C)
+    kernel = jnp.eye(CKK, dtype=x.dtype)
+    kernel = kernel.reshape(CKK, C, kH, kW)
+    kernel = kernel.transpose(2, 3, 0, 1)  # -> (kH, kW, CKK, C)
+    # conv_transpose flips the kernel spatially, so pre-flip to cancel
+    kernel = jnp.flip(kernel, axis=(0, 1))
+
+    # Padded output size
+    oH_pad = oH + 2 * pH
+    oW_pad = oW + 2 * pW
+
+    # conv_transpose with padding="VALID" produces output of size:
+    #   (nH - 1) * sH + (kH - 1) * dH + 1  (= oH_pad)
+    output = lax.conv_transpose(
+        x,
+        kernel,
+        strides=(sH, sW),
+        padding="VALID",
+        rhs_dilation=(dH, dW),
+        dimension_numbers=("NCHW", "HWIO", "NCHW"),
+    )
+
+    # Remove padding
+    if pH > 0 or pW > 0:
+        output = output[:, :, pH : oH_pad - pH, pW : oW_pad - pW]
+
+    return output
+
+
 def depth_to_space(x, block_size, data_format="channels_last"):
     """JAX implementation of depth_to_space (pixel shuffle).
 

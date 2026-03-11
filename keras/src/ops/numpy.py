@@ -3687,6 +3687,80 @@ def get_item(x, key):
     return x[key]
 
 
+class Geomspace(Operation):
+    def __init__(self, num=50, endpoint=True, dtype=None, axis=0, *, name=None):
+        super().__init__(name=name)
+        self.num = num
+        self.endpoint = endpoint
+        self.dtype = dtype
+        self.axis = axis
+
+    def call(self, start, stop):
+        return backend.numpy.geomspace(
+            start,
+            stop,
+            num=self.num,
+            endpoint=self.endpoint,
+            dtype=self.dtype,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, start, stop):
+        start_shape = getattr(start, "shape", [])
+        stop_shape = getattr(stop, "shape", [])
+        output_shape = broadcast_shapes(start_shape, stop_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape = list(output_shape)
+        output_shape.insert(axis, self.num)
+        dtype = (
+            self.dtype
+            if self.dtype is not None
+            else backend.standardize_dtype(getattr(start, "dtype", type(start)))
+        )
+        dtype = backend.result_type(dtype, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.geomspace", "keras.ops.numpy.geomspace"])
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    """Returns numbers spaced evenly on a log scale (a geometric progression).
+
+    This is similar to `logspace`, but with endpoints specified directly
+    instead of as logarithms. Each output sample is a constant multiple of
+    the previous.
+
+    Args:
+        start: The starting value of the sequence.
+        stop: The final value of the sequence, unless `endpoint` is `False`.
+            In that case, `num + 1` values are spaced over the interval in
+            log-space, of which all but the last (a sequence of length `num`)
+            are returned.
+        num: Number of samples to generate. Defaults to `50`.
+        endpoint: If `True`, `stop` is the last sample. Otherwise, it is not
+            included. Defaults to `True`.
+        dtype: The type of the output tensor.
+        axis: The axis in the result to store the samples. Relevant only
+            if start or stop are array-like.
+
+    Note:
+        Torch backend does not support `axis` argument.
+
+    Returns:
+        A tensor of `num` samples, evenly spaced on a log scale.
+    """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((start, stop)):
+        return Geomspace(num, endpoint, dtype, axis)(start, stop)
+    return backend.numpy.geomspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        dtype=dtype,
+        axis=axis,
+    )
+
+
 class Greater(Operation):
     def call(self, x1, x2):
         return backend.numpy.greater(x1, x2)
@@ -4398,20 +4472,9 @@ class Linspace(Operation):
         start_shape = getattr(start, "shape", [])
         stop_shape = getattr(stop, "shape", [])
         output_shape = broadcast_shapes(start_shape, stop_shape)
-        if self.axis == -1:
-            output_shape = output_shape + [self.num]
-        elif self.axis >= 0:
-            output_shape = (
-                output_shape[: self.axis]
-                + [self.num]
-                + output_shape[self.axis :]
-            )
-        else:
-            output_shape = (
-                output_shape[: self.axis + 1]
-                + [self.num]
-                + output_shape[self.axis + 1 :]
-            )
+        output_shape = list(output_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape.insert(axis, self.num)
 
         dtype = (
             self.dtype
@@ -4786,20 +4849,9 @@ class Logspace(Operation):
         start_shape = getattr(start, "shape", [])
         stop_shape = getattr(stop, "shape", [])
         output_shape = broadcast_shapes(start_shape, stop_shape)
-        if self.axis == -1:
-            output_shape = output_shape + [self.num]
-        elif self.axis >= 0:
-            output_shape = (
-                output_shape[: self.axis]
-                + [self.num]
-                + output_shape[self.axis :]
-            )
-        else:
-            output_shape = (
-                output_shape[: self.axis + 1]
-                + [self.num]
-                + output_shape[self.axis + 1 :]
-            )
+        output_shape = list(output_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape.insert(axis, self.num)
         dtype = (
             self.dtype
             if self.dtype is not None
@@ -5267,6 +5319,126 @@ def moveaxis(x, source, destination):
     return backend.numpy.moveaxis(x, source=source, destination=destination)
 
 
+class Nanargmin(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanargmin(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        axis = [self.axis] if self.axis is not None else None
+        return KerasTensor(
+            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
+            dtype="int32",
+        )
+
+
+@keras_export(["keras.ops.nanargmin", "keras.ops.numpy.nanargmin"])
+def nanargmin(x, axis=None, keepdims=False):
+    """Returns the indices of the minimum values along an axis, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: By default, the index is into the flattened tensor, otherwise
+            along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+                in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Tensor of indices. It has the same shape as `x`, with the dimension
+        along `axis` removed. NaN values are ignored when computing the minimum.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 0.0]])
+
+    >>> ops.nanargmin(x)
+    array(5, dtype=int32)
+
+    >>> ops.nanargmin(x, axis=0)
+    array([0, 1, 1], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1)
+    array([0, 2], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1, keepdims=True)
+    array([[0],
+           [2]], dtype=int32)
+    """
+
+    if any_symbolic_tensors((x,)):
+        return Nanargmin(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+
+
+class Nancumsum(Operation):
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.nancumsum(x, axis=self.axis, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+        else:
+            output_shape = x.shape
+
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+
+        if output_dtype == "bool":
+            output_dtype = "int32"
+
+        return KerasTensor(output_shape, output_dtype)
+
+
+@keras_export(["keras.ops.nancumsum", "keras.ops.numpy.nancumsum"])
+def nancumsum(x, axis=None, dtype=None):
+    """Returns the cumulative sum of elements along a given axis,
+    treating NaNs as zero.
+
+    Args:
+        x: Input tensor.
+        axis: Axis along which the cumulative sum is computed.
+            By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
+
+    Returns:
+        Output tensor.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nancumsum(x)
+    array([1., 1., 4., 4., 6., 7.])
+
+    >>> ops.nancumsum(x, axis=1)
+    array([[1., 1., 4.],
+           [0., 2., 3.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nancumsum(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.nancumsum(x, axis=axis, dtype=dtype)
+
+
 class Nanmax(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
@@ -5498,6 +5670,58 @@ def nanprod(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
+
+
+class Nanstd(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanstd(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanstd", "keras.ops.numpy.nanstd"])
+def nanstd(x, axis=None, keepdims=False):
+    """Compute the standard deviation along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the standard deviation is computed.
+            The default is to compute the std of the flattened tensor.
+        keepdims: If `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Output tensor containing the standard deviation ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanstd(x)
+    0.8291562
+
+    >>> ops.nanstd(x, axis=1)
+    array([1. , 0.5])
+
+    >>> ops.nanstd(x, axis=1, keepdims=True)
+    array([[1. ],
+           [0.5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanstd(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanstd(x, axis=axis, keepdims=keepdims)
 
 
 class Nansum(Operation):

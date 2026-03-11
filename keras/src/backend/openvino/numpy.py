@@ -21,14 +21,22 @@ from keras.src.backend.openvino.core import while_loop
 
 
 def add(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "add()")
+    if x1.get_element_type() == Type.boolean:
+        return OpenVINOKerasTensor(ov_opset.logical_or(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.add(x1, x2).output(0))
 
 
@@ -65,13 +73,19 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "subtract()")
     if x1.get_element_type() == Type.boolean:
         return OpenVINOKerasTensor(ov_opset.logical_xor(x1, x2).output(0))
@@ -86,19 +100,37 @@ def matmul(x1, x2):
         element_type = x2.output.get_element_type()
     x1 = get_ov_output(x1, element_type)
     x2 = get_ov_output(x2, element_type)
+
+    # When both inputs are int8, promote to int32 to align with other backends.
+    if (
+        ov_to_keras_type(x1.get_element_type()) == "int8"
+        and ov_to_keras_type(x2.get_element_type()) == "int8"
+    ):
+        int32_type = OPENVINO_DTYPES["int32"]
+        x1 = ov_opset.convert(x1, int32_type).output(0)
+        x2 = ov_opset.convert(x2, int32_type).output(0)
+
     x1, x2 = _align_operand_types(x1, x2, "matmul()")
     return OpenVINOKerasTensor(ov_opset.matmul(x1, x2, False, False).output(0))
 
 
 def multiply(x1, x2):
-    element_type = None
-    if isinstance(x1, OpenVINOKerasTensor):
-        element_type = x1.output.get_element_type()
-    if isinstance(x2, OpenVINOKerasTensor):
-        element_type = x2.output.get_element_type()
-    x1 = get_ov_output(x1, element_type)
-    x2 = get_ov_output(x2, element_type)
+    t1 = (
+        ov_to_keras_type(x1.get_element_type())
+        if isinstance(x1, ov.Output)
+        else getattr(x1, "dtype", type(x1))
+    )
+    t2 = (
+        ov_to_keras_type(x2.get_element_type())
+        if isinstance(x2, ov.Output)
+        else getattr(x2, "dtype", type(x2))
+    )
+    target_type = OPENVINO_DTYPES[dtypes.result_type(t1, t2)]
+    x1 = get_ov_output(x1, target_type)
+    x2 = get_ov_output(x2, target_type)
     x1, x2 = _align_operand_types(x1, x2, "multiply()")
+    if x1.get_element_type() == Type.boolean:
+        return OpenVINOKerasTensor(ov_opset.logical_and(x1, x2).output(0))
     return OpenVINOKerasTensor(ov_opset.multiply(x1, x2).output(0))
 
 
@@ -253,7 +285,21 @@ def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
 
 
 def angle(x):
-    raise NotImplementedError("`angle` is not supported with openvino backend")
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    # angle() is defined over real values in OpenVINO backend.
+    # Cast integral and boolean to floatx
+    if x_type.is_integral() or x_type == Type.boolean:
+        x = ov_opset.convert(x, OPENVINO_DTYPES[config.floatx()]).output(0)
+        x_type = x.get_element_type()
+
+    zero = ov_opset.constant(0, x_type).output(0)
+    pi = ov_opset.constant(float(np.pi), x_type).output(0)
+    is_negative = ov_opset.less(x, zero).output(0)
+    result = ov_opset.select(is_negative, pi, zero).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def any(x, axis=None, keepdims=False):
@@ -703,11 +749,31 @@ def hanning(x):
 
 def heaviside(x1, x2):
     x1 = get_ov_output(x1)
-    x_type = x1.get_element_type()
-    x2 = get_ov_output(x2, x_type)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "heaviside()")
 
-    zero_scalar = ov_opset.constant(0, x_type).output(0)
-    one_scalar = ov_opset.constant(1, x_type).output(0)
+    x_type = ov_to_keras_type(x1.get_element_type())
+    if x_type in [
+        "int8",
+        "int16",
+        "int32",
+        "uint8",
+        "uint16",
+        "uint32",
+        "bool",
+    ]:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x1 = ov_opset.convert(x1, ov_type).output(0)
+        x2 = ov_opset.convert(x2, ov_type).output(0)
+    elif x_type in ["int64", "uint64"]:
+        ov_type = OPENVINO_DTYPES["float64"]
+        x1 = ov_opset.convert(x1, ov_type).output(0)
+        x2 = ov_opset.convert(x2, ov_type).output(0)
+
+    x1_type = x1.get_element_type()
+
+    zero_scalar = ov_opset.constant(0, x1_type).output(0)
+    one_scalar = ov_opset.constant(1, x1_type).output(0)
 
     neg = ov_opset.less(x1, zero_scalar).output(0)
     pos = ov_opset.greater(x1, zero_scalar).output(0)
@@ -1828,6 +1894,50 @@ def gcd(x1, x2):
     return results[0]
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    start = get_ov_output(start)
+    stop = get_ov_output(stop)
+
+    if dtype is None:
+        output_type = OPENVINO_DTYPES[config.floatx()]
+    else:
+        output_type = OPENVINO_DTYPES[dtype]
+
+    start = ov_opset.convert(start, output_type).output(0)
+    stop = ov_opset.convert(stop, output_type).output(0)
+
+    abs_start = ov_opset.abs(start).output(0)
+    abs_stop = ov_opset.abs(stop).output(0)
+
+    log_start = ov_opset.log(abs_start).output(0)
+    log_stop = ov_opset.log(abs_stop).output(0)
+
+    const_10 = ov_opset.constant(10.0, output_type).output(0)
+    log_10 = ov_opset.log(const_10).output(0)
+
+    log10_start = ov_opset.divide(log_start, log_10).output(0)
+    log10_stop = ov_opset.divide(log_stop, log_10).output(0)
+
+    result = logspace(
+        OpenVINOKerasTensor(log10_start),
+        OpenVINOKerasTensor(log10_stop),
+        num=num,
+        endpoint=endpoint,
+        base=10,
+        dtype=dtype,
+        axis=axis,
+    )
+
+    if num == 0:
+        return result
+
+    start_sign = ov_opset.sign(start).output(0)
+    result_output = get_ov_output(result)
+    return OpenVINOKerasTensor(
+        ov_opset.multiply(result_output, start_sign).output(0)
+    )
+
+
 def greater(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
@@ -2737,14 +2847,24 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nanargmin(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanargmin` is not supported with openvino backend"
+    )
+
+
+def nancumsum(x, axis=None, dtype=None):
+    return cumsum(nan_to_num(x, nan=0.0), axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2774,12 +2894,12 @@ def nanmax(x, axis=None, keepdims=False):
 
 def nanmean(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2805,12 +2925,12 @@ def nanmean(x, axis=None, keepdims=False):
 
 def nanmin(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2840,12 +2960,12 @@ def nanmin(x, axis=None, keepdims=False):
 
 def nanprod(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = x.astype(np.float32)
     x = get_ov_output(x)
     x_type = x.get_element_type()
     if x_type == Type.f64:
-        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         x_type = Type.f32
 
@@ -2861,6 +2981,10 @@ def nanprod(x, axis=None, keepdims=False):
 
     result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
     return OpenVINOKerasTensor(result)
+
+
+def nanstd(x, axis=None, keepdims=False):
+    return sqrt(nanvar(x, axis=axis, keepdims=keepdims))
 
 
 def nansum(x, axis=None, keepdims=False):
@@ -2949,7 +3073,7 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     if dtype.is_integral():
         return OpenVINOKerasTensor(x)
     isfloat64 = True if dtype == Type.f64 else False
-    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/30264
+    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         dtype = Type.f32
     nan_val = ov_opset.constant(nan, dtype).output(0)
@@ -3291,16 +3415,16 @@ def repeat(x, repeats, axis=None):
         x = ov_opset.reshape(x, const_neg_1, special_zero=False)
         axis = 0
 
-    if isinstance(repeats, (int, np.integer)) or (
+    if isinstance(repeats, np.integer):
+        repeats = int(repeats)
+    elif (
         isinstance(repeats, np.ndarray)
-        and repeats.ndim == 1
         and repeats.size == 1
+        and repeats.ndim <= 1
     ):
-        repeats_val = (
-            int(repeats)
-            if isinstance(repeats, (np.integer, np.ndarray))
-            else repeats
-        )
+        repeats = int(repeats.item())
+
+    if isinstance(repeats, int):
         dim_len = ov_opset.gather(
             ov_opset.shape_of(x, Type.i32),
             ov_opset.constant([axis], Type.i32),
@@ -3312,7 +3436,7 @@ def repeat(x, repeats, axis=None):
         )
         idx_range = ov_opset.unsqueeze(idx_range, const_1)
         tiled = ov_opset.tile(
-            idx_range, ov_opset.constant([1, repeats_val], Type.i32)
+            idx_range, ov_opset.constant([1, repeats], Type.i32)
         )
         idx = ov_opset.reshape(tiled, const_neg_1, special_zero=False)
         result = ov_opset.gather(x, idx, ov_opset.constant(axis, Type.i32))
@@ -3576,7 +3700,7 @@ def stack(x, axis=0):
 
 def std(x, axis=None, keepdims=False):
     var_x = var(x, axis, keepdims)
-    std_dev = ov_opset.sqrt(var_x).output(0)
+    std_dev = ov_opset.sqrt(var_x.output).output(0)
     return OpenVINOKerasTensor(std_dev)
 
 
@@ -4321,9 +4445,12 @@ def var(x, axis=None, keepdims=False):
     x_type = x.get_element_type()
     x, axis = _resolve_axis(x, axis)
 
-    work_dtype = Type.f64 if x_type.is_integral() else x.get_element_type()
-    if x_type.is_integral():
+    if x_type.is_integral() or x_type == Type.boolean:
+        work_dtype = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, work_dtype).output(0)
+    else:
+        work_dtype = x_type
+
     if axis is None:
         const_zero = ov_opset.constant(0, dtype=work_dtype).output(0)
         return OpenVINOKerasTensor(

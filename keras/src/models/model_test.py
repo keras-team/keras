@@ -722,9 +722,7 @@ class ModelTest(testing.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `metrics`, "
-            "key 'output_c' does not correspond to any model output",
+            ValueError, "(?s)Invalid `metrics`.*output_c"
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -767,9 +765,7 @@ class ModelTest(testing.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `metrics`, "
-            "key 'output_c' does not correspond to any model output",
+            ValueError, "(?s)Invalid `metrics`.*output_c"
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 

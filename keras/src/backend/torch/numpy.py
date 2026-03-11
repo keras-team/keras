@@ -862,6 +862,33 @@ def gcd(x1, x2):
     return torch.gcd(x1, x2)
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    if axis != 0:
+        raise ValueError(
+            "torch does not support an `axis` argument for geomspace. "
+            f"Received axis={axis}"
+        )
+    if dtype is None:
+        dtypes_to_resolve = [
+            getattr(start, "dtype", type(start)),
+            getattr(stop, "dtype", type(stop)),
+            float,
+        ]
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+    dtype = to_torch_dtype(dtype)
+
+    start = convert_to_tensor(start, dtype=dtype)
+    stop = convert_to_tensor(stop, dtype=dtype)
+
+    log_start = torch.log10(torch.abs(start))
+    log_stop = torch.log10(torch.abs(stop))
+
+    result = logspace(
+        log_start, log_stop, num=num, endpoint=endpoint, base=10, dtype=dtype
+    )
+    return result * torch.sign(start)
+
+
 def greater(x1, x2):
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.greater(x1, x2)
@@ -1298,6 +1325,26 @@ def moveaxis(x, source, destination):
     return torch.moveaxis(x, source=source, destination=destination)
 
 
+def nanargmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not torch.is_floating_point(x):
+        return argmin(x, axis=axis, keepdims=keepdims)
+
+    x_clean = torch.where(torch.isnan(x), float("inf"), x)
+
+    return torch.where(
+        torch.isnan(x).all(dim=axis, keepdim=keepdims),
+        torch.tensor(-1, dtype=torch.int32, device=get_device()),
+        argmin(x_clean, axis=axis, keepdims=keepdims),
+    )
+
+
+def nancumsum(x, axis=None, dtype=None):
+    x = nan_to_num(x)
+    return cumsum(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
@@ -1361,6 +1408,11 @@ def nanprod(x, axis=None, keepdims=False):
         axis=axis,
         keepdims=keepdims,
     )
+
+
+def nanstd(x, axis=None, keepdims=False):
+    var_val = nanvar(x, axis=axis, keepdims=keepdims)
+    return torch.sqrt(var_val)
 
 
 def nansum(x, axis=None, keepdims=False):

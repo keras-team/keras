@@ -155,9 +155,75 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
-    raise NotImplementedError(
-        "`dropout` is not supported with openvino backend"
-    )
+    inputs_ov = get_ov_output(inputs)
+    dtype = inputs_ov.get_element_type()
+
+    seed_val = draw_seed(seed)
+    if isinstance(seed_val, OpenVINOKerasTensor):
+        seed1, seed2 = convert_to_numpy(seed_val)
+    else:
+        seed1, seed2 = seed_val.data
+
+    if not isinstance(rate, (int, float)):
+        rate = get_ov_output(rate, dtype)
+    else:
+        rate = ov_opset.constant(rate, dtype).output(0)
+
+    one = ov_opset.constant(1.0, dtype).output(0)
+    keep_prob = ov_opset.subtract(one, rate).output(0)
+
+    if noise_shape is None:
+        noise_shape_node = ov_opset.shape_of(inputs_ov, Type.i32).output(0)
+    else:
+        shape_elements = []
+        input_shape_node = ov_opset.shape_of(inputs_ov, Type.i32).output(0)
+        zero_index = ov_opset.constant(0, Type.i32).output(0)
+
+        for i, dim in enumerate(noise_shape):
+            if dim is None:
+                indices = ov_opset.constant([i], Type.i32).output(0)
+                dim_node = ov_opset.gather(
+                    input_shape_node, indices, zero_index
+                ).output(0)
+                shape_elements.append(dim_node)
+            else:
+                shape_elements.append(
+                    ov_opset.constant([dim], Type.i32).output(0)
+                )
+
+        noise_shape_node = ov_opset.concat(shape_elements, 0).output(0)
+
+    gen_dtype = dtype
+    if dtype in (Type.bf16, Type.f16):
+        gen_dtype = Type.f32
+
+    min_val = ov_opset.constant(0.0, gen_dtype).output(0)
+    max_val = ov_opset.constant(1.0, gen_dtype).output(0)
+
+    rand = ov_opset.random_uniform(
+        noise_shape_node, min_val, max_val, gen_dtype, seed1, seed2
+    ).output(0)
+
+    if gen_dtype != dtype:
+        keep_prob_gen = ov_opset.convert(keep_prob, gen_dtype).output(0)
+        mask = ov_opset.less(rand, keep_prob_gen).output(0)
+    else:
+        mask = ov_opset.less(rand, keep_prob).output(0)
+
+    zero = ov_opset.constant(0.0, dtype).output(0)
+    one_dtype = ov_opset.constant(1.0, dtype).output(0)
+
+    is_zero_prob = ov_opset.equal(keep_prob, zero).output(0)
+    safe_prob = ov_opset.select(is_zero_prob, one_dtype, keep_prob).output(0)
+    inv_prob = ov_opset.divide(one_dtype, safe_prob).output(0)
+    scale = ov_opset.select(is_zero_prob, zero, inv_prob).output(0)
+
+    mask_casted = ov_opset.convert(mask, dtype).output(0)
+
+    masked_inputs = ov_opset.multiply(inputs_ov, mask_casted).output(0)
+    result = ov_opset.multiply(masked_inputs, scale).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def shuffle(x, axis=0, seed=None):
@@ -299,9 +365,56 @@ def gamma(shape, alpha, dtype=None, seed=None):
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`binomial` is not supported with openvino backend"
-    )
+    dtype = dtype or floatx()
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    seed_val = draw_seed(seed)
+    if isinstance(seed_val, OpenVINOKerasTensor):
+        seed1, seed2 = convert_to_numpy(seed_val)
+    else:
+        seed1, seed2 = seed_val.data
+    counts = get_ov_output(counts)
+    probabilities = get_ov_output(probabilities)
+    calc_dtype = Type.f32
+    counts_f = ov_opset.convert(counts, calc_dtype).output(0)
+    probs_f = ov_opset.convert(probabilities, calc_dtype).output(0)
+    if isinstance(shape, (list, tuple)):
+        shape_tensor = ov_opset.constant(list(shape), Type.i32).output(0)
+    elif isinstance(shape, OpenVINOKerasTensor):
+        shape_tensor = shape.output
+    else:
+        shape_tensor = get_ov_output(shape, Type.i32)
+    zero = ov_opset.constant(0.0, calc_dtype).output(0)
+    one = ov_opset.constant(1.0, calc_dtype).output(0)
+    u1 = ov_opset.random_uniform(
+        shape_tensor, zero, one, calc_dtype, seed1, seed2
+    ).output(0)
+    u2 = ov_opset.random_uniform(
+        shape_tensor, zero, one, calc_dtype, seed1, seed2 + 1
+    ).output(0)
+    epsilon = 1e-7
+    epsilon_const = ov_opset.constant(epsilon, calc_dtype).output(0)
+    u1_safe = ov_opset.maximum(u1, epsilon_const).output(0)
+    log_u1 = ov_opset.log(u1_safe).output(0)
+    neg_two = ov_opset.constant(-2.0, calc_dtype).output(0)
+    two_pi = ov_opset.constant(2 * np.pi, calc_dtype).output(0)
+    r = ov_opset.sqrt(ov_opset.multiply(neg_two, log_u1)).output(0)
+    theta = ov_opset.multiply(two_pi, u2).output(0)
+    z = ov_opset.multiply(r, ov_opset.cos(theta)).output(0)
+    mean = ov_opset.multiply(counts_f, probs_f).output(0)
+    one_minus_p = ov_opset.subtract(one, probs_f).output(0)
+    var = ov_opset.multiply(mean, one_minus_p).output(0)
+    std = ov_opset.sqrt(var).output(0)
+    res_normal = ov_opset.add(mean, ov_opset.multiply(std, z)).output(0)
+    res_normal = ov_opset.round(res_normal, mode="half_to_even").output(0)
+    res_normal = ov_opset.maximum(res_normal, zero).output(0)
+    res_normal = ov_opset.minimum(res_normal, counts_f).output(0)
+    is_one = ov_opset.equal(counts_f, one).output(0)
+    bernoulli = ov_opset.less(u1, probs_f).output(0)
+    bernoulli_f = ov_opset.convert(bernoulli, calc_dtype).output(0)
+    res = ov_opset.select(is_one, bernoulli_f, res_normal).output(0)
+    if ov_dtype != calc_dtype:
+        res = ov_opset.convert(res, ov_dtype).output(0)
+    return OpenVINOKerasTensor(res)
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):

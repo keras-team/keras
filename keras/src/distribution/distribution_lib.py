@@ -84,10 +84,10 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
             also configure this value via environment variable
             `KERAS_DISTRIBUTION_PROCESS_ID`.
 
-        Example:
-            Suppose there are two GPU processes, and process 0 is running at
-            address `10.0.0.1:1234`, and process 1 is running at address
-            `10.0.0.2:2345`. To configure such cluster, you can run
+    Example:
+        Suppose there are two GPU processes, and process 0 is running at
+        address `10.0.0.1:1234`, and process 1 is running at address
+        `10.0.0.2:2345`. To configure such cluster, you can run
 
         On process 0:
         ```python
