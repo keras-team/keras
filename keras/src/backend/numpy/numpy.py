@@ -986,6 +986,21 @@ def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
 
+def nanargmax(x, axis=None, keepdims=False):
+    if not np.issubdtype(x.dtype, np.floating):
+        return argmax(x, axis=axis, keepdims=keepdims)
+
+    nan_mask = np.isnan(x)
+
+    return np.where(
+        np.all(nan_mask, axis=axis, keepdims=keepdims),
+        -1,
+        np.nanargmax(
+            np.where(nan_mask, -np.inf, x), axis=axis, keepdims=keepdims
+        ).astype("int32"),
+    )
+
+
 def nanargmin(x, axis=None, keepdims=False):
     if not np.issubdtype(x.dtype, np.floating):
         return argmin(x, axis=axis, keepdims=keepdims)
@@ -1007,6 +1022,14 @@ def nancumsum(x, axis=None, dtype=None):
     if dtype == "bool":
         dtype = "int32"
     return np.nancumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    axis = standardize_axis_for_numpy(axis)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.nancumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1208,6 +1231,16 @@ def sin(x):
         dtype = dtypes.result_type(x.dtype, float)
     x = x.astype(dtype)
     return np.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
+    return np.sinc(x).astype(dtype)
 
 
 def sinh(x):

@@ -2189,6 +2189,25 @@ def moveaxis(x, source, destination):
     return tf.transpose(x, perm)
 
 
+def nanargmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not x.dtype.is_floating:
+        return argmax(x, axis=axis, keepdims=keepdims)
+
+    nan_mask = tf.math.is_nan(x)
+
+    return tf.where(
+        tf.reduce_all(nan_mask, axis=axis, keepdims=keepdims),
+        tf.constant(-1, dtype=tf.int32),
+        argmax(
+            tf.where(nan_mask, tf.constant(float("-inf"), dtype=x.dtype), x),
+            axis=axis,
+            keepdims=keepdims,
+        ),
+    )
+
+
 def nanargmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
@@ -2211,6 +2230,11 @@ def nanargmin(x, axis=None, keepdims=False):
 def nancumsum(x, axis=None, dtype=None):
     x = nan_to_num(x)
     return cumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    x = nan_to_num(x, nan=1.0)
+    return cumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -2681,6 +2705,21 @@ def sin(x):
         dtype = dtypes.result_type(x.dtype, float)
     x = tf.cast(x, dtype)
     return tf.math.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = tf.cast(x, dtype)
+    pi_x = x * tf.constant(np.pi, dtype=x.dtype)
+    return tf.where(
+        tf.equal(x, 0),
+        tf.ones_like(x),
+        tf.math.sin(pi_x) / pi_x,
+    )
 
 
 @sparse.elementwise_unary

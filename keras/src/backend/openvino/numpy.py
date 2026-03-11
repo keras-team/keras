@@ -2847,6 +2847,12 @@ def moveaxis(x, source, destination):
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes_const).output(0))
 
 
+def nanargmax(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanargmax` is not supported with openvino backend"
+    )
+
+
 def nanargmin(x, axis=None, keepdims=False):
     raise NotImplementedError(
         "`nanargmin` is not supported with openvino backend"
@@ -2855,6 +2861,10 @@ def nanargmin(x, axis=None, keepdims=False):
 
 def nancumsum(x, axis=None, dtype=None):
     return cumsum(nan_to_num(x, nan=0.0), axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    return cumprod(nan_to_num(x, nan=1.0), axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -3544,6 +3554,12 @@ def sin(x):
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, ov_type)
     return OpenVINOKerasTensor(ov_opset.sin(x).output(0))
+
+
+def sinc(x):
+    raise NotImplementedError(
+        "`sinc` is not supported with the OpenVINO backend."
+    )
 
 
 def sinh(x):

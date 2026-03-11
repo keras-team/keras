@@ -1043,6 +1043,11 @@ def moveaxis(x, source, destination):
     return jnp.moveaxis(x, source=source, destination=destination)
 
 
+def nanargmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanargmax(x, axis=axis, keepdims=keepdims)
+
+
 def nanargmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanargmin(x, axis=axis, keepdims=keepdims)
@@ -1051,6 +1056,11 @@ def nanargmin(x, axis=None, keepdims=False):
 def nancumsum(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     return jnp.nancumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    return jnp.nancumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1237,6 +1247,16 @@ def sin(x):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
     return jnp.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
+    return jnp.sinc(x)
 
 
 @sparse.elementwise_unary(linear=False)
