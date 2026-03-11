@@ -14,8 +14,6 @@ from torch.distributed.tensor.parallel import ColwiseParallel
 from torch.distributed.tensor.parallel import RowwiseParallel
 from torch.distributed.tensor.parallel import parallelize_module
 
-from keras.src.backend.common import global_state
-
 
 def list_devices(device_type=None):
     """List all available devices for the given type.

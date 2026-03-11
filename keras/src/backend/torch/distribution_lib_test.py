@@ -41,19 +41,22 @@ class TorchDistributionLibTest(testing.TestCase):
     def test_to_backend_layout(self):
         mock_backend_mesh = mock.MagicMock()
         mock_backend_mesh.device_type = "cpu"
-        
+
         mesh = keras_distribution_lib.DeviceMesh(
             shape=(2,), axis_names=["model"], devices=["cpu:0", "cpu:0"]
         )
         mesh._backend_mesh = mock_backend_mesh
-        
-        layout = keras_distribution_lib.TensorLayout(axes=["model", None], device_mesh=mesh)
-        
+
+        layout = keras_distribution_lib.TensorLayout(
+            axes=["model", None], device_mesh=mesh
+        )
+
         torch_mesh, placements = distribution_lib._to_backend_layout(layout)
-        
+
         self.assertEqual(torch_mesh, mock_backend_mesh)
         self.assertEqual(len(placements), 1)
         from torch.distributed.tensor import Shard
+
         self.assertIsInstance(placements[0], Shard)
         self.assertEqual(placements[0].dim, 0)
 
@@ -62,26 +65,30 @@ class TorchDistributionLibTest(testing.TestCase):
         value = torch.nn.Parameter(torch.randn(4, 4))
         layout = mock.MagicMock()
         mock_distribute_tensor.return_value = value.data
-        
+
         res = distribution_lib.distribute_variable(value, layout)
         self.assertIsInstance(res, torch.nn.Parameter)
         mock_distribute_tensor.assert_called_once_with(value, layout)
 
     def test_infer_parallel_style(self):
         from keras.src.backend.torch.core import Variable
-        from keras.src.distribution import LayoutMap, TensorLayout
-        
+        from keras.src.distribution import LayoutMap
+        from keras.src.distribution import TensorLayout
+
         mesh = keras_distribution_lib.DeviceMesh(
             shape=(2,), axis_names=["model"], devices=["cpu:0", "cpu:0"]
         )
-        
+
         # Test ColwiseParallel
         layout_map = LayoutMap(mesh)
         layout_map["kernel_col"] = TensorLayout([None, "model"])
         variable = mock.MagicMock(spec=Variable)
         variable.path = "kernel_col"
         from torch.distributed.tensor.parallel import ColwiseParallel
-        style = distribution_lib._infer_parallel_style(variable, layout_map, "kernel")
+
+        style = distribution_lib._infer_parallel_style(
+            variable, layout_map, "kernel"
+        )
         self.assertIsInstance(style, ColwiseParallel)
 
         # Test RowwiseParallel
@@ -89,5 +96,8 @@ class TorchDistributionLibTest(testing.TestCase):
         layout_map["kernel_row"] = TensorLayout(["model", None])
         variable.path = "kernel_row"
         from torch.distributed.tensor.parallel import RowwiseParallel
-        style = distribution_lib._infer_parallel_style(variable, layout_map, "kernel")
+
+        style = distribution_lib._infer_parallel_style(
+            variable, layout_map, "kernel"
+        )
         self.assertIsInstance(style, RowwiseParallel)
