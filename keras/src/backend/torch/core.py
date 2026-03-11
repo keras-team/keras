@@ -250,9 +250,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             return maybe_distribute_tensor(res)
         elif isinstance(x, int):
             if x < -(2**31) or x >= 2**31:
-                res = torch.as_tensor(
-                    x, dtype=torch.int64, device=get_device()
-                )
+                res = torch.as_tensor(x, dtype=torch.int64, device=get_device())
             else:
                 res = torch.as_tensor(x, dtype=torch.int32, device=get_device())
             return maybe_distribute_tensor(res)
