@@ -565,15 +565,18 @@ class Layer(BackendLayer, Operation):
         """
         self._check_super_called()
         if args:
+            # `args` is only kept to detect the legacy Keras 2 call style
+            # (`add_weight(shape, initializer, dtype, ...)`) and raise a clear
+            # error for positional `name`.
             if len(args) > 3:
                 raise TypeError(
-                    f"add_weight() takes at most 3 positional arguments "
+                    "add_weight() takes at most 3 positional arguments "
                     f"but {len(args)} were given."
                 )
             shape_arg = args[0]
             if isinstance(shape_arg, str):
                 raise ValueError(
-                    f"`name` must be passed as a keyword argument. "
+                    "`name` must be passed as a keyword argument. "
                     f"Received: add_weight('{shape_arg}', ...). "
                     f"Use: add_weight(shape=..., name='{shape_arg}')."
                 )
