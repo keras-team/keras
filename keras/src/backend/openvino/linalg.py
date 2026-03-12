@@ -1,11 +1,14 @@
+import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
+from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 
@@ -42,23 +45,37 @@ def eig(a):
 
 
 def eigh(a):
-    import numpy as np
-    from keras.src.backend.openvino.core import convert_to_numpy
     a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+
+
+    a_ov_type = a_ov.get_element_type()
+    if not a_ov_type.is_real():
+
+        a_ov = ov_opset.convert(a_ov, Type.f32).output(0)
+        out_ov_type = Type.f32
+    else:
+        out_ov_type = a_ov_type
+
+
+    a_evaluated = OpenVINOKerasTensor(a_ov)
     try:
-        a_np = convert_to_numpy(a)
+        a_np = convert_to_numpy(a_evaluated)
     except Exception as e:
         raise ValueError(
             "eigh is only supported for static eager tensors "
             "in the openvino backend. Received a dynamic or symbolic tensor."
         ) from e
-    
-    w, v = np.linalg.eigh(a_np)
-    return (
-        ov_opset.constant(w).output(0),
-        ov_opset.constant(v).output(0),
-    )
 
+
+    w_np, v_np = np.linalg.eigh(a_np)
+
+    w_const = ov_opset.constant(w_np, out_ov_type).output(0)
+    v_const = ov_opset.constant(v_np, out_ov_type).output(0)
+    return (
+        OpenVINOKerasTensor(w_const),
+        OpenVINOKerasTensor(v_const),
+    )
 
 def inv(a):
     a = convert_to_tensor(a)
