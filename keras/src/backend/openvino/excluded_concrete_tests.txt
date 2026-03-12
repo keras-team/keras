@@ -55,7 +55,6 @@ CoreOpsCallsTests::test_scan_basic_call
 CoreOpsCallsTests::test_switch_basic_call
 CoreOpsCallsTests::test_unstack_basic_functionality
 CoreOpsCorrectnessTest::test_associative_scan
-CoreOpsCorrectnessTest::test_cond
 CoreOpsCorrectnessTest::test_fori_loop
 CoreOpsCorrectnessTest::test_map
 CoreOpsCorrectnessTest::test_scan
@@ -162,10 +161,6 @@ GRUTest::test_masking
 GRUTest::test_pass_initial_state
 GRUTest::test_pass_return_state
 GRUTest::test_statefulness
-HingeTest::test_dtype_arg
-HingeTest::test_unweighted
-HingeTest::test_weighted
-HingeTest::test_zero_weighted
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
 ImageDatasetFromDirectoryTest::test_image_dataset_from_directory_binary_grain
@@ -414,10 +409,6 @@ SparseCategoricalCrossentropyTest::test_sample_weighted
 SparseCategoricalCrossentropyTest::test_scalar_weighted
 SparseCategoricalCrossentropyTest::test_unweighted
 SpectralNormalizationTest::test_apply_layer
-SquaredHingeTest::test_dtype_arg
-SquaredHingeTest::test_unweighted
-SquaredHingeTest::test_weighted
-SquaredHingeTest::test_zero_weighted
 StackedRNNTest::test_correctness_single_state_stack
 StackedRNNTest::test_correctness_two_states_stack
 StackedRNNTest::test_return_state_stacked_lstm_cell
