@@ -2989,6 +2989,12 @@ def nanprod(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    raise NotImplementedError(
+        "`nanquantile` is not supported with openvino backend"
+    )
+
+
 def nanstd(x, axis=None, keepdims=False):
     return sqrt(nanvar(x, axis=axis, keepdims=keepdims))
 
