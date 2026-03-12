@@ -3581,15 +3581,16 @@ def sinc(x):
     if x_type.is_integral():
         ov_type = OPENVINO_DTYPES[config.floatx()]
         x = ov_opset.convert(x, ov_type).output(0)
-    pi = ov_opset.constant(np.pi, x.get_element_type()).output(0)
-    one = ov_opset.constant(1.0, x.get_element_type()).output(0)
-    zero = ov_opset.constant(0.0, x.get_element_type()).output(0)
-    pi_x = ov_opset.multiply(pi, x).output(0)
-    sin_pi_x = ov_opset.sin(pi_x).output(0)
-    sinc_val = ov_opset.divide(sin_pi_x, pi_x).output(0)
-    is_zero = ov_opset.equal(x, zero).output(0)
-    result = ov_opset.select(is_zero, one, sinc_val).output(0)
-    return OpenVINOKerasTensor(result)
+    elem_type = x.get_element_type()
+    pi = ov_opset.constant(np.pi, elem_type)
+    one = ov_opset.constant(1.0, elem_type)
+    zero = ov_opset.constant(0.0, elem_type)
+    pi_x = ov_opset.multiply(pi, x)
+    sin_pi_x = ov_opset.sin(pi_x)
+    sinc_val = ov_opset.divide(sin_pi_x, pi_x)
+    is_zero = ov_opset.equal(x, zero)
+    result = ov_opset.select(is_zero, one, sinc_val)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def sinh(x):
