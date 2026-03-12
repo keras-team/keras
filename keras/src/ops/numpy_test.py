@@ -3852,20 +3852,45 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             knp.nanquantile(x, q, keepdims=True),
             np.nanquantile(x, q, keepdims=True),
         )
-
-        q = np.array([0.25, 0.5, 1.0], dtype="float32")
-        self.assertAllClose(knp.nanquantile(x, q), np.nanquantile(x, q))
         self.assertAllClose(
-            knp.nanquantile(x, q, axis=1), np.nanquantile(x, q, axis=1)
+            knp.nanquantile(x, q, axis=1),
+            np.nanquantile(x, q, axis=1),
         )
         self.assertAllClose(
             knp.nanquantile(x, q, axis=1, keepdims=True),
             np.nanquantile(x, q, axis=1, keepdims=True),
         )
 
+        q = np.array([0.25, 0.5, 1.0], dtype="float32")
+        self.assertAllClose(knp.nanquantile(x, q), np.nanquantile(x, q))
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=1),
+            np.nanquantile(x, q, axis=1),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=1, keepdims=True),
+            np.nanquantile(x, q, axis=1, keepdims=True),
+        )
         self.assertAllClose(
             knp.nanquantile(x, q, axis=(1, 2)),
             np.nanquantile(x, q, axis=(1, 2)),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=(1, 2), keepdims=True),
+            np.nanquantile(x, q, axis=(1, 2), keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=-1),
+            np.nanquantile(x, q, axis=-1),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=(-1, -2)),
+            np.nanquantile(x, q, axis=(-1, -2)),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=(2, 1)),
+            np.nanquantile(x, q, axis=(2, 1)),
         )
 
         q = np.array([0.501, 1.0], dtype="float32")
@@ -3879,6 +3904,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
                 np.nanquantile(x, q, axis=1, method=method),
             )
 
+        q = np.array([0.25, 0.5, 0.75], dtype="float32")
+        self.assertAllClose(
+            knp.nanquantile(x, q),
+            np.nanquantile(x, q),
+        )
+
         x_all_nan = np.array(
             [
                 [[np.nan, np.nan], [np.nan, np.nan]],
@@ -3887,7 +3918,39 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
             dtype="float32",
         )
         self.assertAllClose(
-            knp.nanquantile(x_all_nan, 0.5), np.nanquantile(x_all_nan, 0.5)
+            knp.nanquantile(x_all_nan, 0.5),
+            np.nanquantile(x_all_nan, 0.5),
+        )
+
+        x_mixed = np.array(
+            [
+                [np.nan, np.nan, np.nan],
+                [1.0, 2.0, 3.0],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanquantile(x_mixed, 0.5, axis=1),
+            np.nanquantile(x_mixed, 0.5, axis=1),
+        )
+
+        x_small = np.array(
+            [
+                [[1.0]],
+                [[np.nan]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanquantile(x_small, 0.5, axis=1),
+            np.nanquantile(x_small, 0.5, axis=1),
+        )
+
+        x4 = np.random.randn(3, 4, 5, 6).astype("float32")
+        x4[0, 0, 0, 0] = np.nan
+        self.assertAllClose(
+            knp.nanquantile(x4, 0.5, axis=(1, 2)),
+            np.nanquantile(x4, 0.5, axis=(1, 2)),
         )
 
     def test_nextafter(self):

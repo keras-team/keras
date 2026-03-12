@@ -2340,14 +2340,12 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x_t = tf.transpose(x, perm)
 
     shape = tf.shape(x_t)
-
     other_rank = len(other_axes)
     other_shape = shape[:other_rank]
     reduce_shape = shape[other_rank:]
 
     batch_size = tf.reduce_prod(other_shape)
     reduction_size = tf.reduce_prod(reduce_shape)
-
     x_flat = tf.reshape(x_t, [batch_size, reduction_size])
 
     q_shape = tf.shape(q)
@@ -2360,8 +2358,6 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
 
     if tf.rank(q) > 0:
         results = tf.transpose(results)
-
-    if tf.rank(q) > 0:
         results = tf.reshape(results, tf.concat([q_shape, other_shape], axis=0))
     else:
         results = tf.reshape(results, other_shape)

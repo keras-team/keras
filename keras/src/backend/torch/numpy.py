@@ -1445,8 +1445,7 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     else:
         axis = [canonicalize_axis(a, x.ndim) for a in axis]
         other_dims = sorted(set(range(x.ndim)).difference(axis))
-        perm = other_dims + list(axis)
-        x_permed = torch.permute(x, dims=perm)
+        x_permed = torch.permute(x, dims=(other_dims + list(axis)))
 
         x_shape = list(x.shape)
         other_shape = [x_shape[i] for i in other_dims]
