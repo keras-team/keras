@@ -6,10 +6,21 @@ from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
 from keras.src.layers.preprocessing.string_lookup import StringLookup
 from keras.src.saving import serialization_lib
+from keras.src.trainers.data_adapters.grain_dataset_adapter import (
+    GrainDatasetAdapter,
+)
 from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
 from keras.src.utils import tf_utils
+from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
+
+
+def _extract_adapt_batch(batch):
+    """Extract text input from a batch; handle (x,) or (x, y) or (x, y, w)."""
+    if isinstance(batch, (tuple, list)) and len(batch) > 0:
+        return batch[0]
+    return batch
 
 
 @keras_export("keras.layers.TextVectorization")
@@ -403,14 +414,17 @@ class TextVectorization(Layer):
 
         Arguments:
             data: The data to train on. It can be passed either as a
-                batched `tf.data.Dataset`, as a list of strings,
-                or as a NumPy array.
+                batched `tf.data.Dataset`, a Grain dataset
+                (`grain.MapDataset`, `grain.IterDataset`, or
+                `grain.DataLoader`), a list of strings, or a NumPy array.
+                For dataset inputs, each batch may be just the text tensor
+                or a tuple `(text, labels)` (only the text is used).
             steps: Integer or `None`.
                 Total number of steps (batches of samples) to process.
-                If `data` is a `tf.data.Dataset`, and `steps` is `None`,
-                `adapt()` will run until the input dataset is exhausted.
-                When passing an infinitely
-                repeating dataset, you must specify the `steps` argument. This
+                If `data` is a `tf.data.Dataset` or a Grain dataset, and
+                `steps` is `None`, `adapt()` will run until the input
+                dataset is exhausted. When passing an infinitely repeating
+                dataset, you must specify the `steps` argument. This
                 argument is not supported with array inputs or list inputs.
         """
         self.reset_state()
@@ -418,7 +432,16 @@ class TextVectorization(Layer):
             if steps is not None:
                 data = data.take(steps)
             for batch in data:
-                self.update_state(batch)
+                self.update_state(_extract_adapt_batch(batch))
+        elif grain.available and isinstance(
+            data, (grain.MapDataset, grain.IterDataset, grain.DataLoader)
+        ):
+            dataset_adapter = GrainDatasetAdapter(data)
+            tf_dataset = dataset_adapter.get_tf_dataset()
+            if steps is not None:
+                tf_dataset = tf_dataset.take(steps)
+            for batch in tf_dataset:
+                self.update_state(_extract_adapt_batch(batch))
         else:
             data = tf_utils.ensure_tensor(data, dtype="string")
             if data.shape.rank == 1:
