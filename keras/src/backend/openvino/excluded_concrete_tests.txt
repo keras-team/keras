@@ -331,7 +331,6 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanargmax
 NumpyOneInputOpsCorrectnessTest::test_nanargmin
-NumpyOneInputOpsCorrectnessTest::test_nanquantile
 NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_reshape
 NumpyOneInputOpsCorrectnessTest::test_sinc
@@ -341,6 +340,7 @@ NumpyOneInputOpsDynamicShapeTest::test_sinc
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_sinc
 NumpyOneInputOpsStaticShapeTest::test_view
+NumpyTwoInputOpsCorrectnessTest::test_nanquantile
 OptimizerTest::test_constraints_are_applied
 OptimizerTest::test_ema
 OptimizerTest::test_gradient_accumulation
