@@ -58,8 +58,16 @@ class BaseImagePreprocessingLayer(DataLayer):
     def get_random_transformation(self, data, training=True, seed=None):
         return None
 
-    def transform_images(self, images, transformation, training=True):
+    def _transform_images(self, images, transformation, interpolation):
         raise NotImplementedError()
+
+    def transform_images(self, images, transformation, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
+        if training:
+            images = self._transform_images(
+                images, transformation, self.interpolation
+            )
+        return images
 
     def transform_labels(self, labels, transformation, training=True):
         raise NotImplementedError()
@@ -75,7 +83,11 @@ class BaseImagePreprocessingLayer(DataLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        raise NotImplementedError()
+        if training:
+            segmentation_masks = self._transform_images(
+                segmentation_masks, transformation, "nearest"
+            )
+        return segmentation_masks
 
     def transform_single_image(self, image, transformation, training=True):
         images = self.backend.numpy.expand_dims(image, axis=0)
@@ -383,3 +395,61 @@ class BaseImagePreprocessingLayer(DataLayer):
         )
 
         return affine_matrix
+
+
+base_image_preprocessing_transform_example = """
+```python
+layer = keras.layers.{LayerName}(bounding_box_format="xyxy")
+images = np.random.randint(0, 255, (4, 224, 224, 3), dtype="uint8")
+
+bounding_boxes = {
+    "boxes": np.array([
+        [[10, 20, 100, 150], [50, 60, 200, 250]],
+        [[15, 25, 110, 160], [55, 65, 210, 260]],
+        [[20, 30, 120, 170], [60, 70, 220, 270]],
+        [[25, 35, 130, 180], [65, 75, 230, 280]],
+    ], dtype="float32"),
+    "labels": np.array([[0, 1], [1, 2], [2, 3], [0, 3]], dtype="int32")
+}
+
+labels = keras.ops.one_hot(
+    np.array([0, 1, 2, 3]),
+    num_classes=4
+)
+
+segmentation_masks = np.random.randint(0, 3, (4, 224, 224, 1), dtype="uint8")
+
+output = layer(
+    {
+        "images": images,
+        "bounding_boxes": bounding_boxes,
+        "labels": labels,
+        "segmentation_masks": segmentation_masks
+    },
+    training=True
+)
+```
+"""
+
+base_image_preprocessing_color_example = """
+```python
+layer = keras.layers.{LayerName}(value_range=(0, 255))
+images = np.random.randint(0, 255, (8, 224, 224, 3), dtype="uint8")
+
+labels = keras.ops.one_hot(
+    np.array([0, 1, 2, 0, 1, 2, 0, 1]),
+    num_classes=3
+)
+
+segmentation_masks = np.random.randint(0, 3, (8, 224, 224, 1), dtype="uint8")
+
+output = layer(
+    {
+        "images": images,
+        "labels": labels,
+        "segmentation_masks": segmentation_masks
+    },
+    training=True
+)
+```
+"""

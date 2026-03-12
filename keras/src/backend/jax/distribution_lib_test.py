@@ -29,8 +29,8 @@ if backend.backend() == "jax":
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Backend specific test",
+    backend.backend() != "jax" or len(jax.devices()) != 8,
+    reason="Backend specific test and requires 8 devices",
 )
 class JaxDistributionLibTest(testing.TestCase):
     def _create_jax_layout(self, sharding):
@@ -41,6 +41,10 @@ class JaxDistributionLibTest(testing.TestCase):
             return jax_layout.Layout(sharding=sharding)
 
         return sharding
+
+    def test_get_device_count(self):
+        self.assertEqual(backend_dlib.get_device_count(), 8)
+        self.assertEqual(backend_dlib.get_device_count("cpu"), 8)
 
     def test_list_devices(self):
         self.assertEqual(len(distribution_lib.list_devices()), 8)
@@ -100,41 +104,6 @@ class JaxDistributionLibTest(testing.TestCase):
         result = distribution_lib.distribute_tensor(inputs, target_layout)
         self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
 
-    def test_distribute_variable(self):
-        # This test only verify the single worker/process behavior.
-        jax_mesh = jax.sharding.Mesh(
-            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
-        )
-
-        variable = jax.numpy.array(np.random.normal(size=(16, 8)))
-        target_layout = jax.sharding.NamedSharding(
-            jax_mesh, jax.sharding.PartitionSpec("model", None)
-        )
-
-        result = backend_dlib.distribute_variable(variable, target_layout)
-        # Note that the returned tensor has a different sharding implementation
-        # which is GSPMDSharding, but it should be equivalent as the target
-        # layout specified.
-        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
-
-    def test_distribute_input_data(self):
-        # This test only verify the single worker/process behavior.
-        # The multi-process test lives in g3.
-        jax_mesh = jax.sharding.Mesh(
-            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
-        )
-
-        input_data = jax.numpy.array(np.random.normal(size=(16, 8)))
-        target_layout = jax.sharding.NamedSharding(
-            jax_mesh, jax.sharding.PartitionSpec("batch", None)
-        )
-
-        result = backend_dlib.distribute_variable(input_data, target_layout)
-        # Note that the returned tensor has a different sharding implementation
-        # which is GSPMDSharding, but it should be equivalent as the target
-        # layout specified.
-        self.assertTrue(result.sharding.is_equivalent_to(target_layout, ndim=2))
-
     def test_distribute_tensor_with_jax_layout(self):
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(2, 4), ("batch", "model")
@@ -161,48 +130,6 @@ class JaxDistributionLibTest(testing.TestCase):
 
         # Test without jit.
         result = distribution_lib.distribute_tensor(inputs, target_layout)
-        self.assertTrue(
-            result.sharding.is_equivalent_to(target_layout.sharding, ndim=2)
-        )
-
-    def test_distribute_variable_with_jax_layout(self):
-        # This test only verify the single worker/process behavior.
-        jax_mesh = jax.sharding.Mesh(
-            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
-        )
-
-        variable = jax.numpy.array(np.random.normal(size=(16, 8)))
-        target_layout = self._create_jax_layout(
-            sharding=jax.sharding.NamedSharding(
-                jax_mesh, jax.sharding.PartitionSpec("model", None)
-            )
-        )
-
-        result = backend_dlib.distribute_variable(variable, target_layout)
-        # Note that the returned tensor has a different sharding implementation
-        # which is GSPMDSharding, but it should be equivalent as the target
-        # layout specified.
-        self.assertTrue(
-            result.sharding.is_equivalent_to(target_layout.sharding, ndim=2)
-        )
-
-    def test_distribute_input_data_with_jax_layout(self):
-        # This test only verify the single worker/process behavior.
-        jax_mesh = jax.sharding.Mesh(
-            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
-        )
-
-        input_data = jax.numpy.array(np.random.normal(size=(16, 8)))
-        target_layout = self._create_jax_layout(
-            sharding=jax.sharding.NamedSharding(
-                jax_mesh, jax.sharding.PartitionSpec("batch", None)
-            )
-        )
-
-        result = backend_dlib.distribute_variable(input_data, target_layout)
-        # Note that the returned tensor has a different sharding implementation
-        # which is GSPMDSharding, but it should be equivalent as the target
-        # layout specified.
         self.assertTrue(
             result.sharding.is_equivalent_to(target_layout.sharding, ndim=2)
         )

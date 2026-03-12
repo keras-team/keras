@@ -37,6 +37,7 @@ from keras.src.ops.linalg import det as det
 from keras.src.ops.linalg import eig as eig
 from keras.src.ops.linalg import eigh as eigh
 from keras.src.ops.linalg import inv as inv
+from keras.src.ops.linalg import jvp as jvp
 from keras.src.ops.linalg import lstsq as lstsq
 from keras.src.ops.linalg import lu_factor as lu_factor
 from keras.src.ops.linalg import norm as norm
@@ -63,6 +64,8 @@ from keras.src.ops.math import stft as stft
 from keras.src.ops.math import top_k as top_k
 from keras.src.ops.math import view_as_complex as view_as_complex
 from keras.src.ops.math import view_as_real as view_as_real
+from keras.src.ops.nn import adaptive_average_pool as adaptive_average_pool
+from keras.src.ops.nn import adaptive_max_pool as adaptive_max_pool
 from keras.src.ops.nn import average_pool as average_pool
 from keras.src.ops.nn import batch_normalization as batch_normalization
 from keras.src.ops.nn import binary_crossentropy as binary_crossentropy
@@ -74,9 +77,11 @@ from keras.src.ops.nn import conv as conv
 from keras.src.ops.nn import conv_transpose as conv_transpose
 from keras.src.ops.nn import ctc_decode as ctc_decode
 from keras.src.ops.nn import ctc_loss as ctc_loss
+from keras.src.ops.nn import depth_to_space as depth_to_space
 from keras.src.ops.nn import depthwise_conv as depthwise_conv
 from keras.src.ops.nn import dot_product_attention as dot_product_attention
 from keras.src.ops.nn import elu as elu
+from keras.src.ops.nn import fold as fold
 from keras.src.ops.nn import gelu as gelu
 from keras.src.ops.nn import glu as glu
 from keras.src.ops.nn import hard_shrink as hard_shrink
@@ -107,6 +112,7 @@ from keras.src.ops.nn import soft_shrink as soft_shrink
 from keras.src.ops.nn import softmax as softmax
 from keras.src.ops.nn import softplus as softplus
 from keras.src.ops.nn import softsign as softsign
+from keras.src.ops.nn import space_to_depth as space_to_depth
 from keras.src.ops.nn import (
     sparse_categorical_crossentropy as sparse_categorical_crossentropy,
 )
@@ -116,10 +122,12 @@ from keras.src.ops.nn import sparsemax as sparsemax
 from keras.src.ops.nn import squareplus as squareplus
 from keras.src.ops.nn import tanh_shrink as tanh_shrink
 from keras.src.ops.nn import threshold as threshold
+from keras.src.ops.nn import unfold as unfold
 from keras.src.ops.numpy import abs as abs
 from keras.src.ops.numpy import absolute as absolute
 from keras.src.ops.numpy import add as add
 from keras.src.ops.numpy import all as all
+from keras.src.ops.numpy import allclose as allclose
 from keras.src.ops.numpy import amax as amax
 from keras.src.ops.numpy import amin as amin
 from keras.src.ops.numpy import angle as angle
@@ -138,6 +146,7 @@ from keras.src.ops.numpy import argmin as argmin
 from keras.src.ops.numpy import argpartition as argpartition
 from keras.src.ops.numpy import argsort as argsort
 from keras.src.ops.numpy import array as array
+from keras.src.ops.numpy import array_split as array_split
 from keras.src.ops.numpy import average as average
 from keras.src.ops.numpy import bartlett as bartlett
 from keras.src.ops.numpy import bincount as bincount
@@ -174,8 +183,10 @@ from keras.src.ops.numpy import digitize as digitize
 from keras.src.ops.numpy import divide as divide
 from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
+from keras.src.ops.numpy import dstack as dstack
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
+from keras.src.ops.numpy import empty_like as empty_like
 from keras.src.ops.numpy import equal as equal
 from keras.src.ops.numpy import exp as exp
 from keras.src.ops.numpy import exp2 as exp2
@@ -188,6 +199,7 @@ from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like
 from keras.src.ops.numpy import gcd as gcd
+from keras.src.ops.numpy import geomspace as geomspace
 from keras.src.ops.numpy import get_item as get_item
 from keras.src.ops.numpy import greater as greater
 from keras.src.ops.numpy import greater_equal as greater_equal
@@ -195,6 +207,7 @@ from keras.src.ops.numpy import hamming as hamming
 from keras.src.ops.numpy import hanning as hanning
 from keras.src.ops.numpy import heaviside as heaviside
 from keras.src.ops.numpy import histogram as histogram
+from keras.src.ops.numpy import hsplit as hsplit
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import hypot as hypot
 from keras.src.ops.numpy import identity as identity
@@ -207,9 +220,11 @@ from keras.src.ops.numpy import isinf as isinf
 from keras.src.ops.numpy import isnan as isnan
 from keras.src.ops.numpy import isneginf as isneginf
 from keras.src.ops.numpy import isposinf as isposinf
+from keras.src.ops.numpy import isreal as isreal
 from keras.src.ops.numpy import kaiser as kaiser
 from keras.src.ops.numpy import kron as kron
 from keras.src.ops.numpy import lcm as lcm
+from keras.src.ops.numpy import ldexp as ldexp
 from keras.src.ops.numpy import left_shift as left_shift
 from keras.src.ops.numpy import less as less
 from keras.src.ops.numpy import less_equal as less_equal
@@ -219,6 +234,7 @@ from keras.src.ops.numpy import log1p as log1p
 from keras.src.ops.numpy import log2 as log2
 from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import logaddexp as logaddexp
+from keras.src.ops.numpy import logaddexp2 as logaddexp2
 from keras.src.ops.numpy import logical_and as logical_and
 from keras.src.ops.numpy import logical_not as logical_not
 from keras.src.ops.numpy import logical_or as logical_or
@@ -236,8 +252,20 @@ from keras.src.ops.numpy import mod as mod
 from keras.src.ops.numpy import moveaxis as moveaxis
 from keras.src.ops.numpy import multiply as multiply
 from keras.src.ops.numpy import nan_to_num as nan_to_num
+from keras.src.ops.numpy import nanargmax as nanargmax
+from keras.src.ops.numpy import nanargmin as nanargmin
+from keras.src.ops.numpy import nancumprod as nancumprod
+from keras.src.ops.numpy import nancumsum as nancumsum
+from keras.src.ops.numpy import nanmax as nanmax
+from keras.src.ops.numpy import nanmean as nanmean
+from keras.src.ops.numpy import nanmin as nanmin
+from keras.src.ops.numpy import nanprod as nanprod
+from keras.src.ops.numpy import nanstd as nanstd
+from keras.src.ops.numpy import nansum as nansum
+from keras.src.ops.numpy import nanvar as nanvar
 from keras.src.ops.numpy import ndim as ndim
 from keras.src.ops.numpy import negative as negative
+from keras.src.ops.numpy import nextafter as nextafter
 from keras.src.ops.numpy import nonzero as nonzero
 from keras.src.ops.numpy import not_equal as not_equal
 from keras.src.ops.numpy import ones as ones
@@ -246,6 +274,7 @@ from keras.src.ops.numpy import outer as outer
 from keras.src.ops.numpy import pad as pad
 from keras.src.ops.numpy import power as power
 from keras.src.ops.numpy import prod as prod
+from keras.src.ops.numpy import ptp as ptp
 from keras.src.ops.numpy import quantile as quantile
 from keras.src.ops.numpy import ravel as ravel
 from keras.src.ops.numpy import real as real
@@ -261,6 +290,7 @@ from keras.src.ops.numpy import select as select
 from keras.src.ops.numpy import sign as sign
 from keras.src.ops.numpy import signbit as signbit
 from keras.src.ops.numpy import sin as sin
+from keras.src.ops.numpy import sinc as sinc
 from keras.src.ops.numpy import sinh as sinh
 from keras.src.ops.numpy import size as size
 from keras.src.ops.numpy import slogdet as slogdet
@@ -282,15 +312,19 @@ from keras.src.ops.numpy import tensordot as tensordot
 from keras.src.ops.numpy import tile as tile
 from keras.src.ops.numpy import trace as trace
 from keras.src.ops.numpy import transpose as transpose
+from keras.src.ops.numpy import trapezoid as trapezoid
 from keras.src.ops.numpy import tri as tri
 from keras.src.ops.numpy import tril as tril
 from keras.src.ops.numpy import triu as triu
 from keras.src.ops.numpy import true_divide as true_divide
 from keras.src.ops.numpy import trunc as trunc
 from keras.src.ops.numpy import unravel_index as unravel_index
+from keras.src.ops.numpy import vander as vander
 from keras.src.ops.numpy import var as var
 from keras.src.ops.numpy import vdot as vdot
 from keras.src.ops.numpy import vectorize as vectorize
+from keras.src.ops.numpy import view as view
+from keras.src.ops.numpy import vsplit as vsplit
 from keras.src.ops.numpy import vstack as vstack
 from keras.src.ops.numpy import where as where
 from keras.src.ops.numpy import zeros as zeros

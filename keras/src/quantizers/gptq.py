@@ -1,7 +1,7 @@
 import types
-from functools import partial
 
 from keras.src import ops
+from keras.src import quantizers
 from keras.src.layers import Dense
 from keras.src.layers import EinsumDense
 from keras.src.ops import linalg
@@ -295,12 +295,7 @@ class GPTQ:
             # For EinsumDense, we determine the effective 2D dimensions.
             self.kernel_shape = layer.kernel.shape
             shape = list(self.kernel_shape)
-            try:
-                d_model_dim_index = shape.index(max(shape))
-            except ValueError:
-                raise TypeError(
-                    f"Could not determine hidden dimension from shape {shape}"
-                )
+            d_model_dim_index = shape.index(max(shape))
 
             if d_model_dim_index == 0:  # QKV projection case
                 in_features, heads, head_dim = shape
@@ -470,11 +465,17 @@ class GPTQ:
             group_size=self.config.group_size,
             activation_order=self.config.activation_order,
             order_metric=ops.diagonal(hessian_matrix),
-            compute_scale_zero=partial(self.quantizer.find_params, weight=True),
+            compute_scale_zero=self.quantizer.find_params,
         )
         quantized = ops.cast(
             quantized, self.original_layer.quantized_kernel.dtype
         )
+
+        if self.config.weight_bits == 4:
+            # For 4-bit weights, we need to pack them into bytes
+            quantized, _, _ = quantizers.pack_int4(
+                quantized, axis=0, dtype="uint8"
+            )
 
         del self.original_layer._kernel
         self.original_layer.quantized_kernel.assign(quantized)

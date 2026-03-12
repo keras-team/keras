@@ -722,9 +722,7 @@ class ModelTest(testing.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `metrics`, "
-            "key 'output_c' does not correspond to any model output",
+            ValueError, "(?s)Invalid `metrics`.*output_c"
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -767,9 +765,7 @@ class ModelTest(testing.TestCase):
         )
         # Fit the model to make sure compile_metrics are built
         with self.assertRaisesRegex(
-            ValueError,
-            "In the dict argument `metrics`, "
-            "key 'output_c' does not correspond to any model output",
+            ValueError, "(?s)Invalid `metrics`.*output_c"
         ):
             model.fit(x, (y1, y2), batch_size=2, epochs=1, verbose=0)
 
@@ -816,6 +812,31 @@ class ModelTest(testing.TestCase):
             self.assertLen(model.variables, 16)
             if backend.backend() == "torch":
                 self.assertLen(list(model.named_parameters()), 16)
+
+    @parameterized.named_parameters(
+        ("regex_string", "dense_1", ["dense_1"]),
+        ("list_of_regex", ["dense_1", "output"], ["dense_1", "output"]),
+        ("callable", lambda l: "dense" in l.name, ["dense_1", "dense_2"]),
+    )
+    def test_quantize_with_filters(self, filters, expected_quantized_layers):
+        mode = "int8"
+        inputs = layers.Input([3])
+        x = layers.Dense(32, name="dense_1")(inputs)
+        x = layers.Dense(32, name="dense_2")(x)
+        outputs = layers.Dense(32, name="output")(x)
+        model = Model(inputs, outputs)
+
+        model.quantize(mode, filters=filters)
+
+        for layer in model._flatten_layers():
+            if layer.name in expected_quantized_layers:
+                self.assertEqual(
+                    layer.dtype_policy.name, f"{mode}_from_float32"
+                )
+            elif isinstance(layer, layers.Dense):
+                self.assertNotEqual(
+                    layer.dtype_policy.name, f"{mode}_from_float32"
+                )
 
     @parameterized.named_parameters(
         ("int8", "int8"),

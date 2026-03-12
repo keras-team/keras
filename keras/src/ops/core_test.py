@@ -309,11 +309,38 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         shape = (-1, -1)
         self.assertEqual(core.slice(inputs, start_indices, shape).shape, (2, 2))
 
-    def test_slice_negative_one_shape_raises(self):
+    def test_slice_negative_one_shape_tensor_indices(self):
         inputs = KerasTensor(shape=(3, 3), dtype="float32")
         start_indices = KerasTensor(shape=(2,), dtype="int32")
         shape = (-1, -1)
-        with self.assertRaises(ValueError):
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, None)
+        )
+
+    def test_slice_negative_one_shape_dynamic_input_shape(self):
+        inputs = KerasTensor(shape=(None, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (-1, -1)
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, 2)
+        )
+
+    def test_slice_invalid_inputs(self):
+        inputs = KerasTensor(shape=(3, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (2, 2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `inputs` must match.* dimensions in `shape`",
+        ):
+            core.slice(inputs, start_indices, shape)
+
+        start_indices = (1, 1, 1)
+        shape = (2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `start_indices` must match.* dimensions in `inputs`",
+        ):
             core.slice(inputs, start_indices, shape)
 
     def test_slice_update(self):
@@ -591,7 +618,8 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             f"{backend.backend()} backend doesn't support `custom_gradient`."
         ),
     )
-    def test_custom_gradient(self):
+    @parameterized.named_parameters(named_product(use_variable=(False, True)))
+    def test_custom_gradient(self, use_variable):
         # function to test custom_gradient on
         @ops.custom_gradient
         def log1pexp(x):
@@ -608,12 +636,29 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return ops.log(1 + ops.exp(x))
 
         x = ops.convert_to_tensor(100.0)
+        if use_variable:
+
+            class Log1PExpLayer(layers.Layer):
+                def __init__(self):
+                    super().__init__()
+                    self.v = backend.Variable(5.0, trainable=False)
+
+                def call(self, inputs):
+                    # The derivative of this layer is 1 with respect to inputs.
+                    # But on the side, we test passing a variable to a function
+                    # using @custom_gradient
+                    return log1pexp(self.v) + inputs
+
+            to_derive = Log1PExpLayer()
+        else:
+            to_derive = log1pexp
+
         if backend.backend() == "tensorflow":
             import tensorflow as tf
 
             with tf.GradientTape() as tape1:
                 tape1.watch(x)
-                y = log1pexp(x)
+                y = to_derive(x)
             with tf.GradientTape() as tape2:
                 tape2.watch(x)
                 z = log1pexp_nan(x)
@@ -623,7 +668,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         elif backend.backend() == "jax":
             import jax
 
-            dy_dx = jax.grad(log1pexp)(x)
+            dy_dx = jax.grad(to_derive)(x)
             dz_dx = jax.grad(log1pexp_nan)(x)
             self.assertEqual(ops.convert_to_numpy(dy_dx), 1.0)
             self.assertTrue(ops.isnan(dz_dx))
@@ -631,7 +676,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             import torch
 
             x = torch.tensor(100.0, requires_grad=True)
-            z = log1pexp(x)
+            z = to_derive(x)
             z.sum().backward()
             self.assertEqual(ops.convert_to_numpy(x.grad), 1.0)
 
@@ -1066,6 +1111,50 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             np.array([[0, 20], [10, 0]]),
         )
 
+    def test_scatter_update_with_reduction(self):
+        # Test add reduction with duplicate indices
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
+
+        # Test add reduction 2D
+        inputs = np.zeros((3, 3))
+        indices = [[0, 0], [1, 1], [0, 0]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result[0, 0], 4.0)
+        self.assertAllClose(result[1, 1], 2.0)
+
+        # Test max reduction with duplicates
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="max")
+        self.assertAllClose(result, [5.0, 2.0, 0.0, 0.0])
+
+        # Test min reduction
+        inputs = np.array([10.0, 10.0, 10.0, 10.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="min")
+        self.assertAllClose(result, [3.0, 2.0, 10.0, 10.0])
+
+        # Test mul reduction
+        inputs = np.array([2.0, 3.0, 1.0, 1.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="mul")
+        self.assertAllClose(result, [30.0, 6.0, 1.0, 1.0])
+
+        # Test Operation call with reduction
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.ScatterUpdate(reduction="add")(inputs, indices, updates)
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
+
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
@@ -1185,7 +1274,9 @@ class CoreOpsCorrectnessTest(testing.TestCase):
                 self.b = self.add_weight(shape=(1,), initializer="zeros")
 
             def call(self, x, training=False):
-                return x * ops.stop_gradient(self.w) + self.b
+                return ops.add(
+                    ops.multiply(x, ops.stop_gradient(self.w)), self.b
+                )
 
         model = models.Sequential([ExampleLayer()])
         model.compile(

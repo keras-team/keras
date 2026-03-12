@@ -534,6 +534,37 @@ class ConvTransposeBasicTest(testing.TestCase):
                 filters=2, kernel_size=(2, 2), strides=(1, 0)
             )
 
+        # `output_padding` >= `strides`.
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv1DTranspose(
+                filters=2, kernel_size=3, strides=2, output_padding=2
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=2,
+                kernel_size=3,
+                strides=2,
+                output_padding=3,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=2,
+                kernel_size=3,
+                strides=(2, 3),
+                output_padding=(1, 3),
+            )
+
         # `dilation_rate > 1` while `strides > 1`.
         with self.assertRaisesRegex(
             ValueError,
@@ -616,7 +647,9 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             data_format,
             dilation_rate,
         )
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(
+            outputs, expected, atol=1e-5, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.parameters(
         {
@@ -696,7 +729,9 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             data_format,
             dilation_rate,
         )
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(
+            outputs, expected, atol=1e-5, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.parameters(
         {
@@ -767,7 +802,9 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             data_format,
             dilation_rate,
         )
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(
+            outputs, expected, atol=1e-5, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.product(
         kernel_size=list(range(1, 5)),
@@ -825,21 +862,30 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
 
         # Special cases for Torch
         if backend.backend() == "torch":
-            # The following set of arguments lead to Torch output padding to be
-            # greater than strides, which is not supported by Torch.
-            # An error is raised.
+            # Args that cause output_padding >= strides
+            # are clamped with a warning.
             if (kernel_size, strides, padding, output_padding) in [
                 (2, 1, "same", None),
                 (4, 1, "same", None),
             ]:
-                with pytest.raises(ValueError):
+                clamped_output_padding = strides - 1  # usually 0 when stride=1
+                expected_res = np_conv1d_transpose(
+                    x=input,
+                    kernel_weights=kernel_weights,
+                    bias_weights=np.zeros(shape=(1,)),
+                    strides=strides,
+                    padding=padding,
+                    output_padding=clamped_output_padding,
+                    data_format=backend.config.image_data_format(),
+                    dilation_rate=1,
+                )
+                with pytest.warns(UserWarning):
                     kc_res = kc_layer(input)
+                self.assertAllClose(expected_res, kc_res, atol=1e-5)
                 return
 
-            # When both torch_padding and torch_output_padding are greater
-            # than 0, Torch outputs are inconsistent with the ones from
-            # Tensorflow. A warning is raised, and we expect the results to be
-            # different.
+            # torch_padding > 0 and torch_output_padding > 0 case
+            # Torch output differs from TF.
             (
                 torch_padding,
                 torch_output_padding,
@@ -869,6 +915,10 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
     def test_shape_inference_static_unknown_shape(
         self, kernel_size, strides, padding, output_padding
     ):
+        # output_padding cannot be greater than or equal to strides
+        if output_padding is not None and output_padding >= strides:
+            pytest.skip("`output_padding` must be less than `strides`")
+
         if backend.config.image_data_format() == "channels_last":
             input_shape = (None, None, 3)
             output_tensor_shape = (None, None, None, 2)

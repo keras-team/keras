@@ -5,6 +5,7 @@ from tensorflow import data as tf_data
 
 from keras.src import backend
 from keras.src import layers
+from keras.src import models
 from keras.src import testing
 
 
@@ -294,3 +295,19 @@ class CenterCropTest(testing.TestCase):
         output = next(iter(ds))
         expected_boxes = np.array(expected_boxes)
         self.assertAllClose(output["bounding_boxes"]["boxes"], expected_boxes)
+
+    def test_dynamic_spatial_dims(self):
+        if backend.config.image_data_format() == "channels_last":
+            large_input = (2, 25, 30, 3)
+            small_input = (2, 6, 7, 3)
+        else:
+            large_input = (2, 3, 25, 30)
+            small_input = (2, 3, 6, 7)
+
+        model = models.Sequential([layers.CenterCrop(10, 12)])
+
+        def generator():
+            yield (np.random.random(large_input).astype("float32"),)
+            yield (np.random.random(small_input).astype("float32"),)
+
+        model.predict(generator())

@@ -692,7 +692,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         for i in range(num_sequences):
             expected[i] = x[pos : pos + sequence_length]
             pos += sequence_stride
-        self.assertAllClose(output, expected)
+        self.assertAllClose(output, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
         # Test N-D case.
         x = np.random.random((4, 8))
@@ -706,7 +706,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         for i in range(num_sequences):
             expected[:, i] = x[:, pos : pos + sequence_length]
             pos += sequence_stride
-        self.assertAllClose(output, expected)
+        self.assertAllClose(output, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
     def test_fft(self):
         real = np.random.random((2, 4, 3))
@@ -1471,6 +1471,26 @@ class TestMathErrors(testing.TestCase):
             kmath.stft(
                 x, sequence_length, sequence_stride, fft_length, window=window
             )
+
+    @parameterized.parameters([0, -5, 1.5])
+    def test_stft_invalid_sequence_stride(self, sequence_stride):
+        x = np.array([1.0, 2.0, 3.0, 4.0])
+        sequence_length = 2
+        fft_length = 4
+        with self.assertRaisesRegex(
+            ValueError, "`sequence_stride` must be a positive integer"
+        ):
+            kmath.stft(x, sequence_length, sequence_stride, fft_length)
+
+    @parameterized.parameters([0, -5, 1.5])
+    def test_istft_invalid_sequence_stride(self, sequence_stride):
+        x = (np.array([[1.0, 2.0]]), np.array([[3.0, 4.0]]))
+        sequence_length = 2
+        fft_length = 4
+        with self.assertRaisesRegex(
+            ValueError, "`sequence_stride` must be a positive integer"
+        ):
+            kmath.istft(x, sequence_length, sequence_stride, fft_length)
 
     def test_istft_invalid_window_shape_2D_inputs(self):
         # backend agnostic error message

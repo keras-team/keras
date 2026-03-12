@@ -1,4 +1,5 @@
 import itertools
+from unittest.mock import create_autospec
 
 import numpy as np
 import pytest
@@ -176,8 +177,8 @@ class VariablePropertiesTest(test_case.TestCase):
             v.trainable = False
             self.assertFalse(v._value.requires_grad)
 
-    def test_autocasting(self):
-        """Tests autocasting of float variables."""
+    def test_autocasting_float(self):
+        # Tests autocasting of float variables
         v = backend.Variable(
             initializer=initializers.RandomNormal(),
             shape=(2, 2),
@@ -191,6 +192,33 @@ class VariablePropertiesTest(test_case.TestCase):
             )
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
+    def test_autocasting_float_assign(self):
+        # Tests assigning value to variable within an autocast scope
+        v = backend.Variable(
+            initializer=initializers.RandomNormal(),
+            shape=(2, 2),
+            dtype="float32",
+        )
+        self.assertEqual(v.dtype, "float32")
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+        # Assign float16 value within float16 scope
+        with AutocastScope("float16"):
+            self.assertEqual(
+                backend.standardize_dtype(v.value.dtype), "float16"
+            )
+            v.assign(ops.ones((2, 2), "float16"))
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+        # Assign float32 value within float16 scope
+        with AutocastScope("float16"):
+            self.assertEqual(
+                backend.standardize_dtype(v.value.dtype), "float16"
+            )
+            v.assign(ops.zeros((2, 2), "float32"))
+        self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
+
+    def test_autocasting_int(self):
         # Test non-float variables are not affected
         v = backend.Variable(
             initializer=initializers.Ones(),
@@ -204,6 +232,7 @@ class VariablePropertiesTest(test_case.TestCase):
         with AutocastScope("float16"):
             self.assertEqual(backend.standardize_dtype(v.value.dtype), "int32")
 
+    def test_autocasting_float_with_autocast_off(self):
         # Test autocast argument
         v = backend.Variable(
             initializer=initializers.RandomNormal(),
@@ -220,12 +249,10 @@ class VariablePropertiesTest(test_case.TestCase):
             )
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
-    @parameterized.parameters(
-        *(
-            (
-                dtype
-                for dtype in dtypes.ALLOWED_DTYPES
-                if dtype not in ["string", "complex64", "complex28"]
+    @parameterized.named_parameters(
+        named_product(
+            dtype=(
+                dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"
             )
         )
     )
@@ -282,32 +309,79 @@ class VariablePropertiesTest(test_case.TestCase):
             )
 
     def test_standardize_shape_with_none(self):
-        """Tests standardizing shape with None."""
         with self.assertRaisesRegex(
             ValueError, "Undefined shapes are not supported."
         ):
             standardize_shape(None)
 
     def test_standardize_shape_with_non_iterable(self):
-        """Tests shape standardization with non-iterables."""
         with self.assertRaisesRegex(
             ValueError, "Cannot convert '42' to a shape."
         ):
             standardize_shape(42)
 
     def test_standardize_shape_with_valid_input(self):
-        """Tests standardizing shape with valid input."""
+        shape = (3, 4, 5)
+        standardized_shape = standardize_shape(shape)
+        self.assertEqual(standardized_shape, (3, 4, 5))
+
+    def test_standardize_shape_with_valid_input_with_none(self):
+        shape = (3, None, 5)
+        standardized_shape = standardize_shape(shape)
+        self.assertEqual(standardized_shape, (3, None, 5))
+
+    def test_standardize_shape_with_valid_not_tuple_input(self):
         shape = [3, 4, 5]
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (3, 4, 5))
 
-    def test_standardize_shape_with_negative_entry(self):
-        """Tests standardizing shape with negative entries."""
+    def test_standardize_shape_with_numpy(self):
+        shape = [3, np.int32(4), np.int64(5)]
+        standardized_shape = standardize_shape(shape)
+        self.assertEqual(standardized_shape, (3, 4, 5))
+        for d in standardized_shape:
+            self.assertIsInstance(d, int)
+
+    def test_standardize_shape_with_string(self):
+        shape_with_string = (3, 4, "5")
         with self.assertRaisesRegex(
             ValueError,
-            "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
+            "Cannot convert .* to a shape. Found invalid dimension '5'.",
         ):
-            standardize_shape([3, 4, -5])
+            standardize_shape(shape_with_string)
+
+    def test_standardize_shape_with_float(self):
+        shape_with_float = (3, 4, 5.0)
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Found invalid dimension '5.0'.",
+        ):
+            standardize_shape(shape_with_float)
+
+    def test_standardize_shape_with_object(self):
+        shape_with_object = (3, 4, object())
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Found invalid dimension .*object",
+        ):
+            standardize_shape(shape_with_object)
+
+    def test_standardize_shape_with_negative_dimension(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            "Cannot convert .* to a shape. Negative dimensions",
+        ):
+            standardize_shape((3, 4, -5))
+
+    @parameterized.named_parameters(
+        ("all_dynamic", (None, None, None, 64), (None, None, None, 64)),
+        ("mixed", (None, 224, 224, 3), (None, 224, 224, 3)),
+        ("all_static", (1, 224, 224, 3), (1, 224, 224, 3)),
+    )
+    def test_standardize_shape_preserves_none(self, input_shape, expected):
+        """Test that None dimensions are preserved correctly."""
+        result = standardize_shape(input_shape)
+        self.assertEqual(result, expected)
 
     def test_shape_equal_length_mismatch(self):
         """Test mismatch in lengths of shapes."""
@@ -327,6 +401,10 @@ class VariablePropertiesTest(test_case.TestCase):
         """Test path creation for a variable."""
         v = backend.Variable(initializer=np.ones((2, 2)), name="test_var")
         self.assertEqual(v.path, "test_var")
+
+        with backend.name_scope("test_scope"):
+            v = backend.Variable(initializer=np.ones((2, 2)), name="test_var")
+            self.assertEqual(v.path, "test_scope/test_var")
 
     def test_overwrite_with_gradient_setter(self):
         v = backend.Variable(
@@ -750,9 +828,6 @@ class VariableOpsCorrectnessTest(test_case.TestCase):
         result = v2**v1
         self.assertAllClose(result, np.array([4.0, 25.0, 216.0]))
 
-    @skip_if_backend(
-        "openvino", "`round` is not supported with openvino backend"
-    )
     def test_round(self):
         v = backend.Variable(initializer=np.array([1.1, 2.2, 3.3]))
         self.assertAllClose(round(v), np.array([1.0, 2.0, 3.0]))
@@ -807,6 +882,14 @@ class VariableOpsDTypeTest(test_case.TestCase):
             x for x in ALL_DTYPES if x not in ("uint16", "uint32", "complex64")
         ]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "tensorflow":
+        # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
+        # dtypes.result_type(uint32, int*) -> int64 promotion.
+        # Since TF variables require int64 to be placed on the GPU, we
+        # exclusively enable the int64 dtype for TF. However, JAX does not
+        # natively support int64, which prevents us from comparing the dtypes.
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint32",)]
     elif backend.backend() == "openvino":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
     NON_COMPLEX_DTYPES = [
@@ -957,32 +1040,19 @@ class VariableOpsDTypeTest(test_case.TestCase):
         named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
     )
     def test_truediv(self, dtypes):
-        import jax.experimental
         import jax.numpy as jnp
 
-        # We have to disable x64 for jax since jnp.true_divide doesn't respect
-        # JAX_DEFAULT_DTYPE_BITS=32 in `./conftest.py`. We also need to downcast
-        # the expected dtype from 64 bit to 32 bit when using jax backend.
-        with jax.experimental.disable_x64():
-            dtype1, dtype2 = dtypes
-            x1 = backend.Variable(
-                "ones", shape=(1,), dtype=dtype1, trainable=False
-            )
-            x2 = backend.Variable(
-                "ones", shape=(1,), dtype=dtype2, trainable=False
-            )
-            x1_jax = jnp.ones((1,), dtype=dtype1)
-            x2_jax = jnp.ones((1,), dtype=dtype2)
-            expected_dtype = standardize_dtype(
-                jnp.true_divide(x1_jax, x2_jax).dtype
-            )
-            if "float64" in (dtype1, dtype2):
-                expected_dtype = "float64"
-            if backend.backend() == "jax":
-                expected_dtype = expected_dtype.replace("64", "32")
+        dtype1, dtype2 = dtypes
+        x1 = backend.Variable("ones", shape=(1,), dtype=dtype1, trainable=False)
+        x2 = backend.Variable("ones", shape=(1,), dtype=dtype2, trainable=False)
+        x1_jax = jnp.ones((1,), dtype=dtype1)
+        x2_jax = jnp.ones((1,), dtype=dtype2)
+        expected_dtype = standardize_dtype(
+            jnp.true_divide(x1_jax, x2_jax).dtype
+        )
 
-            self.assertDType(x1 / x2, expected_dtype)
-            self.assertDType(x1.__rtruediv__(x2), expected_dtype)
+        self.assertDType(x1 / x2, expected_dtype)
+        self.assertDType(x1.__rtruediv__(x2), expected_dtype)
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(NON_COMPLEX_DTYPES, 2))
@@ -1111,138 +1181,51 @@ class VariableOpsDTypeTest(test_case.TestCase):
     reason="Tests for standardize_shape with Torch backend",
 )
 class TestStandardizeShapeWithTorch(test_case.TestCase):
-    """Tests for standardize_shape with Torch backend."""
-
-    def test_standardize_shape_with_torch_size_containing_negative_value(self):
-        """Tests shape with a negative value."""
-        shape_with_negative_value = (3, 4, -5)
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
-        ):
-            _ = standardize_shape(shape_with_negative_value)
-
-    def test_standardize_shape_with_torch_size_valid(self):
-        """Tests a valid shape."""
-        shape_valid = (3, 4, 5)
-        standardized_shape = standardize_shape(shape_valid)
-        self.assertEqual(standardized_shape, (3, 4, 5))
-
-    def test_standardize_shape_with_torch_size_multidimensional(self):
-        """Tests shape of a multi-dimensional tensor."""
+    def test_standardize_shape_with_torch_size(self):
         import torch
 
         tensor = torch.randn(3, 4, 5)
         shape = tensor.size()
         standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (3, 4, 5))
+        self.assertIs(type(standardized_shape), tuple)
+        for d in standardized_shape:
+            self.assertIsInstance(d, int)
 
-    def test_standardize_shape_with_torch_size_single_dimension(self):
-        """Tests shape of a single-dimensional tensor."""
+    def test_standardize_shape_with_torch_symint(self):
+        """Test that torch.SymInt dimensions are converted to None.
+
+        This validates the fix for GitHub issue #22102 where torch.SymInt
+        objects from torch.export were causing "Constraints violated" errors.
+        """
         import torch
 
-        tensor = torch.randn(10)
-        shape = tensor.size()
-        standardized_shape = standardize_shape(shape)
-        self.assertEqual(standardized_shape, (10,))
+        # Create a mock SymInt object
+        sym_int = create_autospec(torch.SymInt, instance=True)
+        shape_with_sym_int = (sym_int, 224, 224, 64)
 
-    def test_standardize_shape_with_torch_size_with_valid_1_dimension(self):
-        """Tests a valid shape."""
-        shape_valid = [3]
-        standardized_shape = standardize_shape(shape_valid)
-        self.assertEqual(standardized_shape, (3,))
+        # SymInt should be converted to None
+        result = standardize_shape(shape_with_sym_int)
+        self.assertEqual(result, (None, 224, 224, 64))
 
-    def test_standardize_shape_with_torch_size_with_valid_2_dimension(self):
-        """Tests a valid shape."""
-        shape_valid = [3, 4]
-        standardized_shape = standardize_shape(shape_valid)
-        self.assertEqual(standardized_shape, (3, 4))
-
-    def test_standardize_shape_with_torch_size_with_valid_3_dimension(self):
-        """Tests a valid shape."""
-        shape_valid = [3, 4, 5]
-        standardized_shape = standardize_shape(shape_valid)
-        self.assertEqual(standardized_shape, (3, 4, 5))
-
-    def test_standardize_shape_with_torch_size_with_negative_value(self):
-        """Tests shape with a negative value appended."""
-        import torch
-
-        tensor = torch.randn(3, 4, 5)
-        shape = tuple(tensor.size())
-        shape_with_negative = shape + (-1,)
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert .* to a shape. Negative dimensions are not",
-        ):
-            _ = standardize_shape(shape_with_negative)
-
-    def test_standardize_shape_with_non_integer_entry(self):
-        """Tests shape with a non-integer value."""
-        with self.assertRaisesRegex(
-            # different error message for torch
-            ValueError,
-            r"invalid literal for int\(\) with base 10: 'a'",
-        ):
-            standardize_shape([3, 4, "a"])
-
-    def test_standardize_shape_with_negative_entry(self):
-        """Tests shape with a negative value."""
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
-        ):
-            standardize_shape([3, 4, -5])
-
-    def test_standardize_shape_with_valid_not_tuple(self):
-        """Tests a valid shape."""
-        shape_valid = [3, 4, 5]
-        standardized_shape = standardize_shape(shape_valid)
-        self.assertEqual(standardized_shape, (3, 4, 5))
+        # Test with multiple SymInts
+        sym_int2 = create_autospec(torch.SymInt, instance=True)
+        shape_with_multiple_sym_ints = (sym_int, sym_int2, 64)
+        result = standardize_shape(shape_with_multiple_sym_ints)
+        self.assertEqual(result, (None, None, 64))
 
 
 @pytest.mark.skipif(
-    backend.backend() == "torch",
-    reason="Tests for standardize_shape with others backend",
+    backend.backend() != "tensorflow",
+    reason="Tests for standardize_shape with TensorFlow backend",
 )
-class TestStandardizeShapeWithOutTorch(test_case.TestCase):
-    """Tests for standardize_shape with others backend."""
+class TestStandardizeShapeWithTensorflow(test_case.TestCase):
+    def test_standardize_shape_with_tensor_size(self):
+        import tensorflow as tf
 
-    def test_standardize_shape_with_out_torch_negative_value(self):
-        """Tests shape with a negative value."""
-        shape_with_negative_value = (3, 4, -5)
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert '\\(3, 4, -5\\)' to a shape. Negative dimensions",
-        ):
-            _ = standardize_shape(shape_with_negative_value)
-
-    def test_standardize_shape_with_out_torch_string(self):
-        """Tests shape with a string value."""
-        shape_with_string = (3, 4, "5")
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert .* to a shape. Found invalid entry '5'.",
-        ):
-            _ = standardize_shape(shape_with_string)
-
-    def test_standardize_shape_with_out_torch_float(self):
-        """Tests shape with a float value."""
-        shape_with_float = (3, 4, 5.0)
-        with self.assertRaisesRegex(
-            ValueError,
-            "Cannot convert .* to a shape. Found invalid entry '5.0'.",
-        ):
-            _ = standardize_shape(shape_with_float)
-
-    def test_standardize_shape_with_out_torch_valid(self):
-        """Tests a valid shape."""
-        shape_valid = (3, 4, 5)
-        standardized_shape = standardize_shape(shape_valid)
+        shape = (3, tf.constant(4, dtype=tf.int64), 5)
+        standardized_shape = standardize_shape(shape)
         self.assertEqual(standardized_shape, (3, 4, 5))
-
-    def test_standardize_shape_with_out_torch_valid_not_tuple(self):
-        """Tests a valid shape."""
-        shape_valid = [3, 4, 5]
-        standardized_shape = standardize_shape(shape_valid)
-        self.assertEqual(standardized_shape, (3, 4, 5))
+        self.assertIs(type(standardized_shape), tuple)
+        for d in standardized_shape:
+            self.assertIsInstance(d, int)

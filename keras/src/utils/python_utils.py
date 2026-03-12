@@ -7,20 +7,14 @@ import types as python_types
 
 def is_continuous_axis(axis):
     # Used to determine whether the dimensions in an axis are continuous
-    if isinstance(axis, int) or len(axis) == 1:
+    if isinstance(axis, int) or len(axis) <= 1:
         return True
-    positive_order_flag = True
-    for i in range(len(axis) - 1):
-        if axis[i + 1] - axis[i] != 1:
-            positive_order_flag = False
-            break
 
-    negative_order_flag = True
-    for i in range(len(axis) - 1):
-        if axis[i + 1] - axis[i] != 1:
-            negative_order_flag = False
-            break
-    return positive_order_flag or negative_order_flag
+    step = axis[1] - axis[0]
+    if step not in (1, -1):
+        return False
+
+    return all(axis[i + 1] - axis[i] == step for i in range(len(axis) - 1))
 
 
 def default(method):
@@ -181,6 +175,8 @@ def pythonify_logs(logs):
         A flattened dict with values converted to Python-native types if
         possible.
     """
+    from keras.src import backend
+
     logs = logs or {}
     result = {}
     for key, value in sorted(logs.items()):
@@ -188,6 +184,9 @@ def pythonify_logs(logs):
             result.update(pythonify_logs(value))
         else:
             try:
+                # Prevent torch compiler from breaking the graph.
+                if backend.is_tensor(value):
+                    value = backend.convert_to_numpy(value)
                 value = float(value)
             except:
                 pass

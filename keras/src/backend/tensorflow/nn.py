@@ -5,6 +5,9 @@ import tensorflow as tf
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    compute_adaptive_pooling_window_sizes,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras.src.backend.tensorflow.core import cast
@@ -268,6 +271,486 @@ def average_pool(
     return outputs
 
 
+def _compute_static_gather_indices(
+    input_dim, output_size, small_window, big_window
+):
+    """Compute gather indices for Two-Pool Gather method (corrected)."""
+    window_starts = tf.cast(
+        tf.floor(
+            tf.cast(tf.range(output_size), tf.float32)
+            * tf.cast(input_dim, tf.float32)
+            / tf.cast(output_size, tf.float32)
+        ),
+        tf.int32,
+    )
+    window_ends = tf.cast(
+        tf.math.ceil(
+            tf.cast(tf.range(1, output_size + 1), tf.float32)
+            * tf.cast(input_dim, tf.float32)
+            / tf.cast(output_size, tf.float32)
+        ),
+        tf.int32,
+    )
+
+    window_ends = tf.minimum(window_ends, input_dim)
+    window_starts = tf.minimum(window_starts, input_dim - 1)
+
+    window_sizes = window_ends - window_starts
+    is_big_window = tf.equal(window_sizes, big_window)
+
+    small_pool_len = max(1, input_dim - small_window + 1)
+
+    small_indices = window_starts
+    big_indices = window_starts + small_pool_len
+
+    gather_indices = tf.where(is_big_window, big_indices, small_indices)
+    return tf.cast(gather_indices, tf.int32)
+
+
+def _adaptive_average_pool1d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 1))
+
+    static_shape = inputs.shape.as_list()
+    l_static = static_shape[1]
+    out_l = output_size[0]
+
+    if l_static is None:
+        raise ValueError(
+            "Input length must be statically known for adaptive pooling"
+        )
+
+    small_l, big_l = compute_adaptive_pooling_window_sizes(l_static, out_l)
+    gather_l = _compute_static_gather_indices(l_static, out_l, small_l, big_l)
+
+    small_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(small_l,),
+        pooling_type="AVG",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
+    )
+    big_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(big_l,),
+        pooling_type="AVG",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
+    )
+
+    combined_l = tf.concat([small_pool_l, big_pool_l], axis=1)
+    pooled_l = tf.gather(combined_l, gather_l, axis=1)
+
+    if data_format == "channels_first":
+        pooled_l = tf.transpose(pooled_l, (0, 2, 1))
+    return pooled_l
+
+
+def _adaptive_max_pool1d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 1))
+
+    static_shape = inputs.shape.as_list()
+    l_static = static_shape[1]
+    out_l = output_size[0]
+
+    if l_static is None:
+        raise ValueError(
+            "Input length must be statically known for adaptive pooling"
+        )
+
+    small_l, big_l = compute_adaptive_pooling_window_sizes(l_static, out_l)
+    gather_l = _compute_static_gather_indices(l_static, out_l, small_l, big_l)
+
+    small_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(small_l,),
+        pooling_type="MAX",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
+    )
+    big_pool_l = tf.nn.pool(
+        inputs,
+        window_shape=(big_l,),
+        pooling_type="MAX",
+        strides=(1,),
+        padding="VALID",
+        data_format="NWC",
+    )
+
+    combined_l = tf.concat([small_pool_l, big_pool_l], axis=1)
+    pooled_l = tf.gather(combined_l, gather_l, axis=1)
+
+    if data_format == "channels_first":
+        pooled_l = tf.transpose(pooled_l, (0, 2, 1))
+    return pooled_l
+
+
+def _adaptive_average_pool2d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 1))
+
+    static_shape = inputs.shape.as_list()
+    h_static = static_shape[1]
+    w_static = static_shape[2]
+    out_h, out_w = output_size
+
+    if h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
+
+    gather_h = _compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = _compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(small_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(big_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=1)
+    pooled_h = tf.gather(combined_h, gather_h, axis=1)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, small_w),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, big_w),
+        pooling_type="AVG",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=2)
+    pooled_w = tf.gather(combined_w, gather_w, axis=2)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 3, 1, 2))
+
+    return pooled_w
+
+
+def _adaptive_max_pool2d(inputs, output_size, data_format="channels_first"):
+    """Adaptive Max Pooling 2D using Two-Pool Gather method."""
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 1))
+
+    static_shape = inputs.shape.as_list()
+    h_static = static_shape[1]
+    w_static = static_shape[2]
+    out_h, out_w = output_size
+
+    if h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
+
+    gather_h = _compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = _compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(small_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        inputs,
+        window_shape=(big_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=1)
+    pooled_h = tf.gather(combined_h, gather_h, axis=1)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, small_w),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, big_w),
+        pooling_type="MAX",
+        strides=(1, 1),
+        padding="VALID",
+        data_format="NHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=2)
+    pooled_w = tf.gather(combined_w, gather_w, axis=2)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 3, 1, 2))
+
+    return pooled_w
+
+
+def _adaptive_average_pool3d(inputs, output_size, data_format="channels_first"):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 4, 1))
+
+    static_shape = inputs.shape.as_list()
+    d_static = static_shape[1]
+    h_static = static_shape[2]
+    w_static = static_shape[3]
+    out_d, out_h, out_w = output_size
+
+    if d_static is None or h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d_static, out_d)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
+
+    gather_d = _compute_static_gather_indices(d_static, out_d, small_d, big_d)
+    gather_h = _compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = _compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(small_d, 1, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(big_d, 1, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_d = tf.concat([small_pool_d, big_pool_d], axis=1)
+    pooled_d = tf.gather(combined_d, gather_d, axis=1)
+
+    small_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, small_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, big_h, 1),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=2)
+    pooled_h = tf.gather(combined_h, gather_h, axis=2)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, small_w),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, big_w),
+        pooling_type="AVG",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=3)
+    pooled_w = tf.gather(combined_w, gather_w, axis=3)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 4, 1, 2, 3))
+
+    return pooled_w
+
+
+def _adaptive_max_pool3d(inputs, output_size, data_format="channels_first"):
+    """Adaptive Max Pooling 3D using Two-Pool Gather method."""
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = tf.transpose(inputs, (0, 2, 3, 4, 1))
+
+    static_shape = inputs.shape.as_list()
+    d_static = static_shape[1]
+    h_static = static_shape[2]
+    w_static = static_shape[3]
+    out_d, out_h, out_w = output_size
+
+    if d_static is None or h_static is None or w_static is None:
+        raise ValueError(
+            "Input spatial dimensions must be "
+            "statically known for adaptive pooling"
+        )
+
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d_static, out_d)
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h_static, out_h)
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w_static, out_w)
+
+    gather_d = _compute_static_gather_indices(d_static, out_d, small_d, big_d)
+    gather_h = _compute_static_gather_indices(h_static, out_h, small_h, big_h)
+    gather_w = _compute_static_gather_indices(w_static, out_w, small_w, big_w)
+
+    small_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(small_d, 1, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_d = tf.nn.pool(
+        inputs,
+        window_shape=(big_d, 1, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_d = tf.concat([small_pool_d, big_pool_d], axis=1)
+    pooled_d = tf.gather(combined_d, gather_d, axis=1)
+
+    small_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, small_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_h = tf.nn.pool(
+        pooled_d,
+        window_shape=(1, big_h, 1),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_h = tf.concat([small_pool_h, big_pool_h], axis=2)
+    pooled_h = tf.gather(combined_h, gather_h, axis=2)
+
+    small_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, small_w),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+    big_pool_w = tf.nn.pool(
+        pooled_h,
+        window_shape=(1, 1, big_w),
+        pooling_type="MAX",
+        strides=(1, 1, 1),
+        padding="VALID",
+        data_format="NDHWC",
+    )
+
+    combined_w = tf.concat([small_pool_w, big_pool_w], axis=3)
+    pooled_w = tf.gather(combined_w, gather_w, axis=3)
+
+    if data_format == "channels_first":
+        pooled_w = tf.transpose(pooled_w, (0, 4, 1, 2, 3))
+
+    return pooled_w
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    ndims = len(inputs.shape) - 2
+    if ndims == 1:
+        return _adaptive_average_pool1d(inputs, output_size, data_format)
+    elif ndims == 2:
+        return _adaptive_average_pool2d(inputs, output_size, data_format)
+    elif ndims == 3:
+        return _adaptive_average_pool3d(inputs, output_size, data_format)
+    else:
+        raise ValueError(
+            "adaptive_average_pool supports 1D, 2D, or 3D inputs only."
+        )
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    ndims = len(inputs.shape) - 2
+    if ndims == 1:
+        return _adaptive_max_pool1d(inputs, output_size, data_format)
+    elif ndims == 2:
+        return _adaptive_max_pool2d(inputs, output_size, data_format)
+    elif ndims == 3:
+        return _adaptive_max_pool3d(inputs, output_size, data_format)
+    else:
+        raise ValueError(
+            "adaptive_max_pool supports 1D, 2D, or 3D inputs only."
+        )
+
+
 def _convert_data_format(data_format, ndim):
     if data_format == "channels_last":
         if ndim == 3:
@@ -310,7 +793,7 @@ def conv(
 ):
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
-        return tf.nn.convolution(
+        result = tf.nn.convolution(
             inputs,
             kernel,
             strides,
@@ -318,6 +801,20 @@ def conv(
             data_format=tf_data_format,
             dilations=dilation_rate,
         )
+        result_shape = result.shape
+        if (
+            result_shape.is_fully_defined()
+            and math.prod(result_shape.as_list()) == 0
+        ):
+            raise ValueError(
+                "The convolution operation resulted in an empty output. "
+                "Output shape:"
+                f" {result_shape}. This can happen if the input is too small "
+                "for the given kernel size, strides, dilation rate, and "
+                "padding mode. Please check the input shape and convolution "
+                "parameters."
+            )
+        return result
 
     # Certain ops are are broken in Tensorflow on CPU only.
     # We can work around by compiling the op with XLA.
@@ -1077,3 +1574,185 @@ def dot_product_attention(
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """Tensorflow implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+    k = (
+        (kernel_size, kernel_size)
+        if isinstance(kernel_size, int)
+        else kernel_size
+    )
+    d = (dilation, dilation) if isinstance(dilation, int) else dilation
+    p = (padding, padding) if isinstance(padding, int) else padding
+    s = (stride, stride) if isinstance(stride, int) else stride
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = tf.pad(input, [[0, 0], [0, 0], [p[0], p[0]], [p[1], p[1]]])
+    x = tf.transpose(input, [0, 2, 3, 1])  # (N, H, W, C)
+    patches = tf.image.extract_patches(
+        images=x,
+        sizes=[1, k[0], k[1], 1],
+        strides=[1, s[0], s[1], 1],
+        rates=[1, d[0], d[1], 1],
+        padding="VALID",
+    )  # (N, nH, nW, kH*kW*C)
+
+    N, nH, nW, D = patches.shape
+    patches = tf.reshape(
+        patches, [N, nH, nW, k[0], k[1], C]
+    )  # (N, nH, nW, kH, kW, C)
+    patches = tf.transpose(
+        patches, [0, 5, 3, 4, 1, 2]
+    )  # (N, C, kH, kW, nH, nW)
+    patches = tf.reshape(patches, [N, C * k[0] * k[1], nH * nW])
+    return patches
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """TensorFlow implementation of Fold (col2im).
+    Combine an array of sliding local blocks into a large tensor.
+
+    Args:
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+    k = (
+        (kernel_size, kernel_size)
+        if isinstance(kernel_size, int)
+        else kernel_size
+    )
+    o = (
+        (output_size, output_size)
+        if isinstance(output_size, int)
+        else output_size
+    )
+    d = (dilation, dilation) if isinstance(dilation, int) else dilation
+    p = (padding, padding) if isinstance(padding, int) else padding
+    s = (stride, stride) if isinstance(stride, int) else stride
+
+    N = tf.shape(x)[0]
+    CKK = x.shape[1]
+    kH, kW = k
+    oH, oW = o
+    C = CKK // (kH * kW)
+
+    # Number of output patches along each dimension
+    nH = (oH + 2 * p[0] - d[0] * (kH - 1) - 1) // s[0] + 1
+    nW = (oW + 2 * p[1] - d[1] * (kW - 1) - 1) // s[1] + 1
+
+    # Reshape: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
+    x = tf.reshape(x, [N, C, kH, kW, nH, nW])
+
+    # Padded output size
+    oH_pad = oH + 2 * p[0]
+    oW_pad = oW + 2 * p[1]
+
+    # Build scatter indices for all kernel positions
+    # Process one sample at a time using vectorized_map
+    def _fold_single(x_single):
+        # x_single: (C, kH, kW, nH, nW)
+        output = tf.zeros([C, oH_pad, oW_pad], dtype=x.dtype)
+        for i in range(kH):
+            for j in range(kW):
+                h_start = i * d[0]
+                w_start = j * d[1]
+                h_indices = tf.range(nH) * s[0] + h_start
+                w_indices = tf.range(nW) * s[1] + w_start
+                # x_single[:, i, j, :, :] has shape (C, nH, nW)
+                patch = x_single[:, i, j, :, :]
+                # Build indices for scatter
+                c_idx = tf.repeat(tf.range(C), nH * nW)  # (C*nH*nW,)
+                h_idx = tf.tile(tf.repeat(h_indices, nW), [C])  # (C*nH*nW,)
+                w_idx = tf.tile(tf.tile(w_indices, [nH]), [C])  # (C*nH*nW,)
+                indices = tf.stack(
+                    [c_idx, h_idx, w_idx], axis=1
+                )  # (C*nH*nW, 3)
+                values = tf.reshape(patch, [-1])  # (C*nH*nW,)
+                output = tf.tensor_scatter_nd_add(output, indices, values)
+        return output
+
+    output = tf.vectorized_map(_fold_single, x)  # (N, C, oH_pad, oW_pad)
+
+    # Remove padding
+    if p[0] > 0 or p[1] > 0:
+        output = output[:, :, p[0] : oH_pad - p[0], p[1] : oW_pad - p[1]]
+
+    return output
+
+
+def depth_to_space(x, block_size, data_format="channels_last"):
+    """TensorFlow implementation of depth_to_space.
+
+    Rearranges data from depth into blocks of spatial data.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H*block_size, W*block_size, C/block_size**2)
+        for channels_last or (N, C/block_size**2, H*block_size, W*block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        return tf.nn.depth_to_space(x, block_size, data_format="NHWC")
+    else:
+        # NCHW format is not supported on CPU, so we transpose manually
+        # NCHW -> NHWC
+        x = tf.transpose(x, [0, 2, 3, 1])
+        x = tf.nn.depth_to_space(x, block_size, data_format="NHWC")
+        # NHWC -> NCHW
+        x = tf.transpose(x, [0, 3, 1, 2])
+        return x
+
+
+def space_to_depth(x, block_size, data_format="channels_last"):
+    """TensorFlow implementation of space_to_depth.
+
+    Rearranges blocks of spatial data into depth.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H/block_size, W/block_size, C*block_size**2)
+        for channels_last or (N, C*block_size**2, H/block_size, W/block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        return tf.nn.space_to_depth(x, block_size, data_format="NHWC")
+    else:
+        # NCHW format is not supported on CPU, so we transpose manually
+        # NCHW -> NHWC
+        x = tf.transpose(x, [0, 2, 3, 1])
+        x = tf.nn.space_to_depth(x, block_size, data_format="NHWC")
+        # NHWC -> NCHW
+        x = tf.transpose(x, [0, 3, 1, 2])
+        return x

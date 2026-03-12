@@ -3,7 +3,6 @@
 import jax
 import numpy as np
 
-from keras.src.backend.common import global_state
 from keras.src.random import seed_generator
 from keras.src.utils import jax_utils
 from keras.src.utils import rng_utils
@@ -27,24 +26,18 @@ def list_devices(device_type=None):
     return [f"{device.platform}:{device.id}" for device in jax_devices]
 
 
-def distribute_variable(value, layout):
-    """Create a distributed variable for JAX.
-
-    Since JAX doesn't have a variable class, this will just return a `jax.Array`
-    with the corresponding layout/sharding specified.
-
-    Note that this function should be used in eager context, not in jitted
-    function.
-
+def get_device_count(device_type=None):
+    """Returns the number of available JAX devices.
     Args:
-        value: the initial value of the variable.
-        layout: `TensorLayout` for the created variable, or a
-            JAX-supported layout instance (e.g. `jax.sharding.Sharding`).
-
+        device_type: Optional device type to count (e.g., "cpu", "gpu", "tpu").
+            If `None`, it defaults to counting "gpu" or "tpu" devices if
+            available, otherwise it counts "cpu" devices. It does not
+            return the sum of all device types.
     Returns:
-        jax.Array which is the distributed variable.
+        int: The total number of JAX devices for the specified type.
     """
-    return distribute_tensor(value, layout)
+    device_type = device_type.lower() if device_type else None
+    return jax.device_count(device_type)
 
 
 def distribute_tensor(tensor, layout):
@@ -67,9 +60,7 @@ def distribute_tensor(tensor, layout):
     if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
 
-    # TODO(scottzhu): This might not be a cheap check, we should consider
-    # have some proper JAX API for doing this check.
-    if jax_utils.is_in_jax_tracing_scope():
+    if jax_utils.is_in_jax_tracing_scope(tensor):
         return jax.lax.with_sharding_constraint(tensor, layout)
 
     # Skip relayout if unnecessary.
@@ -142,23 +133,6 @@ def initialize_rng():
         )(local_seed).item(0)
         # Set the global seed.
         rng_utils.set_random_seed(global_seed)
-
-    # Check if the global seed generator is set and ensure it has an initialized
-    # seed.  Otherwise, reset the seed to the global seed.
-    global_seed_generator = global_state.get_global_attribute(
-        "global_seed_generator"
-    )
-    if global_seed_generator is not None:
-        seed = global_seed_generator.get_config()["seed"]
-        if seed is None:
-            global_state.set_global_attribute(
-                "global_seed_generator",
-                seed_generator.SeedGenerator(
-                    seed=global_seed,
-                    name=global_seed_generator.name,
-                    backend=global_seed_generator.backend,
-                ),
-            )
 
 
 def initialize(job_addresses, num_processes, process_id):

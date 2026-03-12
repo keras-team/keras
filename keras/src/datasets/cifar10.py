@@ -59,6 +59,11 @@ def load_data():
     assert y_train.shape == (50000, 1)
     assert y_test.shape == (10000, 1)
     ```
+
+    **Note**: The CIFAR-10 dataset is known to have a small percentage of
+    mislabeled samples, which is inherent to the original dataset. This label
+    noise may impact training and evaluation. For more details, refer to
+    discussions in the research literature on CIFAR-10 label quality.
     """
     dirname = "cifar-10-batches-py-target"
     origin = "https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz"

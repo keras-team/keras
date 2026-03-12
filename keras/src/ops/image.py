@@ -342,6 +342,10 @@ def resize(
             "Expected `size` to be a tuple of 2 integers. "
             f"Received: size={size}"
         )
+    if size[0] <= 0 or size[1] <= 0:
+        raise ValueError(
+            f"`size` must have positive height and width. Received: size={size}"
+        )
     if len(images.shape) < 3 or len(images.shape) > 4:
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
@@ -565,6 +569,9 @@ class ExtractPatches(Operation):
         if isinstance(size, int):
             size = (size, size)
         self.size = size
+        self.is_3d = len(self.size) == 3
+        if strides is None:
+            strides = size
         self.strides = strides
         self.dilation_rate = dilation_rate
         self.padding = padding
@@ -583,28 +590,50 @@ class ExtractPatches(Operation):
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
         original_ndim = len(images_shape)
-        if not self.strides:
-            strides = (self.size[0], self.size[1])
         if self.data_format == "channels_last":
             channels_in = images_shape[-1]
         else:
-            channels_in = images_shape[-3]
-        if original_ndim == 3:
-            images_shape = [1] + images_shape
-        filters = self.size[0] * self.size[1] * channels_in
-        kernel_size = (self.size[0], self.size[1])
+            channels_in = images_shape[-4] if self.is_3d else images_shape[-3]
+
+        if self.is_3d:
+            # 3D patch extraction
+            if original_ndim == 4:
+                images_shape = [1] + images_shape
+            filters = self.size[0] * self.size[1] * self.size[2] * channels_in
+            kernel_size = (self.size[0], self.size[1], self.size[2])
+        else:
+            # 2D patch extraction
+            if original_ndim == 3:
+                images_shape = [1] + images_shape
+            filters = self.size[0] * self.size[1] * channels_in
+            kernel_size = (self.size[0], self.size[1])
+
         out_shape = compute_conv_output_shape(
             images_shape,
             filters,
             kernel_size,
-            strides=strides,
+            strides=self.strides,
             padding=self.padding,
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
         )
-        if original_ndim == 3:
-            out_shape = out_shape[1:]
+
+        if self.is_3d:
+            if original_ndim == 4:
+                out_shape = out_shape[1:]
+        else:
+            if original_ndim == 3:
+                out_shape = out_shape[1:]
         return KerasTensor(shape=out_shape, dtype=images.dtype)
+
+    def get_config(self):
+        return {
+            "size": self.size,
+            "strides": self.strides,
+            "dilation_rate": self.dilation_rate,
+            "padding": self.padding,
+            "data_format": self.data_format,
+        }
 
 
 @keras_export("keras.ops.image.extract_patches")
@@ -616,42 +645,78 @@ def extract_patches(
     padding="valid",
     data_format=None,
 ):
-    """Extracts patches from the image(s).
+    """Extracts patches from the image(s) or volume(s).
+
+    This function supports both 2D and 3D patch extraction based on the
+    `size` argument length, similar to how `keras.ops.conv` handles
+    different dimensions.
 
     Args:
-        images: Input image or batch of images. Must be 3D or 4D.
-        size: Patch size int or tuple (patch_height, patch_width)
-        strides: strides along height and width. If not specified, or
-            if `None`, it defaults to the same value as `size`.
-        dilation_rate: This is the input stride, specifying how far two
-            consecutive patch samples are in the input. For value other than 1,
-            strides must be 1. NOTE: `strides > 1` is not supported in
-            conjunction with `dilation_rate > 1`
+        images: Input image/volume or batch of images/volumes.
+            For 2D patches: 3D `(H, W, C)` or 4D `(N, H, W, C)`.
+            For 3D patches: 4D `(D, H, W, C)` or 5D `(N, D, H, W, C)`.
+        size: Patch size as int or tuple.
+            Length 2 tuple `(patch_height, patch_width)` or int for 2D patches.
+            Length 3 tuple `(patch_depth, patch_height, patch_width)` for
+            3D patches.
+        strides: Strides for patch extraction. If not specified, defaults
+            to `size` (non-overlapping patches).
+        dilation_rate: Dilation rate for patch extraction. Note that
+            `dilation_rate > 1` is not supported with `strides > 1`.
         padding: The type of padding algorithm to use: `"same"` or `"valid"`.
         data_format: A string specifying the data format of the input tensor.
             It can be either `"channels_last"` or `"channels_first"`.
-            `"channels_last"` corresponds to inputs with shape
-            `(batch, height, width, channels)`, while `"channels_first"`
-            corresponds to inputs with shape `(batch, channels, height, width)`.
-            If not specified, the value will default to
-            `keras.config.image_data_format`.
+            If not specified, defaults to `keras.config.image_data_format`.
 
     Returns:
-        Extracted patches 3D (if not batched) or 4D (if batched)
+        Extracted patches with shape depending on input and `size`:
+        - 2D patches: 3D (unbatched) or 4D (batched)
+        - 3D patches: 4D (unbatched) or 5D (batched)
 
     Examples:
 
+    >>> # 2D patches from batch of images
     >>> image = np.random.random(
     ...     (2, 20, 20, 3)
-    ... ).astype("float32") # batch of 2 RGB images
+    ... ).astype("float32")
     >>> patches = keras.ops.image.extract_patches(image, (5, 5))
     >>> patches.shape
     (2, 4, 4, 75)
-    >>> image = np.random.random((20, 20, 3)).astype("float32") # 1 RGB image
+
+    >>> # 2D patches from single image
+    >>> image = np.random.random((20, 20, 3)).astype("float32")
     >>> patches = keras.ops.image.extract_patches(image, (3, 3), (1, 1))
     >>> patches.shape
     (18, 18, 27)
+
+    >>> # 3D patches from batch of volumes
+    >>> volumes = np.random.random(
+    ...     (2, 10, 10, 10, 3)
+    ... ).astype("float32")
+    >>> patches = keras.ops.image.extract_patches(volumes, (3, 3, 3))
+    >>> patches.shape
+    (2, 3, 3, 3, 81)
+
+    >>> # 3D patches from single volume
+    >>> volume = np.random.random((10, 10, 10, 3)).astype("float32")
+    >>> patches = keras.ops.image.extract_patches(volume, (3, 3, 3))
+    >>> patches.shape
+    (3, 3, 3, 81)
     """
+    # Validate size argument
+    if not isinstance(size, int):
+        if not isinstance(size, (tuple, list)):
+            raise TypeError(
+                "Invalid `size` argument. Expected an int or a tuple. "
+                f"Received: size={size} of type {type(size).__name__}"
+            )
+        if len(size) not in (2, 3):
+            raise ValueError(
+                "Invalid `size` argument. Expected a tuple of length 2 or 3. "
+                f"Received: size={size} with length {len(size)}"
+            )
+
+    # 2D patch extraction (default)
     if any_symbolic_tensors((images,)):
         return ExtractPatches(
             size=size,
@@ -667,6 +732,23 @@ def extract_patches(
 
 
 def _extract_patches(
+    images,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    if not isinstance(size, int) and len(size) == 3:
+        return _extract_patches_3d(
+            images, size, strides, dilation_rate, padding, data_format
+        )
+    return _extract_patches_2d(
+        images, size, strides, dilation_rate, padding, data_format
+    )
+
+
+def _extract_patches_2d(
     images,
     size,
     strides=None,
@@ -710,6 +792,122 @@ def _extract_patches(
     if _unbatched:
         patches = backend.numpy.squeeze(patches, axis=0)
     return patches
+
+
+def _extract_patches_3d(
+    volumes,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    if isinstance(size, int):
+        patch_d = patch_h = patch_w = size
+    elif len(size) == 3:
+        patch_d, patch_h, patch_w = size
+    else:
+        raise TypeError(
+            "Invalid `size` argument. Expected an "
+            f"int or a tuple of length 3. Received: size={size}"
+        )
+    if strides is None:
+        strides = size
+    if isinstance(strides, int):
+        strides = (strides, strides, strides)
+    if len(strides) != 3:
+        raise ValueError(f"Invalid `strides` argument. Got: {strides}")
+    data_format = backend.standardize_data_format(data_format)
+    if data_format == "channels_last":
+        channels_in = volumes.shape[-1]
+    elif data_format == "channels_first":
+        channels_in = volumes.shape[-4]
+    out_dim = patch_d * patch_w * patch_h * channels_in
+    kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
+    kernel = backend.numpy.reshape(
+        kernel, (patch_d, patch_h, patch_w, channels_in, out_dim)
+    )
+    _unbatched = False
+    if len(volumes.shape) == 4:
+        _unbatched = True
+        volumes = backend.numpy.expand_dims(volumes, axis=0)
+    patches = backend.nn.conv(
+        inputs=volumes,
+        kernel=kernel,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+    )
+    if _unbatched:
+        patches = backend.numpy.squeeze(patches, axis=0)
+    return patches
+
+
+@keras_export("keras.ops.image.extract_patches_3d")
+def extract_patches_3d(
+    volumes,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    """Extracts patches from the volume(s).
+
+    Args:
+        volumes: Input volume or batch of volumes. Must be 4D or 5D.
+        size: Patch size int or tuple (patch_depth, patch_height, patch_width)
+        strides: strides along depth, height, and width. If not specified, or
+            if `None`, it defaults to the same value as `size`.
+        dilation_rate: This is the input stride, specifying how far two
+            consecutive patch samples are in the input. Note that using
+            `dilation_rate > 1` is not supported in conjunction with
+            `strides > 1` on the TensorFlow backend.
+        padding: The type of padding algorithm to use: `"same"` or `"valid"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, depth, height, width, channels)`, while `"channels_first"`
+            corresponds to inputs with shape
+            `(batch, channels, depth, height, width)`. If not specified,
+             the value will default to `keras.config.image_data_format()`.
+
+    Returns:
+        Extracted patches 4D (if not batched) or 5D (if batched)
+
+    Examples:
+
+    >>> import numpy as np
+    >>> import keras
+    >>> # Batched case
+    >>> volumes = np.random.random(
+    ...     (2, 10, 10, 10, 3)
+    ... ).astype("float32") # batch of 2 volumes
+    >>> patches = keras.ops.image.extract_patches_3d(volumes, (3, 3, 3))
+    >>> patches.shape
+    (2, 3, 3, 3, 81)
+    >>> # Unbatched case
+    >>> volume = np.random.random((10, 10, 10, 3)).astype("float32") # 1 volume
+    >>> patches = keras.ops.image.extract_patches_3d(volume, (3, 3, 3))
+    >>> patches.shape
+    (3, 3, 3, 81)
+    """
+    # Convert int to 3-tuple for 3D
+    if isinstance(size, int):
+        size = (size, size, size)
+    if any_symbolic_tensors((volumes,)):
+        return ExtractPatches(
+            size=size,
+            strides=strides,
+            dilation_rate=dilation_rate,
+            padding=padding,
+            data_format=data_format,
+        ).symbolic_call(volumes)
+
+    return _extract_patches_3d(
+        volumes, size, strides, dilation_rate, padding, data_format=data_format
+    )
 
 
 class MapCoordinates(Operation):

@@ -22,6 +22,7 @@ import os
 import pathlib
 import re
 import shutil
+import subprocess
 
 # Needed because importing torch after TF causes the runtime to crash
 try:
@@ -121,7 +122,16 @@ def build_and_save_output(root_path, __version__):
 
 def install_whl(whl_fpath):
     print(f"Installing wheel file: {whl_fpath}")
-    os.system(f"pip3 install {whl_fpath} --force-reinstall --no-dependencies")
+    subprocess.run(
+        [
+            "pip3",
+            "install",
+            whl_fpath,
+            "--force-reinstall",
+            "--no-dependencies",
+        ],
+        check=True,
+    )
 
 
 if __name__ == "__main__":

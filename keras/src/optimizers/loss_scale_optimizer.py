@@ -48,6 +48,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         inner_optimizer,
         initial_scale=2.0**15,
         dynamic_growth_steps=2000,
+        name=None,
         **kwargs,
     ):
         if not kwargs.pop("dynamic", True):
@@ -56,7 +57,42 @@ class LossScaleOptimizer(optimizer.Optimizer):
                 "Instead, simply set `loss_scale_factor` directly on the "
                 "`inner_optimizer`."
             )
-        super().__init__(learning_rate=0.0, **kwargs)
+
+        # Backwards compatibility code for deserialization.
+        # LossScaleOptimizer used to return all these parameters in `get_config`
+        # from `super.get_config` even though they are all non-functional. We
+        # no longer let user set them, but we have to allow the default values
+        # to be passed during deserialization to support older models.
+        base_optimizer_defaults = {
+            "weight_decay": None,
+            "clipnorm": None,
+            "global_clipnorm": None,
+            "clipvalue": None,
+            "use_ema": False,
+            "ema_momentum": 0.99,
+            "ema_overwrite_frequency": None,
+            "loss_scale_factor": None,
+            "gradient_accumulation_steps": None,
+        }
+        for arg_name, default_value in base_optimizer_defaults.items():
+            if arg_name not in kwargs:
+                continue
+            arg_value = kwargs.pop(arg_name)
+            if (
+                default_value is None and arg_value is not None
+            ) or arg_value != default_value:
+                raise ValueError(
+                    f"LossScaleOptimizer does not support `{arg_name}`. "
+                    f"Instead, set `{arg_name}` on the `inner_optimizer`."
+                )
+
+        if kwargs:
+            raise ValueError(
+                "LossScaleOptimizer does not support arguments: "
+                f"`{'`, `'.join(kwargs.keys())}`."
+            )
+
+        super().__init__(learning_rate=0.0, name=name)
         self.inner_optimizer = inner_optimizer
         self.initial_scale = initial_scale
         self.dynamic_growth_steps = dynamic_growth_steps
@@ -81,7 +117,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
             name="dynamic_scale",
         )
         self.inner_optimizer.build(var_list)
-        self.built = True
+        super().build(var_list)
 
     @property
     def variables(self):
@@ -112,7 +148,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
             mapping = list(zip(self.variables, optimizer_variables))
             with backend.StatelessScope(state_mapping=mapping) as scope:
                 self.step_counter.assign(0)
-                self.dynamic_scale.assign(self.dynamic_scale * 2.0)
+                self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 2.0))
             return [scope.get_current_value(v) for v in self._variables]
 
         def increment():
@@ -136,7 +172,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
                 g
                 if g is None or self._overwrite_variable_with_gradient(v)
                 else ops.divide(g, scale)
-                for g, v in zip(grads, trainable_variables)
+                for g, v in zip(grads, self._trainable_variables)
             ]
             (
                 new_trainable_variables,
@@ -156,7 +192,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         mapping = list(zip(self.variables, optimizer_variables))
         with backend.StatelessScope(state_mapping=mapping) as scope:
             self.step_counter.assign(0)
-            self.dynamic_scale.assign(self.dynamic_scale / 2.0)
+            self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 0.5))
         new_optimizer_variables = []
         for v in self.variables:
             new_optimizer_variables.append(scope.get_current_value(v))
@@ -190,7 +226,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
         def upscale():
             self.step_counter.assign(0)
-            self.dynamic_scale.assign(self.dynamic_scale * 2.0)
+            self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 2.0))
 
         def increment():
             self.step_counter.assign_add(1)
@@ -205,7 +241,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
     def _stateful_handle_non_finite_grads(self):
         # If any inf or nan in grads, downscale loss and reset counter.
         self.step_counter.assign(0)
-        self.dynamic_scale.assign(self.dynamic_scale / 2.0)
+        self.dynamic_scale.assign(ops.multiply(self.dynamic_scale, 0.5))
 
     def _common_apply(self, grads, trainable_variables=None):
         finite = self.check_finite(grads)
@@ -278,25 +314,22 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
     def scale_loss(self, loss):
         scale = self.dynamic_scale if self.built else self.initial_scale
-        return loss * scale
+        return ops.multiply(loss, scale)
 
     def finalize_variable_values(self, var_list):
         self.inner_optimizer.finalize_variable_values(var_list)
 
     def get_config(self):
-        config = super().get_config()
+        # Do not use super().get_config() as only "name" is supported.
         inner_optimizer_config = serialization_lib.serialize_keras_object(
             self.inner_optimizer
         )
-        config.update(
-            {
-                "inner_optimizer": inner_optimizer_config,
-                "initial_scale": self.initial_scale,
-                "dynamic_growth_steps": self.dynamic_growth_steps,
-            }
-        )
-        del config["learning_rate"]
-        return config
+        return {
+            "name": self.name,
+            "inner_optimizer": inner_optimizer_config,
+            "initial_scale": self.initial_scale,
+            "dynamic_growth_steps": self.dynamic_growth_steps,
+        }
 
     @classmethod
     def from_config(cls, config, custom_objects=None):

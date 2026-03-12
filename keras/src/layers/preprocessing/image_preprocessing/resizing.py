@@ -66,6 +66,16 @@ class Resizing(BaseImagePreprocessingLayer):
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
+
+    Example:
+
+    ```python
+    (x_train, y_train), _ = keras.datasets.cifar10.load_data()
+    image = x_train[0]
+    resizer = keras.layers.Resizing(128, 128)
+    resized_image = resizer(image)
+    print("original:", image.shape, "resized:", resized_image.shape)
+    ```
     """
 
     _USE_BASE_FACTOR = False
@@ -100,12 +110,12 @@ class Resizing(BaseImagePreprocessingLayer):
             self.height_axis = -3
             self.width_axis = -2
 
-    def transform_images(self, images, transformation=None, training=True):
+    def _transform_images(self, images, transformation, interpolation):
         size = (self.height, self.width)
         resized = self.backend.image.resize(
             images,
             size=size,
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             antialias=self.antialias,
             data_format=self.data_format,
             crop_to_aspect_ratio=self.crop_to_aspect_ratio,
@@ -119,10 +129,17 @@ class Resizing(BaseImagePreprocessingLayer):
             resized = self.backend.numpy.round(resized)
         return _saturate_cast(resized, images.dtype, self.backend)
 
+    def transform_images(self, images, transformation=None, training=True):
+        return self._transform_images(
+            images, transformation, self.interpolation
+        )
+
     def transform_segmentation_masks(
         self, segmentation_masks, transformation=None, training=True
     ):
-        return self.transform_images(segmentation_masks)
+        return self._transform_images(
+            segmentation_masks, transformation, "nearest"
+        )
 
     def transform_labels(self, labels, transformation=None, training=True):
         return labels

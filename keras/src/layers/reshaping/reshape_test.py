@@ -5,6 +5,7 @@ from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import ops
+from keras.src import random
 from keras.src import testing
 from keras.src.backend.common.keras_tensor import KerasTensor
 
@@ -136,3 +137,12 @@ class ReshapeTest(testing.TestCase):
         model = Sequential([layer])
         model.compile(loss="mean_squared_error")
         model.fit(generator(), steps_per_epoch=2, epochs=1)
+
+        # Also test inference with varying shapes to ensure -1 works dynamically
+        # Input: (batch, seq_len, 2), Output: (batch, seq_len*2/8, 8)
+        for seq_len, expected_first_dim in [(12, 3), (20, 5), (24, 6)]:
+            x_test = random.normal((1, seq_len, 2))
+            output = model(x_test)
+            # Verify output shape is correct
+            self.assertEqual(output.shape[1], expected_first_dim)
+            self.assertEqual(output.shape[2], 8)

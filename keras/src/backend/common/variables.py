@@ -1,5 +1,3 @@
-import os.path
-
 import numpy as np
 
 from keras.src import backend
@@ -144,7 +142,7 @@ class Variable:
         self._name = name
         parent_path = current_path()
         if parent_path:
-            self._path = os.path.join(current_path(), name)
+            self._path = f"{parent_path}/{name}"
         else:
             self._path = name
         self._shape = None
@@ -278,13 +276,13 @@ class Variable:
         return self._maybe_autocast(self._value)
 
     def assign(self, value):
-        value = self._convert_to_tensor(value, dtype=self.dtype)
+        value = self._convert_to_tensor(value, dtype=self._dtype)
         if not shape_equal(value.shape, self.shape):
             raise ValueError(
                 "The shape of the target variable and "
                 "the shape of the target value in "
                 "`variable.assign(value)` must match. "
-                f"variable.shape={self.value.shape}, "
+                f"variable.shape={self.shape}, "
                 f"Received: value.shape={value.shape}. "
                 f"Target variable: {self}"
             )
@@ -401,7 +399,11 @@ class Variable:
     def __repr__(self):
         value = None
         if hasattr(self, "_value") and self._value is not None:
-            value = backend.core.convert_to_numpy(self._value)
+            try:
+                value = backend.core.convert_to_numpy(self._value)
+            except:
+                # In some cases the conversion to numpy can fail.
+                pass
         value_str = f", value={value}" if value is not None else ""
         return (
             f"<Variable path={self.path}, shape={self.shape}, "
@@ -597,30 +599,53 @@ def standardize_shape(shape):
                 # `tf.TensorShape` may contain `Dimension` objects.
                 # We need to convert the items in it to either int or `None`
                 shape = shape.as_list()
-        shape = tuple(shape)
+
+    if config.backend() == "jax":
+        # Replace `_DimExpr` (dimension expression) with None
+        from jax import export as jax_export
+
+        shape = tuple(
+            None if jax_export.is_symbolic_dim(d) else d for d in shape
+        )
 
     if config.backend() == "torch":
-        # `shape` might be `torch.Size`. We need to convert the items in it to
-        # either int or `None`
-        shape = tuple(map(lambda x: int(x) if x is not None else None, shape))
+        # Replace symbolic dimensions with None to preserve dynamic shapes
+        # during torch.export tracing
+        import torch
 
-    for e in shape:
-        if e is None:
+        shape = tuple(None if isinstance(d, torch.SymInt) else d for d in shape)
+
+    # Handle dimensions that are not ints and not None, verify they're >= 0.
+    standardized_shape = []
+    for d in shape:
+        if d is None:
+            standardized_shape.append(d)
             continue
-        if config.backend() == "jax" and "_DimExpr" in str(type(e)):
-            # JAX2TF tracing uses JAX-native dimension expressions
-            continue
-        if not is_int_dtype(type(e)):
+
+        # Reject these even if they can be cast to int successfully.
+        if isinstance(d, (str, float)):
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
-                f"Found invalid entry '{e}' of type '{type(e)}'. "
+                f"Found invalid dimension '{d}' of type '{type(d)}'. "
             )
-        if e < 0:
+
+        try:
+            # Cast numpy scalars, tf constant tensors, etc.
+            d = int(d)
+        except Exception as e:
+            raise ValueError(
+                f"Cannot convert '{shape}' to a shape. "
+                f"Found invalid dimension '{d}' of type '{type(d)}'. "
+            ) from e
+        if d < 0:
             raise ValueError(
                 f"Cannot convert '{shape}' to a shape. "
                 "Negative dimensions are not allowed."
             )
-    return shape
+        standardized_shape.append(d)
+
+    # This also turns subclasses of `tuple` (e.g. `torch.Size`) to plain tuple.
+    return tuple(standardized_shape)
 
 
 def shape_equal(a_shape, b_shape):

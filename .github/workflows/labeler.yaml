@@ -31,11 +31,11 @@ permissions:
   pull-requests: write
 
 jobs:
-  welcome:
+  add_labels:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/github-script@v7
+      - uses: actions/checkout@v6.0.2
+      - uses: actions/github-script@v8
         with:
           script: |
             const script = require('./\.github/workflows/scripts/labeler.js')

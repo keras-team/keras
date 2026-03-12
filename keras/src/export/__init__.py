@@ -1,3 +1,5 @@
+from keras.src.export.litert import LiteRTExporter
+from keras.src.export.litert import export_litert
 from keras.src.export.onnx import export_onnx
 from keras.src.export.openvino import export_openvino
 from keras.src.export.saved_model import ExportArchive

@@ -158,33 +158,52 @@ class Adafactor(optimizer.Optimizer):
         rho_t = ops.minimum(lr, 1 / ops.sqrt(local_step))
         alpha_t = ops.maximum(epsilon_2, self._rms(variable)) * rho_t
         regulated_grad_square = ops.add(ops.square(gradient), self.epsilon_1)
-        beta_2_t = 1 - ops.power(local_step, self.beta_2_decay)
+        beta_2_t = ops.subtract(1, ops.power(local_step, self.beta_2_decay))
 
         if len(variable.shape) >= 2:
             # `r` deletes the last dimension of gradient, so it is of shape
             # `gradient.shape[:-1]`.
             self.assign(
                 r,
-                beta_2_t * r
-                + (1 - beta_2_t) * ops.mean(regulated_grad_square, axis=-1),
+                ops.add(
+                    ops.multiply(beta_2_t, r),
+                    ops.multiply(
+                        ops.subtract(1, beta_2_t),
+                        ops.mean(regulated_grad_square, axis=-1),
+                    ),
+                ),
             )
             # `c` deletes the second last dimension of gradient, so it is of
             # shape `gradient.shape[:-2] + gradient.shape[-1]`.
             self.assign(
                 c,
-                beta_2_t * c
-                + (1 - beta_2_t) * ops.mean(regulated_grad_square, axis=-2),
+                ops.add(
+                    ops.multiply(beta_2_t, c),
+                    ops.multiply(
+                        ops.subtract(1, beta_2_t),
+                        ops.mean(regulated_grad_square, axis=-2),
+                    ),
+                ),
             )
             self.assign(
                 v,
-                ops.expand_dims(
-                    r / ops.mean(r, axis=-1, keepdims=True), axis=-1
-                )
-                * ops.expand_dims(c, -2),
+                ops.multiply(
+                    ops.expand_dims(
+                        ops.divide(r, ops.mean(r, axis=-1, keepdims=True)),
+                        axis=-1,
+                    ),
+                    ops.expand_dims(c, -2),
+                ),
             )
         else:
             self.assign(
-                v, beta_2_t * v + (1 - beta_2_t) * regulated_grad_square
+                v,
+                ops.add(
+                    ops.multiply(beta_2_t, v),
+                    ops.multiply(
+                        ops.subtract(1, beta_2_t), regulated_grad_square
+                    ),
+                ),
             )
 
         u_t = ops.divide(gradient, ops.sqrt(v))

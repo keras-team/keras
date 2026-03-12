@@ -1,5 +1,6 @@
 """Tests using Scikit-Learn's bundled estimator_checks."""
 
+import unittest
 from contextlib import contextmanager
 
 import pytest
@@ -59,7 +60,7 @@ def wrapped_parametrize_with_checks(
 
 def dynamic_model(X, y, loss, layers=[10]):
     """Creates a basic MLP classifier dynamically choosing binary/multiclass
-    classification loss and ouput activations.
+    classification loss and output activations.
     """
     n_features_in = X.shape[1]
     inp = Input(shape=(n_features_in,))
@@ -156,5 +157,8 @@ def test_sklearn_estimator_checks(estimator, check):
             or "NotImplementedError" in str(exc)
         ):
             pytest.xfail("Backend not implemented")
+        elif isinstance(exc, unittest.SkipTest):
+            # Workaround for https://github.com/pytest-dev/pytest/issues/13895
+            pytest.skip(str(exc))
         else:
             raise

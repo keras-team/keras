@@ -333,7 +333,7 @@ class EarlyStoppingAtMinLoss(keras.callbacks.Callback):
         # The epoch the training stops at.
         self.stopped_epoch = 0
         # Initialize the best as infinity.
-        self.best = np.Inf
+        self.best = np.inf
 
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get("loss")

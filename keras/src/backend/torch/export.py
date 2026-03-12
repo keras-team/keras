@@ -3,26 +3,48 @@ import warnings
 
 import torch
 
+from keras.src import layers
 from keras.src import tree
 from keras.src.export.export_utils import convert_spec_to_tensor
+from keras.src.export.export_utils import make_tf_tensor_spec
+from keras.src.export.saved_model_export_archive import SavedModelExportArchive
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.module_utils import torch_xla
 
 
-class TorchExportArchive:
-    def _track_layer(self, layer):
+class TorchExportArchive(SavedModelExportArchive):
+    """Torch backend implementation of SavedModel export archive."""
+
+    def _backend_track_layer(self, layer):
         raise NotImplementedError(
             "`track` is not supported for `Layer`s and `Model`s in the torch "
             "backend. Use `track_and_add_endpoint` instead."
         )
 
-    def add_endpoint(self, name, fn, input_signature, **kwargs):
+    def _backend_add_endpoint(self, name, fn, input_signature, **kwargs):
         raise NotImplementedError(
             "`add_endpoint` is not supported for `Layer`s and `Model`s in the "
             "torch backend. Use `track_and_add_endpoint` instead."
         )
 
     def track_and_add_endpoint(self, name, resource, input_signature, **kwargs):
+        if name in self._endpoint_names:
+            raise ValueError(f"Endpoint name '{name}' is already taken.")
+        if not isinstance(resource, layers.Layer):
+            raise ValueError(
+                "Invalid resource type. Expected an instance of a Keras "
+                "`Layer` or `Model`. "
+                f"Received: resource={resource} (of type {type(resource)})"
+            )
+        if not resource.built:
+            raise ValueError(
+                "The layer provided has not yet been built. "
+                "It must be built before export."
+            )
+
+        input_signature = tree.map_structure(
+            make_tf_tensor_spec, input_signature
+        )
         # Disable false alarms related to lifting parameters.
         warnings.filterwarnings("ignore", message=".*created when tracing.*")
         warnings.filterwarnings(
@@ -36,15 +58,31 @@ class TorchExportArchive:
             )
 
         sample_inputs = tree.map_structure(
-            lambda x: convert_spec_to_tensor(x, replace_none_number=1),
+            lambda x: convert_spec_to_tensor(x, replace_none_number=2),
             input_signature,
         )
         sample_inputs = tuple(sample_inputs)
 
+        # Build dynamic_shapes from input_signature where shape has None
+        # Use a shared "batch" dim for dimension 0 across all inputs
+        batch_dim = torch.export.Dim("batch", min=1)
+        dynamic_shapes = []
+        for spec in input_signature:
+            dim_spec = {}
+            for dim_idx, dim_val in enumerate(spec.shape):
+                if dim_val is None:
+                    if dim_idx == 0:
+                        dim_spec[dim_idx] = batch_dim
+                    else:
+                        dim_spec[dim_idx] = torch.export.Dim(
+                            f"dim_{len(dynamic_shapes)}_{dim_idx}", min=1
+                        )
+            dynamic_shapes.append(dim_spec if dim_spec else None)
+        dynamic_shapes = tuple(dynamic_shapes) if any(dynamic_shapes) else None
+
         # Ref: torch_xla.tf_saved_model_integration
-        # TODO: Utilize `dynamic_shapes`
         exported = torch.export.export(
-            resource, sample_inputs, dynamic_shapes=None, strict=False
+            resource, sample_inputs, dynamic_shapes=dynamic_shapes, strict=False
         )
         options = torch_xla.stablehlo.StableHLOExportOptions(
             override_tracing_arguments=sample_inputs
@@ -125,4 +163,7 @@ class TorchExportArchive:
             ),
             input_signature=input_signature,
         )
+        self._endpoint_signatures[name] = input_signature
+        setattr(self._tf_trackable, name, decorated_fn)
+        self._endpoint_names.append(name)
         return decorated_fn

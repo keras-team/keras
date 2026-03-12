@@ -3,6 +3,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 
 
 @keras_export("keras.layers.RandomGrayscale")
@@ -43,6 +46,10 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         Same as input shape. The output maintains the same number of channels
         as the input, even for grayscale-converted images where all channels
         will have the same value.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     def __init__(self, factor=0.5, data_format=None, seed=None, **kwargs):
@@ -115,3 +122,11 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         config = super().get_config()
         config.update({"factor": self.factor})
         return config
+
+
+RandomGrayscale.__doc__ = RandomGrayscale.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example.replace(
+        "{LayerName}", "RandomGrayscale"
+    ),
+)

@@ -499,18 +499,6 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_fit_flow(self, run_eagerly, jit_compile, use_steps_per_epoch):
-        if not run_eagerly and not jit_compile and use_steps_per_epoch:
-            if False and backend.backend() == "tensorflow":
-                self.skipTest(
-                    "TODO: Graph mode without XLA in TF backend leads to "
-                    "unexpected logs, need further checks."
-                )
-        if jit_compile and backend.backend() == "torch":
-            self.skipTest(
-                "TODO: compilation with torch backend leads to "
-                "unexpected logs, need further checks."
-            )
-
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -706,13 +694,6 @@ class TestTrainer(testing.TestCase):
     def test_fit_with_val_split(
         self, run_eagerly, jit_compile, use_steps_per_epoch
     ):
-        if not run_eagerly and not jit_compile and use_steps_per_epoch:
-            if backend.backend() == "tensorflow":
-                self.skipTest(
-                    "TODO: Graph mode without XLA in TF backend leads to "
-                    "unexpected logs, need further checks."
-                )
-
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -1869,6 +1850,11 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_on_batch_methods(self, run_eagerly, jit_compile):
+        if backend.backend() == "torch" and jit_compile:
+            self.skipTest(
+                "test_on_batch with jit_compile=True not supported in torch "
+                "backend yet."
+            )
         model = ExampleModel(units=3)
         x = np.ones((100, 4))
         y = np.zeros((100, 3))
@@ -1889,33 +1875,43 @@ class TestTrainer(testing.TestCase):
         logs = model.train_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 15.579)
+        self.assertAlmostEqual(logs["loss"], 15.579, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y)
         self.assertIsInstance(logs, list)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs[0], 15.173)
+        self.assertAlmostEqual(logs[0], 15.173, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 14.97)
+        self.assertAlmostEqual(logs["loss"], 14.97, tpu_decimal=1)
 
         output = model.predict_on_batch(x)
         self.assertIsInstance(output, np.ndarray)
-        self.assertAllClose(output[0], np.array([3.789511, 3.789511, 3.789511]))
+        self.assertAllClose(
+            output[0],
+            np.array([3.789511, 3.789511, 3.789511]),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
         # With sample weights
         logs = model.train_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.819)
+        self.assertAlmostEqual(logs[0], 14.819, tpu_decimal=1)
         logs = model.test_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.595)
+        self.assertAlmostEqual(logs[0], 14.595, tpu_decimal=1)
         output = model.predict_on_batch(x)
-        self.assertAllClose(output[0], np.array([3.689468, 3.689468, 3.689468]))
+        self.assertAllClose(
+            output[0],
+            np.array([3.689468, 3.689468, 3.689468]),
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
         # With class weights
         logs = model.train_on_batch(x, y, class_weight={1: 0.3, 0: 0.2})
-        self.assertAlmostEqual(logs[0], 12.899)
+        self.assertAlmostEqual(logs[0], 12.899, tpu_decimal=1)
 
     @parameterized.named_parameters(
         [
@@ -1925,6 +1921,11 @@ class TestTrainer(testing.TestCase):
         ]
     )
     def test_on_batch_methods_without_training(self, run_eagerly, jit_compile):
+        if backend.backend() == "torch" and jit_compile:
+            self.skipTest(
+                "test_on_batch with jit_compile=True not supported in torch "
+                "backend yet."
+            )
         model = ExampleModel(units=3)
         x = np.ones((100, 4))
         y = np.zeros((100, 3))
@@ -2357,19 +2358,19 @@ class TestTrainer(testing.TestCase):
         history = model.fit(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         ).history
-        self.assertAllClose(history["loss"], 16.0)
+        self.assertAllClose(history["loss"], 16.0, tpu_atol=1e-4, tpu_rtol=1e-4)
         train_out = model.train_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(train_out[0], 15.2200)
+        self.assertAllClose(train_out[0], 15.2200, tpu_atol=1e-1, tpu_rtol=1e-1)
         eval_out = model.evaluate(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(eval_out[0], 13.0321)
+        self.assertAllClose(eval_out[0], 13.0321, tpu_atol=1e-2, tpu_rtol=1e-2)
         eval_out = model.test_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(eval_out[0], 13.0321)
+        self.assertAllClose(eval_out[0], 13.0321, tpu_atol=1e-2, tpu_rtol=1e-2)
         predict_out = model.predict([np.ones((3, 2)), np.ones((3, 3))])
         self.assertEqual(predict_out.shape, (3, 2))
         predict_out = model.predict_on_batch([np.ones((3, 2)), np.ones((3, 3))])
@@ -2722,6 +2723,7 @@ class TestTrainer(testing.TestCase):
             history["loss"],
             [3.182979, 3.115617, 3.049681],
             atol=1e-3,
+            tpu_atol=1e-2,
         )
 
         # Dict output case.
@@ -2754,6 +2756,7 @@ class TestTrainer(testing.TestCase):
             history["loss"],
             [4.778718, 4.694403, 4.611693],
             atol=1e-3,
+            tpu_atol=1e-2,
         )
 
         # List output case.
@@ -2779,6 +2782,7 @@ class TestTrainer(testing.TestCase):
             history["loss"],
             [4.778718, 4.694403, 4.611693],
             atol=1e-3,
+            tpu_atol=1e-2,
         )
 
     @pytest.mark.requires_trainable_backend
@@ -2957,9 +2961,8 @@ class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
         ("single_device", False),
         ("distributed", True),
     )
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
     def test_jit_fit_with_out_shardings_logic(self, distributed):
-        if keras.backend.backend() != "jax":
-            self.skipTest("This test requires the JAX backend.")
         x = np.random.rand(64, 8).astype("float32")
         y = np.random.rand(64, 1).astype("float32")
 

@@ -6,6 +6,7 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
+from keras.src.backend import config
 from keras.src.backend import standardize_data_format
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
@@ -704,7 +705,15 @@ class Glu(Operation):
         return backend.nn.glu(x, axis=self.axis)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=x.dtype)
+        output_shape = list(x.shape)
+        if output_shape[self.axis] is not None:
+            if output_shape[self.axis] % 2 != 0:
+                raise ValueError(
+                    "axis size must be divisible by 2. "
+                    f"Received: x.shape={x.shape} with axis={self.axis}"
+                )
+            output_shape[self.axis] = output_shape[self.axis] // 2
+        return KerasTensor(output_shape, dtype=x.dtype)
 
 
 @keras_export(["keras.ops.glu", "keras.ops.nn.glu"])
@@ -955,8 +964,10 @@ def softmax(x, axis=-1):
         x = backend.nn.softmax(x_reshaped, axis=-1)
 
         x = backend.numpy.reshape(x, x_transposed.shape)
+        combined = [*axis_to_keep, *axis]
         x = backend.numpy.transpose(
-            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+            x,
+            axes=sorted(range(len(combined)), key=combined.__getitem__),
         )
         return x
     else:
@@ -1016,8 +1027,10 @@ def log_softmax(x, axis=-1):
         x = backend.nn.log_softmax(x_reshaped, axis=-1)
 
         x = backend.numpy.reshape(x, x_transposed.shape)
+        combined = [*axis_to_keep, *axis]
         x = backend.numpy.transpose(
-            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+            x,
+            axes=sorted(range(len(combined)), key=combined.__getitem__),
         )
         return x
     else:
@@ -1154,6 +1167,87 @@ def max_pool(
     return backend.nn.max_pool(inputs, pool_size, strides, padding, data_format)
 
 
+class AdaptiveMaxPool(Operation):
+    """Adaptive max pooling operation."""
+
+    def __init__(self, output_size, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.output_size = output_size
+        self.data_format = data_format
+
+    def call(self, inputs):
+        return backend.nn.adaptive_max_pool(
+            inputs, output_size=self.output_size, data_format=self.data_format
+        )
+
+    def compute_output_spec(self, inputs):
+        if self.data_format == "channels_last":
+            spatial_dims = self.output_size
+            output_shape = (
+                inputs.shape[: -len(self.output_size)]
+                + spatial_dims
+                + (inputs.shape[-1],)
+            )
+        else:
+            spatial_dims = self.output_size
+            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+
+
+@keras_export(["keras.ops.adaptive_max_pool", "keras.ops.nn.adaptive_max_pool"])
+def adaptive_max_pool(
+    inputs,
+    output_size,
+    data_format=None,
+):
+    """Adaptive max pooling operation.
+
+    Applies an adaptive max pooling operation that automatically computes the
+    kernel size and stride to pool the input to the specified `output_size`.
+    This operation is useful when you want a fixed output size regardless of
+    input size, commonly used in models like ResNet for global feature
+    extraction.
+    Args:
+        inputs: Tensor of rank 4. Input tensor of shape:
+            - If `data_format="channels_last"`:
+                `(batch_size, height, width, channels)`.
+            - If `data_format="channels_first"`:
+                `(batch_size, channels, height, width)`.
+        output_size: Integer or tuple/list of 2 integers, specifying the target
+            output spatial dimensions `(output_height, output_width)`. If a
+            single
+            integer is provided, the same value is used for both dimensions.
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            Defaults to the value found in your Keras config file at
+            `~/.keras/keras.json`. If never set, defaults to `"channels_last"`.
+
+    Returns:
+        A tensor of rank 4 representing the adaptive max pooled result.
+
+    Example:
+
+    >>> x = np.random.rand(2, 64, 64, 3)
+    >>> y = keras.ops.adaptive_max_pool(x, output_size=(32, 32))
+    >>> y.shape
+    (2, 32, 32, 3)
+
+    >>> # Works with any input size
+    >>> x = np.random.rand(2, 100, 80, 3)
+    >>> y = keras.ops.adaptive_max_pool(x, output_size=7)
+    >>> y.shape
+    (2, 7, 7, 3)
+    """
+    if data_format is None:
+        data_format = config.image_data_format()
+
+    if any_symbolic_tensors((inputs,)):
+        return AdaptiveMaxPool(output_size, data_format).symbolic_call(inputs)
+
+    return backend.nn.adaptive_max_pool(
+        inputs, output_size=output_size, data_format=data_format
+    )
+
+
 class AveragePool(Operation):
     def __init__(
         self,
@@ -1246,6 +1340,92 @@ def average_pool(
         ).symbolic_call(inputs)
     return backend.nn.average_pool(
         inputs, pool_size, strides, padding, data_format
+    )
+
+
+class AdaptiveAveragePool(Operation):
+    """Adaptive average pooling operation."""
+
+    def __init__(self, output_size, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.output_size = output_size
+        self.data_format = data_format
+
+    def call(self, inputs):
+        return backend.nn.adaptive_average_pool(
+            inputs, output_size=self.output_size, data_format=self.data_format
+        )
+
+    def compute_output_spec(self, inputs):
+        if self.data_format == "channels_last":
+            spatial_dims = self.output_size
+            output_shape = (
+                inputs.shape[: -len(self.output_size)]
+                + spatial_dims
+                + (inputs.shape[-1],)
+            )
+        else:
+            spatial_dims = self.output_size
+            output_shape = (inputs.shape[0], inputs.shape[1]) + spatial_dims
+        return backend.KerasTensor(output_shape, dtype=inputs.dtype)
+
+
+@keras_export(
+    ["keras.ops.adaptive_average_pool", "keras.ops.nn.adaptive_average_pool"]
+)
+def adaptive_average_pool(
+    inputs,
+    output_size,
+    data_format=None,
+):
+    """Adaptive average pooling operation.
+
+    Applies an adaptive average pooling operation that automatically
+    computes the kernel size and stride to pool the input to the
+    specified `output_size`. This operation is useful when you want a
+    fixed output size regardless of input size, commonly used in models
+    like ResNet for global feature extraction.
+
+    Args:
+        inputs: Tensor of rank 4. Input tensor of shape:
+            - If `data_format="channels_last"`:
+                `(batch_size, height, width, channels)`.
+            - If `data_format="channels_first"`:
+                `(batch_size, channels, height, width)`.
+        output_size: Integer or tuple/list of 2 integers, specifying the target
+            output spatial dimensions `(output_height, output_width)`. If a
+            single
+            integer is provided, the same value is used for both dimensions.
+        data_format: string, either `"channels_last"` or `"channels_first"`.
+            Defaults to the value found in your Keras config file at
+            `~/.keras/keras.json`. If never set, defaults to `"channels_last"`.
+
+    Returns:
+        A tensor of rank 4 representing the adaptive average pooled result.
+
+    Example:
+
+    >>> x = np.random.rand(2, 64, 64, 3)
+    >>> y = keras.ops.adaptive_average_pool(x, output_size=(32, 32))
+    >>> y.shape
+    (2, 32, 32, 3)
+
+    >>> # Works with any input size
+    >>> x = np.random.rand(2, 100, 80, 3)
+    >>> y = keras.ops.adaptive_average_pool(x, output_size=7)
+    >>> y.shape
+    (2, 7, 7, 3)
+    """
+    if data_format is None:
+        data_format = config.image_data_format()
+
+    if any_symbolic_tensors((inputs,)):
+        return AdaptiveAveragePool(output_size, data_format).symbolic_call(
+            inputs
+        )
+
+    return backend.nn.adaptive_average_pool(
+        inputs, output_size=output_size, data_format=data_format
     )
 
 
@@ -1435,7 +1615,7 @@ def depthwise_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
-    if any_symbolic_tensors((inputs,)):
+    if any_symbolic_tensors((inputs, kernel)):
         return DepthwiseConv(
             strides, padding, data_format, dilation_rate
         ).symbolic_call(inputs, kernel)
@@ -1700,7 +1880,7 @@ class OneHot(Operation):
         super().__init__(name=name)
         self.num_classes = num_classes
         self.axis = axis
-        self.dtype = backend.standardize_dtype(dtype)
+        self.dtype = dtype
         self.sparse = sparse
 
     def call(self, x):
@@ -1761,6 +1941,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
            [0. 0. 1. 0.]
            [1. 0. 0. 0.]], shape=(4, 4), dtype=float32)
     """
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OneHot(
             num_classes, axis=axis, dtype=dtype, sparse=sparse
@@ -2098,6 +2279,7 @@ def multi_hot(
     if num_classes is None:
         raise ValueError("Argument `num_classes` must be specified.")
 
+    dtype = backend.standardize_dtype(dtype)
     if any_symbolic_tensors((inputs,)):
         return MultiHot(num_classes, axis, dtype, sparse).symbolic_call(inputs)
 
@@ -2819,11 +3001,13 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if scale is not None:
         scale = backend.convert_to_tensor(scale, x.dtype)
 
+    if isinstance(axis, (tuple, list)):
+        axis = sorted(axis)
     if backend.backend() == "torch" and is_continuous_axis(axis):
         import torch.nn.functional as F
 
         if isinstance(axis, (tuple, list)):
-            normalized_shape = tuple([x.shape[dim] for dim in axis])
+            normalized_shape = tuple(x.shape[dim] for dim in axis)
         else:
             normalized_shape = (x.shape[axis],)
         outputs = F.rms_norm(x, normalized_shape, scale, epsilon)
@@ -2946,6 +3130,7 @@ def _layer_normalization(
     broadcast_shape = [1] * ndims
     if isinstance(axis, int):
         axis = [axis]
+    axis = sorted(axis)
     for dim in axis:
         broadcast_shape[dim] = input_shape[dim]
 
@@ -2964,7 +3149,7 @@ def _layer_normalization(
         # when using torch backend,use kernel to improve performance
         import torch.nn.functional as F
 
-        normalized_shape = tuple([input_shape[dim] for dim in axis])
+        normalized_shape = tuple(input_shape[dim] for dim in axis)
         outputs = F.layer_norm(x, normalized_shape, gamma, beta, epsilon)
     else:
         # Calculate the mean & variance along self.axis (layer activations).
@@ -3047,3 +3232,402 @@ def _polar(abs_, angle):
     result = backend.math._get_complex_tensor_from_tuple((real, imaginary))
 
     return result
+
+
+class Unfold(Operation):
+    def __init__(
+        self, kernel_size, dilation=1, padding=0, stride=1, *, name=None
+    ):
+        super().__init__(name=name)
+        self.kernel_size = kernel_size
+        self.dilation = dilation
+        self.padding = padding
+        self.stride = stride
+
+    def compute_output_spec(self, x):
+        N, C, H, W = x.shape
+
+        def _pair(x):
+            return (x, x) if isinstance(x, int) else x
+
+        kH, kW = _pair(self.kernel_size)
+        dH, dW = _pair(self.dilation)
+        pH, pW = _pair(self.padding)
+        sH, sW = _pair(self.stride)
+
+        def out_size(L, k, d, p, s):
+            return (L + 2 * p - d * (k - 1) - 1) // s + 1
+
+        outH = out_size(H, kH, dH, pH, sH)
+        outW = out_size(W, kW, dW, pW, sW)
+        return KerasTensor(shape=(N, C * kH * kW, outH * outW), dtype=x.dtype)
+
+    def call(self, x):
+        return _unfold(
+            x, self.kernel_size, self.dilation, self.padding, self.stride
+        )
+
+
+@keras_export(["keras.ops.unfold", "keras.ops.nn.unfold"])
+def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
+    """Extract sliding local blocks from a 4-D input (batched image).
+
+    This operation is known as **im2col** when used with convolution.
+    It rearranges the image into overlapping or non-overlapping patches
+    and returns a tensor whose *depth* (last axis) contains the flattened
+    patches.
+
+    Args:
+        x: A 4-D tensor of shape `(N, C, H, W)` (**channels-first** format).
+        kernel_size: int or tuple of two ints, the size of the sliding window
+            `(kH, kW)`.  If a single int is given, it is used for both
+            dimensions.
+        dilation: int or tuple of two ints, the spacing between kernel points
+            (a.k.a. **dilation** or **atrous** convolution). Default: 1.
+        padding: int or tuple of two ints, the amount of zero-padding to apply
+            to both spatial dimensions. Default: 0.
+        stride: int or tuple of two ints, the step size of the sliding window.
+            Default: 1.
+
+    Returns:
+        A 3-D tensor of shape `(N, C * kH * kW, L)` where
+        `L = num_patches_H * num_patches_W` is the total number of patches
+        extracted.
+
+    Example:
+
+    >>> x = keras.ops.ones((1, 2, 4, 4))
+    >>> patches = keras.ops.unfold(x, kernel_size=2, stride=2)
+    >>> patches.shape
+    (1, 8, 4)
+
+    """
+    input_shape = x.shape
+    ndims = len(input_shape)
+    if ndims != 4:
+        raise ValueError(
+            f"Input must be a 4D tensor. Received: input.shape={input_shape}"
+        )
+    if any_symbolic_tensors((x,)):
+        return Unfold(kernel_size, dilation, padding, stride).symbolic_call(x)
+    return _unfold(x, kernel_size, dilation, padding, stride)
+
+
+def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
+    """Internal implementation of unfold."""
+    return backend.nn.unfold(
+        x,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )
+
+
+class Fold(Operation):
+    def __init__(
+        self,
+        output_size,
+        kernel_size,
+        dilation=1,
+        padding=0,
+        stride=1,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.output_size = output_size
+        self.kernel_size = kernel_size
+        self.dilation = dilation
+        self.padding = padding
+        self.stride = stride
+
+    def compute_output_spec(self, x):
+        N, CKK, L = x.shape
+
+        def _pair(v):
+            return (v, v) if isinstance(v, int) else v
+
+        kH, kW = _pair(self.kernel_size)
+        oH, oW = _pair(self.output_size)
+
+        if CKK is not None and CKK % (kH * kW) != 0:
+            raise ValueError(
+                f"The second dimension of the input ({CKK}) must be "
+                f"divisible by kernel_size product ({kH * kW})."
+            )
+
+        C = CKK // (kH * kW) if CKK is not None else None
+        return KerasTensor(shape=(N, C, oH, oW), dtype=x.dtype)
+
+    def call(self, x):
+        return backend.nn.fold(
+            x,
+            output_size=self.output_size,
+            kernel_size=self.kernel_size,
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
+        )
+
+
+@keras_export(["keras.ops.fold", "keras.ops.nn.fold"])
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """Combines an array of sliding local blocks into a large containing
+    tensor (reverses `unfold`).
+
+    This operation is known as **col2im** when used with convolution.
+    It takes a 3-D tensor of flattened patches and reconstructs a 4-D
+    image tensor by summing overlapping patches.
+
+    Args:
+        x: A 3-D tensor of shape `(N, C * kH * kW, L)` where `L` is
+            the total number of blocks.
+        output_size: int or tuple of two ints `(oH, oW)`, the spatial
+            shape of the output tensor.
+        kernel_size: int or tuple of two ints, the size of the sliding
+            window `(kH, kW)`.  If a single int is given, it is used
+            for both dimensions.
+        dilation: int or tuple of two ints, the spacing between kernel
+            points. Default: 1.
+        padding: int or tuple of two ints, the amount of zero-padding
+            that was applied to the input of `unfold`. Default: 0.
+        stride: int or tuple of two ints, the step size of the sliding
+            window. Default: 1.
+
+    Returns:
+        A 4-D tensor of shape `(N, C, oH, oW)`.
+
+    Example:
+
+    >>> x = keras.ops.ones((1, 2, 4, 4))
+    >>> patches = keras.ops.unfold(x, kernel_size=2, stride=2)
+    >>> patches.shape
+    (1, 8, 4)
+    >>> y = keras.ops.fold(patches, output_size=(4, 4),
+    ...     kernel_size=2, stride=2)
+    >>> y.shape
+    (1, 2, 4, 4)
+
+    """
+    input_shape = x.shape
+    ndims = len(input_shape)
+    if ndims != 3:
+        raise ValueError(
+            f"Input must be a 3D tensor. Received: input.shape={input_shape}"
+        )
+    if any_symbolic_tensors((x,)):
+        return Fold(
+            output_size, kernel_size, dilation, padding, stride
+        ).symbolic_call(x)
+    return backend.nn.fold(
+        x,
+        output_size=output_size,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )
+
+
+class DepthToSpace(Operation):
+    def __init__(self, block_size, data_format="channels_last", *, name=None):
+        super().__init__(name=name)
+        self.block_size = block_size
+        self.data_format = standardize_data_format(data_format)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) != 4:
+            raise ValueError(
+                "`depth_to_space` requires a 4D input tensor. "
+                f"Received: x.shape={x.shape}"
+            )
+        if self.data_format == "channels_last":
+            b, h, w, c = x.shape
+        else:
+            b, c, h, w = x.shape
+
+        if c is not None and c % (self.block_size**2) != 0:
+            raise ValueError(
+                f"The number of channels ({c}) must be divisible by "
+                f"block_size**2 ({self.block_size**2})."
+            )
+
+        new_c = c // (self.block_size**2) if c is not None else None
+        new_h = h * self.block_size if h is not None else None
+        new_w = w * self.block_size if w is not None else None
+
+        if self.data_format == "channels_last":
+            output_shape = (b, new_h, new_w, new_c)
+        else:
+            output_shape = (b, new_c, new_h, new_w)
+
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.nn.depth_to_space(
+            x, self.block_size, data_format=self.data_format
+        )
+
+
+@keras_export(["keras.ops.depth_to_space", "keras.ops.nn.depth_to_space"])
+def depth_to_space(x, block_size, data_format="channels_last"):
+    """Rearranges data from depth into blocks of spatial data.
+
+    This operation is useful for resizing the activations between convolutions
+    (but keeping all data), e.g., instead of pooling. It is also useful for
+    training purely convolutional models.
+
+    Also known as pixel shuffle, this operation rearranges elements in a tensor
+    of shape `(N, H, W, C * r^2)` to `(N, H * r, W * r, C)` where `r` is the
+    `block_size` for `data_format="channels_last"`, or from
+    `(N, C * r^2, H, W)` to `(N, C, H * r, W * r)` for
+    `data_format="channels_first"`.
+
+    This is the reverse transformation of `space_to_depth`.
+
+    Args:
+        x: Input tensor. Must be 4D.
+        block_size: An integer specifying the size of the spatial block.
+            The depth (number of channels) must be divisible by
+            `block_size ** 2`.
+        data_format: A string specifying the data format of the input tensor.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            Defaults to `"channels_last"`.
+
+    Returns:
+        A tensor with the same dtype as `x`, with shape
+        `(N, H * block_size, W * block_size, C // block_size ** 2)` for
+        `data_format="channels_last"` or
+        `(N, C // block_size ** 2, H * block_size, W * block_size)` for
+        `data_format="channels_first"`.
+
+    Example:
+
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 2 * 2 * 12), (1, 2, 2, 12))
+    >>> keras.ops.depth_to_space(x, block_size=2).shape
+    (1, 4, 4, 3)
+
+    >>> # channels_first example
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 12 * 2 * 2), (1, 12, 2, 2))
+    >>> keras.ops.depth_to_space(x, block_size=2,
+    ...                          data_format="channels_first").shape
+    (1, 3, 4, 4)
+    """
+    data_format = standardize_data_format(data_format)
+    if block_size < 2:
+        raise ValueError(
+            "`block_size` must be at least 2. "
+            f"Received: block_size={block_size}"
+        )
+    if any_symbolic_tensors((x,)):
+        return DepthToSpace(block_size, data_format=data_format).symbolic_call(
+            x
+        )
+    return backend.nn.depth_to_space(x, block_size, data_format=data_format)
+
+
+class SpaceToDepth(Operation):
+    def __init__(self, block_size, data_format="channels_last", *, name=None):
+        super().__init__(name=name)
+        self.block_size = block_size
+        self.data_format = standardize_data_format(data_format)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) != 4:
+            raise ValueError(
+                "`space_to_depth` requires a 4D input tensor. "
+                f"Received: x.shape={x.shape}"
+            )
+        if self.data_format == "channels_last":
+            b, h, w, c = x.shape
+        else:
+            b, c, h, w = x.shape
+
+        if h is not None and h % self.block_size != 0:
+            raise ValueError(
+                f"Height ({h}) must be divisible by block_size "
+                f"({self.block_size})."
+            )
+        if w is not None and w % self.block_size != 0:
+            raise ValueError(
+                f"Width ({w}) must be divisible by block_size "
+                f"({self.block_size})."
+            )
+
+        new_c = c * (self.block_size**2) if c is not None else None
+        new_h = h // self.block_size if h is not None else None
+        new_w = w // self.block_size if w is not None else None
+
+        if self.data_format == "channels_last":
+            output_shape = (b, new_h, new_w, new_c)
+        else:
+            output_shape = (b, new_c, new_h, new_w)
+
+        return KerasTensor(output_shape, dtype=x.dtype)
+
+    def call(self, x):
+        return backend.nn.space_to_depth(
+            x, self.block_size, data_format=self.data_format
+        )
+
+
+@keras_export(["keras.ops.space_to_depth", "keras.ops.nn.space_to_depth"])
+def space_to_depth(x, block_size, data_format="channels_last"):
+    """Rearranges blocks of spatial data into depth.
+
+    This operation is useful for resizing the activations between convolutions
+    (but keeping all data). It is also useful for training purely convolutional
+    models.
+
+    This operation rearranges elements in a tensor of shape
+    `(N, H * block_size, W * block_size, C)` to a tensor of shape
+    `(N, H, W, C * block_size ** 2)` (for `data_format="channels_last"`)
+    or `(N, C, H * block_size, W * block_size)` to
+    `(N, C * block_size ** 2, H, W)` (for `data_format="channels_first"`).
+
+    This is the reverse transformation of `depth_to_space`.
+
+    Args:
+        x: Input tensor. Must be 4D.
+        block_size: An integer specifying the size of the spatial block.
+            The height and width of the input must be divisible by
+            `block_size`.
+        data_format: A string specifying the data format of the input tensor.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
+            corresponds to inputs with shape `(batch, channels, height, width)`.
+            Defaults to `"channels_last"`.
+
+    Returns:
+        A tensor with the same dtype as `x`, with shape
+        `(N, H // block_size, W // block_size, C * block_size ** 2)` for
+        `data_format="channels_last"` or
+        `(N, C * block_size ** 2, H // block_size, W // block_size)` for
+        `data_format="channels_first"`.
+
+    Example:
+
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 4 * 4 * 3), (1, 4, 4, 3))
+    >>> keras.ops.space_to_depth(x, block_size=2).shape
+    (1, 2, 2, 12)
+
+    >>> # channels_first example
+    >>> x = keras.ops.reshape(keras.ops.arange(1 * 3 * 4 * 4), (1, 3, 4, 4))
+    >>> keras.ops.space_to_depth(x, block_size=2,
+    ...                          data_format="channels_first").shape
+    (1, 12, 2, 2)
+    """
+    data_format = standardize_data_format(data_format)
+    if block_size < 2:
+        raise ValueError(
+            "`block_size` must be at least 2. "
+            f"Received: block_size={block_size}"
+        )
+    if any_symbolic_tensors((x,)):
+        return SpaceToDepth(block_size, data_format=data_format).symbolic_call(
+            x
+        )
+    return backend.nn.space_to_depth(x, block_size, data_format=data_format)

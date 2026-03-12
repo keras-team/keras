@@ -1,0 +1,377 @@
+import warnings
+
+import numpy as np
+
+from keras.src import backend
+from keras.src import tree
+from keras.src.api_export import keras_export
+from keras.src.callbacks.monitor_callback import (
+    MonitorCallback,  # For metric monitoring logic
+)
+from keras.src.saving import saving_lib
+from keras.src.utils.module_utils import ocp
+
+# Context and AsyncOptions are accessed through the lazy-loaded ocp module
+
+# JAX monitoring compatibility: ensure record_scalar exists
+# to prevent AttributeError in older JAX versions
+try:
+    import jax
+
+    if not hasattr(jax.monitoring, "record_scalar"):
+        jax.monitoring.record_scalar = lambda *args, **kwargs: None
+except ImportError:
+    pass
+
+
+def _get_state_tree(model):
+    """Get the complete model state as a nested tree structure."""
+    # For JAX backend, preserve native arrays for performance
+    # For other backends, convert to numpy arrays
+    if backend.backend() == "jax":
+        state_tree = model.get_state_tree()
+        did_numpy_conversion = False
+    else:
+        state_tree = model.get_state_tree(value_format="numpy_array")
+        did_numpy_conversion = True
+
+    # Convert numpy scalar types to Python types for Orbax compatibility
+    # Only needed when we did numpy conversion
+    if did_numpy_conversion:
+
+        def convert_scalars(obj):
+            if isinstance(obj, np.ndarray) and obj.ndim == 0:
+                # Convert 0-dimensional numpy arrays (scalars) to Python types
+                return obj.item()
+            elif isinstance(obj, np.generic):
+                # Convert numpy scalar types (like np.float32) to Python types
+                return obj.item()
+            else:
+                return obj
+
+        return tree.map_structure(convert_scalars, state_tree)
+    else:
+        return state_tree
+
+
+@keras_export("keras.callbacks.OrbaxCheckpoint")
+class OrbaxCheckpoint(MonitorCallback):
+    """Callback to save and load model state using Orbax with a similar API to
+    ModelCheckpoint.
+
+    This callback saves the model's weights and optimizer state asynchronously
+    using Orbax, allowing training to continue without blocking for I/O.
+
+    **Multi-host Support**: When running in a multi-host distributed training
+    environment with JAX backend, this callback automatically coordinates
+    checkpointing across all hosts to ensure consistency and proper
+    synchronization. Multi-host checkpointing is only supported on JAX.
+
+    Example:
+
+    ```python
+    model.compile(loss=..., optimizer=..., metrics=['accuracy'])
+
+    EPOCHS = 10
+    checkpoint_dir = '/tmp/ckpt'
+    orbax_checkpoint_callback = keras.callbacks.OrbaxCheckpoint(
+        directory=checkpoint_dir,
+        monitor='val_accuracy',
+        mode='max',
+        save_best_only=True)
+
+    # Model is saved at the end of every epoch, if it's the best seen so far.
+    model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
+
+    # Alternatively, save checkpoints every N batches -
+    orbax_checkpoint_callback = keras.callbacks.OrbaxCheckpoint(
+        directory=checkpoint_dir,
+        save_freq=100)  # Save every 100 batches
+
+    model.fit(epochs=EPOCHS, callbacks=[orbax_checkpoint_callback])
+    ```
+
+    Args:
+        directory: path to the directory where to save the checkpoints.
+        monitor: The metric name to monitor (e.g., 'val_loss').
+        verbose: Verbosity mode, 0 or 1.
+        save_best_only: if `save_best_only=True`, it only saves when the model
+            is considered the "best" based on the monitored quantity.
+        mode: one of {'auto', 'min', 'max'}. Used with `save_best_only`.
+        save_freq: `'epoch'` or integer. Frequency to save checkpoints.
+        max_to_keep: Integer, maximum number of recent checkpoints to keep.
+            If None, keeps all. Defaults to 1.
+        save_on_background: Boolean, whether to save asynchronously in the
+            background. Defaults to True.
+        initial_value_threshold: Floating point initial "best" value for the
+            monitor, used with `save_best_only`.
+    """
+
+    def __init__(
+        self,
+        directory,
+        monitor="val_loss",
+        verbose=0,
+        save_best_only=False,
+        mode="auto",
+        save_freq="epoch",
+        initial_value_threshold=None,
+        max_to_keep=1,
+        save_on_background=True,
+        save_weights_only=False,
+    ):
+        # Ensure orbax is available
+        ocp.initialize()
+
+        # Initialize MonitorCallback for handling 'monitor', 'mode', 'best'
+        # logic
+        super().__init__(monitor, mode, initial_value_threshold)
+
+        self.directory = directory
+        self.verbose = verbose
+        self.save_best_only = save_best_only
+        self.save_freq = save_freq
+        self.max_to_keep = max_to_keep
+        self.save_on_background = save_on_background
+        self.save_weights_only = save_weights_only
+        self._batches_seen_since_last_saving = 0
+        self._last_batch_seen = None
+        self._total_batches_seen = 0  # Global batch counter for step tracking
+        self._async_futures = []  # Track async save futures
+
+        # Multi-host support
+        self._multihost_initialized = self._is_multihost_initialized()
+
+        if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
+            raise ValueError(
+                f"Unrecognized save_freq: {self.save_freq}. "
+                "Expected save_freq are 'epoch' or integer values"
+            )
+
+        # --- Orbax Checkpointer Setup (V1 API) ---
+        policies = []
+        if max_to_keep is not None:
+            policies.append(
+                ocp.training.preservation_policies.LatestN(max_to_keep)
+            )
+
+        # Use AnyPreservationPolicy to combine them, or use directly
+        # if single policy
+        preservation_policy = None
+        if policies:
+            if len(policies) == 1:
+                preservation_policy = policies[0]
+            else:
+                preservation_policy = (
+                    ocp.training.preservation_policies.AnyPreservationPolicy(
+                        policies
+                    )
+                )
+
+        # Create the V1 Checkpointer with direct parameter passing
+        # Orbax will handle directory creation on all processes as needed
+        # save_decision_policy is required for proper coordination of
+        # rapid async saves
+        self.checkpointer = ocp.training.Checkpointer(
+            directory=directory,
+            preservation_policy=preservation_policy,
+            save_decision_policy=ocp.training.save_decision_policies.FixedIntervalPolicy(
+                1
+            ),
+        )
+
+    def set_model(self, model):
+        super().set_model(model)
+        if hasattr(model, "optimizer") and model.optimizer is not None:
+            # Recover the number of batches seen for a reloaded model
+            self._total_batches_seen = int(model.optimizer.iterations)
+
+    def _is_multihost_initialized(self):
+        """Check if multi-host environment is initialized."""
+        # Multi-host checkpointing is only supported on JAX backend
+        if backend.backend() != "jax":
+            return False
+
+        multihost = ocp.multihost
+        # Check if JAX distributed client is initialized
+        # (indicates multihost setup)
+        return multihost.is_jax_distributed_client_initialized()
+
+    def _sync_processes(self, key=None):
+        """Synchronize all processes across hosts."""
+        if not self._multihost_initialized:
+            return  # No-op for single host
+
+        multihost = ocp.multihost
+        sync_key = key or "orbax_checkpoint_sync"
+        multihost.sync_global_processes(sync_key)
+
+    def is_multihost_enabled(self):
+        """Return True if multi-host checkpointing is enabled and initialized.
+
+        This method can be used to check if the callback is operating in
+        a multi-host distributed training environment. Multi-host checkpointing
+        is only supported on JAX backend.
+
+        Returns:
+            bool: True if multi-host support is active, False otherwise.
+        """
+        return self._multihost_initialized
+
+    def is_primary_host(self):
+        """Return True if this process is the primary host in multi-host setup.
+
+        In multi-host environments, only the primary host typically handles
+        logging and coordination tasks. Multi-host checkpointing is only
+        supported on JAX backend.
+
+        Returns:
+            bool: True if this is the primary host, False otherwise.
+            Always returns True in single-host environments.
+        """
+        if not self._multihost_initialized:
+            return True  # Single host is always primary
+        multihost = ocp.multihost
+        return multihost.is_primary_host(primary_host=0)
+
+    def _should_save_on_batch(self, batch):
+        """Check if we should save on this batch."""
+        if self.save_freq == "epoch":
+            return False
+
+        if self._last_batch_seen is None or batch <= self._last_batch_seen:
+            # New epoch.
+            add_batches = batch + 1
+        else:
+            add_batches = batch - self._last_batch_seen
+        self._batches_seen_since_last_saving += add_batches
+        self._last_batch_seen = batch
+        self._total_batches_seen += add_batches
+
+        if self._batches_seen_since_last_saving >= self.save_freq:
+            self._batches_seen_since_last_saving = 0
+            return True
+        return False
+
+    def _save_checkpoint(self, step, logs=None):
+        """Save a checkpoint at the given step with multi-host coordination."""
+
+        # --- Prepare Composite State (Backend-Agnostic) ---
+        state_tree = _get_state_tree(self.model)
+
+        # Save the nested state structures directly (preserving layer
+        # names and structure)
+        if self.save_weights_only:
+            composite_state = {
+                "trainable_variables": state_tree["trainable_variables"],
+                "non_trainable_variables": state_tree[
+                    "non_trainable_variables"
+                ],
+            }
+        else:
+            composite_state = state_tree
+
+        # Build payload with pytree (pure arrays) and optional
+        # model_config / assets as separate checkpointables.
+        payload = {"pytree": composite_state}
+
+        if not self.save_weights_only:
+            config_json, _ = saving_lib._serialize_model_as_json(self.model)
+            payload["model_config"] = {"config": config_json}
+
+            assets_dict = saving_lib._save_assets_to_dict(self.model)
+            if assets_dict is not None:
+                payload["assets"] = assets_dict
+
+        # Use a single with statement. If context_options is empty,
+        # Context() uses defaults.
+        with ocp.Context():
+            # Determine sync vs async based on save_on_background setting
+            use_sync = not self.save_on_background
+
+            # Execute save based on sync/async mode
+            if use_sync:
+                self.checkpointer.save_checkpointables(step, payload)
+            else:
+                future = self.checkpointer.save_checkpointables_async(
+                    step, payload
+                )
+                self._async_futures.append(future)
+
+    def on_train_batch_end(self, batch, logs=None):
+        if self._should_save_on_batch(batch):
+            # Handle save_best_only logic for batch-level saving
+            should_save = True
+            if self.save_best_only:
+                current = logs.get(self.monitor) if logs else None
+                if current is None:
+                    warnings.warn(
+                        f"Can save best model only with {self.monitor} "
+                        f"available, skipping save at batch {batch}.",
+                        stacklevel=2,
+                    )
+                    should_save = False
+                elif not self._is_improvement(current, self.best):
+                    should_save = False
+                else:
+                    # Update best value when there's improvement
+                    self.best = current
+
+            if should_save:
+                # Use global batch count for Orbax save step
+                step = self._total_batches_seen
+                self._save_checkpoint(step=step, logs=logs)
+
+    def on_epoch_end(self, epoch, logs=None):
+        if self.monitor_op is None:
+            self._set_monitor_op()  # From MonitorCallback
+
+        # For save_freq="epoch", save at every epoch
+        should_save = self.save_freq == "epoch"
+
+        # Handle save_best_only logic
+        if should_save and self.save_best_only:
+            current = logs.get(self.monitor) if logs else None
+            if current is None:
+                warnings.warn(
+                    f"Can save best model only with {self.monitor} available, "
+                    f"skipping save at epoch {epoch}.",
+                    stacklevel=2,
+                )
+                should_save = False
+            elif not self._is_improvement(current, self.best):
+                should_save = False
+            else:
+                # Update best value when there's improvement
+                self.best = current
+
+        if should_save:
+            # Use epoch number as the step for Orbax save
+            self._save_checkpoint(step=epoch, logs=logs)
+
+    def on_train_end(self, logs=None):
+        # Close the Checkpointer - this waits for any pending async saves
+        # to complete before closing
+        try:
+            self.checkpointer.close()
+        except Exception:
+            pass  # Ignore errors during cleanup
+
+        # Multi-host synchronization: ensure all hosts complete cleanup
+        self._sync_processes("checkpoint_cleanup")
+
+    def wait_until_finished(self):
+        """Wait for any in-progress checkpoint operations to complete.
+        This method blocks until all asynchronous checkpoint save operations
+        have completed across all hosts in a multi-host setup.
+        """
+        # Wait for all tracked async futures to complete
+        for future in self._async_futures:
+            future.result()  # Wait for completion
+        self._async_futures.clear()  # Clear completed futures
+
+        # Wait for any remaining async operations to complete on this host
+        self.checkpointer.wait()
+
+        # Multi-host synchronization: ensure all hosts complete
+        self._sync_processes("checkpoint_wait_complete")

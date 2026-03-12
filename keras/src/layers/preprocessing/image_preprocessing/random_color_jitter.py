@@ -6,6 +6,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 from keras.src.random.seed_generator import SeedGenerator
 from keras.src.utils import backend_utils
 
@@ -60,6 +63,10 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
             always the same, please pass a tuple with two identical
             floats: `(0.5, 0.5)`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     def __init__(
@@ -211,3 +218,11 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
         }
         base_config = super().get_config()
         return {**base_config, **config}
+
+
+RandomColorJitter.__doc__ = RandomColorJitter.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example.replace(
+        "{LayerName}", "RandomColorJitter"
+    ),
+)

@@ -707,10 +707,12 @@ def _save_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
-    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+    if not isinstance(
+        weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore, type(None))
+    ):
         raise ValueError(
             "Expected `weights_store` to be an instance of "
-            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            "`H5IOStore`, `ShardedH5IOStore`, `NpzIOStore`, or `None`. "
             f"Received: {weights_store} of type {type(weights_store)}"
         )
     if not isinstance(assets_store, (DiskIOStore, type(None))):
@@ -773,10 +775,12 @@ def _load_state(
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
-    if not isinstance(weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore)):
+    if not isinstance(
+        weights_store, (H5IOStore, ShardedH5IOStore, NpzIOStore, type(None))
+    ):
         raise ValueError(
             "Expected `weights_store` to be an instance of "
-            "`H5IOStore`, `ShardedH5IOStore` or `NpzIOStore`. "
+            "`H5IOStore`, `ShardedH5IOStore`, `NpzIOStore`, or `None`. "
             f"Received: {weights_store} of type {type(weights_store)}"
         )
     if not isinstance(assets_store, (DiskIOStore, type(None))):
@@ -796,7 +800,8 @@ def _load_state(
             try:
                 saveable.load_own_variables(weights_store.get(inner_path))
             except Exception as e:
-                failed_saveables.add(id(saveable))
+                if failed_saveables is not None:
+                    failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
@@ -807,7 +812,8 @@ def _load_state(
             try:
                 saveable.load_assets(assets_store.get(inner_path))
             except Exception as e:
-                failed_saveables.add(id(saveable))
+                if failed_saveables is not None:
+                    failed_saveables.add(id(saveable))
                 error_msgs[id(saveable)] = saveable, e
                 failure = True
         else:
@@ -855,7 +861,7 @@ def _load_state(
     if not failure:
         if visited_saveables is not None and newly_failed <= 0:
             visited_saveables.add(id(saveable))
-        if id(saveable) in failed_saveables:
+        if failed_saveables is not None and id(saveable) in failed_saveables:
             failed_saveables.remove(id(saveable))
             error_msgs.pop(id(saveable))
 
@@ -943,7 +949,7 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
-                self.archive.extractall(path=self.tmp_dir)
+                file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
                 self.tmp_dir, self.root_path
             ).replace("\\", "/")
@@ -1035,6 +1041,25 @@ class H5IOStore:
         # will mistakenly using `__len__` to determine the value.
         return self.h5_file.__bool__()
 
+    def _verify_group(self, group):
+        if not isinstance(group, h5py.Group):
+            raise ValueError(
+                f"Invalid H5 file, expected Group but received {type(group)}"
+            )
+        return group
+
+    def _verify_dataset(self, dataset):
+        if not isinstance(dataset, h5py.Dataset):
+            raise ValueError(
+                f"Invalid H5 file, expected Dataset, received {type(dataset)}"
+            )
+        if dataset.external:
+            raise ValueError(
+                "Not allowed: H5 file Dataset with external links: "
+                f"{dataset.external}"
+            )
+        return dataset
+
     def _get_h5_file(self, path_or_io, mode=None):
         mode = mode or self.mode
         if mode not in ("r", "w", "a"):
@@ -1094,15 +1119,19 @@ class H5IOStore:
         self._h5_entry_group = {}  # Defaults to an empty dict if not found.
         if not path:
             if "vars" in self.h5_file:
-                self._h5_entry_group = self.h5_file["vars"]
+                self._h5_entry_group = self._verify_group(self.h5_file["vars"])
         elif path in self.h5_file and "vars" in self.h5_file[path]:
-            self._h5_entry_group = self.h5_file[path]["vars"]
+            self._h5_entry_group = self._verify_group(
+                self._verify_group(self.h5_file[path])["vars"]
+            )
         else:
             # No hit. Fix for 2.13 compatibility.
             if "_layer_checkpoint_dependencies" in self.h5_file:
                 path = path.replace("layers", "_layer_checkpoint_dependencies")
                 if path in self.h5_file and "vars" in self.h5_file[path]:
-                    self._h5_entry_group = self.h5_file[path]["vars"]
+                    self._h5_entry_group = self._verify_group(
+                        self._verify_group(self.h5_file[path])["vars"]
+                    )
         self._h5_entry_initialized = True
         return self
 
@@ -1134,25 +1163,15 @@ class H5IOStore:
     def keys(self):
         return self._h5_entry_group.keys()
 
-    def items(self):
-        return self._h5_entry_group.items()
-
-    def values(self):
-        return self._h5_entry_group.values()
-
     def __getitem__(self, key):
-        value = self._h5_entry_group[key]
+        value = self._verify_dataset(self._h5_entry_group[key])
         if (
             hasattr(value, "attrs")
             and "dtype" in value.attrs
             and value.attrs["dtype"] == "bfloat16"
         ):
             value = np.array(value, dtype=ml_dtypes.bfloat16)
-        elif (
-            hasattr(value, "shape")
-            and hasattr(value, "dtype")
-            and not isinstance(value, np.ndarray)
-        ):
+        elif not isinstance(value, np.ndarray):
             value = np.array(value)
         return value
 
@@ -1355,15 +1374,13 @@ class ShardedH5IOStore(H5IOStore):
         self._get_h5_group(self._h5_entry_path)
 
     def _restore_h5_file(self):
-        """Ensure the current shard is the last one created.
-
-        We use mode="a" to avoid truncating the file during the switching.
-        """
+        """Ensure the current shard is the last one created."""
         if (
             pathlib.Path(self.h5_file.filename).name
             != self.current_shard_path.name
         ):
-            self._switch_h5_file(self.current_shard_path.name, mode="a")
+            mode = "a" if self.mode == "w" else "r"
+            self._switch_h5_file(self.current_shard_path.name, mode=mode)
 
     # H5 entry level methods.
 
@@ -1371,9 +1388,11 @@ class ShardedH5IOStore(H5IOStore):
         """Get the H5 entry group. If it doesn't exist, return an empty dict."""
         try:
             if not path:
-                self._h5_entry_group = self.h5_file["vars"]
+                self._h5_entry_group = self._verify_group(self.h5_file["vars"])
             else:
-                self._h5_entry_group = self.h5_file[path]["vars"]
+                self._h5_entry_group = self._verify_group(
+                    self._verify_group(self.h5_file[path])["vars"]
+                )
             self._h5_entry_initialized = True
         except KeyError:
             self._h5_entry_group = {}
@@ -1392,32 +1411,16 @@ class ShardedH5IOStore(H5IOStore):
         return total_len
 
     def keys(self):
-        keys = set(self._h5_entry_group.keys())
+        keys = []
+        current_shard_keys = list(self._h5_entry_group.keys())
         for filename in self.current_shard_filenames:
             if filename == self.current_shard_path.name:
-                continue
-            self._switch_h5_file(filename, mode="r")
-            keys.update(self._h5_entry_group.keys())
+                keys += current_shard_keys
+            else:
+                self._switch_h5_file(filename, mode="r")
+                keys += list(self._h5_entry_group.keys())
         self._restore_h5_file()
         return keys
-
-    def items(self):
-        yield from self._h5_entry_group.items()
-        for filename in self.current_shard_filenames:
-            if filename == self.current_shard_path.name:
-                continue
-            self._switch_h5_file(filename, mode="r")
-            yield from self._h5_entry_group.items()
-        self._restore_h5_file()
-
-    def values(self):
-        yield from self._h5_entry_group.values()
-        for filename in self.current_shard_filenames:
-            if filename == self.current_shard_path.name:
-                continue
-            self._switch_h5_file(filename, mode="r")
-            yield from self._h5_entry_group.values()
-        self._restore_h5_file()
 
     def __getitem__(self, key):
         if key in self._h5_entry_group:
@@ -1656,3 +1659,127 @@ def is_memory_sufficient(model):
         weight_memory_size(model.variables)
         < available_memory * _MEMORY_UPPER_BOUND
     )
+
+
+def _split_path_components(path):
+    """Split a relative path into a list of individual components.
+
+    Uses ``os.path.split`` iteratively so the result is independent of
+    the platform path separator.
+
+    Example::
+
+        _split_path_components("a/b/c.txt") -> ["a", "b", "c.txt"]
+    """
+    parts = []
+    while True:
+        head, tail = os.path.split(path)
+        if tail:
+            parts.append(tail)
+        elif head:
+            parts.append(head)
+            break
+        else:
+            break
+        path = head
+    parts.reverse()
+    return parts
+
+
+def _write_nested_dict_to_dir(tree, base_dir):
+    """Recursively write a nested dict of numpy arrays to a directory tree.
+
+    Each dict key becomes a directory or filename. Leaf values (numpy
+    arrays) are written as binary files.
+    """
+    for key, value in tree.items():
+        child_path = os.path.join(base_dir, key)
+        if isinstance(value, dict):
+            os.makedirs(child_path, exist_ok=True)
+            _write_nested_dict_to_dir(value, child_path)
+        elif isinstance(value, np.ndarray):
+            os.makedirs(os.path.dirname(child_path), exist_ok=True)
+            with open(child_path, "wb") as f:
+                f.write(value.tobytes())
+
+
+def _save_assets_to_dict(model):
+    """Save model assets to a nested dictionary.
+
+    Collects assets (e.g. vocabulary files) from the model using the
+    Keras ``_save_state`` mechanism and returns them as a nested dictionary
+    that mirrors the directory hierarchy. Leaf values are numpy uint8
+    arrays containing file contents.
+
+    For example, a file at ``layer/sublayer/vocab.txt`` is stored as::
+
+        {"layer": {"sublayer": {"vocab.txt": np.array([...])}}}
+
+    Using a nested structure instead of flat path keys avoids
+    platform-specific path separator issues and zip-slip vulnerabilities.
+
+    Args:
+        model: The model whose assets should be collected.
+
+    Returns:
+        A nested dictionary of numpy uint8 arrays mirroring the asset
+        directory tree, or ``None`` if the model has no assets.
+    """
+    assets_store = DiskIOStore("assets", mode="w")
+    try:
+        _save_state(
+            model,
+            weights_store=None,
+            assets_store=assets_store,
+            inner_path="",
+            visited_saveables=set(),
+        )
+
+        assets_tree = {}
+        working_dir = assets_store.working_dir
+        for root, dirs, files in os.walk(working_dir):
+            for fname in files:
+                file_path = os.path.join(root, fname)
+                rel = os.path.relpath(file_path, working_dir)
+                parts = _split_path_components(rel)
+                with open(file_path, "rb") as f:
+                    data = np.frombuffer(f.read(), dtype=np.uint8)
+                node = assets_tree
+                for part in parts[:-1]:
+                    node = node.setdefault(part, {})
+                node[parts[-1]] = data
+
+        return assets_tree if assets_tree else None
+    finally:
+        assets_store.close()
+
+
+def _load_assets_from_dict(model, assets_dict):
+    """Load assets from a nested dictionary into the model.
+
+    Reconstructs the asset directory tree from a nested dictionary
+    produced by ``_save_assets_to_dict`` and loads the assets into
+    the model via the Keras ``_load_state`` mechanism.
+
+    Args:
+        model: The model to load assets into.
+        assets_dict: Nested dictionary mirroring the asset directory
+            tree, with numpy uint8 arrays as leaf values.
+    """
+    if not assets_dict:
+        return
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        _write_nested_dict_to_dir(assets_dict, tmp_dir)
+
+        assets_store = DiskIOStore(tmp_dir, mode="r")
+        _load_state(
+            model,
+            weights_store=None,
+            assets_store=assets_store,
+            inner_path="",
+            visited_saveables=set(),
+            failed_saveables=set(),
+            error_msgs={},
+        )
+        assets_store.close()

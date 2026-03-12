@@ -319,7 +319,10 @@ class TestSpectrogram(testing.TestCase):
         ]:
             init_args = dict(zip(names, args))
 
-            tol_kwargs = {"atol": 5e-4, "rtol": 1e-6}
+            if testing.uses_tpu():
+                tol_kwargs = {"atol": 5e-2, "rtol": 1e-3}
+            else:
+                tol_kwargs = {"atol": 5e-4, "rtol": 1e-6}
 
             init_args["mode"] = "magnitude"
             y_true, y = self._calc_spectrograms(x, **init_args)

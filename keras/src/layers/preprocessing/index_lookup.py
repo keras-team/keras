@@ -4,6 +4,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.layers.layer import Layer
+from keras.src.saving import serialization_lib
 from keras.src.utils import argument_validation
 from keras.src.utils import numerical_utils
 from keras.src.utils import tf_utils
@@ -85,6 +86,17 @@ class IndexLookup(Layer):
             `"count"` and `"tf-idf"` output modes.
             If `True`, returns a `SparseTensor` instead of a dense `Tensor`.
             Defaults to `False`.
+        oov_method: Only relevant when `num_oov_indices > 1` and the input
+            dtype is integer (i.e. for `IntegerLookup`). Controls how
+            Out-Of-Vocabulary (OOV) tokens are assigned to OOV buckets.
+            - `"floormod"` (default): uses `token % num_oov_indices`.
+              Preserves backwards compatibility but can produce severe bucket
+              imbalance when input IDs share a common factor with
+              `num_oov_indices` (e.g. all-even IDs with an even bucket count).
+            - `"farmhash"`: applies FarmHash64. Distributes OOV tokens
+            uniformly regardless of the arithmetic structure of the input IDs.
+            This parameter is ignored for string inputs, which always use
+            FarmHash64.
     """
 
     def __init__(
@@ -100,6 +112,7 @@ class IndexLookup(Layer):
         output_mode="int",
         sparse=False,
         pad_to_max_tokens=False,
+        oov_method="floormod",
         name=None,
         **kwargs,
     ):
@@ -122,6 +135,13 @@ class IndexLookup(Layer):
                 "`num_oov_indices` must be greater than or equal to 0. "
                 f"Received: num_oov_indices={num_oov_indices}"
             )
+
+        argument_validation.validate_string_arg(
+            oov_method,
+            allowable_strings=("floormod", "farmhash"),
+            caller_name=self.__class__.__name__,
+            arg_name="oov_method",
+        )
 
         # Support deprecated names for output_modes.
         if output_mode == "binary":
@@ -176,9 +196,15 @@ class IndexLookup(Layer):
         self.sparse = sparse
         self.pad_to_max_tokens = pad_to_max_tokens
         self.vocabulary_dtype = tf.as_dtype(vocabulary_dtype).name
+        self.oov_method = oov_method
         self._frozen_vocab_size = kwargs.pop("vocabulary_size", None)
 
-        self.input_vocabulary = vocabulary
+        # Remember original `vocabulary` as `input_vocabulary` for serialization
+        # via `get_config`. However, if `vocabulary` is a file path or a URL, we
+        # serialize the vocabulary as an asset and clear the original path/URL.
+        self.input_vocabulary = (
+            vocabulary if not isinstance(vocabulary, str) else None
+        )
         self.input_idf_weights = idf_weights
 
         # We set this hidden attr to
@@ -340,6 +366,7 @@ class IndexLookup(Layer):
             "idf_weights": listify_tensors(self.input_idf_weights),
             "vocabulary": listify_tensors(self.input_vocabulary),
             "vocabulary_size": self._frozen_vocab_size,
+            "oov_method": self.oov_method,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -382,6 +409,18 @@ class IndexLookup(Layer):
             )
 
         if isinstance(vocabulary, str):
+            if serialization_lib.in_safe_mode():
+                raise ValueError(
+                    "Requested the loading of a vocabulary file outside of the "
+                    "model archive. This carries a potential risk of loading "
+                    "arbitrary and sensitive files and thus it is disallowed "
+                    "by default. If you trust the source of the artifact, you "
+                    "can override this error by passing `safe_mode=False` to "
+                    "the loading function, or calling "
+                    "`keras.config.enable_unsafe_deserialization(). "
+                    f"Vocabulary file: '{vocabulary}'"
+                )
+
             if not tf.io.gfile.exists(vocabulary):
                 raise ValueError(
                     f"Vocabulary file {vocabulary} does not exist."
@@ -552,7 +591,16 @@ class IndexLookup(Layer):
             if self.pad_to_max_tokens
             else self._frozen_vocab_size
         )
-        return (input_shape[0], depth)
+        input_shape = tuple(input_shape)
+        if self.output_mode == "one_hot":
+            # One-hot encodes each element: (batch, d1, ..., dN) -> (batch, d1,
+            # ..., dN, depth)
+            if len(input_shape) > 1 and input_shape[-1] == 1:
+                return input_shape[:-1] + (depth,)
+            return input_shape + (depth,)
+        # multi_hot, count, tf_idf: treat last dim as sample dim, output
+        # (batch, ..., depth)
+        return input_shape[:-1] + (depth,)
 
     def compute_output_spec(self, inputs):
         if self.output_mode == "int":
@@ -786,9 +834,16 @@ class IndexLookup(Layer):
             assertion = tf.Assert(tf.equal(tf.size(oov_indices), 0), [msg])
             lookup_checks.append(assertion)
         elif self.num_oov_indices > 1:
-            # If we have multiple oov indices, we need a further hashing step.
             if tf.as_dtype(self._key_dtype).is_integer:
-                oov_indices = tf.math.floormod(inputs, self.num_oov_indices)
+                if self.oov_method == "farmhash":
+                    # Cast int to string so we can apply FarmHash64
+                    oov_indices = tf.strings.to_hash_bucket_fast(
+                        tf.strings.as_string(inputs),
+                        num_buckets=self.num_oov_indices,
+                    )
+                else:
+                    # Default: backwards-compatible floormod behaviour.
+                    oov_indices = tf.math.floormod(inputs, self.num_oov_indices)
             else:
                 oov_indices = tf.strings.to_hash_bucket_fast(
                     inputs, num_buckets=self.num_oov_indices
@@ -806,7 +861,11 @@ class IndexLookup(Layer):
 
     def load_own_variables(self, store):
         if self.output_mode == "tf_idf":
-            self.idf_weights.assign(store["idf_weights"])
+            idf_weights = store["idf_weights"]
+            if hasattr(self, "idf_weights"):
+                self.idf_weights.assign(idf_weights)
+            else:
+                self.idf_weights = tf.Variable(idf_weights, trainable=False)
             self.idf_weights_const = self.idf_weights.value()
 
     def save_assets(self, dir_path):
@@ -825,15 +884,17 @@ class IndexLookup(Layer):
             # TODO: consider unifying both paths.
             return
         vocabulary_filepath = tf.io.gfile.join(dir_path, "vocabulary.txt")
-        # TODO: fix bug with include_special_tokens and set reload from file.
         with open(vocabulary_filepath, "r") as f:
-            lines = f.read().split("\n")
+            lines = f.read().splitlines()
+            while lines and lines[-1] == "":
+                lines.pop()
             if tf.as_dtype(self.vocabulary_dtype) == tf.string:
                 values = [str(line) for line in lines]
             else:
                 values = [int(line) for line in lines]
             if self.output_mode == "tf_idf":
-                self.set_vocabulary(values, idf_weights=False)
+                idf_weights = self.idf_weights_const.numpy()
+                self.set_vocabulary(values, idf_weights=idf_weights)
             else:
                 self.set_vocabulary(values)
 

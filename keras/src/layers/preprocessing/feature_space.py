@@ -507,10 +507,14 @@ class FeatureSpace(Layer):
 
     def adapt(self, dataset):
         if not isinstance(dataset, tf.data.Dataset):
-            raise ValueError(
-                "`adapt()` can only be called on a tf.data.Dataset. "
-                f"Received instead: {dataset} (of type {type(dataset)})"
-            )
+            if isinstance(dataset, dict):
+                dataset = tf.data.Dataset.from_tensor_slices(dataset)
+            else:
+                raise ValueError(
+                    "`adapt()` can only be called on a tf.data.Dataset or a "
+                    "dict of arrays/lists. "
+                    f"Received instead: {dataset} (of type {type(dataset)})"
+                )
 
         for name in self._list_adaptable_preprocessors():
             # Call adapt() on each individual adaptable layer.

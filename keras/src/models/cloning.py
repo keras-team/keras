@@ -232,6 +232,7 @@ def _wrap_clone_function(
                 clone = clone_model(
                     layer,
                     clone_function=clone_function,
+                    recursive=True,
                     cache=cache,
                 )
                 cache[id(layer)] = clone
@@ -241,6 +242,7 @@ def _wrap_clone_function(
                     layer,
                     clone_function=clone_function,
                     call_function=call_function,
+                    recursive=True,
                     cache=cache,
                 )
                 cache[id(layer)] = clone
@@ -293,10 +295,12 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
         input_name = ref_input_layer.name
         input_batch_shape = ref_input_layer.batch_shape
         input_dtype = ref_input_layer._dtype
+        input_optional = ref_input_layer.optional
     else:
         input_name = None
         input_dtype = None
         input_batch_shape = None
+        input_optional = False
 
     if input_tensors is not None:
         if isinstance(input_tensors, (list, tuple)):
@@ -313,6 +317,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
         inputs = Input(
             tensor=input_tensors,
             name=input_name,
+            optional=input_optional,
         )
         new_layers = [inputs] + new_layers
     else:
@@ -321,6 +326,7 @@ def _clone_sequential_model(model, clone_function, input_tensors=None):
                 batch_shape=input_batch_shape,
                 dtype=input_dtype,
                 name=input_name,
+                optional=input_optional,
             )
             new_layers = [inputs] + new_layers
     cloned_model = Sequential(

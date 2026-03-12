@@ -244,3 +244,27 @@ def lstsq(a, b, rcond=None):
     if b_orig_ndim == 1:
         x = tf.reshape(x, [-1])
     return x
+
+
+def jvp(fun, primals, tangents, has_aux=False):
+    primal_flat = tf.nest.flatten(primals)
+    tangent_flat = tf.nest.flatten(tangents)
+
+    tangent_flat = [
+        tf.cast(t, p.dtype) for t, p in zip(tangent_flat, primal_flat)
+    ]
+
+    with tf.autodiff.ForwardAccumulator(primal_flat, tangent_flat) as acc:
+        if has_aux:
+            primals_out, aux = fun(*primals)
+        else:
+            primals_out = fun(*primals)
+
+        primals_out_flat = tf.nest.flatten(primals_out)
+        tangents_out_flat = [acc.jvp(po) for po in primals_out_flat]
+
+    tangents_out = tf.nest.pack_sequence_as(primals_out, tangents_out_flat)
+
+    if has_aux:
+        return primals_out, tangents_out, aux
+    return primals_out, tangents_out

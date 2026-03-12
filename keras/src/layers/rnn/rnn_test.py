@@ -364,15 +364,28 @@ class RNNTest(testing.TestCase):
         layer = layers.RNN(OneStateRNNCell(2), go_backwards=True)
         layer(sequence)
         output = layer(sequence)
-        self.assertAllClose(np.array([[202.0, 202.0], [538.0, 538.0]]), output)
+        self.assertAllClose(
+            np.array([[202.0, 202.0], [538.0, 538.0]]),
+            output,
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
+        )
 
         layer = layers.RNN(OneStateRNNCell(2), stateful=True, return_state=True)
         layer(sequence)
         output, state = layer(sequence)
         self.assertAllClose(
-            np.array([[954.0, 954.0], [3978.0, 3978.0]]), output
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
-        self.assertAllClose(np.array([[954.0, 954.0], [3978.0, 3978.0]]), state)
+        self.assertAllClose(
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
+            state,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
+        )
 
     def test_serialization(self):
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)
@@ -380,5 +393,27 @@ class RNNTest(testing.TestCase):
 
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         self.run_class_serialization_test(layer)
+
+    def test_stateful_batch_size_mismatch_raises(self):
+        from keras.src.models import Functional
+
+        batch_size = 4
+        timesteps = 5
+        features = 3
+
+        layer = layers.RNN(TwoStatesRNNCell(2), stateful=True)
+        inputs = layers.Input(
+            shape=(timesteps, features), batch_size=batch_size
+        )
+        model = Functional(inputs, layer(inputs))
+
+        # Call once with correct batch size
+        x = ops.random.uniform(shape=(batch_size, timesteps, features))
+        _ = model(x)
+
+        # Expect ValueError when called with incorrect batch size
+        with self.assertRaisesRegex(ValueError, "batch size"):
+            x_bad = ops.random.uniform(shape=(1, timesteps, features))
+            model(x_bad)
 
     # TODO: test masking

@@ -104,4 +104,6 @@ class ConvLSTM1DTest(testing.TestCase):
         self.assertAllClose(
             expected_output,
             output,
+            tpu_atol=1e-4,
+            tpu_rtol=1e-4,
         )

@@ -8,6 +8,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.gptq_core import get_dataloader
+from keras.src.quantizers.gptq_core import gptq_quantize
 
 VOCAB_SIZE = 100
 
@@ -269,8 +270,17 @@ class TestGPTQCore(testing.TestCase):
             ]
         )
         model.build(input_shape=(None, 10))
+
+        layer_structure = {
+            "pre_block_layers": [model.layers[0]],
+            "sequential_blocks": [model.layers[1], model.layers[2]],
+        }
+
         config = GPTQConfig(
-            dataset=["test data"], tokenizer=MockTokenizer(), group_size=32
+            dataset=["test data"],
+            tokenizer=MockTokenizer(),
+            group_size=32,
+            quantization_layer_structure=layer_structure,
         )
         model.quantize("gptq", config=config)
 
@@ -278,24 +288,24 @@ class TestGPTQCore(testing.TestCase):
         (
             "no_embedding_layer",
             models.Sequential([layers.Dense(10)]),
-            "Could not automatically find an embedding layer",
+            "For 'gptq' mode, a valid quantization structure must be provided",
         ),
         (
             "no_transformer_blocks",
             models.Sequential(
                 [layers.Embedding(VOCAB_SIZE, 10), layers.Dense(10)]
             ),
-            "Could not automatically find any transformer-like blocks",
+            "For 'gptq' mode, a valid quantization structure must be provided",
         ),
         (
             "backbone_no_layers",
             _get_model_with_backbone(has_transformer_layers=False),
-            "Could not automatically find any transformer-like blocks",
+            "For 'gptq' mode, a valid quantization structure must be provided",
         ),
         (
             "backbone_no_embedding",
             _get_model_with_backbone(embedding_name="wrong_name"),
-            "Could not automatically find an embedding layer in the model",
+            "For 'gptq' mode, a valid quantization structure must be provided",
         ),
     )
     def test_apply_gptq_with_unsupported_architectures(
@@ -308,4 +318,5 @@ class TestGPTQCore(testing.TestCase):
 
         config = GPTQConfig(dataset=["test"], tokenizer=MockTokenizer())
         with self.assertRaisesRegex(ValueError, error_message):
-            model.quantize("gptq", config=config)
+            # We pass None as structure to trigger the error
+            gptq_quantize(config, quantization_layer_structure=None)

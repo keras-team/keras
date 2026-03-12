@@ -6,17 +6,22 @@ from multiprocessing.pool import ThreadPool
 
 import numpy as np
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import grain
-from keras.src.utils.module_utils import tensorflow as tf
 
 
 @keras_export("keras.utils.split_dataset")
 def split_dataset(
-    dataset, left_size=None, right_size=None, shuffle=False, seed=None
+    dataset,
+    left_size=None,
+    right_size=None,
+    shuffle=False,
+    seed=None,
+    preferred_backend=None,
 ):
     """Splits a dataset into a left half and a right half (e.g. train / test).
 
@@ -37,27 +42,86 @@ def split_dataset(
             Defaults to `None`.
         shuffle: Boolean, whether to shuffle the data before splitting it.
         seed: A random seed for shuffling.
+        preferred_backend: String, specifying which backend
+            (e.g.; "tensorflow", "torch") to use. If `None`, the
+            backend is inferred from the type of `dataset` - if
+            `dataset` is a `tf.data.Dataset`, "tensorflow" backend
+            is used, if `dataset` is a `torch.utils.data.Dataset`,
+            "torch" backend is used, and if `dataset` is a list/tuple/np.array
+            the current Keras backend is used. Defaults to `None`.
 
     Returns:
-        A tuple of two `tf.data.Dataset` objects:
-        the left and right splits.
-
+        A tuple of two dataset objects, the left and right splits. The exact
+        type of the returned objects depends on the `preferred_backend`.
+        For example, with a "tensorflow" backend,
+        `tf.data.Dataset` objects are returned. With a "torch" backend,
+        `torch.utils.data.Dataset` objects are returned.
     Example:
 
     >>> data = np.random.random(size=(1000, 4))
     >>> left_ds, right_ds = keras.utils.split_dataset(data, left_size=0.8)
-    >>> int(left_ds.cardinality())
-    800
-    >>> int(right_ds.cardinality())
-    200
+    >>> # For a tf.data.Dataset, you can use .cardinality()
+    >>> # >>> int(left_ds.cardinality())
+    >>> # 800
+    >>> # For a torch.utils.data.Dataset, you can use len()
+    >>> # >>> len(left_ds)
+    >>> # 800
     """
+    preferred_backend = preferred_backend or _infer_preferred_backend(dataset)
+    if preferred_backend != "torch":
+        return _split_dataset_tf(
+            dataset,
+            left_size=left_size,
+            right_size=right_size,
+            shuffle=shuffle,
+            seed=seed,
+        )
+    else:
+        return _split_dataset_torch(
+            dataset,
+            left_size=left_size,
+            right_size=right_size,
+            shuffle=shuffle,
+            seed=seed,
+        )
+
+
+def _split_dataset_tf(
+    dataset, left_size=None, right_size=None, shuffle=False, seed=None
+):
+    """Splits a dataset into a left half and a right half (e.g. train / test).
+
+    Args:
+        dataset:
+            A `tf.data.Dataset` object,
+            or a list/tuple of arrays with the same length.
+        left_size: If float (in the range `[0, 1]`), it signifies
+            the fraction of the data to pack in the left dataset. If integer, it
+            signifies the number of samples to pack in the left dataset. If
+            `None`, defaults to the complement to `right_size`.
+            Defaults to `None`.
+        right_size: If float (in the range `[0, 1]`), it signifies
+            the fraction of the data to pack in the right dataset.
+            If integer, it signifies the number of samples to pack
+            in the right dataset.
+            If `None`, defaults to the complement to `left_size`.
+            Defaults to `None`.
+        shuffle: Boolean, whether to shuffle the data before splitting it.
+        seed: A random seed for shuffling.
+
+    Returns:
+        A tuple of two `tf.data.Dataset` objects:
+        the left and right splits.
+    """
+    from keras.src.utils.module_utils import tensorflow as tf
+
     dataset_type_spec = _get_type_spec(dataset)
 
     if dataset_type_spec is None:
         raise TypeError(
             "The `dataset` argument must be either"
-            "a `tf.data.Dataset`, a `torch.utils.data.Dataset`"
-            "object, or a list/tuple of arrays. "
+            "a `tf.data.Dataset` object, or"
+            "a list/tuple of arrays. "
             f"Received: dataset={dataset} of type {type(dataset)}"
         )
 
@@ -104,6 +168,103 @@ def split_dataset(
     left_split = left_split.prefetch(tf.data.AUTOTUNE)
     right_split = right_split.prefetch(tf.data.AUTOTUNE)
     return left_split, right_split
+
+
+def _split_dataset_torch(
+    dataset, left_size=None, right_size=None, shuffle=False, seed=None
+):
+    """Splits a dataset into a left half and a right half (e.g. train / test).
+
+    Args:
+        dataset:
+            A `torch.utils.data.Dataset` object,
+            or a list/tuple of arrays with the same length.
+        left_size: If float (in the range `[0, 1]`), it signifies
+            the fraction of the data to pack in the left dataset. If integer, it
+            signifies the number of samples to pack in the left dataset. If
+            `None`, defaults to the complement to `right_size`.
+            Defaults to `None`.
+        right_size: If float (in the range `[0, 1]`), it signifies
+            the fraction of the data to pack in the right dataset.
+            If integer, it signifies the number of samples to pack
+            in the right dataset.
+            If `None`, defaults to the complement to `left_size`.
+            Defaults to `None`.
+        shuffle: Boolean, whether to shuffle the data before splitting it.
+        seed: A random seed for shuffling.
+
+    Returns:
+        A tuple of two `torch.utils.data.Dataset` objects:
+        the left and right splits.
+    """
+    import torch
+    from torch.utils.data import TensorDataset
+    from torch.utils.data import random_split
+
+    dataset_type_spec = _get_type_spec(dataset)
+    if dataset_type_spec is None:
+        raise TypeError(
+            "The `dataset` argument must be a `torch.utils.data.Dataset`"
+            " object, or a list/tuple of arrays."
+            f" Received: dataset={dataset} of type {type(dataset)}"
+        )
+
+    if not isinstance(dataset, torch.utils.data.Dataset):
+        if dataset_type_spec is np.ndarray:
+            dataset = TensorDataset(torch.from_numpy(dataset))
+        elif dataset_type_spec in (list, tuple):
+            tensors = [torch.from_numpy(x) for x in dataset]
+            dataset = TensorDataset(*tensors)
+        elif is_tf_dataset(dataset):
+            dataset_as_list = _convert_dataset_to_list(
+                dataset, dataset_type_spec
+            )
+            tensors = [
+                torch.from_numpy(np.array(sample))
+                for sample in zip(*dataset_as_list)
+            ]
+            dataset = TensorDataset(*tensors)
+
+    if right_size is None and left_size is None:
+        raise ValueError(
+            "At least one of the `left_size` or `right_size` "
+            "must be specified. "
+            "Received: left_size=None and right_size=None"
+        )
+
+    # Calculate total length and rescale split sizes
+    total_length = len(dataset)
+    left_size, right_size = _rescale_dataset_split_sizes(
+        left_size, right_size, total_length
+    )
+
+    # Shuffle the dataset if required
+    if shuffle:
+        generator = torch.Generator()
+        if seed is not None:
+            generator.manual_seed(seed)
+        else:
+            generator.seed()
+    else:
+        generator = None
+
+    left_split, right_split = random_split(
+        dataset, [left_size, right_size], generator=generator
+    )
+
+    return left_split, right_split
+
+
+def _infer_preferred_backend(dataset):
+    """Infer the backend from the dataset type."""
+    if isinstance(dataset, (list, tuple, np.ndarray)):
+        return backend.backend()
+    if is_tf_dataset(dataset):
+        return "tensorflow"
+    elif is_torch_dataset(dataset):
+        return "torch"
+    else:
+        raise TypeError(f"Unsupported dataset type: {type(dataset)}")
 
 
 def _convert_dataset_to_list(
@@ -208,7 +369,7 @@ def _get_data_iterator_from_dataset(dataset, dataset_type_spec):
                 )
 
         return iter(zip(*dataset))
-    elif dataset_type_spec is tf.data.Dataset:
+    elif is_tf_dataset(dataset):
         if is_batched(dataset):
             dataset = dataset.unbatch()
         return iter(dataset)
@@ -243,14 +404,19 @@ def _get_next_sample(
         data_sample: The next sample.
     """
     from keras.src.trainers.data_adapters.data_adapter_utils import (
+        is_tensorflow_tensor,
+    )
+    from keras.src.trainers.data_adapters.data_adapter_utils import (
         is_torch_tensor,
     )
 
     try:
         dataset_iterator = iter(dataset_iterator)
         first_sample = next(dataset_iterator)
-        if isinstance(first_sample, (tf.Tensor, np.ndarray)) or is_torch_tensor(
-            first_sample
+        if (
+            isinstance(first_sample, np.ndarray)
+            or is_tensorflow_tensor(first_sample)
+            or is_torch_tensor(first_sample)
         ):
             first_sample_shape = np.array(first_sample).shape
         else:
@@ -291,23 +457,40 @@ def _get_next_sample(
         yield sample
 
 
-def is_torch_dataset(dataset):
-    if hasattr(dataset, "__class__"):
-        for parent in dataset.__class__.__mro__:
-            if parent.__name__ == "Dataset" and str(
-                parent.__module__
-            ).startswith("torch.utils.data"):
-                return True
-    return False
+def is_tf_dataset(dataset):
+    return _mro_matches(
+        dataset,
+        class_names=("DatasetV2", "Dataset"),
+        module_substrings=(
+            "tensorflow.python.data",  # TF classic
+            "tensorflow.data",  # newer TF paths
+        ),
+    )
 
 
 def is_grain_dataset(dataset):
-    if hasattr(dataset, "__class__"):
-        for parent in dataset.__class__.__mro__:
-            if parent.__name__ in (
-                "MapDataset",
-                "IterDataset",
-            ) and str(parent.__module__).startswith("grain._src.python"):
+    return _mro_matches(
+        dataset,
+        class_names=("MapDataset", "IterDataset"),
+        module_prefixes=("grain._src.python",),
+    )
+
+
+def is_torch_dataset(dataset):
+    return _mro_matches(dataset, ("Dataset",), ("torch.utils.data",))
+
+
+def _mro_matches(
+    dataset, class_names, module_prefixes=(), module_substrings=()
+):
+    if not hasattr(dataset, "__class__"):
+        return False
+    for parent in dataset.__class__.__mro__:
+        if parent.__name__ in class_names:
+            mod = str(parent.__module__)
+            if any(mod.startswith(pref) for pref in module_prefixes):
+                return True
+            if any(subs in mod for subs in module_substrings):
                 return True
     return False
 
@@ -441,8 +624,10 @@ def _restore_dataset_from_list(
     dataset_as_list, dataset_type_spec, original_dataset
 ):
     """Restore the dataset from the list of arrays."""
-    if dataset_type_spec in [tuple, list, tf.data.Dataset] or is_torch_dataset(
-        original_dataset
+    if (
+        dataset_type_spec in [tuple, list]
+        or is_tf_dataset(original_dataset)
+        or is_torch_dataset(original_dataset)
     ):
         # Save structure by taking the first element.
         element_spec = dataset_as_list[0]
@@ -483,7 +668,9 @@ def _get_type_spec(dataset):
         return list
     elif isinstance(dataset, np.ndarray):
         return np.ndarray
-    elif isinstance(dataset, tf.data.Dataset):
+    elif is_tf_dataset(dataset):
+        from keras.src.utils.module_utils import tensorflow as tf
+
         return tf.data.Dataset
     elif is_torch_dataset(dataset):
         from torch.utils.data import Dataset as TorchDataset
@@ -543,6 +730,8 @@ def index_directory(
         order.
     """
     if file_utils.is_remote_path(directory):
+        from keras.src.utils.module_utils import tensorflow as tf
+
         os_module = tf.io.gfile
         path_module = tf.io.gfile
     else:
@@ -647,7 +836,12 @@ def index_directory(
 
 
 def iter_valid_files(directory, follow_links, formats):
-    io_module = tf.io.gfile if file_utils.is_remote_path(directory) else os
+    if file_utils.is_remote_path(directory):
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        io_module = tf.io.gfile
+    else:
+        io_module = os
 
     if not follow_links:
         walk = io_module.walk(directory)
@@ -674,9 +868,12 @@ def index_subdirectory(directory, class_indices, follow_links, formats):
             paths, and `labels` is a list of integer labels corresponding
             to these files.
     """
-    path_module = (
-        tf.io.gfile if file_utils.is_remote_path(directory) else os.path
-    )
+    if file_utils.is_remote_path(directory):
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        path_module = tf.io.gfile
+    else:
+        path_module = os.path
 
     dirname = os.path.basename(directory)
     valid_files = iter_valid_files(directory, follow_links, formats)
@@ -746,6 +943,8 @@ def labels_to_dataset_tf(labels, label_mode, num_classes):
     Returns:
         A `tf.data.Dataset` instance.
     """
+    from keras.src.utils.module_utils import tensorflow as tf
+
     label_ds = tf.data.Dataset.from_tensor_slices(labels)
     if label_mode == "binary":
         label_ds = label_ds.map(

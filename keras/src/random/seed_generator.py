@@ -8,6 +8,8 @@ from keras.src.backend.common import global_state
 from keras.src.utils import jax_utils
 from keras.src.utils.naming import auto_name
 
+GLOBAL_SEED_GENERATOR = "global_seed_generator"
+
 
 @keras_export("keras.random.SeedGenerator")
 class SeedGenerator:
@@ -27,7 +29,7 @@ class SeedGenerator:
     a local `StateGenerator` with either a deterministic or random initial
     state.
 
-    Remark concerning the JAX backen: Note that the use of a local
+    Remark concerning the JAX backend: Note that the use of a local
     `StateGenerator` as seed argument is required for JIT compilation of
     RNG with the JAX backend, because the use of global state is not
     supported.
@@ -109,7 +111,7 @@ class SeedGenerator:
         return new_seed_value
 
     def get_config(self):
-        return {"seed": self._initial_seed}
+        return {"seed": self._initial_seed, "name": self.name}
 
     @classmethod
     def from_config(cls, config):
@@ -133,10 +135,10 @@ def global_seed_generator():
             "out = keras.random.normal(shape=(1,), seed=self.seed_generator)\n"
             "```"
         )
-    gen = global_state.get_global_attribute("global_seed_generator")
+    gen = global_state.get_global_attribute(GLOBAL_SEED_GENERATOR)
     if gen is None:
         gen = SeedGenerator()
-        global_state.set_global_attribute("global_seed_generator", gen)
+        global_state.set_global_attribute(GLOBAL_SEED_GENERATOR, gen)
     return gen
 
 
@@ -151,7 +153,18 @@ def draw_seed(seed):
     if isinstance(seed, SeedGenerator):
         return seed.next()
     elif isinstance(seed, int):
-        return convert_to_tensor([seed, 0], dtype=random_seed_dtype())
+        dtype = random_seed_dtype()
+        # Seeds are conceptually uint32 values but some backends declare
+        # their seed dtype as a signed type (e.g. "int32"). np.array(x,
+        # dtype="int32") raises OverflowError on NumPy >= 1.24 for values
+        # >= 2**31. Perform an explicit 2's-complement bit-cast via uint32
+        # so that the integer passed to convert_to_tensor is always in the
+        # representable range of the declared dtype while preserving full
+        # 32-bit entropy.
+        if dtype == "int32":
+            # Re-interpret the bits of a uint32 as an int32.
+            seed = (seed & 0xFFFFFFFF ^ 0x80000000) - 0x80000000
+        return convert_to_tensor([seed, 0], dtype=dtype)
     elif seed is None:
         return global_seed_generator().next(ordered=False)
     raise ValueError(

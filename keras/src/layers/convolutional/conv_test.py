@@ -779,7 +779,12 @@ class ConvBasicTest(testing.TestCase):
 
         # Compare the effective kernel computed via the property.
         actual_effective_kernel = ops.convert_to_numpy(layer.kernel)
-        self.assertAllClose(actual_effective_kernel, expected_effective_kernel)
+        self.assertAllClose(
+            actual_effective_kernel,
+            expected_effective_kernel,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
@@ -801,6 +806,24 @@ class ConvBasicTest(testing.TestCase):
             expected_num_losses=2,  # we have 2 regularizers.
             supports_masking=False,
         )
+
+    @parameterized.parameters(
+        (layers.Conv1D, (10, 3), 2, 10),
+        (layers.Conv2D, (10, 10, 3), (2, 2), (10, 10)),
+        (layers.Conv3D, (10, 10, 10, 3), (2, 2, 2), (10, 10, 10)),
+    )
+    def test_conv_symbolic_invalid_configuration(
+        self, layer_cls, input_shape, kernel_size, dilation_rate
+    ):
+        inputs = layers.Input(shape=input_shape)
+        layer = layer_cls(
+            filters=1,
+            kernel_size=kernel_size,
+            dilation_rate=dilation_rate,
+        )
+
+        with self.assertRaises(ValueError):
+            layer(inputs)
 
 
 class ConvCorrectnessTest(testing.TestCase):
@@ -891,7 +914,7 @@ class ConvCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-1, tpu_rtol=1e-1)
 
     @parameterized.parameters(
         {
@@ -989,7 +1012,9 @@ class ConvCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected, rtol=5e-4)
+        self.assertAllClose(
+            outputs, expected, rtol=5e-4, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     @parameterized.parameters(
         {
@@ -1078,7 +1103,9 @@ class ConvCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             groups=groups,
         )
-        self.assertAllClose(outputs, expected, rtol=1e-3)
+        self.assertAllClose(
+            outputs, expected, rtol=1e-3, tpu_atol=1e-1, tpu_rtol=1e-1
+        )
 
     def test_conv_constraints(self):
         layer = layers.Conv2D(
@@ -1095,3 +1122,11 @@ class ConvCorrectnessTest(testing.TestCase):
         )
         layer.build((None, 5, 5, 3))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
+
+    def test_conv_raises_exception_on_zero_dims(self):
+        x = np.random.rand(3, 4, 4, 4)
+        l = layers.Conv2D(6, [5, 5], 1, "valid")
+        # The exception type can vary across backends (e.g., ValueError,
+        # tf.errors.InvalidArgumentError, RuntimeError).
+        with self.assertRaises(Exception):
+            l(x)

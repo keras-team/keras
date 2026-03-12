@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_color_example,
+)
 
 
 @keras_export("keras.layers.RandomPosterization")
@@ -22,6 +25,10 @@ class RandomPosterization(BaseImagePreprocessingLayer):
             values within `value_range`. Defaults to `(0, 255)`.
         factor: integer, the number of bits to keep for each channel. Must be a
             value between 1-8.
+
+    Example:
+
+    {{base_image_preprocessing_color_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -152,3 +159,11 @@ class RandomPosterization(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+RandomPosterization.__doc__ = RandomPosterization.__doc__.replace(
+    "{{base_image_preprocessing_color_example}}",
+    base_image_preprocessing_color_example.replace(
+        "{LayerName}", "RandomPosterization"
+    ),
+)

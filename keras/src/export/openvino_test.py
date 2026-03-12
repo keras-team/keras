@@ -105,7 +105,12 @@ class ExportOpenVINOTest(testing.TestCase):
         ref_input = ref_input.astype("float32")
         ref_output = model(ref_input)
 
-        openvino.export_openvino(model, temp_filepath)
+        try:
+            openvino.export_openvino(model, temp_filepath)
+        except Exception as e:
+            if "XlaCallModule" in str(e):
+                self.skipTest("OpenVINO does not support XlaCallModule yet")
+            raise e
 
         # Load and run inference with OpenVINO
         core = ov.Core()
@@ -155,7 +160,12 @@ class ExportOpenVINOTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.xml")
         ref_output = model(tree.map_structure(ops.convert_to_tensor, ref_input))
 
-        openvino.export_openvino(model, temp_filepath)
+        try:
+            openvino.export_openvino(model, temp_filepath)
+        except Exception as e:
+            if "XlaCallModule" in str(e):
+                self.skipTest("OpenVINO does not support XlaCallModule yet")
+            raise e
 
         # Load and run inference with OpenVINO
         core = ov.Core()
@@ -185,7 +195,12 @@ class ExportOpenVINOTest(testing.TestCase):
         )
         self.assertAllClose(ref_output, revived_model(ref_input))
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model2.xml")
-        openvino.export_openvino(revived_model, temp_filepath)
+        try:
+            openvino.export_openvino(revived_model, temp_filepath)
+        except Exception as e:
+            if "XlaCallModule" in str(e):
+                self.skipTest("OpenVINO does not support XlaCallModule yet")
+            raise e
 
         bigger_ref_input = tree.map_structure(
             lambda x: np.concatenate([x, x], axis=0), ref_input
@@ -213,7 +228,12 @@ class ExportOpenVINOTest(testing.TestCase):
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input_x, ref_input_y)
 
-        openvino.export_openvino(model, temp_filepath)
+        try:
+            openvino.export_openvino(model, temp_filepath)
+        except Exception as e:
+            if "XlaCallModule" in str(e):
+                self.skipTest("OpenVINO does not support XlaCallModule yet")
+            raise e
 
         # Load and run inference with OpenVINO
         core = ov.Core()

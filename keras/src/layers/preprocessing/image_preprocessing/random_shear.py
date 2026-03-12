@@ -2,6 +2,9 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    base_image_preprocessing_transform_example,
+)
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
     clip_to_image_size,
 )
@@ -61,6 +64,10 @@ class RandomShear(BaseImagePreprocessingLayer):
         fill_value: A float representing the value to be filled outside the
             boundaries when `fill_mode="constant"`.
         seed: Integer. Used to create a random seed.
+
+    Example:
+
+    {{base_image_preprocessing_transform_example}}
     """
 
     _USE_BASE_FACTOR = False
@@ -187,26 +194,20 @@ class RandomShear(BaseImagePreprocessingLayer):
         )
         return {"shear_factor": shear_factor, "input_shape": images_shape}
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training:
-            return self._shear_inputs(images, transformation)
-        return images
-
-    def _shear_inputs(self, inputs, transformation):
+    def _transform_images(self, images, transformation, interpolation):
         if transformation is None:
-            return inputs
+            return images
 
-        inputs_shape = self.backend.shape(inputs)
+        inputs_shape = self.backend.shape(images)
         unbatched = len(inputs_shape) == 3
         if unbatched:
-            inputs = self.backend.numpy.expand_dims(inputs, axis=0)
+            images = self.backend.numpy.expand_dims(images, axis=0)
 
         shear_factor = transformation["shear_factor"]
         outputs = self.backend.image.affine_transform(
-            inputs,
+            images,
             transform=self._get_shear_matrix(shear_factor),
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
             data_format=self.data_format,
@@ -380,13 +381,6 @@ class RandomShear(BaseImagePreprocessingLayer):
 
         return bounding_boxes
 
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
-
     def get_config(self):
         base_config = super().get_config()
         config = {
@@ -402,3 +396,11 @@ class RandomShear(BaseImagePreprocessingLayer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+RandomShear.__doc__ = RandomShear.__doc__.replace(
+    "{{base_image_preprocessing_transform_example}}",
+    base_image_preprocessing_transform_example.replace(
+        "{LayerName}", "RandomShear"
+    ),
+)

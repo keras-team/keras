@@ -50,3 +50,11 @@ class TestGPTQConfig(testing.TestCase):
             dataset=None, tokenizer=None, weight_bits=4, group_size=64
         )
         assert config.dtype_policy_string() == "gptq/4/64"
+
+    def test_gptq_config_serialization(self):
+        config = GPTQConfig(
+            dataset=None, tokenizer=None, weight_bits=4, group_size=64
+        )
+        serialized_config = config.get_config()
+        deserialized_config = GPTQConfig.from_config(serialized_config)
+        self.assertDictEqual(config.__dict__, deserialized_config.__dict__)

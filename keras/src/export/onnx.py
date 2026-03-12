@@ -76,13 +76,19 @@ def export_onnx(
     if input_signature is None:
         input_signature = get_input_signature(model)
         if not input_signature or not model._called:
-            raise ValueError(
-                "The model provided has never called. "
-                "It must be called at least once before export."
-            )
+            raise ValueError("The model provided has never called. ")
+
+    # Extract specs for proper input name generation
+    if len(input_signature) == 1 and isinstance(input_signature[0], list):
+        # Multi-input case: input_signature = [[spec1, spec2, ...]]
+        specs_for_names = input_signature[0]
+    else:
+        # Single input case: input_signature = [spec]
+        specs_for_names = input_signature
+
     input_names = [
         getattr(spec, "name", None) or f"input_{i}"
-        for i, spec in enumerate(input_signature)
+        for i, spec in enumerate(specs_for_names)
     ]
 
     if backend.backend() in ("tensorflow", "jax"):
@@ -105,10 +111,37 @@ def export_onnx(
     elif backend.backend() == "torch":
         import torch
 
+        """Generate dynamic_axes format for ONNX export."""
+        dynamic_axes = {}
+
+        for input_idx, spec in enumerate(specs_for_names):
+            if not hasattr(spec, "shape"):
+                continue
+
+            shape = spec.shape
+            dynamic_dims = {}
+
+            for dim_idx, dim_size in enumerate(shape):
+                if dim_size is None:
+                    if dim_idx == 0:
+                        dim_name = "batch"
+                    else:
+                        dim_name = f"dim_{input_idx}_{dim_idx}"
+                    dynamic_dims[dim_idx] = dim_name
+
+            if dynamic_dims:
+                input_name = (
+                    input_names[input_idx]
+                    if input_idx < len(input_names)
+                    else f"input_{input_idx}"
+                )
+                dynamic_axes[input_name] = dynamic_dims
+
         sample_inputs = tree.map_structure(
             lambda x: convert_spec_to_tensor(x, replace_none_number=1),
             input_signature,
         )
+
         sample_inputs = tuple(sample_inputs)
         # TODO: Make dict model exportable.
         if any(isinstance(x, dict) for x in sample_inputs):
@@ -140,34 +173,80 @@ def export_onnx(
             warnings.filterwarnings(
                 "ignore", message=r".*suppressed about get_attr references.*"
             )
+            # Suppress TorchScript tracing warnings
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Converting a tensor to a Python boolean.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Converting a tensor to a Python integer.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Iterating over a tensor.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*Using len to get tensor shape.*",
+                category=torch.jit.TracerWarning,
+            )
+            warnings.filterwarnings(
+                "ignore",
+                message=r".*torch.tensor results are registered as constants.*",
+                category=torch.jit.TracerWarning,
+            )
+
+        # When dynamic shapes are present, prefer TorchScript over
+        # TorchDynamo because TorchDynamo has constraint inference issues
+        # with dynamic dimensions
+        if not dynamic_axes:
             try:
-                # Try the TorchDynamo-based ONNX exporter first.
+                # Try the TorchDynamo-based ONNX exporter first for static
+                # shapes
+                export_kwargs = {
+                    "verbose": actual_verbose,
+                    "opset_version": opset_version,
+                    "input_names": input_names,
+                    "dynamo": True,
+                }
+
                 onnx_program = torch.onnx.export(
-                    model,
-                    sample_inputs,
-                    verbose=actual_verbose,
-                    opset_version=opset_version,
-                    input_names=input_names,
-                    dynamo=True,
+                    model, sample_inputs, **export_kwargs
                 )
                 if hasattr(onnx_program, "optimize"):
                     onnx_program.optimize()  # Only supported by torch>=2.6.0.
                 onnx_program.save(filepath)
-            except:
-                if verbose is None:
-                    # Set to `False` due to file system leakage issue:
-                    # https://github.com/keras-team/keras/issues/20826
-                    actual_verbose = False
 
-                # Fall back to the TorchScript-based ONNX exporter.
-                torch.onnx.export(
-                    model,
-                    sample_inputs,
-                    filepath,
-                    verbose=actual_verbose,
-                    opset_version=opset_version,
-                    input_names=input_names,
-                )
+                return
+            except Exception:
+                pass
+
+        """Export using TorchScript-based ONNX exporter."""
+        # Set verbose to False for TorchScript due to file system leakage
+        torchscript_verbose = verbose
+        if verbose is None:
+            # Set to `False` due to file system leakage issue:
+            # https://github.com/keras-team/keras/issues/20826
+            torchscript_verbose = False
+
+        export_kwargs = {
+            "verbose": torchscript_verbose,
+            "opset_version": opset_version,
+            "input_names": input_names,
+            "export_params": True,
+            "do_constant_folding": True,
+            "dynamo": False,
+        }
+
+        # For TorchScript (dynamo=False), use dynamic_axes parameter
+        if dynamic_axes:
+            export_kwargs["dynamic_axes"] = dynamic_axes
+
+        torch.onnx.export(model, sample_inputs, filepath, **export_kwargs)
     else:
         raise NotImplementedError(
             "`export_onnx` is only compatible with TensorFlow, JAX and "

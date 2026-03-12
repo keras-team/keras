@@ -400,7 +400,7 @@ class DepthwiseConvCorrectnessTest(testing.TestCase):
             data_format=data_format,
             dilation_rate=dilation_rate,
         )
-        self.assertAllClose(outputs, expected)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
     @parameterized.parameters(
         {
@@ -465,5 +465,9 @@ class DepthwiseConvCorrectnessTest(testing.TestCase):
             data_format=data_format,
             dilation_rate=dilation_rate,
         )
-        self.assertAllClose(outputs.shape, expected.shape)
-        self.assertAllClose(outputs, expected, atol=1e-5)
+        self.assertAllClose(
+            outputs.shape, expected.shape, tpu_atol=1e-2, tpu_rtol=1e-2
+        )
+        self.assertAllClose(
+            outputs, expected, atol=1e-5, tpu_atol=1e-1, tpu_rtol=1e-1
+        )

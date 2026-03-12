@@ -3,7 +3,8 @@ import os
 import sys
 import time
 
-from keras.src import backend
+import numpy as np
+
 from keras.src.api_export import keras_export
 from keras.src.utils import io_utils
 
@@ -118,7 +119,7 @@ class Progbar:
             else:
                 message += "\n"
 
-            if self.target is not None:
+            if self.target is not None and self.target > 0:
                 numdigits = int(math.log10(self.target)) + 1
                 bar = (f"%{numdigits}d/%d") % (current, self.target)
                 bar = f"\x1b[1m{bar}\x1b[0m "
@@ -137,7 +138,7 @@ class Progbar:
             message += bar
 
             # Add ETA if applicable
-            if self.target is not None and not finalize:
+            if self.target is not None and self.target > 0 and not finalize:
                 eta = time_per_unit * (self.target - current)
                 if eta > 3600:
                     eta_format = "%d:%02d:%02d" % (
@@ -162,12 +163,10 @@ class Progbar:
             for k in self._values_order:
                 info += f" - {k}:"
                 if isinstance(self._values[k], list):
-                    avg = backend.convert_to_numpy(
-                        backend.numpy.mean(
-                            self._values[k][0] / max(1, self._values[k][1])
-                        )
-                    )
-                    avg = float(avg)
+                    values, count = self._values[k]
+                    if not isinstance(values, float):
+                        values = np.mean(values)
+                    avg = values / max(1, count)
                     if abs(avg) > 1e-3:
                         info += f" {avg:.4f}"
                     else:
@@ -187,18 +186,17 @@ class Progbar:
             message = ""
 
         elif self.verbose == 2:
-            if finalize:
+            if finalize and self.target is not None and self.target > 0:
                 numdigits = int(math.log10(self.target)) + 1
                 count = f"%{numdigits}d/%d" % (current, self.target)
                 info = f"{count} - {now - self._start:.0f}s"
                 info += f" -{self._format_time(time_per_unit, self.unit_name)}"
                 for k in self._values_order:
                     info += f" - {k}:"
-                    avg = backend.convert_to_numpy(
-                        backend.numpy.mean(
-                            self._values[k][0] / max(1, self._values[k][1])
-                        )
-                    )
+                    values, count = self._values[k]
+                    if not isinstance(values, float):
+                        values = np.mean(values)
+                    avg = values / max(1, count)
                     if avg > 1e-3:
                         info += f" {avg:.4f}"
                     else:

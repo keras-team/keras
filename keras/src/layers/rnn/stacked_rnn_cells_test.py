@@ -138,7 +138,10 @@ class StackedRNNTest(testing.TestCase):
         layer = layers.RNN([OneStateRNNCell(3), OneStateRNNCell(2)])
         output = layer(sequence)
         self.assertAllClose(
-            np.array([[786.0, 786.0], [4386.0, 4386.0]]), output
+            np.array([[786.0, 786.0], [4386.0, 4386.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
         layer = layers.RNN(
@@ -153,6 +156,8 @@ class StackedRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
         layer = layers.RNN(
@@ -160,13 +165,19 @@ class StackedRNNTest(testing.TestCase):
         )
         output, state_1, state_2 = layer(sequence)
         self.assertAllClose(
-            np.array([[786.0, 786.0], [4386.0, 4386.0]]), output
+            np.array([[786.0, 786.0], [4386.0, 4386.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
             np.array([[158.0, 158.0, 158.0], [782.0, 782.0, 782.0]]), state_1
         )
         self.assertAllClose(
-            np.array([[786.0, 786.0], [4386.0, 4386.0]]), state_2
+            np.array([[786.0, 786.0], [4386.0, 4386.0]]),
+            state_2,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
         layer = layers.RNN(
@@ -183,12 +194,20 @@ class StackedRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            np.array([[158.0, 158.0, 158.0], [782.0, 782.0, 782.0]]), state_1
+            np.array([[158.0, 158.0, 158.0], [782.0, 782.0, 782.0]]),
+            state_1,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            np.array([[786.0, 786.0], [4386.0, 4386.0]]), state_2
+            np.array([[786.0, 786.0], [4386.0, 4386.0]]),
+            state_2,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_correctness_two_states_stack(self):
@@ -196,7 +215,10 @@ class StackedRNNTest(testing.TestCase):
         layer = layers.RNN([TwoStatesRNNCell(3), TwoStatesRNNCell(2)])
         output = layer(sequence)
         self.assertAllClose(
-            np.array([[3144.0, 3144.0], [17544.0, 17544.0]]), output
+            np.array([[3144.0, 3144.0], [17544.0, 17544.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
         layer = layers.RNN(
@@ -211,6 +233,8 @@ class StackedRNNTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
         layer = layers.RNN(
@@ -219,19 +243,34 @@ class StackedRNNTest(testing.TestCase):
         output, state_1, state_2 = layer(sequence)
 
         self.assertAllClose(
-            np.array([[3144.0, 3144.0], [17544.0, 17544.0]]), output
+            np.array([[3144.0, 3144.0], [17544.0, 17544.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            np.array([[158.0, 158.0, 158.0], [782.0, 782.0, 782.0]]), state_1[0]
+            np.array([[158.0, 158.0, 158.0], [782.0, 782.0, 782.0]]),
+            state_1[0],
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            np.array([[158.0, 158.0, 158.0], [782.0, 782.0, 782.0]]), state_1[1]
+            np.array([[158.0, 158.0, 158.0], [782.0, 782.0, 782.0]]),
+            state_1[1],
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            np.array([[1572.0, 1572.0], [8772.0, 8772.0]]), state_2[0]
+            np.array([[1572.0, 1572.0], [8772.0, 8772.0]]),
+            state_2[0],
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            np.array([[1572.0, 1572.0], [8772.0, 8772.0]]), state_2[1]
+            np.array([[1572.0, 1572.0], [8772.0, 8772.0]]),
+            state_2[1],
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_statefullness_single_state_stack(self):
@@ -242,7 +281,10 @@ class StackedRNNTest(testing.TestCase):
         layer(sequence)
         output = layer(sequence)
         self.assertAllClose(
-            np.array([[34092.0, 34092.0], [173196.0, 173196.0]]), output
+            np.array([[34092.0, 34092.0], [173196.0, 173196.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_statefullness_two_states_stack(self):
@@ -253,7 +295,10 @@ class StackedRNNTest(testing.TestCase):
         layer(sequence)
         output = layer(sequence)
         self.assertAllClose(
-            np.array([[136368.0, 136368.0], [692784.0, 692784.0]]), output
+            np.array([[136368.0, 136368.0], [692784.0, 692784.0]]),
+            output,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_return_state_stacked_lstm_cell(self):

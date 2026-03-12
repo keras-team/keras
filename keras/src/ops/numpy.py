@@ -301,31 +301,54 @@ def all(x, axis=None, keepdims=False):
     return backend.numpy.all(x, axis=axis, keepdims=keepdims)
 
 
-class Any(Operation):
-    def __init__(self, axis=None, keepdims=False, *, name=None):
+class AllClose(Operation):
+    def __init__(self, rtol=1e-05, atol=1e-08, equal_nan=False, *, name=None):
         super().__init__(name=name)
-        if isinstance(axis, int):
-            self.axis = [axis]
-        else:
-            self.axis = axis
-        self.keepdims = keepdims
+        self.rtol = rtol
+        self.atol = atol
+        self.equal_nan = equal_nan
 
-    def call(self, x):
-        return backend.numpy.any(
-            x,
-            axis=self.axis,
-            keepdims=self.keepdims,
+    def call(self, x1, x2):
+        return backend.numpy.allclose(
+            x1,
+            x2,
+            rtol=self.rtol,
+            atol=self.atol,
+            equal_nan=self.equal_nan,
         )
 
-    def compute_output_spec(self, x):
-        return KerasTensor(
-            reduce_shape(
-                x.shape,
-                axis=self.axis,
-                keepdims=self.keepdims,
-            ),
-            dtype="bool",
-        )
+    def compute_output_spec(self, x1, x2):
+        return KerasTensor([], dtype="bool")
+
+
+@keras_export(["keras.ops.allclose", "keras.ops.numpy.allclose"])
+def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+    """Returns True if two arrays are element-wise equal within a tolerance.
+
+    The tolerance values are positive, typically very small numbers.  The
+    relative difference (`rtol * abs(b)`) and the absolute difference
+    `atol` are added together to compare against the absolute difference
+    between `a` and `b`.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+        rtol: The relative tolerance parameter (see Notes).
+        atol: The absolute tolerance parameter (see Notes).
+        equal_nan: Whether to compare NaN's as equal.  If True, NaN's in
+            `a` will be considered equal to NaN's in `b` in the output array.
+
+    Returns:
+        True if the two arrays are equal within the given tolerance;
+        False otherwise.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return AllClose(
+            rtol=rtol, atol=atol, equal_nan=equal_nan
+        ).symbolic_call(x1, x2)
+    return backend.numpy.allclose(
+        x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+    )
 
 
 class Angle(Operation):
@@ -361,6 +384,33 @@ def angle(x):
     if any_symbolic_tensors((x,)):
         return Angle().symbolic_call(x)
     return backend.numpy.angle(x)
+
+
+class Any(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.any(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        return KerasTensor(
+            reduce_shape(
+                x.shape,
+                axis=self.axis,
+                keepdims=self.keepdims,
+            ),
+            dtype="bool",
+        )
 
 
 @keras_export(["keras.ops.any", "keras.ops.numpy.any"])
@@ -593,29 +643,30 @@ def append(
 class Arange(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
-    def call(self, start, stop=None, step=1):
+    def call(self, start, stop=None, step=None):
         return backend.numpy.arange(start, stop, step=step, dtype=self.dtype)
 
-    def compute_output_spec(self, start, stop=None, step=1):
+    def compute_output_spec(self, start, stop=None, step=None):
         if stop is None:
             start, stop = 0, start
+        if step is None:
+            step = 1
         output_shape = [int(np.ceil((stop - start) / step))]
         dtype = self.dtype
         if dtype is None:
-            dtypes_to_resolve = [
-                getattr(start, "dtype", type(start)),
-                getattr(step, "dtype", type(step)),
-            ]
+            dtypes_to_resolve = [getattr(start, "dtype", type(start))]
             if stop is not None:
                 dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+            if step is not None:
+                dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
             dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.arange", "keras.ops.numpy.arange"])
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     """Return evenly spaced values within a given interval.
 
     `arange` can be called with a varying number of positional arguments:
@@ -660,6 +711,7 @@ def arange(start, stop=None, step=1, dtype=None):
     >>> keras.ops.arange(3, 7, 2)
     array([3, 5], dtype=int32)
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop, step)):
         return Arange(dtype=dtype).symbolic_call(start, stop, step=step)
     return backend.numpy.arange(start, stop, step=step, dtype=dtype)
@@ -923,6 +975,11 @@ def arctanh(x):
 
     Returns:
         Output tensor of same shape as `x`.
+
+    Example:
+    >>> x = keras.ops.convert_to_tensor([0, -0.5])
+    >>> keras.ops.arctanh(x)
+    array([ 0.        , -0.54930615], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Arctanh().symbolic_call(x)
@@ -1086,7 +1143,7 @@ def argsort(x, axis=-1):
 class Array(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.array(x, dtype=self.dtype)
@@ -1118,9 +1175,73 @@ def array(x, dtype=None):
     >>> keras.ops.array([1, 2, 3], dtype="float32")
     array([1., 2., 3.], dtype=float32)
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Array(dtype=dtype).symbolic_call(x)
     return backend.numpy.array(x, dtype=dtype)
+
+
+class View(Operation):
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.view(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        old_dtype = backend.standardize_dtype(x.dtype)
+        new_dtype = backend.standardize_dtype(
+            self.dtype if self.dtype else x.dtype
+        )
+
+        old_itemsize = np.dtype(old_dtype).itemsize
+        new_itemsize = np.dtype(new_dtype).itemsize
+
+        if old_itemsize == new_itemsize:
+            return KerasTensor(x.shape, dtype=new_dtype)
+
+        if not x.shape:
+            raise ValueError(
+                "Cannot view a scalar as a different dtype if item sizes "
+                "are different."
+            )
+
+        output_shape = list(x.shape)
+        if output_shape[-1] is not None:
+            if (output_shape[-1] * old_itemsize) % new_itemsize != 0:
+                raise ValueError(
+                    f"Cannot view array of shape {x.shape} and dtype {x.dtype} "
+                    f"as dtype {new_dtype} because the total number of bytes "
+                    "is not divisible by the new itemsize."
+                )
+            output_shape[-1] = output_shape[-1] * old_itemsize // new_itemsize
+        return KerasTensor(tuple(output_shape), dtype=new_dtype)
+
+
+@keras_export(["keras.ops.view", "keras.ops.numpy.view"])
+def view(x, dtype=None):
+    """Create a new bitwise view of the same data with the specified dtype.
+
+    Args:
+        x: Input tensor.
+        dtype: Data-type descriptor of the returned view,
+            e.g., float32 or int16.
+
+    Returns:
+        View of a tensor with data type dtype.
+
+    Examples:
+    >>> x = keras.ops.array([1, 2, 3])
+    >>> x
+    array([1, 2, 3], dtype=int32)
+    >>> keras.ops.view(x, dtype="float32")
+    array([1.0e-45, 3.0e-45, 4.0e-45], dtype=float32)
+    """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((x,)):
+        return View(dtype=dtype).symbolic_call(x)
+    return backend.numpy.view(x, dtype=dtype)
 
 
 class Average(Operation):
@@ -2254,7 +2375,7 @@ class Cumprod(Operation):
     def __init__(self, axis=None, dtype=None, *, name=None):
         super().__init__(name=name)
         self.axis = axis
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.cumprod(x, axis=self.axis, dtype=self.dtype)
@@ -2290,14 +2411,17 @@ def cumprod(x, axis=None, dtype=None):
     Returns:
         Output tensor.
     """
-    return Cumprod(axis=axis, dtype=dtype)(x)
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((x,)):
+        return Cumprod(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.cumprod(x, axis=axis, dtype=dtype)
 
 
 class Cumsum(Operation):
     def __init__(self, axis=None, dtype=None, *, name=None):
         super().__init__(name=name)
         self.axis = axis
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.cumsum(x, axis=self.axis, dtype=self.dtype)
@@ -2333,7 +2457,10 @@ def cumsum(x, axis=None, dtype=None):
     Returns:
         Output tensor.
     """
-    return Cumsum(axis=axis, dtype=dtype)(x)
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((x,)):
+        return Cumsum(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.cumsum(x, axis=axis, dtype=dtype)
 
 
 class Deg2rad(Operation):
@@ -2769,6 +2896,80 @@ def dot(x1, x2):
     return backend.numpy.dot(x1, x2)
 
 
+class Dstack(Operation):
+    def call(self, xs):
+        return backend.numpy.dstack(xs)
+
+    def compute_output_spec(self, xs):
+        dtypes_to_resolve = []
+        out_shapes = []
+        for x in xs:
+            shape = list(x.shape)
+            if len(shape) == 0:
+                shape = [1, 1, 1]
+            elif len(shape) == 1:
+                shape = [1, shape[0], 1]
+            elif len(shape) == 2:
+                shape = shape + [1]
+            out_shapes.append(shape)
+            dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
+
+        first_shape = out_shapes[0]
+        total_depth = 0
+        for shape in out_shapes:
+            if not shape_equal(shape, first_shape, axis=[2], allow_none=True):
+                raise ValueError(
+                    "Every value in `xs` must have the same shape except on "
+                    f"the `axis` dim. But found element of shape {shape}, "
+                    f"which is different from the first element's "
+                    f"shape {first_shape}."
+                )
+            if total_depth is None or shape[2] is None:
+                total_depth = None
+            else:
+                total_depth += shape[2]
+
+        output_shape = list(first_shape)
+        output_shape[2] = total_depth
+        dtype = dtypes.result_type(*dtypes_to_resolve)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.dstack", "keras.ops.numpy.dstack"])
+def dstack(xs):
+    """Stack tensors in sequence depth wise (along third axis).
+
+    This is equivalent to concatenation along the third axis after 2-D tensors
+    of shape `(M, N)` have been reshaped to `(M, N, 1)` and 1-D tensors of shape
+    `(N,)` have been reshaped to `(1, N, 1)`.
+
+    Args:
+        xs: Sequence of tensors.
+
+    Returns:
+        The tensor formed by stacking the given tensors.
+
+    Examples:
+    >>> import keras
+    >>> x = keras.ops.array([1, 2, 3])
+    >>> y = keras.ops.array([4, 5, 6])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4],
+            [2, 5],
+            [3, 6]]])
+
+    >>> x = keras.ops.array([[1], [2], [3]])
+    >>> y = keras.ops.array([[4], [5], [6]])
+    >>> keras.ops.dstack([x, y])
+    array([[[1, 4]],
+           [[2, 5]],
+           [[3, 6]]])
+    """
+    if any_symbolic_tensors((xs,)):
+        return Dstack().symbolic_call(xs)
+    return backend.numpy.dstack(xs)
+
+
 class Einsum(Operation):
     def __init__(self, subscripts, *, name=None):
         super().__init__(name=name)
@@ -3051,6 +3252,49 @@ def empty(shape, dtype=None):
     return backend.numpy.empty(shape, dtype=dtype)
 
 
+class EmptyLike(Operation):
+    def __init__(self, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.empty_like(x, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.empty_like", "keras.ops.numpy.empty_like"])
+def empty_like(x, dtype=None):
+    """Return a new uninitialized tensor with the same shape and dtype as `x`.
+
+    Args:
+        x: Input tensor to mimic shape and dtype.
+        dtype: Optional data type. If None, uses `x.dtype`.
+
+    Returns:
+        A tensor with the same shape and dtype as `x`, with arbitrary contents.
+
+    Example:
+    >>> from keras import ops
+    >>> x = ops.ones((2, 3), dtype="float32")
+    >>> y = ops.empty_like(x)
+    >>> y.shape
+    (2, 3)
+    >>> y.dtype
+    dtype('float32')
+    """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((x,)):
+        return EmptyLike(dtype=dtype).symbolic_call(x)
+    return backend.numpy.empty_like(x, dtype=dtype)
+
+
 class Equal(Operation):
     def call(self, x1, x2):
         return backend.numpy.equal(x1, x2)
@@ -3268,7 +3512,7 @@ class Full(Operation):
     def __init__(self, shape, dtype=None, *, name=None):
         super().__init__(name=name)
         self.shape = shape
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, fill_value):
         return backend.numpy.full(self.shape, fill_value, dtype=self.dtype)
@@ -3290,6 +3534,7 @@ def full(shape, fill_value, dtype=None):
     Returns:
         Output tensor.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((fill_value,)):
         return Full(shape=shape, dtype=dtype).symbolic_call(fill_value)
     return backend.numpy.full(shape, fill_value, dtype=dtype)
@@ -3298,7 +3543,7 @@ def full(shape, fill_value, dtype=None):
 class FullLike(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x, fill_value):
         return backend.numpy.full_like(x, fill_value, dtype=self.dtype)
@@ -3324,6 +3569,7 @@ def full_like(x, fill_value, dtype=None):
     Returns:
         Tensor of `fill_value` with the same shape and type as `x`.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x, fill_value)):
         return FullLike(dtype=dtype).symbolic_call(x, fill_value)
     return backend.numpy.full_like(x, fill_value, dtype=dtype)
@@ -3441,6 +3687,80 @@ def get_item(x, key):
     return x[key]
 
 
+class Geomspace(Operation):
+    def __init__(self, num=50, endpoint=True, dtype=None, axis=0, *, name=None):
+        super().__init__(name=name)
+        self.num = num
+        self.endpoint = endpoint
+        self.dtype = dtype
+        self.axis = axis
+
+    def call(self, start, stop):
+        return backend.numpy.geomspace(
+            start,
+            stop,
+            num=self.num,
+            endpoint=self.endpoint,
+            dtype=self.dtype,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, start, stop):
+        start_shape = getattr(start, "shape", [])
+        stop_shape = getattr(stop, "shape", [])
+        output_shape = broadcast_shapes(start_shape, stop_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape = list(output_shape)
+        output_shape.insert(axis, self.num)
+        dtype = (
+            self.dtype
+            if self.dtype is not None
+            else backend.standardize_dtype(getattr(start, "dtype", type(start)))
+        )
+        dtype = backend.result_type(dtype, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.geomspace", "keras.ops.numpy.geomspace"])
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    """Returns numbers spaced evenly on a log scale (a geometric progression).
+
+    This is similar to `logspace`, but with endpoints specified directly
+    instead of as logarithms. Each output sample is a constant multiple of
+    the previous.
+
+    Args:
+        start: The starting value of the sequence.
+        stop: The final value of the sequence, unless `endpoint` is `False`.
+            In that case, `num + 1` values are spaced over the interval in
+            log-space, of which all but the last (a sequence of length `num`)
+            are returned.
+        num: Number of samples to generate. Defaults to `50`.
+        endpoint: If `True`, `stop` is the last sample. Otherwise, it is not
+            included. Defaults to `True`.
+        dtype: The type of the output tensor.
+        axis: The axis in the result to store the samples. Relevant only
+            if start or stop are array-like.
+
+    Note:
+        Torch backend does not support `axis` argument.
+
+    Returns:
+        A tensor of `num` samples, evenly spaced on a log scale.
+    """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((start, stop)):
+        return Geomspace(num, endpoint, dtype, axis)(start, stop)
+    return backend.numpy.geomspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        dtype=dtype,
+        axis=axis,
+    )
+
+
 class Greater(Operation):
     def call(self, x1, x2):
         return backend.numpy.greater(x1, x2)
@@ -3543,6 +3863,72 @@ def hstack(xs):
     if any_symbolic_tensors((xs,)):
         return Hstack().symbolic_call(xs)
     return backend.numpy.hstack(xs)
+
+
+class Hsplit(Operation):
+    def __init__(self, indices_or_sections, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(indices_or_sections, int):
+            indices_or_sections = tuple(indices_or_sections)
+        self.indices_or_sections = indices_or_sections
+
+    def call(self, x):
+        return backend.numpy.hsplit(x, self.indices_or_sections)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                "`hsplit` only works on arrays of at least 1 dimension. "
+                f"Received array with shape {x.shape}."
+            )
+
+        axis = 0 if len(x.shape) == 1 else 1
+        return _compute_split_output_spec(x, self.indices_or_sections, axis)
+
+
+@keras_export(["keras.ops.hsplit", "keras.ops.numpy.hsplit"])
+def hsplit(x, indices_or_sections):
+    """Split an array into multiple sub-arrays horizontally (column-wise).
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: If an integer, N, the tensor will be split into N
+            equal sections along axis 1 (if ndim >= 2) or axis 0 (if ndim == 1).
+            If a 1-D array of sorted integers, the entries indicate indices at
+            which the tensor will be split along the axis.
+
+    Returns:
+        A list of sub-arrays.
+
+    Example:
+
+    >>> x = keras.ops.arange(16.0).reshape((4, 4))
+    >>> keras.ops.hsplit(x, 2)
+    [array([[ 0.,  1.],
+           [ 4.,  5.],
+           [ 8.,  9.],
+           [12., 13.]]),
+     array([[ 2.,  3.],
+           [ 6.,  7.],
+           [10., 11.],
+           [14., 15.]])]
+    >>> keras.ops.hsplit(x, [1, 3])
+    [array([[0.],
+        [4.],
+        [8.],
+        [12.]]),
+    array([[1., 2.],
+        [5., 6.],
+        [9., 10.],
+        [13., 14.]]),
+    array([[3.],
+        [7.],
+        [11.],
+        [15.]])]
+    """
+    if any_symbolic_tensors((x,)):
+        return Hsplit(indices_or_sections).symbolic_call(x)
+    return backend.numpy.hsplit(x, indices_or_sections)
 
 
 class Hypot(Operation):
@@ -3845,6 +4231,35 @@ def isposinf(x):
     return backend.numpy.isposinf(x)
 
 
+class Isreal(Operation):
+    def call(self, x):
+        return backend.numpy.isreal(x)
+
+    def compute_output_spec(self, x):
+        return KerasTensor(x.shape, dtype="bool")
+
+
+@keras_export(["keras.ops.isreal", "keras.ops.numpy.isreal"])
+def isreal(x):
+    """Test element-wise for real numbers.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output boolean tensor.
+
+    Example:
+    >>> from keras import ops
+    >>> x = ops.array([1+1j, 1+0j, 4.5, 3, 2, 2j], dtype="complex64")
+    >>> ops.isreal(x)
+    array([False,  True,  True,  True,  True, False])
+    """
+    if any_symbolic_tensors((x,)):
+        return Isreal().symbolic_call(x)
+    return backend.numpy.isreal(x)
+
+
 class Kron(Operation):
     def call(self, x1, x2):
         return backend.numpy.kron(x1, x2)
@@ -3923,6 +4338,46 @@ def lcm(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Lcm().symbolic_call(x1, x2)
     return backend.numpy.lcm(x1, x2)
+
+
+class Ldexp(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.ldexp(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.ldexp", "keras.ops.numpy.ldexp"])
+def ldexp(x1, x2):
+    """Multiply `x1` by 2 raised to the power of `x2`, element-wise.
+
+    This function computes:
+        ldexp(x1, x2) = x1 * 2**x2
+
+    Args:
+        x1: Float input tensor.
+        x2: Integer exponent tensor.
+
+    Returns:
+        Output tensor
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([0.75, 1.5])
+    >>> x2 = keras.ops.convert_to_tensor([1, 2])
+    >>> keras.ops.ldexp(x1, x2)
+    array([1.5, 6. ], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Ldexp().symbolic_call(x1, x2)
+    return backend.numpy.ldexp(x1, x2)
 
 
 class Less(Operation):
@@ -4017,20 +4472,9 @@ class Linspace(Operation):
         start_shape = getattr(start, "shape", [])
         stop_shape = getattr(stop, "shape", [])
         output_shape = broadcast_shapes(start_shape, stop_shape)
-        if self.axis == -1:
-            output_shape = output_shape + [self.num]
-        elif self.axis >= 0:
-            output_shape = (
-                output_shape[: self.axis]
-                + [self.num]
-                + output_shape[self.axis :]
-            )
-        else:
-            output_shape = (
-                output_shape[: self.axis + 1]
-                + [self.num]
-                + output_shape[self.axis + 1 :]
-            )
+        output_shape = list(output_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape.insert(axis, self.num)
 
         dtype = (
             self.dtype
@@ -4240,6 +4684,47 @@ def logaddexp(x1, x2):
     return backend.numpy.logaddexp(x1, x2)
 
 
+class Logaddexp2(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.logaddexp2(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+            float,
+        )
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.logaddexp2", "keras.ops.numpy.logaddexp2"])
+def logaddexp2(x1, x2):
+    """Base-2 logarithm of the sum of exponentiations of the inputs.
+
+    Calculates `log2(2**x1 + 2**x2)`.
+
+    Args:
+        x1: Input tensor.
+        x2: Input tensor.
+
+    Returns:
+        Output tensor, element-wise log base 2 of the sum of 2**x1 and 2**x2.
+
+    Example:
+    >>> from keras import ops
+    >>> x1 = ops.array([1, 2, 3])
+    >>> x2 = ops.array([1, 2, 3])
+    >>> ops.logaddexp2(x1, x2)
+    array([2., 3., 4.], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Logaddexp2().symbolic_call(x1, x2)
+    return backend.numpy.logaddexp2(x1, x2)
+
+
 class LogicalAnd(Operation):
     def call(self, x1, x2):
         return backend.numpy.logical_and(x1, x2)
@@ -4346,7 +4831,7 @@ class Logspace(Operation):
         self.num = num
         self.endpoint = endpoint
         self.base = base
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
         self.axis = axis
 
     def call(self, start, stop):
@@ -4364,20 +4849,9 @@ class Logspace(Operation):
         start_shape = getattr(start, "shape", [])
         stop_shape = getattr(stop, "shape", [])
         output_shape = broadcast_shapes(start_shape, stop_shape)
-        if self.axis == -1:
-            output_shape = output_shape + [self.num]
-        elif self.axis >= 0:
-            output_shape = (
-                output_shape[: self.axis]
-                + [self.num]
-                + output_shape[self.axis :]
-            )
-        else:
-            output_shape = (
-                output_shape[: self.axis + 1]
-                + [self.num]
-                + output_shape[self.axis + 1 :]
-            )
+        output_shape = list(output_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape.insert(axis, self.num)
         dtype = (
             self.dtype
             if self.dtype is not None
@@ -4414,6 +4888,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
     Returns:
         A tensor of evenly spaced samples on a log scale.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((start, stop)):
         return Logspace(num, endpoint, base, dtype, axis)(start, stop)
     return backend.numpy.logspace(
@@ -4844,6 +5319,644 @@ def moveaxis(x, source, destination):
     return backend.numpy.moveaxis(x, source=source, destination=destination)
 
 
+class Nanargmax(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanargmax(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        axis = [self.axis] if self.axis is not None else None
+        return KerasTensor(
+            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
+            dtype="int32",
+        )
+
+
+@keras_export(["keras.ops.nanargmax", "keras.ops.numpy.nanargmax"])
+def nanargmax(x, axis=None, keepdims=False):
+    """Returns the indices of the maximum values along an axis, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: By default, the index is into the flattened tensor, otherwise
+            along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Tensor of indices. It has the same shape as `x`, with the dimension
+        along `axis` removed. NaN values are ignored when computing the maximum.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 0.0]])
+
+    >>> ops.nanargmax(x)
+    array(2, dtype=int32)
+
+    >>> ops.nanargmax(x, axis=0)
+    array([0, 1, 0], dtype=int32)
+
+    >>> ops.nanargmax(x, axis=1)
+    array([2, 1], dtype=int32)
+
+    >>> ops.nanargmax(x, axis=1, keepdims=True)
+    array([[2],
+           [1]], dtype=int32)
+    """
+
+    if any_symbolic_tensors((x,)):
+        return Nanargmax(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
+
+
+class Nanargmin(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanargmin(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        axis = [self.axis] if self.axis is not None else None
+        return KerasTensor(
+            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
+            dtype="int32",
+        )
+
+
+@keras_export(["keras.ops.nanargmin", "keras.ops.numpy.nanargmin"])
+def nanargmin(x, axis=None, keepdims=False):
+    """Returns the indices of the minimum values along an axis, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: By default, the index is into the flattened tensor, otherwise
+            along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+                in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Tensor of indices. It has the same shape as `x`, with the dimension
+        along `axis` removed. NaN values are ignored when computing the minimum.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 0.0]])
+
+    >>> ops.nanargmin(x)
+    array(5, dtype=int32)
+
+    >>> ops.nanargmin(x, axis=0)
+    array([0, 1, 1], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1)
+    array([0, 2], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1, keepdims=True)
+    array([[0],
+           [2]], dtype=int32)
+    """
+
+    if any_symbolic_tensors((x,)):
+        return Nanargmin(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+
+
+class Nancumsum(Operation):
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.nancumsum(x, axis=self.axis, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+        else:
+            output_shape = x.shape
+
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+
+        if output_dtype == "bool":
+            output_dtype = "int32"
+
+        return KerasTensor(output_shape, output_dtype)
+
+
+@keras_export(["keras.ops.nancumsum", "keras.ops.numpy.nancumsum"])
+def nancumsum(x, axis=None, dtype=None):
+    """Returns the cumulative sum of elements along a given axis,
+    treating NaNs as zero.
+
+    Args:
+        x: Input tensor.
+        axis: Axis along which the cumulative sum is computed.
+            By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
+
+    Returns:
+        Output tensor.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nancumsum(x)
+    array([1., 1., 4., 4., 6., 7.])
+
+    >>> ops.nancumsum(x, axis=1)
+    array([[1., 1., 4.],
+           [0., 2., 3.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nancumsum(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.nancumsum(x, axis=axis, dtype=dtype)
+
+
+class Nancumprod(Operation):
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.nancumprod(x, axis=self.axis, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+        else:
+            output_shape = x.shape
+
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+
+        if output_dtype == "bool":
+            output_dtype = "int32"
+
+        return KerasTensor(output_shape, output_dtype)
+
+
+@keras_export(["keras.ops.nancumprod", "keras.ops.numpy.nancumprod"])
+def nancumprod(x, axis=None, dtype=None):
+    """Returns the cumulative product of elements along a given axis,
+    treating NaNs as one.
+
+    Args:
+        x: Input tensor.
+        axis: Axis along which the cumulative product is computed.
+            By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
+
+    Returns:
+        Output tensor.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nancumprod(x)
+    array([1., 1., 3., 3., 6., 6.])
+
+    >>> ops.nancumprod(x, axis=1)
+    array([[1., 1., 3.],
+           [1., 2., 2.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nancumprod(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.nancumprod(x, axis=axis, dtype=dtype)
+
+
+class Nanmax(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanmax(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanmax", "keras.ops.numpy.nanmax"])
+def nanmax(x, axis=None, keepdims=False):
+    """Maximum of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the maximum is computed.
+            The default is to compute the maximum of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults
+            to `False`.
+
+    Returns:
+        Output tensor containing the maximum, with NaN values ignored. If all
+        values along a reduced axis are NaN, the result is NaN.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanmax(x)
+    3.0
+
+    >>> ops.nanmax(x, axis=1)
+    array([3., 2.])
+
+    >>> ops.nanmax(x, axis=1, keepdims=True)
+    array([[3.],
+           [2.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanmax(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanmax(x, axis=axis, keepdims=keepdims)
+
+
+class Nanmean(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanmean(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanmean", "keras.ops.numpy.nanmean"])
+def nanmean(x, axis=None, keepdims=False):
+    """Mean of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the mean is computed.
+            The default is to compute the mean of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults
+            to `False`.
+
+    Returns:
+        Output tensor containing the mean, with NaN values ignored.
+        If all values along a reduced axis are NaN, the result is NaN.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanmean(x)
+    1.75
+
+    >>> ops.nanmean(x, axis=1)
+    array([2., 1.5])
+
+    >>> ops.nanmean(x, axis=1, keepdims=True)
+    array([[2. ],
+           [1.5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanmean(axis=axis, keepdims=keepdims).symbolic_call(x)
+
+    return backend.numpy.nanmean(x, axis=axis, keepdims=keepdims)
+
+
+class Nanmin(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanmin(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanmin", "keras.ops.numpy.nanmin"])
+def nanmin(x, axis=None, keepdims=False):
+    """Minimum of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the minimum is computed.
+            The default is to compute the minimum of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Returns:
+        Output tensor containing the minimum, with NaN values ignored. If all
+        values along a reduced axis are NaN, the result is NaN.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanmin(x)
+    1.0
+
+    >>> ops.nanmin(x, axis=1)
+    array([1., 1.])
+
+    >>> ops.nanmin(x, axis=1, keepdims=True)
+    array([[1.],
+           [1.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanmin(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanmin(x, axis=axis, keepdims=keepdims)
+
+
+class Nanprod(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanprod(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+
+        if dtype == "bool":
+            dtype = "int32"
+        elif dtype in ("int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanprod", "keras.ops.numpy.nanprod"])
+def nanprod(x, axis=None, keepdims=False):
+    """Product of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the product is computed. The default is
+            to compute the product of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Returns:
+        Output tensor containing the product, with NaN values ignored.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanprod(x)
+    6.0
+
+    >>> ops.nanprod(x, axis=1)
+    array([3., 2.])
+
+    >>> ops.nanprod(x, axis=1, keepdims=True)
+    array([[3.],
+           [2.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
+
+
+class Nanstd(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanstd(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanstd", "keras.ops.numpy.nanstd"])
+def nanstd(x, axis=None, keepdims=False):
+    """Compute the standard deviation along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the standard deviation is computed.
+            The default is to compute the std of the flattened tensor.
+        keepdims: If `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Output tensor containing the standard deviation ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanstd(x)
+    0.8291562
+
+    >>> ops.nanstd(x, axis=1)
+    array([1. , 0.5])
+
+    >>> ops.nanstd(x, axis=1, keepdims=True)
+    array([[1. ],
+           [0.5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanstd(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanstd(x, axis=axis, keepdims=keepdims)
+
+
+class Nansum(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nansum(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(getattr(x, "dtype", backend.floatx()))
+
+        if dtype in ("bool", "int8", "int16"):
+            dtype = "int32"
+        elif dtype in ("uint8", "uint16"):
+            dtype = "uint32"
+
+        if backend.backend() == "torch" and dtype == "uint32":
+            dtype = "int32"
+        sparse = getattr(x, "sparse", False)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+            sparse=sparse,
+        )
+
+
+@keras_export(["keras.ops.nansum", "keras.ops.numpy.nansum"])
+def nansum(x, axis=None, keepdims=False):
+    """Sum of a tensor over the given axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the sum is computed. The default is to
+            compute the sum of the flattened tensor.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one.
+
+    Returns:
+        Output tensor containing the sum, with NaN values ignored.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nansum(x)
+    7.0
+
+    >>> ops.nansum(x, axis=1)
+    array([4., 3.])
+
+    >>> ops.nansum(x, axis=1, keepdims=True)
+    array([[4.],
+           [3.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nansum(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nansum(x, axis=axis, keepdims=keepdims)
+
+
+class Nanvar(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanvar(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanvar", "keras.ops.numpy.nanvar"])
+def nanvar(x, axis=None, keepdims=False):
+    """Compute the variance along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the variance is computed. The default
+            is to compute the variance of the flattened tensor.
+        keepdims: If `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Output tensor containing the variance ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanvar(x)
+    0.6875
+
+    >>> ops.nanvar(x, axis=1)
+    array([1.  , 0.25])
+
+    >>> ops.nanvar(x, axis=1, keepdims=True)
+    array([[1.  ],
+           [0.25]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanvar(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanvar(x, axis=axis, keepdims=keepdims)
+
+
 class NanToNum(Operation):
     def __init__(self, nan=0.0, posinf=None, neginf=None, *, name=None):
         super().__init__(name=name)
@@ -4965,7 +6078,7 @@ def not_equal(x1, x2):
 class OnesLike(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.ones_like(x, dtype=self.dtype)
@@ -4991,6 +6104,7 @@ def ones_like(x, dtype=None):
     Returns:
         A tensor of ones with the same shape and type as `x`.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return OnesLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.ones_like(x, dtype=dtype)
@@ -4999,7 +6113,7 @@ def ones_like(x, dtype=None):
 class ZerosLike(Operation):
     def __init__(self, dtype=None, *, name=None):
         super().__init__(name=name)
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.zeros_like(x, dtype=self.dtype)
@@ -5030,6 +6144,7 @@ def zeros_like(x, dtype=None):
     Returns:
         A tensor of zeros with the same shape and type as `x`.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return ZerosLike(dtype=dtype).symbolic_call(x)
     return backend.numpy.zeros_like(x, dtype=dtype)
@@ -5185,7 +6300,7 @@ class Prod(Operation):
         else:
             self.axis = axis
         self.keepdims = keepdims
-        self.dtype = None if dtype is None else backend.standardize_dtype(dtype)
+        self.dtype = dtype
 
     def call(self, x):
         return backend.numpy.prod(
@@ -5231,9 +6346,78 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     Returns:
         Product of elements of `x` over the given axis or axes.
     """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
         return Prod(axis=axis, keepdims=keepdims, dtype=dtype).symbolic_call(x)
     return backend.numpy.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
+class Ptp(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.ptp(
+            x,
+            axis=self.axis,
+            keepdims=self.keepdims,
+        )
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.ptp", "keras.ops.numpy.ptp"])
+def ptp(x, axis=None, keepdims=False):
+    """Return the peak-to-peak (max - min) value of tensor elements
+    over a given axis.
+
+    The peak-to-peak value is defined as the difference between the
+    maximum and minimum values along the specified axis.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the peak-to-peak value is computed.
+            The default, `axis=None`, will compute the peak-to-peak value
+            over all elements in the input tensor.
+        keepdims: If this is set to `True`, the axes which are reduced
+            are left in the result as dimensions with size one.
+
+    Returns:
+        A tensor containing the peak-to-peak values of `x` over the
+        given axis or axes.
+
+    Examples:
+    >>> x = keras.ops.array([[1., 3., 2.],
+    ...                      [4., 0., 5.]])
+
+    >>> # Peak-to-peak over all elements
+    >>> keras.ops.ptp(x)
+    5.0
+
+    >>> # Peak-to-peak along axis 1
+    >>> keras.ops.ptp(x, axis=1)
+    array([2., 5.], dtype=float32)
+
+    >>> # Peak-to-peak over multiple axes
+    >>> x = keras.ops.reshape(x, (1, 2, 3))
+    >>> keras.ops.ptp(x, axis=(1, 2))
+    array([5.], dtype=float32)
+
+    >>> # Keep reduced dimensions
+    >>> keras.ops.ptp(x, axis=2, keepdims=True)
+    array([[[2.],
+            [5.]]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Ptp(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.ptp(x, axis=axis, keepdims=keepdims)
 
 
 class Quantile(Operation):
@@ -5376,10 +6560,10 @@ def unravel_index(indices, shape):
         Tuple of arrays for each dimension with unraveled indices.
 
     Example:
-        >>> indices = 5
-        >>> shape = (3, 3)
-        >>> unravel_index(indices, shape)
-        (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
+    >>> indices = 5
+    >>> shape = (3, 3)
+    >>> unravel_index(indices, shape)
+    (1, 2)  # 5 is at row 1, column 2 in a 3x3 array
     """
     if any_symbolic_tensors((indices,)):
         return UnravelIndex(shape).symbolic_call(indices)
@@ -5739,6 +6923,43 @@ def sin(x):
     return backend.numpy.sin(x)
 
 
+class Sinc(Operation):
+    def call(self, x):
+        return backend.numpy.sinc(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.sinc", "keras.ops.numpy.sinc"])
+def sinc(x):
+    """Return the normalized sinc function.
+
+    The sinc function is equal to `sin(pi*x) / (pi*x)` for any argument
+    `x != 0`, and `sinc(0)` takes the limit value 1, making `sinc` not
+    just everywhere continuous but also infinitely differentiable.
+
+    Arguments:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of same shape as `x`.
+
+    Examples:
+    >>> x = keras.ops.convert_to_tensor([0.0, 1.0, 2.0])
+    >>> keras.ops.sinc(x)
+    array([1., 0., 0.], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Sinc().symbolic_call(x)
+    return backend.numpy.sinc(x)
+
+
 class Sinh(Operation):
     def call(self, x):
         return backend.numpy.sinh(x)
@@ -5820,6 +7041,49 @@ def sort(x, axis=-1):
     return backend.numpy.sort(x, axis=axis)
 
 
+def _compute_split_output_spec(x, indices_or_sections, axis):
+    x_shape = list(x.shape)
+    x_size_on_axis = x_shape[axis]
+    if isinstance(indices_or_sections, int):
+        if x_size_on_axis is None:
+            x_shape[axis] = None
+            return [
+                KerasTensor(x_shape, dtype=x.dtype)
+                for _ in range(indices_or_sections)
+            ]
+
+        if np.mod(x_size_on_axis, indices_or_sections) != 0:
+            raise ValueError(
+                "`x` size on given `axis` must be divisible by "
+                "`indices_or_sections` when `indices_or_sections` is an "
+                f"int. But received {x_size_on_axis} and "
+                f"{indices_or_sections}."
+            )
+
+        size = x_size_on_axis // indices_or_sections
+        x_shape[axis] = size
+        return [
+            KerasTensor(x_shape, dtype=x.dtype)
+            for _ in range(indices_or_sections)
+        ]
+
+    all_indices = [0] + list(indices_or_sections) + [x_size_on_axis]
+    outputs = []
+
+    for i in range(len(all_indices) - 1):
+        start = all_indices[i]
+        end = all_indices[i + 1]
+        if start is None or end is None:
+            output_size = None
+        else:
+            output_size = end - start
+        output_shape = list(x_shape)
+        output_shape[axis] = output_size
+        outputs.append(KerasTensor(output_shape, dtype=x.dtype))
+
+    return outputs
+
+
 class Split(Operation):
     def __init__(self, indices_or_sections, axis=0, *, name=None):
         super().__init__(name=name)
@@ -5832,37 +7096,9 @@ class Split(Operation):
         return backend.numpy.split(x, self.indices_or_sections, axis=self.axis)
 
     def compute_output_spec(self, x):
-        x_shape = list(x.shape)
-        x_size_on_axis = x_shape[self.axis]
-        if isinstance(self.indices_or_sections, int):
-            if x_size_on_axis is None:
-                x_shape[self.axis] = None
-                return [
-                    KerasTensor(x_shape, dtype=x.dtype)
-                    for _ in range(self.indices_or_sections)
-                ]
-            if np.mod(x_size_on_axis, self.indices_or_sections) != 0:
-                raise ValueError(
-                    "`x` size on given `axis` must be dividible by "
-                    "`indices_or_sections` when `indices_or_sections` is an "
-                    f"int. But received {x_size_on_axis} and "
-                    f"{self.indices_or_sections}."
-                )
-            size = x_size_on_axis // self.indices_or_sections
-            x_shape[self.axis] = size
-            return [
-                KerasTensor(x_shape, dtype=x.dtype)
-                for _ in range(self.indices_or_sections)
-            ]
-
-        indices_or_sections = (0, *self.indices_or_sections, x_size_on_axis)
-        output_size = np.diff(indices_or_sections)
-        outputs = []
-        for i in range(len(output_size)):
-            output_shape = list(x_shape)
-            output_shape[self.axis] = int(output_size[i])
-            outputs.append(KerasTensor(output_shape, dtype=x.dtype))
-        return outputs
+        return _compute_split_output_spec(
+            x, self.indices_or_sections, self.axis
+        )
 
 
 @keras_export(["keras.ops.split", "keras.ops.numpy.split"])
@@ -6236,6 +7472,9 @@ class Tile(Operation):
         repeats = self.repeats
         if isinstance(repeats, int):
             repeats = [repeats]
+        else:
+            repeats = list(repeats)
+
         if len(x_shape) > len(repeats):
             repeats = [1] * (len(x_shape) - len(repeats)) + repeats
         else:
@@ -6243,10 +7482,10 @@ class Tile(Operation):
 
         output_shape = []
         for x_size, repeat in zip(x_shape, repeats):
-            if x_size is None:
-                output_shape.append(None)
-            else:
+            if isinstance(x_size, int):
                 output_shape.append(x_size * repeat)
+            else:
+                output_shape.append(None)
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
@@ -6294,8 +7533,13 @@ class Trace(Operation):
         x_shape[self.axis2] = -1
         output_shape = list(filter((-1).__ne__, x_shape))
         output_dtype = backend.standardize_dtype(x.dtype)
-        if output_dtype not in ("int64", "uint32", "uint64"):
-            output_dtype = dtypes.result_type(output_dtype, "int32")
+        if output_dtype in ("bool", "int8", "int16"):
+            output_dtype = "int32"
+        elif output_dtype in ("uint8", "uint16"):
+            output_dtype = "uint32"
+        if output_dtype == "uint32" and backend.backend() == "torch":
+            # Torch backend doesn't support uint32 dtype.
+            output_dtype = "int32"
         return KerasTensor(output_shape, dtype=output_dtype)
 
 
@@ -6604,6 +7848,58 @@ def vstack(xs):
     return backend.numpy.vstack(xs)
 
 
+class Vsplit(Operation):
+    def __init__(self, indices_or_sections, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(indices_or_sections, int):
+            indices_or_sections = tuple(indices_or_sections)
+        self.indices_or_sections = indices_or_sections
+
+    def call(self, x):
+        return backend.numpy.vsplit(x, self.indices_or_sections)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 2:
+            raise ValueError(
+                "`vsplit` only works on arrays of at least 2 dimensions. "
+                f"Received array with shape {x.shape}."
+            )
+        return _compute_split_output_spec(x, self.indices_or_sections, 0)
+
+
+@keras_export(["keras.ops.vsplit", "keras.ops.numpy.vsplit"])
+def vsplit(x, indices_or_sections):
+    """Split an array into multiple sub-arrays vertically (row-wise).
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: If an integer, N, the tensor will be split into N
+            equal sections along axis 0. If a 1-D array of sorted integers,
+            the entries indicate indices at which the tensor will be split
+            along axis 0.
+
+    Returns:
+        A list of sub-arrays.
+
+    Example:
+
+    >>> x = keras.ops.arange(12).reshape((4, 3))
+    >>> keras.ops.vsplit(x, 2)
+    [array([[0, 1, 2],
+           [3, 4, 5]]),
+     array([[ 6,  7,  8],
+           [ 9, 10, 11]])]
+    >>> keras.ops.vsplit(x, [1, 3])
+    [array([[0, 1, 2]]),
+     array([[3, 4, 5],
+           [6, 7, 8]]),
+     array([[ 9, 10, 11]])]
+    """
+    if any_symbolic_tensors((x,)):
+        return Vsplit(indices_or_sections).symbolic_call(x)
+    return backend.numpy.vsplit(x, indices_or_sections)
+
+
 class Where(Operation):
     def call(self, condition, x1=None, x2=None):
         return backend.numpy.where(condition, x1, x2)
@@ -6876,6 +8172,49 @@ def negative(x):
     return backend.numpy.negative(x)
 
 
+class Nextafter(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.nextafter(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+
+        x1_type = backend.standardize_dtype(getattr(x1, "dtype", type(x1)))
+        x2_type = backend.standardize_dtype(getattr(x2, "dtype", type(x2)))
+        dtype = dtypes.result_type(x1_type, x2_type, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nextafter", "keras.ops.numpy.nextafter"])
+def nextafter(x1, x2):
+    """
+    Return the next representable floating-point value after `x1` towards `x2`.
+
+    This function computes the next floating-point value
+    following `x1` in the direction of `x2`, element-wise.
+
+    Args:
+        x1: Input tensor whose values will be moved to the next
+            representable floating-point value.
+        x2: Input tensor indicating the direction toward which
+            `x1` is moved.
+
+    Returns:
+        Output tensor
+
+    Example:
+    >>> x1 = keras.ops.convert_to_tensor([1.0, 1.0])
+    >>> x2 = keras.ops.convert_to_tensor([2.0, 0.0])
+    >>> keras.ops.nextafter(x1, x2)
+    array([1.0000001, 0.99999994], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Nextafter().symbolic_call(x1, x2)
+    return backend.numpy.nextafter(x1, x2)
+
+
 class Square(Operation):
     def call(self, x):
         return backend.numpy.square(x)
@@ -7012,6 +8351,48 @@ def transpose(x, axes=None):
     return backend.numpy.transpose(x, axes=axes)
 
 
+class Trapezoid(Operation):
+    def __init__(self, x=None, dx=1.0, axis=-1, *, name=None):
+        super().__init__(name=name)
+        self.x = x
+        self.dx = dx
+        self.axis = axis
+
+    def call(self, y):
+        return backend.numpy.trapezoid(y, x=self.x, dx=self.dx, axis=self.axis)
+
+    def compute_output_spec(self, y):
+        out_shape = list(y.shape)
+        if self.axis is not None and len(out_shape) > 0:
+            out_shape.pop(self.axis % len(out_shape))
+        dtype = backend.result_type(getattr(y, "dtype", type(y)), float)
+        return KerasTensor(tuple(out_shape), dtype=dtype)
+
+
+@keras_export(["keras.ops.trapezoid", "keras.ops.numpy.trapezoid"])
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    """Integrate along the given axis using the composite trapezoidal rule.
+
+    Args:
+        y: Input tensor.
+        x: Optional tensor specifying sample points corresponding to `y`.
+           If `None`, spacing is assumed to be `dx`.
+        dx: Spacing between sample points when `x` is `None`.
+        axis: Axis along which to integrate. Default is the last axis.
+
+    Returns:
+        The approximate integral of `y` along the given axis.
+
+    Example:
+    >>> y = keras.ops.convert_to_tensor([[1, 2, 3], [4, 5, 6]])
+    >>> keras.ops.trapezoid(y, axis=1)
+    array([ 4., 10.], dtype=float32)
+    """
+    if any_symbolic_tensors((y,)):
+        return Trapezoid(x=x, dx=dx, axis=axis).symbolic_call(y)
+    return backend.numpy.trapezoid(y, x=x, dx=dx, axis=axis)
+
+
 class Mean(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
@@ -7055,6 +8436,77 @@ def mean(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Mean(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.mean(x, axis=axis, keepdims=keepdims)
+
+
+class Vander(Operation):
+    def __init__(self, N=None, increasing=False, *, name=None):
+        super().__init__(name=name)
+        self.N = N
+        self.increasing = increasing
+
+    def call(self, x):
+        return backend.numpy.vander(x, self.N, self.increasing)
+
+    def compute_output_spec(self, x):
+        if self.N is None:
+            N = x.shape[0]
+        else:
+            N = self.N
+
+        out_shape = x.shape + (N,)
+        return KerasTensor(tuple(out_shape), dtype=x.dtype)
+
+
+@keras_export(["keras.ops.vander", "keras.ops.numpy.vander"])
+def vander(x, N=None, increasing=False):
+    """Generate a Vandermonde matrix.
+
+    Args:
+        x: 1D input tensor.
+        N: Number of columns. If `None`, `N` = `len(x)`.
+        increasing: Order of powers. If True, powers increase left to right.
+
+    Returns:
+        Output tensor, Vandermonde matrix of shape `(len(x), N)`.
+
+    Example:
+    >>> import numpy as np
+    >>> import keras
+    >>> x = np.array([1, 2, 3, 5])
+    >>> keras.ops.vander(x)
+    array([[  1,   1,   1,   1],
+           [  8,   4,   2,   1],
+           [ 27,   9,   3,   1],
+           [125,  25,   5,   1]])
+    """
+
+    if len(x.shape) != 1:
+        raise ValueError(
+            "Input tensor must be 1-dimensional. "
+            f"Received: input.shape={x.shape}"
+        )
+
+    if N is not None:
+        if not isinstance(N, int):
+            raise TypeError(
+                f"Argument `N` must be of type `int`. "
+                f"Received: N={N} of type {type(N)}"
+            )
+
+        if N < 0:
+            raise ValueError(
+                f"Argument 'N' must be nonnegative. Received: N={N}"
+            )
+
+    if not isinstance(increasing, bool):
+        raise TypeError(
+            f"Argument `increasing` must be of type `bool`. "
+            f"Received: increasing={increasing} of type {type(increasing)}"
+        )
+
+    if any_symbolic_tensors((x,)):
+        return Vander(N=N, increasing=increasing).symbolic_call(x)
+    return backend.numpy.vander(x, N=N, increasing=increasing)
 
 
 class Var(Operation):
@@ -7186,6 +8638,19 @@ def eye(N, M=None, k=0, dtype=None):
     Returns:
         Tensor with ones on the k-th diagonal and zeros elsewhere.
     """
+
+    def is_floating_type(v):
+        return (
+            isinstance(v, float)
+            or getattr(v, "dtype", None) in dtypes.FLOAT_TYPES
+        )
+
+    if is_floating_type(N):
+        raise TypeError("Argument `N` must be an integer or an integer tensor.")
+    if is_floating_type(M):
+        raise TypeError(
+            "Argument `M` must be an integer, an integer tensor, or `None`."
+        )
     return backend.numpy.eye(N, M=M, k=k, dtype=dtype)
 
 
@@ -7337,6 +8802,15 @@ def correlate(x1, x2, mode="valid"):
 
     Returns:
         Output tensor, cross-correlation of `x1` and `x2`.
+
+    Notes:
+        Complex-valued inputs are currently not fully supported on the
+        TensorFlow and PyTorch backends. When complex tensors are passed,
+        they are cast to floating-point types and the imaginary component
+        is discarded.
+
+        This behavior is documented for clarity and may change in the
+        future. See discussion in issue #21617.
     """
     if any_symbolic_tensors((x1, x2)):
         return Correlate(mode=mode).symbolic_call(x1, x2)
@@ -7569,3 +9043,104 @@ def histogram(x, bins=10, range=None):
             f"Received: input.shape={x.shape}"
         )
     return backend.numpy.histogram(x, bins=bins, range=range)
+
+
+class ArraySplit(Operation):
+    def __init__(self, indices_or_sections, axis=0, *, name=None):
+        super().__init__(name=name)
+
+        self.indices_or_sections = indices_or_sections
+        self.axis = axis
+
+    def call(self, x):
+        return backend.numpy.array_split(
+            x,
+            indices_or_sections=self.indices_or_sections,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, x):
+        num_splits = self.indices_or_sections
+
+        axis = self.axis
+        if axis < 0:
+            axis += len(x.shape)
+
+        total_size = x.shape[axis]
+
+        if total_size is None:
+            output_specs = []
+            base_shape = list(x.shape)
+            base_shape[axis] = None
+            for _ in range(num_splits):
+                output_specs.append(
+                    KerasTensor(shape=tuple(base_shape), dtype=x.dtype)
+                )
+            return tuple(output_specs)
+
+        split_size = total_size // num_splits
+        remainder = total_size % num_splits
+
+        output_specs = []
+        base_shape = list(x.shape)
+        for i in range(num_splits):
+            size = split_size + (1 if i < remainder else 0)
+            shape = base_shape.copy()
+            shape[axis] = size
+            output_specs.append(KerasTensor(shape=tuple(shape), dtype=x.dtype))
+
+        return list(output_specs)
+
+
+@keras_export(["keras.ops.array_split", "keras.ops.numpy.array_split"])
+def array_split(x, indices_or_sections, axis=0):
+    """Splits an array into multiple sub-arrays (unevenly).
+
+    This is similar to `keras.ops.split`, but it allows for
+    unequal splits. `indices_or_sections` must be an integer
+    that indicates the total number of sub-arrays to create.
+    If the tensor cannot be divided evenly, the first `remainder`
+    splits will have size `quotient + 1`, and the rest will
+    have size `quotient`.
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: An integer indicating the number of
+            sub-arrays to create.
+        axis: The axis along which to split. Defaults to 0.
+
+    Returns:
+        A list of sub-tensors.
+
+    Example:
+    >>> x = keras.ops.arange(10)
+    >>> keras.ops.array_split(x, 3)
+    (array([0, 1, 2, 3], dtype=int32),
+     array([4, 5, 6], dtype=int32),
+     array([7, 8, 9], dtype=int32))
+    """
+    if not isinstance(indices_or_sections, int):
+        raise TypeError(
+            "Argument `indices_or_sections` must be of type `int`. "
+            f"Received: indices_or_sections={indices_or_sections}"
+        )
+
+    if indices_or_sections <= 0:
+        raise ValueError(
+            "Argument `indices_or_sections` must be a positive integer. "
+            f"Received: indices_or_sections={indices_or_sections}"
+        )
+
+    if not isinstance(axis, int):
+        raise TypeError(
+            f"Argument `axis` must be of type `int`. Received: {axis}"
+        )
+
+    if any_symbolic_tensors((x,)):
+        return ArraySplit(
+            indices_or_sections=indices_or_sections, axis=axis
+        ).symbolic_call(x)
+
+    return backend.numpy.array_split(
+        x, indices_or_sections=indices_or_sections, axis=axis
+    )

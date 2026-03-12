@@ -294,7 +294,14 @@ class SeparableConvCorrectnessTest(testing.TestCase):
         )
 
         self.assertAllClose(outputs.shape, expected.shape)
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+        self.assertAllClose(
+            outputs,
+            expected,
+            rtol=1e-5,
+            atol=1e-5,
+            tpu_atol=1e-1,
+            tpu_rtol=1e-1,
+        )
 
     @parameterized.parameters(
         {
@@ -381,4 +388,11 @@ class SeparableConvCorrectnessTest(testing.TestCase):
         )
 
         self.assertAllClose(outputs.shape, expected.shape)
-        self.assertAllClose(outputs, expected, rtol=1e-5, atol=1e-5)
+        self.assertAllClose(
+            outputs,
+            expected,
+            rtol=1e-5,
+            atol=1e-5,
+            tpu_atol=1e-1,
+            tpu_rtol=1e-1,
+        )

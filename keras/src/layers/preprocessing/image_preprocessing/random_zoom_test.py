@@ -63,6 +63,8 @@ class RandomZoomTest(testing.TestCase):
             expected_output=expected_output,
             supports_masking=False,
             run_training_check=False,
+            tpu_atol=1e-2,
+            tpu_rtol=1e-2,
         )
 
     def test_random_zoom_in_correctness(self):

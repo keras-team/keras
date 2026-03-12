@@ -1,3 +1,4 @@
+import math
 import os
 
 import jax
@@ -11,6 +12,8 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import metrics
 from keras.src import models
+from keras.src import ops
+from keras.src import random
 from keras.src import saving
 from keras.src import testing
 from keras.src import tree
@@ -30,7 +33,15 @@ input_shape = (28, 28, 1)  # Excluding batch_size
 
 
 @object_registration.register_keras_serializable()
-def jax_stateless_init(rng, inputs):
+def jax_stateless_function(inputs):
+    x = jax.numpy.sum(inputs, axis=(1, 2, 3))
+    x = jax.numpy.expand_dims(x, axis=1)
+    x = jax.numpy.tile(x, (1, 10))
+    return x
+
+
+@object_registration.register_keras_serializable()
+def jax_model_no_state_init(rng, inputs):
     layer_sizes = [784, 300, 100, 10]
     params = []
     w_init = jax.nn.initializers.glorot_normal()
@@ -43,7 +54,7 @@ def jax_stateless_init(rng, inputs):
 
 
 @object_registration.register_keras_serializable()
-def jax_stateless_apply(params, inputs):
+def jax_model_no_state_apply(params, inputs):
     activations = inputs.reshape((inputs.shape[0], -1))  # flatten
     for w, b in params[:-1]:
         outputs = jnp.dot(activations, w) + b
@@ -55,15 +66,15 @@ def jax_stateless_apply(params, inputs):
 
 
 @object_registration.register_keras_serializable()
-def jax_stateful_init(rng, inputs, training):
-    params = jax_stateless_init(rng, inputs)
+def jax_model_with_state_init(rng, inputs, training):
+    params = jax_model_no_state_init(rng, inputs)
     state = jnp.zeros([], jnp.int32)
     return params, state
 
 
 @object_registration.register_keras_serializable()
-def jax_stateful_apply(params, state, inputs, training):
-    outputs = jax_stateless_apply(params, inputs)
+def jax_model_with_state_apply(params, state, inputs, training):
+    outputs = jax_model_no_state_apply(params, inputs)
     if training:
         state = state + 1
     return outputs, state
@@ -179,9 +190,10 @@ if flax is not None:
 
 
 @pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="JaxLayer and FlaxLayer are only supported with JAX backend",
+    backend.backend() not in ["jax", "tensorflow"],
+    reason="JaxLayer and FlaxLayer are only supported with JAX and TF backend",
 )
+@pytest.mark.skipif(testing.tensorflow_uses_gpu(), reason="GPU test failure")
 class TestJaxLayer(testing.TestCase):
     def _test_layer(
         self,
@@ -194,16 +206,18 @@ class TestJaxLayer(testing.TestCase):
         non_trainable_params,
     ):
         # Fake MNIST data
-        x_train = np.random.uniform(size=(320, 28, 28, 1))
-        y_train = np.eye(num_classes, dtype="int32")[
-            (np.random.uniform(size=(320,)) * num_classes).astype("int32")
-        ]
-        x_test = np.random.uniform(size=(32, 28, 28, 1))
+        x_train = random.uniform(shape=(320, 28, 28, 1))
+        y_train_indices = ops.cast(
+            ops.random.uniform(shape=(320,), minval=0, maxval=num_classes),
+            dtype="int32",
+        )
+        y_train = ops.one_hot(y_train_indices, num_classes, dtype="int32")
+        x_test = random.uniform(shape=(32, 28, 28, 1))
 
         def _count_params(weights):
             count = 0
             for weight in weights:
-                count = count + np.prod(weight.shape)
+                count = count + math.prod(ops.shape(weight))
             return count
 
         def verify_weights_and_params(layer):
@@ -257,11 +271,11 @@ class TestJaxLayer(testing.TestCase):
         for before, after in zip(ntw1_before_fit, ntw1_after_fit):
             self.assertNotAllClose(before, after)
 
-        expected_ouput_shape = (x_test.shape[0], num_classes)
+        expected_output_shape = (ops.shape(x_test)[0], num_classes)
         output1 = model1(x_test)
-        self.assertEqual(output1.shape, expected_ouput_shape)
+        self.assertEqual(output1.shape, expected_output_shape)
         predict1 = model1.predict(x_test, steps=1)
-        self.assertEqual(predict1.shape, expected_ouput_shape)
+        self.assertEqual(predict1.shape, expected_output_shape)
 
         # verify both trainable and non-trainable weights did not change
         tw1_after_call = tree.map_structure(
@@ -349,10 +363,21 @@ class TestJaxLayer(testing.TestCase):
 
     @parameterized.named_parameters(
         {
+            "testcase_name": "stateless",
+            "init_kwargs": {
+                "call_fn": jax_stateless_function,
+                "init_fn": None,
+            },
+            "trainable_weights": 0,
+            "trainable_params": 0,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
+        {
             "testcase_name": "training_independent",
             "init_kwargs": {
-                "call_fn": jax_stateless_apply,
-                "init_fn": jax_stateless_init,
+                "call_fn": jax_model_no_state_apply,
+                "init_fn": jax_model_no_state_init,
             },
             "trainable_weights": 6,
             "trainable_params": 266610,
@@ -362,8 +387,8 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "training_state",
             "init_kwargs": {
-                "call_fn": jax_stateful_apply,
-                "init_fn": jax_stateful_init,
+                "call_fn": jax_model_with_state_apply,
+                "init_fn": jax_model_with_state_init,
             },
             "trainable_weights": 6,
             "trainable_params": 266610,
@@ -373,8 +398,8 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "training_state_dtype_policy",
             "init_kwargs": {
-                "call_fn": jax_stateful_apply,
-                "init_fn": jax_stateful_init,
+                "call_fn": jax_model_with_state_apply,
+                "init_fn": jax_model_with_state_init,
                 "dtype": DTypePolicy("mixed_float16"),
             },
             "trainable_weights": 6,

@@ -15,13 +15,15 @@ from keras.src.random.seed_generator import make_default_seed
 # see: https://github.com/pytorch/pytorch/issues/88576
 @dynamo.disable()
 def torch_seed_generator(seed):
-    first_seed, second_seed = draw_seed(seed)
     device = get_device()
     if device == "meta":
         # Generator is not supported by the meta device.
         return None
     generator = torch.Generator(device=get_device())
-    generator.manual_seed(int(first_seed + second_seed))
+    first_seed, second_seed = draw_seed(seed)
+    # Re-interpret as uint32 and combine; the counter in second_seed ensures
+    # each SeedGenerator call produces a distinct seed.
+    generator.manual_seed(int(first_seed + second_seed) & 0xFFFFFFFF)
     return generator
 
 
@@ -135,6 +137,10 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    if rate == 1.0:
+        return torch.zeros_like(inputs, device=get_device())
+    if rate == 0.0:
+        return inputs
     if (
         seed is not None
         and not (isinstance(seed, SeedGenerator) and seed._initial_seed is None)
@@ -201,7 +207,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
     # Do not draw seed during symbolic execution
     if not get_device() == "meta":
         first_seed, second_seed = draw_seed(seed)
-        torch.manual_seed(first_seed + second_seed)
+        torch.manual_seed(int(first_seed + second_seed) & 0xFFFFFFFF)
     gamma_distribution = torch.distributions.gamma.Gamma(alpha, beta)
     sample = gamma_distribution.sample().type(dtype)
     torch.random.set_rng_state(prev_rng_state)
@@ -217,7 +223,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     # Do not draw seed during symbolic execution
     if not get_device() == "meta":
         first_seed, second_seed = draw_seed(seed)
-        torch.manual_seed(first_seed + second_seed)
+        torch.manual_seed(int(first_seed + second_seed) & 0xFFFFFFFF)
     binomial_distribution = torch.distributions.binomial.Binomial(
         total_count=counts, probs=probabilities
     )
@@ -235,7 +241,7 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     # Do not draw seed during symbolic execution
     if not get_device() == "meta":
         first_seed, second_seed = draw_seed(seed)
-        torch.manual_seed(first_seed + second_seed)
+        torch.manual_seed(int(first_seed + second_seed) & 0xFFFFFFFF)
     beta_distribution = torch.distributions.beta.Beta(
         concentration1=alpha, concentration0=beta
     )

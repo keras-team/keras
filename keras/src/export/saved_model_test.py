@@ -59,6 +59,10 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 @pytest.mark.skipif(
     testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
 )
+@pytest.mark.skipif(
+    backend.backend() == "torch" and np.version.version.startswith("2."),
+    reason="Torch backend export (via torch_xla) is incompatible with np 2.0",
+)
 class ExportSavedModelTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
@@ -74,9 +78,6 @@ class ExportSavedModelTest(testing.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         revived_model.serve(tf.random.normal((6, 10)))
 
     @parameterized.named_parameters(
@@ -167,9 +168,6 @@ class ExportSavedModelTest(testing.TestCase):
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         revived_model.serve(tf.random.normal((6, 10)))
 
     @parameterized.named_parameters(
@@ -229,9 +227,6 @@ class ExportSavedModelTest(testing.TestCase):
         saved_model.export_saved_model(revived_model, self.get_temp_dir())
 
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         bigger_input = tree.map_structure(
             lambda x: tf.concat([x, x], axis=0), ref_input
         )
@@ -258,9 +253,6 @@ class ExportSavedModelTest(testing.TestCase):
             ref_output, revived_model.serve(ref_input_x, ref_input_y)
         )
         # Test with a different batch size
-        if backend.backend() == "torch":
-            # TODO: Dynamic shape is not supported yet in the torch backend
-            return
         revived_model.serve(
             tf.random.normal((6, 10)), tf.random.normal((6, 10))
         )
@@ -778,6 +770,36 @@ class ExportArchiveTest(testing.TestCase):
         ref_output = model(ref_input)
 
         saved_model.export_saved_model(model, temp_filepath)
+        revived_model = tf.saved_model.load(temp_filepath)
+        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="String lookup requires TensorFlow backend",
+    )
+    def test_model_with_tracked_collection(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
+        text_vectorization = layers.TextVectorization()
+        text_vectorization.adapt(["one two", "three four", "five six"])
+
+        # CustomModel has a list of layers. The `TrackedList` that Keras uses is
+        # not a TensorFlow Trackable, but `Layer._trackable_children` makes it
+        # work.
+        model = CustomModel(
+            [
+                text_vectorization,
+                layers.Embedding(10, 32),
+                layers.Dense(1),
+            ]
+        )
+        ref_input = tf.convert_to_tensor(["one two three four"])
+        ref_output = model(ref_input)
+
+        saved_model.export_saved_model(
+            model,
+            temp_filepath,
+            input_signature=[tf.TensorSpec(shape=[1], dtype=tf.string)],
+        )
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(ref_output, revived_model.serve(ref_input))
 

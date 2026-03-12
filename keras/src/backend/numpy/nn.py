@@ -4,6 +4,9 @@ from jax import lax
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    compute_adaptive_pooling_window_sizes,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_jax,
 )
 from keras.src.backend.numpy.core import cast
@@ -164,13 +167,14 @@ def celu(x, alpha=1.0):
 
 def glu(x, axis=-1):
     x = convert_to_tensor(x)
+    dtype = x.dtype
     if x.shape[axis] % 2 != 0:
         raise ValueError(
             "axis size must be divisible by 2. "
             f"Received: x.shape={x.shape} with axis={axis}"
         )
     x1, x2 = np.split(x, 2, axis)
-    return x1 * (1 / (1 + np.exp(-x2)))
+    return (x1 * sigmoid(x2)).astype(dtype)
 
 
 def hard_tanh(x):
@@ -339,6 +343,252 @@ def average_pool(
         return pooled / window_counts
 
 
+def _compute_adaptive_pooling_gather_indices(
+    input_dim, output_size, big_window
+):
+    window_starts = np.floor(
+        (np.arange(output_size) * input_dim) / output_size
+    ).astype(np.int32)
+
+    window_ends = np.ceil(
+        (np.arange(1, output_size + 1) * input_dim) / output_size
+    ).astype(np.int32)
+
+    window_sizes = window_ends - window_starts
+    is_big = window_sizes == big_window
+
+    small_window = big_window - 1
+    small_pool_len = input_dim - small_window + 1
+
+    small_indices = window_starts
+    big_indices = window_starts + small_pool_len
+
+    gather = np.where(is_big, big_indices, small_indices)
+    return gather.astype(np.int32)
+
+
+def _strided_view_1d(x, window_size):
+    n, l, c = x.shape
+    out = l - window_size + 1
+
+    strides = x.strides
+    shape = (n, out, window_size, c)
+    new_strides = (strides[0], strides[1], strides[1], strides[2])
+
+    return np.lib.stride_tricks.as_strided(x, shape=shape, strides=new_strides)
+
+
+def _adaptive_pool1d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+
+    if data_format == "channels_first":
+        inputs = np.transpose(inputs, (0, 2, 1))
+
+    n, l, c = inputs.shape
+    out_l = output_size[0]
+
+    small, big = compute_adaptive_pooling_window_sizes(l, out_l)
+    gather = _compute_adaptive_pooling_gather_indices(l, out_l, big)
+
+    sv_small = _strided_view_1d(inputs, small)
+    small_pool = (
+        np.mean(sv_small, axis=2)
+        if mode == "average"
+        else np.max(sv_small, axis=2)
+    )
+
+    sv_big = _strided_view_1d(inputs, big)
+    big_pool = (
+        np.mean(sv_big, axis=2) if mode == "average" else np.max(sv_big, axis=2)
+    )
+
+    combined = np.concatenate([small_pool, big_pool], axis=1)
+    out = combined[:, gather, :]
+
+    if data_format == "channels_first":
+        out = np.transpose(out, (0, 2, 1))
+
+    return out
+
+
+def _adaptive_pool2d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = np.transpose(inputs, (0, 2, 3, 1))
+
+    n, h, w, c = inputs.shape
+    out_h, out_w = output_size
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    x_h = np.transpose(inputs, (0, 2, 1, 3)).reshape(n * w, h, c)
+
+    sv_small_h = _strided_view_1d(x_h, small_h)
+    small_pool_h = (
+        np.mean(sv_small_h, axis=2)
+        if mode == "average"
+        else np.max(sv_small_h, axis=2)
+    )
+
+    sv_big_h = _strided_view_1d(x_h, big_h)
+    big_pool_h = (
+        np.mean(sv_big_h, axis=2)
+        if mode == "average"
+        else np.max(sv_big_h, axis=2)
+    )
+
+    combined_h = np.concatenate([small_pool_h, big_pool_h], axis=1)
+    pooled_h = combined_h[:, gather_h, :]
+
+    pooled_h = pooled_h.reshape(n, w, out_h, c)
+    pooled_h = np.transpose(pooled_h, (0, 2, 1, 3))
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    x_w = pooled_h.reshape(n * out_h, w, c)
+
+    sv_small_w = _strided_view_1d(x_w, small_w)
+    small_pool_w = (
+        np.mean(sv_small_w, axis=2)
+        if mode == "average"
+        else np.max(sv_small_w, axis=2)
+    )
+
+    sv_big_w = _strided_view_1d(x_w, big_w)
+    big_pool_w = (
+        np.mean(sv_big_w, axis=2)
+        if mode == "average"
+        else np.max(sv_big_w, axis=2)
+    )
+
+    combined_w = np.concatenate([small_pool_w, big_pool_w], axis=1)
+    out = combined_w[:, gather_w, :].reshape(n, out_h, out_w, c)
+
+    if data_format == "channels_first":
+        out = np.transpose(out, (0, 3, 1, 2))
+
+    return out
+
+
+def _adaptive_pool3d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+
+    if data_format == "channels_first":
+        inputs = np.transpose(inputs, (0, 2, 3, 4, 1))
+
+    n, d, h, w, c = inputs.shape
+    out_d, out_h, out_w = output_size
+
+    small_d, big_d = compute_adaptive_pooling_window_sizes(d, out_d)
+    gather_d = _compute_adaptive_pooling_gather_indices(d, out_d, big_d)
+
+    x_d = np.transpose(inputs, (0, 2, 3, 1, 4)).reshape(n * h * w, d, c)
+
+    sv_small_d = _strided_view_1d(x_d, small_d)
+    small_pool_d = (
+        np.mean(sv_small_d, axis=2)
+        if mode == "average"
+        else np.max(sv_small_d, axis=2)
+    )
+
+    sv_big_d = _strided_view_1d(x_d, big_d)
+    big_pool_d = (
+        np.mean(sv_big_d, axis=2)
+        if mode == "average"
+        else np.max(sv_big_d, axis=2)
+    )
+
+    combined_d = np.concatenate([small_pool_d, big_pool_d], axis=1)
+    pooled_d = combined_d[:, gather_d, :].reshape(n, h, w, out_d, c)
+    pooled_d = np.transpose(pooled_d, (0, 3, 1, 2, 4))
+
+    small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
+    gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
+
+    x_h = np.transpose(pooled_d, (0, 1, 3, 2, 4)).reshape(n * out_d * w, h, c)
+
+    sv_small_h = _strided_view_1d(x_h, small_h)
+    small_pool_h = (
+        np.mean(sv_small_h, axis=2)
+        if mode == "average"
+        else np.max(sv_small_h, axis=2)
+    )
+
+    sv_big_h = _strided_view_1d(x_h, big_h)
+    big_pool_h = (
+        np.mean(sv_big_h, axis=2)
+        if mode == "average"
+        else np.max(sv_big_h, axis=2)
+    )
+
+    combined_h = np.concatenate([small_pool_h, big_pool_h], axis=1)
+    pooled_h = combined_h[:, gather_h, :].reshape(n, out_d, w, out_h, c)
+    pooled_h = np.transpose(pooled_h, (0, 1, 3, 2, 4))
+
+    small_w, big_w = compute_adaptive_pooling_window_sizes(w, out_w)
+    gather_w = _compute_adaptive_pooling_gather_indices(w, out_w, big_w)
+
+    x_w = pooled_h.reshape(n * out_d * out_h, w, c)
+
+    sv_small_w = _strided_view_1d(x_w, small_w)
+    small_pool_w = (
+        np.mean(sv_small_w, axis=2)
+        if mode == "average"
+        else np.max(sv_small_w, axis=2)
+    )
+
+    sv_big_w = _strided_view_1d(x_w, big_w)
+    big_pool_w = (
+        np.mean(sv_big_w, axis=2)
+        if mode == "average"
+        else np.max(sv_big_w, axis=2)
+    )
+
+    combined_w = np.concatenate([small_pool_w, big_pool_w], axis=1)
+    out = combined_w[:, gather_w, :].reshape(n, out_d, out_h, out_w, c)
+
+    if data_format == "channels_first":
+        out = np.transpose(out, (0, 4, 1, 2, 3))
+
+    return out
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_pool1d_impl(
+            inputs, output_size, "average", data_format
+        )
+    if dims == 2:
+        return _adaptive_pool2d_impl(
+            inputs, output_size, "average", data_format
+        )
+    if dims == 3:
+        return _adaptive_pool3d_impl(
+            inputs, output_size, "average", data_format
+        )
+    raise ValueError("adaptive_average_pool supports only 1D/2D/3D")
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    data_format = backend.standardize_data_format(data_format)
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_pool1d_impl(inputs, output_size, "max", data_format)
+    if dims == 2:
+        return _adaptive_pool2d_impl(inputs, output_size, "max", data_format)
+    if dims == 3:
+        return _adaptive_pool3d_impl(inputs, output_size, "max", data_format)
+    raise ValueError("adaptive_max_pool supports only 1D/2D/3D")
+
+
 def _convert_to_lax_conv_dimension_numbers(
     num_spatial_dims,
     data_format="channels_last",
@@ -403,7 +653,7 @@ def conv(
             f"kernel in_channels {kernel_in_channels}. "
         )
     feature_group_count = channels // kernel_in_channels
-    return np.array(
+    result = np.array(
         jax.lax.conv_general_dilated(
             inputs,
             kernel if is_tensor(kernel) else kernel.numpy(),
@@ -414,6 +664,14 @@ def conv(
             feature_group_count=feature_group_count,
         )
     )
+    if result.size == 0:
+        raise ValueError(
+            "The convolution operation resulted in an empty output. "
+            "This can happen if the input is too small for the given "
+            "kernel size, strides, dilation rate, and padding mode. "
+            "Please check the input shape and convolution parameters."
+        )
+    return result
 
 
 def depthwise_conv(
@@ -1175,3 +1433,193 @@ def dot_product_attention(
     return _dot_product_attention_xla(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
+    """NumPy implementation of Unfold.
+    Extract sliding local blocks from a **NCHW** batched image tensor.
+
+    Args:
+        input: 4-D tensor, shape (N, C, H, W)  **required**.
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        3-D tensor, shape (N, C*kH*kW, L)
+    """
+
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = np.pad(
+            input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])), mode="constant"
+        )
+
+    # ----  spatial size ----
+    oH = (input.shape[2] - (k[0] - 1) * d[0] - 1) // s[0] + 1
+    oW = (input.shape[3] - (k[1] - 1) * d[1] - 1) // s[1] + 1
+
+    i0 = np.arange(0, oH) * s[0]
+    j0 = np.arange(0, oW) * s[1]
+    i, j = np.meshgrid(i0, j0, indexing="ij")  # shape (oH, oW)
+    i = i.reshape(-1)
+    j = j.reshape(-1)
+
+    # ---- flatten patches ----
+    patches = np.empty((N, C, k[0], k[1], oH * oW), dtype=input.dtype)
+    for idx in range(k[0]):
+        for jdx in range(k[1]):
+            patches[:, :, idx, jdx, :] = input[
+                :, :, i + idx * d[0], j + jdx * d[1]
+            ]
+
+    # ---- reshape -> (N, C*kH*kW, L) ----
+    return patches.reshape(N, C * k[0] * k[1], -1)
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """NumPy implementation of Fold (col2im).
+    Combine an array of sliding local blocks into a large tensor.
+
+    Args:
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+
+    def _pair(val):
+        return (val, val) if isinstance(val, int) else val
+
+    oH, oW = _pair(output_size)
+    kH, kW = _pair(kernel_size)
+    dH, dW = _pair(dilation)
+    pH, pW = _pair(padding)
+    sH, sW = _pair(stride)
+
+    N, CKK, L = x.shape
+    C = CKK // (kH * kW)
+
+    # Number of output patches along each dimension
+    nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
+    nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
+
+    # Reshape: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
+    x = np.reshape(x, (N, C, kH, kW, nH, nW))
+
+    # Padded output size
+    oH_pad = oH + 2 * pH
+    oW_pad = oW + 2 * pW
+
+    output = np.zeros((N, C, oH_pad, oW_pad), dtype=x.dtype)
+
+    for i in range(kH):
+        for j in range(kW):
+            h_start = i * dH
+            w_start = j * dW
+            h_indices = h_start + np.arange(nH) * sH
+            w_indices = w_start + np.arange(nW) * sW
+            h_ix, w_ix = np.ix_(h_indices, w_indices)
+            output[:, :, h_ix, w_ix] += x[:, :, i, j, :, :]
+
+    # Remove padding
+    if pH > 0 or pW > 0:
+        output = output[:, :, pH : oH_pad - pH, pW : oW_pad - pW]
+
+    return output
+
+
+def depth_to_space(x, block_size, data_format="channels_last"):
+    """NumPy implementation of depth_to_space (pixel shuffle).
+
+    Rearranges data from depth into blocks of spatial data.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H*block_size, W*block_size, C/block_size**2)
+        for channels_last or (N, C/block_size**2, H*block_size, W*block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        # NHWC format
+        n, h, w, c = x.shape
+        new_c = c // (block_size**2)
+        # Reshape: (N, H, W, C) -> (N, H, W, block_size, block_size, new_C)
+        x = np.reshape(x, (n, h, w, block_size, block_size, new_c))
+        # Transpose to (N, H, bH, W, bW, new_C) to interleave spatial blocks.
+        x = np.transpose(x, (0, 1, 3, 2, 4, 5))
+        # Reshape to the final spatial dimensions.
+        x = np.reshape(x, (n, h * block_size, w * block_size, new_c))
+    else:
+        # NCHW format
+        n, c, h, w = x.shape
+        new_c = c // (block_size**2)
+        # Reshape: (N, C, H, W) -> (N, new_C, block_size, block_size, H, W)
+        x = np.reshape(x, (n, new_c, block_size, block_size, h, w))
+        # Transpose: (N, C, bH, bW, H, W) -> (N, C, H, bH, W, bW)
+        x = np.transpose(x, (0, 1, 4, 2, 5, 3))
+        # Reshape: (N, C, H, bH, W, bW) -> (N, C, H*bH, W*bW)
+        x = np.reshape(x, (n, new_c, h * block_size, w * block_size))
+    return x
+
+
+def space_to_depth(x, block_size, data_format="channels_last"):
+    """NumPy implementation of space_to_depth (pixel unshuffle).
+
+    Rearranges blocks of spatial data into depth.
+
+    Args:
+        x: 4-D tensor with shape (N, H, W, C) for channels_last or
+            (N, C, H, W) for channels_first.
+        block_size: An integer specifying the block size.
+        data_format: "channels_last" or "channels_first".
+
+    Returns:
+        A tensor with shape (N, H/block_size, W/block_size, C*block_size**2)
+        for channels_last or (N, C*block_size**2, H/block_size, W/block_size)
+        for channels_first.
+    """
+    if data_format == "channels_last":
+        # NHWC format
+        n, h, w, c = x.shape
+        new_h = h // block_size
+        new_w = w // block_size
+        # Reshape: (N, H, W, C) -> (N, new_H, bH, new_W, bW, C)
+        x = np.reshape(x, (n, new_h, block_size, new_w, block_size, c))
+        # Transpose: -> (N, new_H, new_W, bH, bW, C)
+        x = np.transpose(x, (0, 1, 3, 2, 4, 5))
+        # Reshape: -> (N, new_H, new_W, C*bH*bW)
+        x = np.reshape(x, (n, new_h, new_w, c * block_size**2))
+    else:
+        # NCHW format
+        n, c, h, w = x.shape
+        new_h = h // block_size
+        new_w = w // block_size
+        # Reshape: (N, C, H, W) -> (N, C, new_H, bH, new_W, bW)
+        x = np.reshape(x, (n, c, new_h, block_size, new_w, block_size))
+        # Transpose: -> (N, C, bH, bW, new_H, new_W)
+        x = np.transpose(x, (0, 1, 3, 5, 2, 4))
+        # Reshape: -> (N, C*bH*bW, new_H, new_W)
+        x = np.reshape(x, (n, c * block_size**2, new_h, new_w))
+    return x

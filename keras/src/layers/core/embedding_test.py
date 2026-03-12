@@ -1,3 +1,4 @@
+import math
 import os
 
 import numpy as np
@@ -10,11 +11,56 @@ from keras.src import export
 from keras.src import layers
 from keras.src import models
 from keras.src import ops
+from keras.src import quantizers
 from keras.src import saving
+from keras.src import testing
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.testing import test_case
 
 
 class EmbeddingTest(test_case.TestCase):
+    @parameterized.named_parameters(
+        ("int8", "int8", {"axis": -1}),
+        (
+            "int4",
+            "int4",
+            {"axis": -1, "value_range": (-8, 7), "output_dtype": "int8"},
+        ),
+        ("int8_custom", "int8", {"axis": -1}),
+    )
+    def test_embedding_quantize_config(self, mode, weight_quantizer_args):
+        """Test Embedding quantization with QuantizationConfig."""
+        layer = layers.Embedding(input_dim=10, output_dim=6)
+        layer.build((None,))
+
+        weight_quantizer = AbsMaxQuantizer(**weight_quantizer_args)
+        if mode == "int8":
+            config = Int8QuantizationConfig(
+                weight_quantizer=weight_quantizer, activation_quantizer=None
+            )
+        elif mode == "int4":
+            # Custom quantizers require per-channel mode (block_size=None)
+            config = Int4QuantizationConfig(
+                weight_quantizer=weight_quantizer,
+                activation_quantizer=None,
+                block_size=None,
+            )
+
+        layer.quantize(mode, config=config)
+
+        # Verify weights are quantized
+        self.assertEqual(
+            backend.standardize_dtype(layer._embeddings.dtype), "int8"
+        )
+        self.assertTrue(hasattr(layer, "embeddings_scale"))
+
+        # Verify call works
+        x = np.random.randint(0, 10, size=(2, 3))
+        y = layer(x)
+        self.assertEqual(y.shape, (2, 3, 6))
+
     @pytest.mark.requires_trainable_backend
     def test_embedding_basics(self):
         self.run_layer_test(
@@ -136,6 +182,12 @@ class EmbeddingTest(test_case.TestCase):
         layer.build((None, 2))
         self.assertIsInstance(layer.embeddings.constraint, constraints.NonNeg)
 
+    def test_weights_constructor_arg(self):
+        layer = layers.Embedding(3, 4, weights=np.ones((3, 4)))
+        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
+        layer = layers.Embedding(3, 4, weights=[np.ones((3, 4))])
+        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
+
     @pytest.mark.requires_trainable_backend
     def test_enable_lora(self):
         layer = layers.Embedding(10, 16)
@@ -232,7 +284,9 @@ class EmbeddingTest(test_case.TestCase):
 
         # Verify that the effective embeddings match expectation.
         actual_embeddings = ops.convert_to_numpy(layer.embeddings)
-        self.assertAllClose(actual_embeddings, expected_embeddings)
+        self.assertAllClose(
+            actual_embeddings, expected_embeddings, tpu_atol=1e-3, tpu_rtol=1e-3
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
@@ -265,16 +319,22 @@ class EmbeddingTest(test_case.TestCase):
         with self.assertRaisesRegex(ValueError, "lora is already enabled"):
             layer.enable_lora(rank=2)
 
-    # Test quantization-related (int8) methods
+    # Test quantization-related methods.
 
-    def test_quantize_int8(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("int4", "int4"),
+    )
+    def test_quantize_int(self, mode):
         layer = layers.Embedding(10, 16)
         layer.build()
         x = np.random.randint(0, 9, size=(64, 3))
         y_float = layer(x)
-        layer.quantize("int8")
+        layer.quantize(mode)
 
-        # Verify weights dtype
+        # Verify the dtype of the weights.
+        # The embeddings's dtype is int8, despite the int4 quantization, because
+        # we pack the int4 values into int8.
         self.assertEqual(
             backend.standardize_dtype(layer._embeddings.dtype), "int8"
         )
@@ -283,12 +343,21 @@ class EmbeddingTest(test_case.TestCase):
             layer.variable_dtype,
         )
 
-        # Try eager call and verify output correctness
+        # Verify the unpacked embeddings for int4 quantization.
+        if mode == "int4":
+            self.assertAllClose(
+                layer.embeddings,
+                quantizers.unpack_int4(
+                    layer._embeddings, layer.output_dim, axis=-1
+                ),
+            )
+
+        # Verify the correctness of the outputs.
         y_quantized = layer(x)
         mse = ops.mean(ops.square(y_float - y_quantized))
         self.assertLess(mse, 1e-3)  # A weak correctness test
 
-        # Try saving and reloading the model
+        # Check model save / load round-trip.
         model = models.Sequential([layer])
         temp_filepath = os.path.join(
             self.get_temp_dir(), "quantized_model.keras"
@@ -297,94 +366,68 @@ class EmbeddingTest(test_case.TestCase):
         new_model = saving.load_model(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-        # Try saving and reloading the model's weights only
+        # Check weights-only save / load round-trip.
         temp_filepath = os.path.join(
             self.get_temp_dir(), "quantized_model.weights.h5"
         )
         model.save_weights(temp_filepath)
+        new_model = models.Sequential([layers.Embedding(10, 16)])
+        new_model.build((None, 3))
+        new_model.quantize(mode)
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
 
-        # Try lora
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("int4", "int4"),
+    )
+    def test_quantize_on_unbuilt_layer(self, mode):
         layer = layers.Embedding(10, 16)
-        layer.build()
-        layer.enable_lora(4)
-        layer.quantize("int8")
-        _ = layer(x)
+        with self.assertRaisesRegex(
+            ValueError, "Cannot quantize a layer that isn't yet built."
+        ):
+            layer.quantize(mode)
 
-        # Try building with quantized dtype policy
-        layer = layers.Embedding(10, 16, dtype="int8_from_mixed_bfloat16")
-        layer.build()
-        self.assertEqual(
-            backend.standardize_dtype(layer._embeddings.dtype), "int8"
-        )
-        self.assertEqual(
-            backend.standardize_dtype(layer.embeddings_scale.dtype), "float32"
-        )
-
-    @pytest.mark.requires_trainable_backend
-    def test_quantize_dtype_argument(self):
-        self.run_layer_test(
-            layers.Embedding,
-            {
-                "input_dim": 4,
-                "output_dim": 3,
-                "dtype": "int8_from_mixed_bfloat16",
-            },
-            input_shape=(2,),
-            input_dtype="int32",
-            expected_output_shape=(2, 3),
-            expected_num_trainable_weights=0,
-            expected_num_non_trainable_weights=2,
-            expected_num_seed_generators=0,
-            expected_num_losses=0,
-            supports_masking=False,
-        )
-        self.run_layer_test(
-            layers.Embedding,
-            {
-                "input_dim": 5,
-                "output_dim": 4,
-                "mask_zero": True,
-                "dtype": "int8_from_float32",
-            },
-            input_shape=(2, 3),
-            input_dtype="int64",
-            expected_output_shape=(2, 3, 4),
-            expected_num_trainable_weights=0,
-            expected_num_non_trainable_weights=2,
-            expected_num_seed_generators=0,
-            expected_num_losses=0,
-            supports_masking=True,
-        )
-
-    def test_quantize_on_subclass(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("int4", "int4"),
+    )
+    def test_quantize_on_subclass(self, mode):
         class MyEmbedding(layers.Embedding):
             pass
 
         layer = MyEmbedding(10, 16)
         layer.build()
         with self.assertRaises(NotImplementedError):
-            layer.quantize("int8")
+            layer.quantize(mode)
 
-        layer.quantize("int8", type_check=False)  # No error
+        layer.quantize(mode, type_check=False)  # No error
 
-    def test_quantize_when_already_quantized(self):
+    @parameterized.named_parameters(
+        ("int8", "int8"),
+        ("int4", "int4"),
+    )
+    def test_quantize_when_already_quantized(self, mode):
         layer = layers.Embedding(10, 16)
         layer.build()
-        layer.quantize("int8")
-        with self.assertRaisesRegex(
-            ValueError, "is already quantized with dtype_policy="
-        ):
-            layer.quantize("int8")
+        layer.quantize(mode)
+        for m in ("int8", "int4"):
+            with self.assertRaisesRegex(
+                ValueError, "is already quantized with dtype_policy="
+            ):
+                layer.quantize(m)
 
-        layer = layers.Embedding(10, 16, dtype="int8_from_float32")
+        layer = layers.Embedding(10, 16, dtype=f"{mode}_from_float32")
         layer.build()
-        with self.assertRaisesRegex(
-            ValueError, "is already quantized with dtype_policy="
-        ):
-            layer.quantize("int8")
+        for m in ("int8", "int4"):
+            with self.assertRaisesRegex(
+                ValueError, "is already quantized with dtype_policy="
+            ):
+                layer.quantize(m)
 
     @parameterized.named_parameters(
         ("int8", "int8_from_float32", 2),
+        ("int4", "int4_from_float32", 4),  # embeddings + scale + zero
     )
     def test_quantize_by_setting_dtype_policy(
         self, policy, expected_num_variables
@@ -426,16 +469,69 @@ class EmbeddingTest(test_case.TestCase):
             layer.quantized_call(x)
         self.assertEqual(layer.dtype_policy, original_dtype_policy)
 
+    @parameterized.named_parameters(
+        ("int8", "int8_from_mixed_bfloat16", 0, 2),
+        (
+            "int4",
+            "int4_from_mixed_bfloat16",
+            0,
+            2,
+        ),  # per-channel (no zero point)
+    )
     @pytest.mark.requires_trainable_backend
-    def test_quantize_when_lora_enabled(self):
+    def test_quantize_dtype_argument(
+        self, dtype, num_trainable_weights, num_non_trainable_weights
+    ):
+        self.run_layer_test(
+            layers.Embedding,
+            {"input_dim": 4, "output_dim": 3, "dtype": dtype},
+            input_shape=(2,),
+            input_dtype="int32",
+            expected_output_shape=(2, 3),
+            expected_num_trainable_weights=num_trainable_weights,
+            expected_num_non_trainable_weights=num_non_trainable_weights,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=False,
+        )
+        self.run_layer_test(
+            layers.Embedding,
+            {
+                "input_dim": 5,
+                "output_dim": 4,
+                "mask_zero": True,
+                "dtype": dtype,
+            },
+            input_shape=(2, 3),
+            input_dtype="int64",
+            expected_output_shape=(2, 3, 4),
+            expected_num_trainable_weights=num_trainable_weights,
+            expected_num_non_trainable_weights=num_non_trainable_weights,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+        )
+
+    @parameterized.named_parameters(
+        ("int8", "int8", 2, 2, 4),
+        ("int4", "int4", 2, 4, 6),  # +2 for embeddings_zero + g_idx
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_quantize_lora_integration(
+        self,
+        mode,
+        num_trainable_weights,
+        num_non_trainable_weights,
+        num_torch_params,
+    ):
         layer = layers.Embedding(10, 16)
         layer.build()
         layer.enable_lora(4)
-        layer.quantize("int8")
-        self.assertLen(layer.trainable_weights, 2)
-        self.assertLen(layer.non_trainable_weights, 2)
+        layer.quantize(mode)
+        self.assertLen(layer.trainable_weights, num_trainable_weights)
+        self.assertLen(layer.non_trainable_weights, num_non_trainable_weights)
         if backend.backend() == "torch":
-            self.assertLen(layer.torch_params, 4)
+            self.assertLen(layer.torch_params, num_torch_params)
 
         # Try calling fit()
         init_lora_a_embeddings_value = layer.lora_embeddings_a.numpy()
@@ -474,7 +570,7 @@ class EmbeddingTest(test_case.TestCase):
         new_model = models.Sequential(
             [layers.Input((3,), dtype="int32"), layers.Embedding(10, 16)]
         )
-        new_model.quantize("int8")
+        new_model.quantize(mode)
         new_model.load_weights(temp_filepath)
         self.assertFalse(new_model.layers[0].lora_enabled)
         self.assertAllClose(model.predict(x), new_model.predict(x), atol=0.5)
@@ -505,8 +601,268 @@ class EmbeddingTest(test_case.TestCase):
                 len(model.non_trainable_weights),
             )
 
-    def test_weights_constructor_arg(self):
-        layer = layers.Embedding(3, 4, weights=np.ones((3, 4)))
-        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
-        layer = layers.Embedding(3, 4, weights=[np.ones((3, 4))])
-        self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
+    def test_legacy_load_own_variables(self):
+        # In previous versions, `load_own_variables` accepted a store with
+        # numeric keys.
+        float32_store = {
+            "0": np.random.random((10, 16)).astype("float32"),
+        }
+        int8_store = {
+            "0": np.random.randint(-128, 127, size=(10, 16), dtype="int8"),
+            "1": np.random.random((10,)).astype("float32"),
+        }
+        int4_store = {
+            "0": np.random.randint(-128, 127, size=(10, 8), dtype="int8"),
+            "1": np.random.random((10,)).astype("float32"),
+        }
+
+        # Test float32 layer.
+        layer = layers.Embedding(10, 16)
+        layer.build()
+        layer.load_own_variables(float32_store)
+        self.assertAllClose(layer._embeddings, float32_store["0"])
+
+        # Test int8-quantized layer.
+        layer = layers.Embedding(10, 16, dtype="int8_from_float32")
+        layer.build()
+        layer.load_own_variables(int8_store)
+        self.assertAllClose(layer._embeddings, int8_store["0"])
+        self.assertAllClose(layer.embeddings_scale, int8_store["1"])
+
+        # Test int4-quantized layer.
+        layer = layers.Embedding(10, 16, dtype="int4_from_float32")
+        layer.build()
+        layer.load_own_variables(int4_store)
+        self.assertAllClose(layer._embeddings, int4_store["0"])
+        self.assertAllClose(layer.embeddings_scale, int4_store["1"])
+
+    def test_embedding_int8_custom_quantizer(self):
+        """
+        Test custom quantizer serialization for embedding layer with
+        int8 quantization.
+        """
+        # Setup
+        weight_range = (-50, 50)
+        config = Int8QuantizationConfig(
+            weight_quantizer=AbsMaxQuantizer(axis=-1, value_range=weight_range),
+        )
+
+        # Build & Quantize
+        layer = layers.Embedding(input_dim=100, output_dim=16)
+        layer.build(None)
+        layer.quantize("int8", config=config)
+
+        # Serialize & Deserialize
+        serialized = layer.get_config()
+        new_layer = layers.Embedding.from_config(serialized)
+
+        # Verify
+        self.assertIsInstance(
+            new_layer.quantization_config, Int8QuantizationConfig
+        )
+        quantizer = new_layer.quantization_config.weight_quantizer
+        self.assertIsInstance(quantizer, AbsMaxQuantizer)
+        self.assertEqual(quantizer.axis, (-1,))
+        self.assertAllEqual(quantizer.value_range, weight_range)
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+        ("per_channel_none", None),
+        ("per_channel_neg1", -1),
+    )
+    def test_int4_quantization_block_size(self, block_size):
+        """Test int4 quantization with different block_size configurations."""
+
+        input_dim, output_dim = 100, 256
+        layer = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
+        layer.build()
+
+        x = np.random.randint(0, input_dim, size=(4, 8))
+        y_float = layer(x)
+
+        # Create config with specified block_size
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify block_size is stored
+        self.assertEqual(layer._int4_block_size, block_size)
+
+        # Verify embeddings_scale shape
+        if block_size is None or block_size == -1:
+            # Per-channel: one scale per vocabulary item
+            expected_scale_shape = (input_dim,)
+        else:
+            # Sub-channel: n_groups scales per vocabulary item
+            n_groups = math.ceil(output_dim / block_size)
+            expected_scale_shape = (input_dim, n_groups)
+
+        self.assertEqual(layer.embeddings_scale.shape, expected_scale_shape)
+
+        # Verify outputs are reasonable
+        y_quantized = layer(x)
+        mse = ops.mean(ops.square(y_float - y_quantized))
+        self.assertLess(mse, 1e-3)
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("grouped_block_128", 128),
+        ("per_channel_none", None),
+    )
+    def test_int4_block_size_serialization(self, block_size):
+        """Test that block_size is preserved through serialization."""
+
+        input_dim, output_dim = 50, 128
+        layer = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Get output before serialization
+        x = np.random.randint(0, input_dim, size=(2, 8))
+        y_before = layer(x)
+
+        # Save and load model to test full serialization roundtrip
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "int4_block_size_embedding_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify block_size is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertIsInstance(
+            loaded_layer.quantization_config, Int4QuantizationConfig
+        )
+        self.assertEqual(
+            loaded_layer.quantization_config.block_size, block_size
+        )
+
+        # Verify outputs match after deserialization
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)
+
+    @parameterized.named_parameters(
+        ("grouped_block_64", 64),
+        ("per_channel", None),
+    )
+    @pytest.mark.requires_trainable_backend
+    def test_int4_block_size_with_lora(self, block_size):
+        """Test int4 quantization with LoRA and different block_size."""
+        input_dim, output_dim = 50, 128
+        layer = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+        layer.enable_lora(rank=4)
+
+        x = np.random.randint(0, input_dim, size=(4, 8))
+
+        # Should run without error
+        y = layer(x)
+        self.assertEqual(y.shape, (4, 8, output_dim))
+
+    def test_int4_grouped_vs_perchannel_scale_shapes(self):
+        """Test that grouped and per-channel have different scale shapes."""
+
+        input_dim, output_dim = 100, 256
+        block_size = 64
+
+        # Per-channel layer
+        layer_pc = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
+        layer_pc.build()
+        config_pc = Int4QuantizationConfig(block_size=None)
+        layer_pc.quantize("int4", config=config_pc)
+
+        # Grouped layer
+        layer_grouped = layers.Embedding(
+            input_dim=input_dim, output_dim=output_dim
+        )
+        layer_grouped.build()
+        config_grouped = Int4QuantizationConfig(block_size=block_size)
+        layer_grouped.quantize("int4", config=config_grouped)
+
+        # Verify different scale shapes
+        self.assertEqual(layer_pc.embeddings_scale.shape, (input_dim,))
+        n_groups = math.ceil(output_dim / block_size)
+        self.assertEqual(
+            layer_grouped.embeddings_scale.shape, (input_dim, n_groups)
+        )
+
+    @parameterized.named_parameters(
+        ("grouped_block_4", 4),
+        ("grouped_block_8", 8),
+    )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_subchannel_g_idx_created(self, block_size):
+        """Test that g_idx is created for sub-channel int4 quantization."""
+        input_dim, output_dim = 10, 16
+        layer = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is created
+        self.assertTrue(hasattr(layer, "g_idx"))
+
+        # Verify g_idx shape (output_dim for embedding)
+        self.assertEqual(layer.g_idx.shape, (output_dim,))
+
+        # Verify g_idx values (should map each column to its group)
+        expected_g_idx = np.arange(output_dim) // block_size
+        self.assertAllClose(layer.g_idx, expected_g_idx)
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_perchannel_no_g_idx(self):
+        """Test that per-channel int4 does NOT create g_idx."""
+        layer = layers.Embedding(input_dim=10, output_dim=16)
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=None)  # Per-channel
+        layer.quantize("int4", config=config)
+
+        # Verify g_idx is NOT created for per-channel
+        self.assertFalse(hasattr(layer, "g_idx"))
+
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
+    def test_int4_subchannel_g_idx_serialization(self):
+        """Test that g_idx is properly serialized and deserialized."""
+        input_dim, output_dim = 10, 16
+        block_size = 8
+
+        layer = layers.Embedding(input_dim=input_dim, output_dim=output_dim)
+        layer.build()
+
+        config = Int4QuantizationConfig(block_size=block_size)
+        layer.quantize("int4", config=config)
+
+        x = np.array([[1, 2, 3], [4, 5, 6]], dtype="int32")
+        y_before = layer(x)
+        g_idx_before = ops.convert_to_numpy(layer.g_idx)
+
+        # Save and load
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "embedding_int4_g_idx_model.keras"
+        )
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+
+        # Verify g_idx is preserved
+        loaded_layer = loaded_model.layers[0]
+        self.assertTrue(hasattr(loaded_layer, "g_idx"))
+        self.assertAllClose(loaded_layer.g_idx, g_idx_before)
+
+        # Verify outputs match
+        y_after = loaded_model(x)
+        self.assertAllClose(y_before, y_after)

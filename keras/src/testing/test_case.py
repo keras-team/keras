@@ -1,14 +1,12 @@
 import json
 import shutil
 import tempfile
-import unittest
 from pathlib import Path
 
 import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import distribution
 from keras.src import ops
 from keras.src import tree
 from keras.src import utils
@@ -21,7 +19,7 @@ from keras.src.models import Model
 from keras.src.utils import traceback_utils
 
 
-class TestCase(parameterized.TestCase, unittest.TestCase):
+class TestCase(parameterized.TestCase):
     maxDiff = None
 
     def __init__(self, *args, **kwargs):
@@ -40,7 +38,20 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
-    def assertAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
+    def assertAllClose(
+        self,
+        x1,
+        x2,
+        atol=1e-6,
+        rtol=1e-6,
+        tpu_atol=None,
+        tpu_rtol=None,
+        msg=None,
+    ):
+        if tpu_atol is not None and uses_tpu():
+            atol = tpu_atol
+        if tpu_rtol is not None and uses_tpu():
+            rtol = tpu_rtol
         if not isinstance(x1, np.ndarray):
             x1 = backend.convert_to_numpy(x1)
         if not isinstance(x2, np.ndarray):
@@ -57,7 +68,9 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             f"The two values are close at all elements. \n{msg}.\nValues: {x1}"
         )
 
-    def assertAlmostEqual(self, x1, x2, decimal=3, msg=None):
+    def assertAlmostEqual(self, x1, x2, decimal=3, tpu_decimal=None, msg=None):
+        if tpu_decimal is not None and uses_tpu():
+            decimal = tpu_decimal
         msg = msg or ""
         if not isinstance(x1, np.ndarray):
             x1 = backend.convert_to_numpy(x1)
@@ -195,6 +208,8 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         run_training_check=True,
         run_mixed_precision_check=True,
         assert_built_after_instantiation=False,
+        tpu_atol=None,
+        tpu_rtol=None,
     ):
         """Run basic checks on a layer.
 
@@ -376,7 +391,9 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                     msg="Unexpected number of torch_params",
                 )
 
-        def run_output_asserts(layer, output, eager=False):
+        def run_output_asserts(
+            layer, output, eager=False, tpu_atol=None, tpu_rtol=None
+        ):
             if expected_output_shape is not None:
 
                 def verify_shape(expected_shape, x):
@@ -422,7 +439,11 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                         tree.flatten(expected_output), tree.flatten(output)
                     ):
                         self.assertAllClose(
-                            ref_v, v, msg="Unexpected output value"
+                            ref_v,
+                            v,
+                            msg="Unexpected output value",
+                            tpu_atol=tpu_atol,
+                            tpu_rtol=tpu_rtol,
                         )
                 if expected_num_losses is not None:
                     self.assertLen(layer.losses, expected_num_losses)
@@ -551,7 +572,13 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 output_data = layer(**input_data, **call_kwargs)
             else:
                 output_data = layer(input_data, **call_kwargs)
-            run_output_asserts(layer, output_data, eager=True)
+            run_output_asserts(
+                layer,
+                output_data,
+                eager=True,
+                tpu_atol=tpu_atol,
+                tpu_rtol=tpu_rtol,
+            )
 
             if run_training_check:
                 run_training_step(layer, input_data, output_data)
@@ -597,35 +624,68 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                         self.assertEqual(dtype, "float32")
 
 
-def tensorflow_uses_gpu():
-    return backend.backend() == "tensorflow" and uses_gpu()
+def _jax_uses(device_type):
+    import jax
+
+    return jax.default_backend() == device_type
+
+
+def _tensorflow_uses(device_type):
+    import tensorflow as tf
+
+    return len(tf.config.list_physical_devices(device_type.upper())) > 0
+
+
+def _torch_uses(device_type):
+    if device_type == "gpu":
+        from keras.src.backend.torch.core import get_device
+
+        return get_device() == "cuda"
+    return device_type == "cpu"
+
+
+def uses_gpu():
+    if not hasattr(uses_gpu, "_value"):
+        if backend.backend() == "tensorflow":
+            uses_gpu._value = _tensorflow_uses("gpu")
+        elif backend.backend() == "jax":
+            uses_gpu._value = _jax_uses("gpu")
+        elif backend.backend() == "torch":
+            uses_gpu._value = _torch_uses("gpu")
+        else:
+            uses_gpu._value = False
+    return uses_gpu._value
+
+
+def uses_tpu():
+    if not hasattr(uses_tpu, "_value"):
+        if backend.backend() == "tensorflow":
+            uses_tpu._value = _tensorflow_uses("tpu")
+        elif backend.backend() == "jax":
+            uses_tpu._value = _jax_uses("tpu")
+        else:
+            uses_tpu._value = False
+    return uses_tpu._value
 
 
 def jax_uses_gpu():
     return backend.backend() == "jax" and uses_gpu()
 
 
+def jax_uses_tpu():
+    return backend.backend() == "jax" and uses_tpu()
+
+
+def tensorflow_uses_gpu():
+    return backend.backend() == "tensorflow" and uses_gpu()
+
+
+def tensorflow_uses_tpu():
+    return backend.backend() == "tensorflow" and uses_tpu()
+
+
 def torch_uses_gpu():
-    if backend.backend() != "torch":
-        return False
-    from keras.src.backend.torch.core import get_device
-
-    return get_device() == "cuda"
-
-
-def uses_gpu():
-    # Condition used to skip tests when using the GPU
-    devices = distribution.list_devices()
-    if any(d.startswith("gpu") for d in devices):
-        return True
-    return False
-
-
-def uses_cpu():
-    devices = distribution.list_devices()
-    if any(d.startswith("cpu") for d in devices):
-        return True
-    return False
+    return backend.backend() == "torch" and uses_gpu()
 
 
 def create_keras_tensors(input_shape, dtype, sparse, ragged):

@@ -22,5 +22,9 @@ updates:
         patterns:
           - "*"
     ignore:
-        # TODO: ignore all updates for JAX GPU due to cuda version issue
+      # 2.19.1 is the last version of the TensorFlow that supports TPUs.
+      - dependency-name: "tensorflow-tpu"
+      # TODO: ignore all updates for JAX GPU due to cuda version issue
       - dependency-name: "jax[cuda12_pip]"
+      # TODO(#21914): Update this version when TF is updated
+      - dependency-name: "ai-edge-litert"

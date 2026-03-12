@@ -39,11 +39,31 @@ class LazyModule:
         return f"LazyModule({self.name})"
 
 
+class OrbaxLazyModule(LazyModule):
+    def initialize(self):
+        try:
+            parent_module = importlib.import_module("orbax.checkpoint")
+            self.module = parent_module.v1
+            self.parent_module = parent_module
+        except ImportError:
+            raise ImportError(self.import_error_msg)
+
+    def __getattr__(self, name):
+        if name == "_api_export_path":
+            raise AttributeError
+        if self.module is None:
+            self.initialize()
+        if name == "multihost":
+            return self.parent_module.multihost
+        return getattr(self.module, name)
+
+
 tensorflow = LazyModule("tensorflow")
 gfile = LazyModule("tensorflow.io.gfile", pip_name="tensorflow")
 tensorflow_io = LazyModule("tensorflow_io")
 scipy = LazyModule("scipy")
 jax = LazyModule("jax")
+h5py = LazyModule("h5py")
 torch_xla = LazyModule(
     "torch_xla",
     import_error_msg=(
@@ -59,3 +79,12 @@ optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
 grain = LazyModule("grain")
+litert = LazyModule("ai_edge_litert")
+ocp = OrbaxLazyModule(
+    "orbax.checkpoint.v1",
+    pip_name="orbax-checkpoint",
+    import_error_msg=(
+        "OrbaxCheckpoint requires the 'orbax-checkpoint' package. "
+        "You can install it via pip install orbax-checkpoint"
+    ),
+)

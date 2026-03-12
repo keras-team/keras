@@ -1,6 +1,8 @@
 import numpy as np
 
 from keras.src.api_export import keras_export
+from keras.src.utils.grain_utils import make_batch
+from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
 
 
@@ -21,6 +23,7 @@ def timeseries_dataset_from_array(
     seed=None,
     start_index=None,
     end_index=None,
+    format="tf",
 ):
     """Creates a dataset of sliding windows over a timeseries provided as array.
 
@@ -61,10 +64,17 @@ def timeseries_dataset_from_array(
         end_index: Optional int; data points later (exclusive) than `end_index`
             will not be used in the output sequences.
             This is useful to reserve part of the data for test or validation.
+        format: Optional string; either `"tf"` (default) for a
+            `tf.data.Dataset`, or `"grain"` for a Grain dataset. Grain
+            datasets are framework-agnostic and work with JAX, PyTorch,
+            and NumPy backends without requiring TensorFlow.
 
     Returns:
 
-    A `tf.data.Dataset` instance. If `targets` was passed, the dataset yields
+    A dataset instance. If `format="tf"`, returns a `tf.data.Dataset`.
+    If `format="grain"`, returns a Grain `IterDataset` (or `MapDataset`
+    when `batch_size` is `None`).
+    If `targets` was passed, the dataset yields
     tuple `(batch_of_sequences, batch_of_targets)`. If not, the dataset yields
     only `batch_of_sequences`.
 
@@ -188,6 +198,52 @@ def timeseries_dataset_from_array(
             f"data of length {len(data)}"
         )
 
+    if format not in ("tf", "grain"):
+        raise ValueError(
+            '`format` should be either "tf" or "grain". '
+            f"Received: format={format}"
+        )
+
+    if format == "tf":
+        return _timeseries_dataset_tf(
+            data=data,
+            targets=targets,
+            sequence_length=sequence_length,
+            sequence_stride=sequence_stride,
+            sampling_rate=sampling_rate,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            seed=seed,
+            start_index=start_index,
+            end_index=end_index,
+        )
+    else:
+        return _timeseries_dataset_grain(
+            data=data,
+            targets=targets,
+            sequence_length=sequence_length,
+            sequence_stride=sequence_stride,
+            sampling_rate=sampling_rate,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            seed=seed,
+            start_index=start_index,
+            end_index=end_index,
+        )
+
+
+def _timeseries_dataset_tf(
+    data,
+    targets,
+    sequence_length,
+    sequence_stride,
+    sampling_rate,
+    batch_size,
+    shuffle,
+    seed,
+    start_index,
+    end_index,
+):
     if start_index is None:
         start_index = 0
     if end_index is None:
@@ -250,6 +306,65 @@ def timeseries_dataset_from_array(
         if shuffle:
             dataset = dataset.shuffle(buffer_size=1024, seed=seed)
     return dataset
+
+
+def _timeseries_dataset_grain(
+    data,
+    targets,
+    sequence_length,
+    sequence_stride,
+    sampling_rate,
+    batch_size,
+    shuffle,
+    seed,
+    start_index,
+    end_index,
+):
+    if start_index is None:
+        start_index = 0
+    if end_index is None:
+        end_index = len(data)
+
+    # Compute number of sequences and start positions
+    num_seqs = end_index - start_index - (sequence_length - 1) * sampling_rate
+    if targets is not None:
+        num_seqs = min(num_seqs, len(targets))
+
+    start_positions = np.arange(0, num_seqs, sequence_stride)
+    if shuffle:
+        if seed is None:
+            seed = np.random.randint(1e6)
+        rng = np.random.RandomState(seed)
+        rng.shuffle(start_positions)
+
+    data_slice = np.array(data[start_index:end_index])
+
+    # Build the list of sequences as numpy arrays
+    sequences = []
+    for pos in start_positions:
+        indices = np.arange(
+            pos, pos + sequence_length * sampling_rate, sampling_rate
+        )
+        sequences.append(data_slice[indices])
+
+    seq_ds = grain.MapDataset.source(sequences)
+
+    if targets is not None:
+        target_slice = np.array(targets[start_index:])
+        target_values = [target_slice[pos] for pos in start_positions]
+        target_ds = grain.MapDataset.source(target_values)
+        ds = grain.experimental.ZipMapDataset([seq_ds, target_ds])
+    else:
+        ds = seq_ds
+
+    if shuffle:
+        ds = ds.shuffle(seed=seed)
+
+    ds = ds.to_iter_dataset()
+    if batch_size is not None:
+        ds = ds.batch(batch_size, batch_fn=make_batch)
+
+    return ds
 
 
 def sequences_from_indices(array, indices_ds, start_index, end_index):

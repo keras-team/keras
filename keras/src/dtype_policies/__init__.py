@@ -2,20 +2,24 @@ from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.dtype_policies import dtype_policy
 from keras.src.dtype_policies.dtype_policy import QUANTIZATION_MODES
+from keras.src.dtype_policies.dtype_policy import AWQDTypePolicy
 from keras.src.dtype_policies.dtype_policy import DTypePolicy
 from keras.src.dtype_policies.dtype_policy import FloatDTypePolicy
 from keras.src.dtype_policies.dtype_policy import GPTQDTypePolicy
+from keras.src.dtype_policies.dtype_policy import Int4DTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedDTypePolicy
 from keras.src.dtype_policies.dtype_policy import QuantizedFloat8DTypePolicy
 from keras.src.dtype_policies.dtype_policy_map import DTypePolicyMap
 
 ALL_OBJECTS = {
+    AWQDTypePolicy,
     DTypePolicy,
     FloatDTypePolicy,
     QuantizedDTypePolicy,
     QuantizedFloat8DTypePolicy,
     DTypePolicyMap,
     GPTQDTypePolicy,
+    Int4DTypePolicy,
 }
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 

@@ -105,11 +105,14 @@ class RandomCorrectnessTest(testing.TestCase):
         self.assertGreaterEqual(ops.max(res), mean - 2 * stddev)
 
     def test_dropout(self):
-        x = ops.ones((3, 5))
+        x = ops.ones((10, 10))
         self.assertAllClose(random.dropout(x, rate=0, seed=0), x)
-        x_res = random.dropout(x, rate=0.8, seed=0)
+        x_res = random.dropout(x, rate=0.5, seed=0)
         self.assertGreater(ops.max(x_res), ops.max(x))
-        self.assertGreater(ops.sum(x_res == 0), 2)
+        self.assertAllClose(ops.max(x_res), 2.0)
+        self.assertGreater(ops.cast(ops.sum(x_res == 0), "int32"), 2)
+        x_res = random.dropout(x, rate=1.0, seed=0)
+        self.assertAllClose(x_res, ops.zeros((10, 10)))
 
     def test_dropout_noise_shape(self):
         inputs = ops.ones((2, 3, 5, 7))

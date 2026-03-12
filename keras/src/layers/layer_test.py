@@ -16,7 +16,6 @@ from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
 from keras.src.models import Model
-from keras.src.utils import traceback_utils
 
 
 class MockRemat:
@@ -233,12 +232,21 @@ class LayerTest(testing.TestCase):
         self.assertLen(mock_remat.rematted_functions, 1)
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
+    def test_gptq_quantization_by_setting_dtype(self):
+        """Tests error being raised when dtype is set to GPTQ."""
+        with self.assertRaisesRegex(
+            ValueError,
+            "Implicitly enabling GPTQ quantization.*is not supported",
+        ):
+            layer = layers.Dense(3)
+            layer.build((2, 4))
+            layer.dtype_policy = "gptq/4/-1_from_float32"
+
+    @pytest.mark.skipif(
+        backend.backend() in ("openvino", "numpy"),
+        reason="remat not supported on OpenVino and Numpy",
+    )
     def test_functional_model_with_remat(self):
-        if backend.backend() in ("openvino", "numpy"):
-            self.skipTest(
-                "remat is not supported in openvino and numpy backends."
-            )
-        traceback_utils.enable_traceback_filtering()
         mock_remat = MockRemat()
         with mock.patch(
             "keras.src.backend.common.remat.remat", wraps=mock_remat
@@ -516,6 +524,49 @@ class LayerTest(testing.TestCase):
         layer(x1=backend.KerasTensor((3, 4)), x2=backend.KerasTensor((3, 4)))
         self.assertLen(layer.weights, 4)
 
+        class DictLayerWithUnbuiltState(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, xs):
+                result = self.dense(xs["x1"])
+                if xs.get("x2", None) is not None:
+                    result += self.dense(xs["x2"])
+                return result
+
+        layer = DictLayerWithUnbuiltState(2)
+        layer(
+            {
+                "x1": backend.KerasTensor((3, 4)),
+                "x2": backend.KerasTensor((3, 4)),
+            }
+        )
+        self.assertLen(layer.weights, 2)
+
+        layer = DictLayerWithUnbuiltState(2)
+        layer({"x1": backend.KerasTensor((3, 4)), "x2": None})
+        self.assertLen(layer.weights, 2)
+
+        class ListLayerWithUnbuiltState(layers.Layer):
+            def __init__(self, units):
+                super().__init__()
+                self.dense = layers.Dense(units)
+
+            def call(self, xs):
+                result = self.dense(xs[0])
+                if xs[1] is not None:
+                    result += self.dense(xs[1])
+                return result
+
+        layer = ListLayerWithUnbuiltState(2)
+        layer([backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))])
+        self.assertLen(layer.weights, 2)
+
+        layer = ListLayerWithUnbuiltState(2)
+        layer([backend.KerasTensor((3, 4)), None])
+        self.assertLen(layer.weights, 2)
+
     def test_activity_regularization(self):
         class ActivityRegularizer(layers.Layer):
             def call(self, x):
@@ -535,6 +586,23 @@ class LayerTest(testing.TestCase):
         layer = ActivityRegularizer(activity_regularizer="l1")
         layer(layers.Input(batch_shape=(2, 2)))
         self.assertLen(layer.losses, 0)
+
+    @parameterized.named_parameters(
+        ("batch_size_0", 0),
+        ("batch_size_1", 1),
+        ("batch_size_5", 5),
+        ("batch_size_10", 10),
+    )
+    def test_activity_regularization_batch_normalization(self, batch_size):
+        class SimpleLayer(layers.Layer):
+            def call(self, x):
+                return x
+
+        layer = SimpleLayer(activity_regularizer="l2")
+        layer(ops.ones((batch_size, 5)) * 2.0)
+        self.assertLen(layer.losses, 1)
+        expected_loss = 0.0 if batch_size == 0 else 0.2
+        self.assertAllClose(layer.losses[0], expected_loss)
 
     @pytest.mark.requires_trainable_backend
     def test_add_loss(self):
@@ -678,7 +746,7 @@ class LayerTest(testing.TestCase):
             def call(self, x):
                 # Should not autocast.
                 assertDType(self.v, "float32")
-                return ops.cast(x, "float32") + self.v
+                return ops.add(ops.cast(x, "float32"), self.v)
 
         # A layer that is explicitly full precision.
         class InnerLayerTwo(layers.Layer):
@@ -694,7 +762,7 @@ class LayerTest(testing.TestCase):
             def call(self, x):
                 # Should not autocast.
                 assertDType(self.v, "float32")
-                return x + self.v
+                return ops.add(x, self.v)
 
         # A layer that is explicitly mixed precision but with autocast=False
         # weight.
@@ -732,7 +800,7 @@ class LayerTest(testing.TestCase):
                 # Should autocast.
                 assertDType(self.v, "float16")
                 return self.inner_three(
-                    self.inner_two(self.inner_one(x + self.v))
+                    self.inner_two(self.inner_one(ops.add(x, self.v)))
                 )
 
         layer = MixedPrecisionLayer()
@@ -753,6 +821,33 @@ class LayerTest(testing.TestCase):
 
         x = [np.zeros(1, dtype="float64"), np.zeros(1, dtype="int32")]
         CustomLayer()(x)
+
+    @pytest.mark.skipif(
+        backend.backend() == "numpy", reason="masking not supported with numpy"
+    )
+    def test_keras_mask_with_autocast(self):
+        assertAllEqual = self.assertAllEqual
+        assertDType = self.assertDType
+
+        class CustomLayer(layers.Layer):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.supports_masking = True
+
+            def call(self, x, mask=None):
+                assert mask is not None
+                assertDType(x, "float16")
+                return x
+
+        x = ops.zeros((1, 2), dtype="float32")
+        mask = ops.array([True, False])
+        backend.set_keras_mask(x, mask)
+        y = CustomLayer(dtype="float16")(x)
+        assertAllEqual(
+            mask,
+            backend.get_keras_mask(y),
+            "Masking is not propagated by Autocast",
+        )
 
     @pytest.mark.skipif(
         backend.backend() == "numpy", reason="masking not supported with numpy"
@@ -935,7 +1030,7 @@ class LayerTest(testing.TestCase):
                 x = x + backend.random.normal(
                     shape=(), seed=self._seed_generator
                 )
-                return x + self.tw + self.ntw
+                return ops.add(x, ops.add(self.tw, self.ntw))
 
         data = np.random.random((3, 4))
         layer = TestLayer()
@@ -1195,6 +1290,73 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w5.shape, (2, 2))
         self.assertEqual(layer.w5.dtype, "float32")
         self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
+
+    def test_add_weight_string_as_first_positional_arg(self):
+        """Test that passing a string as first positional arg to add_weight
+        raises a clear error guiding users to use name= keyword."""
+
+        # Case 1: String as only positional arg (e.g. add_weight("matrix"))
+        class MyLayer1(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight("my_weight")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "name.*keyword argument",
+        ):
+            MyLayer1()
+
+        # Case 2: String positional + shape kwarg — the exact bug from
+        # https://github.com/keras-team/keras/issues/22265
+        # In Keras 2 this was valid: add_weight("matrix", shape=(3, 4))
+        class MyLayer2(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight(
+                    "matrix", shape=(3, 4), initializer="zeros"
+                )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "name.*keyword argument",
+        ):
+            MyLayer2()
+
+        # Case 3: shape passed both positionally and as keyword
+        class MyLayer3(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), shape=(3, 4))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`shape` was passed both positionally and as a keyword argument",
+        ):
+            MyLayer3()
+
+        # Case 4: positional shape / initializer / dtype must remain valid.
+        class MyLayer4(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), "zeros", "float32")
+
+        layer = MyLayer4()
+        self.assertEqual(layer.w.shape, (3, 4))
+        self.assertEqual(layer.w.dtype, "float32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w), np.zeros((3, 4)))
+
+        # Case 5: too many positional arguments
+        class MyLayer5(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), "zeros", "float32", "name")
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "takes at most 3 positional arguments",
+        ):
+            MyLayer5()
 
     def test_remove_weight(self):
         class MyLayer(layers.Layer):
@@ -1758,3 +1920,22 @@ class LayerTest(testing.TestCase):
         # foo_mode omitted -> foo_mode defaults to False -> no change
         y2 = model(sample_input)
         self.assertAllClose(y2, sample_input)
+
+    def test_layer_build_with_attention_mask_arg(self):
+        test = self
+
+        class CustomLayer(layers.Layer):
+            def call(self, inputs, attention_mask=None):
+                if attention_mask is not None:
+                    return inputs * ops.cast(attention_mask, x.dtype)
+                return inputs
+
+            def build(self, inputs_shape, attention_mask_shape=None):
+                test.assertIsNotNone(attention_mask_shape)
+                self.built = True
+
+        layer = CustomLayer()
+        x = np.ones((2, 3), dtype="float32")
+        mask = np.ones((2, 1), dtype="float32")
+        y = layer(x, attention_mask=mask)
+        self.assertEqual(y.shape, (2, 3))

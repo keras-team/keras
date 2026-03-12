@@ -3,7 +3,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
-QUANTIZATION_MODES = ("int8", "float8", "int4", "gptq")
+QUANTIZATION_MODES = ("int8", "float8", "int4", "gptq", "awq")
 
 
 @keras_export(
@@ -288,6 +288,79 @@ class QuantizedFloat8DTypePolicy(QuantizedDTypePolicy):
         return config
 
 
+@keras_export("keras.dtype_policies.Int4DTypePolicy")
+class Int4DTypePolicy(QuantizedDTypePolicy):
+    """Quantized dtype policy for int4 quantization.
+
+    This policy helps propagate quantization settings for int4 sub-channel
+    quantization when loading a quantized model in Keras format.
+
+    Args:
+        mode: The quantization mode. This should be a string in the format
+            `"int4/<block_size>"`.
+            -   `"int4"`: The identifier for the quantization algorithm.
+            -   `<block_size>`: The block size for sub-channel quantization.
+                Use -1 for per-channel (legacy) quantization. Any positive
+                integer enables sub-channel quantization with that block size.
+            Example: `"int4/128"` for sub-channel with 128-element groups.
+        source_name: The source dtype policy name, e.g. "float32".
+    """
+
+    def __init__(
+        self,
+        mode,
+        source_name=None,
+    ):
+        parts = mode.split("/")
+        expected_format = "'int4/<block_size>'"
+
+        # Validate format
+        if len(parts) != 2 or parts[0] != "int4":
+            raise ValueError(
+                "Invalid mode for Int4DTypePolicy. Expected format "
+                f"{expected_format}, but got '{mode}'."
+            )
+
+        # Validate and cast block_size
+        try:
+            block_size = int(parts[1])
+        except ValueError:
+            raise ValueError(
+                "Invalid mode for Int4DTypePolicy. <block_size> must be an "
+                f"integer. Expected format {expected_format}, but got '{mode}'."
+            )
+
+        # Validate supported values
+        if block_size < -1 or block_size == 0:
+            raise ValueError(
+                "Invalid block_size in mode. Supported values are "
+                "-1 (per-channel) or a positive integer (sub-channel), "
+                f"but got {block_size} from '{mode}'."
+            )
+
+        base_mode = parts[0]
+        super().__init__(
+            mode=base_mode,
+            source_name=source_name,
+        )
+
+        self._name = f"{mode}_from_{source_name}"
+        self.mode = base_mode
+        self.block_size = block_size
+
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return self.block_size == other.block_size
+
+    def get_config(self):
+        config = super().get_config()
+        # Reconstruct the full mode string for serialization
+        mode = f"{self.mode}/{self.block_size}"
+        config.update({"mode": mode})
+        return config
+
+
 @keras_export("keras.dtype_policies.GPTQDTypePolicy")
 class GPTQDTypePolicy(QuantizedDTypePolicy):
     """Quantized dtype policy for GPTQ quantization.
@@ -346,6 +419,93 @@ class GPTQDTypePolicy(QuantizedDTypePolicy):
             raise ValueError(
                 "Invalid group_size in mode. Supported values are "
                 "-1 (whole-tensor) or a positive integer, "
+                f"but got {group_size} from '{mode}'."
+            )
+
+        base_mode = parts[0]
+        super().__init__(
+            mode=base_mode,
+            source_name=source_name,
+        )
+
+        self._name = f"{mode}_from_{source_name}"
+        self.mode = base_mode
+        self.weight_bits = weight_bits
+        self.group_size = group_size
+
+    def __eq__(self, other):
+        if super().__eq__(other) is False:
+            return False
+        return (
+            self.weight_bits == other.weight_bits
+            and self.group_size == other.group_size
+        )
+
+    def get_config(self):
+        config = super().get_config()
+        # Reconstruct the full mode string for serialization
+        mode = f"{self.mode}/{self.weight_bits}/{self.group_size}"
+        config.update({"mode": mode})
+        return config
+
+
+@keras_export("keras.dtype_policies.AWQDTypePolicy")
+class AWQDTypePolicy(QuantizedDTypePolicy):
+    """Quantized dtype policy for AWQ quantization.
+
+    This policy helps propagate quantization settings for AWQ
+    when loading an AWQ quantized model in Keras format.
+
+    Args:
+        mode: The quantization mode. This should be a string in the format
+            `"awq/<weight_bits>/<group_size>"`.
+            -   `"awq"`: The identifier for the quantization algorithm.
+            -   `<weight_bits>`: Number of bits to quantize weights to.
+                AWQ presently only supports 4-bit quantization.
+            -   `<group_size>`: The group size for quantization. Supported
+                values are -1 (for per-channel quantization) or any
+                positive integer.
+            Example: `"awq/4/128"`.
+        source_name: The source dtype policy name, e.g. "float32".
+    """
+
+    def __init__(
+        self,
+        mode,
+        source_name=None,
+    ):
+        parts = mode.split("/")
+        expected_format = "'awq/<weight_bits>/<group_size>'"
+
+        # Validate format.
+        if len(parts) != 3 or parts[0] != "awq":
+            raise ValueError(
+                "Invalid mode for AWQDTypePolicy. Expected format "
+                f"{expected_format}, but got '{mode}'."
+            )
+
+        # Validate and cast weight_bits and group_size.
+        try:
+            weight_bits = int(parts[1])
+            group_size = int(parts[2])
+        except ValueError:
+            raise ValueError(
+                "Invalid mode for AWQDTypePolicy. <weight_bits> and "
+                "<group_size> must be integers. Expected format "
+                f"{expected_format}, but got '{mode}'."
+            )
+
+        # AWQ presently only supports 4-bit quantization.
+        if weight_bits != 4:
+            raise ValueError(
+                "Invalid weight_bits in mode. AWQ only supports 4-bit "
+                f"quantization, but got {weight_bits} from '{mode}'."
+            )
+
+        if group_size < -1 or group_size == 0:
+            raise ValueError(
+                "Invalid group_size in mode. Supported values are "
+                "-1 (per-channel) or a positive integer, "
                 f"but got {group_size} from '{mode}'."
             )
 
@@ -438,10 +598,18 @@ def _get_quantized_dtype_policy_by_str(policy):
             f"Received: policy={policy}"
         )
     mode, source_name = split_name
-    if policy.startswith("int8") or policy.startswith("int4"):
+    if policy.startswith("int8"):
         return QuantizedDTypePolicy(mode, source_name)
+    elif policy.startswith("int4"):
+        # Check if mode has block_size component (e.g., "int4/128")
+        if "/" in mode:
+            return Int4DTypePolicy(mode, source_name)
+        else:
+            return QuantizedDTypePolicy(mode, source_name)
     elif policy.startswith("gptq"):
         return GPTQDTypePolicy(mode, source_name)
+    elif policy.startswith("awq"):
+        return AWQDTypePolicy(mode, source_name)
     elif policy.startswith("float8"):
         return QuantizedFloat8DTypePolicy(mode, source_name)
     else:

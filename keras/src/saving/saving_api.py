@@ -6,13 +6,13 @@ from absl import logging
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
+from keras.src.saving.orbax_util import build_orbax_abstract_pytree
+from keras.src.saving.orbax_util import find_latest_orbax_checkpoint
+from keras.src.saving.orbax_util import is_orbax_checkpoint
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
-
-try:
-    import h5py
-except ImportError:
-    h5py = None
+from keras.src.utils.module_utils import h5py
+from keras.src.utils.module_utils import ocp
 
 
 @keras_export(["keras.saving.save_model", "keras.models.save_model"])
@@ -123,10 +123,11 @@ def save_model(model, filepath, overwrite=True, zipped=None, **kwargs):
 
 @keras_export(["keras.saving.load_model", "keras.models.load_model"])
 def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
-    """Loads a model saved via `model.save()`.
+    """Loads a model saved via `model.save()` or from an Orbax checkpoint.
 
     Args:
-        filepath: `str` or `pathlib.Path` object, path to the saved model file.
+        filepath: `str` or `pathlib.Path` object, path to the saved model file
+            or Orbax checkpoint directory.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -149,8 +150,6 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
         keras.layers.Softmax()])
     model.save("model.keras")
     loaded_model = keras.saving.load_model("model.keras")
-    x = np.random.random((10, 3))
-    assert np.allclose(model.predict(x), loaded_model.predict(x))
     ```
 
     Note that the model variables may have different name values
@@ -199,6 +198,16 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
             compile=compile,
             safe_mode=safe_mode,
         )
+
+    # Check for Orbax checkpoint directory using utility function
+    if is_orbax_checkpoint(filepath):
+        return _load_model_from_orbax_checkpoint(
+            filepath,
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
+        )
+
     elif str(filepath).endswith(".keras"):
         raise ValueError(
             f"File not found: filepath={filepath}. "
@@ -208,7 +217,7 @@ def load_model(filepath, custom_objects=None, compile=True, safe_mode=True):
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
-            "Keras 3 only supports V3 `.keras` files and "
+            "Keras 3 only supports V3 `.keras` files, "
             "legacy H5 format files (`.h5` extension). "
             "Note that the legacy SavedModel format is not "
             "supported by `load_model()` in Keras 3. In "
@@ -270,6 +279,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 "`by_name` only supports loading legacy '.h5' or '.hdf5' "
                 f"files. Received: {filepath}"
             )
+
         saving_lib.load_weights_only(
             model, filepath, skip_mismatch=skip_mismatch
         )
@@ -288,14 +298,15 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             objects_to_skip=objects_to_skip,
         )
     elif filepath_str.endswith(".h5") or filepath_str.endswith(".hdf5"):
-        if not h5py:
-            raise ImportError(
-                "Loading a H5 file requires `h5py` to be installed."
-            )
         if objects_to_skip is not None:
             raise ValueError(
                 "`objects_to_skip` only supports loading '.weights.h5' files."
                 f"Received: {filepath}"
+            )
+        if not h5py.available:
+            raise ImportError(
+                "Loading HDF5 files requires the h5py package. "
+                "You can install it via `pip install h5py`"
             )
         with h5py.File(filepath, "r") as f:
             if "layer_names" not in f.attrs and "model_weights" in f:
@@ -308,9 +319,127 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 legacy_h5_format.load_weights_from_hdf5_group(
                     f, model, skip_mismatch
                 )
+    elif is_orbax_checkpoint(filepath):
+        # Load weights from Orbax checkpoint
+        filepath = str(filepath)
+
+        # Determine if this is a root directory or a step directory
+        items = file_utils.listdir(filepath)
+        has_step_subdirs = any(
+            file_utils.isdir(file_utils.join(filepath, item)) and item.isdigit()
+            for item in items
+        )
+
+        if has_step_subdirs:
+            # It's a root directory, find the latest checkpoint
+            checkpoint_path = find_latest_orbax_checkpoint(filepath)
+        else:
+            # It's a step directory, use it directly
+            checkpoint_path = filepath
+
+        # Build abstract pytree with target shardings so Orbax can
+        # reshard arrays onto the current distribution layout.
+        abstract_pytree = build_orbax_abstract_pytree(
+            checkpoint_path, model.get_state_tree()
+        )
+
+        loaded_checkpointables = ocp.load_checkpointables(
+            checkpoint_path, dict(pytree=abstract_pytree)
+        )
+
+        loaded_state = loaded_checkpointables["pytree"]
+
+        # Set the model state directly from the loaded state
+        model.set_state_tree(loaded_state)
     else:
         raise ValueError(
             f"File format not supported: filepath={filepath}. "
-            "Keras 3 only supports V3 `.keras` and `.weights.h5` "
-            "files, or legacy V1/V2 `.h5` files."
+            "Keras 3 only supports V3 `.keras` files, "
+            "`.weights.h5` files, legacy H5 format files "
+            "(`.h5` extension), or Orbax checkpoints."
         )
+
+
+def _load_model_from_orbax_checkpoint(
+    filepath, custom_objects=None, compile=True, safe_mode=True
+):
+    """Load a model from an Orbax checkpoint directory.
+
+    `model_config` is stored as its own checkpointable (separate from
+    `pytree`), so loading proceeds in two simple steps:
+
+      1. Load the `model_config` checkpointable to obtain the model
+         configuration string and rebuild the model.
+      2. Load the `pytree` checkpointable (all arrays).  When a JAX
+         distribution is active, an abstract pytree with target
+         shardings is provided so that Orbax reshards arrays onto the
+         current layout.
+    """
+    # Ensure orbax is available
+    ocp.initialize()
+
+    # Find the latest checkpoint step using the utility function
+    checkpoint_path = find_latest_orbax_checkpoint(filepath)
+    step = int(os.path.basename(checkpoint_path))
+
+    # Load the composite state efficiently
+    checkpointer = ocp.training.Checkpointer(directory=filepath)
+
+    variable_keys = [
+        "trainable_variables",
+        "non_trainable_variables",
+        "optimizer_variables",
+        "metrics_variables",
+    ]
+
+    with ocp.Context():
+        # Check which checkpointables were saved so we only request
+        # keys that actually exist (Orbax raises KeyError otherwise).
+        saved_keys = set(
+            checkpointer.checkpointables_metadata(step).metadata.keys()
+        )
+
+        # Step 1: Load model_config to rebuild the model.
+        if "model_config" not in saved_keys:
+            raise ValueError(
+                "Checkpoint does not contain model configuration. "
+                "This checkpoint may have been saved with "
+                "save_weights_only=True."
+            )
+
+        config_loaded = checkpointer.load_checkpointables(
+            step, {"model_config": None}
+        )
+        model = saving_lib._model_from_config(
+            config_loaded["model_config"]["config"],
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
+        )
+
+        # Step 2: Load pytree (arrays) with optional resharding.
+        abstract_pytree = build_orbax_abstract_pytree(
+            checkpoint_path, model.get_state_tree()
+        )
+
+        request = {"pytree": abstract_pytree}
+        if "assets" in saved_keys:
+            request["assets"] = None
+
+        loaded = checkpointer.load_checkpointables(step, request)
+        composite_state = loaded["pytree"]
+        assets_data = loaded.get("assets")
+
+    state_tree = {
+        key: composite_state[key]
+        for key in variable_keys
+        if key in composite_state
+    }
+
+    # Apply the loaded state to the model
+    model.set_state_tree(state_tree)
+
+    # Load assets if present
+    saving_lib._load_assets_from_dict(model, assets_data)
+
+    return model

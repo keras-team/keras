@@ -330,16 +330,27 @@ def scatter(indices, values, shape):
     indices = np.reshape(indices, [-1, index_length])
     values = np.reshape(values, [-1] + list(value_shape))
 
-    for i in range(indices.shape[0]):
-        index = indices[i]
-        zeros[tuple(index)] += values[i]
+    idx = tuple(indices.T)
+    np.add.at(zeros, idx, values)
     return zeros
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     indices = np.array(indices)
     indices = np.transpose(indices)
-    inputs[tuple(indices)] = updates
+    idx = tuple(indices)
+    if reduction is None:
+        inputs[idx] = updates
+    elif reduction == "add":
+        np.add.at(inputs, idx, updates)
+    elif reduction == "max":
+        np.maximum.at(inputs, idx, updates)
+    elif reduction == "min":
+        np.minimum.at(inputs, idx, updates)
+    elif reduction == "mul":
+        np.multiply.at(inputs, idx, updates)
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
     return inputs
 
 

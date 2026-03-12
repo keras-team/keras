@@ -1,5 +1,4 @@
 import inspect
-import os.path
 import textwrap
 
 from keras.src import backend
@@ -20,10 +19,10 @@ class Operation(KerasSaveable):
     def __init__(self, name=None):
         if name is None:
             name = auto_name(self.__class__.__name__)
-        if not isinstance(name, str) or os.path.sep in name:
+        if not isinstance(name, str) or "/" in name:
             raise ValueError(
                 "Argument `name` must be a string and "
-                f"cannot contain character `{os.path.sep}`. "
+                f"cannot contain character `/`. "
                 f"Received: name={name} (of type {type(name)})"
             )
         self.name = name

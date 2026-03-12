@@ -1,19 +1,38 @@
 import inspect
 
 from keras.src.api_export import keras_export
+from keras.src.quantizers.awq_config import AWQConfig
+from keras.src.quantizers.quantization_config import Float8QuantizationConfig
+from keras.src.quantizers.quantization_config import Int4QuantizationConfig
+from keras.src.quantizers.quantization_config import Int8QuantizationConfig
+from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantizers import AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize
+from keras.src.quantizers.quantizers import (
+    abs_max_quantize_grouped_with_zero_point,
+)
 from keras.src.quantizers.quantizers import compute_float8_amax_history
 from keras.src.quantizers.quantizers import compute_float8_scale
+from keras.src.quantizers.quantizers import compute_quantization_parameters
+from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.quantizers.quantizers import fake_quant_with_min_max_vars
 from keras.src.quantizers.quantizers import pack_int4
 from keras.src.quantizers.quantizers import quantize_and_dequantize
+from keras.src.quantizers.quantizers import quantize_with_sz_map
 from keras.src.quantizers.quantizers import unpack_int4
 from keras.src.saving import serialization_lib
 from keras.src.utils.naming import to_snake_case
 
-ALL_OBJECTS = {Quantizer, AbsMaxQuantizer}
+ALL_OBJECTS = {
+    Quantizer,
+    AbsMaxQuantizer,
+    QuantizationConfig,
+    Int8QuantizationConfig,
+    Int4QuantizationConfig,
+    Float8QuantizationConfig,
+    AWQConfig,
+}
 ALL_OBJECTS_DICT = {cls.__name__: cls for cls in ALL_OBJECTS}
 ALL_OBJECTS_DICT.update(
     {to_snake_case(cls.__name__): cls for cls in ALL_OBJECTS}

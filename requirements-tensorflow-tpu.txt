@@ -1,0 +1,14 @@
+# 2.19.1 is the last version of the TensorFlow that supports TPUs.
+--find-links https://storage.googleapis.com/libtpu-tf-releases/index.html
+tensorflow-tpu==2.19.1
+
+tf2onnx
+
+# Torch cpu-only version (needed for testing).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+
+# Jax cpu-only version (needed for testing).
+jax
+
+-r requirements-common.txt

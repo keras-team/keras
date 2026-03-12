@@ -20,7 +20,7 @@ class Muon(optimizer.Optimizer):
     The Muon optimizer can use both the Muon update step or the
     AdamW update step based on the following:
 
-    - For any variable that isn't 2D, 3D or 4D, the AdamW step
+    - For any variable that isn't 2D, the AdamW step
         will be used. This is not configurable.
     - If the argument `exclude_embeddings` (defaults to `True`) is set
     to `True`, the AdamW step will be used.
@@ -46,10 +46,12 @@ class Muon(optimizer.Optimizer):
             that takes no arguments and returns the actual value to use.
             The exponential decay rate for the 1st moment estimates. Defaults to
             `0.9`.
-        adam_beta_2: A float value or a constant float tensor, ora callable
+        adam_beta_2: A float value or a constant float tensor, or a callable
             that takes no arguments and returns the actual value to use.
             The exponential decay rate for the 2nd moment estimates. Defaults to
             `0.999`.
+        adam_weight_decay: Float. If set, weight decay is applied when using
+            the Adam optimizer.
         epsilon: A small constant for numerical stability. This is
             "epsilon hat" in the Kingma and Ba paper
             (in the formula just before Section 2.1),
@@ -67,11 +69,15 @@ class Muon(optimizer.Optimizer):
             It is recommended to use the default value
         adam_lr_ratio: Float, the ratio of the learning rate when
                 using Adam to the main learning rate.
-                it is recommended to set it to 0.1
+                It is recommended to set it to 1
         momentum: Float, momentum used by internal SGD.
         ns_steps: Integer, number of Newton-Schulz iterations to run.
         nesterov: Boolean, whether to use Nesterov-style momentum
         {{base_optimizer_keyword_args}}
+        rms_rate: Float. A parameter from https://arxiv.org/abs/2502.16982
+            that can enhance the stability of Muon, allowing it to use the
+            same learning rate and weight decay as Adam. Defaults to `0.2`.
+            Set to `None` to disable this feature.
     """
 
     def __init__(
@@ -79,8 +85,9 @@ class Muon(optimizer.Optimizer):
         learning_rate=0.001,
         adam_beta_1=0.9,
         adam_beta_2=0.999,
+        adam_weight_decay=0.004,
         epsilon=1e-7,
-        weight_decay=0.1,
+        weight_decay=0.004,
         clipnorm=None,
         clipvalue=None,
         global_clipnorm=None,
@@ -95,10 +102,11 @@ class Muon(optimizer.Optimizer):
         muon_a=3.4445,
         muon_b=-4.7750,
         muon_c=2.0315,
-        adam_lr_ratio=0.1,
+        adam_lr_ratio=1,
         momentum=0.95,
-        ns_steps=6,
+        ns_steps=5,
         nesterov=True,
+        rms_rate=0.2,
         **kwargs,
     ):
         super().__init__(
@@ -127,12 +135,13 @@ class Muon(optimizer.Optimizer):
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
         self.exclude_layers = exclude_layers or []
+        self.adam_weight_decay = adam_weight_decay
+        self.rms_rate = rms_rate
 
     def _should_use_adamw(self, variable):
-        # To use it with 4D convolutional filters,
         # it works well to just flatten their last 3 dimensions.
         # any {0,1}-D parameters should all be optimized by adam
-        if not 1 < len(variable.shape) < 4:
+        if len(variable.shape) != 2:
             return True
         if self.exclude_embeddings and "embedding" in variable.path.lower():
             return True
@@ -153,52 +162,50 @@ class Muon(optimizer.Optimizer):
         if self.built:
             return
         super().build(var_list)
-        self.adam_momentums = {}
-        self.adam_velocities = {}
-
-        self.muon_momentums = {}
-        self.muon_velocities = {}
+        # Momentums are for both Muon and Adam
+        self.momentums = [None] * len(var_list)
+        # Velocities are just for Adam
+        self.adam_velocities = [None] * len(var_list)
 
         for var in var_list:
             if not self._overwrite_variable_with_gradient(var):
-                self.adam_momentums[var.path] = (
+                self.momentums[self._get_variable_index(var)] = (
                     self.add_variable_from_reference(
                         reference_variable=var, name="momentum"
                     )
                 )
                 if self._should_use_adamw(var):
-                    self.adam_velocities[var.path] = (
+                    self.adam_velocities[self._get_variable_index(var)] = (
                         self.add_variable_from_reference(
                             reference_variable=var, name="velocity"
                         )
                     )
 
     def update_step(self, gradient, variable, learning_rate):
-        if self._should_use_adamw(variable):
+        variable_index = self._get_variable_index(variable)
+        m = self.momentums[variable_index]
+        v = self.adam_velocities[variable_index]
+
+        # The presence of the velocity tells us that this variable is for Adam
+        if v is not None:
             # It should be noted that lr is one-tenth when using adamw.
             self._adamw_update_step(
-                gradient, variable, learning_rate * self.adam_lr_ratio
+                gradient, variable, learning_rate * self.adam_lr_ratio, m, v
             )
         else:
-            self._muon_update_step(gradient, variable, learning_rate)
+            self._muon_update_step(gradient, variable, learning_rate, m)
 
-    def _muon_update_step(self, gradient, variable, lr):
-        m = self.adam_momentums[variable.path]
+    def _muon_update_step(self, gradient, variable, lr, m):
         self.assign_add(m, ops.add(gradient, m * (self.momentum - 1)))
-        shape = variable.shape
         if self.nesterov:
             g = ops.add(gradient, self.momentum * m)
         else:
             g = m
+        update = self.zeropower_via_newtonschulz5(g, self.ns_steps)
 
-        self.assign_sub(
-            variable,
-            lr
-            * self.zeropower_via_newtonschulz5(g, self.ns_steps)
-            * max(1, shape[0] / shape[1]) ** 0.5,
-        )
+        self.assign_sub(variable, self.lr_adjust(lr * update))
 
-    def _adamw_update_step(self, gradient, variable, learning_rate):
+    def _adamw_update_step(self, gradient, variable, learning_rate, m, v):
         """Update step given gradient and the associated model variable."""
         lr = ops.cast(learning_rate, variable.dtype)
         gradient = ops.cast(gradient, variable.dtype)
@@ -209,9 +216,6 @@ class Muon(optimizer.Optimizer):
         adam_beta_2_power = ops.power(
             ops.cast(self.adam_beta_2, variable.dtype), local_step
         )
-
-        m = self.adam_momentums[variable.path]
-        v = self.adam_velocities[variable.path]
 
         alpha = lr * ops.sqrt(1 - adam_beta_2_power) / (1 - adam_beta_1_power)
 
@@ -238,6 +242,20 @@ class Muon(optimizer.Optimizer):
         temp_order[-1] = len(shape) - 2
         X = ops.transpose(X, temp_order)
         return X
+
+    def lr_adjust(self, x):
+        """Adjusts learning rate based on the Moonlight implementation.
+        This method enhances the stability of Muon, allowing it to use the same
+        learning rate and weight decay as Adam. For details, see
+        https://arxiv.org/abs/2502.16982.
+        For a 2D matrix, the update is scaled by `sqrt(max(n, m)) * rms_rate`,
+        where `n` and `m` are the dimensions of the matrix.
+        """
+        if self.rms_rate is None:
+            return x
+        # moonlight version
+        # https://github.com/MoonshotAI/Moonlight/blob/master/examples/toy_train.py
+        return x * ops.sqrt(ops.maximum(x.shape[0], x.shape[1])) * self.rms_rate
 
     def zeropower_via_newtonschulz5(self, x, steps: int):
         """We apply the Newton-Schulz iteration to compute matrix G.
@@ -268,6 +286,20 @@ class Muon(optimizer.Optimizer):
             x = self.transpose_last_axis(x)
         return x
 
+    def _apply_weight_decay(self, variables):
+        for variable in variables:
+            if not self._use_weight_decay(variable):
+                continue
+            if self._should_use_adamw(variable):
+                weight_decay_value = self.adam_weight_decay
+            else:
+                weight_decay_value = self.weight_decay
+            if weight_decay_value is None:
+                continue
+            wd = ops.cast(weight_decay_value, variable.dtype)
+            lr = ops.cast(self.learning_rate, variable.dtype)
+            variable.assign(variable - variable * wd * lr)
+
     def get_config(self):
         config = super().get_config()
         config.update(
@@ -284,6 +316,8 @@ class Muon(optimizer.Optimizer):
                 "ns_steps": self.ns_steps,
                 "nesterov": self.nesterov,
                 "exclude_embeddings": self.exclude_embeddings,
+                "adam_weight_decay": self.adam_weight_decay,
+                "rms_rate": self.rms_rate,
             }
         )
         return config

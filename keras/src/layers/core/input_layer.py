@@ -138,6 +138,7 @@ class InputLayer(Layer):
             "sparse": self.sparse,
             "ragged": self.ragged,
             "name": self.name,
+            "optional": self.optional,
         }
 
 

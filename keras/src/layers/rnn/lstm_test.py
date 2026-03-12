@@ -67,6 +67,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -87,6 +89,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -107,6 +111,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -127,6 +133,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -147,6 +155,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_statefulness(self):
@@ -168,6 +178,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         layer.reset_state()
         layer(sequence)
@@ -180,6 +192,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_pass_initial_state(self):
@@ -198,6 +212,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.20574439, 0.3558822], [0.64930826, 0.66276]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -211,6 +227,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.13281618, 0.2790356], [0.5839337, 0.5992567]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
     def test_masking(self):
@@ -227,6 +245,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.1524914, 0.1524914], [0.35969394, 0.35969394]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -247,6 +267,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[0],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array(
@@ -258,6 +280,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[1],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -279,6 +303,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[0],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
         self.assertAllClose(
             np.array(
@@ -290,6 +316,8 @@ class LSTMTest(testing.TestCase):
                 ],
             ),
             output[1],
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )
 
         layer = layers.LSTM(
@@ -303,4 +331,6 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.10056866, 0.10056866], [0.31006062, 0.31006062]]),
             output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
         )

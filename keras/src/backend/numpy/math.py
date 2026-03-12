@@ -1,7 +1,6 @@
 import numpy as np
 
 from keras.src.backend import standardize_dtype
-from keras.src.backend.common import dtypes
 from keras.src.backend.jax.math import fft as jax_fft
 from keras.src.backend.jax.math import fft2 as jax_fft2
 from keras.src.backend.numpy.core import convert_to_tensor
@@ -296,22 +295,6 @@ def erf(x):
 
 def erfinv(x):
     return np.array(scipy.special.erfinv(x))
-
-
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return np.linalg.solve(a, b)
-
-
-def norm(x, ord=None, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if "int" in dtype or dtype == "bool":
-        dtype = dtypes.result_type(x.dtype, "float32")
-    return np.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims).astype(
-        dtype
-    )
 
 
 def logdet(x):

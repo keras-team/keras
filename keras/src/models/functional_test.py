@@ -374,6 +374,24 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(out_val.shape, (2, 3, 3))
 
     @pytest.mark.requires_trainable_backend
+    def test_rank_standardization_failure(self):
+        # Simple input and rank too high
+        inputs = Input(shape=(3,), name="foo")
+        outputs = layers.Dense(3)(inputs)
+        model = Functional(inputs, outputs)
+        with self.assertRaisesRegex(ValueError, "name 'foo' .* path ''"):
+            model(np.random.random((2, 3, 4)))
+
+        # Deeply nested input and rank too low
+        inputs = [{"foo": Input(shape=(3,), name="my_input")}]
+        outputs = layers.Dense(3)(inputs[0]["foo"])
+        model = Functional(inputs, outputs)
+        with self.assertRaisesRegex(
+            ValueError, "name 'my_input' .* path '0.foo'"
+        ):
+            model(np.random.random(()))
+
+    @pytest.mark.requires_trainable_backend
     def test_dtype_standardization(self):
         float_input = Input(shape=(2,), dtype="float16")
         int_input = Input(shape=(2,), dtype="int32")
@@ -424,6 +442,23 @@ class FunctionalTest(testing.TestCase):
         x = layers.Dense(5)(x)
         outputs = layers.Dense(4)(x)
         model = Functional({"a": input_a, "b": input_b}, outputs)
+        self.run_class_serialization_test(model)
+
+        # Test model with unmodified input as output
+        input_a = Input(shape=(3,), batch_size=2, name="a")
+        input_b = Input(shape=(3,), batch_size=2, name="b")
+        output_a = input_a * 2
+        output_b = input_b
+        model = Functional(
+            {"a": input_a, "b": input_b}, {"a": output_a, "b": output_b}
+        )
+        self.run_class_serialization_test(model)
+
+        # Test model with unused input
+        input_a = Input(shape=(3,), batch_size=2, name="a")
+        input_b = Input(shape=(3,), batch_size=2, name="b")
+        output_a = input_a * 2
+        model = Functional({"a": input_a, "b": input_b}, output_a)
         self.run_class_serialization_test(model)
 
     @pytest.mark.requires_trainable_backend
@@ -603,6 +638,54 @@ class FunctionalTest(testing.TestCase):
         out = model({"input1": np.ones((2, 2)), "input2": None})
         self.assertAllClose(out, np.ones((2, 2)))
         # Note: it's not intended to work in symbolic mode (yet).
+
+    def test_unmodified_inputs(self):
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2")
+        o1 = i1 * 2
+        o2 = i2
+        model = Model(
+            {"input1": i1, "input2": i2}, {"output1": o1, "output2": o2}
+        )
+
+        # Eager call
+        out = model({"input1": np.ones((2, 2)), "input2": np.zeros((2, 2))})
+        self.assertAllClose(out["output1"], np.ones((2, 2)) * 2)
+        self.assertAllClose(out["output2"], np.zeros((2, 2)))
+
+        # Symbolic call
+        i1_symbolic = Input((2,))
+        i2_symbolic = Input((2,))
+        out_symbolic = model({"input1": i1_symbolic, "input2": i2_symbolic})
+        self.assertIsInstance(out_symbolic, dict)
+        self.assertEqual(out_symbolic["output1"].shape, (None, 2))
+        self.assertEqual(out_symbolic["output2"].shape, (None, 2))
+
+    def test_unused_inputs(self):
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2")
+        o1 = i1 * 2
+        model = Model({"input1": i1, "input2": i2}, o1)
+
+        # Eager call
+        out = model({"input1": np.ones((2, 2)), "input2": np.zeros((2, 2))})
+        self.assertAllClose(out, np.ones((2, 2)) * 2)
+
+        # Symbolic call
+        i1_symbolic = Input((2,))
+        i2_symbolic = Input((2,))
+        out_symbolic = model({"input1": i1_symbolic, "input2": i2_symbolic})
+        self.assertEqual(out_symbolic.shape, (None, 2))
+
+    def test_disconnected_output(self):
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2")
+        o1 = i1 * 2
+        o2 = i2 * 3
+        with self.assertRaisesRegex(
+            ValueError, "Output with path `output2` is not connected"
+        ):
+            Model(i1, {"output1": o1, "output2": o2})
 
     def test_warning_for_mismatched_inputs_structure(self):
         def is_input_warning(w):
