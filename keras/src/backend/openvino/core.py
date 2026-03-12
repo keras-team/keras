@@ -898,7 +898,126 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
-    raise NotImplementedError("`scan` is not supported with openvino backend")
+    from keras.src import ops
+
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    if not isinstance(unroll, bool):
+        if not isinstance(unroll, int) or unroll < 1:
+            raise ValueError(
+                "`unroll` must be an positive integer or boolean. "
+                f"Received: unroll={unroll}"
+            )
+    if xs is None and length is None:
+        raise ValueError("Got no `xs` to scan over and `length` not provided.")
+
+    input_is_sequence = tree.is_nested(xs)
+    output_is_sequence = tree.is_nested(init)
+
+    def pack_input(x):
+        return tree.pack_sequence_as(xs, x) if input_is_sequence else x[0]
+
+    def pack_output(x):
+        return tree.pack_sequence_as(init, x) if output_is_sequence else x[0]
+
+    if xs is None:
+        xs_flat = []
+        n = int(length)
+    else:
+        xs_flat = tree.flatten(xs)
+        xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
+        n = int(length) if length is not None else xs_flat[0].shape[0]
+
+    init_flat = tree.flatten(init)
+    init_flat = [convert_to_tensor(i) for i in init_flat]
+    init = pack_output(init_flat)
+    dummy_y = [ops.zeros_like(i) for i in init_flat]
+
+    carry = init
+    ys = []
+    maybe_reversed = reversed if reverse else lambda x: x
+    for i in maybe_reversed(range(n)):
+        xs_slice = [x[i] for x in xs_flat]
+        packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
+        carry, y = f(carry, packed_xs)
+        ys.append(y if y is not None else dummy_y)
+    stacked_y = tree.map_structure(
+        lambda *y: ops.stack(list(y)), *maybe_reversed(ys)
+    )
+    return carry, stacked_y
+
+
+def associative_scan(f, elems, reverse=False, axis=0):
+    from keras.src import ops
+
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    elems_flat = tree.flatten(elems)
+    elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
+    if reverse:
+        elems_flat = [ops.flip(elem, axis=axis) for elem in elems_flat]
+
+    def _combine(a_flat, b_flat):
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
+        c = f(a, b)
+        return tree.flatten(c)
+
+    num_elems = elems_flat[0].shape[axis]
+    if not all(elem.shape[axis] == num_elems for elem in elems_flat[1:]):
+        raise ValueError(
+            "Array inputs to associative_scan must have the same "
+            "first dimension. (saw: {})".format(
+                [elem.shape for elem in elems_flat]
+            )
+        )
+
+    def _interleave(a, b, axis):
+        # a.shape[axis] >= b.shape[axis]; interleave as [a0, b0, a1, b1, ...]
+        n_b = b.shape[axis]
+        parts = []
+        for i in range(n_b):
+            parts.append(ops.slice_along_axis(a, i, i + 1, axis=axis))
+            parts.append(ops.slice_along_axis(b, i, i + 1, axis=axis))
+        if a.shape[axis] > n_b:
+            parts.append(ops.slice_along_axis(a, n_b, n_b + 1, axis=axis))
+        return ops.concatenate(parts, axis=axis)
+
+    def _scan(elems):
+        num_elems = elems[0].shape[axis]
+        if num_elems < 2:
+            return elems
+
+        reduced_elems = _combine(
+            [ops.slice_along_axis(e, 0, -1, step=2, axis=axis) for e in elems],
+            [ops.slice_along_axis(e, 1, None, step=2, axis=axis) for e in elems],
+        )
+        odd_elems = _scan(reduced_elems)
+
+        if num_elems % 2 == 0:
+            even_elems = _combine(
+                [ops.slice_along_axis(e, 0, -1, axis=axis) for e in odd_elems],
+                [ops.slice_along_axis(e, 2, None, step=2, axis=axis) for e in elems],
+            )
+        else:
+            even_elems = _combine(
+                odd_elems,
+                [ops.slice_along_axis(e, 2, None, step=2, axis=axis) for e in elems],
+            )
+        even_elems = [
+            ops.concatenate(
+                [ops.slice_along_axis(elem, 0, 1, axis=axis), result],
+                axis=axis,
+            )
+            for elem, result in zip(elems, even_elems)
+        ]
+        # even_elems has >= elements than odd_elems; place even at even positions
+        return [_interleave(e, o, axis) for e, o in zip(even_elems, odd_elems)]
+
+    scanned_elems = _scan(elems_flat)
+    if reverse:
+        scanned_elems = [ops.flip(elem, axis=axis) for elem in scanned_elems]
+    return tree.pack_sequence_as(elems, scanned_elems)
 
 
 def scatter(indices, values, shape):
