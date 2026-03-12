@@ -6,9 +6,6 @@ from keras.src.layers.layer import Layer
 from keras.src.layers.preprocessing.index_lookup import listify_tensors
 from keras.src.layers.preprocessing.string_lookup import StringLookup
 from keras.src.saving import serialization_lib
-from keras.src.trainers.data_adapters.grain_dataset_adapter import (
-    GrainDatasetAdapter,
-)
 from keras.src.utils import argument_validation
 from keras.src.utils import backend_utils
 from keras.src.utils import tf_utils
@@ -436,12 +433,12 @@ class TextVectorization(Layer):
         elif grain.available and isinstance(
             data, (grain.MapDataset, grain.IterDataset, grain.DataLoader)
         ):
-            dataset_adapter = GrainDatasetAdapter(data)
-            tf_dataset = dataset_adapter.get_tf_dataset()
-            if steps is not None:
-                tf_dataset = tf_dataset.take(steps)
-            for batch in tf_dataset:
+            step = 0
+            for batch in data:
+                if steps is not None and step >= steps:
+                    break
                 self.update_state(_extract_adapt_batch(batch))
+                step += 1
         else:
             data = tf_utils.ensure_tensor(data, dtype="string")
             if data.shape.rank == 1:

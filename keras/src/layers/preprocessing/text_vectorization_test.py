@@ -493,6 +493,10 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("bar", vocab)
         self.assertNotIn("unique_word", vocab)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TextVectorization and Grain adapt path require TensorFlow",
+    )
     def test_adapt_with_grain_dataset(self):
         pytest.importorskip("grain")
         import grain as grain_module
@@ -521,6 +525,10 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("bar", vocab)
         self.assertIn("baz", vocab)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TextVectorization and Grain adapt path require TensorFlow",
+    )
     def test_adapt_with_grain_dataset_and_steps(self):
         pytest.importorskip("grain")
         import grain as grain_module
