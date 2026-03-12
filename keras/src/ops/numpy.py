@@ -5849,7 +5849,6 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
 
     Returns:
         The quantile(s) ignoring NaNs.
-
     Examples:
     >>> import keras
     >>> from keras import ops
