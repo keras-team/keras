@@ -85,6 +85,24 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         model = saving.load_model(temp_filepath)
         self.assertAllClose(output, model(input_data))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow", reason="Requires string input dtype"
+    )
+    def test_save_load_tf_idf_mode(self):
+        input_data = np.array(["foo bar", "bar baz", "baz bada boom"])
+        model = Sequential(
+            [
+                layers.Input(dtype="string", shape=()),
+                layers.TextVectorization(max_tokens=100, output_mode="tf_idf"),
+            ]
+        )
+        model.layers[0].adapt(input_data)
+        output = model(input_data)
+        temp_filepath = os.path.join(self.get_temp_dir(), "model.keras")
+        model.save(temp_filepath)
+        loaded_model = saving.load_model(temp_filepath)
+        self.assertAllClose(output, loaded_model(input_data))
+
     def test_tf_data_compatibility(self):
         max_tokens = 5000
         max_len = 4
