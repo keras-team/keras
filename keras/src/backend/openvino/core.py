@@ -872,7 +872,9 @@ def cond(pred, true_fn, false_fn):
         )
 
     if isinstance(true_val, (list, tuple)):
-        return type(true_val)(_select(t, f) for t, f in zip(true_val, false_val))
+        return type(true_val)(
+            _select(t, f) for t, f in zip(true_val, false_val)
+        )
     return _select(true_val, false_val)
 
 
