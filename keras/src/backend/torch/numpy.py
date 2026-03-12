@@ -1433,9 +1433,6 @@ def nanprod(x, axis=None, keepdims=False):
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q)
-
-    x = convert_to_tensor(x)
-    q = convert_to_tensor(q)
     axis = to_tuple_or_list(axis)
 
     compute_dtype = dtypes.result_type(x.dtype, "float32")
