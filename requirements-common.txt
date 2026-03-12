@@ -12,6 +12,7 @@ requests
 h5py
 ml-dtypes
 protobuf
+tensorboard
 tensorboard-plugin-profile
 rich
 build
@@ -30,4 +31,3 @@ openvino
 grain
 # for orbax_checkpoint_test.py
 orbax-checkpoint
-orbax-export

@@ -5498,6 +5498,67 @@ def nancumsum(x, axis=None, dtype=None):
     return backend.numpy.nancumsum(x, axis=axis, dtype=dtype)
 
 
+class Nancumprod(Operation):
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.nancumprod(x, axis=self.axis, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+        else:
+            output_shape = x.shape
+
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+
+        if output_dtype == "bool":
+            output_dtype = "int32"
+
+        return KerasTensor(output_shape, output_dtype)
+
+
+@keras_export(["keras.ops.nancumprod", "keras.ops.numpy.nancumprod"])
+def nancumprod(x, axis=None, dtype=None):
+    """Returns the cumulative product of elements along a given axis,
+    treating NaNs as one.
+
+    Args:
+        x: Input tensor.
+        axis: Axis along which the cumulative product is computed.
+            By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
+
+    Returns:
+        Output tensor.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nancumprod(x)
+    array([1., 1., 3., 3., 6., 6.])
+
+    >>> ops.nancumprod(x, axis=1)
+    array([[1., 1., 3.],
+           [1., 2., 2.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nancumprod(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.nancumprod(x, axis=axis, dtype=dtype)
+
+
 class Nanmax(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
@@ -6945,6 +7006,43 @@ def sin(x):
     if any_symbolic_tensors((x,)):
         return Sin().symbolic_call(x)
     return backend.numpy.sin(x)
+
+
+class Sinc(Operation):
+    def call(self, x):
+        return backend.numpy.sinc(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.sinc", "keras.ops.numpy.sinc"])
+def sinc(x):
+    """Return the normalized sinc function.
+
+    The sinc function is equal to `sin(pi*x) / (pi*x)` for any argument
+    `x != 0`, and `sinc(0)` takes the limit value 1, making `sinc` not
+    just everywhere continuous but also infinitely differentiable.
+
+    Arguments:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of same shape as `x`.
+
+    Examples:
+    >>> x = keras.ops.convert_to_tensor([0.0, 1.0, 2.0])
+    >>> keras.ops.sinc(x)
+    array([1., 0., 0.], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Sinc().symbolic_call(x)
+    return backend.numpy.sinc(x)
 
 
 class Sinh(Operation):

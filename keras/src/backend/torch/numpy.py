@@ -1360,6 +1360,11 @@ def nancumsum(x, axis=None, dtype=None):
     return cumsum(x, axis=axis, dtype=dtype)
 
 
+def nancumprod(x, axis=None, dtype=None):
+    x = nan_to_num(x, nan=1.0)
+    return cumprod(x, axis=axis, dtype=dtype)
+
+
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
@@ -1756,6 +1761,11 @@ def signbit(x):
 def sin(x):
     x = convert_to_tensor(x)
     return torch.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    return torch.sinc(x)
 
 
 def sinh(x):
