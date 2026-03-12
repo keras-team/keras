@@ -591,7 +591,16 @@ class IndexLookup(Layer):
             if self.pad_to_max_tokens
             else self._frozen_vocab_size
         )
-        return (input_shape[0], depth)
+        input_shape = tuple(input_shape)
+        if self.output_mode == "one_hot":
+            # One-hot encodes each element: (batch, d1, ..., dN) -> (batch, d1,
+            # ..., dN, depth)
+            if len(input_shape) > 1 and input_shape[-1] == 1:
+                return input_shape[:-1] + (depth,)
+            return input_shape + (depth,)
+        # multi_hot, count, tf_idf: treat last dim as sample dim, output
+        # (batch, ..., depth)
+        return input_shape[:-1] + (depth,)
 
     def compute_output_spec(self, inputs):
         if self.output_mode == "int":
@@ -852,7 +861,11 @@ class IndexLookup(Layer):
 
     def load_own_variables(self, store):
         if self.output_mode == "tf_idf":
-            self.idf_weights.assign(store["idf_weights"])
+            idf_weights = store["idf_weights"]
+            if hasattr(self, "idf_weights"):
+                self.idf_weights.assign(idf_weights)
+            else:
+                self.idf_weights = tf.Variable(idf_weights, trainable=False)
             self.idf_weights_const = self.idf_weights.value()
 
     def save_assets(self, dir_path):
@@ -880,7 +893,8 @@ class IndexLookup(Layer):
             else:
                 values = [int(line) for line in lines]
             if self.output_mode == "tf_idf":
-                self.set_vocabulary(values, idf_weights=False)
+                idf_weights = self.idf_weights_const.numpy()
+                self.set_vocabulary(values, idf_weights=idf_weights)
             else:
                 self.set_vocabulary(values)
 
