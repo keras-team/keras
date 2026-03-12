@@ -286,7 +286,7 @@ class GroupedQueryAttention(Layer):
         )
         # (batch_dim, target_seq_len, feature_dim)
         if self.use_gate:
-            output = self._output_dense(gate * output)
+            output = self._output_dense(ops.multiply(output, gate))
         else:
             output = self._output_dense(output)
 
