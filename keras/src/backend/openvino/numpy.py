@@ -4108,7 +4108,7 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
     def wrapper(*args, **kwargs):
         converted_args = tuple(convert_to_tensor(arg) for arg in args)
         return pyfunc(*converted_args, **kwargs)
-    
+
     return wrapper
 
 
