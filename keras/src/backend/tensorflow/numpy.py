@@ -2307,8 +2307,8 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q, dtype=x.dtype)
 
-    def _get_nanquantile(slice_1d):
-        valid = tf.boolean_mask(slice_1d, ~tf.math.is_nan(slice_1d))
+    def _nanquantile_1d(v):
+        valid = tf.boolean_mask(v, ~tf.math.is_nan(cast(v, config.floatx())))
         return tf.cond(
             tf.size(valid) > 0,
             lambda: quantile(valid, q, method=method, keepdims=False),
@@ -2316,13 +2316,16 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
         )
 
     if axis is None:
-        valid = tf.boolean_mask(x, ~tf.math.is_nan(x))
+        x_flat = tf.reshape(x, [-1])
+        result = _nanquantile_1d(x_flat)
 
-        return tf.cond(
-            tf.size(valid) > 0,
-            lambda: quantile(valid, q, method=method, keepdims=keepdims),
-            lambda: tf.constant(float("nan"), dtype=x.dtype),
-        )
+        if keepdims:
+            new_shape = tf.concat(
+                [tf.shape(result), tf.ones(tf.rank(x), dtype=tf.int32)], axis=0
+            )
+            result = tf.reshape(result, new_shape)
+
+        return result
 
     if isinstance(axis, int):
         axis = [axis]
@@ -2331,39 +2334,43 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
 
     ndims = x.shape.rank
     axis = [a if a >= 0 else a + ndims for a in axis]
-
     other_axes = [i for i in range(ndims) if i not in axis]
+
     perm = other_axes + axis
+    x_t = tf.transpose(x, perm)
 
-    x = tf.transpose(x, perm)
+    shape = tf.shape(x_t)
 
-    shape = tf.shape(x)
-    reduction_size = tf.reduce_prod(tf.gather(shape, axis))
-    batch_size = tf.reduce_prod(tf.gather(shape, other_axes))
+    other_rank = len(other_axes)
+    other_shape = shape[:other_rank]
+    reduce_shape = shape[other_rank:]
 
-    x = tf.reshape(x, [batch_size, reduction_size])
+    batch_size = tf.reduce_prod(other_shape)
+    reduction_size = tf.reduce_prod(reduce_shape)
+
+    x_flat = tf.reshape(x_t, [batch_size, reduction_size])
 
     q_shape = tf.shape(q)
 
     results = tf.map_fn(
-        _get_nanquantile,
-        x,
+        _nanquantile_1d,
+        x_flat,
         fn_output_signature=tf.TensorSpec(shape=q_shape, dtype=x.dtype),
     )
 
     if tf.rank(q) > 0:
         results = tf.transpose(results)
 
-    other_shape = tf.gather(tf.shape(x), tf.range(len(other_axes)))
+    if tf.rank(q) > 0:
+        results = tf.reshape(results, tf.concat([q_shape, other_shape], axis=0))
+    else:
+        results = tf.reshape(results, other_shape)
 
     if keepdims:
-        final_shape = [
-            tf.shape(x)[i] if i in other_axes else 1 for i in range(ndims)
-        ]
-    else:
-        final_shape = other_shape
+        for ax in sorted(axis):
+            results = tf.expand_dims(results, axis=ax + tf.rank(q))
 
-    return tf.reshape(results, final_shape)
+    return results
 
 
 def nanstd(x, axis=None, keepdims=False):

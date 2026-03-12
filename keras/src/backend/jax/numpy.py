@@ -1080,6 +1080,7 @@ def nanprod(x, axis=None, keepdims=False):
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
     return jnp.nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
