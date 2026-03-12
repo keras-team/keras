@@ -2310,7 +2310,7 @@ def nanprod(x, axis=None, keepdims=False):
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
-    q = convert_to_tensor(q, dtype=x.dtype)
+    q = convert_to_tensor(q, dtype=config.floatx())
 
     def _nanquantile_1d(v):
         valid = tf.boolean_mask(v, ~tf.math.is_nan(cast(v, config.floatx())))
