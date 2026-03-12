@@ -864,10 +864,9 @@ def cond(pred, true_fn, false_fn):
             pred_ov = ov_opset.convert(pred_ov, Type.boolean).output(0)
 
     def _select(t, f):
-        t_ov = get_ov_output(t)
-        f_ov = get_ov_output(f)
-        if t_ov.get_element_type() != f_ov.get_element_type():
-            f_ov = ov_opset.convert(f_ov, t_ov.get_element_type()).output(0)
+        t_ov, f_ov = align_operand_types(
+            get_ov_output(t), get_ov_output(f), "cond"
+        )
         return OpenVINOKerasTensor(
             ov_opset.select(pred_ov, t_ov, f_ov).output(0)
         )

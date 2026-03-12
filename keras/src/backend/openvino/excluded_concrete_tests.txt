@@ -61,13 +61,6 @@ CoreOpsCorrectnessTest::test_scan
 CoreOpsCorrectnessTest::test_switch
 CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
-CosineDecayRestartsTest::test_alpha
-CosineDecayRestartsTest::test_decay
-CosineDecayRestartsTest::test_float64
-CosineDecayRestartsTest::test_mmul
-CosineDecayRestartsTest::test_tmul
-CosineDecayTest::test_warmup
-CosineDecayTest::test_warmup_decay
 CTCTest::test_correctness
 CTCTest::test_dtype_arg
 DenseTest::test_dense_quantize_config_int4
