@@ -3576,9 +3576,21 @@ def sin(x):
 
 
 def sinc(x):
-    raise NotImplementedError(
-        "`sinc` is not supported with the OpenVINO backend."
-    )
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
+    elem_type = x.get_element_type()
+    pi = ov_opset.constant(np.pi, elem_type)
+    one = ov_opset.constant(1.0, elem_type)
+    zero = ov_opset.constant(0.0, elem_type)
+    pi_x = ov_opset.multiply(pi, x)
+    sin_pi_x = ov_opset.sin(pi_x)
+    sinc_val = ov_opset.divide(sin_pi_x, pi_x)
+    is_zero = ov_opset.equal(x, zero)
+    result = ov_opset.select(is_zero, one, sinc_val)
+    return OpenVINOKerasTensor(result.output(0))
 
 
 def sinh(x):

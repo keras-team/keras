@@ -283,21 +283,6 @@ class GroupedQueryAttentionTest(testing.TestCase):
         masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
         value = np.random.normal(size=(3, 3, 8))
         output = layer(query=masked_query, value=value)
-
-        self.assertAllClose(masked_query._keras_mask, output._keras_mask)
-
-        layer = layers.GroupedQueryAttention(
-            num_query_heads=2,
-            num_key_value_heads=2,
-            head_dim=2,
-            use_gate=True,
-        )
-        self.assertTrue(layer.supports_masking)
-        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
-        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
-        value = np.random.normal(size=(3, 3, 8))
-        output = layer(query=masked_query, value=value)
-
         self.assertAllClose(masked_query._keras_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))

@@ -61,10 +61,10 @@ class CSVLoggerTest(testing.TestCase):
             verbose=0,
         )
 
-        assert os.path.exists(filepath)
+        self.assertTrue(os.path.exists(filepath))
         with open(filepath) as csvfile:
             dialect = csv.Sniffer().sniff(csvfile.read())
-        assert dialect.delimiter == sep
+        self.assertEqual(dialect.delimiter, sep)
         del model
         del cbks
 
@@ -95,10 +95,10 @@ class CSVLoggerTest(testing.TestCase):
         with open(filepath) as csvfile:
             list_lines = csvfile.readlines()
             for line in list_lines:
-                assert line.count(sep) == 4
-            assert len(list_lines) == 5
+                self.assertEqual(line.count(sep), 4)
+            self.assertLen(list_lines, 5)
             output = " ".join(list_lines)
-            assert len(re.findall("epoch", output)) == 1
+            self.assertLen(re.findall("epoch", output), 1)
 
         os.remove(filepath)
 
@@ -115,7 +115,7 @@ class CSVLoggerTest(testing.TestCase):
             epochs=5,
             verbose=0,
         )
-        assert os.path.exists(filepath)
+        self.assertTrue(os.path.exists(filepath))
         # Verify that validation loss is registered at val. freq
         with open(filepath) as csvfile:
             rows = csv.DictReader(csvfile, delimiter=sep)
