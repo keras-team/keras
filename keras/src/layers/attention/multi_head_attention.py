@@ -64,6 +64,12 @@ class MultiHeadAttention(Layer):
         activity_regularizer: Regularizer for dense layer activity.
         kernel_constraint: Constraint for dense layer kernels.
         bias_constraint: Constraint for dense layer kernels.
+        use_gate: Boolean, whether to apply a gated attention mechanism.
+            When True, an additional gating branch is added based on the
+            (Gated Attention for Large Language Models)[https://arxiv.org/abs/2505.06708].
+            It applies a sigmoid-activated linear projection to the query
+            which then gates the attention output. This helps improve training
+            stability and eliminates "attention sinks".
         seed: Optional integer to seed the dropout layer.
 
     Call arguments:
@@ -117,6 +123,7 @@ class MultiHeadAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        use_gate=False,
         seed=None,
         **kwargs,
     ):
@@ -127,6 +134,7 @@ class MultiHeadAttention(Layer):
         self._value_dim = value_dim if value_dim else key_dim
         self._dropout = dropout
         self._use_bias = use_bias
+        self._use_gate = use_gate
         if output_shape:
             if isinstance(output_shape, int):
                 output_shape = (output_shape,)
@@ -201,6 +209,7 @@ class MultiHeadAttention(Layer):
             "value_dim": self._value_dim,
             "dropout": self._dropout,
             "use_bias": self._use_bias,
+            "use_gate": self._use_gate,
             "output_shape": self._output_shape,
             "attention_axes": self._attention_axes,
             "kernel_initializer": initializers.serialize(
@@ -271,6 +280,23 @@ class MultiHeadAttention(Layer):
             **self._get_common_kwargs_for_sublayer(),
         )
         self._key_dense.build(key_shape)
+        if self._use_gate:
+            query_einsum_equation, query_bias_axes, query_output_rank = (
+                _build_proj_equation(
+                    query_rank - 1, bound_dims=1, output_dims=2
+                )
+            )
+            self._gate_dense = EinsumDense(
+                query_einsum_equation,
+                output_shape=_get_output_shape(
+                    query_output_rank - 1, [self._num_heads, self._value_dim]
+                ),
+                bias_axes=query_bias_axes if self._use_bias else None,
+                activation="sigmoid",
+                name="gate",
+                **self._get_common_kwargs_for_sublayer(),
+            )
+            self._gate_dense.build(query_shape)
         einsum_equation, bias_axes, output_rank = _build_proj_equation(
             value_rank - 1, bound_dims=1, output_dims=2
         )
@@ -549,6 +575,10 @@ class MultiHeadAttention(Layer):
         #   N = `num_attention_heads`
         #   H = `size_per_head`
 
+        # `gate` = [B, T, N, H]
+        if self._use_gate:
+            gate = self._gate_dense(query)
+
         # `query` = [B, T, N, H]
         query = self._query_dense(query)
 
@@ -565,7 +595,12 @@ class MultiHeadAttention(Layer):
             training,
             return_attention_scores,
         )
-        attention_output = self._output_dense(attention_output)
+        if self._use_gate:
+            attention_output = self._output_dense(
+                ops.multiply(attention_output, gate)
+            )
+        else:
+            attention_output = self._output_dense(attention_output)
 
         # Set mask on output if needed
         if query_mask is not None:
