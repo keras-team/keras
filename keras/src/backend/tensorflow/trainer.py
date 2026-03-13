@@ -715,6 +715,15 @@ class TensorFlowTrainer(base_trainer.Trainer):
             # When no distribution strategy is set, defer building
             # to when the train/test/predict function gets traced.
             # This maximizes backwards compatibility.
+            # Exception: if the model has unbuilt sublayers that won't be
+            # reached through `call()` (e.g. a Sequential sublayer only used
+            # in a custom `train_step`), we must pre-build them here.
+            # Otherwise `Sequential.build()` runs lazily inside `tf.function`
+            # tracing, where it creates a nested `FuncGraph` that is
+            # incompatible with the active `tf.function` context (gh-18459).
+            if all(layer.built for layer in self._flatten_layers()):
+                return
+            self._symbolic_build(iterator=iterator, data_batch=data_batch)
             return
 
         # Unlike jax/torch iterator, tf iterator returns an iterator instead

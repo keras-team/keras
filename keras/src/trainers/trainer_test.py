@@ -82,11 +82,15 @@ class JaxCustomTrainTestStepModel(ExampleModel):
 class SequentialSublayerInTrainStepModel(Trainer, layers.Layer):
     """Model that calls a Sequential sublayer only inside train_step.
 
-    Used as a regression test for GitHub issue #18459, which reported
-    that calling a Sequential model from a custom train_step during
-    model.fit() incorrectly received KerasTensors instead of real
-    tensors, causing: "A KerasTensor cannot be used as input to a
-    TensorFlow function."
+    Used as a regression test for GitHub issue #18459. The bug: a
+    Sequential sublayer used only in train_step (not in call()) is not
+    built during _symbolic_build, which only traces call(). For the TF
+    backend without a distribute strategy, _maybe_symbolic_build() used
+    to exit early entirely, so the sublayer was built lazily during the
+    first tf.function trace of train_step. Sequential.build() creates
+    KerasTensors and calls compute_output_spec() which for TF creates a
+    nested FuncGraph inside the active tf.function context, causing:
+    "A KerasTensor cannot be used as input to a TensorFlow function."
     """
 
     def __init__(self, units):
@@ -791,8 +795,10 @@ class TestTrainer(testing.TestCase):
     def test_sequential_sublayer_in_custom_train_step(self):
         """Regression test for GitHub issue #18459.
 
-        Calling a Sequential sublayer from a custom train_step during
-        model.fit() must not raise a KerasTensor-related error.
+        A Sequential sublayer used only in train_step must be pre-built by
+        _symbolic_build before tf.function traces train_step. Without the
+        fix, Sequential.build() ran lazily inside the tf.function context,
+        creating a nested FuncGraph that caused a KerasTensor error.
         """
         if backend.backend() == "jax":
             self.skipTest(
