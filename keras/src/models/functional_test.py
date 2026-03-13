@@ -316,9 +316,11 @@ class FunctionalTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_training_arg(self):
+        test_obj = self
+
         class Canary(layers.Layer):
             def call(self, x, training=False):
-                assert training
+                test_obj.assertTrue(training)
                 return x
 
             def compute_output_spec(self, x, training=False):
