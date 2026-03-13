@@ -17,18 +17,6 @@ from keras.src.losses.losses import (
 from keras.src.losses.losses import categorical_hinge as categorical_hinge
 from keras.src.losses.losses import hinge as hinge
 from keras.src.losses.losses import huber as huber
-from keras.src.losses.losses import kl_divergence as KLD
-from keras.src.losses.losses import kl_divergence as kld
-from keras.src.losses.losses import kl_divergence as kullback_leibler_divergence
-from keras.src.losses.losses import log_cosh as logcosh
-from keras.src.losses.losses import mean_absolute_error as MAE
-from keras.src.losses.losses import mean_absolute_error as mae
-from keras.src.losses.losses import mean_absolute_percentage_error as MAPE
-from keras.src.losses.losses import mean_absolute_percentage_error as mape
-from keras.src.losses.losses import mean_squared_error as MSE
-from keras.src.losses.losses import mean_squared_error as mse
-from keras.src.losses.losses import mean_squared_logarithmic_error as MSLE
-from keras.src.losses.losses import mean_squared_logarithmic_error as msle
 from keras.src.losses.losses import poisson as poisson
 from keras.src.losses.losses import (
     sparse_categorical_crossentropy as sparse_categorical_crossentropy,
@@ -144,3 +132,17 @@ from keras.src.metrics.regression_metrics import R2Score as R2Score
 from keras.src.metrics.regression_metrics import (
     RootMeanSquaredError as RootMeanSquaredError,
 )
+
+
+from keras.src.losses.losses import kl_divergence as KLD
+from keras.src.losses.losses import kl_divergence as kld
+from keras.src.losses.losses import kl_divergence as kullback_leibler_divergence
+from keras.src.losses.losses import log_cosh as logcosh
+from keras.src.losses.losses import mean_absolute_error as MAE
+from keras.src.losses.losses import mean_absolute_error as mae
+from keras.src.losses.losses import mean_absolute_percentage_error as MAPE
+from keras.src.losses.losses import mean_absolute_percentage_error as mape
+from keras.src.losses.losses import mean_squared_error as MSE
+from keras.src.losses.losses import mean_squared_error as mse
+from keras.src.losses.losses import mean_squared_logarithmic_error as MSLE
+from keras.src.losses.losses import mean_squared_logarithmic_error as msle

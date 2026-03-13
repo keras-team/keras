@@ -1328,6 +1328,27 @@ def deg2rad(x):
     return OpenVINOKerasTensor(result)
 
 
+def rad2deg(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    _180_over_pi = 180.0 / np.pi
+
+    if x_type == Type.i64:
+        output_type = Type.f64
+    elif x_type.is_integral():
+        output_type = OPENVINO_DTYPES[config.floatx()]
+    else:
+        output_type = x_type
+
+    if x_type != output_type:
+        x = ov_opset.convert(x, output_type)
+
+    const_180_over_pi = ov_opset.constant(_180_over_pi, output_type).output(0)
+    result = ov_opset.multiply(x, const_180_over_pi).output(0)
+
+    return OpenVINOKerasTensor(result)
+
+
 def diag(x, k=0):
     x = get_ov_output(x)
     x_shape = x.get_partial_shape()

@@ -230,9 +230,9 @@ from keras.src.ops.numpy import less as less
 from keras.src.ops.numpy import less_equal as less_equal
 from keras.src.ops.numpy import linspace as linspace
 from keras.src.ops.numpy import log as log
+from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import log1p as log1p
 from keras.src.ops.numpy import log2 as log2
-from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import logaddexp as logaddexp
 from keras.src.ops.numpy import logaddexp2 as logaddexp2
 from keras.src.ops.numpy import logical_and as logical_and
@@ -276,6 +276,7 @@ from keras.src.ops.numpy import power as power
 from keras.src.ops.numpy import prod as prod
 from keras.src.ops.numpy import ptp as ptp
 from keras.src.ops.numpy import quantile as quantile
+from keras.src.ops.numpy import rad2deg as rad2deg
 from keras.src.ops.numpy import ravel as ravel
 from keras.src.ops.numpy import real as real
 from keras.src.ops.numpy import reciprocal as reciprocal
