@@ -170,9 +170,10 @@ class Discretization(DataLayer):
         be controlled via the `epsilon` argument.
 
         Arguments:
-            data: The data to train on. It can be passed either as a
-                batched `tf.data.Dataset`,
-                or as a NumPy array.
+            data: The data to train on. It can be passed as:
+                - A batched `tf.data.Dataset`
+                - A NumPy array
+                - A list or any iterable of numerical values
             steps: Integer or `None`.
                 Total number of steps (batches of samples) to process.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
@@ -193,7 +194,19 @@ class Discretization(DataLayer):
             for batch in data:
                 self.update_state(batch)
         else:
-            self.update_state(data)
+            try:
+                self.update_state(data)
+            except (ValueError, TypeError) as e:
+                try:
+                    iterator = iter(data)
+                    for batch in iterator:
+                        self.update_state(batch)
+                except TypeError:
+                    raise ValueError(
+                        "`adapt()` requires data to be a tf.data.Dataset, "
+                        "a NumPy array, a list, or any iterable of numerical "
+                        f"values. Received: {type(data)}. Original error: {e}"
+                    )
         self.finalize_state()
 
     def update_state(self, data):
