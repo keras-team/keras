@@ -50,7 +50,6 @@ CoreOpsCallsTests::test_fori_loop_basic_functionality
 CoreOpsCallsTests::test_map_basic_call
 CoreOpsCallsTests::test_switch_basic_call
 CoreOpsCallsTests::test_unstack_basic_functionality
-CoreOpsCorrectnessTest::test_associative_scan
 CoreOpsCorrectnessTest::test_fori_loop
 CoreOpsCorrectnessTest::test_map
 CoreOpsCorrectnessTest::test_switch
