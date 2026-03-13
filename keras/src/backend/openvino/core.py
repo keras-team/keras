@@ -1026,24 +1026,16 @@ def associative_scan(f, elems, reverse=False, axis=0):
         )
 
     def _interleave(a, b, axis):
-        # a.shape[axis] >= b.shape[axis]; interleave as [a0, b0, a1, b1, ...]
         n_a = a.shape[axis]
         n_b = b.shape[axis]
 
-        # Take the common part of a (first n_b elements along axis)
         a_common = slice_along_axis(a, 0, n_b, axis=axis)
-
-        # Expand and concatenate along a new axis to interleave
         a_exp = _unsqueeze(a_common, axis + 1)
         b_exp = _unsqueeze(b, axis + 1)
         interleaved = _concat([a_exp, b_exp], axis + 1)
 
-        # Reshape to merge the interleaved dimension back into axis.
-        # Compute target shape dynamically via ov_opset to handle
-        # tensors with dynamic dimensions.
         interleaved_ov = get_ov_output(interleaved)
         orig_shape = ov_opset.shape_of(interleaved_ov, Type.i32).output(0)
-        # Gather all dims except axis and axis+1, replace with n_b*2
         ndim = len(interleaved_ov.get_partial_shape())
         pre = ov_opset.slice(
             orig_shape,
