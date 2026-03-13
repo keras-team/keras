@@ -1320,6 +1320,16 @@ def mod(x1, x2):
     return torch.remainder(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
+    return torch.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     x = convert_to_tensor(x)
     return torch.moveaxis(x, source=source, destination=destination)

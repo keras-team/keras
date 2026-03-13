@@ -2168,6 +2168,22 @@ def mod(x1, x2):
     return tf.math.mod(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    # tf.math.floormod does not support uint8/uint16; compute in int32
+    compute_dtype = dtype
+    if dtype in ("uint8", "uint16", "uint32"):
+        compute_dtype = "int32"
+    x1 = tf.cast(x1, compute_dtype)
+    x2 = tf.cast(x2, compute_dtype)
+    result = tf.sign(x1) * tf.math.floormod(tf.abs(x1), tf.abs(x2))
+    return tf.cast(result, dtype)
+
+
 def moveaxis(x, source, destination):
     x = convert_to_tensor(x)
 
