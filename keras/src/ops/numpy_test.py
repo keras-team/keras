@@ -1509,6 +1509,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.deg2rad(x).shape, (None, 3))
 
+    def test_rad2deg(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.rad2deg(x).shape, (None, 3))
+
     def test_diag(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.diag(x).shape, (None,))
@@ -2396,6 +2400,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_deg2rad(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.deg2rad(x).shape, (2, 3))
+
+    def test_rad2deg(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.rad2deg(x).shape, (2, 3))
 
     def test_diag(self):
         x = KerasTensor((3,))
@@ -4906,6 +4914,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.random.uniform(-360, 360, size=(3, 3))
         self.assertAllClose(knp.deg2rad(x), np.deg2rad(x))
         self.assertAllClose(knp.Deg2rad()(x), np.deg2rad(x))
+
+    def test_rad2deg(self):
+        x = np.random.uniform(-2 * np.pi, 2 * np.pi, size=(3, 3))
+        self.assertAllClose(knp.rad2deg(x), np.rad2deg(x))
+        self.assertAllClose(knp.Rad2deg()(x), np.rad2deg(x))
 
     def test_diag(self):
         x = np.array([1, 2, 3])
@@ -8208,6 +8221,23 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertEqual(
             standardize_dtype(knp.Deg2rad().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_rad2deg(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.rad2deg(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.rad2deg(x).dtype), expected_dtype
+        )
+
+        self.assertEqual(
+            standardize_dtype(knp.Rad2deg().symbolic_call(x).dtype),
             expected_dtype,
         )
 

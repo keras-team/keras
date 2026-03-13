@@ -276,6 +276,7 @@ from keras.src.ops.numpy import power as power
 from keras.src.ops.numpy import prod as prod
 from keras.src.ops.numpy import ptp as ptp
 from keras.src.ops.numpy import quantile as quantile
+from keras.src.ops.numpy import rad2deg as rad2deg
 from keras.src.ops.numpy import ravel as ravel
 from keras.src.ops.numpy import real as real
 from keras.src.ops.numpy import reciprocal as reciprocal
