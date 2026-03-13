@@ -100,6 +100,8 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
 
     def can_use_int_matmul(x1, x2):
         # torch._int_mm only accepts the following conditions:
@@ -110,8 +112,6 @@ def matmul(x1, x2):
         # 5. x2.shape must be [>= 16 and a multiplier of 8, multiplier of 8]
         if get_device() != "cuda":
             return False
-        x1_dtype = standardize_dtype(x1.dtype)
-        x2_dtype = standardize_dtype(x2.dtype)
         if x1_dtype != "int8" or x2_dtype != "int8":
             return False
         x1_shape = x1.shape
@@ -127,11 +127,14 @@ def matmul(x1, x2):
     # Shortcut for torch._int_mm
     # TODO: Loosen the restriction of the usage of torch._int_mm
     # TODO: We should replace torch._int_mm with the public api if possible
+    # Not yet supported with CUDA 13 without `use_transpose`
+    # https://github.com/pytorch/pytorch/blob/main/test/test_linalg.py#L7876
     if can_use_int_matmul(x1, x2):
-        return torch._int_mm(x1, x2)
+        try:
+            return torch._int_mm(x1, x2)
+        except RuntimeError:
+            pass
 
-    x1_dtype = standardize_dtype(x1.dtype)
-    x2_dtype = standardize_dtype(x2.dtype)
     if x1_dtype == "int8" and x2_dtype == "int8":
         result_dtype = "int32"
     else:
