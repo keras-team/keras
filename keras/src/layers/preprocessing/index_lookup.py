@@ -617,11 +617,19 @@ class IndexLookup(Layer):
                 data = data.take(steps)
             for batch in data:
                 self.update_state(batch)
-        else:
+        elif isinstance(data, (list, tuple, np.ndarray)):
             data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
             if data.shape.rank == 1:
                 # A plain list of strings
                 # is treated as as many documents
+                data = tf.expand_dims(data, -1)
+            self.update_state(data)
+        elif hasattr(data, "__iter__"):
+            for batch in data:
+                self.update_state(batch)
+        else:
+            data = tf_utils.ensure_tensor(data, dtype=self.vocabulary_dtype)
+            if data.shape.rank == 1:
                 data = tf.expand_dims(data, -1)
             self.update_state(data)
         self.finalize_state()

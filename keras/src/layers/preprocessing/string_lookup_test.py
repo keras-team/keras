@@ -261,3 +261,21 @@ class StringLookupTest(testing.TestCase):
             tuple(symbolic_output.shape)[1:],
             eager_output.shape[1:],
         )
+
+    def test_adapt_with_generator(self):
+        def vocab_gen():
+            yield ["cat", "dog"]
+            yield ["bird", "cat"]
+
+        layer = layers.StringLookup()
+        layer.adapt(vocab_gen())
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+        self.assertIn("dog", [str(v) for v in vocab])
+        self.assertIn("bird", [str(v) for v in vocab])
+
+    def test_adapt_with_list_backward_compat(self):
+        layer = layers.StringLookup()
+        layer.adapt(["cat", "dog", "bird"])
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])

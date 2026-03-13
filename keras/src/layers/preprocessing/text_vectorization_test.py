@@ -524,3 +524,20 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
                 output_mode="multi_hot",
                 output_sequence_length=5,
             )
+
+    def test_adapt_with_generator(self):
+        def text_gen():
+            yield ["hello world", "foo bar"]
+            yield ["baz qux", "hello foo"]
+
+        layer = layers.TextVectorization()
+        layer.adapt(text_gen())
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
+        self.assertIn("foo", [str(v) for v in vocab])
+
+    def test_adapt_with_list_backward_compat(self):
+        layer = layers.TextVectorization()
+        layer.adapt(["hello world", "foo bar", "baz qux"])
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
