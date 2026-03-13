@@ -297,12 +297,27 @@ if os.path.exists(_config_path):
     except ValueError:
         _config = {}
     _floatx = _config.get("floatx", floatx())
-    assert _floatx in {"float16", "float32", "float64"}
+    if _floatx not in {"float16", "float32", "float64"}:
+        raise ValueError(
+            "Invalid `floatx` configuration. "
+            "Expected one of {'float16', 'float32', 'float64'}. "
+            f"Received: floatx={_floatx}"
+        )
     _epsilon = _config.get("epsilon", epsilon())
-    assert isinstance(_epsilon, float)
+    if not isinstance(_epsilon, float):
+        raise ValueError(
+            "Invalid `epsilon` configuration. "
+            "Expected a float. "
+            f"Received: epsilon={_epsilon}"
+        )
     _backend = _config.get("backend", _BACKEND)
     _image_data_format = _config.get("image_data_format", image_data_format())
-    assert _image_data_format in {"channels_last", "channels_first"}
+    if _image_data_format not in {"channels_last", "channels_first"}:
+        raise ValueError(
+            "Invalid `image_data_format` configuration. "
+            "Expected one of {'channels_last', 'channels_first'}. "
+            f"Received: image_data_format={_image_data_format}"
+        )
     _nnx_enabled_config = _config.get("nnx_enabled", _NNX_ENABLED)
 
     # Apply basic configs that don't cause circular import

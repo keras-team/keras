@@ -67,7 +67,11 @@ def load_data(
         typically between 25,000 and 500,000 that represent
         the home prices in dollars.
     """
-    assert 0 <= test_split < 1
+    if not (0 <= test_split < 1):
+        raise ValueError(
+            f"Invalid `test_split` argument: {test_split}. "
+            "It must be between 0 and 1 (exclusive of 1)."
+        )
     origin_folder = (
         "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
     )

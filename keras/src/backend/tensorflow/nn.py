@@ -1092,7 +1092,8 @@ def _get_logits(output, from_logits, op_type, fn_name):
         # When softmax activation function is used for output operation, we
         # use logits from the softmax function directly to compute loss in order
         # to prevent collapsing zero when training.
-        assert len(output.op.inputs) == 1
+        if len(output.op.inputs) != 1:
+            raise ValueError(f"Expected 1 input for {op_type}.")
         output_ = output.op.inputs[0]
         from_logits_ = True
 

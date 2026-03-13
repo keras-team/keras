@@ -974,7 +974,11 @@ def EfficientNetV2(
     blocks = float(sum(args["num_repeat"] for args in blocks_args))
 
     for i, args in enumerate(blocks_args):
-        assert args["num_repeat"] > 0
+        if args["num_repeat"] <= 0:
+            raise ValueError(
+                f"The number of repeats in `EfficientNetV2` must be > 0. "
+                f"Received: num_repeat={args['num_repeat']}"
+            )
 
         # Update block input and output filters based on depth multiplier.
         args["input_filters"] = round_filters(
