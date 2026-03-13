@@ -171,8 +171,9 @@ class Discretization(DataLayer):
 
         Arguments:
             data: The data to train on. It can be passed either as a
-                batched `tf.data.Dataset`,
-                or as a NumPy array.
+                batched `tf.data.Dataset`, as a NumPy array, or as any
+                iterable of batches (e.g. a list of arrays or a generator
+                yielding batches).
             steps: Integer or `None`.
                 Total number of steps (batches of samples) to process.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
@@ -190,6 +191,11 @@ class Discretization(DataLayer):
         if isinstance(data, tf.data.Dataset):
             if steps is not None:
                 data = data.take(steps)
+            for batch in data:
+                self.update_state(batch)
+        elif isinstance(data, np.ndarray) or backend.is_tensor(data):
+            self.update_state(data)
+        elif hasattr(data, "__iter__"):
             for batch in data:
                 self.update_state(batch)
         else:
