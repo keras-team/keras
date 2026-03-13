@@ -14,6 +14,7 @@ from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
@@ -898,8 +899,7 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
-    from keras.src import ops
-
+    # Ref: jax.lax.scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
     if not isinstance(unroll, bool):
@@ -926,12 +926,20 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     else:
         xs_flat = tree.flatten(xs)
         xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
-        n = int(length) if length is not None else xs_flat[0].shape[0]
+        n = int(length) if length is not None else shape(xs_flat[0])[0]
 
     init_flat = tree.flatten(init)
     init_flat = [convert_to_tensor(i) for i in init_flat]
     init = pack_output(init_flat)
-    dummy_y = [ops.zeros_like(i) for i in init_flat]
+
+    dummy_y = []
+    for i in init_flat:
+        i_ov = get_ov_output(i)
+        zero = ov_opset.constant(0, i_ov.get_element_type()).output(0)
+        shape_node = ov_opset.shape_of(i_ov, Type.i32).output(0)
+        dummy_y.append(
+            OpenVINOKerasTensor(ov_opset.broadcast(zero, shape_node).output(0))
+        )
 
     carry = init
     ys = []
@@ -941,21 +949,66 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
         packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
         carry, y = f(carry, packed_xs)
         ys.append(y if y is not None else dummy_y)
+
+    def _stack(tensors):
+        elems = [get_ov_output(t) for t in tensors]
+        const_axis = ov_opset.constant(0, Type.i32).output(0)
+        elems = [ov_opset.unsqueeze(e, const_axis).output(0) for e in elems]
+        return OpenVINOKerasTensor(ov_opset.concat(elems, 0).output(0))
+
     stacked_y = tree.map_structure(
-        lambda *y: ops.stack(list(y)), *maybe_reversed(ys)
+        lambda *y: _stack(list(y)), *maybe_reversed(ys)
     )
     return carry, stacked_y
 
 
 def associative_scan(f, elems, reverse=False, axis=0):
-    from keras.src import ops
-
+    # Ref: jax.lax.associative_scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
     elems_flat = tree.flatten(elems)
     elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
+
+    def _flip(x, axis):
+        x_ov = get_ov_output(x)
+        ndim = len(x_ov.get_partial_shape())
+        begin = [0] * ndim
+        end = [0] * ndim
+        strides = [1] * ndim
+        strides[axis] = -1
+        mask = [1] * ndim
+        result = ov_opset.strided_slice(
+            data=x_ov,
+            begin=begin,
+            end=end,
+            strides=strides,
+            begin_mask=mask,
+            end_mask=mask,
+        ).output(0)
+        return OpenVINOKerasTensor(result)
+
+    def _concat(tensors, axis):
+        elems = [get_ov_output(t) for t in tensors]
+        keras_types = [ov_to_keras_type(e.get_element_type()) for e in elems]
+        if keras_types:
+            target = OPENVINO_DTYPES[result_type(*keras_types)]
+            elems = [
+                ov_opset.convert(e, target).output(0)
+                if e.get_element_type() != target
+                else e
+                for e in elems
+            ]
+        return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
+
+    def _unsqueeze(x, axis):
+        x_ov = get_ov_output(x)
+        const_axis = ov_opset.constant(axis, Type.i32).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.unsqueeze(x_ov, const_axis).output(0)
+        )
+
     if reverse:
-        elems_flat = [ops.flip(elem, axis=axis) for elem in elems_flat]
+        elems_flat = [_flip(elem, axis) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):
         a = tree.pack_sequence_as(elems, a_flat)
@@ -963,8 +1016,8 @@ def associative_scan(f, elems, reverse=False, axis=0):
         c = f(a, b)
         return tree.flatten(c)
 
-    num_elems = elems_flat[0].shape[axis]
-    if not all(elem.shape[axis] == num_elems for elem in elems_flat[1:]):
+    num_elems = int(elems_flat[0].shape[axis])
+    if not all(int(elem.shape[axis]) == num_elems for elem in elems_flat[1:]):
         raise ValueError(
             "Array inputs to associative_scan must have the same "
             "first dimension. (saw: {})".format(
@@ -974,14 +1027,47 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _interleave(a, b, axis):
         # a.shape[axis] >= b.shape[axis]; interleave as [a0, b0, a1, b1, ...]
+        n_a = a.shape[axis]
         n_b = b.shape[axis]
-        parts = []
-        for i in range(n_b):
-            parts.append(ops.slice_along_axis(a, i, i + 1, axis=axis))
-            parts.append(ops.slice_along_axis(b, i, i + 1, axis=axis))
-        if a.shape[axis] > n_b:
-            parts.append(ops.slice_along_axis(a, n_b, n_b + 1, axis=axis))
-        return ops.concatenate(parts, axis=axis)
+
+        # Take the common part of a (first n_b elements along axis)
+        a_common = slice_along_axis(a, 0, n_b, axis=axis)
+
+        # Expand and concatenate along a new axis to interleave
+        a_exp = _unsqueeze(a_common, axis + 1)
+        b_exp = _unsqueeze(b, axis + 1)
+        interleaved = _concat([a_exp, b_exp], axis + 1)
+
+        # Reshape to merge the interleaved dimension back into axis.
+        # Compute target shape dynamically via ov_opset to handle
+        # tensors with dynamic dimensions.
+        interleaved_ov = get_ov_output(interleaved)
+        orig_shape = ov_opset.shape_of(interleaved_ov, Type.i32).output(0)
+        # Gather all dims except axis and axis+1, replace with n_b*2
+        ndim = len(interleaved_ov.get_partial_shape())
+        pre = ov_opset.slice(
+            orig_shape,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant([axis], Type.i32),
+            ov_opset.constant([1], Type.i32),
+        ).output(0)
+        merged_dim = ov_opset.constant([n_b * 2], Type.i32).output(0)
+        post = ov_opset.slice(
+            orig_shape,
+            ov_opset.constant([axis + 2], Type.i32),
+            ov_opset.constant([ndim], Type.i32),
+            ov_opset.constant([1], Type.i32),
+        ).output(0)
+        target_shape = ov_opset.concat([pre, merged_dim, post], 0).output(0)
+        interleaved = OpenVINOKerasTensor(
+            ov_opset.reshape(interleaved_ov, target_shape, False).output(0)
+        )
+
+        if n_a > n_b:
+            last = slice_along_axis(a, n_b, n_b + 1, axis=axis)
+            interleaved = _concat([interleaved, last], axis)
+
+        return interleaved
 
     def _scan(elems):
         num_elems = elems[0].shape[axis]
@@ -989,34 +1075,39 @@ def associative_scan(f, elems, reverse=False, axis=0):
             return elems
 
         reduced_elems = _combine(
-            [ops.slice_along_axis(e, 0, -1, step=2, axis=axis) for e in elems],
-            [ops.slice_along_axis(e, 1, None, step=2, axis=axis) for e in elems],
+            [slice_along_axis(e, 0, -1, step=2, axis=axis) for e in elems],
+            [slice_along_axis(e, 1, None, step=2, axis=axis) for e in elems],
         )
         odd_elems = _scan(reduced_elems)
 
         if num_elems % 2 == 0:
             even_elems = _combine(
-                [ops.slice_along_axis(e, 0, -1, axis=axis) for e in odd_elems],
-                [ops.slice_along_axis(e, 2, None, step=2, axis=axis) for e in elems],
+                [slice_along_axis(e, 0, -1, axis=axis) for e in odd_elems],
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
             )
         else:
             even_elems = _combine(
                 odd_elems,
-                [ops.slice_along_axis(e, 2, None, step=2, axis=axis) for e in elems],
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
             )
         even_elems = [
-            ops.concatenate(
-                [ops.slice_along_axis(elem, 0, 1, axis=axis), result],
-                axis=axis,
+            _concat(
+                [slice_along_axis(elem, 0, 1, axis=axis), result],
+                axis,
             )
             for elem, result in zip(elems, even_elems)
         ]
-        # even_elems has >= elements than odd_elems; place even at even positions
         return [_interleave(e, o, axis) for e, o in zip(even_elems, odd_elems)]
 
     scanned_elems = _scan(elems_flat)
     if reverse:
-        scanned_elems = [ops.flip(elem, axis=axis) for elem in scanned_elems]
+        scanned_elems = [_flip(elem, axis) for elem in scanned_elems]
     return tree.pack_sequence_as(elems, scanned_elems)
 
 
