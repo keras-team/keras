@@ -309,6 +309,7 @@ NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
 NumpyDtypeTest::test_nanargmax
 NumpyDtypeTest::test_nanargmin
+NumpyDtypeTest::test_nanquantile
 NumpyDtypeTest::test_power
 NumpyDtypeTest::test_view
 NumpyOneInputOpsCorrectnessTest::test_array
@@ -323,6 +324,7 @@ NumpyOneInputOpsCorrectnessTest::test_vectorize
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_view
+NumpyTwoInputOpsCorrectnessTest::test_nanquantile
 OptimizerTest::test_constraints_are_applied
 OptimizerTest::test_ema
 OptimizerTest::test_gradient_accumulation

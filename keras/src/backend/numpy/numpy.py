@@ -1058,6 +1058,17 @@ def nanprod(x, axis=None, keepdims=False):
     return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.nanquantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
+
+
 def nanstd(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
