@@ -850,7 +850,32 @@ def cast(x, dtype):
 
 
 def cond(pred, true_fn, false_fn):
-    raise NotImplementedError("`cond` is not supported with openvino backend")
+    true_val = true_fn()
+    false_val = false_fn()
+
+    if true_val is None:
+        return None
+
+    if isinstance(pred, bool):
+        pred_ov = ov_opset.constant(pred, Type.boolean).output(0)
+    else:
+        pred_ov = get_ov_output(pred)
+        if pred_ov.get_element_type() != Type.boolean:
+            pred_ov = ov_opset.convert(pred_ov, Type.boolean).output(0)
+
+    def _select(t, f):
+        t_ov, f_ov = align_operand_types(
+            get_ov_output(t), get_ov_output(f), "cond"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.select(pred_ov, t_ov, f_ov).output(0)
+        )
+
+    if isinstance(true_val, (list, tuple)):
+        return type(true_val)(
+            _select(t, f) for t, f in zip(true_val, false_val)
+        )
+    return _select(true_val, false_val)
 
 
 def vectorized_map(function, elements):
