@@ -1025,9 +1025,11 @@ def blackman(x):
 
 
 def broadcast_to(x, shape):
-    assert isinstance(shape, (tuple, list)), (
-        "`broadcast_to` is supported only for tuple and list `shape`"
-    )
+    if not isinstance(shape, (tuple, list)):
+        raise ValueError(
+            f"`broadcast_to` is supported only for tuple and list `shape`. "
+            f"Received: shape={shape} (type {type(shape)})"
+        )
     target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
@@ -3210,10 +3212,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 "provided when `mode == 'constant'`. "
                 f"Received: mode={mode}"
             )
-        assert isinstance(constant_values, int), (
-            "`pad` operation supports only scalar pad value "
-            "in constant mode by openvino backend"
-        )
+        if not isinstance(constant_values, int):
+            raise ValueError(
+                "`pad` operation supports only scalar pad value "
+                "in constant mode with the openvino backend. "
+                f"Received: constant_values={constant_values}"
+            )
         pad_value = ov_opset.constant(
             constant_values, x.get_element_type()
         ).output(0)
@@ -3737,7 +3741,10 @@ def array_split(x, indices_or_sections, axis=0):
 def stack(x, axis=0):
     if isinstance(x, tuple):
         x = list(x)
-    assert isinstance(x, list), "`stack` supports only `x` as list or tuple"
+    if not isinstance(x, list):
+        raise ValueError(
+            f"`stack` supports only `x` as list or tuple. Received: {type(x)}"
+        )
     elems = [get_ov_output(e) for e in x]
     ref = elems[0]
     for i in range(1, len(elems)):
