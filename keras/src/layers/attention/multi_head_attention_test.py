@@ -338,24 +338,13 @@ class MultiHeadAttentionTest(testing.TestCase):
     )
     def test_query_mask_propagation(self):
         """Test automatic propagation of the query's mask."""
-        try:
-            layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
-            self.assertTrue(layer.supports_masking)
-            query = np.array(
-                [[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]]
-            )
-            masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
-            query_mask = backend.get_keras_mask(masked_query)
-            value = np.random.normal(size=(3, 3, 8))
-            output = layer(query=masked_query, value=value)
-        except RuntimeError as e:
-            if e.args[0].startswith(
-                "(*bias): last dimension must be contiguous"
-            ):
-                self.skipTest(
-                    "PyTorch errors out on GPU: issue to track bug is here "
-                    "https://github.com/keras-team/keras/issues/20459"
-                )
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
+        self.assertTrue(layer.supports_masking)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        query_mask = backend.get_keras_mask(masked_query)
+        value = np.random.normal(size=(3, 3, 8))
+        output = layer(query=masked_query, value=value)
         self.assertAllClose(query_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
@@ -672,11 +661,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         value = random.uniform((2, 4, 16))
         output = mha(query=query, value=value)
 
-        assert output.shape == (
-            2,
-            4,
-            8,
-        ), f"Expected shape (2, 4, 8), got {output.shape}"
+        self.assertEqual(output.shape, (2, 4, 8))
 
     def test_multi_head_attention_output_shape_as_tuple(self):
         """Test MultiHeadAttention with output_shape as a tuple."""
@@ -687,12 +672,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         value = random.uniform((2, 4, 16))
         output = mha(query=query, value=value)
 
-        assert output.shape == (
-            2,
-            4,
-            8,
-            8,
-        ), f"Expected shape (2, 4, 8, 8), got {output.shape}"
+        self.assertEqual(output.shape, (2, 4, 8, 8))
 
     def test_multi_head_attention_output_shape_error(self):
         with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):

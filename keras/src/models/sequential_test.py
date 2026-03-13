@@ -204,9 +204,11 @@ class SequentialTest(testing.TestCase):
         self.assertEqual(y.shape, (1, 1))
 
     def test_dict_inputs(self):
+        test_obj = self
+
         class DictLayer(layers.Layer):
             def call(self, inputs):
-                assert isinstance(inputs, dict)
+                test_obj.assertIsInstance(inputs, dict)
                 return inputs
 
         model = Sequential([DictLayer()])
@@ -216,9 +218,11 @@ class SequentialTest(testing.TestCase):
         model.summary()
 
     def test_list_inputs(self):
+        test_obj = self
+
         class ListLayer(layers.Layer):
             def call(self, inputs):
-                assert isinstance(inputs, list)
+                test_obj.assertIsInstance(inputs, list)
                 return inputs
 
         model = Sequential([ListLayer()])
@@ -278,6 +282,8 @@ class SequentialTest(testing.TestCase):
         model.summary()
 
     def test_serialization(self):
+        test_obj = self
+
         # Unbuilt deferred
         model = Sequential(name="seq")
         model.add(layers.Dense(4))
@@ -302,7 +308,7 @@ class SequentialTest(testing.TestCase):
         # Weird
         class DictLayer(layers.Layer):
             def call(self, inputs):
-                assert isinstance(inputs, dict)
+                test_obj.assertIsInstance(inputs, dict)
                 return inputs
 
         model = Sequential([DictLayer()])
@@ -342,7 +348,7 @@ class SequentialTest(testing.TestCase):
         model.add(layers.Dense(4))
 
         result = pickle.loads(pickle.dumps(model))
-        assert len(result.layers) == 1
+        self.assertLen(result.layers, 1)
 
     def test_bad_layer(self):
         model = Sequential(name="seq")
