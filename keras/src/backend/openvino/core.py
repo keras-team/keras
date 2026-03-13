@@ -926,7 +926,11 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
     else:
         xs_flat = tree.flatten(xs)
         xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
-        n = int(length) if length is not None else shape(xs_flat[0])[0]
+        n = (
+            int(length)
+            if length is not None
+            else (shape(xs_flat[0])[0] if xs_flat else 0)
+        )
 
     init_flat = tree.flatten(init)
     init_flat = [convert_to_tensor(i) for i in init_flat]
