@@ -1132,6 +1132,38 @@ class SavingBattleTest(testing.TestCase):
         out = new_model(x)
         self.assertAllClose(ref_out, out)
 
+    def test_nested_list_layer_saving(self):
+        """Test that layers stored in nested lists are saved/loaded."""
+
+        @keras.saving.register_keras_serializable(package="test")
+        class NestedBlockModel(keras.Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.blocks = [
+                    [keras.layers.Dense(8), keras.layers.Dense(8)],
+                    [keras.layers.Dense(8), keras.layers.Dense(8)],
+                ]
+                self.out_layer = keras.layers.Dense(2)
+
+            def call(self, x):
+                for block in self.blocks:
+                    for layer in block:
+                        x = layer(x)
+                return self.out_layer(x)
+
+            def get_config(self):
+                return super().get_config()
+
+        model = NestedBlockModel()
+        x = np.random.random((2, 4))
+        ref_out = model(x)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "nested_list.keras")
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out)
+
     def test_remove_weights_only_saving_and_loading(self):
         def is_remote_path(path):
             return True
