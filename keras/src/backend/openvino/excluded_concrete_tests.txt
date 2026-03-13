@@ -345,7 +345,6 @@ NadamTest::test_weight_decay
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_polar_corectness
-NNOpsCorrectnessTest::test_sparsemax
 NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_polar_
 NumpyDtypeTest::test_array
