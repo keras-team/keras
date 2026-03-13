@@ -131,9 +131,7 @@ class _IoUBase(Metric):
             y_true = ops.where(valid_mask, y_true, 0)
             y_pred = ops.where(valid_mask, y_pred, 0)
             if sample_weight is not None:
-                sample_weight = ops.where(
-                    valid_mask, sample_weight, 0
-                )
+                sample_weight = ops.where(valid_mask, sample_weight, 0)
 
         y_pred = ops.cast(y_pred, dtype=self.dtype)
         y_true = ops.cast(y_true, dtype=self.dtype)
