@@ -1,5 +1,18 @@
 # Tensorflow with cuda support.
-tensorflow[and-cuda]
+tensorflow[and-cuda]==2.20.0
+# nvidia-cublas
+# nvidia-cuda-cupti
+# nvidia-cuda-nvcc
+# nvidia-cuda-nvrtc
+# nvidia-cuda-runtime
+# nvidia-cudnn-cu13
+# nvidia-cufft
+# nvidia-curand
+# nvidia-cusolver
+# nvidia-cusparse
+# nvidia-nccl-cu13
+# nvidia-nvjitlink
+
 tf2onnx
 ai-edge-litert
 
