@@ -1098,9 +1098,9 @@ class JAXEpochIterator(EpochIterator):
         for data in self.data_adapter.get_jax_iterator():
             if layouts is None:
                 layouts = tree.map_structure(
-                    lambda d: distribution.get_data_layout(
-                        d.shape
-                    ).backend_layout,
+                    lambda d: (
+                        distribution.get_data_layout(d.shape).backend_layout
+                    ),
                     data,
                 )
             yield _distribute_data(data, layouts)
