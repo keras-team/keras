@@ -1248,6 +1248,27 @@ class LayerTest(testing.TestCase):
         ):
             layer(np.random.random((3, 2)))
 
+    def test_reserved_attribute_warning(self):
+        """Warn when user code overrides reserved tracked attributes."""
+
+        class BadLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._layers = [layers.Dense(4)]
+
+        with self.assertWarnsRegex(
+            UserWarning,
+            "`_layers` is a reserved attribute",
+        ):
+            BadLayer()
+
+        # Internal Keras classes like Sequential should NOT warn.
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", UserWarning)
+            models.Sequential([layers.Dense(4)])
+
     def test_init_after_state_tracking(self):
         class MyLayer(layers.Layer):
             def __init__(self):
