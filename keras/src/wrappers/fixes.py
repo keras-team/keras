@@ -19,7 +19,7 @@ def _validate_data(estimator, *args, **kwargs):
         return validate_data(estimator, *args, **kwargs)
     except ImportError:
         return estimator._validate_data(*args, **kwargs)
-    except:
+    except Exception:
         raise
 
 

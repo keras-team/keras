@@ -118,7 +118,7 @@ class NumpyTrainer(base_trainer.Trainer):
             # Build all model state with `backend.compute_output_spec`.
             try:
                 y_pred = backend.compute_output_spec(self, x)
-            except:
+            except Exception:
                 raise RuntimeError(
                     "Unable to automatically build the model. "
                     "Please build it yourself before calling "

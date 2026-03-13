@@ -617,7 +617,7 @@ class CompileLoss(losses_module.Loss):
 
         try:
             output_names = tree.pack_sequence_as(y_pred, flat_output_names)
-        except:
+        except Exception:
             inferred_flat_output_names = self._get_y_pred_output_names(y_pred)
             output_names = tree.pack_sequence_as(
                 y_pred, inferred_flat_output_names
@@ -709,14 +709,14 @@ class CompileLoss(losses_module.Loss):
 
             try:
                 y_true = tree.pack_sequence_as(y_pred, y_true)
-            except:
+            except Exception:
                 # Check case where y_true has the same structure but uses
                 # different (but reconcilable) container types,
                 # e.g `list` vs `tuple`.
                 try:
                     tree.assert_same_paths(y_true, y_pred)
                     y_true = tree.pack_sequence_as(y_pred, tree.flatten(y_true))
-                except:
+                except Exception:
                     try:
                         # Check case where loss is partially defined over y_pred
                         flat_y_true = tree.flatten(y_true)
@@ -733,7 +733,7 @@ class CompileLoss(losses_module.Loss):
                         ):
                             y_true[i] = y_t
                         y_true = tree.pack_sequence_as(self._user_loss, y_true)
-                    except:
+                    except Exception:
                         y_true_struct = tree.map_structure(
                             lambda _: "*", y_true
                         )

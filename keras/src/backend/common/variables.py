@@ -401,7 +401,7 @@ class Variable:
         if hasattr(self, "_value") and self._value is not None:
             try:
                 value = backend.core.convert_to_numpy(self._value)
-            except:
+            except Exception:
                 # In some cases the conversion to numpy can fail.
                 pass
         value_str = f", value={value}" if value is not None else ""
