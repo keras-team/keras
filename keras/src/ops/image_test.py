@@ -2835,3 +2835,197 @@ class ExtractPatches3DTest(testing.TestCase):
             volume, size=(2, 3, 4), strides=(2, 3, 4), data_format=data_format
         )
         self.assertEqual(patches.shape, expected_shape)
+
+
+class EuclideanDistanceTransformTest(testing.TestCase):
+    def setUp(self):
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def test_basic_2d(self):
+        """Test basic 2D binary image."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        # Create a simple binary image with a foreground square
+        image = np.array(
+            [
+                [0, 0, 0, 0, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 0, 0, 0, 0],
+            ],
+            dtype="float32",
+        )
+
+        result = kimage.euclidean_distance_transform(image)
+        result_np = backend.convert_to_numpy(result)
+
+        # Check output dtype
+        self.assertEqual(backend.standardize_dtype(result.dtype), "float32")
+
+        # Check shape is preserved
+        self.assertEqual(result.shape, image.shape)
+
+        # Background pixels should have distance 0
+        self.assertEqual(result_np[0, 0], 0.0)
+        self.assertEqual(result_np[0, 2], 0.0)
+        self.assertEqual(result_np[4, 4], 0.0)
+
+        # Edge foreground pixels should have distance 1
+        self.assertAllClose(result_np[1, 1], 1.0, atol=1e-5)
+        self.assertAllClose(result_np[1, 2], 1.0, atol=1e-5)
+
+        # Center pixel should have distance 2 (to nearest background at edge)
+        self.assertAllClose(result_np[2, 2], 2.0, atol=1e-5)
+
+    def test_batched_4d(self):
+        """Test 4D batched input."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        # Batch of 2 images, each 5x5 with 1 channel
+        images = np.zeros((2, 5, 5, 1), dtype="float32")
+        images[0, 1:4, 1:4, 0] = 1  # 3x3 square in first image
+        images[1, 2, 2, 0] = 1  # Single pixel in second image
+
+        result = kimage.euclidean_distance_transform(images)
+        result_np = backend.convert_to_numpy(result)
+
+        # Check shape is preserved
+        self.assertEqual(result.shape, (2, 5, 5, 1))
+
+        # Check first image - center of 3x3 square has distance 2
+        self.assertAllClose(result_np[0, 2, 2, 0], 2.0, atol=1e-5)
+
+        # Check second image - single foreground pixel should have distance 1
+        self.assertAllClose(result_np[1, 2, 2, 0], 1.0, atol=1e-5)
+
+    def test_3d_single_image(self):
+        """Test 3D input (single image with channels)."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        # Single image with 2 channels
+        image = np.zeros((5, 5, 2), dtype="float32")
+        image[1:4, 1:4, 0] = 1  # 3x3 square in channel 0
+        image[2, 2, 1] = 1  # Single pixel in channel 1
+
+        result = kimage.euclidean_distance_transform(image)
+        result_np = backend.convert_to_numpy(result)
+
+        # Check shape is preserved
+        self.assertEqual(result.shape, (5, 5, 2))
+
+        # Check channel 0 - center of 3x3 square has distance 2
+        self.assertAllClose(result_np[2, 2, 0], 2.0, atol=1e-5)
+
+        # Check channel 1 - single pixel should have distance 1
+        self.assertAllClose(result_np[2, 2, 1], 1.0, atol=1e-5)
+
+    def test_with_sampling(self):
+        """Test with custom sampling (anisotropic pixels)."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        # 3x3 image with single foreground pixel in center
+        image = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype="float32")
+
+        # With default sampling (1, 1), distance is 1
+        result_default = kimage.euclidean_distance_transform(image)
+        result_default_np = backend.convert_to_numpy(result_default)
+        self.assertAllClose(result_default_np[1, 1], 1.0, atol=1e-5)
+
+        # With sampling (2, 1), horizontal distance is 1, vertical is 2
+        # So the nearest background is horizontally adjacent with distance 1
+        result_aniso = kimage.euclidean_distance_transform(
+            image, sampling=(2.0, 1.0)
+        )
+        result_aniso_np = backend.convert_to_numpy(result_aniso)
+        self.assertAllClose(result_aniso_np[1, 1], 1.0, atol=1e-5)
+
+    def test_all_background(self):
+        """Test image with all background (zeros)."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        image = np.zeros((5, 5), dtype="float32")
+        result = kimage.euclidean_distance_transform(image)
+        result_np = backend.convert_to_numpy(result)
+
+        # All pixels should have distance 0
+        np.testing.assert_array_equal(result_np, np.zeros((5, 5)))
+
+    def test_all_foreground(self):
+        """Test image with all foreground (ones)."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        image = np.ones((5, 5), dtype="float32")
+        result = kimage.euclidean_distance_transform(image)
+        result_np = backend.convert_to_numpy(result)
+
+        # With scipy, distance is computed to edge of image (no background)
+        # So distances increase toward the center of the image
+        expected = scipy.ndimage.distance_transform_edt(image != 0)
+        self.assertAllClose(result_np, expected, atol=1e-5)
+
+    def test_matches_scipy(self):
+        """Test that results match scipy.ndimage.distance_transform_edt."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        # Random binary image
+        np.random.seed(42)
+        image = (np.random.rand(10, 10) > 0.5).astype("float32")
+
+        result = kimage.euclidean_distance_transform(image)
+        result_np = backend.convert_to_numpy(result)
+
+        # Compare with scipy
+        expected = scipy.ndimage.distance_transform_edt(image != 0)
+        np.testing.assert_allclose(result_np, expected, rtol=1e-5)
+
+    def test_invalid_rank(self):
+        """Test that invalid rank raises ValueError."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        # 1D input should fail
+        image = np.zeros((10,), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "Invalid images rank"):
+            kimage.euclidean_distance_transform(image)
+
+        # 5D input should fail
+        image = np.zeros((1, 5, 5, 5, 1), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "Invalid images rank"):
+            kimage.euclidean_distance_transform(image)
+
+    def test_symbolic_tensor(self):
+        """Test with symbolic tensor (dynamic shape)."""
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "OpenVINO does not support euclidean_distance_transform"
+            )
+
+        x = KerasTensor([None, 20, 20, 1])
+        out = kimage.euclidean_distance_transform(x)
+        self.assertEqual(out.shape, (None, 20, 20, 1))
+        self.assertEqual(out.dtype, "float32")
