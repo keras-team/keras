@@ -2176,10 +2176,7 @@ def fmod(x1, x2):
         dtype = "int32"
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
-    quotient = x1 / x2
-    truncated = tf.sign(quotient) * tf.math.floor(tf.math.abs(quotient))
-    truncated = tf.cast(truncated, dtype)
-    return x1 - truncated * x2
+    return tf.sign(x1) * tf.math.floormod(tf.abs(x1), tf.abs(x2))
 
 
 def moveaxis(x, source, destination):
