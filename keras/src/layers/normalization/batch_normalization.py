@@ -455,6 +455,8 @@ class BatchNormalization(Layer):
             keepdims=True,
         )
         mean = masked_input_sum / (sum_of_weights + backend.epsilon())
+        # Explicit del to free large intermediates in eager mode (e.g. Torch).
+        # No effect under jit/tf.function, but harmless.
         del masked_inputs, masked_input_sum
 
         difference = ops.where(mask_broadcasted, inputs - mean, 0)
