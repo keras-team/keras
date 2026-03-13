@@ -268,7 +268,11 @@ class Muon(optimizer.Optimizer):
         the exact UV^T from the SVD.
         """
         shape = ops.shape(x)
-        assert len(shape) >= 2
+        if len(shape) < 2:
+            raise ValueError(
+                "Expected gradient or momentum to have at least 2 dimensions. "
+                f"Received: shape={shape}"
+            )
 
         a, b, c = self.muon_a, self.muon_b, self.muon_c
         if shape[-2] > shape[-1]:

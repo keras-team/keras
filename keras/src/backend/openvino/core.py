@@ -493,10 +493,16 @@ class OpenVINOKerasTensor:
     def __len__(self):
         ov_output = self.output
         ov_shape = ov_output.get_partial_shape()
-        assert ov_shape.rank.is_static and ov_shape.rank.get_length() > 0, (
-            "rank must be static and greater than zero"
-        )
-        assert ov_shape[0].is_static, "the first dimension must be static"
+        if not (ov_shape.rank.is_static and ov_shape.rank.get_length() > 0):
+            raise ValueError(
+                "Rank must be static and greater than zero to compute `len()`. "
+                f"rank={ov_shape.rank}"
+            )
+        if not ov_shape[0].is_static:
+            raise ValueError(
+                "The first dimension must be static to compute `len()`. "
+                f"shape={ov_shape}"
+            )
         return ov_shape[0].get_length()
 
     def __bool__(self):
@@ -804,11 +810,8 @@ def convert_to_numpy(x):
             x = x.value
         else:
             return x.value.data
-    assert isinstance(x, OpenVINOKerasTensor), (
-        "unsupported type {} for `convert_to_numpy` in openvino backend".format(
-            type(x)
-        )
-    )
+    if not isinstance(x, OpenVINOKerasTensor):
+        raise ValueError(f"unsupported type {type(x)} for `convert_to_numpy`.")
     # if the tensor is backed by a Constant OV node, extract
     # its data array directly without compiling a model.
     try:
@@ -945,14 +948,16 @@ def slice(inputs, start_indices, shape):
         start_indices = tuple(start_indices)
     if isinstance(shape, (list, np.ndarray)):
         shape = tuple(shape)
-    assert isinstance(start_indices, tuple), (
-        "`slice` is not supported by openvino backend"
-        " for `start_indices` of type {}".format(type(start_indices))
-    )
-    assert isinstance(shape, tuple), (
-        "`slice` is not supported by openvino backend"
-        " for `shape` of type {}".format(type(shape))
-    )
+    if not isinstance(start_indices, tuple):
+        raise ValueError(
+            "`slice` operation requires tuple for `start_indices with the "
+            f"openvino backend. Received: start_indices={start_indices}"
+        )
+    if not isinstance(shape, tuple):
+        raise ValueError(
+            "`slice` operation requires tuple for `shape` with the "
+            f"openvino backend. Received: shape={shape}"
+        )
 
     axes = []
     start = []
@@ -1208,9 +1213,11 @@ def while_loop(
     elif isinstance(loop_vars, (list, np.ndarray)):
         loop_vars = tuple(loop_vars)
     else:
-        assert isinstance(loop_vars, (tuple, dict)), (
-            f"Unsupported type {type(loop_vars)} for loop_vars"
-        )
+        if not isinstance(loop_vars, (tuple, dict)):
+            raise ValueError(
+                "Expected tuple or dict for `loop_vars`, "
+                f"Received: {type(loop_vars)}"
+            )
 
     flat_loop_vars = flatten_structure(loop_vars)
     loop_vars_ov = [get_ov_output(var) for var in flat_loop_vars]

@@ -451,7 +451,10 @@ class Functional(Function, Model):
             node_index = tensor._keras_history[1]
             tensor_index = tensor._keras_history[2]
             node_key = make_node_key(operation, node_index)
-            assert node_key in self._nodes
+            if node_key not in self._nodes:
+                raise RuntimeError(
+                    f"Internal error: could not find node key {node_key}."
+                )
             new_node_index = node_reindexing_map[node_key]
             return [operation.name, new_node_index, tensor_index]
 
@@ -598,7 +601,10 @@ def functional_from_config(cls, config, custom_objects=None):
     trainable = functional_config["trainable"]
 
     def get_tensor(layer_name, node_index, tensor_index):
-        assert layer_name in created_layers
+        if layer_name not in created_layers:
+            raise RuntimeError(
+                f"Internal error: could not find layer {layer_name}."
+            )
         layer = created_layers[layer_name]
         if isinstance(layer, Functional):
             # Functional models start out with a built-in node.

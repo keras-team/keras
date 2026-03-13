@@ -472,9 +472,14 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _interleave(a, b, axis):
         """Given two Tensors of static shape, interleave them along axis."""
-        assert (
+        if not (
             a.shape[axis] == b.shape[axis] or a.shape[axis] == b.shape[axis] + 1
-        )
+        ):
+            raise ValueError(
+                "Shapes are incompatible for associative_scan interleaving. "
+                f"a.shape[{axis}]={a.shape[axis]}, "
+                f"b.shape[{axis}]={b.shape[axis]}"
+            )
 
         # we want to get a: [a1, a2], b: [b1, b2]
         # to a: [a1, 0, a2, 0], b: [0, b1, 0, b2]

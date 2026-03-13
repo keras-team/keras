@@ -16,7 +16,11 @@ def _convert_conv_transpose_padding_args_from_keras_to_jax(
     be given a default value.
     """
 
-    assert padding.lower() in {"valid", "same"}
+    if padding.lower() not in {"valid", "same"}:
+        raise ValueError(
+            f"The `padding` argument must be one of 'valid', 'same'. "
+            f"Received: padding={padding}"
+        )
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
     if padding.lower() == "valid":
@@ -58,7 +62,11 @@ def _convert_conv_transpose_padding_args_from_keras_to_torch(
     the case when both the Torch padding and output_padding values are
     strictly positive.
     """
-    assert padding.lower() in {"valid", "same"}
+    if padding.lower() not in {"valid", "same"}:
+        raise ValueError(
+            f"The `padding` argument must be one of 'valid', 'same'. "
+            f"Received: padding={padding}"
+        )
     original_kernel_size = kernel_size
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
@@ -210,7 +218,11 @@ def _get_output_shape_given_tf_padding(
     if input_size is None:
         return None
 
-    assert padding.lower() in {"valid", "same"}
+    if padding.lower() not in {"valid", "same"}:
+        raise ValueError(
+            f"The `padding` argument must be one of 'valid', 'same'. "
+            f"Received: padding={padding}"
+        )
 
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
