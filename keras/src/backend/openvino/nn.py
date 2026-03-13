@@ -162,7 +162,16 @@ def gelu(x, approximate=True):
         approximate_mode = "tanh"
     return OpenVINOKerasTensor(ov_opset.gelu(x, approximate_mode).output(0))
 
-
+def glu(x, axis=-1):
+    x = get_ov_output(x)
+    axis_node = ov_opset.constant(axis, Type.i32).output(0)
+    split_node = ov_opset.split(x, axis_node, num_splits=2)
+    first_half = split_node.output(0)
+    second_half = split_node.output(1)
+    activated_second_half = ov_opset.sigmoid(second_half).output(0)
+    result = ov_opset.multiply(first_half, activated_second_half).output(0)
+    return OpenVINOKerasTensor(result)
+    
 def softmax(x, axis=-1):
     x = get_ov_output(x)
     if axis is None:

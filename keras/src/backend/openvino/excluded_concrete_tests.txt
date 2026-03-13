@@ -344,13 +344,10 @@ NadamTest::test_correctness_with_golden
 NadamTest::test_weight_decay
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsCorrectnessTest::test_ctc_decode
-NNOpsCorrectnessTest::test_glu
 NNOpsCorrectnessTest::test_polar_corectness
 NNOpsCorrectnessTest::test_sparsemax
 NNOpsDtypeTest::test_ctc_decode
-NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
-NNOpsDynamicShapeTest::test_glu
 NumpyDtypeTest::test_array
 NumpyDtypeTest::test_maximum_python_types
 NumpyDtypeTest::test_minimum_python_types
