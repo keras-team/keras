@@ -76,8 +76,8 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 loss = self.optimizer.scale_loss(loss)
 
         # Compute gradients
-        if self.trainable_weights:
-            trainable_weights = self.trainable_weights
+        if self._compiled_trainable_weights:
+            trainable_weights = self._compiled_trainable_weights
             gradients = tape.gradient(loss, trainable_weights)
 
             # Update weights
@@ -337,7 +337,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         if max_epochs and max_epochs < epochs:
             warnings.warn("Limiting epochs to %d" % max_epochs)
             epochs = max_epochs
-        # TODO: respect compiled trainable state
+
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
@@ -466,7 +466,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         **kwargs,
     ):
         self._assert_compile_called("evaluate")
-        # TODO: respect compiled trainable state
+
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
             raise ValueError(f"Arguments not recognized: {kwargs}")
