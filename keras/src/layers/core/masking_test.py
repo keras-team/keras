@@ -50,7 +50,7 @@ class MaskingTest(testing.TestCase):
                 return input_shape
 
             def call(self, inputs, mask=None):
-                assert mask is not None
+                test_obj.assertIsNotNone(mask)
                 test_obj.assertAllClose(mask, expected_mask)
                 return inputs
 

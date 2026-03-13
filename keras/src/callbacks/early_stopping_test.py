@@ -146,7 +146,7 @@ class EarlyStoppingTest(testing.TestCase):
         hist = model.fit(
             x_train, y_train, callbacks=[stopper], verbose=0, epochs=20
         )
-        assert len(hist.epoch) >= patience
+        self.assertGreaterEqual(len(hist.epoch), patience)
 
     def test_early_stopping_final_weights_when_restoring_model_weights(self):
         class DummyModel:

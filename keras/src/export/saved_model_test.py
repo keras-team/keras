@@ -613,9 +613,11 @@ class ExportArchiveTest(testing.TestCase):
         self.assertLen(revived_model.non_trainable_variables, 2)
 
         # Assert all variables wrapped as `tf.Variable`
-        assert isinstance(export_archive.variables[0], tf.Variable)
-        assert isinstance(export_archive.trainable_variables[0], tf.Variable)
-        assert isinstance(
+        self.assertIsInstance(export_archive.variables[0], tf.Variable)
+        self.assertIsInstance(
+            export_archive.trainable_variables[0], tf.Variable
+        )
+        self.assertIsInstance(
             export_archive.non_trainable_variables[0], tf.Variable
         )
 
@@ -688,8 +690,10 @@ class ExportArchiveTest(testing.TestCase):
         self.assertLen(revived_model.non_trainable_variables, 0)
 
         # Assert all variables wrapped as `tf.Variable`
-        assert isinstance(export_archive.variables[0], tf.Variable)
-        assert isinstance(export_archive.trainable_variables[0], tf.Variable)
+        self.assertIsInstance(export_archive.variables[0], tf.Variable)
+        self.assertIsInstance(
+            export_archive.trainable_variables[0], tf.Variable
+        )
 
     def test_layer_export(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
