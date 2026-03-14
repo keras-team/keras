@@ -9,6 +9,7 @@ from keras.src import backend
 from keras.src.backend.tensorflow.core import convert_to_tensor
 from keras.src.backend.tensorflow.numpy import moveaxis
 from keras.src.random.seed_generator import draw_seed
+from keras.src.utils.module_utils import scipy
 
 RESIZE_INTERPOLATIONS = (
     "bilinear",
@@ -1074,3 +1075,46 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def euclidean_dist_transform(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images = tf.expand_dims(images, axis=0)
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    def _edt_single_np(image_np):
+        # image_np is already a numpy array (from tf.numpy_function)
+        h, w, c = image_np.shape
+        output = np.empty((h, w, c), dtype="float32")
+        for ch in range(c):
+            output[:, :, ch] = scipy.ndimage.distance_transform_edt(
+                image_np[:, :, ch] != 0
+            ).astype("float32")
+        return output
+
+    def _edt_single(image):
+        result = tf.numpy_function(_edt_single_np, [image], tf.float32)
+        result.set_shape(image.shape)
+        return result
+
+    output = tf.map_fn(_edt_single, images, fn_output_signature=tf.float32)
+
+    if data_format == "channels_first":
+        output = tf.transpose(output, (0, 3, 1, 2))
+    if need_squeeze:
+        output = tf.squeeze(output, axis=0)
+    return output

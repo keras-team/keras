@@ -233,6 +233,18 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.elastic_transform(x)
         self.assertEqual(out.shape, (None, 3, 20, 20))
 
+    def test_euclidean_dist_transform(self):
+        # Test channels_last
+        x = KerasTensor([None, 20, 20, 3])
+        out = kimage.euclidean_dist_transform(x)
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, 20, 20])
+        out = kimage.euclidean_dist_transform(x)
+        self.assertEqual(out.shape, (None, 3, 20, 20))
+
     def test_scale_and_translate(self):
         images = KerasTensor([None, 20, 20, 3])
         output_shape = (None, 25, 25, 3)
@@ -523,6 +535,18 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         backend.set_image_data_format("channels_first")
         x = KerasTensor([3, 20, 20])
         out = kimage.elastic_transform(x)
+        self.assertEqual(out.shape, (3, 20, 20))
+
+    def test_euclidean_dist_transform(self):
+        # Test channels_last
+        x = KerasTensor([20, 20, 3])
+        out = kimage.euclidean_dist_transform(x)
+        self.assertEqual(out.shape, (20, 20, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([3, 20, 20])
+        out = kimage.euclidean_dist_transform(x)
         self.assertEqual(out.shape, (3, 20, 20))
 
     def test_scale_and_translate(self):
@@ -2019,6 +2043,88 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(np.var(ref_out), np.var(out), atol=1e-2, rtol=1e-2)
 
+    def test_euclidean_dist_transform(self):
+        # Test with a known pattern - channels_last
+        x = np.array(
+            [
+                [0, 0, 0, 0, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 1, 1, 1, 0],
+                [0, 0, 0, 0, 0],
+            ],
+            dtype="float32",
+        )[np.newaxis, ..., np.newaxis]  # (1, 5, 5, 1)
+
+        out = backend.convert_to_numpy(
+            kimage.euclidean_dist_transform(x, data_format="channels_last")
+        )
+
+        expected = scipy.ndimage.distance_transform_edt(
+            x[0, :, :, 0] != 0
+        ).astype("float32")
+
+        self.assertEqual(out.shape, (1, 5, 5, 1))
+        self.assertEqual(out.dtype, np.float32)
+        self.assertAllClose(out[0, :, :, 0], expected, atol=1e-5)
+
+    def test_euclidean_dist_transform_batched(self):
+        # Test with random batched input
+        np.random.seed(42)
+        x = (np.random.rand(2, 8, 8, 3) > 0.3).astype("float32")
+
+        out = backend.convert_to_numpy(
+            kimage.euclidean_dist_transform(x, data_format="channels_last")
+        )
+
+        self.assertEqual(out.shape, (2, 8, 8, 3))
+        self.assertEqual(out.dtype, np.float32)
+
+        # Compare against scipy per batch/channel
+        for b in range(2):
+            for c in range(3):
+                expected = scipy.ndimage.distance_transform_edt(
+                    x[b, :, :, c] != 0
+                ).astype("float32")
+                self.assertAllClose(out[b, :, :, c], expected, atol=1e-5)
+
+    def test_euclidean_dist_transform_channels_first(self):
+        np.random.seed(42)
+        x = (np.random.rand(2, 3, 8, 8) > 0.3).astype("float32")
+
+        out = backend.convert_to_numpy(
+            kimage.euclidean_dist_transform(x, data_format="channels_first")
+        )
+
+        self.assertEqual(out.shape, (2, 3, 8, 8))
+        self.assertEqual(out.dtype, np.float32)
+
+        # Compare against scipy per batch/channel
+        for b in range(2):
+            for c in range(3):
+                expected = scipy.ndimage.distance_transform_edt(
+                    x[b, c, :, :] != 0
+                ).astype("float32")
+                self.assertAllClose(out[b, c, :, :], expected, atol=1e-5)
+
+    def test_euclidean_dist_transform_single_image(self):
+        # Test with rank-3 input (single image)
+        np.random.seed(42)
+        x = (np.random.rand(8, 8, 2) > 0.3).astype("float32")
+
+        out = backend.convert_to_numpy(
+            kimage.euclidean_dist_transform(x, data_format="channels_last")
+        )
+
+        self.assertEqual(out.shape, (8, 8, 2))
+        self.assertEqual(out.dtype, np.float32)
+
+        for c in range(2):
+            expected = scipy.ndimage.distance_transform_edt(
+                x[:, :, c] != 0
+            ).astype("float32")
+            self.assertAllClose(out[:, :, c], expected, atol=1e-5)
+
     def test_map_coordinates_constant_padding(self):
         input_img = tf.ones((2, 2), dtype=tf.uint8)
         # one pixel outside of the input space around the edges
@@ -2126,6 +2232,19 @@ class ImageOpsDtypeTest(testing.TestCase):
         self.assertDType(kimage.elastic_transform(images), expected_dtype)
         self.assertDType(
             kimage.ElasticTransform().symbolic_call(images), expected_dtype
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_euclidean_dist_transform(self, dtype):
+        images = knp.ones((10, 10, 3), dtype=dtype)
+        expected_dtype = "float32"
+
+        self.assertDType(
+            kimage.euclidean_dist_transform(images), expected_dtype
+        )
+        self.assertDType(
+            kimage.EuclideanDistTransform().symbolic_call(images),
+            expected_dtype,
         )
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
@@ -2652,6 +2771,36 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "Invalid images rank: expected rank 3"
         ):
             kimage.elastic_transform(invalid_image)
+
+    def test_euclidean_dist_transform_invalid_images_rank(self):
+        # Test rank=2
+        invalid_image = np.random.uniform(size=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.euclidean_dist_transform(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.EuclideanDistTransform()(invalid_image)
+
+        # Test rank=5
+        invalid_image = np.random.uniform(size=(2, 10, 10, 3, 1))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.euclidean_dist_transform(invalid_image)
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.EuclideanDistTransform()(invalid_image)
+
+        # Test rank=2, symbolic tensor
+        invalid_image = KerasTensor(shape=(10, 10))
+        with self.assertRaisesRegex(
+            ValueError, "Invalid images rank: expected rank 3"
+        ):
+            kimage.euclidean_dist_transform(invalid_image)
 
 
 class ExtractPatches3DTest(testing.TestCase):
