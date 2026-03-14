@@ -1073,21 +1073,33 @@ class Trainer:
             return results[0]
         return results
 
+    def _get_compiled_variables(self):
+        """Split variables into trainable/non-trainable per compile() state.
+
+        Returns a single-pass partition so callers that need both lists
+        avoid iterating ``self.variables`` twice.
+        """
+        compiled_ids = getattr(self, "_compiled_trainable_variable_ids", None)
+        if compiled_ids is None:
+            return self.trainable_variables, self.non_trainable_variables
+
+        trainable, non_trainable = [], []
+        for v in self.variables:
+            if id(v) in compiled_ids:
+                trainable.append(v)
+            else:
+                non_trainable.append(v)
+        return trainable, non_trainable
+
     @property
     def _compiled_trainable_variables(self):
         """Trainable variables as determined at compile() time."""
-        compiled_ids = getattr(self, "_compiled_trainable_variable_ids", None)
-        if compiled_ids is None:
-            return self.trainable_variables
-        return [v for v in self.variables if id(v) in compiled_ids]
+        return self._get_compiled_variables()[0]
 
     @property
     def _compiled_non_trainable_variables(self):
         """Non-trainable variables as determined at compile() time."""
-        compiled_ids = getattr(self, "_compiled_trainable_variable_ids", None)
-        if compiled_ids is None:
-            return self.non_trainable_variables
-        return [v for v in self.variables if id(v) not in compiled_ids]
+        return self._get_compiled_variables()[1]
 
     @property
     def _compiled_trainable_weights(self):
