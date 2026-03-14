@@ -288,8 +288,164 @@ def lstm(*args, **kwargs):
     raise NotImplementedError("`lstm` is not supported with openvino backend")
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError("`gru` is not supported with openvino backend")
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    time_major=False,
+    reset_after=True,
+):
+    kernel_ov = get_ov_output(kernel)
+    rec_kernel_ov = get_ov_output(recurrent_kernel)
+
+    rec_pshape = rec_kernel_ov.get_partial_shape()
+    units = rec_pshape[0].get_length()
+    split_sizes = [units, units, units]
+
+    inputs_ov = get_ov_output(inputs)
+    x_proj_ov = ov_opset.matmul(inputs_ov, kernel_ov, False, False).output(0)
+
+    rec_bias_tensor = None
+    if bias is not None:
+        bias_ov = get_ov_output(bias)
+        bias_rank = bias_ov.get_partial_shape().rank.get_length()
+        if reset_after and bias_rank == 2:
+            input_bias_ov = ov_opset.gather(
+                bias_ov,
+                ov_opset.constant(0, dtype=Type.i32).output(0),
+                ov_opset.constant(0, dtype=Type.i32).output(0),
+            ).output(0)
+            rec_bias_ov_raw = ov_opset.gather(
+                bias_ov,
+                ov_opset.constant(1, dtype=Type.i32).output(0),
+                ov_opset.constant(0, dtype=Type.i32).output(0),
+            ).output(0)
+            rec_bias_tensor = OpenVINOKerasTensor(rec_bias_ov_raw)
+        else:
+            if bias_rank == 2:
+                input_bias_ov = ov_opset.gather(
+                    bias_ov,
+                    ov_opset.constant(0, dtype=Type.i32).output(0),
+                    ov_opset.constant(0, dtype=Type.i32).output(0),
+                ).output(0)
+            else:
+                input_bias_ov = bias_ov
+        x_proj_ov = ov_opset.add(x_proj_ov, input_bias_ov).output(0)
+
+    x_proj_tensor = OpenVINOKerasTensor(x_proj_ov)
+
+    step_constants = [recurrent_kernel]
+    if rec_bias_tensor is not None:
+        step_constants.append(rec_bias_tensor)
+
+    def gru_step(inputs_t, states):
+        h_prev = states[0]
+        rec_k = states[1]
+        has_rec_bias = len(states) > 2
+
+        x_t_ov = get_ov_output(inputs_t)
+        h_prev_ov = get_ov_output(h_prev)
+        rec_k_ov = get_ov_output(rec_k)
+
+        axis1 = ov_opset.constant(1, dtype=Type.i32).output(0)
+        sz = ov_opset.constant(split_sizes, dtype=Type.i32).output(0)
+        x_split = ov_opset.variadic_split(x_t_ov, axis1, sz)
+        x_z = x_split.output(0)
+        x_r = x_split.output(1)
+        x_h = x_split.output(2)
+
+        if reset_after:
+            rec_proj = ov_opset.matmul(
+                h_prev_ov, rec_k_ov, False, False
+            ).output(0)
+            rec_split = ov_opset.variadic_split(
+                rec_proj,
+                ov_opset.constant(1, dtype=Type.i32).output(0),
+                ov_opset.constant(split_sizes, dtype=Type.i32).output(0),
+            )
+            rec_z = rec_split.output(0)
+            rec_r = rec_split.output(1)
+            rec_h = rec_split.output(2)
+
+            if has_rec_bias:
+                rb_ov = get_ov_output(states[2])
+                rb_split = ov_opset.variadic_split(
+                    rb_ov,
+                    ov_opset.constant(0, dtype=Type.i32).output(0),
+                    ov_opset.constant(split_sizes, dtype=Type.i32).output(0),
+                )
+                rec_z = ov_opset.add(rec_z, rb_split.output(0)).output(0)
+                rec_r = ov_opset.add(rec_r, rb_split.output(1)).output(0)
+                rec_h = ov_opset.add(rec_h, rb_split.output(2)).output(0)
+
+            z = recurrent_activation(
+                OpenVINOKerasTensor(ov_opset.add(x_z, rec_z).output(0))
+            )
+            r = recurrent_activation(
+                OpenVINOKerasTensor(ov_opset.add(x_r, rec_r).output(0))
+            )
+            hh_input = ov_opset.add(
+                x_h,
+                ov_opset.multiply(get_ov_output(r), rec_h).output(0),
+            ).output(0)
+
+        else:
+            rk_split = ov_opset.variadic_split(
+                rec_k_ov,
+                ov_opset.constant(1, dtype=Type.i32).output(0),
+                ov_opset.constant(split_sizes, dtype=Type.i32).output(0),
+            )
+            rec_k_z = rk_split.output(0)
+            rec_k_r = rk_split.output(1)
+            rec_k_h = rk_split.output(2)
+
+            rec_z = ov_opset.matmul(h_prev_ov, rec_k_z, False, False).output(0)
+            rec_r = ov_opset.matmul(h_prev_ov, rec_k_r, False, False).output(0)
+
+            z = recurrent_activation(
+                OpenVINOKerasTensor(ov_opset.add(x_z, rec_z).output(0))
+            )
+            r = recurrent_activation(
+                OpenVINOKerasTensor(ov_opset.add(x_r, rec_r).output(0))
+            )
+            r_h_prev = ov_opset.multiply(get_ov_output(r), h_prev_ov).output(0)
+            rec_h = ov_opset.matmul(r_h_prev, rec_k_h, False, False).output(0)
+            hh_input = ov_opset.add(x_h, rec_h).output(0)
+
+        hh = activation(OpenVINOKerasTensor(hh_input))
+
+        z_ov = get_ov_output(z)
+        hh_ov = get_ov_output(hh)
+        one = ov_opset.constant(1, z_ov.get_element_type()).output(0)
+        one_minus_z = ov_opset.subtract(one, z_ov).output(0)
+        h = ov_opset.add(
+            ov_opset.multiply(z_ov, h_prev_ov).output(0),
+            ov_opset.multiply(one_minus_z, hh_ov).output(0),
+        ).output(0)
+
+        h_tensor = OpenVINOKerasTensor(h)
+        return h_tensor, [h_tensor]
+
+    last_output, outputs, new_states = rnn(
+        gru_step,
+        x_proj_tensor,
+        [initial_state],
+        go_backwards=go_backwards,
+        mask=mask,
+        constants=step_constants,
+        unroll=unroll,
+        time_major=time_major,
+    )
+
+    return last_output, outputs, new_states[0]
 
 
 def unstack(x, axis=0):
