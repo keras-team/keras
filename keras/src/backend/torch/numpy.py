@@ -827,6 +827,16 @@ def flip(x, axis=None):
     return torch.flip(x, dims=axis)
 
 
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return torch.fliplr(x)
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return torch.flipud(x)
+
+
 def floor(x):
     x = convert_to_tensor(x)
     dtype = (
