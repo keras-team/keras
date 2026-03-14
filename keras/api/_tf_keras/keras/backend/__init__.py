@@ -23,9 +23,6 @@ from keras.src.backend.config import set_floatx as set_floatx
 from keras.src.backend.config import (
     set_image_data_format as set_image_data_format,
 )
-from keras.src.utils.naming import get_uid as get_uid
-
-
 from keras.src.legacy.backend import abs as abs
 from keras.src.legacy.backend import all as all
 from keras.src.legacy.backend import any as any
@@ -165,3 +162,4 @@ from keras.src.legacy.backend import var as var
 from keras.src.legacy.backend import variable as variable
 from keras.src.legacy.backend import zeros as zeros
 from keras.src.legacy.backend import zeros_like as zeros_like
+from keras.src.utils.naming import get_uid as get_uid
