@@ -1944,6 +1944,13 @@ def euclidean_dist_transform(images, data_format=None):
     Uses `scipy.ndimage.distance_transform_edt` under the hood for
     C-optimized performance across all backends.
 
+    Note:
+        This op is not differentiable. On JAX it uses
+        `jax.pure_callback` (limited under `jax.jit`). On TensorFlow
+        it uses `tf.numpy_function` (not supported inside
+        `@tf.function` graphs). On PyTorch, tensors round-trip through
+        CPU for the scipy call.
+
     Args:
         images: Input image or batch of images. Must be 3D or 4D.
             Non-zero values are treated as foreground (1), and zero
