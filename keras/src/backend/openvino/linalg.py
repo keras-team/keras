@@ -174,8 +174,6 @@ def eigh(a):
         )
     ).output(0)
     s = ov_opset.multiply(c, t).output(0)
-    c_unsqueezed = ov_opset.unsqueeze(c, one_const).output(0)
-    s_unsqueezed = ov_opset.unsqueeze(s, one_const).output(0)
     R = ov_opset.broadcast(l_eye_n, l_flat_shape).output(0)
     c_safe = ov_opset.select(is_p_eq_q, ov_opset.constant(1.0, out_ov_type), c).output(0)
     s_safe = ov_opset.select(is_p_eq_q, zero_out, s).output(0)
