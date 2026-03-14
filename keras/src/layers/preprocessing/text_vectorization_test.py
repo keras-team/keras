@@ -511,6 +511,69 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("bar", vocab)
         self.assertNotIn("unique_word", vocab)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TextVectorization and Grain adapt path require TensorFlow",
+    )
+    def test_adapt_with_grain_dataset(self):
+        pytest.importorskip("grain")
+        import grain as grain_module
+
+        class TextSource(grain_module.sources.RandomAccessDataSource):
+            def __init__(self, texts):
+                self.texts = np.asarray(texts, dtype=object)
+
+            def __len__(self):
+                return len(self.texts)
+
+            def __getitem__(self, index):
+                return self.texts[index]
+
+        texts = ["foo bar", "bar baz", "baz foo"]
+        source = TextSource(texts)
+        dataset = (
+            grain_module.MapDataset.source(source)
+            .to_iter_dataset()
+            .batch(batch_size=2)
+        )
+        layer = layers.TextVectorization(output_mode="int")
+        layer.adapt(dataset)
+        vocab = layer.get_vocabulary()
+        self.assertIn("foo", vocab)
+        self.assertIn("bar", vocab)
+        self.assertIn("baz", vocab)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TextVectorization and Grain adapt path require TensorFlow",
+    )
+    def test_adapt_with_grain_dataset_and_steps(self):
+        pytest.importorskip("grain")
+        import grain as grain_module
+
+        class TextSource(grain_module.sources.RandomAccessDataSource):
+            def __init__(self, texts):
+                self.texts = np.asarray(texts, dtype=object)
+
+            def __len__(self):
+                return len(self.texts)
+
+            def __getitem__(self, index):
+                return self.texts[index]
+
+        texts = ["foo bar", "bar baz", "unique_word"]
+        source = TextSource(texts)
+        dataset = (
+            grain_module.MapDataset.source(source)
+            .to_iter_dataset()
+            .batch(batch_size=1)
+        )
+        layer = layers.TextVectorization(output_mode="int")
+        layer.adapt(dataset, steps=2)
+        vocab = layer.get_vocabulary()
+        self.assertIn("bar", vocab)
+        self.assertNotIn("unique_word", vocab)
+
     def test_invalid_ngrams(self):
         with self.assertRaises(ValueError):
             layers.TextVectorization(ngrams="invalid")
