@@ -210,6 +210,9 @@ class Trainer:
         self.test_function = None
         self.predict_function = None
 
+        # Reset the snapshot so _symbolic_build captures a fresh one.
+        self._compiled_trainable_variable_ids = None
+
         self._compile_config = serialization_lib.SerializableDict(
             optimizer=optimizer,
             loss=loss,
@@ -1070,6 +1073,42 @@ class Trainer:
             return results[0]
         return results
 
+    def _get_compiled_variables(self):
+        """Split variables into trainable/non-trainable per compile() state.
+
+        Returns a single-pass partition so callers that need both lists
+        avoid iterating ``self.variables`` twice.
+        """
+        compiled_ids = getattr(self, "_compiled_trainable_variable_ids", None)
+        if compiled_ids is None:
+            return self.trainable_variables, self.non_trainable_variables
+
+        trainable, non_trainable = [], []
+        for v in self.variables:
+            if id(v) in compiled_ids:
+                trainable.append(v)
+            else:
+                non_trainable.append(v)
+        return trainable, non_trainable
+
+    @property
+    def _compiled_trainable_variables(self):
+        """Trainable variables as determined at compile() time."""
+        return self._get_compiled_variables()[0]
+
+    @property
+    def _compiled_non_trainable_variables(self):
+        """Non-trainable variables as determined at compile() time."""
+        return self._get_compiled_variables()[1]
+
+    @property
+    def _compiled_trainable_weights(self):
+        """Trainable weights as determined at compile() time."""
+        compiled_ids = getattr(self, "_compiled_trainable_variable_ids", None)
+        if compiled_ids is None:
+            return self.trainable_weights
+        return [w for w in self.weights if id(w) in compiled_ids]
+
     def _assert_compile_called(self, method_name=None):
         if not self.compiled:
             msg = "You must call `compile()` before "
@@ -1152,6 +1191,15 @@ class Trainer:
         if optimizer_unbuilt:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
+
+        # Snapshot trainable state now that all variables exist.
+        # This enforces the contract that trainable state is frozen at
+        # compile() time and changes require recompilation.
+        if self._compiled_trainable_variable_ids is None:
+            self._compiled_trainable_variable_ids = {
+                id(v) for v in self.trainable_variables
+            }
+
         self._post_build()
 
 
