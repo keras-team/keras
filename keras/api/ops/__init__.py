@@ -211,6 +211,7 @@ from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hsplit as hsplit
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import hypot as hypot
+from keras.src.ops.numpy import i0 as i0
 from keras.src.ops.numpy import identity as identity
 from keras.src.ops.numpy import imag as imag
 from keras.src.ops.numpy import inner as inner
@@ -231,9 +232,9 @@ from keras.src.ops.numpy import less as less
 from keras.src.ops.numpy import less_equal as less_equal
 from keras.src.ops.numpy import linspace as linspace
 from keras.src.ops.numpy import log as log
+from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import log1p as log1p
 from keras.src.ops.numpy import log2 as log2
-from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import logaddexp as logaddexp
 from keras.src.ops.numpy import logaddexp2 as logaddexp2
 from keras.src.ops.numpy import logical_and as logical_and
