@@ -40,10 +40,8 @@ def _dot_product_attention(
     query, key, value, bias=None, mask=None, scale=None, is_causal=False
 ):
     # A pure and simplified numpy version of `dot_product_attention`
-    # Ref: jax.nn.dot_product_attention
-    # https://github.com/jax-ml/jax/blob/jax-v0.4.32/jax/_src/nn/functions.py#L828
-    # Not support `query_seq_lengths` and `key_value_seq_lengths` args
-
+    # Updated to natively support Grouped Query Attention (GQA) and Multi-Query Attention (MQA)
+    
     def _apply_masks(logits, mask, is_causal):
         def _get_large_negative(dtype):
             dtype = backend.standardize_dtype(dtype)
@@ -75,16 +73,22 @@ def _dot_product_attention(
         exp_x = np.exp(x - np.max(x, axis=axis, keepdims=True))
         return exp_x / np.sum(exp_x, axis=axis, keepdims=True)
 
-    _, _, _, H = key.shape
+    B, T, N_q, H = query.shape
+    _, S, N_kv, _ = key.shape
+    G = N_q // N_kv 
     scale = (1.0 / np.sqrt(H)) if scale is None else scale
-    logits = np.einsum("BTNH,BSNH->BNTS", query, key)
+    query_reshaped = query.reshape(B, T, N_kv, G, H)
+    logits = np.einsum("BTKGH,BSKH->BKGTS", query_reshaped, key)
     logits *= np.array(scale, dtype=logits.dtype)
+    logits = logits.reshape(B, N_q, T, S)
     if bias is not None:
         logits = (logits + bias).astype(logits.dtype)
     padded_logits = _apply_masks(logits, mask, is_causal)
     padded_logits = padded_logits.astype(np.float32)
     probs = softmax(padded_logits, axis=-1).astype(key.dtype)
-    return np.einsum("BNTS,BSNH->BTNH", probs, value)
+    probs_reshaped = probs.reshape(B, N_kv, G, T, S)
+    out = np.einsum("BKGTS,BSKH->BTKGH", probs_reshaped, value)
+    return out.reshape(B, T, N_q, H)
 
 
 class NNOpsDynamicShapeTest(testing.TestCase):
@@ -2466,14 +2470,17 @@ class NNOpsCorrectnessTest(testing.TestCase):
             scale=(None, 1.0),
             mask_and_is_causal=((None, False), (True, False), (None, True)),
             flash_attention=(None, True, False),
+            enable_gqa=(False, True),
         )
     )
     def test_dot_product_attention(
-        self, bias, scale, mask_and_is_causal, flash_attention
+        self, bias, scale, mask_and_is_causal, flash_attention, enable_gqa
     ):
         mask, is_causal = mask_and_is_causal
         query_shape = (2, 3, 4, 8)
         key_shape = (2, 3, 4, 8)
+        if enable_gqa:
+            key_shape = (2, 3, 8, 8)
         bias_shape = (2, 4, 3, 3)
         query = np.arange(math.prod(query_shape), dtype=float).reshape(
             query_shape
