@@ -1527,7 +1527,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         def run_scan(x):
             return core.associative_scan(f=operator.add, elems=x, axis=0)
 
-        for length in [4, 5, 7, 8, 16]:
+        for length in [1, 2, 3, 4, 5, 7, 8, 16]:
             x = tf.constant(
                 np.arange(length * 4, dtype="float32").reshape(length, 4)
             )

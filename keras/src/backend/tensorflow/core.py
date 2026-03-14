@@ -431,8 +431,12 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _interleave(a, b, axis):
         # [a b c ...] [d e f ...] -> [a d b e c f ...]
-        num_elems_a = tf.shape(a)[axis]
-        num_elems_b = tf.shape(b)[axis]
+        num_elems_a = (
+            a.shape[axis] if a.shape[axis] is not None else tf.shape(a)[axis]
+        )
+        num_elems_b = (
+            b.shape[axis] if b.shape[axis] is not None else tf.shape(b)[axis]
+        )
 
         # Note that interleaving implies rank(a)==rank(b).
         axis = tf.where(axis >= 0, axis, tf.rank(a) + axis)
@@ -569,6 +573,8 @@ def associative_scan(f, elems, reverse=False, axis=0):
             )
         )
 
+    # Max recursion depth for dynamic-shape fallback. Supports sequences upto
+    # 2^48 elements.
     _max_num_levels = 48
 
     def _scan(elems):
