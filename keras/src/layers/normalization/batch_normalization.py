@@ -439,33 +439,37 @@ class BatchNormalization(Layer):
                 synchronized=self.synchronized,
             )
 
-        mask_weights = ops.cast(mask, inputs.dtype)
-        mask_weights_broadcasted = ops.expand_dims(mask_weights, axis=-1)
-        broadcasted_mask = ops.broadcast_to(
-            mask_weights_broadcasted, ops.shape(inputs)
-        )
-        weighted_inputs = broadcasted_mask * inputs
+        mask_broadcasted = ops.expand_dims(mask, axis=-1)
+        mask_broadcasted = ops.broadcast_to(mask_broadcasted, ops.shape(inputs))
+        mask_broadcasted = ops.cast(mask_broadcasted, "bool")
+        masked_inputs = ops.where(mask_broadcasted, inputs, 0)
 
-        weighted_input_sum = ops.sum(
-            weighted_inputs,
+        masked_input_sum = ops.sum(
+            masked_inputs,
             self._reduction_axes,
             keepdims=True,
         )
         sum_of_weights = ops.sum(
-            broadcasted_mask,
+            ops.cast(mask_broadcasted, inputs.dtype),
             self._reduction_axes,
             keepdims=True,
         )
-        mean = weighted_input_sum / (sum_of_weights + backend.epsilon())
+        mean = masked_input_sum / (sum_of_weights + backend.epsilon())
+        # Explicit del to free large intermediates in eager mode (e.g. Torch).
+        # No effect under jit/tf.function, but harmless.
+        del masked_inputs, masked_input_sum
 
-        difference = weighted_inputs - mean
+        difference = ops.where(mask_broadcasted, inputs - mean, 0)
         squared_difference = ops.square(difference)
+        del difference
         weighted_distsq = ops.sum(
-            broadcasted_mask * squared_difference,
+            squared_difference,
             self._reduction_axes,
             keepdims=True,
         )
+        del squared_difference
         variance = weighted_distsq / (sum_of_weights + backend.epsilon())
+        del weighted_distsq
 
         return ops.squeeze(mean), ops.squeeze(variance)
 
