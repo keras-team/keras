@@ -56,7 +56,6 @@ def eigh(a):
     zero_const = ov_opset.constant(0, Type.i32).output(0)
     one_const = ov_opset.constant(1, Type.i32).output(0)
     minus_one_const = ov_opset.constant(-1, Type.i32).output(0)
-    minus_two_const = ov_opset.constant(-2, Type.i32).output(0)
     a_shape = ov_opset.shape_of(a_ov, Type.i32).output(0)
     rank = a_ov.get_partial_shape().rank.get_length()
     if rank == 2:
@@ -80,7 +79,6 @@ def eigh(a):
         ov_opset.unsqueeze(n, zero_const).output(0)
     ], axis=0).output(0)
     A_flat = ov_opset.reshape(a_ov, a_flat_shape, False).output(0)
-    n_scalar_shape = ov_opset.unsqueeze(n, zero_const).output(0)
     range_n = ov_opset.range(
         zero_const, n, one_const, output_type=Type.i32
     ).output(0)
