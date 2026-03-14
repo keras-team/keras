@@ -2056,6 +2056,10 @@ def imag(x):
     return zeros(x.shape, dtype=x.dtype)
 
 
+def i0(x):
+    raise NotImplementedError("i0 is not supported by openvino backend.")
+
+
 def inner(x1, x2):
     element_type = None
     if isinstance(x1, OpenVINOKerasTensor):
