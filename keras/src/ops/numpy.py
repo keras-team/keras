@@ -3477,6 +3477,70 @@ def flip(x, axis=None):
     return backend.numpy.flip(x, axis=axis)
 
 
+class Fliplr(Operation):
+    def call(self, x):
+        return backend.numpy.fliplr(x)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 2:
+            raise ValueError(
+                "`fliplr` requires input with 2 or more dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.fliplr", "keras.ops.numpy.fliplr"])
+def fliplr(x):
+    """Reverse the order of elements along axis 1 (left/right).
+
+    For a 2-D tensor, this flips the entries in each row in the
+    left/right direction. Columns are preserved, but appear in a
+    different order than before.
+
+    Args:
+        x: Input tensor, must be at least 2-D.
+
+    Returns:
+        Output tensor with columns reversed.
+    """
+    if any_symbolic_tensors((x,)):
+        return Fliplr().symbolic_call(x)
+    return backend.numpy.fliplr(x)
+
+
+class Flipud(Operation):
+    def call(self, x):
+        return backend.numpy.flipud(x)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                "`flipud` requires input with 1 or more dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.flipud", "keras.ops.numpy.flipud"])
+def flipud(x):
+    """Reverse the order of elements along axis 0 (up/down).
+
+    For a 2-D tensor, this flips the entries in each column in the
+    up/down direction. Rows are preserved, but appear in a different
+    order than before.
+
+    Args:
+        x: Input tensor, must be at least 1-D.
+
+    Returns:
+        Output tensor with rows reversed.
+    """
+    if any_symbolic_tensors((x,)):
+        return Flipud().symbolic_call(x)
+    return backend.numpy.flipud(x)
+
+
 class Floor(Operation):
     def call(self, x):
         return backend.numpy.floor(x)

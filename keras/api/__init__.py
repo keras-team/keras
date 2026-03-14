@@ -63,5 +63,5 @@ from keras.src.ops.operation import Operation as Operation
 from keras.src.optimizers.optimizer import Optimizer as Optimizer
 from keras.src.quantizers.quantizers import Quantizer as Quantizer
 from keras.src.regularizers.regularizers import Regularizer as Regularizer
-from keras.src.version import __version__ as __version__
 from keras.src.version import version as version
+from keras.src.version import __version__ as __version__

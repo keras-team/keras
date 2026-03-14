@@ -748,6 +748,14 @@ def flip(x, axis=None):
     return jnp.flip(x, axis=axis)
 
 
+def fliplr(x):
+    return jnp.fliplr(x)
+
+
+def flipud(x):
+    return jnp.flipud(x)
+
+
 @sparse.elementwise_unary(linear=False)
 def floor(x):
     x = convert_to_tensor(x)

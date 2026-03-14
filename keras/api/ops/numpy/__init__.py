@@ -75,6 +75,8 @@ from keras.src.ops.numpy import expand_dims as expand_dims
 from keras.src.ops.numpy import expm1 as expm1
 from keras.src.ops.numpy import eye as eye
 from keras.src.ops.numpy import flip as flip
+from keras.src.ops.numpy import fliplr as fliplr
+from keras.src.ops.numpy import flipud as flipud
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import fmod as fmod
@@ -112,9 +114,9 @@ from keras.src.ops.numpy import less as less
 from keras.src.ops.numpy import less_equal as less_equal
 from keras.src.ops.numpy import linspace as linspace
 from keras.src.ops.numpy import log as log
+from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import log1p as log1p
 from keras.src.ops.numpy import log2 as log2
-from keras.src.ops.numpy import log10 as log10
 from keras.src.ops.numpy import logaddexp as logaddexp
 from keras.src.ops.numpy import logaddexp2 as logaddexp2
 from keras.src.ops.numpy import logical_and as logical_and
