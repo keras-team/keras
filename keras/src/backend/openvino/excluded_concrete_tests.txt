@@ -53,7 +53,6 @@ CoreOpsCallsTests::test_unstack_basic_functionality
 CoreOpsCorrectnessTest::test_fori_loop
 CoreOpsCorrectnessTest::test_map
 CoreOpsCorrectnessTest::test_switch
-CoreOpsCorrectnessTest::test_unstack
 CoreOpsCorrectnessTest::test_vectorized_map
 CTCTest::test_correctness
 CTCTest::test_dtype_arg
