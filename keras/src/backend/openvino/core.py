@@ -883,9 +883,7 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
-    raise NotImplementedError(
-        "`vectorized_map` is not supported with openvino backend"
-    )
+    return map(function, elements)
 
 
 # Shape / dtype inference util
@@ -924,6 +922,14 @@ def compute_output_spec(fn, *args, **kwargs):
             convert_openvino_to_keras_tensor, outputs
         )
     return output_spec
+
+
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
 
 
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
@@ -1404,6 +1410,18 @@ def slice_update(inputs, start_indices, updates):
     return OpenVINOKerasTensor(result)
 
 
+def switch(index, branches, *operands):
+    # Static dispatch: index is evaluated eagerly, not compiled into the OV graph.
+    idx = int(
+        np.clip(
+            convert_to_numpy(convert_to_tensor(index, "int32")),
+            0,
+            len(branches) - 1,
+        )
+    )
+    return branches[idx](*operands)
+
+
 def while_loop(
     cond,
     body,
@@ -1519,9 +1537,11 @@ def while_loop(
 
 
 def fori_loop(lower, upper, body_fun, init_val):
-    raise NotImplementedError(
-        "`fori_loop` is not supported with openvino backend"
-    )
+    return while_loop(
+        lambda i, val: i < upper,
+        lambda i, val: (i + 1, body_fun(i, val)),
+        (lower, init_val),
+    )[1]
 
 
 def stop_gradient(variable):
