@@ -147,8 +147,8 @@ class ReversibleEmbedding(layers.Embedding):
         # Disable masking from super class, masking is done directly in call.
         return None
 
-    def compute_output_shape(self, input_shape, reverse=False):
-        output_shape = list(input_shape)
+    def compute_output_shape(self, inputs_shape, reverse=False):
+        output_shape = list(inputs_shape)
         if reverse:
             output_shape[-1] = self.input_dim
         else:
