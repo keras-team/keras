@@ -340,18 +340,7 @@ def amin(x, axis=None, keepdims=False):
 
 
 def _resolve_axis(x, axis):
-    if hasattr(axis, "__class__") and "Output" in axis.__class__.__name__:
-        axis_node = axis.get_node()
-        if hasattr(axis_node, "get_data"):
-            axis_val = axis_node.get_data()
-            if axis_val is not None:
-                if hasattr(axis_val, "ndim") and axis_val.ndim > 0 and axis_val.size > 0:
-                    axis = int(axis_val[0])
-                elif hasattr(axis_val, "size") and axis_val.size == 1:
-                    axis = int(axis_val.item())
-                else:
-                    axis = int(axis_val)
-
+    
     if axis == () or axis == []:
         return x, None
     if axis is None:
@@ -534,21 +523,6 @@ def argmax(x, axis=None, keepdims=False):
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
     else:
-        if isinstance(axis, ov.Output) or (hasattr(axis, "__class__") and "Output" in axis.__class__.__name__):
-            axis_node = axis.get_node()
-            if hasattr(axis_node, "get_data"):
-                axis_val = axis_node.get_data()
-                if axis_val is not None:
-                    if hasattr(axis_val, "ndim") and axis_val.ndim > 0 and axis_val.size > 0:
-                        axis = int(axis_val[0])
-                    elif hasattr(axis_val, "size") and axis_val.size == 1:
-                        axis = int(axis_val.item())
-                    else:
-                        axis = int(axis_val)
-                else:
-                    raise ValueError("axis must be static for argmax")
-            else:
-                raise ValueError("axis must be static for argmax")
         if axis < 0:
             axis = rank + axis
         k = ov_opset.constant(1, Type.i32).output(0)
