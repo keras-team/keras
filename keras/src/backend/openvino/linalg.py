@@ -1,4 +1,5 @@
 import openvino.opset15 as ov_opset
+from openvino import Model
 from openvino import Type
 
 from keras.src.backend import config
@@ -42,7 +43,273 @@ def eig(a):
 
 
 def eigh(a):
-    raise NotImplementedError("`eigh` is not supported with openvino backend")
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    a_ov_type = a_ov.get_element_type()
+    if not a_ov_type.is_real():
+        a_ov = ov_opset.convert(a_ov, Type.f32).output(0)
+        out_ov_type = Type.f32
+    else:
+        out_ov_type = a_ov_type
+    zero_const = ov_opset.constant(0, Type.i32).output(0)
+    one_const = ov_opset.constant(1, Type.i32).output(0)
+    minus_one_const = ov_opset.constant(-1, Type.i32).output(0)
+    a_shape = ov_opset.shape_of(a_ov, Type.i32).output(0)
+    rank = a_ov.get_partial_shape().rank.get_length()
+    if rank == 2:
+        n = ov_opset.gather(
+            a_shape, ov_opset.constant(0, Type.i32), zero_const
+        ).output(0)
+        n_int = n
+        batch_size_prod = ov_opset.constant(1, Type.i32).output(0)
+    else:
+        n = ov_opset.gather(a_shape, minus_one_const, zero_const).output(0)
+        n_int = n
+        batch_shape = ov_opset.slice(
+            a_shape,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant([-2], Type.i32),
+            ov_opset.constant([1], Type.i32),
+            ov_opset.constant([0], Type.i32),
+        ).output(0)
+        batch_size_prod = ov_opset.reduce_prod(
+            batch_shape, zero_const, False
+        ).output(0)
+    a_flat_shape = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(batch_size_prod, zero_const).output(0),
+            ov_opset.unsqueeze(n, zero_const).output(0),
+            ov_opset.unsqueeze(n, zero_const).output(0),
+        ],
+        axis=0,
+    ).output(0)
+    A_flat = ov_opset.reshape(a_ov, a_flat_shape, False).output(0)
+    range_n = ov_opset.range(
+        zero_const, n, one_const, output_type=Type.i32
+    ).output(0)
+    eye_n = ov_opset.one_hot(
+        range_n,
+        n,
+        ov_opset.constant(1.0, out_ov_type),
+        ov_opset.constant(0.0, out_ov_type),
+        axis=-1,
+    ).output(0)
+    V_flat = ov_opset.broadcast(eye_n, a_flat_shape).output(0)
+    n_minus_one = ov_opset.subtract(n_int, one_const).output(0)
+    n_squared_minus_n = ov_opset.multiply(n_int, n_minus_one).output(0)
+    sweep_iters = ov_opset.divide(
+        n_squared_minus_n, ov_opset.constant(2, Type.i32)
+    ).output(0)
+    max_iter = ov_opset.multiply(
+        ov_opset.constant(15, Type.i32), sweep_iters
+    ).output(0)
+    trip_count = max_iter
+    execution_cond = ov_opset.constant(True, Type.boolean).output(0)
+    loop = ov_opset.loop(trip_count, execution_cond)
+    A_param = ov_opset.parameter(
+        A_flat.get_partial_shape(), A_flat.get_element_type()
+    )
+    V_param = ov_opset.parameter(
+        V_flat.get_partial_shape(), V_flat.get_element_type()
+    )
+    A_curr = A_param.output(0)
+    V_curr = V_param.output(0)
+    A_curr_shape = ov_opset.shape_of(A_curr, Type.i32).output(0)
+    l_batch_size_prod = ov_opset.gather(
+        A_curr_shape, zero_const, zero_const
+    ).output(0)
+    l_n = ov_opset.gather(A_curr_shape, minus_one_const, zero_const).output(0)
+    l_flat_shape = A_curr_shape
+    l_range_n = ov_opset.range(
+        zero_const, l_n, one_const, output_type=Type.i32
+    ).output(0)
+    l_eye_n = ov_opset.one_hot(
+        l_range_n,
+        l_n,
+        ov_opset.constant(1.0, out_ov_type),
+        ov_opset.constant(0.0, out_ov_type),
+        axis=-1,
+    ).output(0)
+    mask = ov_opset.subtract(
+        ov_opset.constant(1.0, out_ov_type), l_eye_n
+    ).output(0)
+    mask_b = ov_opset.broadcast(mask, l_flat_shape).output(0)
+    A_off = ov_opset.multiply(A_curr, mask_b).output(0)
+    A_off_abs = ov_opset.abs(A_off).output(0)
+    flat_n2 = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(l_batch_size_prod, zero_const).output(0),
+            ov_opset.unsqueeze(ov_opset.multiply(l_n, l_n), zero_const).output(
+                0
+            ),
+        ],
+        axis=0,
+    ).output(0)
+    A_off_abs_flat = ov_opset.reshape(A_off_abs, flat_n2, False).output(0)
+    max_val = ov_opset.reduce_max(A_off_abs_flat, one_const, False).output(0)
+    epsilon = ov_opset.constant(1e-6, out_ov_type).output(0)
+    continue_cond = ov_opset.reduce_logical_or(
+        ov_opset.greater(max_val, epsilon), zero_const, False
+    ).output(0)
+    topk = ov_opset.topk(
+        A_off_abs_flat, ov_opset.constant(1, Type.i32), 1, "max", "value"
+    )
+    argmax_flat = topk.output(1)  # shape [B, 1]
+    argmax_flat_sq = ov_opset.squeeze(argmax_flat, one_const).output(
+        0
+    )  # shape [B]
+    p = ov_opset.divide(argmax_flat_sq, l_n).output(0)  # shape [B]
+    q = ov_opset.mod(argmax_flat_sq, l_n).output(0)  # shape [B]
+    p_unsqueezed = ov_opset.unsqueeze(p, one_const).output(0)
+    q_unsqueezed = ov_opset.unsqueeze(q, one_const).output(0)
+    b_indices = ov_opset.range(
+        zero_const, l_batch_size_prod, one_const, output_type=Type.i32
+    ).output(0)
+    b_unsqueezed = ov_opset.unsqueeze(b_indices, one_const).output(0)
+    pp_indices = ov_opset.concat(
+        [b_unsqueezed, p_unsqueezed, p_unsqueezed], axis=1
+    ).output(0)
+    qq_indices = ov_opset.concat(
+        [b_unsqueezed, q_unsqueezed, q_unsqueezed], axis=1
+    ).output(0)
+    pq_indices = ov_opset.concat(
+        [b_unsqueezed, p_unsqueezed, q_unsqueezed], axis=1
+    ).output(0)
+    App = ov_opset.gather_nd(A_curr, pp_indices).output(0)  # shape [B]
+    Aqq = ov_opset.gather_nd(A_curr, qq_indices).output(0)
+    Apq = ov_opset.gather_nd(A_curr, pq_indices).output(0)
+    zero_out = ov_opset.constant(0.0, out_ov_type).output(0)
+    is_p_eq_q = ov_opset.equal(p, q).output(0)
+    is_apq_zero = ov_opset.logical_or(
+        ov_opset.equal(Apq, zero_out).output(0), is_p_eq_q
+    ).output(0)
+    safe_Apq = ov_opset.select(
+        is_apq_zero, ov_opset.constant(1.0, out_ov_type), Apq
+    ).output(0)
+    theta = ov_opset.divide(
+        ov_opset.subtract(Aqq, App),
+        ov_opset.multiply(ov_opset.constant(2.0, out_ov_type), safe_Apq),
+    ).output(0)
+    theta_abs = ov_opset.abs(theta).output(0)
+    theta_sign = ov_opset.sign(theta).output(0)
+    theta_sign = ov_opset.select(
+        ov_opset.equal(theta, zero_out),
+        ov_opset.constant(1.0, out_ov_type),
+        theta_sign,
+    ).output(0)
+    sqrt_term = ov_opset.sqrt(
+        ov_opset.add(
+            ov_opset.multiply(theta, theta), ov_opset.constant(1.0, out_ov_type)
+        )
+    ).output(0)
+    t = ov_opset.divide(theta_sign, ov_opset.add(theta_abs, sqrt_term)).output(
+        0
+    )
+    t = ov_opset.select(is_apq_zero, zero_out, t).output(0)
+    c = ov_opset.divide(
+        ov_opset.constant(1.0, out_ov_type),
+        ov_opset.sqrt(
+            ov_opset.add(
+                ov_opset.multiply(t, t), ov_opset.constant(1.0, out_ov_type)
+            )
+        ),
+    ).output(0)
+    s = ov_opset.multiply(c, t).output(0)
+    R = ov_opset.broadcast(l_eye_n, l_flat_shape).output(0)
+    c_safe = ov_opset.select(
+        is_p_eq_q, ov_opset.constant(1.0, out_ov_type), c
+    ).output(0)
+    s_safe = ov_opset.select(is_p_eq_q, zero_out, s).output(0)
+    c_updates = c_safe
+    s_updates = s_safe
+    neg_s_updates = ov_opset.negative(s_safe).output(0)
+    p_safe = ov_opset.select(
+        is_p_eq_q, ov_opset.constant(0, Type.i32), p
+    ).output(0)
+    q_safe = ov_opset.select(
+        is_p_eq_q, ov_opset.constant(1, Type.i32), q
+    ).output(0)
+    p_safe_unsqueezed = ov_opset.unsqueeze(p_safe, one_const).output(0)
+    q_safe_unsqueezed = ov_opset.unsqueeze(q_safe, one_const).output(0)
+    pp_safe_indices = ov_opset.concat(
+        [b_unsqueezed, p_safe_unsqueezed, p_safe_unsqueezed], axis=1
+    ).output(0)
+    qq_safe_indices = ov_opset.concat(
+        [b_unsqueezed, q_safe_unsqueezed, q_safe_unsqueezed], axis=1
+    ).output(0)
+    pq_safe_indices = ov_opset.concat(
+        [b_unsqueezed, p_safe_unsqueezed, q_safe_unsqueezed], axis=1
+    ).output(0)
+    qp_safe_indices = ov_opset.concat(
+        [b_unsqueezed, q_safe_unsqueezed, p_safe_unsqueezed], axis=1
+    ).output(0)
+
+    R = ov_opset.scatter_nd_update(R, pp_safe_indices, c_updates).output(0)
+    R = ov_opset.scatter_nd_update(R, qq_safe_indices, c_updates).output(0)
+    R = ov_opset.scatter_nd_update(R, pq_safe_indices, s_updates).output(0)
+    R = ov_opset.scatter_nd_update(R, qp_safe_indices, neg_s_updates).output(0)
+
+    # Transpose R to R^T: swap last two dims
+    RT = ov_opset.transpose(R, ov_opset.constant([0, 2, 1], Type.i32)).output(0)
+
+    A_next = ov_opset.matmul(
+        RT, ov_opset.matmul(A_curr, R, False, False), False, False
+    ).output(0)
+    V_next = ov_opset.matmul(V_curr, R, False, False).output(0)
+
+    # If not continue_cond, just return A_curr and V_curr
+    A_next = ov_opset.select(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(continue_cond, zero_const), zero_const
+        ).output(0),
+        A_next,
+        A_curr,
+    ).output(0)
+
+    V_next = ov_opset.select(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(continue_cond, zero_const), zero_const
+        ).output(0),
+        V_next,
+        V_curr,
+    ).output(0)
+    body = Model(
+        [continue_cond, A_next, V_next], [A_param, V_param], "jacobi_loop"
+    )
+    loop.set_function(body)
+    loop.set_special_body_ports([-1, 0])
+    loop.set_merged_input(A_param, A_flat, A_next)
+    loop.set_merged_input(V_param, V_flat, V_next)
+    A_out = loop.get_iter_value(A_next)
+    V_out = loop.get_iter_value(V_next)
+    eigenvalues_flat = ov_opset.reduce_sum(
+        ov_opset.multiply(A_out, eye_n), minus_one_const, False
+    ).output(0)
+    neg_eigenvalues = ov_opset.negative(eigenvalues_flat).output(0)
+    topk_sort = ov_opset.topk(neg_eigenvalues, n, -1, "max", "value")
+    w_flat = ov_opset.negative(topk_sort.output(0)).output(0)
+    sort_indices = topk_sort.output(1)
+    v_indices = ov_opset.broadcast(
+        ov_opset.unsqueeze(sort_indices, one_const).output(0), a_flat_shape
+    ).output(0)
+    v_flat = ov_opset.gather_elements(V_out, v_indices, -1).output(0)
+    if rank == 2:
+        w_final = ov_opset.squeeze(w_flat, zero_const).output(0)
+        v_final = ov_opset.squeeze(v_flat, zero_const).output(0)
+    else:
+        w_shape_final = ov_opset.concat(
+            [batch_shape, ov_opset.unsqueeze(n, zero_const).output(0)], axis=0
+        ).output(0)
+        w_final = ov_opset.reshape(w_flat, w_shape_final, False).output(0)
+        v_final = ov_opset.reshape(v_flat, a_shape, False).output(0)
+    if out_ov_type == Type.f64:
+        w_final = ov_opset.convert(w_final, Type.f64).output(0)
+        v_final = ov_opset.convert(v_final, Type.f64).output(0)
+
+    return (
+        OpenVINOKerasTensor(w_final),
+        OpenVINOKerasTensor(v_final),
+    )
 
 
 def inv(a):
