@@ -280,8 +280,10 @@ def lstm(
 
     try:
         from jax.experimental.rnn import lstm as jax_lstm
-    except ImportError:
-        raise NotImplementedError
+    except ImportError as e:
+        raise NotImplementedError(
+            f"jax.experimental.rnn unavailable: {e}"
+        ) from e
 
     input_size = kernel.shape[0]
     hidden_size = recurrent_kernel.shape[0]
@@ -310,6 +312,8 @@ def lstm(
         h_0 = h_0[jnp.newaxis]
         c_0 = c_0[jnp.newaxis]
 
+    # Simple flip doesn't handle variable-length (masked) sequences
+    # correctly -- the generic rnn() path should be used for that case.
     if go_backwards:
         inputs = jnp.flip(inputs, axis=1)
         if mask is not None:
@@ -337,8 +341,8 @@ def lstm(
             dropout=0.0,
             bidirectional=False,
         )
-    except Exception:
-        raise NotImplementedError
+    except (RuntimeError, TypeError, ValueError) as e:
+        raise NotImplementedError(f"cuDNN LSTM failed: {e}") from e
 
     # y: (batch, seq_len, hidden), h_n/c_n: (1, batch, hidden)
     h_n = h_n.squeeze(0)
