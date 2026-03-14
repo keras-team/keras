@@ -1411,7 +1411,8 @@ def slice_update(inputs, start_indices, updates):
 
 
 def switch(index, branches, *operands):
-    # Static dispatch: index is evaluated eagerly, not compiled into the OV graph.
+    # Static dispatch: index is evaluated eagerly, not compiled into the
+    # OV graph.
     idx = int(
         np.clip(
             convert_to_numpy(convert_to_tensor(index, "int32")),
