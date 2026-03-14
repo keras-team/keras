@@ -1,3 +1,4 @@
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.layers.convolutional.base_conv import BaseConv
 
@@ -8,18 +9,9 @@ class Conv2D(BaseConv):
 
     This layer creates a convolution kernel that is convolved with the layer
     input over a 2D spatial (or temporal) dimension (height and width) to
-    produce a tensor of outputs. If `use_bias` is True, a bias vector is created
-    and added to the outputs. Finally, if `activation` is not `None`, it is
-    applied to the outputs as well.
-
-    Note on numerical precision: While in general Keras operation execution
-    results are identical across backends up to 1e-7 precision in float32,
-    `Conv2D` operations may show larger variations. Due to the large
-    number of element-wise multiplications and additions in convolution
-    operations, especially with large inputs or kernel sizes, accumulated
-    floating-point differences can exceed this 1e-7 threshold. These variations
-    are particularly noticeable when using different backends (e.g., TensorFlow
-    vs JAX) or different hardware.
+    produce a tensor of outputs. If `use_bias` is True, a bias vector is
+    created and added to the outputs. Finally, if `activation` is not `None`,
+    it is applied to the outputs as well.
 
     Args:
         filters: int, the dimension of the output space (the number of filters
@@ -35,10 +27,9 @@ class Conv2D(BaseConv):
             `strides=1`, the output has the same size as the input.
         data_format: string, either `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs. `"channels_last"`
-            corresponds to inputs with shape
-            `(batch_size, height, width, channels)`
+            corresponds to inputs with shape `(batch, height, width, channels)`
             while `"channels_first"` corresponds to inputs with shape
-            `(batch_size, channels, height, width)`. It defaults to the
+            `(batch, channels, height, width)`. It defaults to the
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
@@ -54,7 +45,7 @@ class Conv2D(BaseConv):
         kernel_initializer: Initializer for the convolution kernel. If `None`,
             the default initializer (`"glorot_uniform"`) will be used.
         bias_initializer: Initializer for the bias vector. If `None`, the
-            default initializer (`"zeros"`) will be used.
+            default initializer (``"zeros"``) will be used.
         kernel_regularizer: Optional regularizer for the convolution kernel.
         bias_regularizer: Optional regularizer for the bias vector.
         activity_regularizer: Optional regularizer function for the output.
@@ -113,7 +104,7 @@ class Conv2D(BaseConv):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
-        **kwargs,
+        **kwargs
     ):
         super().__init__(
             rank=2,
@@ -133,5 +124,34 @@ class Conv2D(BaseConv):
             activity_regularizer=activity_regularizer,
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
-            **kwargs,
+            **kwargs
         )
+
+    def compute_output_shape(self, input_shape):
+        output_shape = super().compute_output_shape(input_shape)
+        # Validate that kernel_size doesn't exceed input spatial dimensions
+        # when padding="valid", which would result in invalid 0-size outputs
+        if self.padding == "valid":
+            if self.data_format == "channels_last":
+                spatial_dims = output_shape[1:3]
+            else:
+                spatial_dims = output_shape[2:4]
+            
+            if any(dim == 0 for dim in spatial_dims if dim is not None):
+                if self.data_format == "channels_last":
+                    input_height = input_shape[1]
+                    input_width = input_shape[2]
+                else:
+                    input_height = input_shape[2]
+                    input_width = input_shape[3]
+                
+                raise ValueError(
+                    f"Conv2D layer with kernel_size={self.kernel_size}, "
+                    f"strides={self.strides}, dilation_rate={self.dilation_rate}, "
+                    f"and padding='{self.padding}' would produce an output shape "
+                    f"with 0-size spatial dimensions {output_shape} for input shape "
+                    f"{input_shape}. This configuration is invalid. "
+                    f"Consider using smaller kernel_size, padding='same', or larger input dimensions."
+                )
+        
+        return output_shape
