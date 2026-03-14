@@ -156,9 +156,10 @@ class RandomContrast(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandomContrast.__doc__ = RandomContrast.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomContrast"
-    ),
-)
+if RandomContrast.__doc__ is not None:
+    RandomContrast.__doc__ = RandomContrast.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomContrast"
+        ),
+    )

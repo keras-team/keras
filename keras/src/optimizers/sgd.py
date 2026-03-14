@@ -133,6 +133,7 @@ class SGD(optimizer.Optimizer):
         return config
 
 
-SGD.__doc__ = SGD.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if SGD.__doc__ is not None:
+    SGD.__doc__ = SGD.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )
