@@ -119,7 +119,7 @@ class Attention(Layer):
             Tensor of shape `(batch_size, Tq, Tv)`.
         """
         if self.score_mode == "dot":
-            scores = ops.matmul(query, ops.transpose(key, axes=[0, 2, 1]))
+            scores = ops.matmul(query, ops.swapaxes(key, -2, -1))
             if self.scale is not None:
                 scores = ops.multiply(scores, self.scale)
         elif self.score_mode == "concat":
@@ -256,7 +256,7 @@ class Attention(Layer):
 
         output_shape = (*query_shape[:-1], value_shape[-1])
         if self._return_attention_scores:
-            scores_shape = (query_shape[0], query_shape[1], key_shape[1])
+            scores_shape = (*query_shape[:-1], key_shape[-2])
             return output_shape, scores_shape
         return output_shape
 
@@ -283,10 +283,9 @@ class Attention(Layer):
         # Handle attention scores if requested
         if self._return_attention_scores or return_attention_scores:
             scores_shape = (
-                query.shape[0],
-                query.shape[1],
-                key.shape[1],
-            )  # (batch_size, Tq, Tv)
+                *query.shape[:-1],
+                key.shape[-2],
+            )  # (*batch_dims, Tq, Tv)
             attention_scores_spec = KerasTensor(
                 scores_shape, dtype=self.compute_dtype
             )
