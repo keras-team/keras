@@ -2921,6 +2921,7 @@ def nanargmin(x, axis=None, keepdims=False):
     nan_value = ov_opset.constant(-1, Type.i32).output(0)
     if result_ov.get_element_type() != Type.i32:
         nan_value = ov_opset.convert(nan_value, result_ov.get_element_type())
+    result_ov = ov_opset.select(all_nan, nan_value, result_ov).output(0)
 
     return OpenVINOKerasTensor(result_ov)
 
