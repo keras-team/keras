@@ -205,12 +205,19 @@ class AssociativeScan(Operation):
     def compute_output_spec(self, f, elems):
         elems_flat = tree.flatten(elems)
         lens = [elem.shape[self.axis] for elem in elems_flat]
+
+        # All scan dimensions must be equal (including None)
         if len(set(lens)) != 1:
+            # If mismatch involves dynamic dimensions, give clearer error
+            if any(dim is None for dim in lens):
+                raise ValueError(
+                    "associative_scan requires a statically known dimension "
+                    "along the scan axis when inputs differ."
+                )
             raise ValueError(
                 "Array inputs to associative_scan must have the same "
-                "first dimension. (saw: {})".format(
-                    [elem.shape for elem in elems_flat]
-                )
+                "first dimension. "
+                f"(saw: {[elem.shape for elem in elems_flat]})"
             )
 
         x = tree.pack_sequence_as(
@@ -224,8 +231,7 @@ class AssociativeScan(Operation):
                 shape=elems_flat[0].shape, dtype=x.dtype, sparse=x.sparse
             )
 
-        y_spec = tree.map_structure(_restore_shape, y_spec)
-        return y_spec
+        return tree.map_structure(_restore_shape, y_spec)
 
 
 @keras_export("keras.ops.associative_scan")
