@@ -489,7 +489,14 @@ def gru(
     direction = "reverse" if go_backwards else "forward"
 
     gru_out = ov_opset.gru_sequence(
-        inputs_ov, h0, seq_lens, w, r, b, hidden_size, direction,
+        inputs_ov,
+        h0,
+        seq_lens,
+        w,
+        r,
+        b,
+        hidden_size,
+        direction,
         linear_before_reset=True,
     )
     dir_axis = ov_opset.constant([1], dtype=Type.i32).output(0)
