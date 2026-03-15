@@ -401,6 +401,27 @@ def lstm(
     h_n = ov_opset.squeeze(lstm_out.output(1), dir_axis).output(0)
     c_n = ov_opset.squeeze(lstm_out.output(2), dir_axis).output(0)
 
+    if go_backwards:
+        shape = ov_opset.shape_of(all_outputs, Type.i32).output(0)
+        time_len = ov_opset.gather(
+            shape,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+            ov_opset.constant(0, dtype=Type.i32).output(0),
+        ).output(0)
+        idx = ov_opset.range(
+            ov_opset.subtract(
+                time_len, ov_opset.constant(1, dtype=Type.i32).output(0)
+            ).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            output_type=Type.i32,
+        ).output(0)
+        all_outputs = ov_opset.gather(
+            all_outputs,
+            idx,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+        ).output(0)
+
     return (
         OpenVINOKerasTensor(h_n),
         OpenVINOKerasTensor(all_outputs),
@@ -502,6 +523,30 @@ def gru(
     dir_axis = ov_opset.constant([1], dtype=Type.i32).output(0)
     all_outputs = ov_opset.squeeze(gru_out.output(0), dir_axis).output(0)
     h_n = ov_opset.squeeze(gru_out.output(1), dir_axis).output(0)
+
+    if go_backwards:
+        # OV direction="reverse" outputs Y in original time order
+        # (Y[0]=fully-accumulated state). Keras go_backwards expects
+        # Y[0]=state after first reversed step. Flip time axis to match.
+        shape = ov_opset.shape_of(all_outputs, Type.i32).output(0)
+        time_len = ov_opset.gather(
+            shape,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+            ov_opset.constant(0, dtype=Type.i32).output(0),
+        ).output(0)
+        idx = ov_opset.range(
+            ov_opset.subtract(
+                time_len, ov_opset.constant(1, dtype=Type.i32).output(0)
+            ).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            output_type=Type.i32,
+        ).output(0)
+        all_outputs = ov_opset.gather(
+            all_outputs,
+            idx,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+        ).output(0)
 
     return (
         OpenVINOKerasTensor(h_n),
