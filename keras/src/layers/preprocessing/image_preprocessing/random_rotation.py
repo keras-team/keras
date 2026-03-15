@@ -1,14 +1,85 @@
 from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
+    BaseImagePreprocessingLayer,
 )
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     base_image_preprocessing_transform_example,
 )
 from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes import (
-                fill_mode=transformation.get("fill_mode", self.fill_mode),
-                fill_value=transformation.get("fill_value", self.fill_value),
+    converters,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
+
+@keras_export("keras.layers.RandomRotation")
+class RandomRotation(BaseImagePreprocessingLayer):
+    """A preprocessing layer that randomly rotates images during training.
+
+    This layer applies a random rotation to each image, filling areas outside
+    the image boundaries according to `fill_mode`.
+
+    By default, random rotations are applied only during training.
+    At inference time, the layer returns the inputs unchanged. To force
+    augmentation at inference time, pass `training=True` when calling the layer.
+
+    Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`) and
+    can be integer or floating-point. The output is always floating-point.
+
+    **Note:** This layer is safe to use inside `tf.data` and `grain` input
+    pipelines. When used in a `tf.data` pipeline, the layer correctly handles
+    symbolic tensors across supported backends.
+
+    ## Structured inputs
+
+    This layer supports combined augmentation of images and associated data
+    by passing a dictionary with one or more of the following keys:
+    - `"images"` (required): Input images tensor with shape
+      `(..., height, width, channels)` when `data_format="channels_last"`, or
+      `(..., channels, height, width)` when `data_format="channels_first"`.
+    - `"segmentation_masks"` (optional): Segmentation masks with the same
+      spatial dimensions as `"images"`. Masks always use `"nearest"`
+      interpolation to preserve discrete label values.
+    - `"bounding_boxes"` (optional): A dictionary with `"boxes"` and `"labels"`
+      keys representing bounding boxes associated with `"images"`.
+      When provided, `bounding_box_format` must also be specified.
+    - `"labels"` (optional): Classification labels. Passed through unchanged.
+
+    All entries are transformed using the same randomly sampled rotation,
+    ensuring that images, masks, and bounding boxes remain spatially aligned.
+
+    ## Crop mode
+
+    When `fill_mode="crop"`, the layer applies an angle-dependent zoom
+    during the rotation affine transform to remove border artifacts without
+    explicit cropping or resizing.
+
+    This preserves output shape while avoiding fill regions. For batched
+    inputs, the zoom uses the maximal scale across the batch for uniform
+    processing. This mode is particularly useful for dense prediction tasks
+    such as segmentation.
+
+    When using structured inputs, the zoomed rotation is applied to images
+    and segmentation masks. Bounding boxes are rotated and clipped
+    (zoom intentionally not applied).
+
+    Input shape:
+        3D (unbatched) or 4D (batched) tensor with shape:
+        `(..., height, width, channels)` when `data_format="channels_last"`, or
+        `(..., channels, height, width)` when `data_format="channels_first"`.
+
+    Output shape:
+        Same as the input shape.
+
+    Args:
+        factor: A float or a tuple of two floats representing a fraction of a
+            full rotation (360 degrees). If a single float is provided, the
+            rotation angle is sampled uniformly from
+            `[-factor * 360, factor * 360]`. If a tuple `(lower, upper)` is
+            provided, the angle is sampled from
+            `[lower * 360, upper * 360]`.
+        fill_mode: Points outside the input boundaries are filled according to
+            the given mode (one of
+            `{"constant", "reflect", "wrap", "nearest", "crop"}`).
             - `"reflect"`: Reflects values at the edge.
             - `"constant"`: Fills with the constant value `fill_value`.
             - `"wrap"`: Wraps around to the opposite edge.
@@ -79,6 +150,9 @@ from keras.src.random.seed_generator import SeedGenerator
             data_format=self.data_format,
         )
 
+    def transform_labels(self, labels, transformation, training=True):
+        return labels
+
     def transform_bounding_boxes(
         self, bounding_boxes, transformation, training=True
     ):
@@ -129,6 +203,7 @@ from keras.src.random.seed_generator import SeedGenerator
             width=width,
         )
         return bounding_boxes
+
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None

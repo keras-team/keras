@@ -265,7 +265,7 @@ class RandomRotationTest(testing.TestCase):
         )
 
     def test_crop_zoom_monotonic(self):
-        """Scale decreases (more zoom-out) as rotation angle increases."""
+        """Scale decreases (more zoom-in) as rotation angle increases."""
         layer = layers.RandomRotation(factor=0.25, fill_mode="crop")
         height = ops.cast(64, "float32")
         width = ops.cast(64, "float32")
@@ -278,7 +278,7 @@ class RandomRotationTest(testing.TestCase):
         self.assertLessEqual(
             large_scale,
             small_scale,
-            "Larger angle should require smaller scale (more zoom-out)",
+            "Larger angle should require smaller scale (more zoom-in)",
         )
         self.assertLess(small_scale, 1.0)
         self.assertGreater(large_scale, 0.0)
