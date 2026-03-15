@@ -4,6 +4,12 @@ from keras.src.api_export import keras_export
 from keras.src.layers.preprocessing.image_preprocessing.base_image_preprocessing_layer import (  # noqa: E501
     BaseImagePreprocessingLayer,
 )
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    clip_to_image_size,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converters import (  # noqa: E501
+    convert_format,
+)
 from keras.src.random.seed_generator import SeedGenerator
 
 
@@ -70,10 +76,16 @@ class RandomResizedCrop(BaseImagePreprocessingLayer):
         interpolation="bilinear",
         seed=None,
         data_format=None,
+        bounding_box_format=None,
         name=None,
         **kwargs,
     ):
-        super().__init__(name=name, data_format=data_format, **kwargs)
+        super().__init__(
+            name=name,
+            data_format=data_format,
+            bounding_box_format=bounding_box_format,
+            **kwargs,
+        )
 
         self.height = int(height)
         self.width = int(width)
@@ -175,40 +187,90 @@ class RandomResizedCrop(BaseImagePreprocessingLayer):
             return x[:, :, h : h + ch, w : w + cw]
         return x[:, h : h + ch, w : w + cw, :]
 
-    def transform_images(self, images, transformation=None, training=True):
-        if transformation is None:
-            transformation = self.get_random_transformation(images, training)
+    def _transform_images(self, images, transformation, interpolation):
         h, w, ch, cw = transformation
         images = self._slice_images(images, h, w, ch, cw)
         return backend.image.resize(
             images,
             size=(self.height, self.width),
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             data_format=self.data_format,
+        )
+
+    def transform_images(self, images, transformation=None, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
+        if transformation is None:
+            transformation = self.get_random_transformation(images, training)
+        return self._transform_images(
+            images, transformation, self.interpolation
         )
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
 
+    def transform_bounding_boxes(
+        self, bounding_boxes, transformation, image_shape=None, training=True
+    ):
+        if not training:
+            return bounding_boxes
+
+        h, w, ch, cw = transformation
+
+        if image_shape is not None:
+            input_height = image_shape[self.height_axis]
+            input_width = image_shape[self.width_axis]
+        else:
+            input_height = None
+            input_width = None
+
+        bounding_boxes = convert_format(
+            bounding_boxes,
+            source=self.bounding_box_format,
+            target="xyxy",
+            height=input_height,
+            width=input_width,
+        )
+
+        boxes = bounding_boxes["boxes"]
+        h = ops.cast(h, boxes.dtype)
+        w = ops.cast(w, boxes.dtype)
+        ch = ops.cast(ch, boxes.dtype)
+        cw = ops.cast(cw, boxes.dtype)
+
+        x1 = boxes[..., 0] - w
+        y1 = boxes[..., 1] - h
+        x2 = boxes[..., 2] - w
+        y2 = boxes[..., 3] - h
+
+        scale_y = ops.cast(self.height, boxes.dtype) / ch
+        scale_x = ops.cast(self.width, boxes.dtype) / cw
+
+        y1 = y1 * scale_y
+        x1 = x1 * scale_x
+        y2 = y2 * scale_y
+        x2 = x2 * scale_x
+
+        bounding_boxes["boxes"] = ops.stack([x1, y1, x2, y2], axis=-1)
+
+        bounding_boxes = clip_to_image_size(
+            bounding_boxes=bounding_boxes,
+            height=self.height,
+            width=self.width,
+            bounding_box_format="xyxy",
+        )
+
+        return convert_format(
+            bounding_boxes,
+            source="xyxy",
+            target=self.bounding_box_format,
+            height=self.height,
+            width=self.width,
+        )
+
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
-        rank = len(input_shape)
-
-        if self.data_format == "channels_last":
-            if rank == 4:
-                input_shape[1] = self.height
-                input_shape[2] = self.width
-            elif rank == 3:
-                input_shape[0] = self.height
-                input_shape[1] = self.width
-        else:  # channels_first
-            if rank == 4:
-                input_shape[2] = self.height
-                input_shape[3] = self.width
-            elif rank == 3:
-                input_shape[1] = self.height
-                input_shape[2] = self.width
-
+        input_shape[self.height_axis] = self.height
+        input_shape[self.width_axis] = self.width
         return tuple(input_shape)
 
     def get_config(self):
