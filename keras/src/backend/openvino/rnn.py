@@ -301,8 +301,6 @@ def _reorder_gates(x_ov, from_order, to_order, axis):
     The tensor dimension along `axis` must be divisible by len(from_order).
     """
     n_gates = len(from_order)
-    total = x_ov.get_partial_shape()[axis].get_length()
-    units = total // n_gates
     axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
     chunks = ov_opset.split(x_ov, axis_const, n_gates).outputs()
     gate_map = {g: chunks[i] for i, g in enumerate(from_order)}
@@ -310,8 +308,8 @@ def _reorder_gates(x_ov, from_order, to_order, axis):
     return ov_opset.concat(reordered, axis=axis).output(0)
 
 
-def _seq_lengths(inputs_ov, mask):
-    """Return int32 sequence-length tensor [batch] from optional bool mask."""
+def _seq_lengths(inputs_ov):
+    """Return int32 sequence-length tensor [batch] equal to full time steps."""
     input_shape = ov_opset.shape_of(inputs_ov, Type.i32).output(0)
     batch_size = ov_opset.gather(
         input_shape,
@@ -323,15 +321,6 @@ def _seq_lengths(inputs_ov, mask):
         ov_opset.constant([1], dtype=Type.i32).output(0),
         ov_opset.constant(0, dtype=Type.i32).output(0),
     ).output(0)
-    if mask is not None:
-        mask_ov = get_ov_output(mask)
-        if mask_ov.get_element_type() != Type.i32:
-            mask_ov = ov_opset.convert(mask_ov, Type.i32).output(0)
-        return ov_opset.reduce_sum(
-            mask_ov,
-            ov_opset.constant([1], dtype=Type.i32).output(0),
-            keep_dims=False,
-        ).output(0)
     return ov_opset.broadcast(time_steps, batch_size).output(0)
 
 
@@ -401,7 +390,7 @@ def lstm(
         initial_c_ov, ov_opset.constant([1], dtype=Type.i32).output(0)
     ).output(0)
 
-    seq_lens = _seq_lengths(inputs_ov, mask)
+    seq_lens = _seq_lengths(inputs_ov)
     direction = "reverse" if go_backwards else "forward"
 
     lstm_out = ov_opset.lstm_sequence(
@@ -496,7 +485,7 @@ def gru(
         initial_state_ov, ov_opset.constant([1], dtype=Type.i32).output(0)
     ).output(0)
 
-    seq_lens = _seq_lengths(inputs_ov, mask)
+    seq_lens = _seq_lengths(inputs_ov)
     direction = "reverse" if go_backwards else "forward"
 
     gru_out = ov_opset.gru_sequence(
