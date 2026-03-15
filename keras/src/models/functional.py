@@ -214,6 +214,21 @@ class Functional(Function, Model):
         return output_shapes
 
     def _assert_input_compatibility(self, *args):
+        flat_inputs = tree.flatten(args[0])
+        for x, input_tensor in zip(flat_inputs, self._inputs):
+            if x is None:
+                input_layer = input_tensor._keras_history.operation
+                if (
+                    isinstance(input_layer, InputLayer)
+                    and not input_layer.optional
+                ):
+                    raise ValueError(
+                        (
+                            f"The input '{input_tensor.name}' is not optional, "
+                            "but None was passed. "
+                            "Please provide a valid tensor."
+                        )
+                    )
         return super(Model, self)._assert_input_compatibility(*args)
 
     def _maybe_warn_inputs_struct_mismatch(self, inputs, raise_exception=False):
@@ -225,26 +240,14 @@ class Functional(Function, Model):
                 tree.lists_to_tuples(self._inputs_struct),
             )
         except:
-
-            def _safe_name(x):
-                if x is None:
-                    return "None"
-                if isinstance(x, backend.KerasTensor):
-                    return x.name
-                return repr(x)
-
-            def _safe_inputs_repr(x):
-                if x is None:
-                    return "None"
-                if isinstance(x, backend.KerasTensor):
-                    return f"Tensor(shape={x.shape})"
-                return repr(x)
-
             model_inputs_struct = tree.map_structure(
-                _safe_name,
+                lambda x: "None" if x is None else x.name,
                 self._inputs_struct,
             )
-            inputs_struct = tree.map_structure(_safe_inputs_repr, inputs)
+            inputs_struct = tree.map_structure(
+                lambda x: "None" if x is None else f"Tensor(shape={x.shape})",
+                inputs,
+            )
             msg = (
                 "The structure of `inputs` doesn't match the expected "
                 f"structure.\nExpected: {model_inputs_struct}\n"
@@ -270,9 +273,8 @@ class Functional(Function, Model):
                     input_layer = input_tensor._keras_history.operation
 
                 if isinstance(input_layer, InputLayer):
-                    is_optional = getattr(input_layer, "optional", False)
-                    if not is_optional:
-                        input_name = getattr(input_tensor, "name", "unknown")
+                    if not input_layer.optional:
+                        input_name = input_tensor.name
                         raise ValueError(
                             (
                                 f"The input '{input_name}' is not optional, "
@@ -284,11 +286,12 @@ class Functional(Function, Model):
                 # behavior and accept None.
                 converted.append(x)
             else:
-                # Preserve dtype and sparse settings from input_tensor
-                dtype = getattr(input_tensor, "dtype", None)
-                sparse = getattr(input_tensor, "sparse", False)
                 converted.append(
-                    ops.convert_to_tensor(x, dtype=dtype, sparse=sparse)
+                    ops.convert_to_tensor(
+                        x,
+                        dtype=input_tensor.dtype,
+                        sparse=input_tensor.sparse,
+                    )
                 )
         return converted
 

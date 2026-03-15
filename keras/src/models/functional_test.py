@@ -705,7 +705,7 @@ class FunctionalTest(testing.TestCase):
         model = Model({"input1": i1, "input2": i2}, outputs)
 
         # Passing None for a required input must raise
-        with pytest.raises(ValueError):
+        with self.assertRaisesRegex(ValueError, "not optional"):
             model({"input1": np.ones((2, 2)), "input2": None})
 
     def test_optional_and_required_mixed_structures(self):
@@ -742,7 +742,7 @@ class FunctionalTest(testing.TestCase):
         y_data = np.ones((4, 1))
 
         # Passing None for required input should raise during fit
-        with pytest.raises(ValueError):
+        with self.assertRaisesRegex(ValueError, "not optional"):
             model.fit([None], y_data, epochs=1)
 
     def test_warning_for_mismatched_inputs_structure(self):
