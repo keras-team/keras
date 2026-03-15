@@ -1529,9 +1529,26 @@ def stop_gradient(variable):
 
 
 def unstack(x, num=None, axis=0):
-    raise NotImplementedError(
-        "`unstack` is not supported with openvino backend"
-    )
+    x_ov = get_ov_output(x)
+    axis_ov = get_ov_output(axis)
+
+    if num is None:
+        axis_val = axis if isinstance(axis, int) else axis_ov.get_data().item()
+        shape = x_ov.get_partial_shape()
+        num = shape[axis_val].get_length()
+    elif not isinstance(num, int):
+        num_ov = get_ov_output(num)
+        num = num_ov.get_data().item()
+
+    split_ov = ov_opset.split(x_ov, axis_ov, num)
+
+    unstacked_outputs = []
+
+    for i in range(num):
+        squeezed_node = ov_opset.squeeze(split_ov.output(i), axis_ov)
+        keras_tensor = OpenVINOKerasTensor(squeezed_node.output(0))
+        unstacked_outputs.append(keras_tensor)
+    return unstacked_outputs
 
 
 def random_seed_dtype():
