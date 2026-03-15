@@ -561,11 +561,5 @@ def unstack(x, axis=0):
     )
 
 
-def numpy_scan(f, init, xs, reverse=False, mask=None):
-    raise NotImplementedError(
-        "`numpy_scan` is not supported with openvino backend"
-    )
-
-
 def cudnn_ok(*args, **kwargs):
     return False
