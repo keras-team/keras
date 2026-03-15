@@ -11,7 +11,6 @@ from keras.src import backend
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
-from keras.src.utils.module_utils import tensorflow as tf_mod
 
 
 @pytest.mark.skipif(
@@ -481,12 +480,6 @@ class LayoutMapTest(testing.TestCase):
 
 class DataShardingIntegrationTest(testing.TestCase):
     def test_distribute_dataset_sharding_behavior(self):
-        if not tf_mod.available:
-            self.skipTest(
-                "TensorFlow not available for dataset integration test"
-            )
-
-        tf = tf_mod
         devices = [f"cpu:{i}" for i in range(4)]
         device_mesh = distribution_lib.DeviceMesh(
             (2, 2),
