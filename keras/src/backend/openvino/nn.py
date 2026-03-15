@@ -162,6 +162,7 @@ def gelu(x, approximate=True):
         approximate_mode = "tanh"
     return OpenVINOKerasTensor(ov_opset.gelu(x, approximate_mode).output(0))
 
+
 def glu(x, axis=-1):
     x = get_ov_output(x)
     axis_node = ov_opset.constant(axis, Type.i32).output(0)
@@ -171,6 +172,7 @@ def glu(x, axis=-1):
     activated_second_half = ov_opset.sigmoid(second_half).output(0)
     result = ov_opset.multiply(first_half, activated_second_half).output(0)
     return OpenVINOKerasTensor(result)
+
 
 def sparsemax(x, axis=-1):
     x = get_ov_output(x)
@@ -208,9 +210,7 @@ def sparsemax(x, axis=-1):
     cond = ov_opset.greater(one_plus_kz, z_cumsum).output(0)
 
     k_valid = ov_opset.select(cond, k_array, zero_val).output(0)
-    k_max = ov_opset.reduce_max(
-        k_valid, axis_node, keep_dims=True
-    ).output(0)
+    k_max = ov_opset.reduce_max(k_valid, axis_node, keep_dims=True).output(0)
 
     mask = ov_opset.less_equal(k_array, k_max).output(0)
     z_sum = ov_opset.reduce_sum(
@@ -226,6 +226,7 @@ def sparsemax(x, axis=-1):
         zero_val, ov_opset.subtract(x, tau).output(0)
     ).output(0)
     return OpenVINOKerasTensor(out)
+
 
 def softmax(x, axis=-1):
     x = get_ov_output(x)
