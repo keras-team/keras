@@ -4,6 +4,7 @@ from openvino import Type
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
 from keras.src.backend.openvino.core import convert_to_tensor
@@ -34,7 +35,151 @@ def cholesky_inverse(a, upper=False):
 
 
 def det(a):
-    raise NotImplementedError("`det` is not supported with openvino backend")
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    a_ov_type = a_ov.get_element_type()
+
+    if a_ov_type.is_integral() or a_ov_type == Type.boolean:
+        float_type = OPENVINO_DTYPES[config.floatx()]
+        a_ov = ov_opset.convert(a_ov, float_type).output(0)
+        a_ov_type = a_ov.get_element_type()
+
+    a_shape = a_ov.get_partial_shape()
+    a_rank = len(a_shape)
+    n = a_shape[-1].get_length()
+
+    flat_shape = ov_opset.constant([-1, n, n], Type.i32).output(0)
+    a_batched = ov_opset.reshape(a_ov, flat_shape, False).output(0)
+
+    batch_shape = ov_opset.shape_of(a_batched, Type.i32).output(0)
+    batch_size = ov_opset.gather(
+        batch_shape,
+        ov_opset.constant([0], Type.i32).output(0),
+        ov_opset.constant(0, Type.i32).output(0),
+    ).output(0)
+
+    one = ov_opset.constant(1.0, a_ov_type).output(0)
+    two = ov_opset.constant(2.0, a_ov_type).output(0)
+
+    det_val = ov_opset.broadcast(one, batch_size).output(0)
+
+    row_axis = ov_opset.constant(1, Type.i32).output(0)
+    col_axis = ov_opset.constant(2, Type.i32).output(0)
+
+    for k in range(n):
+        col_k = ov_opset.gather(
+            a_batched, ov_opset.constant(k, Type.i32).output(0), col_axis
+        ).output(0)
+        abs_col_k = ov_opset.absolute(col_k).output(0)
+
+        abs_col_k_sub = ov_opset.slice(
+            abs_col_k,
+            ov_opset.constant([0, k], Type.i32).output(0),
+            ov_opset.constant([2**30, n], Type.i32).output(0),
+            ov_opset.constant([1, 1], Type.i32).output(0),
+            ov_opset.constant([0, 1], Type.i32).output(0),
+        ).output(0)
+
+        topk_result = ov_opset.topk(
+            abs_col_k_sub,
+            ov_opset.constant(1, Type.i32).output(0),
+            axis=1,
+            mode="max",
+            sort="none",
+        )
+        local_max_idx = ov_opset.squeeze(
+            ov_opset.convert(topk_result.output(1), Type.i32).output(0),
+            ov_opset.constant([1], Type.i32).output(0),
+        ).output(0)
+
+        pivot_row = ov_opset.add(
+            local_max_idx, ov_opset.constant(k, Type.i32).output(0)
+        ).output(0)
+
+        swap_needed = ov_opset.not_equal(
+            pivot_row, ov_opset.constant(k, Type.i32).output(0)
+        ).output(0)
+        swap_needed_f = ov_opset.convert(swap_needed, a_ov_type).output(0)
+        sign_flip = ov_opset.subtract(
+            ov_opset.broadcast(one, batch_size).output(0),
+            ov_opset.multiply(two, swap_needed_f).output(0),
+        ).output(0)
+        det_val = ov_opset.multiply(det_val, sign_flip).output(0)
+
+        row_k = ov_opset.gather(
+            a_batched, ov_opset.constant([k], Type.i32).output(0), row_axis
+        ).output(0)
+        pivot_row_2d = ov_opset.unsqueeze(
+            pivot_row, ov_opset.constant([1], Type.i32).output(0)
+        ).output(0)
+        pivot_row_data = ov_opset.gather(
+            a_batched, pivot_row_2d, row_axis, batch_dims=1
+        ).output(0)
+
+        a_batched = ov_opset.scatter_update(
+            a_batched,
+            ov_opset.constant([k], Type.i32).output(0),
+            pivot_row_data,
+            row_axis,
+        ).output(0)
+
+        all_row_indices = ov_opset.unsqueeze(
+            ov_opset.range(
+                ov_opset.constant(0, Type.i32).output(0),
+                ov_opset.constant(n, Type.i32).output(0),
+                ov_opset.constant(1, Type.i32).output(0),
+                output_type=Type.i32,
+            ).output(0),
+            ov_opset.constant([0, 2], Type.i32).output(0),
+        ).output(0)
+
+        pivot_row_3d = ov_opset.unsqueeze(
+            pivot_row_2d, ov_opset.constant([2], Type.i32).output(0)
+        ).output(0)
+        swap_mask = ov_opset.equal(all_row_indices, pivot_row_3d).output(0)
+        row_k_tiled = ov_opset.broadcast(
+            row_k, ov_opset.shape_of(a_batched, Type.i32).output(0)
+        ).output(0)
+        a_batched = ov_opset.select(swap_mask, row_k_tiled, a_batched).output(0)
+
+        k_idx = ov_opset.constant([k], Type.i32).output(0)
+        pivot_row_cur = ov_opset.gather(a_batched, k_idx, row_axis).output(0)
+        pivot_elem = ov_opset.gather(pivot_row_cur, k_idx, col_axis).output(0)
+        pivot_scalar = ov_opset.squeeze(
+            pivot_elem, ov_opset.constant([1, 2], Type.i32).output(0)
+        ).output(0)
+
+        det_val = ov_opset.multiply(det_val, pivot_scalar).output(0)
+
+        safe_pivot = ov_opset.select(
+            ov_opset.equal(
+                pivot_elem, ov_opset.constant(0.0, a_ov_type).output(0)
+            ).output(0),
+            ov_opset.constant(1.0, a_ov_type).output(0),
+            pivot_elem,
+        ).output(0)
+
+        for i in range(k + 1, n):
+            i_idx = ov_opset.constant([i], Type.i32).output(0)
+            row_i = ov_opset.gather(a_batched, i_idx, row_axis).output(0)
+            elem_ik = ov_opset.gather(row_i, k_idx, col_axis).output(0)
+            multiplier = ov_opset.divide(elem_ik, safe_pivot).output(0)
+            row_i_new = ov_opset.subtract(
+                row_i, ov_opset.multiply(multiplier, pivot_row_cur).output(0)
+            ).output(0)
+            a_batched = ov_opset.scatter_update(
+                a_batched, i_idx, row_i_new, row_axis
+            ).output(0)
+
+    if a_rank > 2:
+        batch_dims = [a_shape[i].get_length() for i in range(a_rank - 2)]
+        out_shape = ov_opset.constant(batch_dims, Type.i32).output(0)
+    else:
+        out_shape = ov_opset.constant([], Type.i32).output(0)
+
+    det_result = ov_opset.reshape(det_val, out_shape, False).output(0)
+
+    return OpenVINOKerasTensor(det_result)
 
 
 def eig(a):
