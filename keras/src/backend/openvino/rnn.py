@@ -555,11 +555,5 @@ def gru(
     )
 
 
-def unstack(x, axis=0):
-    raise NotImplementedError(
-        "`unstack` is not supported with openvino backend"
-    )
-
-
 def cudnn_ok(*args, **kwargs):
     return False
