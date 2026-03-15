@@ -340,7 +340,6 @@ def amin(x, axis=None, keepdims=False):
 
 
 def _resolve_axis(x, axis):
-    
     if axis == () or axis == []:
         return x, None
     if axis is None:
@@ -571,6 +570,7 @@ def argmin(x, axis=None, keepdims=False):
     if not keepdims:
         topk_indices = ov_opset.squeeze(topk_indices, [axis]).output(0)
     return OpenVINOKerasTensor(topk_indices)
+
 
 def argsort(x, axis=-1):
     x = get_ov_output(x)
@@ -2861,7 +2861,9 @@ def nanargmax(x, axis=None, keepdims=False):
     original_axis = axis
 
     if x_type.is_integral() or x_type == Type.boolean:
-        return argmax(OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims)
+        return argmax(
+            OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims
+        )
 
     x, resolved_axis = _resolve_axis(x, original_axis)
     if resolved_axis is None:
@@ -2878,13 +2880,16 @@ def nanargmax(x, axis=None, keepdims=False):
     )
     result_ov = get_ov_output(result)
 
-    all_nan = ov_opset.reduce_logical_and(nan_mask, resolved_axis, keepdims).output(0)
+    all_nan = ov_opset.reduce_logical_and(
+        nan_mask, resolved_axis, keepdims
+    ).output(0)
     nan_value = ov_opset.constant(-1, Type.i32).output(0)
     if result_ov.get_element_type() != Type.i32:
         nan_value = ov_opset.convert(nan_value, result_ov.get_element_type())
     result_ov = ov_opset.select(all_nan, nan_value, result_ov).output(0)
 
     return OpenVINOKerasTensor(result_ov)
+
 
 def nanargmin(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
@@ -2900,7 +2905,9 @@ def nanargmin(x, axis=None, keepdims=False):
     original_axis = axis
 
     if x_type.is_integral() or x_type == Type.boolean:
-        return argmin(OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims)
+        return argmin(
+            OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims
+        )
 
     x, resolved_axis = _resolve_axis(x, original_axis)
     if resolved_axis is None:
@@ -2917,14 +2924,15 @@ def nanargmin(x, axis=None, keepdims=False):
     )
     result_ov = get_ov_output(result)
 
-    all_nan = ov_opset.reduce_logical_and(nan_mask, resolved_axis, keepdims).output(0)
+    all_nan = ov_opset.reduce_logical_and(
+        nan_mask, resolved_axis, keepdims
+    ).output(0)
     nan_value = ov_opset.constant(-1, Type.i32).output(0)
     if result_ov.get_element_type() != Type.i32:
         nan_value = ov_opset.convert(nan_value, result_ov.get_element_type())
     result_ov = ov_opset.select(all_nan, nan_value, result_ov).output(0)
 
     return OpenVINOKerasTensor(result_ov)
-
 
 
 def nancumsum(x, axis=None, dtype=None):
