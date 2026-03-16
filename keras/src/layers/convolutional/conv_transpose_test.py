@@ -547,7 +547,7 @@ class ConvTransposeBasicTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "Invalid `output_padding`",
+            "`output_padding` must be strictly less than `strides`",
         ):
             layers.Conv1DTranspose(
                 filters=2, kernel_size=2, strides=2, output_padding=2
@@ -555,7 +555,7 @@ class ConvTransposeBasicTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "Invalid `output_padding`",
+            "`output_padding` must be strictly less than `strides`",
         ):
             layers.Conv2DTranspose(
                 filters=16, kernel_size=3, strides=[1, 1], output_padding=1
@@ -563,7 +563,7 @@ class ConvTransposeBasicTest(testing.TestCase):
 
         with self.assertRaisesRegex(
             ValueError,
-            "Invalid `output_padding`",
+            "`output_padding` must be strictly less than `strides`",
         ):
             layers.Conv3DTranspose(
                 filters=8, kernel_size=3, strides=1, output_padding=1
