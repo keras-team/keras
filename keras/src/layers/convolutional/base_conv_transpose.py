@@ -152,14 +152,16 @@ class BaseConvTranspose(Layer):
             )
 
         if self.output_padding is not None:
-            for op, s in zip(self.output_padding, self.strides):
+            for i, (op, s) in enumerate(zip(self.output_padding, self.strides)):
                 if op >= s:
                     raise ValueError(
-                        "Invalid `output_padding`. Each value in "
-                        "`output_padding` must be strictly less than the "
-                        "corresponding stride. Received: "
-                        f"output_padding={self.output_padding}, "
-                        f"strides={self.strides}"
+                        "Invalid `output_padding` argument. "
+                        "Each value in `output_padding` must be strictly "
+                        "less than the corresponding `strides` value.\n"
+                        f"At index {i}, `output_padding` is {op} and `strides` "
+                        f"is {s}.\n"
+                        f"Received: output_padding={self.output_padding}, "
+                        f"strides={self.strides}."
                     )
 
     def build(self, input_shape):
