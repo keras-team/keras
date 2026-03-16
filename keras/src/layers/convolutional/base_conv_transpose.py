@@ -151,6 +151,17 @@ class BaseConvTranspose(Layer):
                 f"dilation_rate={self.dilation_rate}"
             )
 
+        if self.output_padding is not None:
+            for op, s in zip(self.output_padding, self.strides):
+                if op >= s:
+                    raise ValueError(
+                        "Invalid `output_padding`. Each value in "
+                        "`output_padding` must be strictly less than the "
+                        "corresponding stride. Received: "
+                        f"output_padding={self.output_padding}, "
+                        f"strides={self.strides}"
+                    )
+
     def build(self, input_shape):
         if self.data_format == "channels_last":
             channel_axis = -1
