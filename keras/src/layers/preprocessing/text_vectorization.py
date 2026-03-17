@@ -420,15 +420,14 @@ class TextVectorization(Layer):
                 data = data.take(steps)
             for batch in data:
                 self.update_state(batch)
-        elif isinstance(data, (list, tuple, np.ndarray)):
-            data = tf_utils.ensure_tensor(data, dtype="string")
-            if data.shape.rank == 1:
-                # A plain list of strings
-                # is treated as as many documents
-                data = tf.expand_dims(data, -1)
-            self.update_state(data)
-        elif hasattr(data, "__iter__"):
-            for batch in data:
+        elif hasattr(data, "__iter__") and not (
+            isinstance(data, (list, tuple, np.ndarray))
+            or backend.is_tensor(data)
+            or tf.is_tensor(data)
+        ):
+            for i, batch in enumerate(data):
+                if steps is not None and i >= steps:
+                    break
                 self.update_state(batch)
         else:
             data = tf_utils.ensure_tensor(data, dtype="string")

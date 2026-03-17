@@ -67,6 +67,46 @@ class StringLookupTest(testing.TestCase):
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
+        self.assertIn("a", [str(v) for v in layer.get_vocabulary()])
+
+    def test_adapt_with_generator(self):
+        def vocab_gen():
+            yield ["cat", "dog"]
+            yield ["bird", "cat"]
+
+        layer = layers.StringLookup()
+        layer.adapt(vocab_gen())
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+        self.assertIn("dog", [str(v) for v in vocab])
+        self.assertIn("bird", [str(v) for v in vocab])
+
+    def test_adapt_with_infinite_generator_and_steps(self):
+        def vocab_gen():
+            while True:
+                yield ["cat", "dog", "bird"]
+
+        layer = layers.StringLookup()
+        layer.adapt(vocab_gen(), steps=3)
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+
+    def test_adapt_with_grain_dataset(self):
+        try:
+            import grain
+        except ImportError:
+            self.skipTest("Grain is not installed.")
+
+        data = ["cat", "dog", "bird", "cat", "dog"]
+        source = grain.ArrayRecordDataSource(data)
+        sampler = grain.SequentialSampler(num_records=len(data), num_epochs=1)
+        loader = grain.DataLoader(
+            data_source=source, sampler=sampler, worker_count=0
+        )
+        layer = layers.StringLookup()
+        layer.adapt(loader)
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
 
     def test_fixed_vocabulary(self):
         layer = layers.StringLookup(
@@ -261,21 +301,3 @@ class StringLookupTest(testing.TestCase):
             tuple(symbolic_output.shape)[1:],
             eager_output.shape[1:],
         )
-
-    def test_adapt_with_generator(self):
-        def vocab_gen():
-            yield ["cat", "dog"]
-            yield ["bird", "cat"]
-
-        layer = layers.StringLookup()
-        layer.adapt(vocab_gen())
-        vocab = layer.get_vocabulary()
-        self.assertIn("cat", [str(v) for v in vocab])
-        self.assertIn("dog", [str(v) for v in vocab])
-        self.assertIn("bird", [str(v) for v in vocab])
-
-    def test_adapt_with_list_backward_compat(self):
-        layer = layers.StringLookup()
-        layer.adapt(["cat", "dog", "bird"])
-        vocab = layer.get_vocabulary()
-        self.assertIn("cat", [str(v) for v in vocab])

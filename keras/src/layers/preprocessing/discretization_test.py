@@ -37,6 +37,52 @@ class DiscretizationTest(testing.TestCase):
         )
         output = layer(np.array([[0.0, 0.1, 0.3]]))
         self.assertTrue(output.dtype, "int32")
+        self.assertLen(layer.bin_boundaries, 3)
+
+    def test_adapt_with_generator(self):
+        def data_gen():
+            for _ in range(5):
+                yield np.random.uniform(0, 10, size=(20,))
+
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(data_gen())
+        self.assertLen(layer.bin_boundaries, 3)
+        output = layer(np.array([[1.0, 5.0, 9.0]]))
+        self.assertEqual(output.shape, (1, 3))
+
+    def test_adapt_with_infinite_generator_and_steps(self):
+        def data_gen():
+            while True:
+                yield np.random.uniform(0, 10, size=(20,))
+
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(data_gen(), steps=5)
+        self.assertLen(layer.bin_boundaries, 3)
+
+    def test_adapt_with_list_of_arrays(self):
+        batches = [
+            np.array([1.0, 2.0, 3.0]),
+            np.array([4.0, 5.0, 6.0]),
+        ]
+        layer = layers.Discretization(num_bins=3)
+        layer.adapt(batches)
+        self.assertLen(layer.bin_boundaries, 2)
+
+    def test_adapt_with_grain_dataset(self):
+        try:
+            import grain
+        except ImportError:
+            self.skipTest("Grain is not installed.")
+
+        data = np.random.uniform(0, 10, size=(100,)).astype("float32")
+        source = grain.ArrayRecordDataSource(data)
+        sampler = grain.SequentialSampler(num_records=len(data), num_epochs=1)
+        loader = grain.DataLoader(
+            data_source=source, sampler=sampler, worker_count=0
+        )
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(loader)
+        self.assertLen(layer.bin_boundaries, 3)
 
     @parameterized.named_parameters(
         named_product(
@@ -474,29 +520,3 @@ class DiscretizationTest(testing.TestCase):
             expected_shape,
             f"Failed for num_bins={num_bins}, mode={output_mode}",
         )
-
-    def test_adapt_with_generator(self):
-        def data_gen():
-            for _ in range(5):
-                yield np.random.uniform(0, 10, size=(20,))
-
-        layer = layers.Discretization(num_bins=4)
-        layer.adapt(data_gen())
-        self.assertLen(layer.bin_boundaries, 3)
-        output = layer(np.array([[1.0, 5.0, 9.0]]))
-        self.assertEqual(output.shape, (1, 3))
-
-    def test_adapt_with_list_of_arrays(self):
-        batches = [
-            np.array([1.0, 2.0, 3.0]),
-            np.array([4.0, 5.0, 6.0]),
-        ]
-        layer = layers.Discretization(num_bins=3)
-        layer.adapt(batches)
-        self.assertLen(layer.bin_boundaries, 2)
-
-    def test_adapt_with_numpy_array(self):
-        data = np.random.uniform(0, 10, size=(50,))
-        layer = layers.Discretization(num_bins=4)
-        layer.adapt(data)
-        self.assertLen(layer.bin_boundaries, 3)

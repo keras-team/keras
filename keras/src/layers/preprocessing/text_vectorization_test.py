@@ -38,6 +38,45 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
+        self.assertIn("foo", [str(v) for v in layer.get_vocabulary()])
+
+    def test_adapt_with_generator(self):
+        def text_gen():
+            yield ["hello world", "foo bar"]
+            yield ["baz qux", "hello foo"]
+
+        layer = layers.TextVectorization()
+        layer.adapt(text_gen())
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
+        self.assertIn("foo", [str(v) for v in vocab])
+
+    def test_adapt_with_infinite_generator_and_steps(self):
+        def text_gen():
+            while True:
+                yield ["hello world", "foo bar"]
+
+        layer = layers.TextVectorization()
+        layer.adapt(text_gen(), steps=3)
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
+
+    def test_adapt_with_grain_dataset(self):
+        try:
+            import grain
+        except ImportError:
+            self.skipTest("Grain is not installed.")
+
+        data = ["hello world", "foo bar", "baz qux"]
+        source = grain.ArrayRecordDataSource(data)
+        sampler = grain.SequentialSampler(num_records=len(data), num_epochs=1)
+        loader = grain.DataLoader(
+            data_source=source, sampler=sampler, worker_count=0
+        )
+        layer = layers.TextVectorization()
+        layer.adapt(loader)
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
 
     def test_fixed_vocabulary(self):
         max_tokens = 5000
@@ -524,20 +563,3 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
                 output_mode="multi_hot",
                 output_sequence_length=5,
             )
-
-    def test_adapt_with_generator(self):
-        def text_gen():
-            yield ["hello world", "foo bar"]
-            yield ["baz qux", "hello foo"]
-
-        layer = layers.TextVectorization()
-        layer.adapt(text_gen())
-        vocab = layer.get_vocabulary()
-        self.assertIn("hello", [str(v) for v in vocab])
-        self.assertIn("foo", [str(v) for v in vocab])
-
-    def test_adapt_with_list_backward_compat(self):
-        layer = layers.TextVectorization()
-        layer.adapt(["hello world", "foo bar", "baz qux"])
-        vocab = layer.get_vocabulary()
-        self.assertIn("hello", [str(v) for v in vocab])
