@@ -78,6 +78,7 @@ torch_xla = LazyModule(
 optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
+jax2onnx = LazyModule("jax2onnx")
 grain = LazyModule("grain")
 litert = LazyModule("ai_edge_litert")
 ocp = OrbaxLazyModule(
