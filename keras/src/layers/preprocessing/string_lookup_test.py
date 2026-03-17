@@ -97,14 +97,18 @@ class StringLookupTest(testing.TestCase):
         except ImportError:
             self.skipTest("Grain is not installed.")
 
-        data = ["cat", "dog", "bird", "cat", "dog"]
-        source = grain.ArrayRecordDataSource(data)
-        sampler = grain.SequentialSampler(num_records=len(data), num_epochs=1)
-        loader = grain.DataLoader(
-            data_source=source, sampler=sampler, worker_count=0
-        )
+        words = ["cat", "dog", "bird", "cat", "dog", "bird"]
+
+        class Source(grain.sources.RandomAccessDataSource):
+            def __getitem__(self, idx):
+                return [words[idx]]
+
+            def __len__(self):
+                return len(words)
+
+        dataset = grain.MapDataset.source(Source()).batch(batch_size=2)
         layer = layers.StringLookup()
-        layer.adapt(loader)
+        layer.adapt(dataset)
         vocab = layer.get_vocabulary()
         self.assertIn("cat", [str(v) for v in vocab])
 

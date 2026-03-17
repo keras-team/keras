@@ -67,14 +67,18 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         except ImportError:
             self.skipTest("Grain is not installed.")
 
-        data = ["hello world", "foo bar", "baz qux"]
-        source = grain.ArrayRecordDataSource(data)
-        sampler = grain.SequentialSampler(num_records=len(data), num_epochs=1)
-        loader = grain.DataLoader(
-            data_source=source, sampler=sampler, worker_count=0
-        )
+        texts = ["hello world", "foo bar", "baz qux", "hello foo"]
+
+        class Source(grain.sources.RandomAccessDataSource):
+            def __getitem__(self, idx):
+                return [texts[idx]]
+
+            def __len__(self):
+                return len(texts)
+
+        dataset = grain.MapDataset.source(Source()).batch(batch_size=2)
         layer = layers.TextVectorization()
-        layer.adapt(loader)
+        layer.adapt(dataset)
         vocab = layer.get_vocabulary()
         self.assertIn("hello", [str(v) for v in vocab])
 
