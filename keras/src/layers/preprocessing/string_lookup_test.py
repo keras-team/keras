@@ -101,7 +101,7 @@ class StringLookupTest(testing.TestCase):
 
         class Source(grain.sources.RandomAccessDataSource):
             def __getitem__(self, idx):
-                return [words[idx]]
+                return words[idx]
 
             def __len__(self):
                 return len(words)

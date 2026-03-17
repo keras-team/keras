@@ -71,7 +71,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
 
         class Source(grain.sources.RandomAccessDataSource):
             def __getitem__(self, idx):
-                return [texts[idx]]
+                return texts[idx]
 
             def __len__(self):
                 return len(texts)
