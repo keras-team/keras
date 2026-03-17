@@ -2852,7 +2852,40 @@ def fmod(x1, x2):
     x1 = get_ov_output(x1)
     x2 = get_ov_output(x2)
     x1, x2 = _align_operand_types(x1, x2, "fmod()")
-    return OpenVINOKerasTensor(ov_opset.mod(x1, x2).output(0))
+
+    # numpy.fmod(x1, x2) is equivalent to x1 - trunc(x1 / x2) * x2.
+    # The sign of the result is the same as the sign of the dividend (x1).
+    # ov_opset.mod has the same sign as the divisor (x2), so it's incorrect.
+
+    # Promote to float for division, following numpy's true_divide logic.
+    x1_type_str = ov_to_keras_type(x1.get_element_type())
+    x2_type_str = ov_to_keras_type(x2.get_element_type())
+    div_dtype_str = dtypes.result_type(x1_type_str, x2_type_str, float)
+    div_ov_type = OPENVINO_DTYPES[div_dtype_str]
+
+    x1_float = ov_opset.convert(x1, div_ov_type).output(0)
+    x2_float = ov_opset.convert(x2, div_ov_type).output(0)
+
+    # div = x1 / x2
+    div = ov_opset.divide(x1_float, x2_float).output(0)
+
+    # trunc_div = trunc(x1 / x2)
+    sign_div = ov_opset.sign(div).output(0)
+    abs_div = ov_opset.abs(div).output(0)
+    floor_abs_div = ov_opset.floor(abs_div).output(0)
+    trunc_div = ov_opset.multiply(sign_div, floor_abs_div).output(0)
+
+    # result = x1 - trunc_div * x2
+    term = ov_opset.multiply(trunc_div, x2_float).output(0)
+    result = ov_opset.subtract(x1_float, term).output(0)
+
+    # Cast back to original result type if it was not float.
+    final_dtype_str = dtypes.result_type(x1_type_str, x2_type_str)
+    if final_dtype_str != div_dtype_str:
+        final_ov_type = OPENVINO_DTYPES[final_dtype_str]
+        result = ov_opset.convert(result, final_ov_type).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def moveaxis(x, source, destination):
