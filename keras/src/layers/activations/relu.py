@@ -37,9 +37,7 @@ class ReLU(Layer):
         **kwargs: Base layer keyword arguments, such as `name` and `dtype`.
     """
 
-    def __init__(
-        self, max_value=None, negative_slope=0.0, threshold=0.0, **kwargs
-    ):
+    def __init__(self, max_value=None, negative_slope=0.0, threshold=0.0, **kwargs):
         super().__init__(**kwargs)
         if max_value is not None and max_value < 0.0:
             raise ValueError(

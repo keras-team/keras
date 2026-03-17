@@ -89,9 +89,7 @@ class ReLUTest(testing.TestCase):
 
     def test_get_config(self):
         # Test that get_config returns correct values
-        relu_layer = relu.ReLU(
-            max_value=5.0, negative_slope=0.2, threshold=1.0
-        )
+        relu_layer = relu.ReLU(max_value=5.0, negative_slope=0.2, threshold=1.0)
         config = relu_layer.get_config()
         self.assertEqual(config["max_value"], 5.0)
         self.assertEqual(config["negative_slope"], 0.2)
@@ -107,24 +105,18 @@ class ReLUTest(testing.TestCase):
 
     def test_from_config(self):
         # Test that a layer can be recreated from its config
-        relu_layer = relu.ReLU(
-            max_value=5.0, negative_slope=0.2, threshold=1.0
-        )
+        relu_layer = relu.ReLU(max_value=5.0, negative_slope=0.2, threshold=1.0)
         config = relu_layer.get_config()
         restored_layer = relu.ReLU.from_config(config)
         self.assertEqual(restored_layer.max_value, relu_layer.max_value)
-        self.assertEqual(
-            restored_layer.negative_slope, relu_layer.negative_slope
-        )
+        self.assertEqual(restored_layer.negative_slope, relu_layer.negative_slope)
         self.assertEqual(restored_layer.threshold, relu_layer.threshold)
 
     def test_compute_output_shape(self):
         # Test that output shape equals input shape for various shapes
         relu_layer = relu.ReLU()
         self.assertEqual(relu_layer.compute_output_shape((2, 3)), (2, 3))
-        self.assertEqual(
-            relu_layer.compute_output_shape((4, 5, 6)), (4, 5, 6)
-        )
+        self.assertEqual(relu_layer.compute_output_shape((4, 5, 6)), (4, 5, 6))
         self.assertEqual(relu_layer.compute_output_shape((1,)), (1,))
 
     def test_default_relu_no_args(self):
