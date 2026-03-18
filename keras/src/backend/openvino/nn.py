@@ -282,6 +282,9 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
+    num_spatial_dims = (
+        get_ov_output(inputs).get_partial_shape().rank.get_length() - 2
+    )
     return _pool(
         inputs,
         pool_size,
@@ -290,6 +293,7 @@ def average_pool(
         padding,
         data_format,
         exclude_pad=True,
+        dilations=[1] * num_spatial_dims,
     )
 
 
@@ -362,6 +366,7 @@ def _adaptive_pool_ov(
                 kernel_shape=small_kernel,
                 exclude_pad=True,
                 auto_pad="VALID",
+                dilations=[1] * num_spatial_dims,
             ).output(0)
         else:
             small_pool = ov_opset.max_pool(
@@ -387,6 +392,7 @@ def _adaptive_pool_ov(
                     kernel_shape=big_kernel,
                     exclude_pad=True,
                     auto_pad="VALID",
+                    dilations=[1] * num_spatial_dims,
                 ).output(0)
             else:
                 big_pool = ov_opset.max_pool(
