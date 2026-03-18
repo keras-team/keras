@@ -726,7 +726,13 @@ class CompileLoss(losses_module.Loss):
                             for i, loss in enumerate(flat_loss)
                             if loss is not None
                         ]
-                        assert len(flat_y_true) == len(flat_loss_non_nones)
+                        if len(flat_y_true) != len(flat_loss_non_nones):
+                            raise ValueError(
+                                "Internal error: the number of values in "
+                                f"`y_true` ({len(flat_y_true)}) must match the "
+                                "number of non-None values in `loss` "
+                                f"({len(flat_loss_non_nones)})."
+                            )
                         y_true = [None] * len(flat_loss)
                         for y_t, (i, loss) in zip(
                             flat_y_true, flat_loss_non_nones

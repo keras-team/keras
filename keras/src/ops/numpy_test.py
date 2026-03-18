@@ -338,6 +338,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.mod(x, y).shape, (2, 3))
 
+    def test_fmod(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.fmod(x, y).shape, (2, 3))
+
     def test_nanquantile(self):
         x = KerasTensor((None, 3))
 
@@ -1014,6 +1019,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.mod(x, y)
+
+    def test_fmod(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.fmod(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.fmod(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
+            knp.fmod(x, y)
 
     def test_nanquantile(self):
         x = KerasTensor((3, 3))
@@ -3864,6 +3882,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Mod()(x, y), np.mod(x, y))
         self.assertAllClose(knp.Mod()(x, 1), np.mod(x, 1))
         self.assertAllClose(knp.Mod()(1, x), np.mod(1, x))
+
+    def test_fmod(self):
+        x = np.array([[-3, 7], [5, -2]])
+        y = np.array([[2, -3], [3, 4]])
+        self.assertAllClose(knp.fmod(x, y), np.fmod(x, y))
+        self.assertAllClose(knp.fmod(x, 2), np.fmod(x, 2))
+        self.assertAllClose(knp.fmod(1, x), np.fmod(1, x))
+
+        self.assertAllClose(knp.Fmod()(x, y), np.fmod(x, y))
+        self.assertAllClose(knp.Fmod()(x, 2), np.fmod(x, 2))
+        self.assertAllClose(knp.Fmod()(1, x), np.fmod(1, x))
 
     def test_nanquantile(self):
         x = np.array(

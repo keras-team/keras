@@ -5255,6 +5255,44 @@ def mod(x1, x2):
     return backend.numpy.mod(x1, x2)
 
 
+class Fmod(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.fmod(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        if output_dtype == "bool":
+            output_dtype = "int32"
+        return KerasTensor(output_shape, dtype=output_dtype)
+
+
+@keras_export(["keras.ops.fmod", "keras.ops.numpy.fmod"])
+def fmod(x1, x2):
+    """Returns the element-wise remainder of division with truncation.
+
+    Computes the remainder complementary to the `floor_divide` function,
+    equivalent to the C library function ``fmod``. The result has the same
+    sign as the dividend ``x1``. This is different from `keras.ops.mod`
+    which has the same sign as the divisor ``x2``.
+
+    Args:
+        x1: First tensor, the dividend.
+        x2: Second tensor, the divisor.
+
+    Returns:
+        Output tensor, element-wise remainder with truncation.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Fmod().symbolic_call(x1, x2)
+    return backend.numpy.fmod(x1, x2)
+
+
 class Moveaxis(Operation):
     def __init__(self, source, destination, *, name=None):
         super().__init__(name=name)

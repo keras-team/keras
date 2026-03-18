@@ -1039,6 +1039,12 @@ def mod(x1, x2):
     return jnp.mod(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     return jnp.moveaxis(x, source=source, destination=destination)
 

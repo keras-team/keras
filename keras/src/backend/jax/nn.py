@@ -1594,10 +1594,11 @@ def wrap_flash_attention(
             with decoder_segment_ids.
     """
     if decoder_segment_ids is not None:
-        assert query.shape[2] == decoder_segment_ids.q.shape[1], (
-            "Sharding along sequence dimension not allowed"
-            " in TPU kernel attention"
-        )
+        if query.shape[2] != decoder_segment_ids.q.shape[1]:
+            raise ValueError(
+                "Sharding along sequence dimension not allowed"
+                " in TPU kernel attention"
+            )
 
     if custom_mask is not None:
         mask = splash_attention_mask.NumpyMask(array=custom_mask)
@@ -1826,7 +1827,7 @@ def dot_product_attention(
     G = N // K
     query = jnp.reshape(query, (B, T, K, G, H))
 
-    def _reshape_to_grouped(t):
+    def _reshape_to_grouped(t, t_name):
         if t is not None:
             while t.ndim < 4:
                 if t.ndim == 3 and t.shape[1] == N:
@@ -1837,12 +1838,16 @@ def dot_product_attention(
             if tN == 1:
                 t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
             else:
-                assert tN == N
+                if tN != N:
+                    raise ValueError(
+                        f"Expected `{t_name}` to have shape (B, 1, T, S) or "
+                        f"(B, N, T, S) with N={N} but got {t.shape}."
+                    )
                 t = jnp.reshape(t, (tB, K, G, tT, tS))
         return t
 
-    bias = _reshape_to_grouped(bias)
-    mask = _reshape_to_grouped(mask)
+    bias = _reshape_to_grouped(bias, "bias")
+    mask = _reshape_to_grouped(mask, "mask")
     vmapped_fn = jax.vmap(
         _dot_product_attention_core,
         in_axes=(3, None, None, 2, 2, None, None),

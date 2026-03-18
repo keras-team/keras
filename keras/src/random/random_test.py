@@ -237,7 +237,7 @@ class RandomCorrectnessTest(testing.TestCase):
         # Hence, we do an element wise comparison between `counts` array
         # and the (generated) `values` array.
         values_np = ops.convert_to_numpy(values)
-        assert np.greater_equal(np.array(counts), values_np).all()
+        self.assertTrue(np.greater_equal(np.array(counts), values_np).all())
 
         # Following test computes the probabilities of each event
         # by dividing number of times an event occurs (which is the generated
