@@ -14,7 +14,6 @@ from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import (
     align_operand_types as _align_operand_types,
 )
-from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
@@ -3660,11 +3659,9 @@ def split(x, indices_or_sections, axis=0):
     )
 
     if isinstance(indices_or_sections, OpenVINOKerasTensor):
-        np_val = convert_to_numpy(indices_or_sections)
-        if np_val.ndim == 0:
-            indices_or_sections = np_val.item()
-        else:
-            indices_or_sections = np_val.tolist()
+        indices_or_sections = (
+            indices_or_sections.output.get_node().get_data().tolist()
+        )
 
     if isinstance(indices_or_sections, int):
         num_splits = indices_or_sections
