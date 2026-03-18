@@ -163,6 +163,71 @@ def gelu(x, approximate=True):
     return OpenVINOKerasTensor(ov_opset.gelu(x, approximate_mode).output(0))
 
 
+def glu(x, axis=-1):
+    x = get_ov_output(x)
+    axis_node = ov_opset.constant(axis, Type.i32).output(0)
+    split_node = ov_opset.split(x, axis_node, num_splits=2)
+    first_half = split_node.output(0)
+    second_half = split_node.output(1)
+    activated_second_half = ov_opset.sigmoid(second_half).output(0)
+    result = ov_opset.multiply(first_half, activated_second_half).output(0)
+    return OpenVINOKerasTensor(result)
+
+
+def sparsemax(x, axis=-1):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+
+    rank = x.get_partial_shape().rank.get_length()
+    if axis < 0:
+        axis += rank
+
+    axis_node = ov_opset.constant(axis, Type.i64).output(0)
+    zero_i64 = ov_opset.constant(0, Type.i64).output(0)
+
+    shape = ov_opset.shape_of(x, output_type="i64").output(0)
+    k_scalar = ov_opset.gather(shape, axis_node, zero_i64).output(0)
+
+    topk = ov_opset.topk(
+        x, k_scalar, axis, "max", "value", index_element_type="i32"
+    )
+    z = topk.output(0)
+
+    z_cumsum = ov_opset.cum_sum(
+        z, axis_node, exclusive=False, reverse=False
+    ).output(0)
+
+    zero_val = get_ov_output(0.0, et)
+    one_val = get_ov_output(1.0, et)
+    ones_like = ov_opset.broadcast(one_val, shape).output(0)
+    k_array = ov_opset.cum_sum(
+        ones_like, axis_node, exclusive=False, reverse=False
+    ).output(0)
+
+    one_plus_kz = ov_opset.add(
+        one_val, ov_opset.multiply(k_array, z).output(0)
+    ).output(0)
+    cond = ov_opset.greater(one_plus_kz, z_cumsum).output(0)
+
+    k_valid = ov_opset.select(cond, k_array, zero_val).output(0)
+    k_max = ov_opset.reduce_max(k_valid, axis_node, keep_dims=True).output(0)
+
+    mask = ov_opset.less_equal(k_array, k_max).output(0)
+    z_sum = ov_opset.reduce_sum(
+        ov_opset.select(mask, z, zero_val).output(0),
+        axis_node,
+        keep_dims=True,
+    ).output(0)
+    tau = ov_opset.divide(
+        ov_opset.subtract(z_sum, one_val).output(0), k_max
+    ).output(0)
+
+    out = ov_opset.maximum(
+        zero_val, ov_opset.subtract(x, tau).output(0)
+    ).output(0)
+    return OpenVINOKerasTensor(out)
+
+
 def softmax(x, axis=-1):
     x = get_ov_output(x)
     if axis is None:
