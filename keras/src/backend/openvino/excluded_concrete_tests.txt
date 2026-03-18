@@ -345,9 +345,6 @@ QuantizersTest::test_compute_float8_scale
 QuantizersTest::test_grouped_quantize_with_padding
 QuantizersTest::test_grouped_vs_perchannel_accuracy
 RandomBehaviorTest::test_beta_tf_data_compatibility
-RandomCorrectnessTest::test_beta0
-RandomCorrectnessTest::test_beta1
-RandomCorrectnessTest::test_beta2
 RandomCorrectnessTest::test_truncated_normal0
 RandomCorrectnessTest::test_truncated_normal1
 RandomCorrectnessTest::test_truncated_normal2
@@ -359,10 +356,6 @@ RandomCorrectnessTest::test_uniform1
 RandomCorrectnessTest::test_uniform2
 RandomCorrectnessTest::test_uniform3
 RandomCorrectnessTest::test_uniform4
-RandomDTypeTest::test_beta_bfloat16
-RandomDTypeTest::test_beta_float16
-RandomDTypeTest::test_beta_float32
-RandomDTypeTest::test_beta_float64
 RandomDTypeTest::test_normal_bfloat16
 RandomDTypeTest::test_truncated_normal_bfloat16
 RandomDTypeTest::test_uniform_bfloat16
@@ -405,10 +398,6 @@ SparseCategoricalCrossentropyTest::test_sample_weighted
 SparseCategoricalCrossentropyTest::test_scalar_weighted
 SparseCategoricalCrossentropyTest::test_unweighted
 SpectralNormalizationTest::test_apply_layer
-SquaredHingeTest::test_dtype_arg
-SquaredHingeTest::test_unweighted
-SquaredHingeTest::test_weighted
-SquaredHingeTest::test_zero_weighted
 StackedRNNTest::test_correctness_single_state_stack
 StackedRNNTest::test_correctness_two_states_stack
 StackedRNNTest::test_return_state_stacked_lstm_cell
