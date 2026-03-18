@@ -1,11 +1,11 @@
 import openvino as ov
-import openvino.opset15 as ov_opset
 from openvino import Model
 from openvino import Type
 
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.openvino._opset import ov_opset
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
 from keras.src.backend.openvino.core import convert_to_tensor

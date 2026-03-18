@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 import scipy.signal
 from openvino import Type
 

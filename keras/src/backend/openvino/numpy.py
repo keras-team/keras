@@ -1,6 +1,6 @@
 import numpy as np
 import openvino as ov
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
