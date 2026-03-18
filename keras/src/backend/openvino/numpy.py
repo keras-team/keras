@@ -2849,7 +2849,10 @@ def mod(x1, x2):
 
 
 def fmod(x1, x2):
-    raise NotImplementedError("fmod is not supported by openvino backend.")
+    x1 = get_ov_output(x1)
+    x2 = get_ov_output(x2)
+    x1, x2 = _align_operand_types(x1, x2, "fmod()")
+    return OpenVINOKerasTensor(ov_opset.mod(x1, x2).output(0))
 
 
 def moveaxis(x, source, destination):
