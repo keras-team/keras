@@ -506,6 +506,12 @@ class OpenVINOKerasTensor:
             )
         return ov_shape[0].get_length()
 
+    def __iter__(self):
+        if self.shape is None or len(self.shape) == 0:
+            raise TypeError("iteration over a 0-d tensor")
+        for i in range(self.shape[0]):
+            yield self[i]
+
     def __bool__(self):
         return bool(self.numpy())
 
@@ -818,7 +824,7 @@ def convert_to_numpy(x):
     try:
         node = x.output.get_node()
         if node.get_type_name() == "Constant":
-            return node.data
+            return np.array(node.data)
     except Exception:
         # fall back to the slow path.
         pass
@@ -831,7 +837,7 @@ def convert_to_numpy(x):
         raise RuntimeError(
             "`convert_to_numpy` failed to convert the tensor."
         ) from inner_exception
-    return result
+    return np.array(result)
 
 
 def is_tensor(x):
