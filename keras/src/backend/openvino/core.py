@@ -1542,13 +1542,10 @@ def unstack(x, num=None, axis=0):
 
     split_ov = ov_opset.split(x_ov, axis_ov, num)
 
-    unstacked_outputs = []
-
-    for i in range(num):
-        squeezed_node = ov_opset.squeeze(split_ov.output(i), axis_ov)
-        keras_tensor = OpenVINOKerasTensor(squeezed_node.output(0))
-        unstacked_outputs.append(keras_tensor)
-    return unstacked_outputs
+    return [
+        OpenVINOKerasTensor(ov_opset.squeeze(out, axis_ov).output(0))
+        for out in split_ov.outputs()
+    ]
 
 
 def random_seed_dtype():
