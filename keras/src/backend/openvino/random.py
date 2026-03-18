@@ -13,10 +13,49 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def _rng_from_seed_data(seed_data):
+    """Create a NumPy RNG from seed tensor data.
+
+    Seed tensors are stored as int32 and may be negative due to C-style
+    wrapping of large user-supplied values.  Reinterpret the bit pattern
+    as uint32 so that np.random.default_rng receives non-negative entropy.
+    """
+    if seed_data is None:
+        return np.random.default_rng()
+    arr = np.asarray(seed_data, dtype=np.int32).view(np.uint32)
+    return np.random.default_rng(arr)
+
+
+def _random_uniform(shape, minval, maxval, dtype, seed1, seed2):
+    """Wrapper for `ov_opset.random_uniform` that sanitizes seed values.
+
+    Pybind11 will sign-flip values >= 2**31, and int32 wrap-around can
+    produce negative values. Masks seeds to 31 bits so they are in the range
+    [0, 2**31-1], then clamps to at least 1, as the OpenVINO C++ layer
+    requires each seed to be strictly positive (> 0).
+
+    Args:
+        shape: The shape of the random tensor.
+        minval: The lower bound of the random distribution.
+        maxval: The upper bound of the random distribution.
+        dtype: The data type of the output tensor.
+        seed1: The first part of the seed.
+        seed2: The second part of the seed.
+
+    Returns:
+        An OpenVINO output tensor with random values.
+    """
+    safe_seed1 = max(1, int(seed1) & 0x7FFFFFFF)
+    safe_seed2 = max(1, int(seed2) & 0x7FFFFFFF)
+    return ov_opset.random_uniform(
+        shape, minval, maxval, dtype, safe_seed1, safe_seed2
+    ).output(0)
+
+
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
-    rng = np.random.default_rng(seed.data)
+    rng = _rng_from_seed_data(seed.data)
     normal_const = rng.normal(size=shape, loc=mean, scale=stddev).astype(dtype)
     return OpenVINOKerasTensor(ov_opset.constant(normal_const).output(0))
 
@@ -28,7 +67,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         seed_data = convert_to_numpy(seed_val)
     else:
         seed_data = seed_val.data
-    rng = np.random.default_rng(seed_data)
+    rng = _rng_from_seed_data(seed_data)
     random_values = rng.uniform(minval, maxval, size=shape).astype(dtype)
     return OpenVINOKerasTensor(ov_opset.constant(random_values).output(0))
 
@@ -74,9 +113,9 @@ def categorical(logits, num_samples, dtype="int64", seed=None):
     zero_float = ov_opset.constant(0.0, probs_dtype).output(0)
     one_float = ov_opset.constant(1.0, probs_dtype).output(0)
 
-    rand = ov_opset.random_uniform(
+    rand = _random_uniform(
         final_shape, zero_float, one_float, probs_dtype, seed1, seed2
-    ).output(0)
+    )
 
     rand_unsqueezed = ov_opset.unsqueeze(rand, neg_one_const).output(0)
     cumsum_unsqueezed = ov_opset.unsqueeze(cumsum_probs, one_const).output(0)
@@ -117,9 +156,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
         minval = ov_opset.convert(minval, gen_dtype).output(0)
     if maxval.get_element_type() != gen_dtype:
         maxval = ov_opset.convert(maxval, gen_dtype).output(0)
-    rand = ov_opset.random_uniform(
-        shape, minval, maxval, gen_dtype, seed1, seed2
-    ).output(0)
+    rand = _random_uniform(shape, minval, maxval, gen_dtype, seed1, seed2)
     if ov_dtype != gen_dtype:
         result = ov_opset.convert(rand, ov_dtype).output(0)
     else:
@@ -130,7 +167,7 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)
-    rng = np.random.default_rng(seed.data)
+    rng = _rng_from_seed_data(seed.data)
 
     lower_bound = mean - 2 * stddev
     upper_bound = mean + 2 * stddev
@@ -200,9 +237,9 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     min_val = ov_opset.constant(0.0, gen_dtype).output(0)
     max_val = ov_opset.constant(1.0, gen_dtype).output(0)
 
-    rand = ov_opset.random_uniform(
+    rand = _random_uniform(
         noise_shape_node, min_val, max_val, gen_dtype, seed1, seed2
-    ).output(0)
+    )
 
     if gen_dtype != dtype:
         keep_prob_gen = ov_opset.convert(keep_prob, gen_dtype).output(0)
@@ -248,9 +285,9 @@ def shuffle(x, axis=0, seed=None):
     rand_shape = ov_opset.reshape(
         dim_size, ov_opset.constant([1], Type.i32).output(0), False
     ).output(0)
-    rand_values = ov_opset.random_uniform(
+    rand_values = _random_uniform(
         rand_shape, min_val, max_val, Type.f32, seed1, seed2
-    ).output(0)
+    )
     indices = ov_numpy.argsort(OpenVINOKerasTensor(rand_values), axis=0)
     return ov_numpy.take(x, indices, axis=axis)
 
@@ -269,12 +306,8 @@ def _random_normal(shape, dtype, seed1, seed2):
     two_pi = _const(2 * np.pi, dtype)
     minus_two = _const(-2.0, dtype)
     epsilon = _const(1e-7, dtype)
-    u1 = ov_opset.random_uniform(shape, zero, one, dtype, seed1, seed2).output(
-        0
-    )
-    u2 = ov_opset.random_uniform(
-        shape, zero, one, dtype, seed1 + 123, seed2
-    ).output(0)
+    u1 = _random_uniform(shape, zero, one, dtype, seed1, seed2)
+    u2 = _random_uniform(shape, zero, one, dtype, seed1 + 123, seed2)
     u1 = ov_opset.add(u1, epsilon).output(0)
     mag = ov_opset.sqrt(ov_opset.multiply(minus_two, ov_opset.log(u1))).output(
         0
@@ -325,9 +358,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
         v_base = ov_opset.add(one, cx).output(0)
         v = ov_opset.power(v_base, _const(3.0, ov_dtype)).output(0)
         v_pos = ov_opset.greater(v, zero).output(0)
-        u = ov_opset.random_uniform(
-            shape, zero, one, ov_dtype, iter_seed + 500, seed2
-        ).output(0)
+        u = _random_uniform(shape, zero, one, ov_dtype, iter_seed + 500, seed2)
         x2 = ov_opset.multiply(x, x).output(0)
         x4 = ov_opset.multiply(x2, x2).output(0)
         c1_val = ov_opset.subtract(
@@ -352,9 +383,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
         ).output(0)
         samples = ov_opset.select(update_mask, dv, samples).output(0)
         mask = ov_opset.logical_or(mask, accepted).output(0)
-    u_final = ov_opset.random_uniform(
-        shape, zero, one, ov_dtype, seed1 + 9999, seed2
-    ).output(0)
+    u_final = _random_uniform(shape, zero, one, ov_dtype, seed1 + 9999, seed2)
     pow_exp = ov_opset.divide(one, alpha).output(0)
     u_pow = ov_opset.power(u_final, pow_exp).output(0)
     adjusted_samples = ov_opset.multiply(samples, u_pow).output(0)
@@ -385,12 +414,8 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
         shape_tensor = get_ov_output(shape, Type.i32)
     zero = ov_opset.constant(0.0, calc_dtype).output(0)
     one = ov_opset.constant(1.0, calc_dtype).output(0)
-    u1 = ov_opset.random_uniform(
-        shape_tensor, zero, one, calc_dtype, seed1, seed2
-    ).output(0)
-    u2 = ov_opset.random_uniform(
-        shape_tensor, zero, one, calc_dtype, seed1, seed2 + 1
-    ).output(0)
+    u1 = _random_uniform(shape_tensor, zero, one, calc_dtype, seed1, seed2)
+    u2 = _random_uniform(shape_tensor, zero, one, calc_dtype, seed1, seed2 + 1)
     epsilon = 1e-7
     epsilon_const = ov_opset.constant(epsilon, calc_dtype).output(0)
     u1_safe = ov_opset.maximum(u1, epsilon_const).output(0)
@@ -418,4 +443,15 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    raise NotImplementedError("`beta` is not supported with openvino backend")
+    seed1 = seed
+    seed2 = seed
+    if isinstance(seed, int):
+        seed2 += 123
+
+    gamma_a = get_ov_output(gamma(shape, alpha, dtype=dtype, seed=seed1))
+    gamma_b = get_ov_output(gamma(shape, beta, dtype=dtype, seed=seed2))
+
+    sum_ab = ov_opset.add(gamma_a, gamma_b).output(0)
+    z = ov_opset.divide(gamma_a, sum_ab).output(0)
+
+    return OpenVINOKerasTensor(z)

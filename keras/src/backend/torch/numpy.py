@@ -1320,6 +1320,16 @@ def mod(x1, x2):
     return torch.remainder(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
+    return torch.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     x = convert_to_tensor(x)
     return torch.moveaxis(x, source=source, destination=destination)
@@ -1358,6 +1368,11 @@ def nanargmin(x, axis=None, keepdims=False):
 def nancumsum(x, axis=None, dtype=None):
     x = nan_to_num(x)
     return cumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    x = nan_to_num(x, nan=1.0)
+    return cumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1714,6 +1729,11 @@ def signbit(x):
 def sin(x):
     x = convert_to_tensor(x)
     return torch.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    return torch.sinc(x)
 
 
 def sinh(x):

@@ -982,6 +982,17 @@ def mod(x1, x2):
     return np.mod(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
+    return np.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
 
@@ -1022,6 +1033,14 @@ def nancumsum(x, axis=None, dtype=None):
     if dtype == "bool":
         dtype = "int32"
     return np.nancumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    axis = standardize_axis_for_numpy(axis)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.nancumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1223,6 +1242,16 @@ def sin(x):
         dtype = dtypes.result_type(x.dtype, float)
     x = x.astype(dtype)
     return np.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
+    return np.sinc(x).astype(dtype)
 
 
 def sinh(x):
