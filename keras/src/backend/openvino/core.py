@@ -4,7 +4,6 @@ import warnings
 
 import numpy as np
 import openvino as ov
-import openvino.opset16 as ov_opset
 from openvino import Model
 from openvino import Tensor
 from openvino import Type
@@ -18,6 +17,7 @@ from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.openvino._opset import ov_opset
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False

@@ -1,12 +1,12 @@
 import numpy as np
 import openvino as ov
-import openvino.opset16 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.variables import standardize_dtype
+from keras.src.backend.openvino._opset import ov_opset
 from keras.src.backend.openvino.core import DTYPES_MAX
 from keras.src.backend.openvino.core import DTYPES_MIN
 from keras.src.backend.openvino.core import OPENVINO_DTYPES

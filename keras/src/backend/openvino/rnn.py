@@ -1,8 +1,8 @@
-import openvino.opset16 as ov_opset
 from openvino import Model
 from openvino import Type
 
 from keras.src import tree
+from keras.src.backend.openvino._opset import ov_opset
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
 
