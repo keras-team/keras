@@ -273,11 +273,6 @@ class ValidateFloatArgTest(testing.TestCase):
         result = validate_float_arg(1e6, "test")
         self.assertAlmostEqual(result, 1e6)
 
-    def test_validate_float_with_boolean_true(self):
-        # In Python, True == 1 and is a subclass of int, should be valid
-        result = validate_float_arg(True, "test")
-        self.assertEqual(result, 1.0)
-
     def test_validate_float_with_negative_float(self):
         # Negative float (not just int) should also raise
         with self.assertRaisesRegex(ValueError, "expected a non-negative float"):

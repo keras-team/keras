@@ -24,3 +24,4 @@ examples/**/*.jpg
 
 pytest.ini
 venv/
+keras-env/

@@ -44,9 +44,6 @@ class ReLU(Layer):
                 "max_value of a ReLU layer cannot be a negative "
                 f"value. Received: max_value={max_value}"
             )
-        # FIX: Improved error message to explicitly mention None is invalid,
-        # since the original message only said "negative value" which is
-        # misleading when None is passed.
         if negative_slope is None or negative_slope < 0.0:
             raise ValueError(
                 "negative_slope of a ReLU layer cannot be None or a "
