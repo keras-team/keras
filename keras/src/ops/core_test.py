@@ -1736,3 +1736,23 @@ class CoreOpsBehaviorTests(testing.TestCase):
             ValueError, r"Cannot infer argument `num` from shape"
         ):
             core.unstack(x, axis=axis)
+
+
+class CoreOpsCallsTests(testing.TestCase):
+    def test_fori_loop_basic_functionality(self):
+        raise NotImplementedError(
+            "`test_fori_loop_basic_functionality` is not implement yet"
+        )
+
+    def test_map_basic_call(self):
+        raise NotImplementedError("`test_map_basic_call` is not implement yet")
+
+    def test_switch_basic_call(self):
+        raise NotImplementedError(
+            "`test_switch_basic_call` is not implement yet"
+        )
+
+    def test_unstack_basic_functionality(self):
+        raise NotImplementedError(
+            "`test_unstack_basic_functionality` is not implement yet"
+        )
