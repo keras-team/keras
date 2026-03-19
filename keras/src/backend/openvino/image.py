@@ -1,3 +1,4 @@
+import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
 
@@ -297,6 +298,9 @@ def resize(
 
     target_h, target_w = int(size[0]), int(size[1])
 
+    def _unsq(x):
+        return ov_opset.unsqueeze(x, ov_opset.constant(0, Type.i64)).output(0)
+
     if crop_to_aspect_ratio:
         crop_h_f = ov_opset.divide(
             ov_opset.multiply(
@@ -337,11 +341,6 @@ def resize(
 
         zero_c = ov_opset.constant([0], Type.i64).output(0)
 
-        def _unsq(x):
-            return ov_opset.unsqueeze(x, ov_opset.constant(0, Type.i64)).output(
-                0
-            )
-
         h_start_1d = _unsq(h_start)
         w_start_1d = _unsq(w_start)
         crop_h_1d = _unsq(crop_h)
@@ -352,8 +351,8 @@ def resize(
         ).output(0)
         stops = ov_opset.concat(
             [
-                ov_opset.constant([2147483647], Type.i64).output(0),
-                ov_opset.constant([2147483647], Type.i64).output(0),
+                ov_opset.constant([np.iinfo(np.int64).max], Type.i64).output(0),
+                ov_opset.constant([np.iinfo(np.int64).max], Type.i64).output(0),
                 ov_opset.add(h_start_1d, crop_h_1d).output(0),
                 ov_opset.add(w_start_1d, crop_w_1d).output(0),
             ],
@@ -394,11 +393,6 @@ def resize(
         w_offset = ov_opset.divide(
             ov_opset.subtract(pad_w, w_node).output(0), two_c
         ).output(0)
-
-        def _unsq(x):
-            return ov_opset.unsqueeze(x, ov_opset.constant(0, Type.i64)).output(
-                0
-            )
 
         h_offset_1d = _unsq(h_offset)
         w_offset_1d = _unsq(w_offset)
@@ -508,9 +502,9 @@ def gaussian_blur(
             images, ov_opset.constant([0, 3, 1, 2], Type.i64)
         ).output(0)
 
-    # kernel_size[0]/sigma[0] → width (x); kernel_size[1]/sigma[1] → height (y)
-    kh, kw = int(kernel_size[1]), int(kernel_size[0])
-    sigma_h, sigma_w = float(sigma[1]), float(sigma[0])
+    # kernel_size[0]/sigma[0] → height (y); kernel_size[1]/sigma[1] → width (x)
+    kh, kw = int(kernel_size[0]), int(kernel_size[1])
+    sigma_h, sigma_w = float(sigma[0]), float(sigma[1])
 
     def _gaussian_kernel_1d(k, s):
         center = (k - 1) / 2.0
