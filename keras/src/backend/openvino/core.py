@@ -1533,12 +1533,8 @@ def unstack(x, num=None, axis=0):
     axis_ov = get_ov_output(axis)
 
     if num is None:
-        axis_val = axis if isinstance(axis, int) else axis_ov.get_data().item()
         shape = x_ov.get_partial_shape()
-        num = shape[axis_val].get_length()
-    elif not isinstance(num, int):
-        num_ov = get_ov_output(num)
-        num = num_ov.get_data().item()
+        num = shape[axis].get_length()
 
     split_ov = ov_opset.split(x_ov, axis_ov, num)
 
