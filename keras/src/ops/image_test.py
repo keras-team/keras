@@ -1185,7 +1185,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             method=interpolation,
             antialias=antialias,
         )
-        ref_out = np.asarray(ref_out)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-4)
 
@@ -1202,7 +1201,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             method=interpolation,
             antialias=antialias,
         )
-        ref_out = np.asarray(ref_out)
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-4)
 
@@ -1221,7 +1219,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             method=interpolation,
             antialias=antialias,
         )
-        ref_out = np.asarray(tf.transpose(ref_out, [2, 0, 1]))
+        ref_out = tf.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-4)
 
@@ -1238,7 +1236,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             method=interpolation,
             antialias=antialias,
         )
-        ref_out = np.asarray(tf.transpose(ref_out, [0, 3, 1, 2]))
+        ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
         self.assertAllClose(ref_out, out, atol=1e-4)
 
