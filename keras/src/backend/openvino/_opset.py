@@ -1,10 +1,12 @@
 """openvino.opset16 has a compatibility issue for ops missing due to an
-OpenVINO 2026.0.0 bug (https://github.com/openvinotoolkit/openvino/issues/34780).
+OpenVINO 2026.0.0 bug
+(https://github.com/openvinotoolkit/openvino/issues/34780).
 
-All ops listed below were introduced in opset15 but were accidentally removed
-from the opset16 re-export list. The bug has been fixed upstream; this temporary workaround
-ensures that the missing ops are available in opset16 by re-importing them from opset15 if
-they are not present. This workaround can be removed once a fixed release is available.
+All ops listed below were introduced in opset15 but were accidentally
+removed from the opset16 re-export list. The bug has been fixed upstream;
+this temporary workaround ensures the missing ops are available in opset16
+by re-importing them from opset15. It can be removed once a fixed release
+is available.
 """
 
 import openvino.opset16 as ov_opset
