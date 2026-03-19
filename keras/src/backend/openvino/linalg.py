@@ -343,7 +343,6 @@ def eig(a):
     loop.set_invariant_input(A_invariant, A_flat)
     
     V_out = loop.get_iter_value(V_next_final)
-    R_out = loop.get_iter_value(R_next_final)
     
     VT = ov_opset.transpose(V_out, ov_opset.constant([0, 2, 1], Type.i32)).output(0)
     T = ov_opset.matmul(VT, ov_opset.matmul(A_flat, V_out, False, False).output(0), False, False).output(0)
@@ -426,7 +425,6 @@ def eigh(a):
         axis=-1,
     ).output(0)
     V_flat = ov_opset.broadcast(eye_n, a_flat_shape).output(0)
-    Q_flat = ov_opset.broadcast(eye_n, a_flat_shape).output(0)
     n_minus_one = ov_opset.subtract(n_int, one_const).output(0)
     n_squared_minus_n = ov_opset.multiply(n_int, n_minus_one).output(0)
     sweep_iters = ov_opset.divide(
