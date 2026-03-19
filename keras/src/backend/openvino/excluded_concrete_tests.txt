@@ -285,9 +285,9 @@ NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_view
+NumpyTwoInputOpsCorrectnessTest::test_nanquantile
 OptimizerTest::test_constraints_are_applied
 OptimizerTest::test_ema
-NumpyTwoInputOpsCorrectnessTest::test_nanquantile
 OptimizerTest::test_gradient_accumulation
 OptimizerTest::test_gradient_accumulation_with_weigth_decay0
 OptimizerTest::test_gradient_accumulation_with_weigth_decay1
