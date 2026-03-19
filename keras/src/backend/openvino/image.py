@@ -338,9 +338,9 @@ def resize(
         zero_c = ov_opset.constant([0], Type.i64).output(0)
 
         def _unsq(x):
-            return ov_opset.unsqueeze(
-                x, ov_opset.constant(0, Type.i64)
-            ).output(0)
+            return ov_opset.unsqueeze(x, ov_opset.constant(0, Type.i64)).output(
+                0
+            )
 
         h_start_1d = _unsq(h_start)
         w_start_1d = _unsq(w_start)
@@ -394,10 +394,11 @@ def resize(
         w_offset = ov_opset.divide(
             ov_opset.subtract(pad_w, w_node).output(0), two_c
         ).output(0)
+
         def _unsq(x):
-            return ov_opset.unsqueeze(
-                x, ov_opset.constant(0, Type.i64)
-            ).output(0)
+            return ov_opset.unsqueeze(x, ov_opset.constant(0, Type.i64)).output(
+                0
+            )
 
         h_offset_1d = _unsq(h_offset)
         w_offset_1d = _unsq(w_offset)
@@ -423,9 +424,7 @@ def resize(
         ).output(0)
 
     ov_interp_mode = _INTERP_MODE_MAP[interpolation]
-    sizes_node = ov_opset.constant(
-        [target_h, target_w], Type.i32
-    ).output(0)
+    sizes_node = ov_opset.constant([target_h, target_w], Type.i32).output(0)
     axes_node = ov_opset.constant([2, 3], Type.i32).output(0)
     image = ov_opset.interpolate(
         image,
@@ -524,9 +523,9 @@ def gaussian_blur(
         x = ov_opset.subtract(
             rng, ov_opset.constant(center, ov_type).output(0)
         ).output(0)
-        xs = ov_opset.divide(
-            x, ov_opset.constant(s, ov_type).output(0)
-        ).output(0)
+        xs = ov_opset.divide(x, ov_opset.constant(s, ov_type).output(0)).output(
+            0
+        )
         xs2 = ov_opset.multiply(xs, xs).output(0)
         earg = ov_opset.multiply(
             ov_opset.constant(-0.5, ov_type).output(0), xs2
