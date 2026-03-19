@@ -272,6 +272,25 @@ def resize(
             f"images.shape={image.get_partial_shape()}"
         )
 
+    # OpenVINO Interpolate only supports f32/f16/bf16/i8/u8/i32/i64.
+    # For f64 inputs we cast to f32 and cast back afterwards.
+    # For integer inputs we cast to f32, interpolate, round+clamp, then cast
+    # back so rounding and saturation are handled correctly.
+    _integer_types = (
+        Type.u8,
+        Type.i8,
+        Type.u16,
+        Type.i16,
+        Type.i32,
+        Type.u32,
+        Type.i64,
+        Type.u64,
+    )
+    need_dtype_cast = ov_type == Type.f64 or ov_type in _integer_types
+    compute_type = Type.f32 if need_dtype_cast else ov_type
+    if need_dtype_cast:
+        image = ov_opset.convert(image, Type.f32).output(0)
+
     need_squeeze = rank == 3
     if need_squeeze:
         image = ov_opset.unsqueeze(
@@ -412,7 +431,7 @@ def resize(
         pads_end = ov_opset.concat(
             [zero_1d, zero_1d, h_pad_end_1d, w_pad_end_1d], 0
         ).output(0)
-        fill_const = ov_opset.constant(fill_value, ov_type).output(0)
+        fill_const = ov_opset.constant(fill_value, compute_type).output(0)
         image = ov_opset.pad(
             image, pads_begin, pads_end, "constant", fill_const
         ).output(0)
@@ -439,6 +458,24 @@ def resize(
         image = ov_opset.squeeze(
             image, ov_opset.constant([0], Type.i64)
         ).output(0)
+
+    # Cast back to original dtype, with rounding and saturation for integers.
+    if need_dtype_cast:
+        if ov_type in _integer_types:
+            _int_ranges = {
+                Type.u8: (0.0, 255.0),
+                Type.i8: (-128.0, 127.0),
+                Type.u16: (0.0, 65535.0),
+                Type.i16: (-32768.0, 32767.0),
+                Type.i32: (-2147483648.0, 2147483647.0),
+                Type.u32: (0.0, 4294967295.0),
+                Type.i64: (-9223372036854775808.0, 9223372036854775807.0),
+                Type.u64: (0.0, 18446744073709551615.0),
+            }
+            lo, hi = _int_ranges.get(ov_type, (-1e38, 1e38))
+            image = ov_opset.round(image, "half_to_even").output(0)
+            image = ov_opset.clamp(image, lo, hi).output(0)
+        image = ov_opset.convert(image, ov_type).output(0)
 
     return OpenVINOKerasTensor(image)
 
@@ -503,8 +540,10 @@ def gaussian_blur(
         ).output(0)
 
     # kernel_size[0]/sigma[0] → height (y); kernel_size[1]/sigma[1] → width (x)
+    # Note: reference (gaussian_blur_np) uses sigma[0] for x-axis (width) and
+    # sigma[1] for y-axis (height), so we swap here to match.
     kh, kw = int(kernel_size[0]), int(kernel_size[1])
-    sigma_h, sigma_w = float(sigma[0]), float(sigma[1])
+    sigma_h, sigma_w = float(sigma[1]), float(sigma[0])
 
     def _gaussian_kernel_1d(k, s):
         center = (k - 1) / 2.0
