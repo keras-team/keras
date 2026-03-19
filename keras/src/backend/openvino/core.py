@@ -835,7 +835,8 @@ def convert_to_numpy(x):
         result = ov_compiled_model({})[0]
     except Exception as inner_exception:
         raise RuntimeError(
-            "`convert_to_numpy` failed to convert the tensor."
+            "`convert_to_numpy` failed to convert the tensor. "
+            f"Inner exception: {inner_exception}"
         ) from inner_exception
     return np.array(result)
 
