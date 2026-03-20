@@ -5,7 +5,6 @@ import pytest
 
 from keras.src import layers
 from keras.src import models
-from keras.src import ops
 from keras.src import testing
 from keras.src.saving import load_model
 
@@ -66,14 +65,14 @@ class MaskingTest(testing.TestCase):
     def test_masking_with_tensor(self):
         model = models.Sequential(
             [
-                layers.Masking(mask_value=ops.convert_to_tensor([0.0])),
+                layers.Masking(mask_value=0.0),
                 layers.LSTM(1),
             ]
         )
         x = np.array(
             [
-                [[0.0, 0.0], [1.0, 2.0], [0.0, 0.0]],
-                [[2.0, 2.0], [0.0, 0.0], [2.0, 1.0]],
+                [[1.0, 2.0], [0.0, 0.0], [0.0, 0.0]],
+                [[2.0, 2.0], [2.0, 1.0], [0.0, 0.0]],
             ]
         )
         model(x)
