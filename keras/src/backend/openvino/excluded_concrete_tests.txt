@@ -46,7 +46,6 @@ ConvLSTM1DTest::test_correctness
 ConvLSTM2DTest::test_correctness
 ConvLSTMTest::test_correctness
 CoreOpsCallsTests::test_unstack_basic_functionality
-CoreOpsCorrectnessTest::test_unstack
 CTCTest::test_correctness
 CTCTest::test_dtype_arg
 DenseTest::test_dense_quantize_config_int4
