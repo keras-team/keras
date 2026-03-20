@@ -1,6 +1,8 @@
 import numpy as np
 
-from keras.src import backend, regularizers, testing
+from keras.src import backend
+from keras.src import regularizers
+from keras.src import testing
 from keras.src.regularizers.regularizers import validate_float_arg
 
 
@@ -49,7 +51,9 @@ class RegularizersTest(testing.TestCase):
             y,
             0.1
             * 0.5
-            * np.sum(np.abs(np.dot(inputs, np.transpose(inputs)) * (1.0 - np.eye(4))))
+            * np.sum(
+                np.abs(np.dot(inputs, np.transpose(inputs)) * (1.0 - np.eye(4)))
+            )
             / (4.0 * (4.0 - 1.0) / 2.0),
             tpu_atol=1e-4,
             tpu_rtol=1e-4,
@@ -114,7 +118,9 @@ class RegularizersTest(testing.TestCase):
     def test_orthogonal_regularizer_get_config(self):
         factor = 0.01
         mode = "columns"
-        regularizer = regularizers.OrthogonalRegularizer(factor=factor, mode=mode)
+        regularizer = regularizers.OrthogonalRegularizer(
+            factor=factor, mode=mode
+        )
         config = regularizer.get_config()
 
         self.assertAlmostEqual(config["factor"], factor, 7)
@@ -229,21 +235,31 @@ class ValidateFloatArgTest(testing.TestCase):
         self.assertEqual(validate_float_arg(1.0, "test"), 1.0)
 
     def test_validate_float_with_invalid_types(self):
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg("not_a_number", "test")
 
     def test_validate_float_with_nan(self):
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(float("nan"), "test")
 
     def test_validate_float_with_inf(self):
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(float("inf"), "test")
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(-float("inf"), "test")
 
     def test_validate_float_with_negative_number(self):
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(-1, "test")
 
     # ------------------------------------------------------------------ #
@@ -275,15 +291,21 @@ class ValidateFloatArgTest(testing.TestCase):
 
     def test_validate_float_with_negative_float(self):
         # Negative float (not just int) should also raise
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(-0.001, "test")
 
     def test_validate_float_with_none(self):
         # None is not a valid float argument
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg(None, "test")
 
     def test_validate_float_with_list(self):
         # Lists should not be valid float arguments
-        with self.assertRaisesRegex(ValueError, "expected a non-negative float"):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
             validate_float_arg([0.1], "test")

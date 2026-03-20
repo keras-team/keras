@@ -109,7 +109,9 @@ class ReLUTest(testing.TestCase):
         config = relu_layer.get_config()
         restored_layer = relu.ReLU.from_config(config)
         self.assertEqual(restored_layer.max_value, relu_layer.max_value)
-        self.assertEqual(restored_layer.negative_slope, relu_layer.negative_slope)
+        self.assertEqual(
+            restored_layer.negative_slope, relu_layer.negative_slope
+        )
         self.assertEqual(restored_layer.threshold, relu_layer.threshold)
 
     def test_compute_output_shape(self):
