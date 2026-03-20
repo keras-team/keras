@@ -663,11 +663,11 @@ class TestTrainer(testing.TestCase):
         self, dataset_type, dataset_kwargs={}, fit_kwargs={}
     ):
         jit_compile = True
-        if (
-            dataset_kwargs.get("use_multiprocessing", False)
-            and backend.backend() == "jax"
-        ):
-            pytest.skip("Multiprocessing not supported with JAX backend")
+        if dataset_kwargs.get("use_multiprocessing", False):
+            if backend.backend() == "jax":
+                pytest.skip("Multiprocessing not supported with JAX backend")
+            elif testing.tensorflow_uses_gpu():
+                pytest.skip("Multiprocessing crashes on Tensorflow with GPU")
         if dataset_type == "grain_datast" and backend.backend() == "torch":
             # Grain datasets are not supported with torch + jit_compile.
             jit_compile = False
