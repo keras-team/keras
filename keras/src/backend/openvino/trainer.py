@@ -89,6 +89,8 @@ class OpenVINOTrainer(base_trainer.Trainer):
             for elem_name, elem in data.items():
                 param_elem = self._parameterize_data(elem)
                 parametrize_data[elem_name] = param_elem
+        elif isinstance(data, OpenVINOKerasTensor):
+            parametrize_data = data
         elif isinstance(data, np.ndarray) or np.isscalar(data):
             ov_type = OPENVINO_DTYPES[str(data.dtype)]
             ov_shape = list(data.shape)
@@ -101,7 +103,7 @@ class OpenVINOTrainer(base_trainer.Trainer):
             param = ov_opset.parameter(shape=[], dtype=ov.Type.f32)
             parametrize_data = OpenVINOKerasTensor(param.output(0))
         else:
-            raise "Unknown type of input data {}".format(type(data))
+            raise ValueError(f"Unknown type of input data {type(data)}")
         return parametrize_data
 
     def _get_data_shapes(self, data):
