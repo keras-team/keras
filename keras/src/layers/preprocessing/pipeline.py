@@ -68,9 +68,15 @@ class Pipeline(Layer):
 
     @classmethod
     def from_config(cls, config):
+        layers = config.get("layers")
+        if not isinstance(layers, list):
+            raise ValueError(
+                "`Pipeline.from_config()` requires a 'layers' key in the config"
+                f"containing a list of layer configs. Received: {config}"
+            )
+        config = config.copy()
         config["layers"] = [
-            serialization_lib.deserialize_keras_object(x)
-            for x in config["layers"]
+            serialization_lib.deserialize_keras_object(x) for x in layers
         ]
         return cls(**config)
 
