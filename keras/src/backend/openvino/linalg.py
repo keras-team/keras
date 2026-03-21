@@ -638,7 +638,6 @@ def eigh(a):
     )
 
 
-
 def inv(a):
     a = convert_to_tensor(a)
     a_ov = get_ov_output(a)

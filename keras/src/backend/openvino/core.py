@@ -834,8 +834,13 @@ def convert_to_numpy(x):
         ov_compiled_model = compile_model(ov_model, get_device())
         result = ov_compiled_model({})[0]
     except Exception as inner_exception:
+        if "opset1::Subtract" in str(inner_exception) and "opset1::OneHot" in str(inner_exception):
+            raise NotImplementedError(
+                "OpenVINO backend execution failed on Subtract/OneHot interaction "
+                "(likely inside eigh on f64 tensors)."
+            ) from inner_exception
         raise RuntimeError(
-            "`convert_to_numpy` failed to convert the tensor."
+            f"`convert_to_numpy` failed to convert the tensor. Backend error: {inner_exception}"
         ) from inner_exception
     return np.array(result)
 
