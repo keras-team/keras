@@ -501,10 +501,23 @@ def deserialize_keras_object(
         config: Python dict describing the object.
         custom_objects: Python dict containing a mapping between custom
             object names the corresponding classes or functions.
-        safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
-            When `safe_mode=False`, loading an object has the potential to
-            trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to `True`.
+        safe_mode: Boolean, defaults to `True`. If `True`, disables
+            unsafe lambda deserialization. Note that this does not isolate
+            built-in class name resolution from the custom object registry.
+            If a custom object has been registered under the same name as a
+            built-in class (e.g., `"Dense"`) via
+            `keras.utils.get_custom_objects()`, `safe_mode=True` will still
+            resolve to the custom object instead of the built-in class.
+            `safe_mode` only protects against Lambda layer deserialization
+            and does not provide broader registry isolation.
+
+            .. warning::
+                ``safe_mode=True`` only protects against Lambda layer
+                deserialization. It does not isolate built-in class name
+                resolution from ``keras.utils.get_custom_objects()`` or
+                ``keras.utils.CustomObjectScope()``. Built-in class names
+                can still be silently redirected if the custom object
+                registry has been modified.
 
     Returns:
         The object described by the `config` dictionary.
