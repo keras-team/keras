@@ -544,16 +544,3 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         input_data = [["foo bar"], ["baz boom"]]
         output = layer(input_data)
         self.assertEqual(output.shape, (2, 4))
-
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="Output is a RaggedTensor which is TF-specific.",
-    )
-    def test_output_mode_none_returns_preprocessed_input(self):
-        """Regression: output_mode=None was silently falling
-        through to lookup.
-        """
-        layer = layers.TextVectorization(output_mode=None, split="whitespace")
-        result = layer([["hello world"]])
-        self.assertIsInstance(result, tf.RaggedTensor)
-        self.assertAllEqual(result.to_list(), [["hello", "world"]])

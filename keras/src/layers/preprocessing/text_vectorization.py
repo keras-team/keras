@@ -575,10 +575,6 @@ class TextVectorization(Layer):
 
         inputs = self._preprocess(inputs)
 
-        # If we're not doing any output processing, return right away.
-        if self._output_mode is None:
-            return backend_utils.convert_tf_tensor(inputs)
-
         lookup_data = self._lookup_layer.call(inputs)
 
         # For non-int output, we can return directly from the underlying layer.
