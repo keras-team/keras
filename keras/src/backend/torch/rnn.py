@@ -590,7 +590,10 @@ def lstm(
         use_bias=bias is not None,
     )
 
-    if cudnn_supported and mask is None:
+    if mask is not None:
+        raise NotImplementedError
+
+    if cudnn_supported:
         try:
             return _cudnn_lstm(
                 inputs,
@@ -612,7 +615,6 @@ def lstm(
         kernel,
         recurrent_kernel,
         bias,
-        mask,
         activation,
         recurrent_activation,
         return_sequences,
@@ -670,7 +672,6 @@ def _fallback_lstm(
     kernel,
     recurrent_kernel,
     bias,
-    mask,
     activation,
     recurrent_activation,
     return_sequences,
@@ -678,20 +679,12 @@ def _fallback_lstm(
 ):
     """Pure-torch LSTM with pre-computed input projections.
 
-    Used when cuDNN is not available (CPU, masking, non-standard activations).
+    Used when cuDNN is not available (CPU, non-standard activations, etc.).
     Pre-computes all input projections in a single matmul across timesteps,
     then only computes the recurrent projection per step.
     """
     if batch_first:
         inputs = inputs.permute(1, 0, 2)  # -> (time, batch, features)
-
-    if mask is not None:
-        if mask.dtype != torch.bool:
-            mask = mask.to(torch.bool)
-        if mask.dim() == 3:
-            mask = mask.squeeze(-1)
-        if batch_first:
-            mask = mask.T  # -> (time, batch)
 
     # Pre-compute input projections: (time, batch, 4*units)
     x_proj = torch.matmul(inputs, kernel)
@@ -711,11 +704,6 @@ def _fallback_lstm(
             z_i
         ) * activation(z_c)
         new_h = recurrent_activation(z_o) * activation(new_c)
-
-        if mask is not None:
-            mask_t = mask[t].unsqueeze(-1)
-            new_h = torch.where(mask_t, new_h, h)
-            new_c = torch.where(mask_t, new_c, c)
 
         h = new_h
         c = new_c
