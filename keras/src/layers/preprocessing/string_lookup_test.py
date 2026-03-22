@@ -261,3 +261,20 @@ class StringLookupTest(testing.TestCase):
             tuple(symbolic_output.shape)[1:],
             eager_output.shape[1:],
         )
+    
+    @pytest.mark.skipif(
+        not tf.test.is_gpu_available(),
+        reason="GPU not available; skipping GPU-specific regression test",
+    )
+    def test_call_on_gpu_does_not_raise(self):
+        """Regression test for CUDA_ERROR_INVALID_HANDLE on G4/L4 GPUs.
+
+        StaticHashTable lookup is CPU-resident; the Cast that follows must also
+        stay on CPU on newer GPU architectures.
+        """
+        layer = layers.StringLookup(
+            vocabulary=["a", "b", "c"],
+            output_mode="int",
+        )
+        output = layer(["a", "b", "d"])
+        self.assertAllClose(output, [1, 2, 0])

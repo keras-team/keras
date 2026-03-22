@@ -210,3 +210,20 @@ class HashedCrossingTest(testing.TestCase):
             tf.sparse.to_dense(cloned_outputs),
             tf.sparse.to_dense(original_outputs),
         )
+    
+    @pytest.mark.skipif(
+        not tf.test.is_gpu_available(),
+        reason="GPU not available; skipping GPU-specific regression test",
+    )
+    def test_call_on_gpu_does_not_raise(self):
+        """Regression test for CUDA_ERROR_INVALID_HANDLE on G4/L4 GPUs.
+
+        tf.sparse.cross_hashed produces CPU-resident tensors. On newer GPU
+        architectures a Cast after a CPU hash tensor was incorrectly
+        dispatched to the GPU.
+        """
+        layer = layers.HashedCrossing(num_bins=5)
+        feat1 = np.array(["A", "B", "A", "B", "A"])
+        feat2 = np.array([101, 101, 101, 102, 102])
+        output = layer((feat1, feat2))
+        self.assertAllClose(output, np.array([1, 4, 1, 1, 3]))

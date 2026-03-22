@@ -307,3 +307,16 @@ class IntegerLookupTest(testing.TestCase):
         )
         output = backend.convert_to_numpy(layer([100, 200, 300, 400]))
         self.assertAllClose(output, [3, 1, 3, 1])
+    
+    @pytest.mark.skipif(
+        not tf.test.is_gpu_available(),
+        reason="GPU not available; skipping GPU-specific regression test",
+    )
+    def test_call_on_gpu_does_not_raise(self):
+        """Regression test for CUDA_ERROR_INVALID_HANDLE on G4/L4 GPUs."""
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            output_mode="int",
+        )
+        output = layer([1, 2, 99])
+        self.assertAllClose(output, [1, 2, 0])

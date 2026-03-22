@@ -524,3 +524,33 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
                 output_mode="multi_hot",
                 output_sequence_length=5,
             )
+    
+    @pytest.mark.skipif(
+        not tf.test.is_gpu_available(),
+        reason="GPU not available; skipping GPU-specific regression test",
+    )
+    def test_call_on_gpu_does_not_raise(self):
+        """Regression test for CUDA_ERROR_INVALID_HANDLE on G4/L4 GPUs.
+
+        TextVectorization uses TF string ops (always CPU-resident). On newer
+        GPU architectures a Cast after a CPU string/lookup op was incorrectly
+        dispatched to the GPU. Verify no error is raised when a GPU is present.
+        """
+        layer = layers.TextVectorization(
+            output_mode="int",
+            output_sequence_length=4,
+        )
+        layer.adapt(["foo bar", "bar baz", "baz bada boom"])
+        input_data = [["foo bar"], ["baz boom"]]
+        output = layer(input_data)
+        self.assertEqual(output.shape, (2, 4))
+
+    @pytest.mark.skipif(
+        not tf.test.is_gpu_available(),
+        reason="GPU not available; skipping GPU-specific regression test",
+    )
+    def test_output_mode_none_returns_preprocessed_input(self):
+        """Regression: output_mode=None was silently falling through to lookup."""
+        layer = layers.TextVectorization(output_mode=None, split="whitespace")
+        result = layer([["hello world"]])
+        self.assertIsNotNone(result)
