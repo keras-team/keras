@@ -1650,6 +1650,9 @@ class custom_gradient:
 
     OpenVINO is an inference-only backend, so this acts as a pass-through:
     it runs the forward pass and discards the gradient function.
+    
+    Arguments:
+        fun: The forward pass function.
     """
 
     def __init__(self, fun):
