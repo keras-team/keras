@@ -498,14 +498,13 @@ def prepare_lstm_params(kernel, recurrent_kernel, bias, device):
     weight_ih = kernel.T.contiguous().to(device)
     weight_hh = recurrent_kernel.T.contiguous().to(device)
 
+    hidden_size = recurrent_kernel.shape[0]
     if bias is not None:
         bias_ih = convert_to_tensor(bias).contiguous().to(device)
-        hidden_size = recurrent_kernel.shape[0]
         bias_hh = torch.zeros(
             4 * hidden_size, dtype=bias_ih.dtype, device=device
         )
     else:
-        hidden_size = recurrent_kernel.shape[0]
         bias_ih = torch.zeros(
             4 * hidden_size, dtype=kernel.dtype, device=device
         )
