@@ -707,10 +707,9 @@ def _fallback_lstm(
         z = x_proj[t] + torch.matmul(h, recurrent_kernel)
         z_i, z_f, z_c, z_o = torch.chunk(z, 4, dim=1)
 
-        new_c = (
-            recurrent_activation(z_f) * c
-            + recurrent_activation(z_i) * activation(z_c)
-        )
+        new_c = recurrent_activation(z_f) * c + recurrent_activation(
+            z_i
+        ) * activation(z_c)
         new_h = recurrent_activation(z_o) * activation(new_c)
 
         if mask is not None:
