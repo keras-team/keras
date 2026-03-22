@@ -1645,18 +1645,24 @@ def random_seed_dtype():
     return "int32"
 
 
-def custom_gradient(fun):
+class custom_gradient:
     """Decorator for custom gradients.
 
     OpenVINO is an inference-only backend, so this acts as a pass-through:
     it runs the forward pass and discards the gradient function.
     """
 
-    def wrapper(*args, **kwargs):
-        outputs, _ = fun(*args, **kwargs)
-        return outputs
+    def __init__(self, fun):
+        warnings.warn(
+            "`custom_gradient` for the openvino backend acts as a "
+            "pass-through to support the forward pass. No gradient "
+            "computation or modification takes place."
+        )
+        self.fun = fun
 
-    return wrapper
+    def __call__(self, *args, **kwargs):
+        outputs, _ = self.fun(*args, **kwargs)
+        return outputs
 
 
 def remat(f):
