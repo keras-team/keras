@@ -155,8 +155,9 @@ class HashedCrossing(Layer):
             outputs = tf.sparse.cross_hashed(inputs, self.num_bins)
             outputs = tf.sparse.to_dense(outputs)
 
-            # tf.sparse.cross_hashed output shape will always have None dimensions.
-            # Re-apply the known static shape and downrank to match input rank.
+            # tf.sparse.cross_hashed output shape will always have None
+            # dimensions. Re-apply the known static shape and downrank
+            # to match input rank.
             if rank == 2:
                 outputs.set_shape(first_shape)
             elif rank == 1:

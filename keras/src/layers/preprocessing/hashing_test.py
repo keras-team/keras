@@ -430,7 +430,7 @@ class HashingTest(testing.TestCase):
             ValueError, "`sparse` may only be true if `output_mode` is"
         ):
             layers.Hashing(num_bins=3, output_mode="int", sparse=True)
-    
+
     @pytest.mark.skipif(
         not tf.test.is_gpu_available(),
         reason="GPU not available; skipping GPU-specific regression test",

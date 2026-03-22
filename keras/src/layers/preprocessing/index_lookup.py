@@ -782,7 +782,9 @@ class IndexLookup(Layer):
             output = numerical_utils.encode_categorical_inputs(
                 lookups,
                 output_mode=(
-                    "count" if self.output_mode == "tf_idf" else self.output_mode
+                    "count"
+                    if self.output_mode == "tf_idf"
+                    else self.output_mode
                 ),
                 depth=depth,
                 dtype=self._value_dtype,
@@ -792,8 +794,8 @@ class IndexLookup(Layer):
             if self.output_mode == "tf_idf":
                 if idf_weights is None:
                     raise ValueError(
-                        "When `output_mode` is `'tf_idf'`, `idf_weights` must be "
-                        "provided."
+                        "When `output_mode` is `'tf_idf'`, "
+                        "`idf_weights` must be provided."
                     )
                 output = tf_backend.numpy.multiply(
                     tf_backend.core.cast(output, idf_weights.dtype), idf_weights

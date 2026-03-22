@@ -210,7 +210,7 @@ class HashedCrossingTest(testing.TestCase):
             tf.sparse.to_dense(cloned_outputs),
             tf.sparse.to_dense(original_outputs),
         )
-    
+
     @pytest.mark.skipif(
         not tf.test.is_gpu_available(),
         reason="GPU not available; skipping GPU-specific regression test",

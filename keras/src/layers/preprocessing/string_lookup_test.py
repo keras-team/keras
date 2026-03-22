@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -261,7 +262,7 @@ class StringLookupTest(testing.TestCase):
             tuple(symbolic_output.shape)[1:],
             eager_output.shape[1:],
         )
-    
+
     @pytest.mark.skipif(
         not tf.test.is_gpu_available(),
         reason="GPU not available; skipping GPU-specific regression test",

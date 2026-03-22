@@ -524,7 +524,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
                 output_mode="multi_hot",
                 output_sequence_length=5,
             )
-    
+
     @pytest.mark.skipif(
         not tf.test.is_gpu_available(),
         reason="GPU not available; skipping GPU-specific regression test",
@@ -550,7 +550,9 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         reason="GPU not available; skipping GPU-specific regression test",
     )
     def test_output_mode_none_returns_preprocessed_input(self):
-        """Regression: output_mode=None was silently falling through to lookup."""
+        """Regression: output_mode=None was
+        silently falling through to lookup.
+        """
         layer = layers.TextVectorization(output_mode=None, split="whitespace")
         result = layer([["hello world"]])
         self.assertIsNotNone(result)
