@@ -546,13 +546,12 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertEqual(output.shape, (2, 4))
 
     @pytest.mark.skipif(
-        not tf.test.is_gpu_available(),
-        reason="GPU not available; skipping GPU-specific regression test",
+        backend.backend() != "tensorflow",
+        reason="Output is a RaggedTensor which is TF-specific.",
     )
     def test_output_mode_none_returns_preprocessed_input(self):
-        """Regression: output_mode=None was
-        silently falling through to lookup.
-        """
+        """Regression: output_mode=None was silently falling through to lookup."""
         layer = layers.TextVectorization(output_mode=None, split="whitespace")
         result = layer([["hello world"]])
-        self.assertIsNotNone(result)
+        self.assertIsInstance(result, tf.RaggedTensor)
+        self.assertAllEqual(result.to_list(), [["hello", "world"]])
