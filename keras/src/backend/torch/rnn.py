@@ -475,68 +475,45 @@ def _compute_sequence_length_from_mask(mask, batch_first):
     return torch.sum(mask.int(), dim=timestep_index)
 
 
-def prepare_lstm_weights(lstm, kernel, recurrent_kernel, bias, device):
-    """Copies kernel and recurrent kernel weights into the PyTorch format.
+def prepare_lstm_params(kernel, recurrent_kernel, bias, device):
+    """Prepares Keras LSTM weights for PyTorch's functional LSTM.
 
-    We split the kernel and recurrent kernel weights, create associated
-    torch tensors adapted to be in line with the cuDNN optimization.
-    After we have copied the weights, we ensure the parameters are on
-    the same device and memory layout is optimized for cuDNN.
+    Transposes weight matrices from Keras (input_dim, 4*units) to PyTorch
+    (4*units, input_dim) format and returns weight tensors that maintain
+    gradient connections.
 
     Args:
-        lstm: The PyTorch LSTM layer to prepare weights for.
-        kernel: The kernel weights tensor.
-        recurrent_kernel: The recurrent kernel weights tensor.
-        bias: The bias tensor.
+        kernel: The kernel weights tensor with shape (input_dim, 4*units).
+        recurrent_kernel: The recurrent kernel weights tensor
+            with shape (units, 4*units).
+        bias: The bias tensor with shape (4*units,).
         device: The device to place the tensors on.
+
+    Returns:
+        A list of weight tensors [weight_ih, weight_hh, bias_ih, bias_hh]
+        suitable for torch._VF.lstm.
     """
-
-    lstm = lstm.to(device)
-    hidden_size = lstm.hidden_size
-
-    # Convert gates from Keras [i,f,c,o] to PyTorch [i,f,g,o]
-    i_k, f_k, c_k, o_k = torch.chunk(kernel, 4, dim=1)
-    weight_ih_data = torch.cat([i_k, f_k, c_k, o_k], dim=1).T
-
-    i_r, f_r, c_r, o_r = torch.chunk(recurrent_kernel, 4, dim=1)
-    weight_hh_data = torch.cat([i_r, f_r, c_r, o_r], dim=1).T
+    # Gate order is the same in Keras and PyTorch: [i, f, c, o]
+    # Just need to transpose from (input_dim, 4*units) to (4*units, input_dim)
+    weight_ih = kernel.T.contiguous().to(device)
+    weight_hh = recurrent_kernel.T.contiguous().to(device)
 
     if bias is not None:
-        # Split Keras combined bias into input and hidden biases
-        bias_ih_data = convert_to_tensor(bias, dtype="float32")
-        bias_hh_data = torch.zeros_like(bias_ih_data)
-
+        bias_ih = convert_to_tensor(bias).contiguous().to(device)
+        hidden_size = recurrent_kernel.shape[0]
+        bias_hh = torch.zeros(
+            4 * hidden_size, dtype=bias_ih.dtype, device=device
+        )
     else:
-        bias_ih_data = torch.zeros(4 * hidden_size, device=device)
-        bias_hh_data = torch.zeros(4 * hidden_size, device=device)
+        hidden_size = recurrent_kernel.shape[0]
+        bias_ih = torch.zeros(
+            4 * hidden_size, dtype=kernel.dtype, device=device
+        )
+        bias_hh = torch.zeros(
+            4 * hidden_size, dtype=kernel.dtype, device=device
+        )
 
-    # Create PyTorch tensors for weights
-    weight_ih = convert_to_tensor(weight_ih_data, dtype="float32").contiguous()
-    weight_hh = convert_to_tensor(weight_hh_data, dtype="float32").contiguous()
-    bias_ih = convert_to_tensor(bias_ih_data, dtype="float32").contiguous()
-    bias_hh = convert_to_tensor(bias_hh_data, dtype="float32").contiguous()
-
-    # Ensure the weights are all on the same device
-    weight_ih = weight_ih.to(device)
-    weight_hh = weight_hh.to(device)
-    bias_ih = bias_ih.to(device)
-    bias_hh = bias_hh.to(device)
-
-    # Copy Keras weights into Torch's flat weights
-    with torch.no_grad():
-        lstm.weight_ih_l0.copy_(weight_ih)
-        lstm.weight_hh_l0.copy_(weight_hh)
-        lstm.bias_ih_l0.copy_(bias_ih)
-        lstm.bias_hh_l0.copy_(bias_hh)
-
-    # Optimize the layout
-    lstm.flatten_parameters()
-
-    # After prepare_lstm_weights:
-    # Force all LSTM parameters to be on the correct device
-    for param in lstm.parameters():
-        if param.device != device:
-            param.data = param.data.to(device)
+    return [weight_ih, weight_hh, bias_ih, bias_hh]
 
 
 def _is_cuda_cudnn_available():
@@ -578,29 +555,15 @@ def lstm(
     unroll=False,
     batch_first=True,
 ):
-    cudnn_supported = cudnn_ok(
-        activation,
-        recurrent_activation,
-        unroll,
-        use_bias=bias is not None,
-    )
-
-    if not cudnn_supported:
-        raise NotImplementedError
-
     # Get device from inputs
     device = get_device()
 
-    from keras.src.backend.torch import Variable
+    # Convert to torch tensors (convert_to_tensor unwraps Variables)
+    kernel = convert_to_tensor(kernel)
+    recurrent_kernel = convert_to_tensor(recurrent_kernel)
+    if bias is not None:
+        bias = convert_to_tensor(bias)
 
-    if isinstance(kernel, Variable):
-        kernel = kernel.value
-    if isinstance(recurrent_kernel, Variable):
-        recurrent_kernel = recurrent_kernel.value
-    if isinstance(bias, Variable):
-        bias = bias.value
-
-    # Convert to torch tensors
     inputs = convert_to_tensor(inputs, dtype="float32")
     initial_state_h = convert_to_tensor(initial_state_h, dtype="float32")
     initial_state_c = convert_to_tensor(initial_state_c, dtype="float32")
@@ -621,22 +584,41 @@ def lstm(
     if mask is not None:
         mask = mask.to(device)
 
-    try:
-        return _cudnn_lstm(
-            inputs,
-            initial_state_h,
-            initial_state_c,
-            kernel,
-            recurrent_kernel,
-            bias,
-            mask,
-            batch_first,
-            go_backwards,
-            return_sequences,
-            device,
-        )
-    except RuntimeError:
-        raise NotImplementedError
+    cudnn_supported = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    )
+
+    if cudnn_supported and mask is None:
+        try:
+            return _cudnn_lstm(
+                inputs,
+                initial_state_h,
+                initial_state_c,
+                kernel,
+                recurrent_kernel,
+                bias,
+                return_sequences=return_sequences,
+                device=device,
+            )
+        except Exception:
+            pass
+
+    return _fallback_lstm(
+        inputs,
+        initial_state_h,
+        initial_state_c,
+        kernel,
+        recurrent_kernel,
+        bias,
+        mask,
+        activation,
+        recurrent_activation,
+        return_sequences,
+        batch_first,
+    )
 
 
 def _cudnn_lstm(
@@ -646,95 +628,112 @@ def _cudnn_lstm(
     kernel,
     recurrent_kernel,
     bias,
-    mask,
-    batch_first,
-    go_backwards,
     return_sequences,
     device,
 ):
-    if mask is not None:
-        _assert_valid_mask(mask)
-        sequence_lengths = _compute_sequence_length_from_mask(mask, batch_first)
-
-    # Ensure inputs are in batch_first format for consistency
-    if not batch_first:
-        inputs = inputs.permute(1, 0, 2)
-
-    seq_axis, batch_axis = (0, 1) if not batch_first else (1, 0)
-
     # If shape is [batch, hidden]; Make [1, batch, hidden]
     if initial_state_h.dim() == 2:
         initial_state_h = initial_state_h.unsqueeze(0)
         initial_state_c = initial_state_c.unsqueeze(0)
-    # If shape is [batch, 1, hidden]
     elif initial_state_h.dim() == 3 and initial_state_h.shape[1] == 1:
         initial_state_h = initial_state_h.permute(1, 0, 2)
         initial_state_c = initial_state_c.permute(1, 0, 2)
 
-    input_size = kernel.shape[0]
-    hidden_size = recurrent_kernel.shape[0]
+    params = prepare_lstm_params(kernel, recurrent_kernel, bias, device)
 
-    # Configure LSTM with the provided parameters
-    lstm = torch.nn.LSTM(
-        input_size=input_size,
-        hidden_size=hidden_size,
-        num_layers=1,
-        batch_first=batch_first,
-        bidirectional=False,
+    # Use functional LSTM to maintain gradient flow through weight tensors
+    outputs, (h_n, c_n) = torch._VF.lstm(
+        inputs,
+        (initial_state_h, initial_state_c),
+        params,
+        bias is not None,  # has_biases
+        1,  # num_layers
+        0.0,  # dropout
+        torch.is_grad_enabled(),  # training
+        False,  # bidirectional
+        True,  # batch_first
     )
 
-    prepare_lstm_weights(lstm, kernel, recurrent_kernel, bias, device)
-
-    if mask is not None:
-        # Sort and pack
-        sorted_lengths, sorted_indices = torch.sort(
-            sequence_lengths, descending=True
-        )  # noqa: E501
-        sorted_inputs = inputs[sorted_indices]
-        sorted_initial_h = initial_state_h[:, sorted_indices]
-        sorted_initial_c = initial_state_c[:, sorted_indices]
-
-        # Create the packed sequence
-        packed_inputs = torch.nn.utils.rnn.pack_padded_sequence(
-            sorted_inputs, sorted_lengths.cpu(), batch_first
-        )
-
-        # Process with LSTM (which handles the packed sequence correctly)
-        packed_outputs, (h_n, c_n) = lstm(
-            packed_inputs, (sorted_initial_h, sorted_initial_c)
-        )
-
-        # Unpack back to padded tensor
-        outputs, _ = torch.nn.utils.rnn.pad_packed_sequence(
-            packed_outputs, batch_first
-        )  # noqa: E501
-
-    else:
-        # Run LSTM without packing for fixed-length sequences
-        outputs, (h_n, c_n) = lstm(inputs, (initial_state_h, initial_state_c))
-
-    # Reshape hidden states for return
-    h_n = h_n.squeeze(batch_axis)
-    c_n = c_n.squeeze(batch_axis)
-
-    # Return appropriate outputs based on return_sequences flag
-
-    if mask is not None:
-        last_output = h_n
-    else:
-        last_output = outputs[:, -1] if batch_first else outputs[-1]
+    h_n = h_n.squeeze(0)
+    c_n = c_n.squeeze(0)
+    last_output = outputs[:, -1]
 
     if not return_sequences:
-        outputs = (
-            last_output.unsqueeze(1)
-            if batch_first
-            else last_output.unsqueeze(0)
-        )  # noqa: E501
-
-    if go_backwards and return_sequences:
-        outputs = torch.flip(outputs, dims=[seq_axis])
+        outputs = last_output.unsqueeze(1)
 
     return last_output, outputs, [h_n, c_n]
+
+
+def _fallback_lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    kernel,
+    recurrent_kernel,
+    bias,
+    mask,
+    activation,
+    recurrent_activation,
+    return_sequences,
+    batch_first,
+):
+    """Pure-torch LSTM with pre-computed input projections.
+
+    Used when cuDNN is not available (CPU, masking, non-standard activations).
+    Pre-computes all input projections in a single matmul across timesteps,
+    then only computes the recurrent projection per step.
+    """
+    if batch_first:
+        inputs = inputs.permute(1, 0, 2)  # -> (time, batch, features)
+
+    if mask is not None:
+        if mask.dtype != torch.bool:
+            mask = mask.to(torch.bool)
+        if mask.dim() == 3:
+            mask = mask.squeeze(-1)
+        if batch_first:
+            mask = mask.T  # -> (time, batch)
+
+    # Pre-compute input projections: (time, batch, 4*units)
+    x_proj = torch.matmul(inputs, kernel)
+    if bias is not None:
+        x_proj = x_proj + bias
+
+    time_steps = inputs.shape[0]
+    h = initial_state_h
+    c = initial_state_c
+    outputs = []
+
+    for t in range(time_steps):
+        z = x_proj[t] + torch.matmul(h, recurrent_kernel)
+        z_i, z_f, z_c, z_o = torch.chunk(z, 4, dim=1)
+
+        new_c = (
+            recurrent_activation(z_f) * c
+            + recurrent_activation(z_i) * activation(z_c)
+        )
+        new_h = recurrent_activation(z_o) * activation(new_c)
+
+        if mask is not None:
+            mask_t = mask[t].unsqueeze(-1)
+            new_h = torch.where(mask_t, new_h, h)
+            new_c = torch.where(mask_t, new_c, c)
+
+        h = new_h
+        c = new_c
+        outputs.append(h)
+
+    outputs = torch.stack(outputs, dim=0)  # (time, batch, units)
+
+    if batch_first:
+        outputs = outputs.permute(1, 0, 2)  # (batch, time, units)
+
+    last_output = h
+
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1 if batch_first else 0)
+
+    return last_output, outputs, [h, c]
 
 
 def gru(
