@@ -1,5 +1,5 @@
 # Tensorflow with cuda support.
-tensorflow[and-cuda]
+tensorflow[and-cuda]==2.20.0
 tf2onnx
 ai-edge-litert
 
