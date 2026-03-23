@@ -354,21 +354,29 @@ class Layer(BackendLayer, Operation):
                 "trainable_variables": (
                     lambda x: isinstance(x, backend.Variable) and x.trainable,
                     trainable_variables,
+                    "_trainable_variables",
                 ),
                 "non_trainable_variables": (
                     lambda x: isinstance(x, backend.Variable)
                     and not x.trainable,
                     non_trainable_variables,
+                    "_non_trainable_variables",
                 ),
-                "metrics": (lambda x: isinstance(x, Metric), metrics),
+                "metrics": (
+                    lambda x: isinstance(x, Metric),
+                    metrics,
+                    "_metrics",
+                ),
                 "layers": (
                     lambda x: isinstance(x, Layer)
                     and not isinstance(x, Metric),
                     layers,
+                    "_layers",
                 ),
                 "seed_generators": (
                     lambda x: isinstance(x, backend.random.SeedGenerator),
                     seed_generators,
+                    "_seed_generators",
                 ),
             },
             exclusions={"non_trainable_variables": ["trainable_variables"]},
@@ -1575,38 +1583,16 @@ class Layer(BackendLayer, Operation):
     def __str__(self):
         return self.__repr__()
 
-    # Attribute names reserved for internal tracking by the Layer class.
-    # Overriding these in subclasses will silently break weight
-    # saving/loading and other functionality.
-    _RESERVED_LAYER_ATTRIBUTES = frozenset(
-        {
-            "_layers",
-            "_metrics",
-            "_trainable_variables",
-            "_non_trainable_variables",
-            "_seed_generators",
-        }
-    )
-
-    # Internal modules that legitimately reassign reserved attributes.
-    _RESERVED_ATTR_EXEMPT_MODULES = frozenset(
-        {
-            "keras.src.models.sequential",
-            "keras.src.models.functional",
-        }
-    )
-
     def __setattr__(self, name, value):
         # Warn if user code reassigns a reserved tracked attribute.
         if (
-            name in self._RESERVED_LAYER_ATTRIBUTES
-            and hasattr(self, "_tracker")
-            and hasattr(self, name)
+            hasattr(self, "_tracker")
+            and name in self._tracker.attr_to_store_name
             and tracking.is_tracking_enabled()
         ):
-            caller_frame = inspect.currentframe().f_back
-            caller_module = caller_frame.f_globals.get("__name__", "")
-            if caller_module not in self._RESERVED_ATTR_EXEMPT_MODULES:
+            store_name = self._tracker.attr_to_store_name[name]
+            store_list = self._tracker.config[store_name][1]
+            if id(value) != id(store_list):
                 warnings.warn(
                     f"`{name}` is a reserved attribute in Keras layers and "
                     "should not be used as a variable name in a Layer "
