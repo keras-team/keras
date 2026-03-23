@@ -957,6 +957,17 @@ def imag(x):
     return torch.imag(x)
 
 
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16"]:
+        dtype = config.floatx()
+    x = cast(x, dtype)
+    return torch.i0(x)
+
+
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)

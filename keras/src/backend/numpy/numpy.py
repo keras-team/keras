@@ -761,6 +761,17 @@ def imag(x):
     return np.imag(x)
 
 
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        "float64"
+        if standardize_dtype(x.dtype) in ["int64", "float64"]
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
+    return np.i0(x)
+
+
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     return np.isclose(x1, x2, rtol, atol, equal_nan)
 
