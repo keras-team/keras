@@ -554,6 +554,11 @@ def lstm(
     unroll=False,
     batch_first=True,
 ):
+    # Masking is not supported by either the cuDNN or fallback path;
+    # fall back to the generic RNN loop before doing any work.
+    if mask is not None:
+        raise NotImplementedError
+
     # Get device from inputs
     device = get_device()
 
@@ -566,22 +571,16 @@ def lstm(
     inputs = convert_to_tensor(inputs, dtype="float32")
     initial_state_h = convert_to_tensor(initial_state_h, dtype="float32")
     initial_state_c = convert_to_tensor(initial_state_c, dtype="float32")
-    if mask is not None:
-        mask = convert_to_tensor(mask, dtype="bool")
 
     # Preprocess for go_backwards by flipping the sequence
     if go_backwards:
         seq_dim = 1 if batch_first else 0
         inputs = torch.flip(inputs, dims=[seq_dim])
-        if mask is not None:
-            mask = torch.flip(mask, dims=[seq_dim])
 
     # Move all tensors to the same device
     inputs = inputs.to(device)
     initial_state_h = initial_state_h.to(device)
     initial_state_c = initial_state_c.to(device)
-    if mask is not None:
-        mask = mask.to(device)
 
     cudnn_supported = cudnn_ok(
         activation,
@@ -590,13 +589,13 @@ def lstm(
         use_bias=bias is not None,
     )
 
-    if mask is not None:
-        raise NotImplementedError
-
     if cudnn_supported:
+        cudnn_inputs = inputs
+        if not batch_first:
+            cudnn_inputs = inputs.permute(1, 0, 2)
         try:
-            return _cudnn_lstm(
-                inputs,
+            last_output, outputs, states = _cudnn_lstm(
+                cudnn_inputs,
                 initial_state_h,
                 initial_state_c,
                 kernel,
@@ -605,6 +604,9 @@ def lstm(
                 return_sequences=return_sequences,
                 device=device,
             )
+            if not batch_first:
+                outputs = outputs.permute(1, 0, 2)
+            return last_output, outputs, states
         except Exception:
             pass
 
