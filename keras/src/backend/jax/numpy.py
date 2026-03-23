@@ -644,6 +644,11 @@ def deg2rad(x):
     return jnp.deg2rad(x)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+    return jnp.rad2deg(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return jnp.diag(x, k=k)

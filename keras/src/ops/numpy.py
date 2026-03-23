@@ -2501,6 +2501,44 @@ def deg2rad(x):
     return backend.numpy.deg2rad(x)
 
 
+class Rad2deg(Operation):
+    def call(self, x):
+        return backend.numpy.rad2deg(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype)
+
+
+@keras_export(["keras.ops.rad2deg", "keras.ops.numpy.rad2deg"])
+def rad2deg(x):
+    """Convert angles from radians to degrees.
+
+    The conversion is defined as:
+    `deg = rad * (180 / π)`
+
+    Args:
+        x: Input tensor of angles in radians.
+
+    Returns:
+        A tensor containing angles converted to degrees.
+
+    Examples:
+    >>> from keras import ops
+    >>> ops.rad2deg(3.141592653589793)
+    180.0
+    >>> ops.rad2deg([0.0, 1.57079633, 3.14159265])
+    array([0., 90., 180.])
+    """
+    if any_symbolic_tensors((x,)):
+        return Rad2deg().symbolic_call(x)
+    return backend.numpy.rad2deg(x)
+
+
 class Diag(Operation):
     def __init__(self, k=0, *, name=None):
         super().__init__(name=name)
