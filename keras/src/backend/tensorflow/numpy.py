@@ -1593,6 +1593,16 @@ def flip(x, axis=None):
     return tf.reverse(x, [axis])
 
 
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return tf.reverse(x, [1])
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return tf.reverse(x, [0])
+
+
 @sparse.elementwise_unary
 def floor(x):
     x = convert_to_tensor(x)

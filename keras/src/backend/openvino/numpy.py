@@ -1717,6 +1717,14 @@ def flip(x, axis=None):
     return OpenVINOKerasTensor(result.output(0))
 
 
+def fliplr(x):
+    return flip(x, axis=1)
+
+
+def flipud(x):
+    return flip(x, axis=0)
+
+
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the plane specified by axes."""
     array = get_ov_output(array)
