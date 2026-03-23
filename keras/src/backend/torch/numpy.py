@@ -716,6 +716,15 @@ def deg2rad(x):
     return torch.deg2rad(x)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.rad2deg(x), "float64")
+
+    return torch.rad2deg(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return torch.diag(x, diagonal=k)
