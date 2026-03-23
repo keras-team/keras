@@ -3,16 +3,30 @@
 import numpy as np
 
 from keras.src import testing
-from keras.src.layers.preprocessing.image_preprocessing import bounding_boxes
-
-BoundingBox = bounding_boxes.bounding_box.BoundingBox
-SUPPORTED_FORMATS = bounding_boxes.bounding_box.SUPPORTED_FORMATS
-CENTER_XYWH = bounding_boxes.formats.CENTER_XYWH
-REL_XYXY = bounding_boxes.formats.REL_XYXY
-REL_YXYX = bounding_boxes.formats.REL_YXYX
-XYWH = bounding_boxes.formats.XYWH
-XYXY = bounding_boxes.formats.XYXY
-YXYX = bounding_boxes.formats.YXYX
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.bounding_box import (  # noqa: E501
+    SUPPORTED_FORMATS,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.bounding_box import (  # noqa: E501
+    BoundingBox,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.formats import (  # noqa: E501
+    CENTER_XYWH,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.formats import (  # noqa: E501
+    REL_XYXY,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.formats import (  # noqa: E501
+    REL_YXYX,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.formats import (  # noqa: E501
+    XYWH,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.formats import (  # noqa: E501
+    XYXY,
+)
+from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.formats import (  # noqa: E501
+    YXYX,
+)
 
 
 class BoundingBoxFormatsTest(testing.TestCase):
