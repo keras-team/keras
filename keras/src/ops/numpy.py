@@ -4054,6 +4054,35 @@ def imag(x):
     return backend.numpy.imag(x)
 
 
+class I0(Operation):
+    def call(self, x):
+        return backend.numpy.i0(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.i0", "keras.ops.numpy.i0"])
+def i0(x):
+    """Modified Bessel function of the first kind, order 0.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor, element-wise modified Bessel function of the
+        first kind, order 0 of `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return I0().symbolic_call(x)
+    return backend.numpy.i0(x)
+
+
 class Isclose(Operation):
     def __init__(self, equal_nan=False, *, name=None):
         super().__init__(name=name)

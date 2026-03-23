@@ -1647,6 +1647,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((None, None))
         self.assertEqual(knp.hstack([x, y]).shape, (None, None))
 
+    def test_i0(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.i0(x).shape, (None, 3))
+
     def test_imag(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.imag(x).shape, (None, 3))
@@ -2549,6 +2553,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.hstack([x, y]).shape, (2, 6))
+
+    def test_i0(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.i0(x).shape, (2, 3))
 
     def test_imag(self):
         x = KerasTensor((2, 3))
@@ -5119,6 +5127,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         y = np.ones([2, 5, 4])
         self.assertAllClose(knp.hstack([x, y]), np.hstack([x, y]))
         self.assertAllClose(knp.Hstack()([x, y]), np.hstack([x, y]))
+
+    def test_i0(self):
+        x = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+        self.assertAllClose(knp.i0(x), np.i0(x))
+        self.assertAllClose(knp.I0()(x), np.i0(x))
+
+        # Test with negative values (i0 is symmetric)
+        x = np.array([-1.0, -2.0, 0.5])
+        self.assertAllClose(knp.i0(x), np.i0(x))
 
     def test_imag(self):
         x = np.array([[1 + 1j, 2 + 2j, 3 + 3j], [3 + 3j, 2 + 2j, 1 + 1j]])
