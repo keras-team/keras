@@ -130,6 +130,14 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
         self.dilation_rate = argument_validation.standardize_tuple(
             dilation_rate, self.rank, "dilation_rate"
         )
+        if max(self.strides) > 1 and max(self.dilation_rate) > 1:
+            raise ValueError(
+                "Specifying `strides > 1` is not compatible with "
+                "`dilation_rate > 1`. Please provide `strides=1` or "
+                "`dilation_rate=1`. "
+                f"Received: strides={self.strides} and "
+                f"dilation_rate={self.dilation_rate}"
+            )
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
         self.use_bias = use_bias
