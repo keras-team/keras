@@ -41,6 +41,7 @@ class Variable(
         else:
             self._value = tf.Variable(
                 value,
+                shape=self._shape,
                 dtype=self._dtype,
                 trainable=self.trainable,
                 name=self.name,
