@@ -173,7 +173,7 @@ class DrawBoundingBoxesTest(test_case.TestCase):
 
     # ── channels_first ───────────────────────────────────────────────────────
 
-    def test_channels_first_passthrough(self):
+    def test_channels_first_input_is_handled(self):
         # Shape (batch, C, H, W)
         images = np.zeros((1, 3, 32, 32), dtype="uint8")
         bboxes = _bbox_dict([[[2, 2, 20, 20]]], [[0]])
