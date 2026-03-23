@@ -132,8 +132,10 @@ class ConvLSTMCell(Layer, DropoutRNNCell):
         )
         if max(self.strides) > 1 and max(self.dilation_rate) > 1:
             raise ValueError(
-                "`strides > 1` not supported in conjunction with "
-                f"`dilation_rate > 1`. Received: strides={self.strides} and "
+                "Specifying `strides > 1` is not compatible with "
+                "`dilation_rate > 1`. Please provide `strides=1` or "
+                "`dilation_rate=1`. "
+                f"Received: strides={self.strides} and "
                 f"dilation_rate={self.dilation_rate}"
             )
         self.activation = activations.get(activation)

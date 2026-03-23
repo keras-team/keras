@@ -83,7 +83,7 @@ class ConvLSTM1DTest(testing.TestCase):
         inputs = layers.Input(shape=(10, 32, 3))
         with self.assertRaisesRegex(
             ValueError,
-            r"`strides > 1` not supported in conjunction with "
+            r"Specifying `strides > 1` is not compatible with "
             r"`dilation_rate > 1`",
         ):
             layer = layers.ConvLSTM1D(
