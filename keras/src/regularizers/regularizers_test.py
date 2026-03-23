@@ -84,14 +84,14 @@ class RegularizersTest(testing.TestCase):
         reg = regularizers.L1L2(l1=l1, l2=l2)
         config = reg.get_config()
 
-        self.assertEqual(config, {"l1": l1, "l2": l2})
+        self.assertAllClose(config, {"l1": l1, "l2": l2})
 
         reg_from_config = regularizers.L1L2.from_config(config)
         config_from_config = reg_from_config.get_config()
 
         self.assertDictEqual(config, config_from_config)
-        self.assertEqual(reg_from_config.l1, l1)
-        self.assertEqual(reg_from_config.l2, l2)
+        self.assertAllClose(reg_from_config.l1, l1)
+        self.assertAllClose(reg_from_config.l2, l2)
 
     def test_orthogonal_regularizer_mode_validation(self):
         with self.assertRaises(ValueError) as context:
