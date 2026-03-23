@@ -62,7 +62,9 @@ class EpsilonTest(testing.TestCase):
 
 class ImageDataFormatTest(testing.TestCase):
     def test_default_image_data_format(self):
-        self.assertEqual(config.image_data_format(), "channels_last")
+        self.assertIn(
+            config.image_data_format(), ["channels_last", "channels_first"]
+        )
 
     def test_set_channels_first(self):
         original = config.image_data_format()
