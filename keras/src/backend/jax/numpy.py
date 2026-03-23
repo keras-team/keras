@@ -749,10 +749,12 @@ def flip(x, axis=None):
 
 
 def fliplr(x):
+    x = convert_to_tensor(x)
     return jnp.fliplr(x)
 
 
 def flipud(x):
+    x = convert_to_tensor(x)
     return jnp.flipud(x)
 
 
