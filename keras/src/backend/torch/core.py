@@ -194,13 +194,14 @@ class Variable(KerasVariable):
                 )
             return value
 
+        res = None
         if in_stateless_scope():
             scope = get_stateless_scope()
             res = scope.get_current_value(self)
-            if res is not None:
-                return self._maybe_autocast(res)
 
-        if self._value is None:
+        if res is not None:
+            res = self._maybe_autocast(res)
+        elif self._value is None:
             # Uninitialized variable. Return a placeholder.
             # This is fine because it's only ever used
             # in during shape inference / graph tracing

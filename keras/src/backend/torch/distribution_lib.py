@@ -213,8 +213,7 @@ def all_reduce(tensor, op="sum"):
     if not torch.distributed.is_initialized():
         return tensor
 
-    if op.lower() == "sum":
-        reduce_op = torch.distributed.ReduceOp.SUM
+    if op.lower() in ("sum", "mean"):
         reduce_op = torch.distributed.ReduceOp.SUM
     else:
         raise ValueError(f"Unsupported op: {op}")
