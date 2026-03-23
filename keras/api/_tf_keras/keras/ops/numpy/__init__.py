@@ -92,6 +92,7 @@ from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hsplit as hsplit
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import hypot as hypot
+from keras.src.ops.numpy import i0 as i0
 from keras.src.ops.numpy import identity as identity
 from keras.src.ops.numpy import imag as imag
 from keras.src.ops.numpy import inner as inner

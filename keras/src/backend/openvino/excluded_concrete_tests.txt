@@ -255,6 +255,7 @@ NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
 NumpyDtypeTest::test_view
 NumpyOneInputOpsCorrectnessTest::test_conj
+NumpyOneInputOpsCorrectnessTest::test_i0
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_real
