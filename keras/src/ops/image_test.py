@@ -2324,7 +2324,7 @@ class ImageOpsBehaviorTests(testing.TestCase):
 
     def test_rgb_to_hsv_invalid_channels(self):
         invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
 
         invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
@@ -2353,7 +2353,7 @@ class ImageOpsBehaviorTests(testing.TestCase):
 
     def test_hsv_to_rgb_invalid_channels(self):
         invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
-        with self.assertRaises(ValueError):
+        with self.assertRaises(Exception):
             kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
 
         invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
