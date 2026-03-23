@@ -107,6 +107,10 @@ def get_data_adapter(
                 "#supporting-sampleweight-amp-classweight for more details. "
                 f"Received: class_weight={class_weight}"
             )
+        if distribution is not None and isinstance(
+            distribution, distribution_lib.DataParallel
+        ):
+            x = _add_distributed_sampler(x, distribution)
         return TorchDataLoaderAdapter(x)
         # TODO: should we warn or not?
         # warnings.warn(
@@ -168,6 +172,31 @@ def raise_unsupported_arg(arg_name, arg_description, input_type):
         f"When providing `x` as a {input_type}, `{arg_name}` "
         f"should not be passed. Instead, {arg_description} should "
         f"be included as part of the {input_type}."
+    )
+
+
+def _add_distributed_sampler(dataloader, distribution):
+    import torch
+
+    from keras.src.backend.torch import distribution_lib as torch_dist_lib
+
+    sampler = torch.utils.data.distributed.DistributedSampler(
+        dataloader.dataset,
+        num_replicas=torch_dist_lib.num_processes(),
+        rank=torch_dist_lib.process_id(),
+        shuffle=True,
+    )
+    return torch.utils.data.DataLoader(
+        dataloader.dataset,
+        sampler=sampler,
+        batch_size=dataloader.batch_size,
+        num_workers=dataloader.num_workers,
+        collate_fn=dataloader.collate_fn,
+        pin_memory=dataloader.pin_memory,
+        drop_last=dataloader.drop_last,
+        timeout=dataloader.timeout,
+        worker_init_fn=dataloader.worker_init_fn,
+        persistent_workers=dataloader.persistent_workers,
     )
 
 

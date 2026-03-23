@@ -224,14 +224,18 @@ def ones(shape, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
-    return torch.ones(size=shape, dtype=dtype, device=get_device())
+    return convert_to_tensor(
+        torch.ones(size=shape, dtype=dtype, device=get_device())
+    )
 
 
 def zeros(shape, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
-    return torch.zeros(size=shape, dtype=dtype, device=get_device())
+    return convert_to_tensor(
+        torch.zeros(size=shape, dtype=dtype, device=get_device())
+    )
 
 
 def zeros_like(x, dtype=None):
@@ -325,8 +329,8 @@ def arange(start, stop=None, step=None, dtype=None):
         start, stop = 0, start
     if step is None:
         step = 1
-    return torch.arange(
-        start, stop, step=step, dtype=dtype, device=get_device()
+    return convert_to_tensor(
+        torch.arange(start, stop, step=step, dtype=dtype, device=get_device())
     )
 
 
@@ -380,7 +384,12 @@ def argmax(x, axis=None, keepdims=False):
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
 
-    return cast(torch.argmax(x, dim=axis, keepdim=keepdims), dtype="int32")
+    from keras.src.backend.torch.core import _apply_replicated
+
+    return cast(
+        _apply_replicated(torch.argmax, x, dim=axis, keepdim=keepdims),
+        dtype="int32",
+    )
 
 
 def argmin(x, axis=None, keepdims=False):
@@ -390,7 +399,12 @@ def argmin(x, axis=None, keepdims=False):
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
 
-    return cast(torch.argmin(x, dim=axis, keepdim=keepdims), dtype="int32")
+    from keras.src.backend.torch.core import _apply_replicated
+
+    return cast(
+        _apply_replicated(torch.argmin, x, dim=axis, keepdim=keepdims),
+        dtype="int32",
+    )
 
 
 def argsort(x, axis=-1):
@@ -403,7 +417,13 @@ def argsort(x, axis=-1):
     if axis is None:
         axis = -1
         x = x.reshape(-1)
-    return cast(torch.argsort(x, dim=axis, stable=True), dtype="int32")
+
+    from keras.src.backend.torch.core import _apply_replicated
+
+    return cast(
+        _apply_replicated(torch.argsort, x, dim=axis, stable=True),
+        dtype="int32",
+    )
 
 
 def array(x, dtype=None):
