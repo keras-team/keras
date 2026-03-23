@@ -78,15 +78,13 @@ class ConvLSTM1DTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_symbolic_invalid_strides_dilation_rate(self):
-        inputs = layers.Input(shape=(10, 32, 3))
         with self.assertRaisesRegex(
             ValueError,
             r"Specifying `strides > 1` is not compatible with "
             r"`dilation_rate > 1`",
         ):
-            layer = layers.ConvLSTM1D(
+            layers.ConvLSTM1D(
                 filters=1,
                 kernel_size=1,
                 strides=2,
@@ -94,4 +92,3 @@ class ConvLSTM1DTest(testing.TestCase):
                 dilation_rate=3,
                 return_sequences=True,
             )
-            layer(inputs)
