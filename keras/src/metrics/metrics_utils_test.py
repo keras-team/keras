@@ -414,8 +414,4 @@ class AdditionalEdgeCaseTest(testing.TestCase):
 
 
 if __name__ == "__main__":
-    import sys
-
-    import pytest
-
-    sys.exit(pytest.main([__file__, "-v"]))
+    testing.run_tests()
