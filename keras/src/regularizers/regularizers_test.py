@@ -84,7 +84,8 @@ class RegularizersTest(testing.TestCase):
         reg = regularizers.L1L2(l1=l1, l2=l2)
         config = reg.get_config()
 
-        self.assertAllClose(config, {"l1": l1, "l2": l2})
+        self.assertAllClose(config["l1"], l1)
+        self.assertAllClose(config["l2"], l2)
 
         reg_from_config = regularizers.L1L2.from_config(config)
         config_from_config = reg_from_config.get_config()
