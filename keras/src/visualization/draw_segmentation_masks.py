@@ -73,9 +73,15 @@ def draw_segmentation_masks(
             f"Received: segmentation_masks.dtype={dtype}"
         )
 
-    # Infer num_classes
+    # Ensure masks have a trailing channel dimension (batch, H, W, 1).
+    # The subsequent squeeze / one_hot logic requires this shape.
+    if len(ops.shape(segmentation_masks)) == 3:
+        segmentation_masks = ops.expand_dims(segmentation_masks, axis=-1)
+
+    # Infer num_classes from the maximum mask value.
+    # Since class indices are 0-indexed, the total number of classes is max+1.
     if num_classes is None:
-        num_classes = int(ops.convert_to_numpy(ops.max(segmentation_masks)))
+        num_classes = int(ops.convert_to_numpy(ops.max(segmentation_masks))) + 1
     if color_mapping is None:
         colors = _generate_color_palette(num_classes)
     else:
