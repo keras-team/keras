@@ -312,10 +312,6 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         )
     elif not isinstance(x, (list, tuple)):
         x = np.array(x)
-        elif len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
-        # Handle list or tuple of torch tensors
-        return torch.stack([convert_to_tensor(x1) for x1 in x])
-    if isinstance(x, np.ndarray):
         if x.dtype == np.uint32:
             # Torch backend does not support uint32.
             x = x.astype(np.int64)
