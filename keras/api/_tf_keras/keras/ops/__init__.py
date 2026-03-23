@@ -194,6 +194,8 @@ from keras.src.ops.numpy import expand_dims as expand_dims
 from keras.src.ops.numpy import expm1 as expm1
 from keras.src.ops.numpy import eye as eye
 from keras.src.ops.numpy import flip as flip
+from keras.src.ops.numpy import fliplr as fliplr
+from keras.src.ops.numpy import flipud as flipud
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
 from keras.src.ops.numpy import fmod as fmod

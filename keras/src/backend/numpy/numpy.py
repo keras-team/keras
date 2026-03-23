@@ -681,6 +681,14 @@ def flip(x, axis=None):
     return np.flip(x, axis=axis)
 
 
+def fliplr(x):
+    return np.fliplr(x)
+
+
+def flipud(x):
+    return np.flipud(x)
+
+
 def floor(x):
     x = convert_to_tensor(x)
     dtype = (

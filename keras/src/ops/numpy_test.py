@@ -1612,6 +1612,14 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.flip(x).shape, (None, 3))
 
+    def test_fliplr(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.fliplr(x).shape, (None, 3))
+
+    def test_flipud(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.flipud(x).shape, (None, 3))
+
     def test_floor(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.floor(x).shape, (None, 3))
@@ -2530,6 +2538,14 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_flip(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.flip(x).shape, (2, 3))
+
+    def test_fliplr(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.fliplr(x).shape, (2, 3))
+
+    def test_flipud(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.flipud(x).shape, (2, 3))
 
     def test_floor(self):
         x = KerasTensor((2, 3))
@@ -5111,6 +5127,24 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Flip()(x), np.flip(x))
         self.assertAllClose(knp.Flip(0)(x), np.flip(x, 0))
         self.assertAllClose(knp.Flip(1)(x), np.flip(x, 1))
+
+    def test_fliplr(self):
+        x = np.array([[1, 2, 3], [4, 5, 6]])
+        self.assertAllClose(knp.fliplr(x), np.fliplr(x))
+        self.assertAllClose(knp.Fliplr()(x), np.fliplr(x))
+
+        # 3-D tensor
+        x = np.arange(24).reshape(2, 3, 4)
+        self.assertAllClose(knp.fliplr(x), np.fliplr(x))
+
+    def test_flipud(self):
+        x = np.array([[1, 2, 3], [4, 5, 6]])
+        self.assertAllClose(knp.flipud(x), np.flipud(x))
+        self.assertAllClose(knp.Flipud()(x), np.flipud(x))
+
+        # 1-D tensor
+        x = np.array([1, 2, 3])
+        self.assertAllClose(knp.flipud(x), np.flipud(x))
 
     def test_floor(self):
         x = np.array([[1.1, 2.2, -3.3], [3.3, 2.2, -1.1]])
