@@ -16,6 +16,11 @@ def pytest_configure(config):
         "markers",
         "requires_trainable_backend: mark test for trainable backend only",
     )
+    config.addinivalue_line(
+        "markers",
+        "multi_device: mark test for running with multiple devices only",
+    )
+
     # Disable CUDA TF32 to get higher numerical accuracy for correctness tests.
     if backend() == "torch":
         if torch.cuda.is_available():
@@ -28,6 +33,8 @@ def pytest_configure(config):
 
 
 def pytest_collection_modifyitems(config, items):
+    has_multiple_devices = False
+
     openvino_skipped_tests = []
     if backend() == "openvino":
         with open(
@@ -44,6 +51,8 @@ def pytest_collection_modifyitems(config, items):
     if backend() == "jax":
         import jax
 
+        has_multiple_devices = jax.device_count() > 1
+
         if jax.default_backend() == "tpu":
             with open(
                 "keras/src/backend/jax/excluded_tpu_tests.txt", "r"
@@ -59,9 +68,18 @@ def pytest_collection_modifyitems(config, items):
         backend() in ["numpy", "openvino"],
         reason="Trainer not implemented for NumPy and OpenVINO backend.",
     )
+    requires_multiple_devices = (
+        None
+        if has_multiple_devices
+        else pytest.mark.skip(reason="Requires multiple devices")
+    )
+
     for item in items:
         if "requires_trainable_backend" in item.keywords:
             item.add_marker(requires_trainable_backend)
+        if requires_multiple_devices and "multi_device" in item.keywords:
+            item.add_marker(requires_multiple_devices)
+
         # also, skip concrete tests for openvino, listed in the special file
         # this is more granular mechanism to exclude tests rather
         # than using --ignore option

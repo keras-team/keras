@@ -16,6 +16,7 @@ from keras.src.distribution import LayoutMap
 from keras.src.distribution import ModelParallel
 from keras.src.distribution import TensorLayout
 from keras.src.distribution import distribution as get_distribution
+from keras.src.distribution import get_device_count
 from keras.src.distribution import set_distribution
 from keras.src.saving import register_keras_serializable
 from keras.src.testing.test_utils import named_product
@@ -57,14 +58,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         Calls self.skipTest if fewer than 2 devices are available or if
         the fixed layer sizes don't divide evenly by num_devices.
         """
-        import jax
-
-        devices = jax.devices()
-        num_devices = len(devices)
-        if num_devices < 2:
-            self.skipTest(
-                "Test requires distributed setup with multiple devices"
-            )
+        num_devices = get_device_count()
         if (
             self._DIST_DENSE_UNITS % num_devices != 0
             or self._DIST_OUT_UNITS % num_devices != 0
@@ -74,9 +68,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
                 f"dense_units={self._DIST_DENSE_UNITS} or "
                 f"out_units={self._DIST_OUT_UNITS}"
             )
-        device_mesh = DeviceMesh(
-            (num_devices,), axis_names=["data"], devices=devices
-        )
+        device_mesh = DeviceMesh((num_devices,), axis_names=["data"])
         return num_devices, device_mesh, get_distribution()
 
     def _build_distributed_model(self, dense_units, out_units):
@@ -361,6 +353,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         backend.backend() != "jax",
         reason="Requires JAX backend for distribution",
     )
+    @pytest.mark.multi_device
     def test_distributed_checkpoint_functionality(self):
         """Test OrbaxCheckpoint with distributed training.
 
@@ -446,6 +439,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
         backend.backend() != "jax",
         reason="Requires JAX backend for distribution",
     )
+    @pytest.mark.multi_device
     def test_distributed_checkpoint_resharding(self):
         """Test loading an Orbax checkpoint under a *different* layout.
 
