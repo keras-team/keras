@@ -650,7 +650,9 @@ class JaxLayer(Layer):
         config = {
             "call_fn": serialization_lib.serialize_keras_object(self.call_fn),
             "init_fn": serialization_lib.serialize_keras_object(self.init_fn),
-            "native_serialization_platforms": self.jax2tf_native_serialization_platforms,
+            "native_serialization_platforms": (
+                self.jax2tf_native_serialization_platforms
+            ),
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
