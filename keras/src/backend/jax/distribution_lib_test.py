@@ -1,7 +1,6 @@
 """Test for distribution_lib.py."""
 
 import functools
-import os
 from unittest import mock
 
 import jax
@@ -9,30 +8,25 @@ import numpy as np
 import pytest
 from jax.experimental import layout as jax_layout
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
 
-if backend.backend() == "jax":
-    # Due to https://github.com/google/jax/issues/17188, we can't
-    # override the XLA flag after the JAX back init. We have to
-    # run this at top level to let JAX pick the flag value.
-    xla_flags = os.getenv("XLA_FLAGS") or ""
-    # Don't override user-specified device count, or other XLA flags.
-    if "xla_force_host_platform_device_count" not in xla_flags:
-        os.environ["XLA_FLAGS"] = (
-            f"{xla_flags} --xla_force_host_platform_device_count=8"
-        )
 
-
-@pytest.mark.skipif(
-    backend.backend() != "jax" or len(jax.devices()) != 8,
-    reason="Backend specific test and requires 8 devices",
-)
+@pytest.mark.multi_device
 class JaxDistributionLibTest(testing.TestCase):
+    def setUp(self):
+        self.device_count = jax.device_count()
+        self.assertGreaterEqual(
+            self.device_count, 4, "Number of devices must be at least 4"
+        )
+        self.assertEqual(
+            self.device_count % 2, 0, "Number of devices must be even"
+        )
+        self.mesh_shape = (self.device_count // 2, 2)
+
     def _create_jax_layout(self, sharding):
         # Use jax_layout.Format or jax_layout.Layout if available.
         if hasattr(jax_layout, "Format"):
@@ -43,13 +37,18 @@ class JaxDistributionLibTest(testing.TestCase):
         return sharding
 
     def test_get_device_count(self):
-        self.assertEqual(backend_dlib.get_device_count(), 8)
-        self.assertEqual(backend_dlib.get_device_count("cpu"), 8)
+        self.assertEqual(backend_dlib.get_device_count(), self.device_count)
+        self.assertEqual(
+            backend_dlib.get_device_count("cpu"), self.device_count
+        )
 
     def test_list_devices(self):
-        self.assertEqual(len(distribution_lib.list_devices()), 8)
-        self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
-        self.assertEqual(len(distribution_lib.list_devices("cpu")), 8)
+        self.assertEqual(
+            len(distribution_lib.list_devices()), self.device_count
+        )
+        self.assertEqual(
+            len(distribution_lib.list_devices("cpu")), self.device_count
+        )
 
     def test_device_conversion(self):
         devices = distribution_lib.list_devices("cpu")
@@ -82,10 +81,12 @@ class JaxDistributionLibTest(testing.TestCase):
 
     def test_distribute_tensor(self):
         jax_mesh = jax.sharding.Mesh(
-            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+            np.array(jax.devices()).reshape(self.mesh_shape), ("batch", "model")
         )
 
-        inputs = jax.numpy.array(np.random.normal(size=(16, 8)))
+        inputs = jax.numpy.array(
+            np.random.normal(size=(self.mesh_shape[0] * 4, 8))
+        )
         target_layout = jax.sharding.NamedSharding(
             jax_mesh, jax.sharding.PartitionSpec("batch", None)
         )
@@ -106,10 +107,12 @@ class JaxDistributionLibTest(testing.TestCase):
 
     def test_distribute_tensor_with_jax_layout(self):
         jax_mesh = jax.sharding.Mesh(
-            np.array(jax.devices()).reshape(2, 4), ("batch", "model")
+            np.array(jax.devices()).reshape(self.mesh_shape), ("batch", "model")
         )
 
-        inputs = jax.numpy.array(np.random.normal(size=(16, 8)))
+        inputs = jax.numpy.array(
+            np.random.normal(size=(self.mesh_shape[0] * 4, 8))
+        )
         target_layout = self._create_jax_layout(
             sharding=jax.sharding.NamedSharding(
                 jax_mesh, jax.sharding.PartitionSpec("batch", None)
@@ -139,22 +142,18 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(backend_dlib.num_processes(), 1)
 
     def test_to_backend_mesh(self):
-        devices = [f"cpu:{i}" for i in range(8)]
-        shape = (4, 2)
         axis_names = ["batch", "model"]
 
-        mesh = distribution_lib.DeviceMesh(shape, axis_names, devices)
+        mesh = distribution_lib.DeviceMesh(self.mesh_shape, axis_names)
         jax_mesh = backend_dlib._to_backend_mesh(mesh)
 
         self.assertIsInstance(jax_mesh, jax.sharding.Mesh)
-        self.assertEqual(jax_mesh.devices.shape, shape)
+        self.assertEqual(jax_mesh.devices.shape, self.mesh_shape)
         self.assertEqual(jax_mesh.axis_names, ("batch", "model"))
 
     def test_to_backend_layout(self):
         axes = ["data", None]
-        mesh = distribution_lib.DeviceMesh(
-            (4, 2), ["data", "model"], [f"cpu:{i}" for i in range(8)]
-        )
+        mesh = distribution_lib.DeviceMesh(self.mesh_shape, ["data", "model"])
         layout = distribution_lib.TensorLayout(axes, mesh)
         jax_sharding = backend_dlib._to_backend_layout(layout)
         jax_mesh = backend_dlib._to_backend_mesh(mesh)
@@ -175,10 +174,9 @@ class JaxDistributionLibTest(testing.TestCase):
             backend_dlib._to_backend_layout(layout)
 
     def test_variable_assignment_reuse_layout(self):
-        shape = (4, 2)
         axis_names = ["batch", "model"]
         device_mesh = distribution_lib.DeviceMesh(
-            shape, axis_names, backend_dlib.list_devices()
+            self.mesh_shape, axis_names, backend_dlib.list_devices()
         )
         layout_map = distribution_lib.LayoutMap(device_mesh)
         layout_map[".*dense.*kernel"] = distribution_lib.TensorLayout(
@@ -213,9 +211,7 @@ class JaxDistributionLibTest(testing.TestCase):
         self.assertEqual(dense_layer.bias._value.sharding.spec, ("model",))
 
     def test_e2e_data_parallel_model(self):
-        distribution = distribution_lib.DataParallel(
-            devices=backend_dlib.list_devices()
-        )
+        distribution = distribution_lib.DataParallel()
 
         with distribution.scope():
             inputs = layers.Input(shape=[28, 28, 1])
@@ -229,18 +225,17 @@ class JaxDistributionLibTest(testing.TestCase):
         for weight in model.weights:
             self.assertTrue(weight._value.sharding.is_fully_replicated)
 
-        inputs = np.random.normal(size=(32, 28, 28, 1))
-        labels = np.random.normal(size=(32, 10))
+        inputs = np.random.normal(size=(self.device_count * 8, 28, 28, 1))
+        labels = np.random.normal(size=(self.device_count * 8, 10))
 
         with distribution.scope():
             model.compile(loss="mse")
-            model.fit(inputs, labels)
+            model.fit(inputs, labels, batch_size=self.device_count)
 
     def test_e2e_model_parallel_model(self):
-        shape = (4, 2)
         axis_names = ["batch", "model"]
         device_mesh = distribution_lib.DeviceMesh(
-            shape, axis_names, backend_dlib.list_devices()
+            self.mesh_shape, axis_names, backend_dlib.list_devices()
         )
 
         layout_map = distribution_lib.LayoutMap(device_mesh)
@@ -268,18 +263,17 @@ class JaxDistributionLibTest(testing.TestCase):
             else:
                 self.assertTrue(weight._value.sharding.is_fully_replicated)
 
-        inputs = np.random.normal(size=(32, 28, 28, 1))
-        labels = np.random.normal(size=(32, 10))
+        inputs = np.random.normal(size=(self.device_count * 8, 28, 28, 1))
+        labels = np.random.normal(size=(self.device_count * 8, 10))
 
         with distribution.scope():
             model.compile(loss="mse")
-            model.fit(inputs, labels)
+            model.fit(inputs, labels, batch_size=self.device_count)
 
     def test_e2e_model_parallel_with_output_sharding(self):
-        shape = (4, 2)
         axis_names = ["batch", "model"]
         device_mesh = distribution_lib.DeviceMesh(
-            shape, axis_names, backend_dlib.list_devices()
+            self.mesh_shape, axis_names, backend_dlib.list_devices()
         )
 
         layout_map = distribution_lib.LayoutMap(device_mesh)
@@ -312,12 +306,12 @@ class JaxDistributionLibTest(testing.TestCase):
             else:
                 self.assertTrue(weight._value.sharding.is_fully_replicated)
 
-        inputs = np.random.normal(size=(32, 28, 28, 1))
-        labels = np.random.normal(size=(32, 10))
+        inputs = np.random.normal(size=(self.device_count * 8, 28, 28, 1))
+        labels = np.random.normal(size=(self.device_count * 8, 10))
 
         with distribution.scope():
             model.compile(loss="mse")
-            model.fit(inputs, labels)
+            model.fit(inputs, labels, batch_size=self.device_count)
 
         # Note that the intermediate_tensor_layout is only captured during the
         # actual training, and not at the model building time.
@@ -332,13 +326,11 @@ class JaxDistributionLibTest(testing.TestCase):
         )
 
     def test_distribute_data_input(self):
-        per_process_batch = jax.numpy.arange(24).reshape(
-            6, 4
-        )  # Example input array
-        devices = jax.devices()[:4]  # Simulate 4 devices
-        batch_dim_size, model_dim_size = 2, 2
+        per_process_batch = jax.numpy.arange(
+            3 * self.mesh_shape[0] * 5
+        ).reshape((3 * self.mesh_shape[0], 5))  # Example input array
         mesh = jax.sharding.Mesh(
-            np.array(devices).reshape(batch_dim_size, model_dim_size),
+            np.array(jax.devices()).reshape(self.mesh_shape),
             axis_names=["batch", "model"],
         )
         layout = jax.sharding.NamedSharding(
@@ -351,18 +343,13 @@ class JaxDistributionLibTest(testing.TestCase):
 
         # Check the shape of the global batch array
         self.assertEqual(
-            result.shape, (6, 4)
-        )  # (per_replica_batch_size * num_model_replicas_total, 4)
+            result.shape, (3 * self.mesh_shape[0], 5)
+        )  # (per_replica_batch_size * num_model_replicas_total, 5)
 
         # Check the sharding of the global batch array
-        self.assertEqual(len(result.addressable_shards), len(devices))
-        # Since batch_dim_size=2, there are 2 model replicas so there is one
-        # replication of data for model replica #1 and another replication of
-        # data for model replica #2. Within each model replica, the data is
-        # sharded to two shards. Therefore, each shard has 1/2 of
-        # per_process_batch.
+        self.assertEqual(len(result.addressable_shards), self.device_count)
         for shard in result.addressable_shards:
-            self.assertEqual(shard.data.shape, (3, 4))
+            self.assertEqual(shard.data.shape, (3, 5))
 
 
 class ShardingCaptureLayer(layers.Layer):
