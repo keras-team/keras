@@ -9,10 +9,6 @@ from keras.src import testing
 
 class LSTMTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
-    @pytest.mark.xfail(
-        testing.torch_uses_gpu(),
-        reason="Broken gradient in Torch CuDNN implementation",
-    )
     def test_basics(self):
         self.run_layer_test(
             layers.LSTM,
@@ -254,7 +250,7 @@ class LSTMTest(testing.TestCase):
         )
 
     @pytest.mark.xfail(
-        testing.torch_uses_gpu() or testing.tensorflow_uses_gpu(),
+        testing.tensorflow_uses_gpu(),
         reason="Broken mask in CuDNN implementation",
     )
     def test_masking(self):
