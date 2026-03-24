@@ -16,6 +16,15 @@ def pytest_configure(config):
         "markers",
         "requires_trainable_backend: mark test for trainable backend only",
     )
+    # Disable CUDA TF32 to get higher numerical accuracy for correctness tests.
+    if backend() == "torch":
+        if torch.cuda.is_available():
+            torch.backends.cudnn.allow_tf32 = False
+    elif backend() == "tensorflow":
+        import tensorflow as tf
+
+        if tf.config.list_physical_devices("GPU"):
+            tf.config.experimental.enable_tensor_float_32_execution(False)
 
 
 def pytest_collection_modifyitems(config, items):

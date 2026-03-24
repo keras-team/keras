@@ -195,15 +195,19 @@ class L1L2(Regularizer):
         validate_float_arg(l1, name="l1")
         validate_float_arg(l2, name="l2")
 
-        self.l1 = l1
-        self.l2 = l2
+        self.l1 = ops.convert_to_tensor(l1)
+        self.l2 = ops.convert_to_tensor(l2)
 
     def __call__(self, x):
         regularization = ops.convert_to_tensor(0.0, dtype=x.dtype)
         if self.l1:
-            regularization += self.l1 * ops.sum(ops.absolute(x))
+            regularization += ops.cast(self.l1, dtype=x.dtype) * ops.sum(
+                ops.absolute(x)
+            )
         if self.l2:
-            regularization += self.l2 * ops.sum(ops.square(x))
+            regularization += ops.cast(self.l2, dtype=x.dtype) * ops.sum(
+                ops.square(x)
+            )
         return regularization
 
     def get_config(self):
@@ -233,7 +237,7 @@ class L1(Regularizer):
         self.l1 = ops.convert_to_tensor(l1)
 
     def __call__(self, x):
-        return self.l1 * ops.sum(ops.absolute(x))
+        return ops.cast(self.l1, dtype=x.dtype) * ops.sum(ops.absolute(x))
 
     def get_config(self):
         return {"l1": float(self.l1)}
@@ -259,10 +263,10 @@ class L2(Regularizer):
     def __init__(self, l2=0.01):
         l2 = 0.01 if l2 is None else l2
         validate_float_arg(l2, name="l2")
-        self.l2 = l2
+        self.l2 = ops.convert_to_tensor(l2)
 
     def __call__(self, x):
-        return self.l2 * ops.sum(ops.square(x))
+        return ops.cast(self.l2, dtype=x.dtype) * ops.sum(ops.square(x))
 
     def get_config(self):
         return {"l2": float(self.l2)}

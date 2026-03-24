@@ -63,7 +63,7 @@ def filter_safe_zipinfos(members, base_dir):
         if not valid_path:
             warnings.warn(
                 "Skipping invalid path during archive extraction: "
-                f"'{finfo.name}'.",
+                f"'{finfo.filename}'.",
                 stacklevel=2,
             )
 

@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [torch]
+        backend: [tensorflow, torch]
 
     container:
       image: python:3.11-slim
@@ -38,11 +38,18 @@ jobs:
       - name: Check CUDA Version
         run: nvidia-smi
 
+      - name: Install Torch Prerequisites
+        # Torch Dynamo / triton requires the C++ compiler to be installed, which is part of `build-essential`.
+        if: ${{ matrix.backend == 'torch'}}
+        run: |
+          apt-get update
+          apt-get -y install build-essential
+
       - name: Install Dependencies
         run: pip install --no-cache-dir -r requirements-${{ matrix.backend }}-cuda.txt
 
       - name: Set Keras Backend
-        run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
+        run: echo "KERAS_BACKEND=${{ matrix.backend }}" >> $GITHUB_ENV
 
       - name: Verify TF Installation
         if: ${{ matrix.backend == 'tensorflow'}}
@@ -57,7 +64,7 @@ jobs:
         run: python3 -c "import torch; print('Torch devices:', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]); assert torch.cuda.device_count() > 0"
 
       - name: Run Tests
-        run: pytest -s keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
 
       - name: Run Distribution Tests
         if: ${{ matrix.backend == 'jax'}}
