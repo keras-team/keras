@@ -8,13 +8,26 @@ from keras.src.backend.common import global_state
 
 def list_devices(device_type=None):
     """Return all the available devices based on the device type."""
-    device_type = device_type or "gpu"
+    if device_type is None:
+        if torch.cuda.is_available():
+            device_type = "gpu"
+        elif hasattr(torch, "xpu") and torch.xpu.is_available():
+            device_type = "xpu"
+        else:
+            device_type = "cpu"
+
     if torch.distributed.is_initialized():
         count = torch.distributed.get_world_size()
     elif "WORLD_SIZE" in os.environ:
         count = int(os.environ["WORLD_SIZE"])
     else:
-        count = torch.cuda.device_count() or 1
+        # Fallback for local devices
+        if device_type.lower() == "gpu":
+            count = torch.cuda.device_count() or 1
+        elif device_type.lower() == "xpu":
+            count = torch.xpu.device_count() or 1
+        else:
+            count = 1
     return [f"{device_type.lower()}:{i}" for i in range(count)]
 
 
@@ -25,7 +38,9 @@ def get_device_count(device_type=None):
     elif "WORLD_SIZE" in os.environ:
         return int(os.environ["WORLD_SIZE"])
     else:
-        return torch.cuda.device_count() or 1
+        if device_type and device_type.lower() == "gpu":
+            return torch.cuda.device_count() or 1
+        return 1
 
 
 def initialize(job_addresses=None, num_processes=None, process_id=None):
@@ -88,7 +103,8 @@ def _to_backend_layout(tensor_layout):
     from torch.distributed.tensor import Shard
 
     keras_mesh = tensor_layout.device_mesh
-    torch_mesh = _to_backend_mesh(keras_mesh)    
+    torch_mesh = keras_mesh.backend_mesh
+
     placements = []
     for mesh_dim_name in keras_mesh.axis_names:
         shard_dim = None
@@ -101,8 +117,8 @@ def _to_backend_layout(tensor_layout):
             placements.append(Shard(shard_dim))
         else:
             placements.append(Replicate())
-    
-    return torch_mesh, tuple(placements)
+
+    return DTensorLayout(torch_mesh, tuple(placements))
 
 
 class DTensorLayout:
@@ -120,9 +136,26 @@ def distribute_tensor(tensor, layout):
         distribute_tensor as torch_distribute_tensor,
     )
 
-    torch_mesh, placements = _to_backend_layout(layout)
+    if layout is None:
+        return tensor
+
+    from keras.src.distribution import TensorLayout
+
+    if isinstance(layout, TensorLayout):
+        layout = _to_backend_layout(layout)
+
+    if isinstance(tensor, DTensor):
+        if (
+            tensor.device_mesh == layout.device_mesh
+            and tensor.placements == layout.placements
+        ):
+            return tensor
+        return tensor.redistribute(
+            device_mesh=layout.device_mesh, placements=layout.placements
+        )
+
     return torch_distribute_tensor(
-        tensor, device_mesh=torch_mesh, placements=placements
+        tensor, device_mesh=layout.device_mesh, placements=layout.placements
     )
 
 
@@ -141,9 +174,15 @@ def distribute_data_input(per_process_batch, layout, batch_dim_name=None):
 
     from torch.distributed.tensor import DTensor
 
-    torch_mesh, placements = _to_backend_layout(layout)
+    from keras.src.distribution.distribution_lib import TensorLayout
+
+    if isinstance(layout, TensorLayout):
+        layout = _to_backend_layout(layout)
+
     return DTensor.from_local(
-        per_process_batch, device_mesh=torch_mesh, placements=placements
+        per_process_batch,
+        device_mesh=layout.device_mesh,
+        placements=layout.placements,
     )
 
 
