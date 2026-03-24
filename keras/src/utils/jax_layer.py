@@ -362,11 +362,15 @@ class JaxLayer(Layer):
     def _jax2tf_convert(self, fn, polymorphic_shapes):
         from jax.experimental import jax2tf
 
-        converted_fn = jax2tf.convert(
-            fn,
-            polymorphic_shapes=polymorphic_shapes,
-            native_serialization_platforms=self.jax2tf_native_serialization_platforms,
-        )
+        jax2tf_kwargs = {"polymorphic_shapes": polymorphic_shapes}
+        # Backwards compatibility for users < JAX v0.4.24
+        if self.jax2tf_native_serialization_platforms is not None:
+            jax2tf_kwargs["native_serialization_platforms"] = (
+                self.jax2tf_native_serialization_platforms
+            )
+            jax2tf_kwargs["native_serialization"] = True
+
+        converted_fn = jax2tf.convert(fn, **jax2tf_kwargs)
         # Autograph won't work with the output of jax2tf.
         converted_fn = tf.autograph.experimental.do_not_convert(converted_fn)
         return converted_fn
