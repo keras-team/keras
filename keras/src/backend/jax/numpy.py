@@ -1115,6 +1115,12 @@ def nanprod(x, axis=None, keepdims=False):
     return jnp.nanprod(x, axis=axis, keepdims=keepdims)
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def nanstd(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanstd(x, axis=axis, keepdims=keepdims)
