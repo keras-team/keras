@@ -5961,6 +5961,91 @@ def nanprod(x, axis=None, keepdims=False):
     return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
 
 
+class Nanquantile(Operation):
+    def __init__(
+        self, axis=None, method="linear", keepdims=False, *, name=None
+    ):
+        super().__init__(name=name)
+        self.axis = axis
+        self.method = method
+        self.keepdims = keepdims
+
+    def call(self, x, q):
+        return backend.numpy.nanquantile(
+            x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x, q):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        if hasattr(q, "shape"):
+            if len(q.shape) > 0:
+                output_shape = (q.shape[0],) + output_shape
+
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nanquantile", "keras.ops.numpy.nanquantile"])
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    """Compute the q-th quantile(s) of the data along the specified axis,
+    while ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        q: Probability or sequence of probabilities for the quantiles to
+            compute. Values must be between 0 and 1 inclusive.
+        axis: Axis or axes along which the quantiles are computed. Defaults to
+            `axis=None` which is to compute the quantile(s) along a flattened
+            version of the array.
+        method: A string specifies the method to use for estimating the
+            quantile. Available methods are `"linear"`, `"lower"`, `"higher"`,
+            `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
+            If the desired quantile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
+        keepdims: If this is set to `True`, the axes which are reduced
+            are left in the result as dimensions with size one.
+
+    Returns:
+        The quantile(s) ignoring NaNs.
+
+    Examples:
+    >>> import keras
+    >>> from keras import ops
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanquantile(x, 0.5)
+    2.5
+    >>> x = keras.ops.array([1., 2., float("nan"), 4.])
+    >>> keras.ops.nanquantile(x, 0.5)
+    2.0
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanquantile(x, [0.25, 0.75])
+    array([1.75, 3.25])
+    >>> x = keras.ops.array([[1., 2., float("nan")],
+    ...                      [4., 5., 6.]])
+    >>> keras.ops.nanquantile(x, 0.5, axis=1)
+    array([1.5, 5.0])
+    """
+    if any_symbolic_tensors((x, q)):
+        return Nanquantile(
+            axis=axis, method=method, keepdims=keepdims
+        ).symbolic_call(x, q)
+
+    return backend.numpy.nanquantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    )
+
+
 class Nanstd(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
