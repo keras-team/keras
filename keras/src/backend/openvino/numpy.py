@@ -764,66 +764,13 @@ def heaviside(x1, x2):
     return OpenVINOKerasTensor(x)
 
 
-def _i0_node(x):
-    x = ov_opset.abs(x).output(0)
-    x_type = x.get_element_type()
-    three_point_seven_five = ov_opset.constant(3.75, x_type).output(0)
-    p1_coeffs = [
-        1.0,
-        3.5156229,
-        3.0899424,
-        1.2067492,
-        0.2659732,
-        0.0360768,
-        0.0045813,
-    ]
-    p2_coeffs = [
-        0.39894228,
-        0.01328592,
-        0.00225319,
-        -0.00157565,
-        0.00916281,
-        -0.02057706,
-        0.02635537,
-        -0.01647633,
-        0.00392377,
-    ]
-    t_A = ov_opset.divide(x, three_point_seven_five).output(0)
-    t_A = ov_opset.multiply(t_A, t_A).output(0)
-    res_A = ov_opset.constant(p1_coeffs[6], x_type).output(0)
-    for i in range(5, -1, -1):
-        c = ov_opset.constant(p1_coeffs[i], x_type).output(0)
-        res_A = ov_opset.add(ov_opset.multiply(res_A, t_A), c).output(0)
-    safe_x = ov_opset.maximum(x, three_point_seven_five).output(0)
-    t_B = ov_opset.divide(three_point_seven_five, safe_x).output(0)
-    res_B = ov_opset.constant(p2_coeffs[8], x_type).output(0)
-    for i in range(7, -1, -1):
-        c = ov_opset.constant(p2_coeffs[i], x_type).output(0)
-        res_B = ov_opset.add(ov_opset.multiply(res_B, t_B), c).output(0)
-    exp_x = ov_opset.exp(x).output(0)
-    sqrt_safe_x = ov_opset.sqrt(safe_x).output(0)
-    factor = ov_opset.divide(exp_x, sqrt_safe_x).output(0)
-    res_B = ov_opset.multiply(factor, res_B).output(0)
-    condition = ov_opset.less_equal(x, three_point_seven_five).output(0)
-    result = ov_opset.select(condition, res_A, res_B).output(0)
-
-    return result
-
-
 def kaiser(x, beta):
     m = get_ov_output(x)
     beta = get_ov_output(beta)
-    if m.get_element_type() != Type.i64:
-        m_i64 = ov_opset.convert(m, Type.i64).output(0)
-    else:
-        m_i64 = m
     calc_type = Type.f64
-    if m.get_element_type() != calc_type:
-        m_float = ov_opset.convert(m, calc_type).output(0)
-    else:
-        m_float = m
-    if beta.get_element_type() != calc_type:
-        beta = ov_opset.convert(beta, calc_type).output(0)
+    m_i64 = ov_opset.convert(m, Type.i64).output(0)
+    m_float = ov_opset.convert(m, calc_type).output(0)
+    beta = ov_opset.convert(beta, calc_type).output(0)
     start = ov_opset.constant(0, Type.i64).output(0)
     step = ov_opset.constant(1, Type.i64).output(0)
     n = ov_opset.range(start, m_i64, step, calc_type).output(0)
@@ -841,8 +788,8 @@ def kaiser(x, beta):
     term = ov_opset.maximum(term, zero_float).output(0)
     sqrt_term = ov_opset.sqrt(term).output(0)
     arg = ov_opset.multiply(beta, sqrt_term).output(0)
-    num = _i0_node(arg)
-    den = _i0_node(beta)
+    num = i0(arg).output
+    den = i0(beta).output
     result = ov_opset.divide(num, den).output(0)
     result = ov_opset.convert(result, OPENVINO_DTYPES[config.floatx()]).output(
         0
@@ -1309,6 +1256,27 @@ def deg2rad(x):
     return OpenVINOKerasTensor(result)
 
 
+def rad2deg(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    _180_over_pi = 180.0 / np.pi
+
+    if x_type == Type.i64:
+        output_type = Type.f64
+    elif x_type.is_integral():
+        output_type = OPENVINO_DTYPES[config.floatx()]
+    else:
+        output_type = x_type
+
+    if x_type != output_type:
+        x = ov_opset.convert(x, output_type)
+
+    const_180_over_pi = ov_opset.constant(_180_over_pi, output_type).output(0)
+    result = ov_opset.multiply(x, const_180_over_pi).output(0)
+
+    return OpenVINOKerasTensor(result)
+
+
 def diag(x, k=0):
     x = get_ov_output(x)
     x_shape = x.get_partial_shape()
@@ -1749,6 +1717,14 @@ def flip(x, axis=None):
     return OpenVINOKerasTensor(result.output(0))
 
 
+def fliplr(x):
+    return flip(x, axis=1)
+
+
+def flipud(x):
+    return flip(x, axis=0)
+
+
 def rot90(array, k=1, axes=(0, 1)):
     """Rotate an array by 90 degrees in the plane specified by axes."""
     array = get_ov_output(array)
@@ -2033,6 +2009,59 @@ def imag(x):
     # Implement properly when OpenVINO supports complex inputs
     x = convert_to_tensor(x)
     return zeros(x.shape, dtype=x.dtype)
+
+
+def i0(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if x_type.is_integral():
+        if x_type == Type.i64:
+            ov_type = OPENVINO_DTYPES["float64"]
+        else:
+            ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
+    x = ov_opset.abs(x).output(0)
+    x_type = x.get_element_type()
+    three_point_seven_five = ov_opset.constant(3.75, x_type).output(0)
+    p1_coeffs = [
+        1.0,
+        3.5156229,
+        3.0899424,
+        1.2067492,
+        0.2659732,
+        0.0360768,
+        0.0045813,
+    ]
+    p2_coeffs = [
+        0.39894228,
+        0.01328592,
+        0.00225319,
+        -0.00157565,
+        0.00916281,
+        -0.02057706,
+        0.02635537,
+        -0.01647633,
+        0.00392377,
+    ]
+    t_A = ov_opset.divide(x, three_point_seven_five).output(0)
+    t_A = ov_opset.multiply(t_A, t_A).output(0)
+    res_A = ov_opset.constant(p1_coeffs[6], x_type).output(0)
+    for i in range(5, -1, -1):
+        c = ov_opset.constant(p1_coeffs[i], x_type).output(0)
+        res_A = ov_opset.add(ov_opset.multiply(res_A, t_A), c).output(0)
+    safe_x = ov_opset.maximum(x, three_point_seven_five).output(0)
+    t_B = ov_opset.divide(three_point_seven_five, safe_x).output(0)
+    res_B = ov_opset.constant(p2_coeffs[8], x_type).output(0)
+    for i in range(7, -1, -1):
+        c = ov_opset.constant(p2_coeffs[i], x_type).output(0)
+        res_B = ov_opset.add(ov_opset.multiply(res_B, t_B), c).output(0)
+    exp_x = ov_opset.exp(x).output(0)
+    sqrt_safe_x = ov_opset.sqrt(safe_x).output(0)
+    factor = ov_opset.divide(exp_x, sqrt_safe_x).output(0)
+    res_B = ov_opset.multiply(factor, res_B).output(0)
+    condition = ov_opset.less_equal(x, three_point_seven_five).output(0)
+    result = ov_opset.select(condition, res_A, res_B).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def inner(x1, x2):
@@ -3072,6 +3101,12 @@ def nanprod(x, axis=None, keepdims=False):
 
     result = ov_opset.reduce_prod(x, axis, keepdims).output(0)
     return OpenVINOKerasTensor(result)
+
+
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    raise NotImplementedError(
+        "`nanquantile` is not supported with openvino backend"
+    )
 
 
 def nanstd(x, axis=None, keepdims=False):
