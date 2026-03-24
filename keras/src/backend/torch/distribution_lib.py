@@ -8,26 +8,13 @@ from keras.src.backend.common import global_state
 
 def list_devices(device_type=None):
     """Return all the available devices based on the device type."""
-    if device_type is None:
-        if torch.cuda.is_available():
-            device_type = "gpu"
-        elif hasattr(torch, "xpu") and torch.xpu.is_available():
-            device_type = "xpu"
-        else:
-            device_type = "cpu"
-
+    device_type = device_type or "gpu"
     if torch.distributed.is_initialized():
         count = torch.distributed.get_world_size()
     elif "WORLD_SIZE" in os.environ:
         count = int(os.environ["WORLD_SIZE"])
     else:
-        # Fallback for local devices
-        if device_type.lower() == "gpu":
-            count = torch.cuda.device_count() or 1
-        elif device_type.lower() == "xpu":
-            count = torch.xpu.device_count() or 1
-        else:
-            count = 1
+        count = torch.cuda.device_count() or 1
     return [f"{device_type.lower()}:{i}" for i in range(count)]
 
 
@@ -38,9 +25,7 @@ def get_device_count(device_type=None):
     elif "WORLD_SIZE" in os.environ:
         return int(os.environ["WORLD_SIZE"])
     else:
-        if device_type and device_type.lower() == "gpu":
-            return torch.cuda.device_count() or 1
-        return 1
+        return torch.cuda.device_count() or 1
 
 
 def initialize(job_addresses=None, num_processes=None, process_id=None):
