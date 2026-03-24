@@ -343,6 +343,19 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.fmod(x, y).shape, (2, 3))
 
+    def test_nanquantile(self):
+        x = KerasTensor((None, 3))
+
+        q = KerasTensor(())
+        self.assertEqual(knp.nanquantile(x, q).shape, ())
+
+        q = KerasTensor((2,))
+        self.assertEqual(knp.nanquantile(x, q).shape, (2,))
+        self.assertEqual(knp.nanquantile(x, q, axis=1).shape, (2, None))
+        self.assertEqual(
+            knp.nanquantile(x, q, axis=1, keepdims=True).shape, (2, None, 1)
+        )
+
     def test_nextafter(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((1, 3))
@@ -1019,6 +1032,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.fmod(x, y)
+
+    def test_nanquantile(self):
+        x = KerasTensor((3, 3))
+
+        q = KerasTensor(())
+        self.assertEqual(knp.nanquantile(x, q).shape, ())
+
+        q = KerasTensor((2,))
+        self.assertEqual(knp.nanquantile(x, q).shape, (2,))
+        self.assertEqual(knp.nanquantile(x, q, axis=1).shape, (2, 3))
+        self.assertEqual(
+            knp.nanquantile(x, q, axis=1, keepdims=True).shape, (2, 3, 1)
+        )
 
     def test_nextafter(self):
         x = KerasTensor((2, 3))
@@ -3899,6 +3925,122 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Fmod()(x, y), np.fmod(x, y))
         self.assertAllClose(knp.Fmod()(x, 2), np.fmod(x, 2))
         self.assertAllClose(knp.Fmod()(1, x), np.fmod(1, x))
+
+    def test_nanquantile(self):
+        x = np.array(
+            [
+                [[np.nan, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
+                [[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, np.nan]],
+            ],
+            dtype="float32",
+        )
+
+        q = np.array(0.5, dtype="float32")
+        self.assertAllClose(knp.nanquantile(x, q), np.nanquantile(x, q))
+        self.assertAllClose(
+            knp.nanquantile(x, q, keepdims=True),
+            np.nanquantile(x, q, keepdims=True),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=1),
+            np.nanquantile(x, q, axis=1),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=1, keepdims=True),
+            np.nanquantile(x, q, axis=1, keepdims=True),
+        )
+
+        q = np.array([0.25, 0.5, 1.0], dtype="float32")
+        self.assertAllClose(knp.nanquantile(x, q), np.nanquantile(x, q))
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=1),
+            np.nanquantile(x, q, axis=1),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=1, keepdims=True),
+            np.nanquantile(x, q, axis=1, keepdims=True),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=(1, 2)),
+            np.nanquantile(x, q, axis=(1, 2)),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=(1, 2), keepdims=True),
+            np.nanquantile(x, q, axis=(1, 2), keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=-1),
+            np.nanquantile(x, q, axis=-1),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=(-1, -2)),
+            np.nanquantile(x, q, axis=(-1, -2)),
+        )
+        self.assertAllClose(
+            knp.nanquantile(x, q, axis=(2, 1)),
+            np.nanquantile(x, q, axis=(2, 1)),
+        )
+
+        q = np.array([0.501, 1.0], dtype="float32")
+        for method in ["linear", "lower", "higher", "midpoint", "nearest"]:
+            self.assertAllClose(
+                knp.nanquantile(x, q, method=method),
+                np.nanquantile(x, q, method=method),
+            )
+            self.assertAllClose(
+                knp.nanquantile(x, q, axis=1, method=method),
+                np.nanquantile(x, q, axis=1, method=method),
+            )
+
+        q = np.array([0.25, 0.5, 0.75], dtype="float32")
+        self.assertAllClose(
+            knp.nanquantile(x, q),
+            np.nanquantile(x, q),
+        )
+
+        x_all_nan = np.array(
+            [
+                [[np.nan, np.nan], [np.nan, np.nan]],
+                [[np.nan, np.nan], [np.nan, np.nan]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanquantile(x_all_nan, 0.5),
+            np.nanquantile(x_all_nan, 0.5),
+        )
+
+        x_mixed = np.array(
+            [
+                [np.nan, np.nan, np.nan],
+                [1.0, 2.0, 3.0],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanquantile(x_mixed, 0.5, axis=1),
+            np.nanquantile(x_mixed, 0.5, axis=1),
+        )
+
+        x_small = np.array(
+            [
+                [[1.0]],
+                [[np.nan]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanquantile(x_small, 0.5, axis=1),
+            np.nanquantile(x_small, 0.5, axis=1),
+        )
+
+        x4 = np.random.randn(3, 4, 5, 6).astype("float32")
+        x4[0, 0, 0, 0] = np.nan
+        self.assertAllClose(
+            knp.nanquantile(x4, 0.5, axis=(1, 2)),
+            np.nanquantile(x4, 0.5, axis=(1, 2)),
+        )
 
     def test_nextafter(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -9876,6 +10018,25 @@ class NumpyDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(knp.Nanprod().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nanquantile(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3,), dtype=dtype)
+        x_jax = jnp.ones((3,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.nanquantile(x_jax, 0.5).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(
+            standardize_dtype(knp.nanquantile(x, 0.5).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Nanquantile().symbolic_call(x, 0.5).dtype),
             expected_dtype,
         )
 
