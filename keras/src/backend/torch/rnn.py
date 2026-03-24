@@ -568,9 +568,12 @@ def lstm(
     if bias is not None:
         bias = convert_to_tensor(bias)
 
-    inputs = convert_to_tensor(inputs, dtype="float32")
-    initial_state_h = convert_to_tensor(initial_state_h, dtype="float32")
-    initial_state_c = convert_to_tensor(initial_state_c, dtype="float32")
+    # Cast inputs/states to the kernel's dtype so integer inputs are promoted
+    # to float and mixed-precision dtypes (e.g. float16) are respected.
+    compute_dtype = kernel.dtype
+    inputs = convert_to_tensor(inputs).to(compute_dtype)
+    initial_state_h = convert_to_tensor(initial_state_h).to(compute_dtype)
+    initial_state_c = convert_to_tensor(initial_state_c).to(compute_dtype)
 
     # Preprocess for go_backwards by flipping the sequence
     if go_backwards:
