@@ -225,14 +225,12 @@ class JaxLayer(Layer):
             both `params` and `state` are `None`, and `call_fn` takes a `state`
             argument, then `init_fn` is called at build time to initialize the
             non-trainable state of the model.
+      seed: Seed for random number generator. Optional.
       native_serialization_platforms: Sequence of platforms ('cpu', 'cuda',
             'rocm', 'tpu') to compile for when using `jax2tf.convert` with
             native serialization. If `None`, the function is compiled for the
             default backend. If multiple platforms are specified, the exported
             module will be device-polymorphic.
-      seed: Seed for random number generator. Optional.
-      dtype: The dtype of the layer's computations and weights. Can also be a
-            `keras.DTypePolicy`. Optional. Defaults to the default policy.
     """
 
     def __init__(
