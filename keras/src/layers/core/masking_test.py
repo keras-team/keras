@@ -25,7 +25,6 @@ class MaskingTest(testing.TestCase):
             assert_built_after_instantiation=True,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_masking_correctness(self):
         x = np.array(
             [
@@ -61,7 +60,6 @@ class MaskingTest(testing.TestCase):
         )
         model(x)
 
-    @pytest.mark.requires_trainable_backend
     def test_masking_with_tensor(self):
         model = models.Sequential(
             [

@@ -1725,13 +1725,7 @@ class Layer(BackendLayer, Operation):
         flat_masks = tree.flatten(output_masks)
         for tensor, mask in zip(flat_outputs, flat_masks):
             if backend.get_keras_mask(tensor) is None and mask is not None:
-                if backend.backend() == "numpy":
-                    warnings.warn(
-                        "The NumPy backend does not support masking at this"
-                        "time. Masks will be ignored."
-                    )
-                else:
-                    backend.set_keras_mask(tensor, mask)
+                backend.set_keras_mask(tensor, mask)
 
     @python_utils.default
     def get_config(self):
