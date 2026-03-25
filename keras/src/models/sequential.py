@@ -69,7 +69,6 @@ class Sequential(Model):
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)
         self._functional = None
-        self._layers = []
         if layers:
             for layer in layers:
                 self.add(layer, rebuild=False)
@@ -183,9 +182,9 @@ class Sequential(Model):
                 )
         else:
             dtype = self._layers[0].compute_dtype
-            self._layers = [
-                InputLayer(batch_shape=input_shape, dtype=dtype)
-            ] + self._layers
+            self._layers.insert(
+                0, InputLayer(batch_shape=input_shape, dtype=dtype)
+            )
 
         # Build functional model
         inputs = self._layers[0].output
