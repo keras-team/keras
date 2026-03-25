@@ -861,7 +861,7 @@ def cast(x, dtype):
 
 def cond(pred, true_fn, false_fn):
     class _TrackingScope(StatelessScope):
-        """StatelessScope that retains variable object references for updates."""
+        """StatelessScope that retains variable object references."""
 
         def __init__(self):
             super().__init__()
