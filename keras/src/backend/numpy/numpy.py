@@ -580,6 +580,19 @@ def deg2rad(x):
     return np.deg2rad(x).astype(dtype)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.rad2deg(x).astype(dtype)
+
+
 def diag(x, k=0):
     return np.diag(x, k=k)
 
@@ -668,6 +681,14 @@ def flip(x, axis=None):
     return np.flip(x, axis=axis)
 
 
+def fliplr(x):
+    return np.fliplr(x)
+
+
+def flipud(x):
+    return np.flipud(x)
+
+
 def floor(x):
     x = convert_to_tensor(x)
     dtype = (
@@ -746,6 +767,17 @@ def identity(n, dtype=None):
 
 def imag(x):
     return np.imag(x)
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        "float64"
+        if standardize_dtype(x.dtype) in ["int64", "float64"]
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
+    return np.i0(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -1067,6 +1099,17 @@ def nanprod(x, axis=None, keepdims=False):
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
     return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
+
+
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.nanquantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def nanstd(x, axis=None, keepdims=False):

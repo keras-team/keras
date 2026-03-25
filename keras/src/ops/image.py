@@ -98,6 +98,13 @@ class RGBToHSV(Operation):
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
             )
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = images_shape[channels_axis]
+        if channels is not None and channels != 3:
+            raise ValueError(
+                "Input images must have 3 channels, but received images with "
+                f"{channels} channels."
+            )
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
@@ -169,6 +176,13 @@ class HSVToRGB(Operation):
             raise ValueError(
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
+            )
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = images_shape[channels_axis]
+        if channels is not None and channels != 3:
+            raise ValueError(
+                "Input images must have 3 channels, but received images with "
+                f"{channels} channels."
             )
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 

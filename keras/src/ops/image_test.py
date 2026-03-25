@@ -2322,6 +2322,64 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.rgb_to_hsv(invalid_image)
 
+    def test_rgb_to_hsv_invalid_channels(self):
+        invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
+        with self.assertRaises(Exception):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+
+        invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.RGBToHSV(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
+        invalid_image = KerasTensor(shape=(4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+
+    def test_hsv_to_rgb_invalid_channels(self):
+        invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
+        with self.assertRaises(Exception):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+
+        invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.HSVToRGB(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
+        invalid_image = KerasTensor(shape=(4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_hsv_to_rgb_invalid_rank(self, rank):
         shape = [3] * rank
