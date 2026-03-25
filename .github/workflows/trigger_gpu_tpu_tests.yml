@@ -1,0 +1,26 @@
+name: Trigger GPU & TPU Tests
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  remove_label:
+    name: Remove Label
+    runs-on: ubuntu-latest
+    if: github.event.action == 'labeled' && github.event.label.name == 'kokoro:force-run'
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              label: 'kokoro:force-run'
+            })
