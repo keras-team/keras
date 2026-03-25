@@ -47,10 +47,21 @@ class Tracker:
         self.tracker = Tracker(
             # Format: `name: (test_fn, store, attr_name)`
             {
-                "variables":
-                    (lambda x: isinstance(x, Variable), self._variables, "_variables"),
-                "metrics": (lambda x: isinstance(x, Metric), self._metrics, "_metrics"),
-                "layers": (lambda x: isinstance(x, Layer), self._layers, "_layers"),
+                "variables": (
+                    lambda x: isinstance(x, Variable),
+                    self._variables,
+                    "_variables",
+                ),
+                "metrics": (
+                    lambda x: isinstance(x, Metric),
+                    self._metrics,
+                    "_metrics",
+                ),
+                "layers": (
+                    lambda x: isinstance(x, Layer),
+                    self._layers,
+                    "_layers",
+                ),
             }
         )
 

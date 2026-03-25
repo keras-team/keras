@@ -401,13 +401,11 @@ class CompileLoss(losses_module.Loss):
                 f"Received instead: loss_weights={loss_weights} "
                 f"of type {type(loss_weights)}"
             )
+        super().__init__(name="compile_loss", reduction=reduction)
         self._user_loss = loss
         self._user_loss_weights = loss_weights
         self.built = False
         self.output_names = output_names
-        super().__init__(name="compile_loss", reduction=reduction)
-
-        # Use `Tracker` to track metrics for individual losses.
         self._metrics = []
         self._tracker = Tracker(
             {
@@ -421,24 +419,6 @@ class CompileLoss(losses_module.Loss):
         self._flat_losses = None
         self._y_pred_build_structure = None
         self._y_true_build_structure = None
-
-    def __setattr__(self, name, value):
-        # Raise if user code reassigns a reserved tracked attribute.
-        if (
-            hasattr(self, "_tracker")
-            and name in self._tracker.tracking_collections_attr_names
-            and hasattr(self, name)
-        ):
-            raise AttributeError(
-                f"`{name}` is a reserved attribute in Keras compile utils and "
-                "should not be used as a variable name in a CompileLoss "
-                "subclass. Assigning to it can break metric state "
-                "tracking. Please use a different attribute name."
-            )
-        # Track Variables, Layers, Metrics
-        if hasattr(self, "_tracker"):
-            value = self._tracker.track(value)
-        return super().__setattr__(name, value)
 
     @property
     def metrics(self):
