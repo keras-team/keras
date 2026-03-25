@@ -1629,20 +1629,15 @@ class Layer(BackendLayer, Operation):
         # Warn if user code reassigns a reserved tracked attribute.
         if (
             hasattr(self, "_tracker")
-            and name in self._tracker.attr_to_store_name
-            and tracking.is_tracking_enabled()
+            and name in self._tracker.tracking_collections_attr_names
         ):
-            store_name = self._tracker.attr_to_store_name[name]
-            store_list = self._tracker.config[store_name][1]
-            if id(value) != id(store_list):
-                warnings.warn(
-                    f"`{name}` is a reserved attribute in Keras layers and "
-                    "should not be used as a variable name in a Layer "
-                    "subclass. Assigning to it can break weight saving, "
-                    "metric tracking, and other functionality. "
-                    f"Please use a different attribute name.",
-                    stacklevel=2,
-                )
+            raise AttributeError(
+                f"`{name}` is a reserved attribute in Keras layers and "
+                "should not be used as a variable name in a Layer "
+                "subclass. Assigning to it can break weight saving, "
+                "metric tracking, and other functionality. "
+                f"Please use a different attribute name."
+            )
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
         if name != "_tracker":

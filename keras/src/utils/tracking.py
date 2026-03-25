@@ -67,12 +67,11 @@ class Tracker:
         self.locked = False
         self._lock_violation_msg = None
         self.exclusions = exclusions or {}
-        self.attr_to_store_name = {}
+        self.tracking_collections_attr_names = set()
         for k, v in config.items():
-            if len(v) > 2:
-                self.attr_to_store_name[v[2]] = k
+            self.tracking_collections_attr_names.add(v[2])
 
-    def track(self, attr, name=None):
+    def track(self, attr):
         if not is_tracking_enabled():
             return attr
 

@@ -190,3 +190,18 @@ class TrackingTest(testing.TestCase):
         ordered_dict.pop("x")
         self.assertLen(tracked_variables, 1)
         self.assertNotIn(v1, tracked_variables)
+
+    def test_tracker_collects_attr_names(self):
+        tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    [],
+                    "_variables",
+                ),
+                "metrics": (lambda x: True, [], "_metrics"),
+            }
+        )
+        self.assertEqual(
+            tracker.tracking_collections_attr_names, {"_variables", "_metrics"}
+        )
