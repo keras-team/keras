@@ -228,7 +228,8 @@ class JaxLayer(Layer):
       seed: Seed for random number generator. Optional.
       native_serialization_platforms: Sequence of platforms ('cpu', 'cuda',
             'rocm', 'tpu') to compile for when using `jax2tf.convert` with
-            native serialization. If `None`, the function is compiled for the
+            native serialization. This is only used when the Keras backend is
+            `tensorflow`. If `None`, the function is compiled for the
             default backend. If multiple platforms are specified, the exported
             module will be device-polymorphic.
     """
