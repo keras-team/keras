@@ -240,10 +240,11 @@ class Metric(KerasSaveable):
         return cls(**config)
 
     def __setattr__(self, name, value):
-        # Warn if user code reassigns a reserved tracked attribute.
+        # Raise if user code reassigns a reserved tracked attribute.
         if (
             hasattr(self, "_tracker")
             and name in self._tracker.tracking_collections_attr_names
+            and hasattr(self, name)
         ):
             raise AttributeError(
                 f"`{name}` is a reserved attribute in Keras metrics and "
