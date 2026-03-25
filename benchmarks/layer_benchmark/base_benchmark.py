@@ -1,12 +1,28 @@
+import json
+import os
 import time
 
 import numpy as np
-import tensorflow as tf
 from absl import flags
 
 import keras
 
 FLAGS = flags.FLAGS
+
+# When set, benchmark_predict/benchmark_train emit a JSON line that the
+# multi-backend shell script can parse.
+_RESULT_JSON_ENV = "_BENCHMARK_RESULT_JSON"
+
+# Try importing tf.keras for legacy comparison.  When running under a
+# non-TF backend the import may fail, which is fine -- we just skip
+# the tf.keras comparison.
+try:
+    import tensorflow as tf
+
+    _has_tf_keras = True
+except ImportError:
+    _has_tf_keras = False
+
 
 flags.DEFINE_string(
     "benchmark_name",
@@ -83,21 +99,39 @@ class KerasCoreBenchmarkMetricsCallback(keras.callbacks.Callback):
         self._callback.on_predict_batch_end(batch, logs)
 
 
-class TFKerasBenchmarkMetricsCallback(tf.keras.callbacks.Callback):
-    def __init__(self, start_batch=1, stop_batch=None):
-        self._callback = BenchmarkMetricsCallback(start_batch, stop_batch)
+if _has_tf_keras:
 
-    def on_train_batch_begin(self, batch, logs=None):
-        self._callback.on_train_batch_begin(batch, logs)
+    class TFKerasBenchmarkMetricsCallback(tf.keras.callbacks.Callback):
+        def __init__(self, start_batch=1, stop_batch=None):
+            self._callback = BenchmarkMetricsCallback(start_batch, stop_batch)
 
-    def on_train_batch_end(self, batch, logs=None):
-        self._callback.on_train_batch_end(batch, logs)
+        def on_train_batch_begin(self, batch, logs=None):
+            self._callback.on_train_batch_begin(batch, logs)
 
-    def on_predict_batch_begin(self, batch, logs=None):
-        self._callback.on_predict_batch_begin(batch, logs)
+        def on_train_batch_end(self, batch, logs=None):
+            self._callback.on_train_batch_end(batch, logs)
 
-    def on_predict_batch_end(self, batch, logs=None):
-        self._callback.on_predict_batch_end(batch, logs)
+        def on_predict_batch_begin(self, batch, logs=None):
+            self._callback.on_predict_batch_begin(batch, logs)
+
+        def on_predict_batch_end(self, batch, logs=None):
+            self._callback.on_predict_batch_end(batch, logs)
+
+
+def _emit_result(layer_name, mode, throughput):
+    """Print a JSON line when running in multi-backend mode."""
+    if os.environ.get(_RESULT_JSON_ENV):
+        print(
+            "BENCHMARK_RESULT:"
+            + json.dumps(
+                {
+                    "layer": layer_name,
+                    "mode": mode,
+                    "throughput": round(throughput, 2),
+                    "backend": keras.backend.backend(),
+                }
+            )
+        )
 
 
 class LayerBenchmark:
@@ -113,36 +147,36 @@ class LayerBenchmark:
     ):
         self.layer_name = layer_name
         _keras_layer_class = getattr(keras.layers, layer_name)
-        _tf_keras_layer_class = getattr(tf.keras.layers, layer_name)
 
         if keras_layer is None:
-            # Sometimes you want to initialize the keras layer and tf_keras
-            # layer in a different way. For example, `Bidirectional` layer,
-            # which takes in `keras.layers.Layer` and
-            # `tf.keras.layer.Layer` separately.
             self._keras_layer = _keras_layer_class(**init_args)
         else:
             self._keras_layer = keras_layer
-
-        if tf_keras_layer is None:
-            self._tf_keras_layer = _tf_keras_layer_class(**init_args)
-        else:
-            self._tf_keras_layer = tf_keras_layer
 
         self.input_shape = input_shape
         self._keras_model = self._build_keras_model(
             input_shape, flat_call_inputs
         )
-        self._tf_keras_model = self._build_tf_keras_model(
-            input_shape, flat_call_inputs
-        )
-
         self._keras_model.compile(
             loss="mse", optimizer="sgd", jit_compile=jit_compile
         )
-        self._tf_keras_model.compile(
-            loss="mse", optimizer="sgd", jit_compile=jit_compile
-        )
+
+        # Build tf.keras model only when TF is available.
+        if _has_tf_keras:
+            _tf_keras_layer_class = getattr(tf.keras.layers, layer_name)
+            if tf_keras_layer is None:
+                self._tf_keras_layer = _tf_keras_layer_class(**init_args)
+            else:
+                self._tf_keras_layer = tf_keras_layer
+            self._tf_keras_model = self._build_tf_keras_model(
+                input_shape, flat_call_inputs
+            )
+            self._tf_keras_model.compile(
+                loss="mse", optimizer="sgd", jit_compile=jit_compile
+            )
+        else:
+            self._tf_keras_layer = None
+            self._tf_keras_model = None
 
         self.flat_call_inputs = flat_call_inputs
         self.jit_compile = jit_compile
@@ -191,9 +225,6 @@ class LayerBenchmark:
 
         num_iterations = num_samples // batch_size - 1
         callback = KerasCoreBenchmarkMetricsCallback(stop_batch=num_iterations)
-        tf_keras_callback = TFKerasBenchmarkMetricsCallback(
-            stop_batch=num_iterations
-        )
 
         self._keras_model.predict(
             data,
@@ -201,24 +232,29 @@ class LayerBenchmark:
             callbacks=[callback],
         )
 
-        self._tf_keras_model.predict(
-            data,
-            batch_size=batch_size,
-            callbacks=[tf_keras_callback],
-        )
-
         keras_throughput = callback._callback.state["throughput"] * batch_size
-        tf_keras_throughput = (
-            tf_keras_callback._callback.state["throughput"] * batch_size
-        )
         print(
             f"Keras 3 throughput of forward pass of {self.layer_name}: "
             f"{keras_throughput:.2f} samples/sec."
         )
-        print(
-            f"TF Keras throughput of forward pass of {self.layer_name}: "
-            f"{tf_keras_throughput:.2f} samples/sec."
-        )
+        _emit_result(self.layer_name, "predict", keras_throughput)
+
+        if self._tf_keras_model is not None:
+            tf_keras_callback = TFKerasBenchmarkMetricsCallback(
+                stop_batch=num_iterations
+            )
+            self._tf_keras_model.predict(
+                data,
+                batch_size=batch_size,
+                callbacks=[tf_keras_callback],
+            )
+            tf_keras_throughput = (
+                tf_keras_callback._callback.state["throughput"] * batch_size
+            )
+            print(
+                f"TF Keras throughput of forward pass of {self.layer_name}: "
+                f"{tf_keras_throughput:.2f} samples/sec."
+            )
 
     def benchmark_train(self, num_samples, batch_size, data=None, label=None):
         if data is None:
@@ -249,9 +285,6 @@ class LayerBenchmark:
 
         num_iterations = num_samples // batch_size - 1
         callback = KerasCoreBenchmarkMetricsCallback(stop_batch=num_iterations)
-        tf_keras_callback = TFKerasBenchmarkMetricsCallback(
-            stop_batch=num_iterations
-        )
 
         self._keras_model.fit(
             data,
@@ -259,22 +292,28 @@ class LayerBenchmark:
             batch_size=batch_size,
             callbacks=[callback],
         )
-        self._tf_keras_model.fit(
-            data,
-            label,
-            batch_size=batch_size,
-            callbacks=[tf_keras_callback],
-        )
 
         keras_throughput = callback._callback.state["throughput"] * batch_size
-        tf_keras_throughput = (
-            tf_keras_callback._callback.state["throughput"] * batch_size
-        )
         print(
             f"Keras 3 throughput of forward & backward pass of "
             f"{self.layer_name}: {keras_throughput:.2f} samples/sec."
         )
-        print(
-            f"TF Keras  throughput of forward & backward pass of "
-            f"{self.layer_name}: {tf_keras_throughput:.2f} samples/sec."
-        )
+        _emit_result(self.layer_name, "train", keras_throughput)
+
+        if self._tf_keras_model is not None:
+            tf_keras_callback = TFKerasBenchmarkMetricsCallback(
+                stop_batch=num_iterations
+            )
+            self._tf_keras_model.fit(
+                data,
+                label,
+                batch_size=batch_size,
+                callbacks=[tf_keras_callback],
+            )
+            tf_keras_throughput = (
+                tf_keras_callback._callback.state["throughput"] * batch_size
+            )
+            print(
+                f"TF Keras  throughput of forward & backward pass of "
+                f"{self.layer_name}: {tf_keras_throughput:.2f} samples/sec."
+            )
