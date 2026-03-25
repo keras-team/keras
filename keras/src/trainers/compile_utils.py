@@ -423,10 +423,11 @@ class CompileLoss(losses_module.Loss):
         self._y_true_build_structure = None
 
     def __setattr__(self, name, value):
-        # Warn if user code reassigns a reserved tracked attribute.
+        # Raise if user code reassigns a reserved tracked attribute.
         if (
             hasattr(self, "_tracker")
             and name in self._tracker.tracking_collections_attr_names
+            and hasattr(self, name)
         ):
             raise AttributeError(
                 f"`{name}` is a reserved attribute in Keras compile utils and "
@@ -439,6 +440,7 @@ class CompileLoss(losses_module.Loss):
             value = self._tracker.track(value)
         return super().__setattr__(name, value)
 
+    @property
     def metrics(self):
         return self._metrics
 
