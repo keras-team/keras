@@ -45,12 +45,12 @@ class Tracker:
     ```python
     def __init__(self):
         self.tracker = Tracker(
-            # Format: `name: (test_fn, store)`
+            # Format: `name: (test_fn, store, attr_name)`
             {
                 "variables":
-                    (lambda x: isinstance(x, Variable), self._variables),
-                "metrics": (lambda x: isinstance(x, Metric), self._metrics),
-                "layers": (lambda x: isinstance(x, Layer), self._layers),
+                    (lambda x: isinstance(x, Variable), self._variables, "_variables"),
+                "metrics": (lambda x: isinstance(x, Metric), self._metrics, "_metrics"),
+                "layers": (lambda x: isinstance(x, Layer), self._layers, "_layers"),
             }
         )
 
@@ -69,8 +69,7 @@ class Tracker:
         self.exclusions = exclusions or {}
         self.tracking_collections_attr_names = set()
         for k, v in config.items():
-            if len(v) > 2:
-                self.tracking_collections_attr_names.add(v[2])
+            self.tracking_collections_attr_names.add(v[2])
 
     def track(self, attr):
         if not is_tracking_enabled():

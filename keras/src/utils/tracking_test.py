@@ -13,6 +13,7 @@ class TrackingTest(testing.TestCase):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     tracked_variables,
+                    "_variables",
                 ),
             }
         )
@@ -64,6 +65,7 @@ class TrackingTest(testing.TestCase):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     tracked_variables,
+                    "_variables",
                 ),
             }
         )
@@ -83,6 +85,7 @@ class TrackingTest(testing.TestCase):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     tracked_variables,
+                    "_variables",
                 ),
             }
         )
@@ -105,6 +108,7 @@ class TrackingTest(testing.TestCase):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     tracked_variables,
+                    "_variables",
                 ),
             }
         )
@@ -129,6 +133,7 @@ class TrackingTest(testing.TestCase):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     tracked_variables,
+                    "_variables",
                 ),
             }
         )
@@ -155,6 +160,7 @@ class TrackingTest(testing.TestCase):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     tracked_variables,
+                    "_variables",
                 ),
             }
         )
@@ -174,6 +180,7 @@ class TrackingTest(testing.TestCase):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     tracked_variables,
+                    "_variables",
                 ),
             }
         )
