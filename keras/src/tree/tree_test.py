@@ -76,6 +76,7 @@ class Visitor:
 @parameterized.named_parameters(TEST_CASES)
 class TreeTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         if dmtree.available and optree.available:
             # If both are available, the annotation on the Keras tracking
             # wrappers will have used optree. For testing purposes, we need to
@@ -86,7 +87,6 @@ class TreeTest(testing.TestCase):
             dmtree_impl.register_tree_node_class(TrackedSet)
             dmtree_impl.register_tree_node_class(TrackedDict)
             dmtree_impl.register_tree_node_class(TrackedOrderedDict)
-        super().setUp()
 
     def assertEqualStrict(self, a, b):
         self.assertEqual(a, b)
