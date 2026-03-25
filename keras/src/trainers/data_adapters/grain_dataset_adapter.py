@@ -1,4 +1,5 @@
 import itertools
+import sys
 
 import numpy as np
 
@@ -7,6 +8,31 @@ from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
 from keras.src.utils.module_utils import grain
 from keras.src.utils.module_utils import tensorflow as tf
+
+
+class _TrackableIterable:
+    """Wrapper that captures the live ``DatasetIterator`` on ``iter()``.
+
+    When the ``EpochIterator`` calls ``iter()`` on the object returned by
+    ``get_numpy_iterator()`` / ``get_jax_iterator()``, this wrapper
+    stores the resulting iterator on the adapter so that
+    ``get_iterator_state()`` can reach it.  If a pending state was
+    previously set via ``set_iterator_state()``, it is applied to the
+    fresh iterator immediately.
+    """
+
+    def __init__(self, dataset, adapter):
+        self._dataset = dataset
+        self._adapter = adapter
+
+    def __iter__(self):
+        it = iter(self._dataset)
+        self._adapter._live_iterator = it
+        if self._adapter._pending_iterator_state is not None:
+            if hasattr(it, "set_state"):
+                it.set_state(self._adapter._pending_iterator_state)
+            self._adapter._pending_iterator_state = None
+        return it
 
 
 class GrainDatasetAdapter(DataAdapter):
@@ -32,6 +58,8 @@ class GrainDatasetAdapter(DataAdapter):
             )
 
         self._dataset = dataset
+        self._live_iterator = None
+        self._pending_iterator_state = None
 
         batch_size, output_signature = self._get_dataset_info(dataset)
         self._batch_size = batch_size
@@ -90,6 +118,7 @@ class GrainDatasetAdapter(DataAdapter):
 
         if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
             dataset = self._dataset.map(ConvertToNumpy())
+            return _TrackableIterable(dataset, self)
         else:
             # Instantiate a new `DataLoader`.
             dataset = grain.DataLoader(
@@ -103,7 +132,7 @@ class GrainDatasetAdapter(DataAdapter):
                 read_options=self._dataset._read_options,
                 enable_profiling=self._dataset._multiprocessing_options.enable_profiling,
             )
-        return dataset
+            return dataset
 
     def get_jax_iterator(self):
         def convert_to_jax_compatible(x):
@@ -121,6 +150,7 @@ class GrainDatasetAdapter(DataAdapter):
 
         if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
             dataset = self._dataset.map(ConvertToJaxCompatible())
+            return _TrackableIterable(dataset, self)
         else:
             # Instantiate a new `DataLoader`.
             dataset = grain.DataLoader(
@@ -135,7 +165,7 @@ class GrainDatasetAdapter(DataAdapter):
                 read_options=self._dataset._read_options,
                 enable_profiling=self._dataset._multiprocessing_options.enable_profiling,
             )
-        return dataset
+            return dataset
 
     def get_tf_dataset(self):
         def convert_to_tf(x):
@@ -196,13 +226,46 @@ class GrainDatasetAdapter(DataAdapter):
             def __iter__(self):
                 return iter(self.iterable)
 
+        if isinstance(self._dataset, (grain.MapDataset, grain.IterDataset)):
+            iterable = _TrackableIterable(self._dataset, self)
+        else:
+            iterable = self._dataset
+
         # `batch_size=None` indicates that we should not re-batch
         return torch_data.DataLoader(
-            ConverterIterableDataset(self._dataset), batch_size=None
+            ConverterIterableDataset(iterable), batch_size=None
         )
+
+    # ------------------------------------------------------------------
+    # Iterator checkpoint / resume
+    # ------------------------------------------------------------------
+
+    def get_iterator_state(self):
+        if self._live_iterator is not None and hasattr(
+            self._live_iterator, "get_state"
+        ):
+            return self._live_iterator.get_state()
+        return None
+
+    def set_iterator_state(self, state):
+        if state is not None:
+            self._pending_iterator_state = state
+
+    # ------------------------------------------------------------------
+    # Metadata
+    # ------------------------------------------------------------------
 
     @property
     def num_batches(self):
+        if isinstance(self._dataset, grain.MapDataset):
+            try:
+                length = len(self._dataset)
+            except TypeError:
+                return None
+            # `repeat(None)` sets length to `sys.maxsize`.
+            if length >= sys.maxsize:
+                return None
+            return length
         return None
 
     @property
