@@ -242,13 +242,13 @@ class JaxLSTMCuDNNPathTest(testing.TestCase):
         mask = None
         if with_mask:
             mask = np.array(
-                [[True, True, True, False, False],
-                 [True, True, True, True, False]]
+                [
+                    [True, True, True, False, False],
+                    [True, True, True, True, False],
+                ]
             )
 
-        def fake_jax_lstm(
-            inputs, h_0, c_0, weights, seq_lengths, **kwargs
-        ):
+        def fake_jax_lstm(inputs, h_0, c_0, weights, seq_lengths, **kwargs):
             hs = kwargs["hidden_size"]
             b = inputs.shape[0]
             sl = inputs.shape[1]
@@ -282,10 +282,9 @@ class JaxLSTMCuDNNPathTest(testing.TestCase):
 
         rnn_module = importlib.import_module("keras.src.backend.jax.rnn")
 
-        with patch.object(
-            rnn_module, "cudnn_ok", return_value=True
-        ), patch(
-            "jax.experimental.rnn.lstm", d["fake_jax_lstm"]
+        with (
+            patch.object(rnn_module, "cudnn_ok", return_value=True),
+            patch("jax.experimental.rnn.lstm", d["fake_jax_lstm"]),
         ):
             return rnn_module.lstm(
                 d["inputs"],
@@ -312,9 +311,7 @@ class JaxLSTMCuDNNPathTest(testing.TestCase):
 
     def test_return_sequences(self):
         d = self._make_inputs()
-        last_output, outputs, states = self._call_lstm(
-            d, return_sequences=True
-        )
+        last_output, outputs, states = self._call_lstm(d, return_sequences=True)
         # return_sequences=True -> (batch, seq_len, hidden)
         self.assertEqual(outputs.shape, (2, 5, 3))
 
@@ -362,9 +359,10 @@ class JaxLSTMCuDNNPathTest(testing.TestCase):
         def failing_jax_lstm(*args, **kwargs):
             raise RuntimeError("cuDNN not available")
 
-        with patch.object(
-            rnn_module, "cudnn_ok", return_value=True
-        ), patch("jax.experimental.rnn.lstm", failing_jax_lstm):
+        with (
+            patch.object(rnn_module, "cudnn_ok", return_value=True),
+            patch("jax.experimental.rnn.lstm", failing_jax_lstm),
+        ):
             with self.assertRaisesRegex(
                 NotImplementedError, "cuDNN LSTM failed"
             ):
@@ -391,9 +389,10 @@ class JaxLSTMCuDNNPathTest(testing.TestCase):
         rnn_module = importlib.import_module("keras.src.backend.jax.rnn")
         d = self._make_inputs()
 
-        with patch.object(
-            rnn_module, "cudnn_ok", return_value=True
-        ), patch.dict("sys.modules", {"jax.experimental.rnn": None}):
+        with (
+            patch.object(rnn_module, "cudnn_ok", return_value=True),
+            patch.dict("sys.modules", {"jax.experimental.rnn": None}),
+        ):
             with self.assertRaises(NotImplementedError):
                 rnn_module.lstm(
                     d["inputs"],
