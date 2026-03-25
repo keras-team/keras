@@ -865,37 +865,31 @@ class IndexLookup(Layer):
             )
             assertion = tf.Assert(tf.equal(tf.size(oov_indices), 0), [msg])
             lookup_checks.append(assertion)
+
         elif self.num_oov_indices > 1:
-            if tf.as_dtype(self._key_dtype).is_integer:
-                if self.oov_method == "farmhash":
-                    inputs_as_str = tf.strings.as_string(inputs)
-                    if self.salt is not None:
-                        # SipHash64
-                        oov_indices = tf.strings.to_hash_bucket_strong(
-                            inputs_as_str,
-                            num_buckets=self.num_oov_indices,
-                            key=self.salt,
-                        )
-                    else:
-                        # FarmHash64
-                        oov_indices = tf.strings.to_hash_bucket_fast(
-                            inputs_as_str,
-                            num_buckets=self.num_oov_indices,
-                        )
-                else:
-                    # Default: backwards-compatible floormod behaviour.
-                    oov_indices = tf.math.floormod(inputs, self.num_oov_indices)
+            if (
+                tf.as_dtype(self._key_dtype).is_integer
+                and self.oov_method != "farmhash"
+            ):
+                # Default: backwards-compatible floormod behaviour for integers.
+                oov_indices = tf.math.floormod(inputs, self.num_oov_indices)
             else:
-                # String inputs: respect salt if provided, else FarmHash64.
+                # Hashing with`oov_method="farmhash"`.
+                hash_inputs = inputs
+                if tf.as_dtype(self._key_dtype).is_integer:
+                    hash_inputs = tf.strings.as_string(inputs)
+
                 if self.salt is not None:
+                    # SipHash64
                     oov_indices = tf.strings.to_hash_bucket_strong(
-                        inputs,
+                        hash_inputs,
                         num_buckets=self.num_oov_indices,
                         key=self.salt,
                     )
                 else:
+                    # FarmHash64
                     oov_indices = tf.strings.to_hash_bucket_fast(
-                        inputs,
+                        hash_inputs,
                         num_buckets=self.num_oov_indices,
                     )
             oov_indices = oov_indices + self._oov_start_index()
