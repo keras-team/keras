@@ -1319,21 +1319,6 @@ def sort(x, axis=-1):
 
 def split(x, indices_or_sections, axis=0):
     x = convert_to_tensor(x)
-    if _uses_cpu(x) and isinstance(indices_or_sections, int):
-        length = x.shape[axis]
-        if length is not None:
-            if length % indices_or_sections != 0:
-                raise ValueError(
-                    "array split does not result in an equal division: "
-                    f"rest is {length % indices_or_sections}"
-                )
-            size = length // indices_or_sections
-            res = []
-            for i in range(indices_or_sections):
-                idx = [slice(None)] * x.ndim
-                idx[axis] = slice(i * size, (i + 1) * size)
-                res.append(x[tuple(idx)])
-            return res
     return jnp.split(x, indices_or_sections, axis=axis)
 
 
