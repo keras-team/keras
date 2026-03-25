@@ -622,7 +622,10 @@ def qr(x, mode="reduced"):
     x_ov = get_ov_output(x)
     orig_type = x_ov.get_element_type()
 
-    # Work in f32: loops have issues with f64/f16/bf16/complex
+    # Work in f32:
+    #   f64 — constant-folding bug in OpenVINO CPU Loop evaluate (same as det())
+    #   f16/bf16 — upcast to f32 for numerical stability in iterative Householder
+    #   complex/other — not supported for QR; convert best-effort to f32
     if orig_type != Type.f32:
         x_ov = ov_opset.convert(x_ov, Type.f32).output(0)
     work_type = Type.f32
