@@ -49,6 +49,12 @@ class GroupedQueryAttention(Layer):
         activity_regularizer: Regularizer for dense layer activity.
         kernel_constraint: Constraint for dense layer kernels.
         bias_constraint: Constraint for dense layer kernels.
+        use_gate: Boolean, whether to apply a gated attention mechanism.
+            When True, an additional gating branch is added based on the
+            (Gated Attention for Large Language Models)[https://arxiv.org/abs/2505.06708].
+            It applies a sigmoid-activated linear projection to the query
+            which then gates the attention output. This helps improve training
+            stability and eliminates "attention sinks".
         seed: Optional integer to seed the dropout layer.
 
     Call arguments:
@@ -102,6 +108,7 @@ class GroupedQueryAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        use_gate=False,
         seed=None,
         **kwargs,
     ):
@@ -117,6 +124,7 @@ class GroupedQueryAttention(Layer):
         self.num_repeats = num_query_heads // num_key_value_heads
         self.dropout = dropout
         self.use_bias = use_bias
+        self.use_gate = use_gate
         self._flash_attention = flash_attention or is_flash_attention_enabled()
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
@@ -170,7 +178,16 @@ class GroupedQueryAttention(Layer):
             **self._get_common_kwargs_for_sublayer(),
         )
         self._key_dense.build(key_shape)
-
+        if self.use_gate:
+            self._gate_dense = EinsumDense(
+                "bqm,muh->bquh",
+                output_shape=(None, self.num_query_heads, self.head_dim),
+                bias_axes="uh" if self.use_bias else None,
+                activation="sigmoid",
+                name="gate",
+                **self._get_common_kwargs_for_sublayer(),
+            )
+            self._gate_dense.build(query_shape)
         self._value_dense = EinsumDense(
             "bkm,mvh->bkvh",
             output_shape=(None, self.num_key_value_heads, self.head_dim),
@@ -247,7 +264,8 @@ class GroupedQueryAttention(Layer):
             attention_mask=attention_mask,
             use_causal_mask=use_causal_mask,
         )
-
+        if self.use_gate:
+            gate = self._gate_dense(query)
         query = self._query_dense(query)
         key = self._key_dense(key)
         value = self._value_dense(value)
@@ -266,10 +284,11 @@ class GroupedQueryAttention(Layer):
             attention_mask=attention_mask,
             training=training,
         )
-
-        output = self._output_dense(
-            output
-        )  # (batch_dim, target_seq_len, feature_dim)
+        # (batch_dim, target_seq_len, feature_dim)
+        if self.use_gate:
+            output = self._output_dense(ops.multiply(output, gate))
+        else:
+            output = self._output_dense(output)
 
         if return_attention_scores:
             return output, scores
@@ -483,6 +502,7 @@ class GroupedQueryAttention(Layer):
             "num_query_heads": self.num_query_heads,
             "num_key_value_heads": self.num_key_value_heads,
             "use_bias": self.use_bias,
+            "use_gate": self.use_gate,
             "dropout": self.dropout,
             "kernel_initializer": initializers.serialize(
                 self.kernel_initializer

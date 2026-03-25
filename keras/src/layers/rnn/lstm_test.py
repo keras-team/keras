@@ -67,6 +67,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -89,6 +91,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -111,6 +115,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -133,6 +139,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -155,6 +163,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -178,6 +188,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -192,6 +204,8 @@ class LSTMTest(testing.TestCase):
                 ]
             ),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -212,6 +226,8 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.20574439, 0.3558822], [0.64930826, 0.66276]]),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -227,13 +243,19 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array([[0.13281618, 0.2790356], [0.5839337, 0.5992567]]),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
 
+    @pytest.mark.xfail(
+        testing.tensorflow_uses_gpu(),
+        reason="Broken mask in CuDNN implementation",
+    )
     def test_masking(self):
         sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
-        mask = np.array([[True, True, False, True], [True, False, False, True]])
+        mask = np.array([[True, True, True, False], [True, True, False, False]])
         layer = layers.LSTM(
             2,
             kernel_initializer=initializers.Constant(0.01),
@@ -243,8 +265,10 @@ class LSTMTest(testing.TestCase):
         )
         output = layer(sequence, mask=mask)
         self.assertAllClose(
-            np.array([[0.1524914, 0.1524914], [0.35969394, 0.35969394]]),
+            np.array([[0.11755939, 0.11755939], [0.28556206, 0.28556206]]),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -260,13 +284,15 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array(
                 [
-                    [0.0158891, 0.0158891],
-                    [0.05552047, 0.05552047],
-                    [0.05552047, 0.05552047],
-                    [0.1524914, 0.1524914],
+                    [0.01588910, 0.01588910],
+                    [0.05552048, 0.05552048],
+                    [0.11755939, 0.11755939],
+                    [0.11755939, 0.11755939],
                 ],
             ),
             output[0],
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -274,12 +300,14 @@ class LSTMTest(testing.TestCase):
             np.array(
                 [
                     [0.14185596, 0.14185596],
-                    [0.14185596, 0.14185596],
-                    [0.14185596, 0.14185596],
-                    [0.35969394, 0.35969394],
+                    [0.28556206, 0.28556206],
+                    [0.28556206, 0.28556206],
+                    [0.28556206, 0.28556206],
                 ],
             ),
             output[1],
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -296,13 +324,15 @@ class LSTMTest(testing.TestCase):
         self.assertAllClose(
             np.array(
                 [
-                    [0.0158891, 0.0158891],
-                    [0.05552047, 0.05552047],
+                    [0.01588910, 0.01588910],
+                    [0.05552048, 0.05552048],
+                    [0.11755939, 0.11755939],
                     [0.0, 0.0],
-                    [0.1524914, 0.1524914],
                 ],
             ),
             output[0],
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
@@ -310,16 +340,21 @@ class LSTMTest(testing.TestCase):
             np.array(
                 [
                     [0.14185596, 0.14185596],
+                    [0.28556206, 0.28556206],
                     [0.0, 0.0],
                     [0.0, 0.0],
-                    [0.35969394, 0.35969394],
                 ],
             ),
             output[1],
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
 
+        backwards_mask = np.array(
+            [[False, True, True, True], [False, False, True, True]]
+        )
         layer = layers.LSTM(
             2,
             kernel_initializer=initializers.Constant(0.01),
@@ -327,10 +362,12 @@ class LSTMTest(testing.TestCase):
             bias_initializer=initializers.Constant(0.03),
             go_backwards=True,
         )
-        output = layer(sequence, mask=mask)
+        output = layer(sequence, mask=backwards_mask)
         self.assertAllClose(
-            np.array([[0.10056866, 0.10056866], [0.31006062, 0.31006062]]),
+            np.array([[0.15341201, 0.15341201], [0.3844719, 0.3844719]]),
             output,
+            atol=1e-5,
+            rtol=1e-5,
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )

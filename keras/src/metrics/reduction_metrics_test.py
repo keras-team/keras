@@ -190,4 +190,4 @@ class MetricWrapperTest(testing.TestCase):
         metric = metrics.BinaryAccuracy()
         metric.update_state(y, res)
         result = metric.result()
-        assert result == 1.0
+        self.assertEqual(result, 1.0)

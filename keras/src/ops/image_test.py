@@ -374,7 +374,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         out = kimage.map_coordinates(
             image_uint8, coordinates, order=1, fill_mode="constant"
         )
-        assert out.shape == coordinates.shape[1:]
+        self.assertEqual(out.shape, coordinates.shape[1:])
 
     def test_map_coordinates_float32(self):
         image_float32 = tf.ones((1, 1, 3), dtype=tf.float32)
@@ -386,7 +386,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         out = kimage.map_coordinates(
             image_float32, coordinates, order=1, fill_mode="constant"
         )
-        assert out.shape == coordinates.shape[1:]
+        self.assertEqual(out.shape, coordinates.shape[1:])
 
     def test_map_coordinates_nearest(self):
         image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
@@ -398,7 +398,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         out = kimage.map_coordinates(
             image_uint8, coordinates, order=1, fill_mode="nearest"
         )
-        assert out.shape == coordinates.shape[1:]
+        self.assertEqual(out.shape, coordinates.shape[1:])
 
     def test_map_coordinates_manual_cast(self):
         image_uint8 = tf.ones((1, 1, 3), dtype=tf.uint8)
@@ -414,7 +414,7 @@ class ImageOpsStaticShapeTest(testing.TestCase):
             ),
             dtype=tf.uint8,
         )
-        assert out.shape == coordinates.shape[1:]
+        self.assertEqual(out.shape, coordinates.shape[1:])
 
     def test_pad_images(self):
         # Test channels_last
@@ -2321,6 +2321,64 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "Invalid images dtype: expected float dtype."
         ):
             kimage.rgb_to_hsv(invalid_image)
+
+    def test_rgb_to_hsv_invalid_channels(self):
+        invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
+        with self.assertRaises(Exception):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+
+        invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.RGBToHSV(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
+        invalid_image = KerasTensor(shape=(4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+
+    def test_hsv_to_rgb_invalid_channels(self):
+        invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
+        with self.assertRaises(Exception):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+
+        invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.HSVToRGB(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
+        invalid_image = KerasTensor(shape=(4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
 
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_hsv_to_rgb_invalid_rank(self, rank):

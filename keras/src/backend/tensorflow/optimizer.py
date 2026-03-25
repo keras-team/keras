@@ -170,7 +170,12 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
             else:
                 reduced_with_nones.append((reduced[reduced_pos], v))
                 reduced_pos += 1
-        assert reduced_pos == len(reduced), "Failed to add all gradients"
+        if reduced_pos != len(reduced):
+            raise ValueError(
+                "Internal error: Failed to add all gradients. Expected to "
+                f"process {len(reduced)} gradients, but processed "
+                f"{reduced_pos}."
+            )
         return reduced_with_nones
 
     def _overwrite_model_variables_with_average_value(

@@ -100,6 +100,8 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
 
     def can_use_int_matmul(x1, x2):
         # torch._int_mm only accepts the following conditions:
@@ -110,8 +112,6 @@ def matmul(x1, x2):
         # 5. x2.shape must be [>= 16 and a multiplier of 8, multiplier of 8]
         if get_device() != "cuda":
             return False
-        x1_dtype = standardize_dtype(x1.dtype)
-        x2_dtype = standardize_dtype(x2.dtype)
         if x1_dtype != "int8" or x2_dtype != "int8":
             return False
         x1_shape = x1.shape
@@ -127,11 +127,14 @@ def matmul(x1, x2):
     # Shortcut for torch._int_mm
     # TODO: Loosen the restriction of the usage of torch._int_mm
     # TODO: We should replace torch._int_mm with the public api if possible
+    # Not yet supported with CUDA 13 without `use_transpose`
+    # https://github.com/pytorch/pytorch/blob/main/test/test_linalg.py#L7876
     if can_use_int_matmul(x1, x2):
-        return torch._int_mm(x1, x2)
+        try:
+            return torch._int_mm(x1, x2)
+        except RuntimeError:
+            pass
 
-    x1_dtype = standardize_dtype(x1.dtype)
-    x2_dtype = standardize_dtype(x2.dtype)
     if x1_dtype == "int8" and x2_dtype == "int8":
         result_dtype = "int32"
     else:
@@ -713,6 +716,15 @@ def deg2rad(x):
     return torch.deg2rad(x)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.rad2deg(x), "float64")
+
+    return torch.rad2deg(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return torch.diag(x, diagonal=k)
@@ -825,6 +837,16 @@ def flip(x, axis=None):
         axis = tuple(range(x.ndim))
     axis = to_tuple_or_list(axis)
     return torch.flip(x, dims=axis)
+
+
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return torch.fliplr(x)
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return torch.flipud(x)
 
 
 def floor(x):
@@ -943,6 +965,17 @@ def imag(x):
     if not isinstance(x, torch.Tensor):
         x = torch.from_numpy(x)  # needed for complex type conversion
     return torch.imag(x)
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16"]:
+        dtype = config.floatx()
+    x = cast(x, dtype)
+    return torch.i0(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -1320,9 +1353,34 @@ def mod(x1, x2):
     return torch.remainder(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
+    return torch.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     x = convert_to_tensor(x)
     return torch.moveaxis(x, source=source, destination=destination)
+
+
+def nanargmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not torch.is_floating_point(x):
+        return argmax(x, axis=axis, keepdims=keepdims)
+
+    x_clean = torch.where(torch.isnan(x), float("-inf"), x)
+
+    return torch.where(
+        torch.isnan(x).all(dim=axis, keepdim=keepdims),
+        torch.tensor(-1, dtype=torch.int32, device=get_device()),
+        argmax(x_clean, axis=axis, keepdims=keepdims),
+    )
 
 
 def nanargmin(x, axis=None, keepdims=False):
@@ -1343,6 +1401,11 @@ def nanargmin(x, axis=None, keepdims=False):
 def nancumsum(x, axis=None, dtype=None):
     x = nan_to_num(x)
     return cumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    x = nan_to_num(x, nan=1.0)
+    return cumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1408,6 +1471,45 @@ def nanprod(x, axis=None, keepdims=False):
         axis=axis,
         keepdims=keepdims,
     )
+
+
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    axis = to_tuple_or_list(axis)
+
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+
+    x = cast(x, compute_dtype)
+    if x.dtype != q.dtype:
+        q = cast(q, x.dtype)
+
+    if axis is None:
+        y = reshape(x, [-1])
+    else:
+        axis = [canonicalize_axis(a, x.ndim) for a in axis]
+        other_dims = sorted(set(range(x.ndim)).difference(axis))
+        x_permed = torch.permute(x, dims=(other_dims + list(axis)))
+
+        x_shape = list(x.shape)
+        other_shape = [x_shape[i] for i in other_dims]
+        end_shape = [math.prod([x_shape[i] for i in axis])]
+        full_shape = other_shape + end_shape
+        y = reshape(x_permed, full_shape)
+
+    y = torch.nanquantile(y, q, dim=-1, interpolation=method)
+
+    if keepdims:
+        if axis is None:
+            for _ in range(x.ndim):
+                y = expand_dims(y, axis=-1)
+        else:
+            for i in sorted(axis):
+                i = i + 1 if q.ndim > 0 else i
+                y = expand_dims(y, axis=i)
+
+    return cast(y, result_dtype)
 
 
 def nanstd(x, axis=None, keepdims=False):
@@ -1699,6 +1801,11 @@ def signbit(x):
 def sin(x):
     x = convert_to_tensor(x)
     return torch.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    return torch.sinc(x)
 
 
 def sinh(x):

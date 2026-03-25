@@ -60,6 +60,44 @@ class GroupedQueryAttentionTest(testing.TestCase):
             run_training_check=False,
         )
 
+        self.run_layer_test(
+            layers.GroupedQueryAttention,
+            init_kwargs={
+                "num_query_heads": 2,
+                "num_key_value_heads": 2,
+                "head_dim": 2,
+                "use_gate": True,
+            },
+            input_shape={"query_shape": (2, 8, 16), "value_shape": (2, 4, 16)},
+            expected_output_shape=(2, 8, 16),
+            expected_num_trainable_weights=10,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=0,
+            expected_num_losses=0,
+            supports_masking=True,
+            run_training_check=False,
+        )
+
+        self.run_layer_test(
+            layers.GroupedQueryAttention,
+            init_kwargs={
+                "num_query_heads": 2,
+                "num_key_value_heads": 2,
+                "head_dim": 2,
+                "use_bias": False,
+                "dropout": 0.5,
+                "use_gate": True,
+            },
+            input_shape={"query_shape": (2, 8, 16), "value_shape": (2, 4, 16)},
+            expected_output_shape=(2, 8, 16),
+            expected_num_trainable_weights=5,
+            expected_num_non_trainable_weights=0,
+            expected_num_seed_generators=1,
+            expected_num_losses=0,
+            supports_masking=True,
+            run_training_check=False,
+        )
+
     @pytest.mark.skipif(
         backend.backend() not in ("jax", "torch"),
         reason="Flash attention only supported on JAX and Torch",
@@ -207,6 +245,7 @@ class GroupedQueryAttentionTest(testing.TestCase):
             num_query_heads=16,
             num_key_value_heads=16,
             head_dim=64,
+            use_gate=True,
             kernel_initializer=initializers.TruncatedNormal(stddev=0.02),
         )
         layer.build((2, 4, 8), (2, 4, 8))
@@ -225,31 +264,35 @@ class GroupedQueryAttentionTest(testing.TestCase):
             layer._output_dense.kernel,
         )
 
+        self.assertNotAllClose(
+            layer._query_dense.kernel,
+            layer._gate_dense.kernel,
+        )
+
     @pytest.mark.skipif(
         backend.backend() == "numpy",
         reason="Numpy backend does not support masking.",
     )
     def test_query_mask_propagation(self):
         """Test automatic propagation of the query's mask."""
-        try:
-            layer = layers.GroupedQueryAttention(
-                num_query_heads=2, num_key_value_heads=2, head_dim=2
-            )
-            self.assertTrue(layer.supports_masking)
-            query = np.array(
-                [[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]]
-            )
-            masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
-            value = np.random.normal(size=(3, 3, 8))
-            output = layer(query=masked_query, value=value)
-        except RuntimeError as e:
-            if e.args[0].startswith(
-                "(*bias): last dimension must be contiguous"
-            ):
-                self.skipTest(
-                    "PyTorch errors out on GPU: issue to track bug is here "
-                    "https://github.com/keras-team/keras/issues/20459"
-                )
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=2, num_key_value_heads=2, head_dim=2
+        )
+        self.assertTrue(layer.supports_masking)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.random.normal(size=(3, 3, 8))
+        output = layer(query=masked_query, value=value)
+        self.assertAllClose(masked_query._keras_mask, output._keras_mask)
+
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=2, num_key_value_heads=2, head_dim=2, use_gate=True
+        )
+        self.assertTrue(layer.supports_masking)
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.random.normal(size=(3, 3, 8))
+        output = layer(query=masked_query, value=value)
         self.assertAllClose(masked_query._keras_mask, output._keras_mask)
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
@@ -261,6 +304,34 @@ class GroupedQueryAttentionTest(testing.TestCase):
         """Test that the value and causal masks are taken into account."""
         layer = layers.GroupedQueryAttention(
             num_query_heads=2, num_key_value_heads=2, head_dim=2
+        )
+        query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
+        masked_query = layers.Embedding(4, 8, mask_zero=True)(query)
+        value = np.array([[5, 4, 0], [3, 0, 0], [2, 1, 1]])
+        masked_value = layers.Embedding(6, 8, mask_zero=True)(value)
+        output = layer(
+            query=masked_query,
+            value=masked_value,
+            use_causal_mask=use_causal_mask,
+        )
+        mask = np.array(
+            [[[1, 1, 0]] * 3 + [[0, 0, 0]] * 2]
+            + [[[1, 0, 0]] * 5]
+            + [[[1, 1, 1]] + [[0, 0, 0]] * 4]
+        ).astype(bool)
+        if use_causal_mask:
+            mask = mask & np.array(
+                [[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3]
+            ).astype(bool)
+        del masked_query._keras_mask
+        del masked_value._keras_mask
+        output_with_manual_mask = layer(
+            query=masked_query, value=masked_value, attention_mask=mask
+        )
+        self.assertAllClose(output, output_with_manual_mask)
+
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=2, num_key_value_heads=2, head_dim=2, use_gate=True
         )
         query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
         masked_query = layers.Embedding(4, 8, mask_zero=True)(query)

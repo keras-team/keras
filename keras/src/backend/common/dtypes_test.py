@@ -201,6 +201,7 @@ class DtypesTest(test_case.TestCase):
     def test_empty_lub_in_least_upper_bound(self):
         dtype1 = "float32"
         dtype2 = "int32"
+        dtypes._least_upper_bound.cache_clear()
         with patch.dict(
             dtypes.LATTICE_UPPER_BOUNDS,
             {"float32": set(), "int32": set()},
@@ -210,6 +211,7 @@ class DtypesTest(test_case.TestCase):
                 ValueError, "no available implicit dtype promotion path"
             ):
                 dtypes._least_upper_bound(dtype1, dtype2)
+        dtypes._least_upper_bound.cache_clear()
 
     def test_valid_dtype_leading_to_single_lub_element(self):
         self.assertEqual(

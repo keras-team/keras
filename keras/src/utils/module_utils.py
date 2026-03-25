@@ -78,6 +78,7 @@ torch_xla = LazyModule(
 optree = LazyModule("optree")
 dmtree = LazyModule("tree")
 tf2onnx = LazyModule("tf2onnx")
+jax2onnx = LazyModule("jax2onnx")
 grain = LazyModule("grain")
 litert = LazyModule("ai_edge_litert")
 ocp = OrbaxLazyModule(
@@ -88,4 +89,3 @@ ocp = OrbaxLazyModule(
         "You can install it via pip install orbax-checkpoint"
     ),
 )
-orbax_export = LazyModule("orbax.export", "orbax-export")
