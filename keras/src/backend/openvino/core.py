@@ -903,11 +903,10 @@ def cond(pred, true_fn, false_fn):
     # update it).
     all_var_ids = set(true_scope.state_mapping) | set(false_scope.state_mapping)
     for var_id in all_var_ids:
-        var = (
-            true_scope._var_objects
-            if var_id in true_scope._var_objects
-            else false_scope._var_objects
-        )[var_id]
+        if var_id in true_scope._var_objects:
+            var = true_scope._var_objects[var_id]
+        else:
+            var = false_scope._var_objects[var_id]
         true_new = true_scope.state_mapping.get(var_id, var._value)
         false_new = false_scope.state_mapping.get(var_id, var._value)
         var._direct_assign(_select(true_new, false_new))
