@@ -137,6 +137,13 @@ class IntegerLookup(IndexLookup):
             uniformly regardless of the arithmetic structure of the input IDs.
             This parameter is ignored for string inputs, which always use
             FarmHash64.
+        salt: Only valid when `oov_method="farmhash"`. If passed, the hash
+            function used for OOV bucket assignment will be SipHash64,
+            with these values used as an additional input (known as a
+            "salt" in cryptography).
+            Can be a tuple or list of 2 integers, or a single integer
+            (which is used for both key components). If `None` (default),
+            FarmHash64 is used. Defaults to `None`.
 
     Examples:
 
@@ -339,6 +346,7 @@ class IntegerLookup(IndexLookup):
         sparse=False,
         pad_to_max_tokens=False,
         oov_method="floormod",
+        salt=None,
         name=None,
         **kwargs,
     ):
@@ -381,6 +389,7 @@ class IntegerLookup(IndexLookup):
             sparse=sparse,
             pad_to_max_tokens=pad_to_max_tokens,
             oov_method=oov_method,
+            salt=salt,
             name=name,
             **kwargs,
         )
