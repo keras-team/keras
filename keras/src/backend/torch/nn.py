@@ -283,13 +283,16 @@ def _transpose_spatial_inputs(inputs):
     """Transpose inputs from channels_last to channels_first format."""
     # Torch pooling does not support `channels_last` format, so
     # we need to transpose to `channels_first` format.
+    # After permute, the tensor may be non-contiguous which causes
+    # failures in conv2d (and torch.export) when it internally calls
+    # .view(). Adding .contiguous() ensures compatible memory layout.
     ndim = inputs.ndim - 2
     if ndim == 1:  # 1D case
-        return torch.permute(inputs, (0, 2, 1))
+        return torch.permute(inputs, (0, 2, 1)).contiguous()
     elif ndim == 2:  # 2D case
-        return torch.permute(inputs, (0, 3, 1, 2))
+        return torch.permute(inputs, (0, 3, 1, 2)).contiguous()
     elif ndim == 3:  # 3D case
-        return torch.permute(inputs, (0, 4, 1, 2, 3))
+        return torch.permute(inputs, (0, 4, 1, 2, 3)).contiguous()
     raise ValueError(
         "Inputs must have ndim=3, 4 or 5, "
         "corresponding to 1D, 2D and 3D inputs. "
