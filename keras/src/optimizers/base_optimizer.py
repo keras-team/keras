@@ -146,6 +146,7 @@ class BaseOptimizer(KerasSaveable):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     self._variables,
+                    "_variables",
                 ),
             }
         )
@@ -1095,14 +1096,22 @@ class BaseOptimizer(KerasSaveable):
         return cls(**config)
 
     def __setattr__(self, name, value):
-        # Prevent users from attaching state to the
-        # layer before `super()` is called -- since that
-        # state would silently not be tracked.
-        if name != "_lock":
-            self._check_super_called()
-        # Track Variables.
+        # Warn if user code reassigns a reserved tracked attribute.
+        if (
+            hasattr(self, "_tracker")
+            and name in self._tracker.tracking_collections_attr_names
+        ):
+            raise AttributeError(
+                f"`{name}` is a reserved attribute in Keras optimizers and "
+                "should not be used as a variable name in an Optimizer "
+                "subclass. Assigning to it can break optimizer state "
+                "tracking. Please use a different attribute name."
+            )
+        # Track Variables, Layers, Metrics
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
+        if name != "_lock":
+            self._check_super_called()
         return super().__setattr__(name, value)
 
     def _clip_by_norm(self, values, axes=None):

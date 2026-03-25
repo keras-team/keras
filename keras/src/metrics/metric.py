@@ -100,8 +100,13 @@ class Metric(KerasSaveable):
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
                     self._variables,
+                    "_variables",
                 ),
-                "metrics": (lambda x: isinstance(x, Metric), self._metrics),
+                "metrics": (
+                    lambda x: isinstance(x, Metric),
+                    self._metrics,
+                    "_metrics",
+                ),
             }
         )
 
@@ -235,9 +240,22 @@ class Metric(KerasSaveable):
         return cls(**config)
 
     def __setattr__(self, name, value):
+        # Warn if user code reassigns a reserved tracked attribute.
+        if (
+            hasattr(self, "_tracker")
+            and name in self._tracker.tracking_collections_attr_names
+        ):
+            raise AttributeError(
+                f"`{name}` is a reserved attribute in Keras metrics and "
+                "should not be used as a variable name in a Metric "
+                "subclass. Assigning to it can break metric state "
+                "tracking. Please use a different attribute name."
+            )
         # Track Variables, Layers, Metrics
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
+        if name != "_tracker":
+            self._check_super_called()
         return super().__setattr__(name, value)
 
     def _check_super_called(self):

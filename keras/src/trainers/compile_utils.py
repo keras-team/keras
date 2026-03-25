@@ -414,6 +414,7 @@ class CompileLoss(losses_module.Loss):
                 "metrics": (
                     lambda x: isinstance(x, metrics_module.Metric),
                     self._metrics,
+                    "_metrics",
                 )
             }
         )
@@ -421,7 +422,23 @@ class CompileLoss(losses_module.Loss):
         self._y_pred_build_structure = None
         self._y_true_build_structure = None
 
-    @property
+    def __setattr__(self, name, value):
+        # Warn if user code reassigns a reserved tracked attribute.
+        if (
+            hasattr(self, "_tracker")
+            and name in self._tracker.tracking_collections_attr_names
+        ):
+            raise AttributeError(
+                f"`{name}` is a reserved attribute in Keras compile utils and "
+                "should not be used as a variable name in a CompileLoss "
+                "subclass. Assigning to it can break metric state "
+                "tracking. Please use a different attribute name."
+            )
+        # Track Variables, Layers, Metrics
+        if hasattr(self, "_tracker"):
+            value = self._tracker.track(value)
+        return super().__setattr__(name, value)
+
     def metrics(self):
         return self._metrics
 

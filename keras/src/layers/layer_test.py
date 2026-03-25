@@ -396,6 +396,42 @@ class LayerTest(testing.TestCase):
         self.assertAllClose(layer.variables[0], [1, 1])
         self.assertAllClose(layer.variables[1], [10, 1])
 
+    def test_reserved_attribute_assignment_raises_error(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+
+        layer = MyLayer()
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_metrics` is a reserved attribute",
+        ):
+            layer._metrics = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_trainable_variables` is a reserved attribute",
+        ):
+            layer._trainable_variables = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_non_trainable_variables` is a reserved attribute",
+        ):
+            layer._non_trainable_variables = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_layers` is a reserved attribute",
+        ):
+            layer._layers = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_seed_generators` is a reserved attribute",
+        ):
+            layer._seed_generators = []
+
     def test_layer_tracking(self):
         class LayerWithDenseLayers(layers.Layer):
             def __init__(self, units):
