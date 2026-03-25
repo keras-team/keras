@@ -111,7 +111,10 @@ def format_layer_shape(layer):
                 )
         except NotImplementedError:
             return "?"
-    if len(output_shapes) == 1:
+    if isinstance(output_shapes, dict):
+        if len(output_shapes) == 1:
+            return next(iter(output_shapes.values()))
+    elif len(output_shapes) == 1:
         return output_shapes[0]
     out = str(output_shapes)
     out = out.replace("'", "")
