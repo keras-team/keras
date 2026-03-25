@@ -82,6 +82,19 @@ class BaseOptimizer(KerasSaveable):
     ):
         self._lock = False
 
+        # Set up variable tracking first (before assigning other attributes)
+        variables = []
+        self._tracker = tracking.Tracker(
+            {
+                "variables": (
+                    lambda x: isinstance(x, backend.Variable),
+                    variables,
+                    "_variables",
+                ),
+            }
+        )
+        self._trainable_variables_indices = {}
+
         if kwargs.pop("decay", None) is not None:
             warnings.warn(
                 "Argument `decay` is no longer supported and will be ignored."
@@ -138,19 +151,10 @@ class BaseOptimizer(KerasSaveable):
             )
         self.built = False
 
-        # Set up variable tracking.
-        self._variables = []
+        # Use object.__setattr__ to bypass tracking wrap so self._variables
+        # stays as the same list object the Tracker references.
+        object.__setattr__(self, "_variables", variables)
         self._trainable_variables = []
-        self._tracker = tracking.Tracker(
-            {
-                "variables": (
-                    lambda x: isinstance(x, backend.Variable),
-                    self._variables,
-                    "_variables",
-                ),
-            }
-        )
-        self._trainable_variables_indices = {}
 
         # Create iteration variable
         # Note: dtype="int" will resolve to int32 in JAX

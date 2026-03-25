@@ -69,7 +69,8 @@ class Tracker:
         self.exclusions = exclusions or {}
         self.tracking_collections_attr_names = set()
         for k, v in config.items():
-            self.tracking_collections_attr_names.add(v[2])
+            if len(v) > 2:
+                self.tracking_collections_attr_names.add(v[2])
 
     def track(self, attr):
         if not is_tracking_enabled():

@@ -66,6 +66,14 @@ class Sequential(Model):
     def __new__(cls, *args, **kwargs):
         return typing.cast(cls, super().__new__(cls))
 
+    def __setattr__(self, name, value):
+        # _functional must not be tracked as a sublayer since it's an internal
+        # implementation detail of Sequential, not a user-added layer.
+        if name == "_functional":
+            object.__setattr__(self, name, value)
+        else:
+            super().__setattr__(name, value)
+
     def __init__(self, layers=None, trainable=True, name=None):
         super().__init__(trainable=trainable, name=name)
         self._functional = None
