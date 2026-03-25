@@ -15,23 +15,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.action == 'labeled' && github.event.label.name == 'kokoro:force-run'
     steps:
-      - name: Wait 10 seconds
-        run: sleep 10s
-
       - uses: actions/github-script@v8
         with:
           script: |
-            var labels = await github.rest.issues.listLabelsOnIssue({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            console.log(labels);
-
             github.rest.issues.removeLabel({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              label: 'kokoro:force-run'
+              name: 'kokoro:force-run'
             });
