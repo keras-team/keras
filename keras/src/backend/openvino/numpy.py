@@ -3157,7 +3157,11 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
 
     if x_type.is_integral() or x_type == Type.boolean:
         return quantile(
-            OpenVINOKerasTensor(x), q, axis=axis, method=method, keepdims=keepdims
+            OpenVINOKerasTensor(x),
+            q,
+            axis=axis,
+            method=method,
+            keepdims=keepdims,
         )
 
     x_keras_type = ov_to_keras_type(x_type)
