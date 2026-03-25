@@ -3103,6 +3103,46 @@ def nanprod(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
+def _move_and_flatten_axes(axis, x_ndim, *tensors):
+    """Transpose reduction axes to the end and flatten them into one dim.
+
+    Returns (flattened_tensors..., norm_axis) where norm_axis is the
+    normalised axis list (or None when axis was None).
+    """
+    if axis is None:
+        flat_const = ov_opset.constant([-1], Type.i64).output(0)
+        flattened = tuple(
+            ov_opset.reshape(t, flat_const, False).output(0) for t in tensors
+        )
+        return flattened + (None,)
+
+    if isinstance(axis, int):
+        axis = [axis]
+    axis = [a % x_ndim for a in axis]
+    other_dims = sorted(set(range(x_ndim)).difference(axis))
+    perm = ov_opset.constant(other_dims + list(axis), Type.i32).output(0)
+    transposed = tuple(ov_opset.transpose(t, perm).output(0) for t in tensors)
+
+    x_shape = ov_opset.shape_of(tensors[0], Type.i64).output(0)
+    if other_dims:
+        other_shape = ov_opset.gather(
+            x_shape,
+            ov_opset.constant(other_dims, Type.i32).output(0),
+            ov_opset.constant(0, Type.i32).output(0),
+        ).output(0)
+        flat_shape = ov_opset.concat(
+            [other_shape, ov_opset.constant([-1], Type.i64).output(0)],
+            axis=0,
+        ).output(0)
+    else:
+        flat_shape = ov_opset.constant([-1], Type.i64).output(0)
+
+    flattened = tuple(
+        ov_opset.reshape(t, flat_shape, False).output(0) for t in transposed
+    )
+    return flattened + (axis,)
+
+
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
@@ -3135,35 +3175,9 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     ).output(0)
     x_no_nan = ov_opset.select(nan_mask, pos_inf, x).output(0)
 
-    if axis is None:
-        flat_const = ov_opset.constant([-1], Type.i64).output(0)
-        y = ov_opset.reshape(x_no_nan, flat_const, False).output(0)
-        nan_mask_flat = ov_opset.reshape(nan_mask, flat_const, False).output(0)
-        norm_axis = None
-    else:
-        if isinstance(axis, int):
-            axis = [axis]
-        axis = [a % x_ndim for a in axis]
-        other_dims = sorted(set(range(x_ndim)).difference(axis))
-        perm = ov_opset.constant(other_dims + list(axis), Type.i32).output(0)
-        x_t = ov_opset.transpose(x_no_nan, perm).output(0)
-        nan_mask_t = ov_opset.transpose(nan_mask, perm).output(0)
-        x_shape = ov_opset.shape_of(x, Type.i64).output(0)
-        if other_dims:
-            other_shape = ov_opset.gather(
-                x_shape,
-                ov_opset.constant(other_dims, Type.i32).output(0),
-                ov_opset.constant(0, Type.i32).output(0),
-            ).output(0)
-            flat_shape = ov_opset.concat(
-                [other_shape, ov_opset.constant([-1], Type.i64).output(0)],
-                axis=0,
-            ).output(0)
-        else:
-            flat_shape = ov_opset.constant([-1], Type.i64).output(0)
-        y = ov_opset.reshape(x_t, flat_shape, False).output(0)
-        nan_mask_flat = ov_opset.reshape(nan_mask_t, flat_shape, False).output(0)
-        norm_axis = axis
+    y, nan_mask_flat, norm_axis = _move_and_flatten_axes(
+        axis, x_ndim, x_no_nan, nan_mask
+    )
 
     sorted_y = sort(OpenVINOKerasTensor(y)).output
     y_ndim = y.get_partial_shape().rank.get_length()
@@ -3559,35 +3573,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     q_rank = q_ov.get_partial_shape().rank.get_length()
     x_ndim = x.get_partial_shape().rank.get_length()
 
-    # Flatten axis dims to the last position, then sort along it
-    if axis is None:
-        y = ov_opset.reshape(
-            x, ov_opset.constant([-1], Type.i64).output(0), False
-        ).output(0)
-        norm_axis = None
-    else:
-        if isinstance(axis, int):
-            axis = [axis]
-        axis = [a % x_ndim for a in axis]
-        other_dims = sorted(set(range(x_ndim)).difference(axis))
-        x_t = ov_opset.transpose(
-            x, ov_opset.constant(other_dims + list(axis), Type.i32).output(0)
-        ).output(0)
-        x_shape = ov_opset.shape_of(x, Type.i64).output(0)
-        if other_dims:
-            other_shape = ov_opset.gather(
-                x_shape,
-                ov_opset.constant(other_dims, Type.i32).output(0),
-                ov_opset.constant(0, Type.i32).output(0),
-            ).output(0)
-            flat_shape = ov_opset.concat(
-                [other_shape, ov_opset.constant([-1], Type.i64).output(0)],
-                axis=0,
-            ).output(0)
-        else:
-            flat_shape = ov_opset.constant([-1], Type.i64).output(0)
-        y = ov_opset.reshape(x_t, flat_shape, False).output(0)
-        norm_axis = axis
+    y, norm_axis = _move_and_flatten_axes(axis, x_ndim, x)
 
     sorted_y = sort(OpenVINOKerasTensor(y)).output
 
