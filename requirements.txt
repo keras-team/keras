@@ -16,6 +16,7 @@ torch-xla;sys_platform != 'darwin'
 # Note that we test against the latest JAX on GPU.
 jax[cpu]
 flax
+jax2onnx
 
 # Common deps.
 -r requirements-common.txt

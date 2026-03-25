@@ -79,8 +79,8 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
 )
 @pytest.mark.skipif(testing.uses_gpu(), reason="Fails on GPU")
 @pytest.mark.skipif(
-    np.version.version.startswith("2."),
-    reason="ONNX export is currently incompatible with NumPy 2.0",
+    np.version.version.startswith("2.") and backend.backend() != "jax",
+    reason="ONNX export via tf2onnx is incompatible with NumPy 2.0",
 )
 class ExportONNXTest(testing.TestCase):
     @parameterized.named_parameters(
@@ -89,6 +89,11 @@ class ExportONNXTest(testing.TestCase):
         )
     )
     def test_standard_model_export(self, model_type):
+        if model_type == "lstm" and backend.backend() == "jax":
+            self.skipTest(
+                "Bidirectional LSTM uses reverse scan, which jax2onnx "
+                "does not support yet."
+            )
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
         batch_size = 3 if backend.backend() != "torch" else 1
