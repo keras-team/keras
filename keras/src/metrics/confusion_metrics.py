@@ -744,6 +744,8 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
                 "Argument `specificity` must be in the range [0, 1]. "
                 f"Received: specificity={specificity}"
             )
+        self.specificity = specificity
+        self.num_thresholds = num_thresholds
         super().__init__(
             specificity,
             num_thresholds=num_thresholds,
@@ -751,8 +753,6 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
             name=name,
             dtype=dtype,
         )
-        self.specificity = specificity
-        self.num_thresholds = num_thresholds
 
     def result(self):
         sensitivities = ops.divide_no_nan(
@@ -848,6 +848,8 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
                 "Argument `sensitivity` must be in the range [0, 1]. "
                 f"Received: sensitivity={sensitivity}"
             )
+        self.sensitivity = sensitivity
+        self.num_thresholds = num_thresholds
         super().__init__(
             sensitivity,
             num_thresholds=num_thresholds,
@@ -855,8 +857,6 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
             name=name,
             dtype=dtype,
         )
-        self.sensitivity = sensitivity
-        self.num_thresholds = num_thresholds
 
     def result(self):
         sensitivities = ops.divide_no_nan(
@@ -938,6 +938,8 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
                 "Argument `recall` must be in the range [0, 1]. "
                 f"Received: recall={recall}"
             )
+        self.recall = recall
+        self.num_thresholds = num_thresholds
         super().__init__(
             value=recall,
             num_thresholds=num_thresholds,
@@ -945,8 +947,6 @@ class PrecisionAtRecall(SensitivitySpecificityBase):
             name=name,
             dtype=dtype,
         )
-        self.recall = recall
-        self.num_thresholds = num_thresholds
 
     def result(self):
         recalls = ops.divide_no_nan(
@@ -1033,6 +1033,8 @@ class RecallAtPrecision(SensitivitySpecificityBase):
                 "Argument `precision` must be in the range [0, 1]. "
                 f"Received: precision={precision}"
             )
+        self.precision = precision
+        self.num_thresholds = num_thresholds
         super().__init__(
             value=precision,
             num_thresholds=num_thresholds,
@@ -1040,8 +1042,6 @@ class RecallAtPrecision(SensitivitySpecificityBase):
             name=name,
             dtype=dtype,
         )
-        self.precision = precision
-        self.num_thresholds = num_thresholds
 
     def result(self):
         recalls = ops.divide_no_nan(

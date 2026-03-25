@@ -261,8 +261,6 @@ class Metric(KerasSaveable):
         # Track Variables, Layers, Metrics
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
-        if name != "_tracker":
-            self._check_super_called()
         return super().__setattr__(name, value)
 
     def _check_super_called(self):
