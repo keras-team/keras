@@ -291,7 +291,9 @@ class JaxLayer(Layer):
         # Attributes for jax2tf functions
         self.jax2tf_training_false_fn = None
         self.jax2tf_training_true_fn = None
-        self.jax2tf_native_serialization_platforms = native_serialization_platforms
+        self.jax2tf_native_serialization_platforms = (
+            native_serialization_platforms
+        )
 
     def _validate_signature(self, fn, fn_name, allowed, required):
         fn_parameters = inspect.signature(fn).parameters
