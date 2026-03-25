@@ -3,7 +3,6 @@
 # changed in .github/workflows/actions.yml (pip install --no-deps tf_keras).
 tensorflow-cpu;sys_platform != 'darwin'
 tensorflow;sys_platform == 'darwin'
-tf2onnx
 ai-edge-litert
 
 # Torch.
@@ -16,7 +15,9 @@ torch-xla;sys_platform != 'darwin'
 # Note that we test against the latest JAX on GPU.
 jax[cpu]
 flax
-jax2onnx
+
+# OpenVino
+openvino
 
 # Common deps.
 -r requirements-common.txt
