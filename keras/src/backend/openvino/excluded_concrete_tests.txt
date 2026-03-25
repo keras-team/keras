@@ -177,7 +177,6 @@ NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
-NumpyDtypeTest::test_nanquantile
 NumpyDtypeTest::test_view
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
@@ -186,7 +185,6 @@ NumpyOneInputOpsCorrectnessTest::test_real
 NumpyOneInputOpsCorrectnessTest::test_view
 NumpyOneInputOpsDynamicShapeTest::test_view
 NumpyOneInputOpsStaticShapeTest::test_view
-NumpyTwoInputOpsCorrectnessTest::test_nanquantile
 OptimizerTest::test_constraints_are_applied
 OptimizerTest::test_ema
 OptimizerTest::test_gradient_accumulation
