@@ -1284,7 +1284,7 @@ class LayerTest(testing.TestCase):
         ):
             layer(np.random.random((3, 2)))
 
-    def test_reserved_attribute_warning(self):
+    def test_reserved_attribute_override_raises_error(self):
         """Raise AttributeError when user code overrides reserved tracked
         attributes in __init__."""
 
