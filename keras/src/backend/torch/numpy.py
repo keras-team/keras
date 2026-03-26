@@ -1821,7 +1821,6 @@ def size(x):
 def sort(x, axis=-1):
     x = convert_to_tensor(x)
     if axis is None:
-        # Match NumPy/Keras semantics: flatten first, then sort 1D.
         x = x.reshape(-1)
         axis = 0
     # TODO: torch.sort doesn't support bool with cuda

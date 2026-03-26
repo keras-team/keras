@@ -2868,8 +2868,6 @@ def sort(x, axis=-1):
     ori_dtype = standardize_dtype(x.dtype)
     # TODO: tf.sort doesn't support bool
     if axis is None:
-        # `tf.sort` doesn't support `axis=None`. Match NumPy/Keras semantics by
-        # flattening first and sorting the resulting 1D tensor.
         x = tf.reshape(x, [-1])
         axis = 0
 
