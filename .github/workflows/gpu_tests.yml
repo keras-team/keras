@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' && github.ref != 'refs/heads/master' }}
+
 jobs:
 
   test-in-container:
@@ -32,7 +36,7 @@ jobs:
       options: --privileged --network host
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout ${{ github.ref }}
         uses: actions/checkout@v6.0.2
 
       - name: Check CUDA Version
