@@ -243,3 +243,17 @@ TruePositiveTest::test_weighted
 UnitNormalizationTest::test_un_basics
 UpSampling2dTest::test_upsampling_2d_lanczos_interpolation_methods
 UpSampling2dTest::test_upsampling_2d_various_interpolation_methods
+UniqueTest::test_unique_basic
+UniqueTest::test_unique_full_outputs_1d
+UniqueTest::test_unique_axis_0
+UniqueTest::test_unique_axis_1
+UniqueTest::test_unique_symbolic_dynamic
+UniqueTest::test_unique_symbolic_static
+UniqueTest::test_unique_op_class_call
+UniqueTest::test_unique_unsorted
+UniqueTest::test_unique_negative_axis
+UniqueTest::test_unique_3d
+UniqueTest::test_unique_empty
+UniqueTest::test_unique_all_same
+UniqueTest::test_unique_op_class_combinations
+NumpyDtypeTest::test_unique_dtype
