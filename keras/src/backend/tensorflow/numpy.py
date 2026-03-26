@@ -3747,61 +3747,65 @@ def unique(
     input, sorted=True, return_inverse=False, return_counts=False, axis=None
 ):
     input = tf.convert_to_tensor(input)
-    is_flatten = False
     original_shape = tf.shape(input)
+    is_flatten = axis is None
 
-    # 1. Handle axis=None by flattening (matches Torch default)
-    if axis is None:
+    if is_flatten:
         input = tf.reshape(input, [-1])
         axis_to_use = tf.constant([0], dtype=tf.int32)
-        is_flatten = True
     else:
-        # tf.raw_ops expects axis as a 1D tensor/list
         axis_to_use = tf.constant([axis], dtype=tf.int32)
 
-    # Call TF native op (this returns unique elements in appearance order)
-    y, idx, count = tf.raw_ops.UniqueWithCountsV2(x=input, axis=axis_to_use)
+    # TF native op returns unique elements in appearance order
+    # Force out_idx to int32 to match tf.range and tf.math.invert_permutation
+    y, idx, count = tf.raw_ops.UniqueWithCountsV2(
+        x=input, axis=axis_to_use, out_idx=tf.int32
+    )
 
-    # Handle sorting to match PyTorch's sorted=True
     if sorted:
+        num_unique = tf.shape(y)[0]
         if len(y.shape) == 1:
-            # Simple 1D sort
             sort_indices = tf.argsort(y)
         else:
-            # Multi-dimensional lexicographical sort
-            # Flatten trailing dims to treat each slice as a vector
-            num_unique = tf.shape(y)[0]
+            # Multi-D lexicographical sort using tf.while_loop for graph mode
             y_2d = tf.reshape(y, [num_unique, -1])
             num_cols = tf.shape(y_2d)[1]
 
-            # Start with an identity permutation
+            # Start with identity indices [0, 1, 2, ...]
             sort_indices = tf.range(num_unique, dtype=tf.int32)
 
-            # Stable sort from the last column to the first column
-            # to achieve lexicographical order.
-            for i in range(num_cols - 1, -1, -1):
-                col = tf.gather(y_2d[:, i], sort_indices)
-                # We use stable=True to preserve the order established by
-                # previous column sorts.
+            def body(i, current_indices):
+                # Gather column based on current sort order
+                col = tf.gather(y_2d[:, i], current_indices)
+                # Stable sort current column
                 perm = tf.argsort(col, stable=True)
-                sort_indices = tf.gather(sort_indices, perm)
+                # Update global sort order
+                new_indices = tf.gather(current_indices, perm)
+                return i - 1, new_indices
 
-        # Re-order y and count based on sorted positions
+            def cond(i, current_indices):
+                return i >= 0
+
+            # Iterate from (num_cols - 1) down to 0
+            _, sort_indices = tf.while_loop(
+                cond,
+                body,
+                [num_cols - 1, sort_indices],
+                parallel_iterations=1,  # Ensure strict stable sequence
+            )
+
+        # Apply the final sort indices
         y = tf.gather(y, sort_indices)
         count = tf.gather(count, sort_indices)
-        # invert_permutation works on 1D vectors to map old positions to new
+
         if return_inverse:
-            inverse_sort_indices = tf.math.invert_permutation(sort_indices)
-            idx = tf.gather(inverse_sort_indices, idx)
+            # Map original appearance indices to the new sorted positions
+            inv_perm = tf.math.invert_permutation(sort_indices)
+            idx = tf.gather(inv_perm, idx)
 
-    # Align return_inverse shape
-    if return_inverse:
-        if is_flatten:
-            # If axis=None, return inverse with same shape as original input
-            idx = tf.reshape(idx, original_shape)
-        # else: if axis is set, idx is already 1D (matches PyTorch behavior)
+    if return_inverse and is_flatten:
+        idx = tf.reshape(idx, original_shape)
 
-    # Build results tuple
     results = [y]
     if return_inverse:
         results.append(idx)

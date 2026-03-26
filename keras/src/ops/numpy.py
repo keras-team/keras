@@ -9416,38 +9416,38 @@ class Unique(Operation):
         self.return_counts = return_counts
         self.axis = axis
 
-    def call(self, x):
+    def call(self, input):
         return backend.numpy.unique(
-            x,
+            input,
             sorted=self.sorted,
             return_inverse=self.return_inverse,
             return_counts=self.return_counts,
             axis=self.axis,
         )
 
-    def compute_output_spec(self, x):
-        x_shape = list(x.shape)
+    def compute_output_spec(self, input):
+        input_shape = list(input.shape)
+        # Unique values shape
         if self.axis is None:
             values_shape = (None,)
         else:
-            axis = canonicalize_axis(self.axis, len(x_shape))
-            values_shape = list(x_shape)
+            axis = canonicalize_axis(self.axis, len(input_shape))
+            values_shape = list(input_shape)
             values_shape[axis] = None
 
-        outputs = [KerasTensor(tuple(values_shape), dtype=x.dtype)]
+        outputs = [KerasTensor(tuple(values_shape), dtype=input.dtype)]
 
+        # Inverse indices shape
         if self.return_inverse:
             if self.axis is None:
-                # Matches input shape for flattened case
-                inv_shape = x.shape
+                inv_shape = input.shape
             else:
-                # 1D array of the same length as the input along that axis
-                axis = canonicalize_axis(self.axis, len(x_shape))
-                inv_shape = (x_shape[axis],)
+                axis = canonicalize_axis(self.axis, len(input_shape))
+                inv_shape = (input_shape[axis],)
             outputs.append(KerasTensor(tuple(inv_shape), dtype="int32"))
 
+        #  Counts shape
         if self.return_counts:
-            # 1D array with the same length as the unique values
             outputs.append(KerasTensor((None,), dtype="int32"))
 
         if len(outputs) == 1:
