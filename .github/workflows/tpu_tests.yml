@@ -3,10 +3,9 @@ name: Keras TPU Tests
 on:
   push:
     branches: [master]
-  pull_request_target:
-    types: [unlabeled]
   release:
     types: [created]
+  workflow_call:
 
 permissions:
   contents: read
@@ -22,11 +21,6 @@ jobs:
 
     name: ${{ format('Run tests on {0}TPU', matrix.multi_device && 'multi-' || '') }}
     runs-on: ${{ matrix.multi_device && 'linux-x86-ct5lp-112-4tpu' || 'linux-x86-ct6e-44-1tpu' }}
-    # Only run on pushes to master, releases or "kokoro:force-run" unlabel
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'release' ||
-      (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
 
     container:
       image: python:3.11-slim

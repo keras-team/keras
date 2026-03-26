@@ -3,10 +3,9 @@ name: Keras GPU Tests
 on:
   push:
     branches: [master]
-  pull_request_target:
-    types: [unlabeled]
   release:
     types: [created]
+  workflow_call:
 
 permissions:
   contents: read
@@ -16,11 +15,6 @@ jobs:
   test-in-container:
     name: Run tests on GPU
     runs-on: linux-x86-g2-16-l4-1gpu
-    # Only run on pushes to master, releases or "kokoro:force-run" unlabel
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'release' ||
-      (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
 
     strategy:
       fail-fast: false
