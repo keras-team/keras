@@ -411,6 +411,18 @@ class TestJaxLayer(testing.TestCase):
             "non_trainable_weights": 1,
             "non_trainable_params": 1,
         },
+        {
+            "testcase_name": "native_serialization",
+            "init_kwargs": {
+                "call_fn": jax_model_no_state_apply,
+                "init_fn": jax_model_no_state_init,
+                "native_serialization_platforms": ("cpu", "tpu"),
+            },
+            "trainable_weights": 6,
+            "trainable_params": 266610,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
+        },
     )
     def test_jax_layer(
         self,
