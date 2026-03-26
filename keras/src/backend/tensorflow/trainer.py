@@ -269,8 +269,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         def one_step_on_data(data):
             """Runs a predict test step on a batch of data."""
             return self.predict_step(data)
-
-        if not self.run_eagerly and self.jit_compile:
+        if not self.run_eagerly and self._jit_compile:
             one_step_on_data = tf.function(
                 one_step_on_data, reduce_retracing=True, jit_compile=True
             )
