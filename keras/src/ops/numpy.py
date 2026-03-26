@@ -6474,14 +6474,13 @@ class Pad(Operation):
         return pad_width
 
     def call(self, x, constant_values=None):
-        is_no_op = True
-        for before, after in self.pad_width:
-            if before != 0 or after != 0:
-                is_no_op = False
-                break
-
-        if is_no_op:
+        if all(
+            [before == 0 and after == 0 for before, after in self.pad_width]
+        ):
             return x
+        pad_width = self.pad_width
+        if len(pad_width) == 1:
+            pad_width = pad_width * len(x.shape)
         if len(self.pad_width) > 1 and len(self.pad_width) != len(x.shape):
             raise ValueError(
                 "`pad_width` must have the same length as `x.shape`. "

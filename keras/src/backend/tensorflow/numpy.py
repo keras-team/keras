@@ -2555,7 +2555,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     if len(pad_width) == 1 and len(x.shape) > 1:
         pad_width = list(pad_width) * len(x.shape)
 
-    pad_width = convert_to_tensor(pad_width, "int32")
+    pad_width = convert_to_tensor(pad_width, dtype="int32")
     return tf.pad(x, pad_width, mode.upper(), **kwargs)
 
 
