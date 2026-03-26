@@ -1591,8 +1591,6 @@ def flip(x, axis=None):
     if axis is None:
         return tf.reverse(x, tf.range(tf.rank(x)))
     axis = to_tuple_or_list(axis)
-    if isinstance(axis, tuple):
-        axis = list(axis)
     axis = tf.convert_to_tensor(axis, dtype=tf.int32)
     axis = tf.where(axis < 0, axis + tf.rank(x), axis)
     return tf.reverse(x, axis)
