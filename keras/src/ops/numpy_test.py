@@ -5800,9 +5800,7 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.sort(x, axis=0), np.sort(x, axis=0))
         self.assertAllClose(knp.Sort(axis=0)(x), np.sort(x, axis=0))
         self.assertAllClose(knp.sort(x, axis=None), np.sort(x, axis=None))
-        self.assertAllClose(
-            knp.Sort(axis=None)(x), np.sort(x, axis=None)
-        )
+        self.assertAllClose(knp.Sort(axis=None)(x), np.sort(x, axis=None))
 
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
