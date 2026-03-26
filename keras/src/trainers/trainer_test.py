@@ -2884,19 +2884,25 @@ class TestTrainer(testing.TestCase):
         self.assertLessEqual(tracing_count[0], 2)
 
 
-class TFTrainerCorrectnessTest(test_case.TestCase):
+class TFTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
+    @parameterized.named_parameters(
+        ("uncompiled", None, None),
+        ("compiled_jit_false", {"jit_compile": False}, False),
+    )
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="TF-only test",
     )
-    def test_predict_on_batch_consistent_with_direct_call(self):
-        """predict_on_batch() should not auto-enable XLA on uncompiled models.
+    def test_predict_on_batch_xla_behavior(
+        self, compile_kwargs, expected_jit_compile_value
+    ):
+        """predict_on_batch() should not auto-enable XLA and respect compile().
+
+        Verifies that predict_on_batch() does not silently enable XLA on
+        uncompiled models, and that it honours the jit_compile setting when
+        the model is explicitly compiled.
 
         Regression test for https://github.com/keras-team/keras/issues/22380.
-        When a model is not explicitly compiled, predict_on_batch() was
-        silently enabling XLA compilation on GPU via the jit_compile property's
-        lazy auto-resolution. This caused numerical differences (~1e-2) compared
-        to a direct model call wrapped in @tf.function(jit_compile=False).
         """
         import tensorflow as tf
 
@@ -2913,38 +2919,10 @@ class TFTrainerCorrectnessTest(test_case.TestCase):
         )(x)
         model = keras.Model(inputs, outputs)
 
-        test_input = np.ones((2, 4), dtype=np.float32)
-
-        # Direct call via tf.function with jit_compile=False (no XLA).
-        @tf.function(jit_compile=False)
-        def direct_call(x):
-            return model(x, training=False)
-
-        y_direct = direct_call(test_input).numpy()
-        y_predict = model.predict_on_batch(test_input)
-
-        self.assertAllClose(y_direct, y_predict, atol=1e-6, rtol=1e-6)
-
-    @pytest.mark.skipif(
-        backend.backend() != "tensorflow",
-        reason="TF-only test",
-    )
-    def test_predict_on_batch_jit_compile_respects_compile_setting(self):
-        """predict_on_batch() should use jit_compile setting from compile()."""
-        import tensorflow as tf
-
-        inputs = keras.Input(shape=(4,))
-        outputs = layers.Dense(
-            3,
-            use_bias=False,
-            kernel_initializer=initializers.Ones(),
-        )(inputs)
-        model = keras.Model(inputs, outputs)
+        if compile_kwargs is not None:
+            model.compile(**compile_kwargs)
 
         test_input = np.ones((2, 4), dtype=np.float32)
-
-        # After compile(jit_compile=False), predict_on_batch should respect it.
-        model.compile(jit_compile=False)
 
         @tf.function(jit_compile=False)
         def direct_call(x):
@@ -2955,8 +2933,8 @@ class TFTrainerCorrectnessTest(test_case.TestCase):
 
         self.assertAllClose(y_direct, y_predict, atol=1e-6, rtol=1e-6)
 
-        # Verify _jit_compile is not None (explicitly set).
-        self.assertFalse(model._jit_compile)
+        if expected_jit_compile_value is not None:
+            self.assertEqual(model._jit_compile, expected_jit_compile_value)
 
 
 class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
