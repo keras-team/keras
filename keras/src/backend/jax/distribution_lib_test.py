@@ -19,6 +19,7 @@ from keras.src.distribution import distribution_lib
 class JaxDistributionLibTest(testing.TestCase):
     def setUp(self):
         self.device_count = jax.device_count()
+        self.device_backend = jax.default_backend()
         self.assertGreaterEqual(
             self.device_count, 4, "Number of devices must be at least 4"
         )
@@ -39,7 +40,8 @@ class JaxDistributionLibTest(testing.TestCase):
     def test_get_device_count(self):
         self.assertEqual(backend_dlib.get_device_count(), self.device_count)
         self.assertEqual(
-            backend_dlib.get_device_count("cpu"), self.device_count
+            backend_dlib.get_device_count(self.device_backend),
+            self.device_count,
         )
 
     def test_list_devices(self):
@@ -47,12 +49,13 @@ class JaxDistributionLibTest(testing.TestCase):
             len(distribution_lib.list_devices()), self.device_count
         )
         self.assertEqual(
-            len(distribution_lib.list_devices("cpu")), self.device_count
+            len(distribution_lib.list_devices(self.device_backend)),
+            self.device_count,
         )
 
     def test_device_conversion(self):
-        devices = distribution_lib.list_devices("cpu")
-        jax_devices = jax.devices("cpu")
+        devices = distribution_lib.list_devices(self.device_backend)
+        jax_devices = jax.devices(self.device_backend)
 
         for d, jax_d in zip(devices, jax_devices):
             converted_jax_device = backend_dlib._to_backend_device(d)
