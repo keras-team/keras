@@ -822,9 +822,6 @@ class LayerTest(testing.TestCase):
         x = [np.zeros(1, dtype="float64"), np.zeros(1, dtype="int32")]
         CustomLayer()(x)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
-    )
     def test_keras_mask_with_autocast(self):
         test_obj = self
 
@@ -849,7 +846,8 @@ class LayerTest(testing.TestCase):
         )
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
+        backend.backend() == "numpy",
+        reason="compute_output_spec not supported with numpy",
     )
     def test_end_to_end_masking(self):
         # Check that masking survives compilation
@@ -865,9 +863,6 @@ class LayerTest(testing.TestCase):
         loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets, verbose=0)
         self.assertAllClose(loss, 0.0)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
-    )
     def test_masking(self):
         test_obj = self
 
@@ -968,11 +963,8 @@ class LayerTest(testing.TestCase):
         mask = backend.numpy.ones((4,))
         backend.set_keras_mask(x, mask)
         y = layer(x)
-        self.assertAllClose(y._keras_mask, mask)
+        self.assertAllClose(backend.get_keras_mask(y), mask)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
-    )
     def test_masking_with_explicit_kwarg_propagation(self):
         """This test validates that an explicit `mask` kwarg is correctly
         used to compute the output mask.
@@ -991,7 +983,7 @@ class LayerTest(testing.TestCase):
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
         x = backend.numpy.ones((4, 4))
-        self.assertIsNone(getattr(x, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
         explicit_mask = backend.numpy.array([True, True, False, False])

@@ -120,11 +120,13 @@ LoadWeightsTests::test_load_weights_weights.h5_bfloat16_float64
 LoadWeightsTests::test_load_weights_weights.h5_float16_bfloat16
 LoadWeightsTests::test_load_weights_weights.h5_float32_bfloat16
 LoadWeightsTests::test_load_weights_weights.h5_float64_bfloat16
+MaskingTest::test_masking_with_tensor
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_logdet
 MeanIoUTest::test_big_chunk
 MeanTest::test_weighted_dynamic_shapes
+MergingLayersTest::test_average_with_mask
 MetricTest::test_stateless_update_state
 MetricWrapperTest::test_weighted_dynamic_shape
 MultiAUCTest::test_label_weights

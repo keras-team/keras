@@ -41,9 +41,6 @@ class PipelineTest(testing.TestCase):
             run_training_check=run_training_check,
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not working in numpy"
-    )
     def test_correctness(self):
         pipeline = layers.Pipeline([CanaryLayer(), CanaryLayer()])
         x = np.array([0])
