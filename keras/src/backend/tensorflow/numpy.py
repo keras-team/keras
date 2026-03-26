@@ -1149,7 +1149,7 @@ def blackman(x):
     term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1_safe)
     term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1_safe)
     window = term1 + term2 + term3
-    return tf.where(tf.equal(n_minus_1, 0), tf.zeros_like(window), window)
+    return tf.where(tf.equal(n_minus_1, 0), tf.ones_like(window), window)
 
 
 def broadcast_to(x, shape):
