@@ -591,7 +591,195 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    raise NotImplementedError("`view` is not supported with openvino backend")
+    """Reinterpret the bytes of a tensor as a different dtype.
+
+    Three execution paths:
+      1. **NumPy fast path** — plain ``np.ndarray`` inputs are viewed
+         directly and re-wrapped as an OpenVINO constant.
+      2. **Constant folding** — if the OpenVINO subgraph backing *x*
+         is parameter-free (e.g. a ``Constant`` node *or* an expression
+         such as ``Broadcast``), it is compiled on CPU and the resulting
+         NumPy array is viewed.
+      3. **Symbolic bitwise decomposition** — for non-constant,
+         integer-to-integer type changes the bit pattern is preserved
+         using shift / mask / OR operations in the OpenVINO graph.
+         Float ↔ int reinterpretation on symbolic tensors is not
+         supported because OpenVINO lacks a bitcast op.
+    """
+    from keras.src import backend
+
+    new_dtype = backend.standardize_dtype(dtype) if dtype else None
+
+    # Fast path: plain numpy/scalar inputs
+    if isinstance(x, np.ndarray):
+        if new_dtype is None:
+            return OpenVINOKerasTensor(ov_opset.constant(x).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.constant(x.view(np.dtype(new_dtype))).output(0)
+        )
+
+    x_ov = get_ov_output(x)
+    old_ov_type = x_ov.get_element_type()
+    old_dtype = ov_to_keras_type(old_ov_type)
+
+    if new_dtype is None:
+        new_dtype = old_dtype
+    new_ov_type = OPENVINO_DTYPES[new_dtype]
+
+    if old_ov_type == new_ov_type:
+        return OpenVINOKerasTensor(x_ov)
+
+    old_itemsize = old_ov_type.size
+    new_itemsize = new_ov_type.size
+
+    # Constant folding: evaluate parameter-free subgraphs on CPU.
+    # Uses raw bytes + ov.Tensor to avoid numpy dtype issues
+    # (e.g. bfloat16 is not a standard numpy dtype).
+    try:
+        node = x_ov.get_node()
+        if node.get_type_name() == "Constant":
+            np_data = node.data
+        else:
+            ov_model = ov.Model(results=[x_ov], parameters=[])
+            compiled = ov.compile_model(ov_model, "CPU")
+            np_data = compiled({})[0]
+        old_shape = np_data.shape
+        new_last = old_shape[-1] * old_itemsize // new_itemsize
+        new_shape = list(old_shape[:-1]) + [new_last]
+        raw = np.frombuffer(np_data.tobytes(), dtype=np.uint8)
+        result_tensor = ov.Tensor(new_ov_type, new_shape)
+        np.copyto(
+            np.frombuffer(result_tensor.data, dtype=np.uint8),
+            raw,
+        )
+        return OpenVINOKerasTensor(ov_opset.constant(result_tensor).output(0))
+    except Exception:
+        pass
+
+    # Non-constant tensors: only integer↔integer is supported
+    if not (old_ov_type.is_integral() and new_ov_type.is_integral()):
+        raise NotImplementedError(
+            f"`view` from {old_dtype} to {new_dtype} is not supported "
+            "for non-constant tensors with the OpenVINO backend "
+            "(no bitcast operation available in OpenVINO opset)."
+        )
+
+    if old_itemsize == new_itemsize:
+        # Same-width signed↔unsigned: convert preserves bit pattern
+        return OpenVINOKerasTensor(
+            ov_opset.convert(x_ov, new_ov_type).output(0)
+        )
+    elif old_itemsize > new_itemsize:
+        return _view_int_expand(x_ov, new_ov_type, old_itemsize, new_itemsize)
+    else:
+        return _view_int_contract(x_ov, new_ov_type, old_itemsize, new_itemsize)
+
+
+def _split_shape_leading_last(x):
+    """Return (leading_dims, last_dim) from the shape of *x*.
+
+    ``leading_dims`` contains all dimensions except the last one,
+    ``last_dim`` is a rank-1 tensor with the single last dimension.
+    Both are ``i64`` OpenVINO outputs.
+    """
+    shape = ov_opset.shape_of(x, "i64").output(0)
+    leading = ov_opset.slice(
+        shape,
+        ov_opset.constant([0], Type.i64).output(0),
+        ov_opset.constant([-1], Type.i64).output(0),
+        ov_opset.constant([1], Type.i64).output(0),
+        ov_opset.constant([0], Type.i64).output(0),
+    ).output(0)
+    last_dim = ov_opset.gather(
+        shape,
+        ov_opset.constant([-1], Type.i64).output(0),
+        ov_opset.constant(0, Type.i64).output(0),
+    ).output(0)
+    return leading, last_dim
+
+
+def _view_int_expand(x, new_ov_type, old_itemsize, new_itemsize):
+    """View a larger int as smaller ints (e.g. int32 → uint8)."""
+    ratio = old_itemsize // new_itemsize
+    _unsigned = {1: Type.u8, 2: Type.u16, 4: Type.u32, 8: Type.u64}
+    src_uint_type = _unsigned[old_itemsize]
+    dst_uint_type = _unsigned[new_itemsize]
+    bits_per_elem = new_itemsize * 8
+    mask_val = (1 << bits_per_elem) - 1
+
+    x_uint = ov_opset.convert(x, src_uint_type).output(0)
+    mask = ov_opset.constant(mask_val, src_uint_type).output(0)
+
+    byte_parts = []
+    for i in range(ratio):
+        shift = ov_opset.constant(i * bits_per_elem, src_uint_type).output(0)
+        shifted = ov_opset.bitwise_right_shift(x_uint, shift).output(0)
+        masked = ov_opset.bitwise_and(shifted, mask).output(0)
+        part = ov_opset.convert(masked, dst_uint_type).output(0)
+        part = ov_opset.unsqueeze(part, ov_opset.constant(-1, Type.i32)).output(
+            0
+        )
+        byte_parts.append(part)
+
+    # Concat along last axis: [..., N, ratio]
+    concat_result = ov_opset.concat(byte_parts, axis=-1).output(0)
+
+    # Reshape [..., N, ratio] → [..., N*ratio]
+    leading, last_dim = _split_shape_leading_last(x)
+    new_last = ov_opset.multiply(
+        last_dim, ov_opset.constant([ratio], Type.i64).output(0)
+    ).output(0)
+    new_shape = ov_opset.concat([leading, new_last], axis=0).output(0)
+    result = ov_opset.reshape(concat_result, new_shape, False).output(0)
+
+    if dst_uint_type != new_ov_type:
+        result = ov_opset.convert(result, new_ov_type).output(0)
+    return OpenVINOKerasTensor(result)
+
+
+def _view_int_contract(x, new_ov_type, old_itemsize, new_itemsize):
+    """View smaller ints as a larger int (e.g. uint8 → int32)."""
+    ratio = new_itemsize // old_itemsize
+    _unsigned = {1: Type.u8, 2: Type.u16, 4: Type.u32, 8: Type.u64}
+    src_uint_type = _unsigned[old_itemsize]
+    dst_uint_type = _unsigned[new_itemsize]
+    bits_per_elem = old_itemsize * 8
+
+    x_uint = ov_opset.convert(x, src_uint_type).output(0)
+
+    # Reshape [..., N] → [..., N//ratio, ratio]
+    leading, last_dim = _split_shape_leading_last(x)
+    grouped_last = ov_opset.divide(
+        last_dim, ov_opset.constant([ratio], Type.i64).output(0)
+    ).output(0)
+    ratio_dim = ov_opset.constant([ratio], Type.i64).output(0)
+    inter_shape = ov_opset.concat(
+        [leading, grouped_last, ratio_dim], axis=0
+    ).output(0)
+    reshaped = ov_opset.reshape(x_uint, inter_shape, False).output(0)
+
+    # Combine bytes: gather each position, shift, OR
+    last_axis = ov_opset.constant(-1, Type.i64).output(0)
+    idx = ov_opset.constant([0], Type.i64).output(0)
+    byte_0 = ov_opset.gather(reshaped, idx, last_axis).output(0)
+    byte_0 = ov_opset.squeeze(byte_0, ov_opset.constant([-1], Type.i32)).output(
+        0
+    )
+    result = ov_opset.convert(byte_0, dst_uint_type).output(0)
+    for i in range(1, ratio):
+        idx = ov_opset.constant([i], Type.i64).output(0)
+        byte_i = ov_opset.gather(reshaped, idx, last_axis).output(0)
+        byte_i = ov_opset.squeeze(
+            byte_i, ov_opset.constant([-1], Type.i32)
+        ).output(0)
+        byte_i = ov_opset.convert(byte_i, dst_uint_type).output(0)
+        shift = ov_opset.constant(i * bits_per_elem, dst_uint_type).output(0)
+        byte_i = ov_opset.bitwise_left_shift(byte_i, shift).output(0)
+        result = ov_opset.bitwise_or(result, byte_i).output(0)
+
+    if dst_uint_type != new_ov_type:
+        result = ov_opset.convert(result, new_ov_type).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def average(x, axis=None, weights=None):
@@ -3103,10 +3291,213 @@ def nanprod(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
-def nanquantile(x, q, axis=None, method="linear", keepdims=False):
-    raise NotImplementedError(
-        "`nanquantile` is not supported with openvino backend"
+def _move_and_flatten_axes(axis, x_ndim, *tensors):
+    """Transpose reduction axes to the end and flatten them into one dim.
+
+    Returns (flattened_tensors..., norm_axis) where norm_axis is the
+    normalised axis list (or None when axis was None).
+    """
+    if axis is None:
+        flat_const = ov_opset.constant([-1], Type.i64).output(0)
+        flattened = tuple(
+            ov_opset.reshape(t, flat_const, False).output(0) for t in tensors
+        )
+        return flattened + (None,)
+
+    if isinstance(axis, int):
+        axis = [axis]
+    axis = [a % x_ndim for a in axis]
+    other_dims = sorted(set(range(x_ndim)).difference(axis))
+    perm = ov_opset.constant(other_dims + list(axis), Type.i32).output(0)
+    transposed = tuple(ov_opset.transpose(t, perm).output(0) for t in tensors)
+
+    x_shape = ov_opset.shape_of(tensors[0], Type.i64).output(0)
+    if other_dims:
+        other_shape = ov_opset.gather(
+            x_shape,
+            ov_opset.constant(other_dims, Type.i32).output(0),
+            ov_opset.constant(0, Type.i32).output(0),
+        ).output(0)
+        flat_shape = ov_opset.concat(
+            [other_shape, ov_opset.constant([-1], Type.i64).output(0)],
+            axis=0,
+        ).output(0)
+    else:
+        flat_shape = ov_opset.constant([-1], Type.i64).output(0)
+
+    flattened = tuple(
+        ov_opset.reshape(t, flat_shape, False).output(0) for t in transposed
     )
+    return flattened + (axis,)
+
+
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
+    if isinstance(x, np.ndarray) and x.dtype == np.float64:
+        x = x.astype(np.float32)
+    x = get_ov_output(x)
+    q_ov = get_ov_output(q)
+    x_type = x.get_element_type()
+    if x_type == Type.f64:
+        # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
+        x = ov_opset.convert(x, Type.f32).output(0)
+        x_type = Type.f32
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        return quantile(
+            OpenVINOKerasTensor(x),
+            q,
+            axis=axis,
+            method=method,
+            keepdims=keepdims,
+        )
+
+    x_keras_type = ov_to_keras_type(x_type)
+    compute_dtype = dtypes.result_type(x_keras_type, float)
+    compute_ov_type = OPENVINO_DTYPES[compute_dtype]
+    x = ov_opset.convert(x, compute_ov_type).output(0)
+    q_f64 = ov_opset.convert(q_ov, Type.f64).output(0)
+    q_rank = q_ov.get_partial_shape().rank.get_length()
+    x_ndim = x.get_partial_shape().rank.get_length()
+
+    nan_mask = ov_opset.is_nan(x).output(0)
+    pos_inf = ov_opset.convert(
+        ov_opset.constant(np.array(np.inf, dtype=np.float32)).output(0),
+        compute_ov_type,
+    ).output(0)
+    x_no_nan = ov_opset.select(nan_mask, pos_inf, x).output(0)
+
+    y, nan_mask_flat, norm_axis = _move_and_flatten_axes(
+        axis, x_ndim, x_no_nan, nan_mask
+    )
+
+    sorted_y = sort(OpenVINOKerasTensor(y)).output
+    y_ndim = y.get_partial_shape().rank.get_length()
+
+    not_nan_int = ov_opset.convert(
+        ov_opset.logical_not(nan_mask_flat).output(0), Type.i32
+    ).output(0)
+    n_valid_i32 = ov_opset.reduce_sum(
+        not_nan_int,
+        ov_opset.constant([y_ndim - 1], Type.i32).output(0),
+        False,
+    ).output(0)
+    all_nan = ov_opset.equal(
+        n_valid_i32, ov_opset.constant(np.int32(0)).output(0)
+    ).output(0)
+
+    n_minus1_f64 = ov_opset.subtract(
+        ov_opset.convert(n_valid_i32, Type.f64).output(0),
+        ov_opset.constant(np.float64(1.0)).output(0),
+    ).output(0)
+    zero_i32 = ov_opset.constant(np.int32(0)).output(0)
+    n_minus1_i32 = ov_opset.subtract(
+        n_valid_i32, ov_opset.constant(np.int32(1)).output(0)
+    ).output(0)
+    if q_rank > 0:
+        trailing = ov_opset.constant([-1], Type.i32).output(0)
+        n_minus1_f64 = ov_opset.unsqueeze(n_minus1_f64, trailing).output(0)
+        n_minus1_i32 = ov_opset.unsqueeze(n_minus1_i32, trailing).output(0)
+    exact_idx = ov_opset.multiply(n_minus1_f64, q_f64).output(0)
+
+    def _clamp_idx(f64_idx):
+        i = ov_opset.convert(f64_idx, Type.i32).output(0)
+        return ov_opset.minimum(
+            ov_opset.maximum(i, zero_i32).output(0), n_minus1_i32
+        ).output(0)
+
+    sorted_y_tensor = OpenVINOKerasTensor(sorted_y)
+
+    def _gather(idx):
+        if q_rank == 0:
+            idx_exp = ov_opset.unsqueeze(
+                idx, ov_opset.constant([-1], Type.i32).output(0)
+            ).output(0)
+            result = take_along_axis(
+                sorted_y_tensor, OpenVINOKerasTensor(idx_exp), axis=y_ndim - 1
+            ).output
+            return ov_opset.squeeze(
+                result, ov_opset.constant([y_ndim - 1], Type.i32).output(0)
+            ).output(0)
+        else:
+            return take_along_axis(
+                sorted_y_tensor, OpenVINOKerasTensor(idx), axis=y_ndim - 1
+            ).output
+
+    lo_idx = _clamp_idx(ov_opset.floor(exact_idx).output(0))
+    hi_idx = _clamp_idx(ov_opset.ceiling(exact_idx).output(0))
+
+    if method == "lower":
+        gathered = _gather(lo_idx)
+    elif method == "higher":
+        gathered = _gather(hi_idx)
+    elif method == "nearest":
+        gathered = _gather(
+            _clamp_idx(ov_opset.round(exact_idx, "half_to_even").output(0))
+        )
+    elif method == "midpoint":
+        two = ov_opset.convert(
+            ov_opset.constant(np.float32(2.0)).output(0), compute_ov_type
+        ).output(0)
+        gathered = ov_opset.divide(
+            ov_opset.add(_gather(lo_idx), _gather(hi_idx)).output(0), two
+        ).output(0)
+    else:  # linear
+        # preserve_gradients: ensure interp_lo_idx < interp_hi_idx
+        one_i32 = ov_opset.constant(np.int32(1)).output(0)
+        interp_lo_idx = ov_opset.maximum(
+            ov_opset.subtract(hi_idx, one_i32).output(0), zero_i32
+        ).output(0)
+        interp_hi_idx = ov_opset.minimum(
+            ov_opset.add(interp_lo_idx, one_i32).output(0), n_minus1_i32
+        ).output(0)
+        frac = ov_opset.convert(
+            ov_opset.subtract(
+                ov_opset.convert(interp_hi_idx, Type.f64).output(0), exact_idx
+            ).output(0),
+            compute_ov_type,
+        ).output(0)
+        one_val = ov_opset.convert(
+            ov_opset.constant(np.float32(1.0)).output(0), compute_ov_type
+        ).output(0)
+        gathered = ov_opset.add(
+            ov_opset.multiply(
+                _gather(interp_hi_idx),
+                ov_opset.subtract(one_val, frac).output(0),
+            ).output(0),
+            ov_opset.multiply(_gather(interp_lo_idx), frac).output(0),
+        ).output(0)
+
+    nan_val = ov_opset.convert(
+        ov_opset.constant(np.array(np.nan, dtype=np.float32)).output(0),
+        compute_ov_type,
+    ).output(0)
+    if q_rank > 0:
+        all_nan = ov_opset.unsqueeze(
+            all_nan, ov_opset.constant([-1], Type.i32).output(0)
+        ).output(0)
+    gathered = ov_opset.select(all_nan, nan_val, gathered).output(0)
+
+    if keepdims:
+        axes_to_add = (
+            list(range(x_ndim)) if norm_axis is None else sorted(norm_axis)
+        )
+        for i in axes_to_add:
+            gathered = ov_opset.unsqueeze(
+                gathered, ov_opset.constant([i], Type.i32).output(0)
+            ).output(0)
+
+    if q_rank > 0:
+        g_ndim = gathered.get_partial_shape().rank.get_length()
+        if g_ndim >= 2:
+            gathered = ov_opset.transpose(
+                gathered,
+                ov_opset.constant(
+                    [g_ndim - 1] + list(range(g_ndim - 1)), Type.i32
+                ).output(0),
+            ).output(0)
+
+    return OpenVINOKerasTensor(gathered)
 
 
 def nanstd(x, axis=None, keepdims=False):
@@ -3374,35 +3765,7 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     q_rank = q_ov.get_partial_shape().rank.get_length()
     x_ndim = x.get_partial_shape().rank.get_length()
 
-    # Flatten axis dims to the last position, then sort along it
-    if axis is None:
-        y = ov_opset.reshape(
-            x, ov_opset.constant([-1], Type.i64).output(0), False
-        ).output(0)
-        norm_axis = None
-    else:
-        if isinstance(axis, int):
-            axis = [axis]
-        axis = [a % x_ndim for a in axis]
-        other_dims = sorted(set(range(x_ndim)).difference(axis))
-        x_t = ov_opset.transpose(
-            x, ov_opset.constant(other_dims + list(axis), Type.i32).output(0)
-        ).output(0)
-        x_shape = ov_opset.shape_of(x, Type.i64).output(0)
-        if other_dims:
-            other_shape = ov_opset.gather(
-                x_shape,
-                ov_opset.constant(other_dims, Type.i32).output(0),
-                ov_opset.constant(0, Type.i32).output(0),
-            ).output(0)
-            flat_shape = ov_opset.concat(
-                [other_shape, ov_opset.constant([-1], Type.i64).output(0)],
-                axis=0,
-            ).output(0)
-        else:
-            flat_shape = ov_opset.constant([-1], Type.i64).output(0)
-        y = ov_opset.reshape(x_t, flat_shape, False).output(0)
-        norm_axis = axis
+    y, norm_axis = _move_and_flatten_axes(axis, x_ndim, x)
 
     sorted_y = sort(OpenVINOKerasTensor(y)).output
 
