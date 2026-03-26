@@ -3741,3 +3741,71 @@ def histogram(x, bins=10, range=None):
         shape=(bins,),
     )
     return bin_counts, bin_edges
+
+
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    input = tf.convert_to_tensor(input)
+    is_flatten = False
+    original_shape = tf.shape(input)
+
+    # 1. Handle axis=None by flattening (matches Torch default)
+    if axis is None:
+        input = tf.reshape(input, [-1])
+        axis_to_use = tf.constant([0], dtype=tf.int32)
+        is_flatten = True
+    else:
+        # tf.raw_ops expects axis as a 1D tensor/list
+        axis_to_use = tf.constant([axis], dtype=tf.int32)
+
+    # Call TF native op (this returns unique elements in appearance order)
+    y, idx, count = tf.raw_ops.UniqueWithCountsV2(x=input, axis=axis_to_use)
+
+    # Handle sorting to match PyTorch's sorted=True
+    if sorted:
+        if len(y.shape) == 1:
+            # Simple 1D sort
+            sort_indices = tf.argsort(y)
+        else:
+            # Multi-dimensional lexicographical sort
+            # Flatten trailing dims to treat each slice as a vector
+            num_unique = tf.shape(y)[0]
+            y_2d = tf.reshape(y, [num_unique, -1])
+            num_cols = tf.shape(y_2d)[1]
+
+            # Start with an identity permutation
+            sort_indices = tf.range(num_unique, dtype=tf.int32)
+
+            # Stable sort from the last column to the first column
+            # to achieve lexicographical order.
+            for i in range(num_cols - 1, -1, -1):
+                col = tf.gather(y_2d[:, i], sort_indices)
+                # We use stable=True to preserve the order established by
+                # previous column sorts.
+                perm = tf.argsort(col, stable=True)
+                sort_indices = tf.gather(sort_indices, perm)
+
+        # Re-order y and count based on sorted positions
+        y = tf.gather(y, sort_indices)
+        count = tf.gather(count, sort_indices)
+        # invert_permutation works on 1D vectors to map old positions to new
+        if return_inverse:
+            inverse_sort_indices = tf.math.invert_permutation(sort_indices)
+            idx = tf.gather(inverse_sort_indices, idx)
+
+    # Align return_inverse shape
+    if return_inverse:
+        if is_flatten:
+            # If axis=None, return inverse with same shape as original input
+            idx = tf.reshape(idx, original_shape)
+        # else: if axis is set, idx is already 1D (matches PyTorch behavior)
+
+    # Build results tuple
+    results = [y]
+    if return_inverse:
+        results.append(idx)
+    if return_counts:
+        results.append(count)
+
+    return tuple(results) if len(results) > 1 else results[0]

@@ -9398,3 +9398,147 @@ def array_split(x, indices_or_sections, axis=0):
     return backend.numpy.array_split(
         x, indices_or_sections=indices_or_sections, axis=axis
     )
+
+
+class Unique(Operation):
+    def __init__(
+        self,
+        sorted=True,
+        return_inverse=False,
+        return_counts=False,
+        axis=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.sorted = sorted
+        self.return_inverse = return_inverse
+        self.return_counts = return_counts
+        self.axis = axis
+
+    def call(self, x):
+        return backend.numpy.unique(
+            x,
+            sorted=self.sorted,
+            return_inverse=self.return_inverse,
+            return_counts=self.return_counts,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, x):
+        x_shape = list(x.shape)
+        if self.axis is None:
+            values_shape = (None,)
+        else:
+            axis = canonicalize_axis(self.axis, len(x_shape))
+            values_shape = list(x_shape)
+            values_shape[axis] = None
+
+        outputs = [KerasTensor(tuple(values_shape), dtype=x.dtype)]
+
+        if self.return_inverse:
+            if self.axis is None:
+                # Matches input shape for flattened case
+                inv_shape = x.shape
+            else:
+                # 1D array of the same length as the input along that axis
+                axis = canonicalize_axis(self.axis, len(x_shape))
+                inv_shape = (x_shape[axis],)
+            outputs.append(KerasTensor(tuple(inv_shape), dtype="int32"))
+
+        if self.return_counts:
+            # 1D array with the same length as the unique values
+            outputs.append(KerasTensor((None,), dtype="int32"))
+
+        if len(outputs) == 1:
+            return outputs[0]
+        return tuple(outputs)
+
+
+@keras_export(["keras.ops.unique", "keras.ops.numpy.unique"])
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    """Finds the unique elements of a tensor.
+
+    This function returns the sorted unique elements of an array. There are two
+    optional outputs in addition to the unique elements:
+    1. the indices of the unique tensor that can be used to reconstruct `input`.
+    2. the number of times each unique value appears in `input`.
+
+    The default behavior matches `torch.unique`: it flattens the input if
+    `axis=None` and returns sorted unique elements.
+
+    Args:
+        input: Input tensor.
+        sorted: Whether to sort the unique elements in ascending order.
+            Defaults to `True`. Note that some backends may sort even if
+            `sorted=False`.
+        return_inverse: If `True`, also return the indices of the unique tensor
+            (for the specified axis, if provided) that can be used to
+            reconstruct `input`. Defaults to `False`.
+        return_counts: If `True`, also return the number of times each
+            unique item appears in `input`. Defaults to `False`.
+        axis: The axis to operate on. If `None`, `input` will be flattened.
+            If an integer, the subarrays indexed by the given axis will be
+            treated as the elements. Defaults to `None`.
+
+    Returns:
+        A tensor or a tuple of tensors.
+        - `unique_values`: The sorted unique values.
+        - `unique_inverse` (optional): The indices to reconstruct the original
+          array from the unique array.
+          Only provided if `return_inverse` is `True`.
+          If `axis=None`, it has the same shape as `input`. If `axis` is not
+          `None`, it is a 1D tensor with the length of `input.shape[axis]`.
+        - `unique_counts` (optional): The number of times each of the unique
+          values comes up in the original array. Only provided if
+          `return_counts` is `True`.
+
+    Examples:
+
+    >>> x = keras.ops.convert_to_tensor([3, 1, 2, 1, 3, 2])
+    >>> keras.ops.unique(x)
+    array([1, 2, 3], dtype=int32)
+
+    Return unique rows of a 2D array:
+
+    >>> x = keras.ops.convert_to_tensor([[1, 0, 0], [0, 1, 0], [1, 0, 0]])
+    >>> keras.ops.unique(x, axis=0)
+    array([[0, 1, 0],
+           [1, 0, 0]], dtype=int32)
+
+    Reconstruct the input array from the unique values and inverse:
+
+    >>> x = keras.ops.convert_to_tensor([1, 2, 6, 4, 2, 3, 2])
+    >>> values, inverse = keras.ops.unique(x, return_inverse=True)
+    >>> values
+    array([1, 2, 3, 4, 6], dtype=int32)
+    >>> inverse
+    array([0, 1, 4, 3, 1, 2, 1], dtype=int32)
+    >>> keras.ops.take(values, inverse)
+    array([1, 2, 6, 4, 2, 3, 2], dtype=int32)
+
+    Reconstruct the input values from unique values and counts:
+
+    >>> x = keras.ops.convert_to_tensor([1, 2, 6, 4, 2, 3, 2])
+    >>> values, counts = keras.ops.unique(x, return_counts=True)
+    >>> values
+    array([1, 2, 3, 4, 6], dtype=int32)
+    >>> counts
+    array([1, 3, 1, 1, 1], dtype=int32)
+    """
+    if any_symbolic_tensors((input,)):
+        return Unique(
+            sorted=sorted,
+            return_inverse=return_inverse,
+            return_counts=return_counts,
+            axis=axis,
+        ).symbolic_call(input)
+    return backend.numpy.unique(
+        backend.convert_to_tensor(input),
+        sorted=sorted,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+    )
