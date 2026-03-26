@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'release' && github.ref != 'refs/heads/master' }}
+
 jobs:
   build:
     strategy:
@@ -38,7 +42,9 @@ jobs:
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
       JAX_NUM_CPU_DEVICES: ${{ matrix.multi_device && 4 || 1 }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6.0.2
+
       - name: Check for changes in keras/src/applications
         uses: dorny/paths-filter@v3
         id: filter
@@ -136,7 +142,8 @@ jobs:
     name: Check the code format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6.0.2
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
