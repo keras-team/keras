@@ -226,8 +226,12 @@ class JaxLayer(Layer):
             argument, then `init_fn` is called at build time to initialize the
             non-trainable state of the model.
       seed: Seed for random number generator. Optional.
-      dtype: The dtype of the layer's computations and weights. Can also be a
-            `keras.DTypePolicy`. Optional. Defaults to the default policy.
+      native_serialization_platforms: Sequence of platforms ('cpu', 'cuda',
+            'rocm', 'tpu') to compile for when using `jax2tf.convert` with
+            native serialization. This is only used when the Keras backend is
+            `tensorflow`. If `None`, the function is compiled for the
+            default backend. If multiple platforms are specified, the exported
+            module will be device-polymorphic.
     """
 
     def __init__(
@@ -237,6 +241,7 @@ class JaxLayer(Layer):
         params=None,
         state=None,
         seed=None,
+        native_serialization_platforms=None,
         **kwargs,
     ):
         if backend.backend() not in ["jax", "tensorflow"]:
@@ -287,6 +292,9 @@ class JaxLayer(Layer):
         # Attributes for jax2tf functions
         self.jax2tf_training_false_fn = None
         self.jax2tf_training_true_fn = None
+        self.jax2tf_native_serialization_platforms = (
+            native_serialization_platforms
+        )
 
     def _validate_signature(self, fn, fn_name, allowed, required):
         fn_parameters = inspect.signature(fn).parameters
@@ -355,7 +363,13 @@ class JaxLayer(Layer):
     def _jax2tf_convert(self, fn, polymorphic_shapes):
         from jax.experimental import jax2tf
 
-        converted_fn = jax2tf.convert(fn, polymorphic_shapes=polymorphic_shapes)
+        jax2tf_kwargs = {"polymorphic_shapes": polymorphic_shapes}
+        # Backwards compatibility for users < JAX v0.4.32
+        if self.jax2tf_native_serialization_platforms is not None:
+            jax2tf_kwargs["native_serialization_platforms"] = (
+                self.jax2tf_native_serialization_platforms
+            )
+        converted_fn = jax2tf.convert(fn, **jax2tf_kwargs)
         # Autograph won't work with the output of jax2tf.
         converted_fn = tf.autograph.experimental.do_not_convert(converted_fn)
         return converted_fn
@@ -637,6 +651,9 @@ class JaxLayer(Layer):
         config = {
             "call_fn": serialization_lib.serialize_keras_object(self.call_fn),
             "init_fn": serialization_lib.serialize_keras_object(self.init_fn),
+            "native_serialization_platforms": (
+                self.jax2tf_native_serialization_platforms
+            ),
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
