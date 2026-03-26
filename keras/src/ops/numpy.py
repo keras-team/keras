@@ -7275,6 +7275,12 @@ class Sort(Operation):
         return backend.numpy.sort(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+            return KerasTensor(output_shape, x.dtype)
         return KerasTensor(x.shape, x.dtype)
 
 
