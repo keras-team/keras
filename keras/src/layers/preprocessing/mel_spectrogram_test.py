@@ -9,7 +9,9 @@ from keras.src import testing
 
 class MelSpectrogramTest(testing.TestCase):
     def test_invalid_fft_length_raises(self):
-        with self.assertRaisesRegex(ValueError, "`fft_length` must equal or"):
+        with self.assertRaisesRegex(
+            ValueError, "`fft_length` must be greater than or equal to"
+        ):
             layers.MelSpectrogram(
                 fft_length=256,
                 sequence_stride=256,
