@@ -591,7 +591,195 @@ def array(x, dtype=None):
 
 
 def view(x, dtype=None):
-    raise NotImplementedError("`view` is not supported with openvino backend")
+    """Reinterpret the bytes of a tensor as a different dtype.
+
+    Three execution paths:
+      1. **NumPy fast path** — plain ``np.ndarray`` inputs are viewed
+         directly and re-wrapped as an OpenVINO constant.
+      2. **Constant folding** — if the OpenVINO subgraph backing *x*
+         is parameter-free (e.g. a ``Constant`` node *or* an expression
+         such as ``Broadcast``), it is compiled on CPU and the resulting
+         NumPy array is viewed.
+      3. **Symbolic bitwise decomposition** — for non-constant,
+         integer-to-integer type changes the bit pattern is preserved
+         using shift / mask / OR operations in the OpenVINO graph.
+         Float ↔ int reinterpretation on symbolic tensors is not
+         supported because OpenVINO lacks a bitcast op.
+    """
+    from keras.src import backend
+
+    new_dtype = backend.standardize_dtype(dtype) if dtype else None
+
+    # Fast path: plain numpy/scalar inputs
+    if isinstance(x, np.ndarray):
+        if new_dtype is None:
+            return OpenVINOKerasTensor(ov_opset.constant(x).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.constant(x.view(np.dtype(new_dtype))).output(0)
+        )
+
+    x_ov = get_ov_output(x)
+    old_ov_type = x_ov.get_element_type()
+    old_dtype = ov_to_keras_type(old_ov_type)
+
+    if new_dtype is None:
+        new_dtype = old_dtype
+    new_ov_type = OPENVINO_DTYPES[new_dtype]
+
+    if old_ov_type == new_ov_type:
+        return OpenVINOKerasTensor(x_ov)
+
+    old_itemsize = old_ov_type.size
+    new_itemsize = new_ov_type.size
+
+    # Constant folding: evaluate parameter-free subgraphs on CPU.
+    # Uses raw bytes + ov.Tensor to avoid numpy dtype issues
+    # (e.g. bfloat16 is not a standard numpy dtype).
+    try:
+        node = x_ov.get_node()
+        if node.get_type_name() == "Constant":
+            np_data = node.data
+        else:
+            ov_model = ov.Model(results=[x_ov], parameters=[])
+            compiled = ov.compile_model(ov_model, "CPU")
+            np_data = compiled({})[0]
+        old_shape = np_data.shape
+        new_last = old_shape[-1] * old_itemsize // new_itemsize
+        new_shape = list(old_shape[:-1]) + [new_last]
+        raw = np.frombuffer(np_data.tobytes(), dtype=np.uint8)
+        result_tensor = ov.Tensor(new_ov_type, new_shape)
+        np.copyto(
+            np.frombuffer(result_tensor.data, dtype=np.uint8),
+            raw,
+        )
+        return OpenVINOKerasTensor(ov_opset.constant(result_tensor).output(0))
+    except Exception:
+        pass
+
+    # Non-constant tensors: only integer↔integer is supported
+    if not (old_ov_type.is_integral() and new_ov_type.is_integral()):
+        raise NotImplementedError(
+            f"`view` from {old_dtype} to {new_dtype} is not supported "
+            "for non-constant tensors with the OpenVINO backend "
+            "(no bitcast operation available in OpenVINO opset)."
+        )
+
+    if old_itemsize == new_itemsize:
+        # Same-width signed↔unsigned: convert preserves bit pattern
+        return OpenVINOKerasTensor(
+            ov_opset.convert(x_ov, new_ov_type).output(0)
+        )
+    elif old_itemsize > new_itemsize:
+        return _view_int_expand(x_ov, new_ov_type, old_itemsize, new_itemsize)
+    else:
+        return _view_int_contract(x_ov, new_ov_type, old_itemsize, new_itemsize)
+
+
+def _split_shape_leading_last(x):
+    """Return (leading_dims, last_dim) from the shape of *x*.
+
+    ``leading_dims`` contains all dimensions except the last one,
+    ``last_dim`` is a rank-1 tensor with the single last dimension.
+    Both are ``i64`` OpenVINO outputs.
+    """
+    shape = ov_opset.shape_of(x, "i64").output(0)
+    leading = ov_opset.slice(
+        shape,
+        ov_opset.constant([0], Type.i64).output(0),
+        ov_opset.constant([-1], Type.i64).output(0),
+        ov_opset.constant([1], Type.i64).output(0),
+        ov_opset.constant([0], Type.i64).output(0),
+    ).output(0)
+    last_dim = ov_opset.gather(
+        shape,
+        ov_opset.constant([-1], Type.i64).output(0),
+        ov_opset.constant(0, Type.i64).output(0),
+    ).output(0)
+    return leading, last_dim
+
+
+def _view_int_expand(x, new_ov_type, old_itemsize, new_itemsize):
+    """View a larger int as smaller ints (e.g. int32 → uint8)."""
+    ratio = old_itemsize // new_itemsize
+    _unsigned = {1: Type.u8, 2: Type.u16, 4: Type.u32, 8: Type.u64}
+    src_uint_type = _unsigned[old_itemsize]
+    dst_uint_type = _unsigned[new_itemsize]
+    bits_per_elem = new_itemsize * 8
+    mask_val = (1 << bits_per_elem) - 1
+
+    x_uint = ov_opset.convert(x, src_uint_type).output(0)
+    mask = ov_opset.constant(mask_val, src_uint_type).output(0)
+
+    byte_parts = []
+    for i in range(ratio):
+        shift = ov_opset.constant(i * bits_per_elem, src_uint_type).output(0)
+        shifted = ov_opset.bitwise_right_shift(x_uint, shift).output(0)
+        masked = ov_opset.bitwise_and(shifted, mask).output(0)
+        part = ov_opset.convert(masked, dst_uint_type).output(0)
+        part = ov_opset.unsqueeze(part, ov_opset.constant(-1, Type.i32)).output(
+            0
+        )
+        byte_parts.append(part)
+
+    # Concat along last axis: [..., N, ratio]
+    concat_result = ov_opset.concat(byte_parts, axis=-1).output(0)
+
+    # Reshape [..., N, ratio] → [..., N*ratio]
+    leading, last_dim = _split_shape_leading_last(x)
+    new_last = ov_opset.multiply(
+        last_dim, ov_opset.constant([ratio], Type.i64).output(0)
+    ).output(0)
+    new_shape = ov_opset.concat([leading, new_last], axis=0).output(0)
+    result = ov_opset.reshape(concat_result, new_shape, False).output(0)
+
+    if dst_uint_type != new_ov_type:
+        result = ov_opset.convert(result, new_ov_type).output(0)
+    return OpenVINOKerasTensor(result)
+
+
+def _view_int_contract(x, new_ov_type, old_itemsize, new_itemsize):
+    """View smaller ints as a larger int (e.g. uint8 → int32)."""
+    ratio = new_itemsize // old_itemsize
+    _unsigned = {1: Type.u8, 2: Type.u16, 4: Type.u32, 8: Type.u64}
+    src_uint_type = _unsigned[old_itemsize]
+    dst_uint_type = _unsigned[new_itemsize]
+    bits_per_elem = old_itemsize * 8
+
+    x_uint = ov_opset.convert(x, src_uint_type).output(0)
+
+    # Reshape [..., N] → [..., N//ratio, ratio]
+    leading, last_dim = _split_shape_leading_last(x)
+    grouped_last = ov_opset.divide(
+        last_dim, ov_opset.constant([ratio], Type.i64).output(0)
+    ).output(0)
+    ratio_dim = ov_opset.constant([ratio], Type.i64).output(0)
+    inter_shape = ov_opset.concat(
+        [leading, grouped_last, ratio_dim], axis=0
+    ).output(0)
+    reshaped = ov_opset.reshape(x_uint, inter_shape, False).output(0)
+
+    # Combine bytes: gather each position, shift, OR
+    last_axis = ov_opset.constant(-1, Type.i64).output(0)
+    idx = ov_opset.constant([0], Type.i64).output(0)
+    byte_0 = ov_opset.gather(reshaped, idx, last_axis).output(0)
+    byte_0 = ov_opset.squeeze(byte_0, ov_opset.constant([-1], Type.i32)).output(
+        0
+    )
+    result = ov_opset.convert(byte_0, dst_uint_type).output(0)
+    for i in range(1, ratio):
+        idx = ov_opset.constant([i], Type.i64).output(0)
+        byte_i = ov_opset.gather(reshaped, idx, last_axis).output(0)
+        byte_i = ov_opset.squeeze(
+            byte_i, ov_opset.constant([-1], Type.i32)
+        ).output(0)
+        byte_i = ov_opset.convert(byte_i, dst_uint_type).output(0)
+        shift = ov_opset.constant(i * bits_per_elem, dst_uint_type).output(0)
+        byte_i = ov_opset.bitwise_left_shift(byte_i, shift).output(0)
+        result = ov_opset.bitwise_or(result, byte_i).output(0)
+
+    if dst_uint_type != new_ov_type:
+        result = ov_opset.convert(result, new_ov_type).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def average(x, axis=None, weights=None):
