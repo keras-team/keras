@@ -243,3 +243,9 @@ TruePositiveTest::test_weighted
 UnitNormalizationTest::test_un_basics
 UpSampling2dTest::test_upsampling_2d_lanczos_interpolation_methods
 UpSampling2dTest::test_upsampling_2d_various_interpolation_methods
+UniqueTest::test_unique_symbolic_static_shape
+UniqueTest::test_unique_symbolic_dynamic_shape
+UniqueTest::test_unique_correctness_1d
+UniqueTest::test_unique_correctness_2d_axis0
+UniqueTest::test_unique_correctness_2d_axis1
+UniqueTest::test_unique_correctness_3d_axis1

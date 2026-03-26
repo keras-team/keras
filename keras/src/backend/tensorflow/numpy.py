@@ -3741,3 +3741,69 @@ def histogram(x, bins=10, range=None):
         shape=(bins,),
     )
     return bin_counts, bin_edges
+
+
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    input = tf.convert_to_tensor(input)
+
+    def tf_lexsort(keys):
+        """Sorts a 2D tensor lexicographically across rows."""
+        num_rows = tf.shape(keys)[0]
+        num_cols = tf.shape(keys)[1]
+        idx = tf.range(num_rows)
+
+        # Radix sort: stable sort from last column to first
+        def body(i, current_idx):
+            col_values = tf.gather(keys[:, i], current_idx)
+            sort_step = tf.argsort(col_values, stable=True)
+            return i - 1, tf.gather(current_idx, sort_step)
+
+        _, final_idx = tf.while_loop(
+            lambda i, _: i >= 0, body, loop_vars=[num_cols - 1, idx]
+        )
+        return final_idx
+
+    # 1. Core unique logic
+    if axis is None:
+        input_flat = tf.reshape(input, [-1])
+        if return_counts:
+            y, idx, counts = tf.unique_with_counts(input_flat)
+        else:
+            y, idx = tf.unique(input_flat)
+            counts = None
+    else:
+        # Use low-level op for axis support
+        y, idx = tf.raw_ops.UniqueV2(
+            x=input, axis=tf.constant([axis], tf.int32)
+        )
+        counts = tf.math.bincount(idx) if return_counts else None
+
+    # 2. Sorting and index re-mapping
+    if sorted:
+        if axis is None:
+            sort_idx = tf.argsort(y)
+        else:
+            # Transpose target axis to front and flatten others for lexsort
+            rank = tf.rank(y)
+            perm = tf.concat(
+                [[axis], tf.range(axis), tf.range(axis + 1, rank)], axis=0
+            )
+            y_flat = tf.reshape(tf.transpose(y, perm), [tf.shape(y)[axis], -1])
+            sort_idx = tf_lexsort(y_flat)
+
+        # Apply sorting to values, counts, and inverse indices
+        y = tf.gather(y, sort_idx, axis=axis if axis is not None else 0)
+        inv_sort_idx = tf.math.invert_permutation(sort_idx)
+        idx = tf.gather(inv_sort_idx, idx)
+        if return_counts:
+            counts = tf.gather(counts, sort_idx)
+
+    # 3. Format return tuple
+    res = (y,)
+    if return_inverse:
+        res += (idx,)
+    if return_counts:
+        res += (counts,)
+    return res[0] if len(res) == 1 else res

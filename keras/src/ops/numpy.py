@@ -9398,3 +9398,134 @@ def array_split(x, indices_or_sections, axis=0):
     return backend.numpy.array_split(
         x, indices_or_sections=indices_or_sections, axis=axis
     )
+
+
+class Unique(Operation):
+    def __init__(
+        self,
+        return_index=False,
+        return_inverse=False,
+        return_counts=False,
+        axis=None,
+        sorted=True,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.return_index = return_index
+        self.return_inverse = return_inverse
+        self.return_counts = return_counts
+        self.axis = axis
+        self.sorted = sorted
+
+    def call(self, x):
+        return backend.numpy.unique(
+            x,
+            return_index=self.return_index,
+            return_inverse=self.return_inverse,
+            return_counts=self.return_counts,
+            axis=self.axis,
+            sorted=self.sorted,
+        )
+
+    def compute_output_spec(self, x):
+        # Output shapes cannot be determined statically because the number of
+        # unique values is data-dependent. Use None for unknown dimensions.
+        if self.axis is None:
+            unique_shape = (None,)
+        else:
+            unique_shape = list(x.shape)
+            unique_shape[self.axis] = None
+            unique_shape = tuple(unique_shape)
+
+        outputs = [KerasTensor(unique_shape, dtype=x.dtype)]
+
+        if self.return_index:
+            index_shape = (None,)
+            outputs.append(KerasTensor(index_shape, dtype="int32"))
+        if self.return_inverse:
+            if self.axis is None:
+                inverse_shape = (None,)
+            else:
+                inverse_shape = (x.shape[self.axis],)
+            outputs.append(KerasTensor(inverse_shape, dtype="int32"))
+        if self.return_counts:
+            counts_shape = (None,)
+            outputs.append(KerasTensor(counts_shape, dtype="int32"))
+
+        if len(outputs) == 1:
+            return outputs[0]
+        return tuple(outputs)
+
+
+@keras_export(["keras.ops.unique", "keras.ops.numpy.unique"])
+def unique(
+    x,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    sorted=True,
+):
+    """Find the unique elements of a tensor.
+
+    Returns the sorted unique elements of the input tensor. Optionally,
+    return the indices of the first occurrences, the indices to reconstruct
+    the original tensor, and the counts of each unique element.
+
+    Args:
+        x: Input tensor.
+        return_index: If `True`, also return the indices of the first
+            occurrence of each unique value (along the specified axis or
+            flattened). Defaults to `False`.
+        return_inverse: If `True`, also return the indices that can be used
+            to reconstruct `x` from the unique values. Defaults to `False`.
+        return_counts: If `True`, also return the number of times each
+            unique value appears in `x`. Defaults to `False`.
+        axis: Axis along which to operate. If `None`, the tensor is flattened
+            before computing unique values. If an integer, unique slices along
+            that axis are returned. Defaults to `None`.
+        sorted: If `True`, the unique values are sorted. If `False`, they
+            appear in the order they first occur. Defaults to `True`.
+
+    Returns:
+        A tensor of unique values, or tuple `(unique, indices, inverse, counts)`
+        depending on the boolean flags.
+
+    Example:
+    >>> import keras
+    >>> x = keras.ops.array([3, 4, 1, 3, 1])
+    >>> keras.ops.unique(x)
+    array([1, 3, 4])
+
+    >>> unique, inverse = keras.ops.unique(x, return_inverse=True)
+    >>> print(unique)
+    array([1, 3, 4])
+    >>> print(inverse)
+    array([1, 2, 0, 1, 0])
+
+    >>> x = keras.ops.array([[1, 2], [2, 3], [1, 2]])
+    >>> keras.ops.unique(x, axis=0)
+    array([[1, 2],
+           [2, 3]])
+
+    Note:
+        The handling of NaN values varies by backend. JAX treats NaNs as equal
+        by default, while PyTorch and TensorFlow do not.
+    """
+    if any_symbolic_tensors((x,)):
+        return Unique(
+            return_index=return_index,
+            return_inverse=return_inverse,
+            return_counts=return_counts,
+            axis=axis,
+            sorted=sorted,
+        ).symbolic_call(x)
+    return backend.numpy.unique(
+        x,
+        return_index=return_index,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        sorted=sorted,
+    )

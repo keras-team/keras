@@ -11373,3 +11373,158 @@ class TileTest(testing.TestCase):
         output = TileLayer()(inputs)
 
         self.assertEqual(output.shape, (None, 6, 2, 2))
+
+
+class UniqueTest(testing.TestCase):
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO does not support unique",
+    )
+    def test_unique_symbolic_static_shape(self):
+        x = KerasTensor([2, 3], dtype="float32")
+        # axis=None
+        y = knp.unique(x)
+        self.assertEqual(y.shape, (None,))
+        self.assertTrue(y.dtype, "float32")
+        y = knp.unique(x, return_index=True)
+        self.assertEqual(y[0].shape, (None,))
+        self.assertEqual(y[1].shape, (None,))
+        y = knp.unique(x, return_inverse=True)
+        self.assertEqual(y[0].shape, (None,))
+        self.assertEqual(y[1].shape, (None,))
+        y = knp.unique(x, return_counts=True)
+        self.assertEqual(y[0].shape, (None,))
+        self.assertEqual(y[1].shape, (None,))
+        # axis=0
+        y = knp.unique(x, axis=0)
+        self.assertEqual(y.shape, (None, 3))
+        y = knp.unique(x, axis=0, return_index=True)
+        self.assertEqual(y[0].shape, (None, 3))
+        self.assertEqual(y[1].shape, (None,))
+        y = knp.unique(x, axis=0, return_inverse=True)
+        self.assertEqual(y[0].shape, (None, 3))
+        self.assertEqual(y[1].shape, (2,))
+        y = knp.unique(x, axis=0, return_counts=True)
+        self.assertEqual(y[0].shape, (None, 3))
+        self.assertEqual(y[1].shape, (None,))
+
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO does not support unique",
+    )
+    def test_unique_symbolic_dynamic_shape(self):
+        x = KerasTensor([None, 3], dtype="float32")
+        # axis=None
+        y = knp.unique(x)
+        self.assertEqual(y.shape, (None,))
+        y = knp.unique(x, return_inverse=True)
+        self.assertEqual(y[1].shape, (None,))
+        # axis=0
+        y = knp.unique(x, axis=0)
+        self.assertEqual(y.shape, (None, 3))
+        y = knp.unique(x, axis=0, return_inverse=True)
+        self.assertEqual(y[1].shape, (None,))
+        y = knp.unique(x, axis=0, return_counts=True)
+        self.assertEqual(y[1].shape, (None,))
+
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO does not support unique",
+    )
+    def test_unique_correctness_1d(self):
+        rng = np.random.default_rng(0)
+        x = rng.integers(0, 10, size=20)
+        for return_index, return_inverse, return_counts in itertools.product(
+            [False, True], repeat=3
+        ):
+            # Test with integer input
+            result = knp.unique(
+                x,
+                return_index=return_index,
+                return_inverse=return_inverse,
+                return_counts=return_counts,
+            )
+            expected = np.unique(
+                x,
+                return_index=return_index,
+                return_inverse=return_inverse,
+                return_counts=return_counts,
+            )
+            # Compare each part
+            for r, e in zip(result, expected):
+                self.assertAllClose(r, e)
+            # Test with float input (no NaN)
+            xf = x.astype("float32")
+            result = knp.unique(
+                xf,
+                return_index=return_index,
+                return_inverse=return_inverse,
+                return_counts=return_counts,
+            )
+            expected = np.unique(
+                xf,
+                return_index=return_index,
+                return_inverse=return_inverse,
+                return_counts=return_counts,
+            )
+            for r, e in zip(result, expected):
+                self.assertAllClose(r, e)
+
+        # Test sorted=False (skip JAX if needed)
+        if keras.config.backend() != "jax":
+            x = np.array([3, 1, 2, 1, 2, 3])
+            result = knp.unique(x, sorted=False)
+            expected = np.unique(
+                x,
+                return_index=False,
+                return_inverse=False,
+                return_counts=False,
+                sorted=False,
+            )
+            self.assertAllClose(result, expected)
+
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO does not support unique",
+    )
+    def test_unique_correctness_2d_axis0(self):
+        x = np.array([[1, 2], [2, 3], [1, 2], [3, 4], [2, 3]])
+        for return_index, return_inverse, return_counts in itertools.product(
+            [False, True], repeat=3
+        ):
+            result = knp.unique(
+                x,
+                axis=0,
+                return_index=return_index,
+                return_inverse=return_inverse,
+                return_counts=return_counts,
+            )
+            expected = np.unique(
+                x,
+                axis=0,
+                return_index=return_index,
+                return_inverse=return_inverse,
+                return_counts=return_counts,
+            )
+            for r, e in zip(result, expected):
+                self.assertAllClose(r, e)
+
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO does not support unique",
+    )
+    def test_unique_correctness_2d_axis1(self):
+        x = np.array([[1, 2, 1], [2, 3, 2], [1, 2, 1]])
+        result = knp.unique(x, axis=1)
+        expected = np.unique(x, axis=1)
+        self.assertAllClose(result, expected)
+
+    @pytest.mark.skipif(
+        keras.config.backend() == "openvino",
+        reason="OpenVINO does not support unique",
+    )
+    def test_unique_correctness_3d_axis1(self):
+        x = np.random.randint(0, 3, size=(4, 5, 6))
+        result = knp.unique(x, axis=1)
+        expected = np.unique(x, axis=1)
+        self.assertAllClose(result, expected)

@@ -1675,3 +1675,15 @@ def argpartition(x, kth, axis=-1):
 
 def histogram(x, bins=10, range=None):
     return np.histogram(x, bins=bins, range=range)
+
+
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    return np.unique(
+        ar=input,
+        sorted=sorted,
+        return_inverse=return_inverse,
+        axis=axis,
+        return_counts=return_counts,
+    )

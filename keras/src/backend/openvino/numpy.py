@@ -5502,3 +5502,9 @@ def histogram(x, bins=10, range=None):
     )
 
     return OpenVINOKerasTensor(hist.output(0)), OpenVINOKerasTensor(bin_edges)
+
+
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    raise NotImplementedError("OpenVino backend not supportedUnique op ")
