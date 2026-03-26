@@ -3,7 +3,7 @@ name: Keras GPU Tests
 on:
   push:
     branches: [master]
-  pull_request:
+  pull_request_target:
     types: [unlabeled]
   release:
     types: [created]
@@ -20,7 +20,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      (github.event_name == 'pull_request' && github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
+      (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
 
     strategy:
       fail-fast: false
@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Check CUDA Version
         run: nvidia-smi
