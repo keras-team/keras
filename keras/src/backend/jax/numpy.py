@@ -1643,4 +1643,5 @@ def unique(
         return_counts=return_counts,
         axis=axis,
         sorted=sorted,
+        equal_nan=False,
     )
