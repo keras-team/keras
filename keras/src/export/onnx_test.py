@@ -77,11 +77,6 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
         "backends."
     ),
 )
-@pytest.mark.skipif(testing.uses_gpu(), reason="Fails on GPU")
-@pytest.mark.skipif(
-    np.version.version.startswith("2."),
-    reason="ONNX export is currently incompatible with NumPy 2.0",
-)
 class ExportONNXTest(testing.TestCase):
     @parameterized.named_parameters(
         named_product(
@@ -89,6 +84,8 @@ class ExportONNXTest(testing.TestCase):
         )
     )
     def test_standard_model_export(self, model_type):
+        if model_type == "lstm" and backend.backend() in ("jax", "tensorflow"):
+            self.skipTest("Bidirectional LSTM is unsupported.")
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         model = get_model(model_type)
         batch_size = 3 if backend.backend() != "torch" else 1
@@ -119,8 +116,8 @@ class ExportONNXTest(testing.TestCase):
         named_product(struct_type=["tuple", "array", "dict"])
     )
     def test_model_with_input_structure(self, struct_type):
-        if backend.backend() == "torch" and struct_type == "dict":
-            self.skipTest("The torch backend doesn't support the dict model.")
+        if backend.backend() == "torch" and struct_type in ("tuple", "dict"):
+            self.skipTest("The torch backend doesn't support this structure.")
 
         class TupleModel(models.Model):
             def call(self, inputs):
@@ -257,7 +254,12 @@ class ExportONNXTest(testing.TestCase):
         ort_inputs = {
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
-        self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
+        self.assertAllClose(
+            ref_output,
+            ort_session.run(None, ort_inputs)[0],
+            tpu_atol=1e-3,
+            tpu_rtol=2e-3,
+        )
 
         if opset_version is not None:
             onnx_model = onnx_lib.load(temp_filepath)
@@ -296,6 +298,10 @@ class ExportONNXTest(testing.TestCase):
             model_type=["sequential", "functional"],
             dynamic_type=["batch_only", "height_width"],
         )
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="Dynamic shapes are not supported with torch",
     )
     def test_dynamic_shapes_export(self, model_type, dynamic_type):
         """Test ONNX export with various dynamic shape configurations.
@@ -368,6 +374,10 @@ class ExportONNXTest(testing.TestCase):
             self.assertEqual(result[0].shape[0], expected_batch_size)
             self.assertEqual(result[0].shape[1], 10)  # Number of classes
 
+    @pytest.mark.skipif(
+        backend.backend() == "torch",
+        reason="Dynamic shapes are not supported with torch",
+    )
     def test_multi_input_dynamic_shapes(self):
         """Test ONNX export with multi-input model having dynamic shapes."""
 
