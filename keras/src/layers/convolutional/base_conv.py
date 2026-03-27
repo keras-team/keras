@@ -230,11 +230,17 @@ class BaseConv(Layer):
             raise AttributeError(
                 "You must build the layer before accessing `kernel`."
             )
+        kernel = self._kernel
         if self.lora_enabled:
-            return self._kernel + (
-                self.lora_alpha / self.lora_rank
-            ) * ops.matmul(self.lora_kernel_a, self.lora_kernel_b)
-        return self._kernel
+            kernel = ops.cast(
+                ops.add(
+                    kernel,
+                    (self.lora_alpha / self.lora_rank)
+                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                ),
+                dtype=self.variable_dtype,
+            )
+        return kernel
 
     def convolution_op(self, inputs, kernel):
         return ops.conv(
@@ -296,16 +302,21 @@ class BaseConv(Layer):
                 "lora is already enabled. This can only be done once per layer."
             )
         self._tracker.unlock()
+
+        # LoRA weights should be float32 to avoid the risk of underflow or
+        # overflow during fine-tuning.
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
             shape=self._kernel.shape[:-1] + (rank,),
             initializer=initializers.get(a_initializer),
+            dtype="float32",
             regularizer=self.kernel_regularizer,
         )
         self.lora_kernel_b = self.add_weight(
             name="lora_kernel_b",
             shape=(rank, self.filters),
             initializer=initializers.get(b_initializer),
+            dtype="float32",
             regularizer=self.kernel_regularizer,
         )
         self._kernel.trainable = False
