@@ -1454,9 +1454,8 @@ class EinsumDense(Layer):
             )
 
         # 2. Merge the LoRA update in the float domain
-        lora_update = (
-            (self.lora_alpha / self.lora_rank)
-            * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+        lora_update = (self.lora_alpha / self.lora_rank) * ops.matmul(
+            self.lora_kernel_a, self.lora_kernel_b
         )
         merged_kernel = ops.add(kernel_fp, lora_update)
 
