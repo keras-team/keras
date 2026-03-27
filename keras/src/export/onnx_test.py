@@ -101,7 +101,7 @@ class ExportONNXTest(testing.TestCase):
         ort_inputs = {
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
-        self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
+        self.assertAllClose(ort_session.run(None, ort_inputs)[0], ref_output)
         # Test with a different batch size
         ort_inputs = {
             k.name: v
@@ -162,7 +162,7 @@ class ExportONNXTest(testing.TestCase):
             ort_inputs = {
                 k.name: v for k, v in zip(ort_session.get_inputs(), ref_input)
             }
-        self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
+        self.assertAllClose(ort_session.run(None, ort_inputs)[0], ref_output)
 
         # Test with keras.saving_lib
         temp_filepath = os.path.join(
@@ -177,7 +177,7 @@ class ExportONNXTest(testing.TestCase):
                 "DictModel": DictModel,
             },
         )
-        self.assertAllClose(ref_output, revived_model(ref_input))
+        self.assertAllClose(revived_model(ref_input), ref_output)
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model2")
         onnx.export_onnx(revived_model, temp_filepath)
 
@@ -222,7 +222,7 @@ class ExportONNXTest(testing.TestCase):
                 ort_session.get_inputs(), [ref_input_x, ref_input_y]
             )
         }
-        self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
+        self.assertAllClose(ort_session.run(None, ort_inputs)[0], ref_output)
         # Test with a different batch size
         ort_inputs = {
             k.name: v
@@ -255,10 +255,10 @@ class ExportONNXTest(testing.TestCase):
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
         self.assertAllClose(
-            ref_output,
             ort_session.run(None, ort_inputs)[0],
-            tpu_atol=1e-3,
-            tpu_rtol=2e-3,
+            ref_output,
+            tpu_atol=0.001,
+            tpu_rtol=0.002,
         )
 
         if opset_version is not None:
@@ -291,7 +291,7 @@ class ExportONNXTest(testing.TestCase):
         ort_inputs = {
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
-        self.assertAllClose(ref_output, ort_session.run(None, ort_inputs)[0])
+        self.assertAllClose(ort_session.run(None, ort_inputs)[0], ref_output)
 
     @parameterized.named_parameters(
         named_product(

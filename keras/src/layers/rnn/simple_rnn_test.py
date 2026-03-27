@@ -47,15 +47,15 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.405432, 0.405432, 0.405432, 0.405432],
                     [0.73605347, 0.73605347, 0.73605347, 0.73605347],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         layer = layers.SimpleRNN(
             4,
@@ -66,15 +66,15 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.405432, 0.405432, 0.405432, 0.405432],
                     [0.73605347, 0.73605347, 0.73605347, 0.73605347],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         layer = layers.SimpleRNN(
@@ -86,15 +86,15 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.11144729, 0.11144729, 0.11144729, 0.11144729],
                     [0.5528889, 0.5528889, 0.5528889, 0.5528889],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         layer = layers.SimpleRNN(
             4,
@@ -106,15 +106,15 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.11144729, 0.11144729, 0.11144729, 0.11144729],
                     [0.5528889, 0.5528889, 0.5528889, 0.5528889],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     def test_statefulness(self):
@@ -129,29 +129,29 @@ class SimpleRNNTest(testing.TestCase):
         layer(sequence)
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.40559256, 0.40559256, 0.40559256, 0.40559256],
                     [0.7361247, 0.7361247, 0.7361247, 0.7361247],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         layer.reset_state()
         layer(sequence)
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.40559256, 0.40559256, 0.40559256, 0.40559256],
                     [0.7361247, 0.7361247, 0.7361247, 0.7361247],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     def test_pass_initial_state(self):
@@ -165,15 +165,15 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence, initial_state=initial_state)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.33621645, 0.33621645, 0.33621645, 0.33621645],
                     [0.6262637, 0.6262637, 0.6262637, 0.6262637],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         layer = layers.SimpleRNN(
@@ -185,15 +185,15 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence, initial_state=initial_state)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.07344437, 0.07344437, 0.07344437, 0.07344437],
                     [0.43043602, 0.43043602, 0.43043602, 0.43043602],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     def test_masking(self):
@@ -208,15 +208,15 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence, mask=mask)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.32951632, 0.32951632, 0.32951632, 0.32951632],
                     [0.61799484, 0.61799484, 0.61799484, 0.61799484],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         layer = layers.SimpleRNN(
@@ -228,30 +228,30 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence, mask=mask)
         self.assertAllClose(
+            output[0],
             np.array(
                 [
                     [0.0599281, 0.0599281],
                     [0.15122814, 0.15122814],
                     [0.15122814, 0.15122814],
                     [0.32394567, 0.32394567],
-                ],
+                ]
             ),
-            output[0],
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         self.assertAllClose(
+            output[1],
             np.array(
                 [
                     [0.3969304, 0.3969304],
                     [0.3969304, 0.3969304],
                     [0.3969304, 0.3969304],
                     [0.608085, 0.608085],
-                ],
+                ]
             ),
-            output[1],
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         layer = layers.SimpleRNN(
@@ -264,30 +264,30 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence, mask=mask)
         self.assertAllClose(
+            output[0],
             np.array(
                 [
                     [0.0599281, 0.0599281],
                     [0.15122814, 0.15122814],
                     [0.0, 0.0],
                     [0.32394567, 0.32394567],
-                ],
+                ]
             ),
-            output[0],
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         self.assertAllClose(
+            output[1],
             np.array(
                 [
                     [0.3969304, 0.3969304],
                     [0.0, 0.0],
                     [0.0, 0.0],
                     [0.608085, 0.608085],
-                ],
+                ]
             ),
-            output[1],
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         layer = layers.SimpleRNN(
@@ -299,13 +299,13 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence, mask=mask)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.07376196, 0.07376196, 0.07376196, 0.07376196],
                     [0.43645123, 0.43645123, 0.43645123, 0.43645123],
                 ]
             ),
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )

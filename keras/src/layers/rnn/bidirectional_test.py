@@ -45,47 +45,47 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.39687276, 0.39687276, 0.10004295, 0.10004295],
                     [0.7237238, 0.7237238, 0.53391594, 0.53391594],
                 ]
             ),
-            output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         layer = layers.Bidirectional(layer=forward_layer, merge_mode="ave")
         output = layer(sequence)
         self.assertAllClose(
-            np.array([[0.24845785, 0.24845785], [0.6288199, 0.6288199]]),
             output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.24845785, 0.24845785], [0.6288199, 0.6288199]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         layer = layers.Bidirectional(layer=forward_layer, merge_mode=None)
         output1, output2 = layer(sequence)
         self.assertAllClose(
-            np.array([[0.39687276, 0.39687276], [0.7237238, 0.7237238]]),
             output1,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.39687276, 0.39687276], [0.7237238, 0.7237238]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         self.assertAllClose(
-            np.array([[0.10004295, 0.10004295], [0.53391594, 0.53391594]]),
             output2,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.10004295, 0.10004295], [0.53391594, 0.53391594]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         backward_layer = layers.SimpleRNN(
@@ -100,12 +100,12 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
-            np.array([[0.08374989, 0.08374989], [0.6740834, 0.6740834]]),
             output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.08374989, 0.08374989], [0.6740834, 0.6740834]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
         forward_layer = layers.GRU(
@@ -118,6 +118,7 @@ class SimpleRNNTest(testing.TestCase):
         layer = layers.Bidirectional(layer=forward_layer, merge_mode="sum")
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [
@@ -132,11 +133,10 @@ class SimpleRNNTest(testing.TestCase):
                     ],
                 ]
             ),
-            output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     def test_statefulness(self):
@@ -152,33 +152,33 @@ class SimpleRNNTest(testing.TestCase):
         layer(sequence)
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.26234663, 0.26234663, 0.16959146, 0.16959146],
                     [0.6137073, 0.6137073, 0.5381646, 0.5381646],
                 ]
             ),
-            output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         layer.reset_state()
         layer(sequence)
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.26234663, 0.26234663, 0.16959146, 0.16959146],
                     [0.6137073, 0.6137073, 0.5381646, 0.5381646],
                 ]
             ),
-            output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     def test_pass_initial_state(self):
@@ -200,17 +200,17 @@ class SimpleRNNTest(testing.TestCase):
         )
         output = layer(sequence, initial_state=initial_state)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.20794602, 0.4577124, 0.14046375, 0.48191673],
                     [0.6682636, 0.6711909, 0.60943645, 0.60950446],
                 ]
             ),
-            output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     def test_masking(self):
@@ -225,17 +225,17 @@ class SimpleRNNTest(testing.TestCase):
         mask = np.array([[True, True, False, True], [True, False, False, True]])
         output = layer(sequence, mask=mask)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.19393763, 0.19393763, 0.11669192, 0.11669192],
                     [0.30818558, 0.30818558, 0.28380975, 0.28380975],
                 ]
             ),
-            output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     def test_return_state(self):
@@ -250,49 +250,49 @@ class SimpleRNNTest(testing.TestCase):
         layer = layers.Bidirectional(layer=forward_layer)
         output, h1, c1, h2, c2 = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.1990008, 0.1990008, 0.12659755, 0.12659755],
                     [0.52335435, 0.52335435, 0.44717982, 0.44717982],
                 ]
             ),
-            output,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         self.assertAllClose(
-            np.array([[0.1990008, 0.1990008], [0.52335435, 0.52335435]]),
             h1,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.1990008, 0.1990008], [0.52335435, 0.52335435]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         self.assertAllClose(
-            np.array([[0.35567185, 0.35567185], [1.0492687, 1.0492687]]),
             c1,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.35567185, 0.35567185], [1.0492687, 1.0492687]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         self.assertAllClose(
-            np.array([[0.12659755, 0.12659755], [0.44717982, 0.44717982]]),
             h2,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.12659755, 0.12659755], [0.44717982, 0.44717982]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
         self.assertAllClose(
-            np.array([[0.2501858, 0.2501858], [0.941473, 0.941473]]),
             c2,
-            atol=1e-5,
-            rtol=1e-5,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            np.array([[0.2501858, 0.2501858], [0.941473, 0.941473]]),
+            atol=1e-05,
+            rtol=1e-05,
+            tpu_atol=0.001,
+            tpu_rtol=0.001,
         )
 
     @pytest.mark.requires_trainable_backend

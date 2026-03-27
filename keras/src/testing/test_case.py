@@ -40,8 +40,8 @@ class TestCase(parameterized.TestCase):
 
     def assertAllClose(
         self,
-        x1,
-        x2,
+        actual,
+        desired,
         atol=1e-6,
         rtol=1e-6,
         tpu_atol=None,
@@ -52,11 +52,13 @@ class TestCase(parameterized.TestCase):
             atol = tpu_atol
         if tpu_rtol is not None and uses_tpu():
             rtol = tpu_rtol
-        if not isinstance(x1, np.ndarray):
-            x1 = backend.convert_to_numpy(x1)
-        if not isinstance(x2, np.ndarray):
-            x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol, err_msg=msg)
+        if not isinstance(actual, np.ndarray):
+            actual = backend.convert_to_numpy(actual)
+        if not isinstance(desired, np.ndarray):
+            desired = backend.convert_to_numpy(desired)
+        np.testing.assert_allclose(
+            actual, desired, atol=atol, rtol=rtol, err_msg=msg
+        )
 
     def assertNotAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
         try:
