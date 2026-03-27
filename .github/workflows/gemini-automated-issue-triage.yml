@@ -118,13 +118,12 @@ jobs:
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
           AVAILABLE_LABELS: '${{ steps.get_labels.outputs.available_labels }}'
         with:
-          use_gemini_code_assist: true
+          gemini_api_key: '${{ secrets.GEMINI_API }}'
           settings: |-
             {
               "maxSessionTurns": 5,
               "telemetry": {
-                "enabled": true,
-                "target": "gcp"
+                "enabled": false
               }
             }
           prompt: |-
