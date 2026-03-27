@@ -46,7 +46,7 @@ jobs:
         (
           (github.event_name == 'issues' || github.event_name == 'issue_comment') &&
           (github.event_name != 'issue_comment' || (
-            contains(github.event.comment.body, '@keras-team /triage') &&
+            (contains(github.event.comment.body, '@keras-team/triage') || contains(github.event.comment.body, '@keras-team /triage')) &&
             (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR')
           ))
         )
@@ -107,7 +107,55 @@ jobs:
             core.setOutput('available_labels', labelNames.join(','));
             return labelNames;
 
-      - name: 'Run Gemini Issue Analysis'
+      - name: 'Search Codebase for Context'
+        id: 'search_codebase'
+        env:
+          ISSUE_TITLE: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.title || github.event.issue.title }}
+          ISSUE_BODY: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
+        uses: 'actions/github-script@v7'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |-
+            const fs = require('fs');
+            const path = require('path');
+            const { execSync } = require('child_process');
+
+            const title = process.env.ISSUE_TITLE || '';
+            const body = process.env.ISSUE_BODY || '';
+            const searchTerms = (title + ' ' + body).split(/\W+/).filter(word => word.length > 3).slice(0, 5); // Take first 5 long words
+
+            core.info(`Searching for terms: ${searchTerms.join(', ')}`);
+
+            let searchContext = '### Relevant Code Snippets\n\n';
+            let filesFound = new Set();
+
+            if (searchTerms.length > 0) {
+              const query = searchTerms.join(' ');
+              try {
+                // Use git grep to find matches in tracked files
+                const gitGrepOutput = execSync(`git grep -l "${searchTerms[0]}" -- keras/ || true`, { encoding: 'utf-8' });
+                const files = gitGrepOutput.split('\n').filter(Boolean).slice(0, 3); // Top 3 files
+                
+                for (const file of files) {
+                  filesFound.add(file);
+                  const content = fs.readFileSync(file, 'utf8');
+                  searchContext += `#### File: [${file}](file:///${file})\n\`\`\`python\n${content.split('\n').slice(0, 50).join('\n')}\n\`\`\`\n\n`; // First 50 lines
+                }
+              } catch (e) {
+                core.warning(`Error running git grep: ${e.message}`);
+              }
+            }
+
+            if (filesFound.size === 0) {
+              searchContext += 'No specific code snippets found for these terms.\n';
+            }
+
+            core.setOutput('search_context', searchContext);
+            core.info(`Found context files: ${Array.from(filesFound).join(', ')}`);
+
+      - name: 'Run Gemini Issue Analysis & Response'
         uses: 'google-github-actions/run-gemini-cli@a3bf79042542528e91937b3a3a6fbc4967ee3c31'
         id: 'gemini_issue_analysis'
         env:
@@ -117,8 +165,10 @@ jobs:
           ISSUE_BODY: >-
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
           AVAILABLE_LABELS: '${{ steps.get_labels.outputs.available_labels }}'
+          SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API }}'
+          gemini_model: 'gemini-2.5-pro'
           settings: |-
             {
               "maxSessionTurns": 5,
@@ -129,20 +179,31 @@ jobs:
           prompt: |-
             ## Role
 
-            You are an issue triage assistant for Keras. Your role is to analyze a GitHub issue and determine the best single label based on the definitions provided.
+            You are an issue triage and response assistant for Keras. Your role is twofold:
+            1. Analyze the issue and determine the best single label based on the definitions provided.
+            2. Draft an automated response to the issue using the provided codebase search context.
+
+            ## Context
+            - Issue Title: ${{ env.ISSUE_TITLE }}
+            - Issue Body: ${{ env.ISSUE_BODY }}
+            - Available Labels: ${{ env.AVAILABLE_LABELS }}
+            - Codebase Search Context: ${{ env.SEARCH_CONTEXT }}
 
             ## Steps
-            1. Review the issue title and body: ${{ env.ISSUE_TITLE }} and ${{ env.ISSUE_BODY }}.
-            2. Review the available labels: ${{ env.AVAILABLE_LABELS }}.
-            3. Select exactly one label that best matches the issue based on Reference 1: Label Definitions.
-            4. Output your selected label in JSON format and nothing else. Example:
-                {"labels_to_set": ["backend:jax"]}
+            1. Select exactly one label that best matches the issue.
+            2. Draft a helpful automated response. Answer if there's a clear fix or explanation based on the code context. If not, ask clarifying questions.
+            3. Output your response in the JSON format specified below.
+
+            ## Output Format
+            Your output must be a valid JSON object with the following schema:
+            {
+              "labels_to_set": ["label-name"],
+              "response_body": "Your response text here. Use markdown."
+            }
 
             ## Guidelines
-            - Your output must contain exactly one label.
-            - Triage only the current issue based on its title and body.
-            - Output only valid JSON format.
-            - Do not include any explanation or additional text, just the JSON.
+            - Output only the JSON object. Do not include any explanation or additional text before/after the JSON.
+            - Provide a helpful markdown response in `response_body`. Use the code context if applicable.
 
             Reference 1: Label Definitions
             - backend:jax: Issues related to running Keras with JAX backend.
@@ -161,7 +222,7 @@ jobs:
             - keras-team-review-pending: Pending team review.
             - irrelevant issue: Issue is irrelevant or question.
 
-      - name: 'Apply Labels to Issue'
+      - name: 'Apply Labels and Post Response'
         if: |-
           ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
         env:
@@ -193,16 +254,30 @@ jobs:
 
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
             const labelsToAdd = parsedLabels.labels_to_set || [];
+            const responseBody = parsedLabels.response_body || '';
 
-            if (labelsToAdd.length !== 1) {
-              core.setFailed(`Expected exactly 1 label, but got ${labelsToAdd.length}. Labels: ${labelsToAdd.join(', ')}`);
-              return;
+            // Add Labels
+            if (labelsToAdd.length === 1) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: labelsToAdd
+              });
+              core.info(`Successfully added labels for #${issueNumber}: ${labelsToAdd.join(', ')}`);
+            } else if (labelsToAdd.length > 1) {
+              core.warning(`Expected exactly 1 label, but got ${labelsToAdd.length}. Skipping labels.`);
             }
 
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              labels: labelsToAdd
-            });
-            core.info(`Successfully added labels for #${issueNumber}: ${labelsToAdd.join(', ')}`);
+            // Post Automated Response
+            if (responseBody) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: responseBody
+              });
+              core.info(`Successfully posted automated response for #${issueNumber}`);
+            } else {
+              core.warning("No response_body found in model output.");
+            }
