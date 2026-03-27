@@ -1168,13 +1168,22 @@ def psnr(x1, x2, max_val):
     return psnr
 
 
+_LARGE_NEGATIVE_CACHE = {}
+
+
 def _get_large_negative(dtype):
-    dtype = backend.standardize_dtype(dtype)
-    if dtype == "float16":
-        val = 65500.0
-    else:
-        val = 3.38953e38
-    return convert_to_tensor(val * -0.7, dtype=dtype)
+    device = get_device()
+    key = (dtype, device)
+    if key not in _LARGE_NEGATIVE_CACHE:
+        std_dtype = backend.standardize_dtype(dtype)
+        if std_dtype == "float16":
+            val = 65500.0
+        else:
+            val = 3.38953e38
+        _LARGE_NEGATIVE_CACHE[key] = convert_to_tensor(
+            val * -0.7, dtype=std_dtype
+        )
+    return _LARGE_NEGATIVE_CACHE[key]
 
 
 _flash_attention_available = None

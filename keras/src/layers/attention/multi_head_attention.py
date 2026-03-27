@@ -167,6 +167,10 @@ class MultiHeadAttention(Layer):
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
+        # Cache for causal masks keyed by (q_seq_len, v_seq_len) to avoid
+        # recomputing them on every forward pass during inference.
+        self._causal_mask_cache = {}
+
         # Check for flash attention constraints
         if self._flash_attention and self._dropout > 0.0:
             raise ValueError(
@@ -707,6 +711,18 @@ class MultiHeadAttention(Layer):
         """
         q_seq_length = ops.shape(query)[1]
         v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
+        if isinstance(q_seq_length, int) and isinstance(v_seq_length, int):
+            cache_key = (q_seq_length, v_seq_length)
+            if cache_key not in self._causal_mask_cache:
+                ones_mask = ops.ones(
+                    (1, q_seq_length, v_seq_length), dtype="int32"
+                )
+                row_index = ops.cumsum(ones_mask, axis=-2)
+                col_index = ops.cumsum(ones_mask, axis=-1)
+                self._causal_mask_cache[cache_key] = ops.greater_equal(
+                    row_index, col_index
+                )
+            return self._causal_mask_cache[cache_key]
         ones_mask = ops.ones((1, q_seq_length, v_seq_length), dtype="int32")
         row_index = ops.cumsum(ones_mask, axis=-2)
         col_index = ops.cumsum(ones_mask, axis=-1)

@@ -1694,14 +1694,9 @@ def dot_product_attention(
             # sharding pattern
             flash_attention = True
         else:
-            # For GPU/CPU with partially sharded inputs, we need
-            # multiple devices to efficiently handle the sharding
-            if partially_sharded_inputs and len(jax.devices()) <= 1:
-                flash_attention = False
-            else:
-                flash_attention = _can_use_flash_attention(
-                    query, key, value, bias
-                )
+            flash_attention = _can_use_flash_attention(
+                query, key, value, bias
+            )
     elif flash_attention is True and not is_tpu:
         # If flash attention is explicitly requested, validate compatibility
         # Skip validation for TPU as it has specialized hardware support

@@ -26,15 +26,15 @@ import argparse
 import numpy as np
 
 # ── Config ──────────────────────────────────────────────────────────────
-WARMUP  = 10
-RUNS    = 50
+WARMUP  = 2
+RUNS    = 10
 BATCH   = 4
-VOCAB   = 1024
-SEQ     = 64
-HDIM    = 256
-HEADS   = 4
-NLAYERS = 2
-GEN     = 32
+VOCAB   = 256
+SEQ     = 32
+HDIM    = 128
+HEADS   = 2
+NLAYERS = 1
+GEN     = 8
 
 R = {}  # results collector
 
@@ -301,13 +301,19 @@ def run_keras():
 
     imgs = np.random.randn(BATCH, 32, 32, 3).astype("float32")
 
-    bench(lambda x: cnn(x, training=False), imgs, sync=sync, label=f"{tag}  CNN  eager")
+    if bk == "torch":
+        import torch as _torch
+        with _torch.no_grad():
+            bench(lambda x: cnn(x, training=False), imgs, sync=sync, label=f"{tag}  CNN  eager")
+    else:
+        bench(lambda x: cnn(x, training=False), imgs, sync=sync, label=f"{tag}  CNN  eager")
 
     if bk == "torch":
         try:
             import torch as _torch
-            cnn_c = _torch.compile(cnn)
-            bench(lambda x: cnn_c(x, training=False), imgs, sync=sync, label=f"{tag}  CNN  compile")
+            with _torch.no_grad():
+                cnn_c = _torch.compile(cnn)
+                bench(lambda x: cnn_c(x, training=False), imgs, sync=sync, label=f"{tag}  CNN  compile")
         except Exception as e:
             print(f"  {tag}  CNN  compile  SKIP ({e})")
     elif bk == "jax":
@@ -341,16 +347,22 @@ def run_keras():
 
     ids = np.ones((BATCH, SEQ), dtype="int32")
 
-    bench(lambda x: llm(x, training=False), ids, sync=sync, label=f"{tag}  LLM  forward  eager")
+    if bk == "torch":
+        import torch as _torch
+        with _torch.no_grad():
+            bench(lambda x: llm(x, training=False), ids, sync=sync, label=f"{tag}  LLM  forward  eager")
+    else:
+        bench(lambda x: llm(x, training=False), ids, sync=sync, label=f"{tag}  LLM  forward  eager")
 
     llm_call = None  # compiled/jitted model call if available
 
     if bk == "torch":
         try:
             import torch as _torch
-            llm_c = _torch.compile(llm)
-            bench(lambda x: llm_c(x, training=False), ids, sync=sync, label=f"{tag}  LLM  forward  compile")
-            llm_call = lambda x: llm_c(x, training=False)
+            with _torch.no_grad():
+                llm_c = _torch.compile(llm)
+                bench(lambda x: llm_c(x, training=False), ids, sync=sync, label=f"{tag}  LLM  forward  compile")
+                llm_call = llm_c
         except Exception as e:
             print(f"  {tag}  LLM  forward  compile  SKIP ({e})")
     elif bk == "jax":
@@ -374,13 +386,25 @@ def run_keras():
         return cur
 
     eager_call = lambda x: llm(x, training=False)
-    bench(lambda x: gen_keras(eager_call, x), ids, sync=sync,
-          label=f"{tag}  LLM  generate {GEN}tok  eager")
+    if bk == "torch":
+        import torch as _torch
+        with _torch.no_grad():
+            bench(lambda x: gen_keras(eager_call, x), ids, sync=sync,
+                  label=f"{tag}  LLM  generate {GEN}tok  eager")
+    else:
+        bench(lambda x: gen_keras(eager_call, x), ids, sync=sync,
+              label=f"{tag}  LLM  generate {GEN}tok  eager")
 
     if llm_call is not None:
         compile_tag = "compile" if bk == "torch" else "jit"
-        bench(lambda x: gen_keras(llm_call, x), ids, sync=sync,
-              label=f"{tag}  LLM  generate {GEN}tok  {compile_tag}")
+        if bk == "torch":
+            import torch as _torch
+            with _torch.no_grad():
+                bench(lambda x: gen_keras(llm_call, x), ids, sync=sync,
+                      label=f"{tag}  LLM  generate {GEN}tok  {compile_tag}")
+        else:
+            bench(lambda x: gen_keras(llm_call, x), ids, sync=sync,
+                  label=f"{tag}  LLM  generate {GEN}tok  {compile_tag}")
 
 
 # ── Main ────────────────────────────────────────────────────────────────

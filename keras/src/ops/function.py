@@ -82,6 +82,16 @@ class Function(Operation):
         self._nodes_by_depth = nodes_by_depth
         self._operations = operations
         self._operations_by_depth = operations_by_depth
+        
+        depth_keys = list(nodes_by_depth.keys())
+        depth_keys.sort(reverse=True)
+        compiled_nodes = []
+        for depth in depth_keys:
+            for node in nodes_by_depth[depth]:
+                if not node.operation or node.is_input:
+                    continue
+                compiled_nodes.append(node)
+        self._compiled_nodes = compiled_nodes
 
         # Run through graph to check all outputs are connected to the inputs.
         def empty_op_outputs(op, *args, **kwargs):
@@ -171,7 +181,7 @@ class Function(Operation):
         return self._run_through_graph(inputs)
 
     def _run_through_graph(
-        self, inputs, operation_fn=lambda op: op, call_fn=None
+        self, inputs, operation_fn=None, call_fn=None, call_context_dict=None
     ):
         """Execute the graph.
 
@@ -185,33 +195,32 @@ class Function(Operation):
         for x, y in zip(self.inputs, inputs):
             tensor_dict[id(x)] = y
 
-        nodes_by_depth = self._nodes_by_depth
-        depth_keys = list(nodes_by_depth.keys())
-        depth_keys.sort(reverse=True)
+        for node in self._compiled_nodes:
+            if any(id(x) not in tensor_dict for x in node.input_tensors):
+                continue  # Node is not computable, try skipping.
 
-        for depth in depth_keys:
-            nodes = nodes_by_depth[depth]
-            for node in nodes:
-                if not node.operation or node.is_input:
-                    continue  # Input tensors already exist.
+            args, kwargs = node.arguments.fill_in(tensor_dict)
+            
+            if call_context_dict:
+                valid_context_args = getattr(node.operation, "_call_context_args", {})
+                if valid_context_args:
+                    for name, value in call_context_dict.items():
+                        if name in valid_context_args and value is not None:
+                            kwargs[name] = value
 
-                if any(id(x) not in tensor_dict for x in node.input_tensors):
-                    continue  # Node is not computable, try skipping.
+            if call_fn is not None:
+                # Use call_fn if provided (e.g., for symbolic execution)
+                op = operation_fn(node.operation) if operation_fn is not None else node.operation
+                outputs = call_fn(op, *args, **kwargs)
+            else:
+                # Use NNX operation mapping
+                operation = self._get_operation_for_node(node)
+                op = operation_fn(operation) if operation_fn is not None else operation
+                outputs = op(*args, **kwargs)
 
-                args, kwargs = node.arguments.fill_in(tensor_dict)
-                if call_fn is not None:
-                    # Use call_fn if provided (e.g., for symbolic execution)
-                    op = operation_fn(node.operation)
-                    outputs = call_fn(op, *args, **kwargs)
-                else:
-                    # Use NNX operation mapping
-                    operation = self._get_operation_for_node(node)
-                    op = operation_fn(operation)
-                    outputs = op(*args, **kwargs)
-
-                # Update tensor_dict.
-                for x, y in zip(node.outputs, tree.flatten(outputs)):
-                    tensor_dict[id(x)] = y
+            # Update tensor_dict.
+            for x, y in zip(node.outputs, tree.flatten(outputs)):
+                tensor_dict[id(x)] = y
 
         output_tensors = []
         for i, x in enumerate(self.outputs):

@@ -177,14 +177,17 @@ class Functional(Function, Model):
             masks = [None] * len(inputs)
         else:
             masks = tree.flatten(mask)
-            for x, mask in zip(inputs, masks):
-                if mask is not None:
-                    backend.set_keras_mask(x, mask)
+            for x, mask_item in zip(inputs, masks):
+                if mask_item is not None:
+                    backend.set_keras_mask(x, mask_item)
+
+        call_context_args = kwargs.copy()
+        if training is not None:
+            call_context_args["training"] = training
+            
         outputs = self._run_through_graph(
             inputs,
-            operation_fn=lambda op: operation_fn(
-                op, training=training, **kwargs
-            ),
+            call_context_dict=call_context_args if call_context_args else None,
         )
         return unpack_singleton(outputs)
 
@@ -636,23 +639,6 @@ def functional_from_config(cls, config, custom_objects=None):
         trainable=trainable,
         **config,
     )
-
-
-def operation_fn(operation, **call_context_args):
-    """Wraps each op to inject the call-context args."""
-
-    def call(*args, **kwargs):
-        # Propagate all registered call-context args
-        for name, value in call_context_args.items():
-            if (
-                name in getattr(operation, "_call_context_args", {})
-                and value is not None
-            ):
-                kwargs[name] = value
-
-        return operation(*args, **kwargs)
-
-    return call
 
 
 def functional_like_constructor(cls):

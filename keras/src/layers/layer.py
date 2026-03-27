@@ -1425,6 +1425,8 @@ class Layer(BackendLayer, Operation):
         return losses
 
     def _clear_losses(self):
+        if not self._losses and not self._loss_ids and not self._layers:
+            return
         if backend.in_stateless_scope():
             scope = backend.get_stateless_scope()
             if scope.collect_losses:
