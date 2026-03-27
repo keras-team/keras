@@ -2,6 +2,7 @@ import builtins
 import contextlib
 import warnings
 
+import ml_dtypes
 import numpy as np
 import openvino as ov
 import openvino.opset15 as ov_opset
@@ -824,7 +825,13 @@ def convert_to_numpy(x):
     try:
         node = x.output.get_node()
         if node.get_type_name() == "Constant":
-            return np.array(node.data)
+            data = node.data
+            # OpenVINO returns bf16 constant bytes as float16 (same width,
+            # but wrong dtype) because numpy has no native bfloat16 type.
+            # Re-interpret the raw bytes as ml_dtypes.bfloat16.
+            if node.output(0).get_element_type() == Type.bf16:
+                data = data.view(ml_dtypes.bfloat16)
+            return np.array(data)
     except Exception:
         # fall back to the slow path.
         pass
@@ -837,7 +844,11 @@ def convert_to_numpy(x):
         raise RuntimeError(
             "`convert_to_numpy` failed to convert the tensor."
         ) from inner_exception
-    return np.array(result)
+    data = np.array(result)
+    # Same byte-reinterpretation issue applies to inference results.
+    if x.dtype == "bfloat16" and data.dtype != ml_dtypes.bfloat16:
+        data = data.view(ml_dtypes.bfloat16)
+    return data
 
 
 def is_tensor(x):
