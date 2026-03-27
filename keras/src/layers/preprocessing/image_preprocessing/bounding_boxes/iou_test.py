@@ -39,7 +39,7 @@ class IoUTest(testing.TestCase):
         )
 
         result = iou_lib.compute_iou(sample_y_true, sample_y_pred, "yxyx")
-        self.assertAllClose(expected_result, result)
+        self.assertAllClose(result, expected_result)
 
     def test_batched_compute_iou(self):
         bb1 = [100, 101, 200, 201]
@@ -79,7 +79,7 @@ class IoUTest(testing.TestCase):
         )
 
         result = iou_lib.compute_iou(sample_y_true, sample_y_pred, "yxyx")
-        self.assertAllClose(expected_result, result)
+        self.assertAllClose(result, expected_result)
 
     def test_batched_boxes1_unbatched_boxes2(self):
         bb1 = [100, 101, 200, 201]
@@ -108,7 +108,7 @@ class IoUTest(testing.TestCase):
         )
 
         result = iou_lib.compute_iou(sample_y_true, sample_y_pred, "yxyx")
-        self.assertAllClose(expected_result, result)
+        self.assertAllClose(result, expected_result)
 
     def test_unbatched_boxes1_batched_boxes2(self):
         bb1 = [100, 101, 200, 201]
@@ -147,7 +147,7 @@ class IoUTest(testing.TestCase):
         )
 
         result = iou_lib.compute_iou(sample_y_true, sample_y_pred, "yxyx")
-        self.assertAllClose(expected_result, result)
+        self.assertAllClose(result, expected_result)
 
 
 class CIoUTest(testing.TestCase):
