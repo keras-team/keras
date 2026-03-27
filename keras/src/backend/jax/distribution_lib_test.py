@@ -18,6 +18,8 @@ from keras.src.distribution import distribution_lib
 @pytest.mark.multi_device
 class JaxDistributionLibTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         self.device_count = jax.device_count()
         self.device_backend = jax.default_backend()
         self.assertGreaterEqual(
