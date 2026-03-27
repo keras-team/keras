@@ -393,10 +393,15 @@ def main():
     tag = args.tag or os.environ.get("KERAS_BACKEND", "torch")
     skip = {s.strip() for s in args.skip.split(",") if s.strip()}
 
+    print(f"\n  sys.argv={sys.argv}")
+    print(f"  args.skip='{args.skip}'")
+    print(f"  skip={skip}")
+
     print(f"\n{'#' * 66}")
     print(f"  Keras Inference Benchmark  [{tag}]")
     print(f"  Python {sys.version.split()[0]}  numpy {np.__version__}")
     print(f"  warmup={WARMUP}  runs={RUNS}  batch={BATCH}")
+    print(f"  skip={skip}")
     print(f"{'#' * 66}")
 
     if "jax" not in skip:

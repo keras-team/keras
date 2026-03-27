@@ -24,7 +24,8 @@ COMPLEX_TYPES = ("complex64", "complex128")
 FLOAT8_TYPES = ("float8_e4m3fn", "float8_e5m2")
 
 # All supported dtypes in Keras
-ALLOWED_DTYPES = (
+# frozenset for O(1) membership test in standardize_dtype (hot path)
+ALLOWED_DTYPES = frozenset((
     "float16",
     "float32",
     "float64",
@@ -43,7 +44,7 @@ ALLOWED_DTYPES = (
     "float8_e5m2",
     "complex64",
     "complex128",
-)
+))
 PYTHON_DTYPES_MAP = {
     bool: "bool",
     int: "int64" if config.backend() == "tensorflow" else "int32",

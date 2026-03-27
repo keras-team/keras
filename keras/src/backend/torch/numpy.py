@@ -37,8 +37,8 @@ def rot90(array, k=1, axes=(0, 1)):
     Returns:
         Rotated tensor
     """
-    array = convert_to_tensor(array)
-
+    if type(array) is not torch.Tensor:
+        array = convert_to_tensor(array)
     if array.ndim < 2:
         raise ValueError(
             "Input array must have at least 2 dimensions. "
@@ -65,8 +65,10 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 def add(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     return torch.add(x1, x2)
 
 
@@ -87,8 +89,10 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     # TODO: torch.subtract doesn't support bool
     if standardize_dtype(x1.dtype) == "bool":
         x1 = cast(x1, x2.dtype)
@@ -102,8 +106,10 @@ def matmul(x1, x2):
     if isinstance(x1, torch.Tensor) and isinstance(x2, torch.Tensor):
         if x1.dtype == x2.dtype and x1.dtype.is_floating_point:
             return torch.matmul(x1, x2)
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     x1_dtype = standardize_dtype(x1.dtype)
     x2_dtype = standardize_dtype(x2.dtype)
 
@@ -161,15 +167,18 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     return torch.multiply(x1, x2)
 
 
 def mean(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
@@ -202,7 +211,8 @@ def mean(x, axis=None, keepdims=False):
 
 
 def max(x, axis=None, keepdims=False, initial=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if 0 in x.shape:
         if initial is None:
             raise ValueError("Cannot compute the max of an empty tensor.")
@@ -242,13 +252,15 @@ def zeros(shape, dtype=None):
 
 
 def zeros_like(x, dtype=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = to_torch_dtype(dtype or x.dtype)
     return torch.zeros_like(x, dtype=dtype)
 
 
 def absolute(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     # bool are always non-negative
     if standardize_dtype(x.dtype) == "bool":
         return x
@@ -260,7 +272,8 @@ def abs(x):
 
 
 def all(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         return cast(torch.all(x), "bool")
     axis = to_tuple_or_list(axis)
@@ -271,7 +284,8 @@ def all(x, axis=None, keepdims=False):
 
 
 def angle(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
 
     # torch.angle doesn't support float16 with cuda
@@ -282,7 +296,8 @@ def angle(x):
 
 
 def any(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         return cast(torch.any(x), "bool")
     axis = to_tuple_or_list(axis)
@@ -293,7 +308,8 @@ def any(x, axis=None, keepdims=False):
 
 
 def amax(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         return torch.amax(x)
     if axis == () or axis == []:
@@ -303,7 +319,8 @@ def amax(x, axis=None, keepdims=False):
 
 
 def amin(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         return torch.amin(x)
     if axis == () or axis == []:
@@ -338,33 +355,40 @@ def arange(start, stop=None, step=None, dtype=None):
 
 
 def arccos(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.arccos(x)
 
 
 def arccosh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.arccosh(x)
 
 
 def arcsin(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.arcsin(x)
 
 
 def arcsinh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.arcsinh(x)
 
 
 def arctan(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.arctan(x)
 
 
 def arctan2(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     compute_dtype = result_dtype
     # TODO: torch.arctan2 doesn't support float16 with cpu
@@ -376,13 +400,14 @@ def arctan2(x1, x2):
 
 
 def arctanh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.arctanh(x)
 
 
 def argmax(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     # TODO: torch.argmax doesn't support bool
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
@@ -391,8 +416,8 @@ def argmax(x, axis=None, keepdims=False):
 
 
 def argmin(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     # TODO: torch.argmin doesn't support bool
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
@@ -401,8 +426,8 @@ def argmin(x, axis=None, keepdims=False):
 
 
 def argsort(x, axis=-1):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     # TODO: torch.argsort doesn't support bool
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
@@ -419,15 +444,18 @@ def array(x, dtype=None):
 
 def view(x, dtype=None):
     dtype = to_torch_dtype(dtype)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return x.view(dtype=dtype)
 
 
 def average(x, axis=None, weights=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype, float]
     if weights is not None:
-        weights = convert_to_tensor(weights)
+        if type(weights) is not torch.Tensor:
+            weights = convert_to_tensor(weights)
         dtypes_to_resolve.append(weights.dtype)
     dtype = dtypes.result_type(*dtypes_to_resolve)
     x = cast(x, dtype)
@@ -444,24 +472,28 @@ def average(x, axis=None, weights=None):
 
 
 def bartlett(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.signal.windows.bartlett(x)
 
 
 def hamming(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.signal.windows.hamming(x)
 
 
 def hanning(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.signal.windows.hann(x)
 
 
 def heaviside(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
         dtype = config.floatx()
@@ -475,17 +507,20 @@ def heaviside(x1, x2):
 
 
 def kaiser(x, beta):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.signal.windows.kaiser(x, beta=beta)
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtypes_to_resolve = [x.dtype]
     if weights is not None:
-        weights = convert_to_tensor(weights)
+        if type(weights) is not torch.Tensor:
+            weights = convert_to_tensor(weights)
         dtypes_to_resolve.append(weights.dtype)
         dtype = dtypes.result_type(*dtypes_to_resolve)
     else:
@@ -511,13 +546,16 @@ def bincount(x, weights=None, minlength=0, sparse=False):
 
 
 def bitwise_and(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(y) is not torch.Tensor:
+        y = convert_to_tensor(y)
     return torch.bitwise_and(x, y)
 
 
 def bitwise_invert(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.bitwise_not(x)
 
 
@@ -526,21 +564,27 @@ def bitwise_not(x):
 
 
 def bitwise_or(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(y) is not torch.Tensor:
+        y = convert_to_tensor(y)
     return torch.bitwise_or(x, y)
 
 
 def bitwise_xor(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(y) is not torch.Tensor:
+        y = convert_to_tensor(y)
     return torch.bitwise_xor(x, y)
 
 
 def bitwise_left_shift(x, y):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not isinstance(y, int):
-        y = convert_to_tensor(y)
+        if type(y) is not torch.Tensor:
+            y = convert_to_tensor(y)
     return torch.bitwise_left_shift(x, y)
 
 
@@ -549,9 +593,11 @@ def left_shift(x, y):
 
 
 def bitwise_right_shift(x, y):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not isinstance(y, int):
-        y = convert_to_tensor(y)
+        if type(y) is not torch.Tensor:
+            y = convert_to_tensor(y)
     return torch.bitwise_right_shift(x, y)
 
 
@@ -560,18 +606,20 @@ def right_shift(x, y):
 
 
 def blackman(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.signal.windows.blackman(x)
 
 
 def broadcast_to(x, shape):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.broadcast_to(x, shape)
 
 
 def cbrt(x):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     if dtype == "bool":
         x = cast(x, "int32")
@@ -582,7 +630,8 @@ def cbrt(x):
 
 
 def ceil(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
 
     # TODO: torch.ceil doesn't support bool
@@ -600,9 +649,12 @@ def ceil(x):
 
 
 def clip(x, x_min, x_max):
-    x = convert_to_tensor(x)
-    x_min = convert_to_tensor(x_min)
-    x_max = convert_to_tensor(x_max)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(x_min) is not torch.Tensor:
+        x_min = convert_to_tensor(x_min)
+    if type(x_max) is not torch.Tensor:
+        x_max = convert_to_tensor(x_max)
     ori_dtype = standardize_dtype(x.dtype)
 
     # TODO: torch.clip doesn't support float16 with cpu
@@ -633,22 +685,26 @@ def conj(x):
 
 
 def copy(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.clone(x)
 
 
 def cos(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.cos(x)
 
 
 def cosh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.cosh(x)
 
 
 def count_nonzero(x, axis=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return cast(torch.ne(x, 0), "int32")
@@ -662,8 +718,10 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
             f"Received: axisa={axisa}, axisb={axisb}, axisc={axisc}. Please "
             "use `axis` arg in torch backend."
         )
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     compute_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     result_dtype = compute_dtype
     # TODO: torch.cross doesn't support bfloat16 with gpu
@@ -678,7 +736,8 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
 
 
 def cumprod(x, axis=None, dtype=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         x = x.flatten()
         axis = 0
@@ -698,7 +757,8 @@ def cumsum(x, axis=None, dtype=None):
     # Fast path: if already torch tensor with matching dtype and axis specified
     if type(x) is torch.Tensor and axis is not None and dtype is None:
         return torch.cumsum(x, dim=axis)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         x = x.flatten()
         axis = 0
@@ -715,8 +775,8 @@ def cumsum(x, axis=None, dtype=None):
 
 
 def deg2rad(x):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         return cast(torch.deg2rad(x), "float64")
 
@@ -724,8 +784,8 @@ def deg2rad(x):
 
 
 def rad2deg(x):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         return cast(torch.rad2deg(x), "float64")
 
@@ -733,17 +793,20 @@ def rad2deg(x):
 
 
 def diag(x, k=0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.diag(x, diagonal=k)
 
 
 def diagflat(x, k=0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.diagflat(x, offset=k)
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.diagonal(
         x,
         offset=offset,
@@ -753,21 +816,26 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
 
 
 def diff(a, n=1, axis=-1):
-    a = convert_to_tensor(a)
+    if type(a) is not torch.Tensor:
+        a = convert_to_tensor(a)
     return torch.diff(a, n=n, dim=axis)
 
 
 def digitize(x, bins):
-    x = convert_to_tensor(x)
-    bins = convert_to_tensor(bins)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(bins) is not torch.Tensor:
+        bins = convert_to_tensor(bins)
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
     return cast(torch.bucketize(x, bins, right=True), "int32")
 
 
 def dot(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     # GPU only supports float types
     compute_dtype = dtypes.result_type(result_dtype, float)
@@ -794,7 +862,8 @@ def empty(shape, dtype=None):
 
 
 def empty_like(x, dtype=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = to_torch_dtype(dtype or x.dtype)
     return torch.empty_like(x, dtype=dtype, device=get_device())
 
@@ -805,7 +874,8 @@ def equal(x1, x2):
 
 
 def exp(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
@@ -813,7 +883,8 @@ def exp(x):
 
 
 def exp2(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
@@ -821,7 +892,8 @@ def exp2(x):
 
 
 def expand_dims(x, axis):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     axis = to_tuple_or_list(axis)
     out_ndim = len(x.shape) + len(axis)
     axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
@@ -831,7 +903,8 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
@@ -839,7 +912,8 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         axis = tuple(range(x.ndim))
     axis = to_tuple_or_list(axis)
@@ -847,17 +921,20 @@ def flip(x, axis=None):
 
 
 def fliplr(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.fliplr(x)
 
 
 def flipud(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.flipud(x)
 
 
 def floor(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = (
         config.floatx()
         if standardize_dtype(x.dtype) == "int64"
@@ -886,8 +963,10 @@ def full_like(x, fill_value, dtype=None):
 
 
 def gcd(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     return torch.gcd(x1, x2)
 
 
@@ -934,16 +1013,18 @@ def hstack(xs):
 
 
 def hsplit(x, indices_or_sections):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not isinstance(indices_or_sections, int):
         indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
     return list(torch.hsplit(x, indices_or_sections))
 
 
 def hypot(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     if dtype in ["int8", "int16", "int32", "uint8", "uint16", "uint32"]:
         dtype = config.floatx()
@@ -975,7 +1056,8 @@ def imag(x):
 
 
 def i0(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     if dtype in ["int64", "float64"]:
         dtype = "float64"
@@ -986,8 +1068,10 @@ def i0(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
@@ -997,8 +1081,10 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 
 def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     x1 = cast(x1, result_dtype)
     x2 = cast(x2, result_dtype)
@@ -1010,14 +1096,16 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 
 def isfinite(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.isfinite(x)
 
 
 def isin(x1, x2, assume_unique=False, invert=False):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     if dtype == "bool":
         x1 = cast(x1, "int32")
@@ -1032,45 +1120,56 @@ def isin(x1, x2, assume_unique=False, invert=False):
 
 
 def isinf(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.isinf(x)
 
 
 def isnan(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.isnan(x)
 
 
 def isneginf(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.isneginf(x)
 
 
 def isposinf(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.isposinf(x)
 
 
 def isreal(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.isreal(x)
 
 
 def kron(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     return torch.kron(x1, x2)
 
 
 def lcm(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     return torch.lcm(x1, x2)
 
 
 def ldexp(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
 
     if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
@@ -1143,28 +1242,34 @@ def linspace(
 
 
 def log(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.log(x)
 
 
 def log10(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.log10(x)
 
 
 def log1p(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.log1p(x)
 
 
 def log2(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.log2(x)
 
 
 def logaddexp(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
 
     # TODO: torch.logaddexp doesn't support float16 with cpu
@@ -1179,8 +1284,10 @@ def logaddexp(x1, x2):
 
 
 def logaddexp2(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = cast(x1, dtype)
     x2 = cast(x2, dtype)
@@ -1193,7 +1300,8 @@ def logical_and(x1, x2):
 
 
 def logical_not(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.logical_not(x)
 
 
@@ -1252,9 +1360,11 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 def maximum(x1, x2):
     if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
+        if type(x1) is not torch.Tensor:
+            x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
+        if type(x2) is not torch.Tensor:
+            x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(
         getattr(x1, "dtype", type(x1)),
         getattr(x2, "dtype", type(x2)),
@@ -1265,7 +1375,8 @@ def maximum(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     result_dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, compute_dtype)
@@ -1312,7 +1423,8 @@ def meshgrid(*x, indexing="xy"):
 
 
 def min(x, axis=None, keepdims=False, initial=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if 0 in x.shape:
         if initial is None:
             raise ValueError("Cannot compute the min of an empty tensor.")
@@ -1338,9 +1450,11 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 def minimum(x1, x2):
     if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
+        if type(x1) is not torch.Tensor:
+            x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
+        if type(x2) is not torch.Tensor:
+            x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(
         getattr(x1, "dtype", type(x1)),
         getattr(x2, "dtype", type(x2)),
@@ -1351,8 +1465,10 @@ def minimum(x1, x2):
 
 
 def mod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     if dtype == "bool":
         x1 = cast(x1, "int32")
@@ -1361,8 +1477,10 @@ def mod(x1, x2):
 
 
 def fmod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype)
     if dtype == "bool":
         x1 = cast(x1, "int32")
@@ -1371,13 +1489,14 @@ def fmod(x1, x2):
 
 
 def moveaxis(x, source, destination):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.moveaxis(x, source=source, destination=destination)
 
 
 def nanargmax(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
         return argmax(x, axis=axis, keepdims=keepdims)
 
@@ -1391,8 +1510,8 @@ def nanargmax(x, axis=None, keepdims=False):
 
 
 def nanargmin(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
         return argmin(x, axis=axis, keepdims=keepdims)
 
@@ -1416,7 +1535,8 @@ def nancumprod(x, axis=None, dtype=None):
 
 
 def nanmax(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
         return torch.amax(x, dim=axis, keepdim=keepdims)
 
@@ -1434,8 +1554,8 @@ def nanmax(x, axis=None, keepdims=False):
 
 
 def nanmean(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis == () or axis == []:
         return x
 
@@ -1444,7 +1564,8 @@ def nanmean(x, axis=None, keepdims=False):
 
 
 def nanmin(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
         return torch.amin(x, dim=axis, keepdim=keepdims)
 
@@ -1462,8 +1583,8 @@ def nanmin(x, axis=None, keepdims=False):
 
 
 def nanprod(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis == () or axis == []:
         return torch.nan_to_num(x, nan=1)
 
@@ -1481,8 +1602,10 @@ def nanprod(x, axis=None, keepdims=False):
 
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
-    x = convert_to_tensor(x)
-    q = convert_to_tensor(q)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(q) is not torch.Tensor:
+        q = convert_to_tensor(q)
     axis = to_tuple_or_list(axis)
 
     compute_dtype = dtypes.result_type(x.dtype, "float32")
@@ -1527,7 +1650,8 @@ def nanstd(x, axis=None, keepdims=False):
 def nansum(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
 
     if dtype in ("bool", "uint8", "int8", "int16"):
@@ -1539,8 +1663,8 @@ def nansum(x, axis=None, keepdims=False):
 
 
 def nanvar(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     result_dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, result_dtype)
 
@@ -1563,17 +1687,20 @@ def nanvar(x, axis=None, keepdims=False):
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def ndim(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return x.ndim
 
 
 def nonzero(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return cast(torch.nonzero(x).T, "int32")
 
 
@@ -1586,7 +1713,8 @@ def ones_like(x, dtype=None):
     # Fast path: if already torch tensor with matching dtype
     if type(x) is torch.Tensor and dtype is None:
         return torch.ones_like(x)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = to_torch_dtype(dtype or x.dtype)
     return torch.ones_like(x, dtype=dtype)
 
@@ -1606,7 +1734,8 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 f"Received: mode={mode}"
             )
         kwargs["value"] = constant_values
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     pad_sum = []
     pad_width = list(pad_width)[::-1]  # torch uses reverse order
     pad_width_sum = 0
@@ -1647,7 +1776,8 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if dtype is None:
         dtype = dtypes.result_type(x.dtype)
         if dtype == "bool":
@@ -1676,7 +1806,8 @@ def prod(x, axis=None, keepdims=False, dtype=None):
 
 
 def ptp(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         return x.max() - x.min()
     elif axis == ():
@@ -1688,8 +1819,10 @@ def ptp(x, axis=None, keepdims=False):
 
 
 def quantile(x, q, axis=None, method="linear", keepdims=False):
-    x = convert_to_tensor(x)
-    q = convert_to_tensor(q)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(q) is not torch.Tensor:
+        q = convert_to_tensor(q)
     axis = to_tuple_or_list(axis)
 
     compute_dtype = dtypes.result_type(x.dtype, "float32")
@@ -1731,12 +1864,14 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
 
 def ravel(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.ravel(x)
 
 
 def unravel_index(indices, shape):
-    indices = convert_to_tensor(indices)
+    if type(indices) is not torch.Tensor:
+        indices = convert_to_tensor(indices)
     dtype = dtypes.result_type(indices.dtype)
     return tuple(
         cast(idx, dtype) for idx in torch.unravel_index(indices, shape)
@@ -1750,13 +1885,14 @@ def real(x):
 
 
 def reciprocal(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.reciprocal(x)
 
 
 def repeat(x, repeats, axis=None):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if get_device() == "meta":
         x = KerasTensor(x.shape, standardize_dtype(x.dtype))
         outputs = repeat(x, repeats, axis=axis)
@@ -1775,12 +1911,14 @@ def repeat(x, repeats, axis=None):
 def reshape(x, newshape):
     if not isinstance(newshape, (list, tuple)):
         newshape = (newshape,)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.roll(x, shift, dims=axis)
 
 
@@ -1799,27 +1937,32 @@ def searchsorted(sorted_sequence, values, side="left"):
 
 
 def sign(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.sign(x)
 
 
 def signbit(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.signbit(x)
 
 
 def sin(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.sin(x)
 
 
 def sinc(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.sinc(x)
 
 
 def sinh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.sinh(x)
 
 
@@ -1829,7 +1972,8 @@ def size(x):
 
 
 def sort(x, axis=-1):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is None:
         x = x.reshape(-1)
         axis = 0
@@ -1841,10 +1985,12 @@ def sort(x, axis=-1):
 
 
 def split(x, indices_or_sections, axis=0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dim = x.shape[axis]
     if not isinstance(indices_or_sections, int):
-        indices_or_sections = convert_to_tensor(indices_or_sections)
+        if type(indices_or_sections) is not torch.Tensor:
+            indices_or_sections = convert_to_tensor(indices_or_sections)
         start_size = indices_or_sections[0:1]
         end_size = dim - indices_or_sections[-1:]
         chunk_sizes = torch.concat(
@@ -1873,7 +2019,8 @@ def split(x, indices_or_sections, axis=0):
 
 
 def array_split(x, indices_or_sections, axis=0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     out = torch.tensor_split(x, indices_or_sections, dim=axis)
     return list(out)
 
@@ -1884,7 +2031,8 @@ def stack(x, axis=0):
 
 
 def std(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, "float32")
@@ -1893,12 +2041,14 @@ def std(x, axis=None, keepdims=False):
 
 
 def swapaxes(x, axis1, axis2):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.swapaxes(x, axis0=axis1, axis1=axis2)
 
 
 def take(x, indices, axis=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
     # Correct the indices using "fill" mode which is the same as in jax
     x_dim = x.shape[axis] if axis is not None else x.shape[0]
@@ -1925,7 +2075,8 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     indices = convert_to_tensor(indices).long()
     # Correct the indices using "fill" mode which is the same as in jax
     x_dim = x.shape[axis] if axis is not None else x.shape[0]
@@ -1938,18 +2089,22 @@ def take_along_axis(x, indices, axis=None):
 
 
 def tan(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.tan(x)
 
 
 def tanh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.tanh(x)
 
 
 def tensordot(x1, x2, axes=2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     # TODO: torch.tensordot only supports float types
     compute_dtype = dtypes.result_type(result_dtype, float)
@@ -1970,7 +2125,8 @@ def tensordot(x1, x2, axes=2):
 
 
 def round(x, decimals=0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     # TODO: torch.round doesn't support int8, int16, int32, int64, uint8
     if "int" in ori_dtype:
@@ -1984,12 +2140,14 @@ def tile(x, repeats):
         repeats = tuple(repeats.int().numpy())
     if isinstance(repeats, int):
         repeats = (repeats,)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.tile(x, dims=repeats)
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     if dtype in ("bool", "int8", "int16", "uint8"):
         # Torch backend doesn't support uint32 dtype.
@@ -2009,25 +2167,30 @@ def tri(N, M=None, k=0, dtype=None):
 
 
 def tril(x, k=0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.tril(x, diagonal=k)
 
 
 def triu(x, k=0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.triu(x, diagonal=k)
 
 
 def trunc(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "bool":
         return x
     return torch.trunc(x)
 
 
 def vdot(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     # TODO: torch.vdot only supports float types
     compute_dtype = dtypes.result_type(result_dtype, float)
@@ -2042,8 +2205,10 @@ def vdot(x1, x2):
 
 
 def inner(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
     compute_dtype = dtypes.result_type(result_dtype, float)
 
@@ -2061,7 +2226,8 @@ def vstack(xs):
 
 
 def vsplit(x, indices_or_sections):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if not isinstance(indices_or_sections, int):
         indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
     return list(torch.vsplit(x, indices_or_sections))
@@ -2085,8 +2251,10 @@ def where(condition, x1=None, x2=None):
                 condition = condition.bool()
             return torch.where(condition, x1, x2)
         condition = convert_to_tensor(condition, dtype=bool)
-        x1 = convert_to_tensor(x1)
-        x2 = convert_to_tensor(x2)
+        if type(x1) is not torch.Tensor:
+            x1 = convert_to_tensor(x1)
+        if type(x2) is not torch.Tensor:
+            x2 = convert_to_tensor(x2)
         return torch.where(condition, x1, x2)
     else:
         condition = convert_to_tensor(condition, dtype=bool)
@@ -2095,17 +2263,21 @@ def where(condition, x1=None, x2=None):
 
 def divide(x1, x2):
     if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
+        if type(x1) is not torch.Tensor:
+            x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
+        if type(x2) is not torch.Tensor:
+            x2 = convert_to_tensor(x2)
     return torch.divide(x1, x2)
 
 
 def divide_no_nan(x1, x2):
     if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
+        if type(x1) is not torch.Tensor:
+            x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
+        if type(x2) is not torch.Tensor:
+            x2 = convert_to_tensor(x2)
     return torch.where(x2 == 0, 0, torch.divide(x1, x2))
 
 
@@ -2119,14 +2291,16 @@ def power(x1, x2):
 
 
 def negative(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.negative(x)
 
 
 def nextafter(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     x1 = cast(x1, torch.float64)
     x2 = cast(x2, torch.float64)
@@ -2134,53 +2308,62 @@ def nextafter(x1, x2):
 
 
 def square(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, "int32")
     return torch.square(x)
 
 
 def sqrt(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "int64":
         x = cast(x, config.floatx())
     return torch.sqrt(x)
 
 
 def squeeze(x, axis=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis is not None:
         return torch.squeeze(x, dim=axis)
     return torch.squeeze(x)
 
 
 def transpose(x, axes=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axes is not None:
         return torch.permute(x, dims=axes)
     return x.T
 
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
-    y = convert_to_tensor(y)
+    if type(y) is not torch.Tensor:
+        y = convert_to_tensor(y)
     if standardize_dtype(y.dtype) == "bool":
         y = cast(y, config.floatx())
     if x is not None:
-        x = convert_to_tensor(x)
+        if type(x) is not torch.Tensor:
+            x = convert_to_tensor(x)
         return torch.trapz(y, x=x, dim=axis)
     else:
-        dx = convert_to_tensor(dx)
+        if type(dx) is not torch.Tensor:
+            dx = convert_to_tensor(dx)
         return torch.trapz(y, dx=dx, dim=axis)
 
 
 def vander(x, N=None, increasing=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     result_dtype = dtypes.result_type(x.dtype)
     return cast(torch.vander(x, N=N, increasing=increasing), result_dtype)
 
 
 def var(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     result_dtype = dtypes.result_type(x.dtype, float)
     if axis == [] or axis == ():
@@ -2196,7 +2379,8 @@ def var(x, axis=None, keepdims=False):
 def sum(x, axis=None, keepdims=False):
     if isinstance(x, (list, tuple)):
         x = stack(x)
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if axis == () or axis == []:
         # Torch handles the empty axis case differently from numpy.
         return x
@@ -2231,9 +2415,11 @@ def eye(N, M=None, k=0, dtype=None):
 
 def floor_divide(x1, x2):
     if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
+        if type(x1) is not torch.Tensor:
+            x1 = convert_to_tensor(x1)
     if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
+        if type(x2) is not torch.Tensor:
+            x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(
         getattr(x1, "dtype", type(x1)),
         getattr(x2, "dtype", type(x2)),
@@ -2247,8 +2433,8 @@ def logical_xor(x1, x2):
 
 
 def corrcoef(x):
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if standardize_dtype(x.dtype) == "bool":
         x = cast(x, config.floatx())
     elif standardize_dtype(x.dtype) == "int64":
@@ -2258,9 +2444,10 @@ def corrcoef(x):
 
 
 def correlate(x1, x2, mode="valid"):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-
+    if type(x1) is not torch.Tensor:
+        x1 = convert_to_tensor(x1)
+    if type(x2) is not torch.Tensor:
+        x2 = convert_to_tensor(x2)
     dtype = dtypes.result_type(
         getattr(x1, "dtype", type(x1)),
         getattr(x2, "dtype", type(x2)),
@@ -2314,7 +2501,8 @@ def select(condlist, choicelist, default=0):
 
 
 def slogdet(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tuple(torch.linalg.slogdet(x))
 
 

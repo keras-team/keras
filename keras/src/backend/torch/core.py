@@ -195,9 +195,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     # Ultra-fast path: torch.Tensor with no dtype conversion needed.
     # This is the most common case during inference — checked first to avoid
     # even the sparse/ragged guard overhead on the hot path.
+    # Check x.device.type first (no string allocation); fall back to str()
+    # only when DEFAULT_DEVICE was set with a device index (e.g. "cuda:0").
     if type(x) is torch.Tensor and dtype is None:
         device = get_device()
-        if str(x.device) == device or x.device.type == device:
+        if x.device.type == device or str(x.device) == device:
             return x
         if x.is_meta:
             return torch.empty_like(x, device=device)
@@ -213,7 +215,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         # correct device, return immediately.
         if dtype is None:
             device = get_device()
-            if str(x.device) == device or x.device.type == device:
+            if x.device.type == device or str(x.device) == device:
                 return x
             if x.is_meta:
                 return torch.empty_like(x, device=device)

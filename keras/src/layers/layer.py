@@ -337,6 +337,10 @@ class Layer(BackendLayer, Operation):
         # Parent path
         self._parent_path = None
         self._remat_mode = get_current_remat_mode()
+        # Fast-call flag: set True after build when features that require the
+        # full __call__ path are absent (no masking, no regularizer, no
+        # autocast mismatch, no distribution, single-input call signature).
+        self._fast_call = False
         self._initialize_tracker()
 
     @tracking.no_automatic_dependency_tracking
@@ -403,6 +407,37 @@ class Layer(BackendLayer, Operation):
             self.built = True
             self._post_build()
             self._lock_state()
+
+    def _post_build(self):
+        """Update the fast-call flag after build is complete."""
+        super()._post_build()
+        self._update_fast_call()
+
+    def _update_fast_call(self):
+        """Recompute _fast_call based on current layer configuration.
+
+        _fast_call=True enables bypassing most of __call__ overhead during
+        inference when none of the heavier framework features are active.
+        Distribution and input-mask presence are checked at call time.
+        """
+        self._fast_call = (
+            self.activity_regularizer is None
+            and not self._call_has_mask_arg
+            and self.compute_dtype == self.variable_dtype
+            and self._convert_input_args
+            and not self._allow_non_tensor_positional_args
+            and self._mask_always_none
+        )
+
+    @property
+    def _mask_always_none(self):
+        """Returns True if compute_mask always returns None for this layer.
+
+        Subclasses that override compute_mask but guarantee None output (e.g.
+        Embedding with mask_zero=False) should override this to return True so
+        they remain eligible for the fast __call__ path.
+        """
+        return utils.is_default(self.compute_mask)
 
     @property
     def path(self):
@@ -856,6 +891,8 @@ class Layer(BackendLayer, Operation):
     @supports_masking.setter
     def supports_masking(self, value):
         self._supports_masking = value
+        if self.built:
+            self._update_fast_call()
 
     @utils.default
     def compute_mask(self, inputs, previous_mask):
@@ -869,6 +906,40 @@ class Layer(BackendLayer, Operation):
     def __call__(self, *args, **kwargs):
         self._check_super_called()
         self._called = True
+
+        # Ultra-fast path for the most common inference cases:
+        # single or dual tensor inputs, layer already built, no regularizer/
+        # mask/distribution/autocast overhead, no symbolic tensors, no mask on
+        # inputs.  Also covers `layer(x, training=False)` since _fast_call
+        # layers don't change behavior based on the training flag.
+        # Avoids CallSpec construction, name-scope, and all the feature-
+        # detection work in the full path.
+        if (
+            self.built
+            and self._fast_call
+            and distribution_lib.distribution() is None
+            and (
+                not kwargs
+                or (
+                    len(kwargs) == 1
+                    and kwargs.get("training") is False
+                )
+            )
+        ):
+            n = len(args)
+            if (
+                n == 1
+                and backend.is_tensor(args[0])
+                and backend.get_keras_mask(args[0]) is None
+            ):
+                return self.call(args[0])
+            if (
+                n == 2
+                and backend.is_tensor(args[0])
+                and backend.is_tensor(args[1])
+                and backend.get_keras_mask(args[0]) is None
+            ):
+                return self.call(args[0], args[1])
 
         original_args = args
         original_kwargs = kwargs
