@@ -3,7 +3,7 @@ name: Keras GPU Tests
 on:
   push:
     branches: [master]
-  pull_request_target:
+  pull_request:
     types: [unlabeled]
   release:
     types: [created]
@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name != 'release' && github.ref != 'refs/heads/master' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
 
