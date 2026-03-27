@@ -144,7 +144,8 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     if isinstance(input_spec, InputSpec):
         if not isinstance(inputs, dict):
             input_spec = [input_spec]
-            inputs = [inputs]
+            if not isinstance(inputs, (list, tuple)):
+                inputs = [inputs]
         else:
             input_spec = [input_spec]
             names = [input_spec[0].name]
@@ -166,7 +167,8 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
         # Common case: list/tuple with a single InputSpec
         input_spec = list(input_spec)
         if not isinstance(inputs, dict):
-            inputs = [inputs]
+            if not isinstance(inputs, (list, tuple)):
+                inputs = [inputs]
         else:
             names = [input_spec[0].name]
             if all(names):
