@@ -1245,16 +1245,12 @@ def dot_product_attention(
     flash_attention=None,
     attn_logits_soft_cap=None,
 ):
-    # Fast path: skip convert_to_tensor when inputs are already torch tensors
-    if not isinstance(query, torch.Tensor):
-        if type(query) is not torch.Tensor:
-            query = convert_to_tensor(query)
-    if not isinstance(key, torch.Tensor):
-        if type(key) is not torch.Tensor:
-            key = convert_to_tensor(key)
-    if not isinstance(value, torch.Tensor):
-        if type(value) is not torch.Tensor:
-            value = convert_to_tensor(value)
+    if type(query) is not torch.Tensor:
+        query = convert_to_tensor(query)
+    if type(key) is not torch.Tensor:
+        key = convert_to_tensor(key)
+    if type(value) is not torch.Tensor:
+        value = convert_to_tensor(value)
     if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "
