@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -8,7 +7,6 @@ from keras.src import testing
 
 
 class MelSpectrogramTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_mel_spectrogram_basics(self):
         self.run_layer_test(
             layers.MelSpectrogram,

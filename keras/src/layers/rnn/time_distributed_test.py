@@ -10,7 +10,6 @@ from keras.src.models import Sequential
 
 
 class TimeDistributedTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.TimeDistributed,
