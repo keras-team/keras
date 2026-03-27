@@ -141,7 +141,6 @@ NumpyOneInputOpsCorrectnessTest::test_real
 QuantizersTest::test_abs_max_quantizer
 QuantizersTest::test_compute_float8_scale
 QuantizersTest::test_grouped_quantize_with_padding
-RandomBehaviorTest::test_beta_tf_data_compatibility
 ReshapeTest::test_reshape_with_dynamic_batch_size_and_minus_one
 RMSpropTest::test_correctness_with_golden
 SaveModelTests::test_objects_to_skip
