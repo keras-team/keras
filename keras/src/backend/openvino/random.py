@@ -23,7 +23,7 @@ def _np_to_ov_const(arr):
     bfloat16``.  Supplying ``Type.bf16`` explicitly routes the call through the
     packed-type constructor path that OpenVINO does support.
     """
-    if arr.dtype == np.dtype("bfloat16"):
+    if arr.dtype == "bfloat16":
         return ov_opset.constant(arr, OPENVINO_DTYPES["bfloat16"]).output(0)
     return ov_opset.constant(arr).output(0)
 
