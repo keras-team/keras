@@ -3,6 +3,7 @@ import os
 import numpy as np
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import testing
 from keras.src.utils import img_to_array
 from keras.src.utils import load_img
@@ -10,6 +11,15 @@ from keras.src.utils import save_img
 
 
 class SaveImgTest(testing.TestCase, parameterized.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
+
     @parameterized.named_parameters(
         ("rgb_explicit_format", (50, 50, 3), "rgb.jpg", "jpg", True),
         ("rgba_explicit_format", (50, 50, 4), "rgba.jpg", "jpg", True),

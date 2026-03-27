@@ -18,6 +18,8 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
 
 class ConvertersTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         xyxy_box = np.array(
             [[[10, 20, 110, 120], [20, 30, 120, 130]]], dtype="float32"
         )

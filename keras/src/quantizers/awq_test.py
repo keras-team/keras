@@ -440,7 +440,7 @@ def _get_sequence_classifier():
     inputs = layers.Input(shape=(SEQ_LEN,), dtype="int32")
     x = layers.Embedding(VOCAB_SIZE, embed_dim)(inputs)
     x = SimpleTransformerBlock(embed_dim, num_heads, ff_dim)(x)
-    x = layers.GlobalAveragePooling1D()(x)
+    x = layers.GlobalAveragePooling1D(data_format="channels_last")(x)
     outputs = layers.Dense(NUM_CLASSES)(x)
     return models.Model(inputs, outputs)
 
