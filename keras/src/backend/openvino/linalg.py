@@ -624,7 +624,8 @@ def qr(x, mode="reduced"):
 
     # Work in f32:
     #   f64 — constant-folding bug in OpenVINO CPU Loop evaluate (same as det())
-    #   f16/bf16 — upcast to f32 for numerical stability in iterative Householder
+    #   f16/bf16 — upcast to f32 for numerical stability in iterative
+    #              Householder
     #   complex/other — not supported for QR; convert best-effort to f32
     if orig_type != Type.f32:
         x_ov = ov_opset.convert(x_ov, Type.f32).output(0)
@@ -698,19 +699,6 @@ def qr(x, mode="reduced"):
     k_body = k_param.output(0)
     k_1d = ov_opset.unsqueeze(k_body, zero_s).output(0)  # scalar → [1]
 
-    # Dynamic sub-block size: sub_m = M-k, sub_n = N-k
-    R_sh = ov_opset.shape_of(R_body, output_type="i32").output(0)
-    M_s = ov_opset.gather(R_sh, one_s, zero_s).output(0)
-    N_s = ov_opset.gather(
-        R_sh, ov_opset.constant(2, Type.i32).output(0), zero_s
-    ).output(0)
-    sub_m_1d = ov_opset.unsqueeze(
-        ov_opset.subtract(M_s, k_body).output(0), zero_s
-    ).output(0)
-    sub_n_1d = ov_opset.unsqueeze(
-        ov_opset.subtract(N_s, k_body).output(0), zero_s
-    ).output(0)
-
     # sub_R = R[:, k:, k:]  →  [B, sub_m, sub_n]
     sub_R = ov_opset.slice(
         R_body,
@@ -743,7 +731,8 @@ def qr(x, mode="reduced"):
     ).output(0)  # [B]
 
     # Householder vector: v = x_col - alpha * e_0  (one-hot at position 0)
-    # Use one_hot so v keeps the same shape as x_col → shape inference stays clean.
+    # Use one_hot so v keeps the same shape as x_col → shape inference stays
+    # clean.
     x_col_sh = ov_opset.shape_of(x_col, output_type="i32").output(0)
     sub_m_from_col = ov_opset.gather(x_col_sh, one_s, zero_s).output(0)
     e0 = ov_opset.one_hot(
@@ -812,7 +801,8 @@ def qr(x, mode="reduced"):
         ).output(0),
     ).output(0)  # [B, M, sub_m]
 
-    # Reconstruct R_next: keep top rows and left cols, replace bottom-right block
+    # Reconstruct R_next: keep top rows and left cols, replace bottom-right
+    # block
     top_R = ov_opset.slice(
         R_body,
         ov_opset.concat([zero_1d, zero_1d, zero_1d], 0).output(0),
@@ -863,7 +853,7 @@ def qr(x, mode="reduced"):
     Q_out = loop.get_iter_value(Q_next, -1)
 
     # Reshape immediately after the loop to restore concrete shape information
-    # (loop body slices with dynamic k cause the output shape to become dynamic).
+    # (loop body slices with dynamic k cause output shape to become dynamic).
     Q_out = ov_opset.reshape(
         Q_out, ov_opset.concat([batch_1d, m_1d, m_1d], 0).output(0), False
     ).output(0)  # [B, M, M]
@@ -873,7 +863,8 @@ def qr(x, mode="reduced"):
 
     k_1d_out = ov_opset.unsqueeze(k_s, zero_s).output(0)
 
-    # Trim to requested mode: Q [B,M,K], R [B,K,N]  (complete keeps [B,M,M],[B,M,N])
+    # Trim to requested mode: Q [B,M,K], R [B,K,N]
+    # (complete keeps [B,M,M],[B,M,N])
     if mode == "reduced":
         Q_out = ov_opset.slice(
             Q_out,
@@ -890,7 +881,8 @@ def qr(x, mode="reduced"):
             axes012,
         ).output(0)  # [B, K, N]
 
-    # Restore original batch shape using reshape (not squeeze) to keep concrete dims
+    # Restore original batch shape using reshape (not squeeze) to keep
+    # concrete dims
     if rank == 2:
         if mode == "reduced":
             q_shape_2d = ov_opset.concat([m_1d, k_1d_out], 0).output(0)
