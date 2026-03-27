@@ -241,6 +241,13 @@ def compute_conv_output_shape(
     return output_shape
 
 
+def unexpand_kernel_shape(kernel_shape, input_rank):
+    """Removes a leading batch dimension from `kernel_shape` if present."""
+    if len(kernel_shape) == input_rank + 1 and kernel_shape[0] in (None, 1):
+        return kernel_shape[1:]
+    return kernel_shape
+
+
 def compute_matmul_output_shape(shape1, shape2):
     """Compute the output shape of a `matmul` operation.
 

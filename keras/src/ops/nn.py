@@ -1456,12 +1456,9 @@ class Conv(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
-        kernel_shape = kernel.shape
-        if len(kernel_shape) == len(inputs.shape) + 1 and kernel_shape[0] in (
-            None,
-            1,
-        ):
-            kernel_shape = kernel_shape[1:]
+        kernel_shape = operation_utils.unexpand_kernel_shape(
+            kernel.shape, input_rank=len(inputs.shape)
+        )
         output_shape = operation_utils.compute_conv_output_shape(
             inputs.shape,
             kernel_shape[-1],
@@ -1557,12 +1554,9 @@ class DepthwiseConv(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
-        kernel_shape = kernel.shape
-        if len(kernel_shape) == len(inputs.shape) + 1 and kernel_shape[0] in (
-            None,
-            1,
-        ):
-            kernel_shape = kernel_shape[1:]
+        kernel_shape = operation_utils.unexpand_kernel_shape(
+            kernel.shape, input_rank=len(inputs.shape)
+        )
         output_shape = operation_utils.compute_conv_output_shape(
             inputs.shape,
             kernel_shape[-1] * kernel_shape[-2],
