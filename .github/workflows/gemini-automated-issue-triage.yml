@@ -193,7 +193,7 @@ jobs:
             - Codebase Search Context: ${{ env.SEARCH_CONTEXT }}
 
             ## Steps
-            1. Select exactly one label that best matches the issue.
+            1. Select all labels that best match the issue from the Available Labels list.
             2. Draft a helpful automated response. Answer if there's a clear fix or explanation based on the code context. If not, ask clarifying questions.
             3. Output your response in the JSON format specified below.
 
@@ -260,7 +260,7 @@ jobs:
             const responseBody = parsedLabels.response_body || '';
 
             // Add Labels
-            if (labelsToAdd.length === 1) {
+            if (labelsToAdd.length > 0) {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -268,8 +268,6 @@ jobs:
                 labels: labelsToAdd
               });
               core.info(`Successfully added labels for #${issueNumber}: ${labelsToAdd.join(', ')}`);
-            } else if (labelsToAdd.length > 1) {
-              core.warning(`Expected exactly 1 label, but got ${labelsToAdd.length}. Skipping labels.`);
             }
 
             // Post Automated Response
