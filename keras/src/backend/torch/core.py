@@ -192,12 +192,9 @@ class Variable(KerasVariable):
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
-    if sparse:
-        raise ValueError("`sparse=True` is not supported with torch backend")
-    if ragged:
-        raise ValueError("`ragged=True` is not supported with torch backend")
     # Ultra-fast path: torch.Tensor with no dtype conversion needed.
-    # This is the most common case during inference.
+    # This is the most common case during inference — checked first to avoid
+    # even the sparse/ragged guard overhead on the hot path.
     if type(x) is torch.Tensor and dtype is None:
         device = get_device()
         if str(x.device) == device or x.device.type == device:
@@ -205,6 +202,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if x.is_meta:
             return torch.empty_like(x, device=device)
         return x.to(device)
+    if sparse:
+        raise ValueError("`sparse=True` is not supported with torch backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with torch backend")
     if isinstance(x, Variable) or is_tensor(x):
         if isinstance(x, Variable):
             x = x.value

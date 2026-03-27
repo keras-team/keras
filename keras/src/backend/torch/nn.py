@@ -119,8 +119,7 @@ def selu(x):
 
 def gelu(x, approximate=True):
     # TODO: torch.nn.gelu expects string approximate of `"none"` or `"tanh"`
-    if not isinstance(x, torch.Tensor):
-        x = convert_to_tensor(x)
+    x = convert_to_tensor(x)
     if approximate:
         return tnn.gelu(x, approximate="tanh")
     return tnn.gelu(x)
