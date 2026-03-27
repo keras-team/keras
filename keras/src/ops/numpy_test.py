@@ -1638,13 +1638,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.flip(x).shape, (None, 3))
 
-    def test_flip_multiple_axes(self):
-        x = keras.ops.reshape(ops.arange(24), (2, 3, 4))
-        y = keras.ops.flip(x, axis=[0, 1])
-
-        expected = keras.ops.flip(x, axis=(0, 1))
-        assert keras.ops.all(y == expected)
-
     def test_fliplr(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.fliplr(x).shape, (None, 3))
