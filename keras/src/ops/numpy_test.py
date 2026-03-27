@@ -1385,11 +1385,17 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_argmin(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argmin(x).shape, ())
-        self.assertEqual(knp.argmin(x, keepdims=True).shape, (None, 3))
+        self.assertEqual(knp.argmin(x, keepdims=True).shape, (1, 1))
+        self.assertEqual(knp.argmin(x, axis=0, keepdims=True).shape, (1, 3))
+        self.assertEqual(knp.argmin(x, axis=1, keepdims=True).shape, (None, 1))
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.argmin(x, axis=1).shape, (None, 3))
-        self.assertEqual(knp.argmin(x, keepdims=True).shape, (None, 3, 3))
+        self.assertEqual(knp.argmin(x, keepdims=True).shape, (1, 1, 1))
+        self.assertEqual(knp.argmin(x, axis=0, keepdims=True).shape, (1, 3, 3))
+        self.assertEqual(
+            knp.argmin(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
 
     def test_argsort(self):
         x = KerasTensor((None, 3))
@@ -2371,7 +2377,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_argmin(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.argmin(x).shape, ())
-        self.assertEqual(knp.argmin(x, keepdims=True).shape, (2, 3))
+        self.assertEqual(knp.argmin(x, axis=0).shape, (3,))
+        self.assertEqual(knp.argmin(x, axis=1).shape, (2,))
+        self.assertEqual(knp.argmin(x, keepdims=True).shape, (1, 1))
 
     def test_argsort(self):
         x = KerasTensor((2, 3))
