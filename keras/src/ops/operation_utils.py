@@ -216,16 +216,10 @@ def compute_conv_output_shape(
             )
             + 1
         )
+
         for i in range(len(output_spatial_shape)):
             if i not in none_dims and output_spatial_shape[i] <= 0:
-                raise ValueError(
-                    "Computed output size would be zero or negative. Received "
-                    f"`inputs shape={input_shape}`, "
-                    f"`kernel shape={kernel_shape}`, "
-                    f"`dilation_rate={dilation_rate}`, "
-                    f"`strides={strides}`, "
-                    f"`padding={padding}`."
-                )
+                output_spatial_shape[i] = 0
 
     elif padding in ("same", "causal"):
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
