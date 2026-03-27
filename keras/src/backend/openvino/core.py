@@ -819,6 +819,12 @@ def convert_to_numpy(x):
         else:
             return x.value.data
     if not isinstance(x, OpenVINOKerasTensor):
+        # objects like tf.EagerTensor support the __array__
+        # protocol, so np.array() handles them without special-casing.
+        try:
+            return np.array(x)
+        except Exception:
+            pass
         raise ValueError(f"unsupported type {type(x)} for `convert_to_numpy`.")
     # if the tensor is backed by a Constant OV node, extract
     # its data array directly without compiling a model.
