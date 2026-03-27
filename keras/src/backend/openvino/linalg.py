@@ -633,11 +633,13 @@ def qr(x, mode="reduced"):
     rank = x_ov.get_partial_shape().rank.get_length()
 
     # Scalar and 1-D integer constants
+    SLICE_END = 2**30  # large sentinel for "slice to end of dimension"
+
     zero_s = ov_opset.constant(0, Type.i32).output(0)
     one_s = ov_opset.constant(1, Type.i32).output(0)
     zero_1d = ov_opset.constant([0], Type.i32).output(0)
     one_1d = ov_opset.constant([1], Type.i32).output(0)
-    large_1d = ov_opset.constant([2**30], Type.i32).output(0)
+    large_1d = ov_opset.constant([SLICE_END], Type.i32).output(0)
     axes012 = ov_opset.constant([0, 1, 2], Type.i32).output(0)
     step111 = ov_opset.constant([1, 1, 1], Type.i32).output(0)
 
@@ -740,8 +742,7 @@ def qr(x, mode="reduced"):
         ov_opset.multiply(sign_x0, norm_x).output(0)
     ).output(0)  # [B]
 
-    # Householder vector: v = x_col with v[:, 0] += alpha
-    # Householder vector: v = x_col + alpha * e_0  (one-hot at position 0)
+    # Householder vector: v = x_col - alpha * e_0  (one-hot at position 0)
     # Use one_hot so v keeps the same shape as x_col → shape inference stays clean.
     x_col_sh = ov_opset.shape_of(x_col, output_type="i32").output(0)
     sub_m_from_col = ov_opset.gather(x_col_sh, one_s, zero_s).output(0)
@@ -899,7 +900,7 @@ def qr(x, mode="reduced"):
             r_shape_2d = ov_opset.concat([m_1d, n_1d], 0).output(0)
         Q_out = ov_opset.reshape(Q_out, q_shape_2d, False).output(0)
         R_out = ov_opset.reshape(R_out, r_shape_2d, False).output(0)
-    elif rank > 3:
+    elif rank > 2:
         batch_shape_node = ov_opset.slice(
             ov_opset.shape_of(x_ov, output_type="i32").output(0),
             zero_1d,
