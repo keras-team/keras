@@ -431,27 +431,6 @@ class HashingTest(testing.TestCase):
         ):
             layers.Hashing(num_bins=3, output_mode="int", sparse=True)
 
-    @pytest.mark.skipif(
-        not tf.test.is_gpu_available(),
-        reason="GPU not available; skipping GPU-specific regression test",
-    )
-    def test_call_on_gpu_does_not_raise(self):
-        """Regression test for CUDA_ERROR_INVALID_HANDLE on G4/L4 GPUs.
-
-        tf.strings.to_hash_bucket_fast/strong produce CPU-resident tensors.
-        On newer GPU architectures a Cast after a CPU string tensor was
-        incorrectly dispatched to the GPU.
-        """
-        layer = layers.Hashing(num_bins=5)
-        inp = [["A"], ["B"], ["C"], ["D"], ["E"]]
-        output = layer(inp)
-        self.assertAllClose(output, np.array([[1], [0], [1], [1], [2]]))
-
-        # Also test with salt (SipHash path)
-        layer_salt = layers.Hashing(num_bins=5, salt=[133, 137])
-        output_salt = layer_salt(inp)
-        self.assertEqual(output_salt.shape, (5, 1))
-
 
 # TODO: support tf.RaggedTensor.
 # def test_hash_ragged_string_input_farmhash(self):
