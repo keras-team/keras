@@ -823,9 +823,10 @@ def convert_to_numpy(x):
         # protocol, so np.array() handles them without special-casing.
         try:
             return np.array(x)
-        except Exception:
-            pass
-        raise ValueError(f"unsupported type {type(x)} for `convert_to_numpy`.")
+        except Exception as e:
+            raise ValueError(
+                f"unsupported type {type(x)} for `convert_to_numpy`."
+            ) from e
     # if the tensor is backed by a Constant OV node, extract
     # its data array directly without compiling a model.
     try:
