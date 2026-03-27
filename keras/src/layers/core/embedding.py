@@ -166,7 +166,7 @@ class Embedding(Layer):
                         self.lora_embeddings_a, self.lora_embeddings_b
                     ),
                 ),
-                dtype=self.variable_dtype,
+                dtype=self.compute_dtype,
             )
         return embeddings
 
@@ -216,6 +216,8 @@ class Embedding(Layer):
 
         # LoRA weights should be float32 to avoid the risk of underflow or
         # overflow during fine-tuning.
+        # When deploying the model, these weights should be merged with the
+        # original embedding while maintaining the original embedding's dtype.
         self.lora_embeddings_a = self.add_weight(
             name="lora_embeddings_a",
             shape=(self.input_dim, rank),

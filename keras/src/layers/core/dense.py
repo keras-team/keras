@@ -213,7 +213,7 @@ class Dense(Layer):
                     (self.lora_alpha / self.lora_rank)
                     * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 ),
-                dtype=self.variable_dtype,
+                dtype=self.compute_dtype,
             )
 
         return kernel
@@ -272,6 +272,8 @@ class Dense(Layer):
 
         # LoRA weights should be float32 to avoid the risk of underflow or
         # overflow during fine-tuning.
+        # When deploying the model, these weights should be merged with the
+        # original kernel while maintaining the original kernel's dtype.
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
             shape=(input_dim_for_lora, rank),

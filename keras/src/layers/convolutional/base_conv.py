@@ -238,7 +238,7 @@ class BaseConv(Layer):
                     (self.lora_alpha / self.lora_rank)
                     * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 ),
-                dtype=self.variable_dtype,
+                dtype=self.compute_dtype,
             )
         return kernel
 
@@ -253,10 +253,7 @@ class BaseConv(Layer):
         )
 
     def call(self, inputs):
-        outputs = self.convolution_op(
-            inputs,
-            self.kernel,
-        )
+        outputs = self.convolution_op(inputs, self.kernel)
         if self.use_bias:
             if self.data_format == "channels_last":
                 bias_shape = (1,) * (self.rank + 1) + (self.filters,)
@@ -305,6 +302,8 @@ class BaseConv(Layer):
 
         # LoRA weights should be float32 to avoid the risk of underflow or
         # overflow during fine-tuning.
+        # When deploying the model, these weights should be merged with the
+        # original kernel while maintaining the original kernel's dtype.
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
             shape=self._kernel.shape[:-1] + (rank,),
