@@ -1,0 +1,209 @@
+name: '🏷️ Gemini Automated Issue Triage'
+
+on:
+  issues:
+    types:
+      - 'opened'
+      - 'reopened'
+  issue_comment:
+    types:
+      - 'created'
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'issue number to triage'
+        required: true
+        type: 'number'
+  workflow_call:
+    inputs:
+      issue_number:
+        description: 'issue number to triage'
+        required: false
+        type: 'string'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event.issue.number || github.event.inputs.issue_number || inputs.issue_number }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: 'bash'
+
+permissions:
+  contents: 'read'
+  id-token: 'write'
+  issues: 'write'
+  statuses: 'write'
+  packages: 'read'
+  actions: 'write' # Required for cancelling a workflow run
+
+jobs:
+  triage-issue:
+    if: |-
+      (github.repository == 'keras-team/keras' || github.repository == 'keras-team/maintainers-keras') &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          (github.event_name == 'issues' || github.event_name == 'issue_comment') &&
+          (github.event_name != 'issue_comment' || (
+            contains(github.event.comment.body, '@keras-team /triage') &&
+            (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR')
+          ))
+        )
+      )
+    timeout-minutes: 5
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Get issue data for manual trigger'
+        id: 'get_issue_data'
+        if: |-
+          github.event_name == 'workflow_dispatch'
+        uses: 'actions/github-script@v7'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const issueNumber = ${{ github.event.inputs.issue_number || inputs.issue_number }};
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+            });
+            core.setOutput('title', issue.title);
+            core.setOutput('body', issue.body);
+            core.setOutput('labels', issue.labels.map(label => label.name).join(','));
+            return issue;
+
+      - name: 'Checkout'
+        uses: 'actions/checkout@v4'
+
+      - name: 'Get Repository Labels'
+        id: 'get_labels'
+        uses: 'actions/github-script@v7'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |-
+            const { data: labels } = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const allowedLabels = [
+              'backend:jax',
+              'backend:tensorflow',
+              'backend:torch',
+              'backend:OpenVino',
+              'Gemma',
+              'layers',
+              'python',
+              'dependencies',
+              'Duplicate',
+              'stale',
+              'stat:awaiting response from contributor',
+              'stat:awaiting keras-eng',
+              'Good first issue',
+              'keras-team-review-pending',
+              'irrelevant issue'
+            ];
+            const labelNames = labels.map(label => label.name).filter(name => allowedLabels.includes(name));
+            core.setOutput('available_labels', labelNames.join(','));
+            return labelNames;
+
+      - name: 'Run Gemini Issue Analysis'
+        uses: 'google-github-actions/run-gemini-cli@a3bf79042542528e91937b3a3a6fbc4967ee3c31'
+        id: 'gemini_issue_analysis'
+        env:
+          GITHUB_TOKEN: '' # Do not pass any auth token here
+          ISSUE_TITLE: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.title || github.event.issue.title }}
+          ISSUE_BODY: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
+          AVAILABLE_LABELS: '${{ steps.get_labels.outputs.available_labels }}'
+        with:
+          use_gemini_code_assist: true
+          settings: |-
+            {
+              "maxSessionTurns": 5,
+              "telemetry": {
+                "enabled": true,
+                "target": "gcp"
+              }
+            }
+          prompt: |-
+            ## Role
+
+            You are an issue triage assistant for Keras. Your role is to analyze a GitHub issue and determine the best single label based on the definitions provided.
+
+            ## Steps
+            1. Review the issue title and body: ${{ env.ISSUE_TITLE }} and ${{ env.ISSUE_BODY }}.
+            2. Review the available labels: ${{ env.AVAILABLE_LABELS }}.
+            3. Select exactly one label that best matches the issue based on Reference 1: Label Definitions.
+            4. Output your selected label in JSON format and nothing else. Example:
+                {"labels_to_set": ["backend:jax"]}
+
+            ## Guidelines
+            - Your output must contain exactly one label.
+            - Triage only the current issue based on its title and body.
+            - Output only valid JSON format.
+            - Do not include any explanation or additional text, just the JSON.
+
+            Reference 1: Label Definitions
+            - backend:jax: Issues related to running Keras with JAX backend.
+            - backend:tensorflow: Issues related to running Keras with TensorFlow backend.
+            - backend:torch: Issues related to running Keras with PyTorch backend.
+            - backend:OpenVino: Issues related to running Keras with OpenVino backend.
+            - Gemma: Gemma model specific issues.
+            - layers: Issues related to Keras layers.
+            - python: General python code issues.
+            - dependencies: Problems with dependencies installation or versions.
+            - Duplicate: Duplicate of another issue.
+            - stale: No activity.
+            - stat:awaiting response from contributor: Awaiting response from contributor.
+            - stat:awaiting keras-eng: Awaiting response from Keras engineer.
+            - Good first issue: Easy tasks for contributors.
+            - keras-team-review-pending: Pending team review.
+            - irrelevant issue: Issue is irrelevant or question.
+
+      - name: 'Apply Labels to Issue'
+        if: |-
+          ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
+        env:
+          ISSUE_NUMBER: '${{ github.event.issue.number || github.event.inputs.issue_number }}'
+          LABELS_OUTPUT: '${{ steps.gemini_issue_analysis.outputs.summary }}'
+        uses: 'actions/github-script@v7'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const rawOutput = process.env.LABELS_OUTPUT;
+            core.info(`Raw output from model: ${rawOutput}`);
+            let parsedLabels;
+            try {
+              parsedLabels = JSON.parse(rawOutput);
+            } catch (jsonError) {
+              const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
+              if (jsonMatch && jsonMatch[1]) {
+                parsedLabels = JSON.parse(jsonMatch[1].trim());
+              } else {
+                const jsonObjectMatch = rawOutput.match(/(\{[\s\S]*"labels_to_set"[\s\S]*\})/);
+                if (jsonObjectMatch) {
+                  parsedLabels = JSON.parse(jsonObjectMatch[0]);
+                } else {
+                  core.setFailed(`Output is not valid JSON.\nRaw output: ${rawOutput}`);
+                  return;
+                }
+              }
+            }
+
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+            const labelsToAdd = parsedLabels.labels_to_set || [];
+
+            if (labelsToAdd.length !== 1) {
+              core.setFailed(`Expected exactly 1 label, but got ${labelsToAdd.length}. Labels: ${labelsToAdd.join(', ')}`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              labels: labelsToAdd
+            });
+            core.info(`Successfully added labels for #${issueNumber}: ${labelsToAdd.join(', ')}`);
