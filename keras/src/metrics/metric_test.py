@@ -45,14 +45,14 @@ class ExampleMetric(Metric):
 
 class MetricTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
         self._floatx = backend.floatx()
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         dtype_policies.dtype_policy.set_dtype_policy(self._global_dtype_policy)
         backend.set_floatx(self._floatx)
-        return super().tearDown()
 
     def test_end_to_end_flow(self):
         metric = ExampleMetric(name="mse")

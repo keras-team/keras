@@ -1140,6 +1140,8 @@ class RecallAtPrecisionTest(testing.TestCase):
 
 class AUCTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         self.num_thresholds = 3
         self.y_pred = np.array([0, 0.5, 0.3, 0.9], dtype="float32")
         self.y_pred_multi_label = np.array(
@@ -1531,6 +1533,8 @@ class AUCTest(testing.TestCase):
 
 class MultiAUCTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         self.num_thresholds = 5
         self.y_pred = np.array(
             [[0, 0.5, 0.3, 0.9], [0.1, 0.2, 0.3, 0.4]], dtype="float32"

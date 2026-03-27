@@ -248,14 +248,14 @@ def _load_model_fn(filepath):
 
 class SavingTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Set `_MEMORY_UPPER_BOUND` to zero for testing purpose.
         self.original_value = saving_lib._MEMORY_UPPER_BOUND
         saving_lib._MEMORY_UPPER_BOUND = 0
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         saving_lib._MEMORY_UPPER_BOUND = self.original_value
-        return super().tearDown()
 
     def _test_inference_after_instantiation(self, model):
         x_ref = np.random.random((2, 4))

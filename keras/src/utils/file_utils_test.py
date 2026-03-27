@@ -109,6 +109,7 @@ class IsLinkInDirTest(test_case.TestCase):
 
 class FilterSafePathsTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         self.base_dir = os.path.abspath(self.get_temp_dir())
         self.tar_path = os.path.join(self.base_dir, "test.tar")
         self.target_path = os.path.join(self.base_dir, "target.txt")
@@ -177,6 +178,7 @@ class FilterSafePathsTest(test_case.TestCase):
 
 class ExtractArchiveTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         """Create temporary directories and files for testing."""
         self.temp_dir = self.get_temp_dir()
         self.file_content = "Hello, world!"
@@ -276,6 +278,7 @@ class ExtractArchiveTest(test_case.TestCase):
 
 class GetFileTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         """Set up temporary directories and sample files."""
         self.temp_dir = self.get_temp_dir()
         self.file_path = os.path.join(self.temp_dir, "sample_file.txt")
@@ -567,6 +570,7 @@ class GetFileTest(test_case.TestCase):
 
 class HashFileTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         self.test_content = b"Hello, World!"
         self.temp_file = os.path.join(self.get_temp_dir(), "test_file.txt")
         with open(self.temp_file, "wb") as f:
@@ -591,6 +595,7 @@ class HashFileTest(test_case.TestCase):
 
 class TestValidateFile(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         self.temp_file = os.path.join(self.get_temp_dir(), "test_file.txt")
         with open(self.temp_file, "wb") as f:
             f.write(b"Hello, World!")

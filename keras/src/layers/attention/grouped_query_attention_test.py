@@ -19,8 +19,8 @@ class GroupedQueryAttentionTest(testing.TestCase):
         disable_flash_attention()
 
     def tearDown(self):
+        super().tearDown()
         enable_flash_attention()
-        return super().tearDown()
 
     def test_basics(self):
         self.assertFalse(is_flash_attention_enabled())

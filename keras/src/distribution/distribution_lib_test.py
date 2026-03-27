@@ -90,6 +90,7 @@ class DeviceMeshTest(testing.TestCase):
 
 class TensorLayoutTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         self.mesh = distribution_lib.DeviceMesh(
             (4, 2), ["data", "model"], [f"cpu:{i}" for i in range(8)]
         )
