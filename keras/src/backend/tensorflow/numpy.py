@@ -3044,9 +3044,11 @@ def take_along_axis(x, indices, axis=None):
         # we rely on the broacast itself to fail in the incorrect case rather
         # than make some expensive dynamic checks here.
         broadcast_shape = [
-            tf.maximum(x_original_shape[i], indices_original_shape[i])
-            if dim is None
-            else dim
+            (
+                tf.maximum(x_original_shape[i], indices_original_shape[i])
+                if dim is None
+                else dim
+            )
             for i, dim in enumerate(broadcast_shape)
         ]
 
@@ -3707,7 +3709,11 @@ def argpartition(x, kth, axis=-1):
     indices = tf.where(mask)
     updates = tf.squeeze(tf.zeros(tf.shape(indices)[0], dtype=tf.int32))
 
-    final_mask = tf.tensor_scatter_nd_update(x, indices, updates)
+    final_mask = tf.tensor_scatter_nd_update(
+        x,
+        indices,
+        tf.reshape(updates, [-1]) if tf.rank(updates) == 0 else updates,
+    )
 
     top_ind = tf.math.top_k(final_mask, tf.shape(x)[-1] - kth - 1).indices
 
