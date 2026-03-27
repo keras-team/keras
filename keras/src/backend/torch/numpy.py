@@ -65,9 +65,6 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 def add(x1, x2):
-    # Fast path: both already torch tensors
-    if isinstance(x1, torch.Tensor) and isinstance(x2, torch.Tensor):
-        return torch.add(x1, x2)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return torch.add(x1, x2)
@@ -164,8 +161,6 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    if isinstance(x1, torch.Tensor) and isinstance(x2, torch.Tensor):
-        return torch.multiply(x1, x2)
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return torch.multiply(x1, x2)
@@ -805,9 +800,6 @@ def empty_like(x, dtype=None):
 
 
 def equal(x1, x2):
-    # Fast path: if both are already torch tensors, skip conversion
-    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
-        return torch.eq(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.eq(x1, x2)
 
@@ -829,8 +821,7 @@ def exp2(x):
 
 
 def expand_dims(x, axis):
-    if not isinstance(x, torch.Tensor):
-        x = convert_to_tensor(x)
+    x = convert_to_tensor(x)
     axis = to_tuple_or_list(axis)
     out_ndim = len(x.shape) + len(axis)
     axis = sorted([canonicalize_axis(a, out_ndim) for a in axis])
@@ -1197,25 +1188,16 @@ def logaddexp2(x1, x2):
 
 
 def logical_and(x1, x2):
-    # Fast path: if both are already torch tensors
-    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
-        return torch.logical_and(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_and(x1, x2)
 
 
 def logical_not(x):
-    # Fast path: if already a torch tensor, skip conversion
-    if type(x) is torch.Tensor:
-        return torch.logical_not(x)
     x = convert_to_tensor(x)
     return torch.logical_not(x)
 
 
 def logical_or(x1, x2):
-    # Fast path: if both are already torch tensors
-    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
-        return torch.logical_or(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.logical_or(x1, x2)
 
@@ -1596,9 +1578,6 @@ def nonzero(x):
 
 
 def not_equal(x1, x2):
-    # Fast path: if both are already torch tensors
-    if type(x1) is torch.Tensor and type(x2) is torch.Tensor:
-        return torch.not_equal(x1, x2)
     x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
     return torch.not_equal(x1, x2)
 

@@ -54,17 +54,9 @@ class Operation(KerasSaveable):
                         # Fast path: for the common case, call directly
                         # without wrapping to avoid functools.update_wrapper
                         # overhead per call.
-                        try:
+                        if not traceback_utils.is_traceback_filtering_enabled():
                             return self.call(*args, **kwargs)
-                        except Exception:
-                            # On error, re-raise with argument info
-                            wrapped = traceback_utils.inject_argument_info_in_traceback(  # noqa: E501
-                                self.call,
-                                object_name=(
-                                    f"{self.__class__.__name__}.call()"
-                                ),
-                            )
-                            return wrapped(*args, **kwargs)
+                        call_fn = self.call
             call_fn = traceback_utils.inject_argument_info_in_traceback(
                 call_fn,
                 object_name=(f"{self.__class__.__name__}.call()"),

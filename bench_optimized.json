@@ -1,0 +1,15 @@
+{
+  "jax  CNN  eager": 2.961,
+  "jax  CNN  jax.jit": 0.441,
+  "jax  LLM  forward (jit)": 1.714,
+  "jax  LLM  generate 32tok (jit+scan)": 49.148,
+  "torch  CNN  eager": 0.418,
+  "torch  CNN  torch.compile": 0.854,
+  "torch  LLM  forward (eager)": 1.2,
+  "torch  LLM  forward (compile)": 3.088,
+  "torch  LLM  generate 32tok (eager)": 21.959,
+  "keras[torch]  CNN  model(x)": 1.046,
+  "keras[torch]  CNN  predict": 2.159,
+  "keras[torch]  LLM  forward": 4.766,
+  "keras[torch]  LLM  generate 32tok": 128.683
+}
