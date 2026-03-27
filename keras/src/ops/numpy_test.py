@@ -2886,6 +2886,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.sort(x).shape, (2, 3))
         self.assertEqual(knp.sort(x, axis=1).shape, (2, 3))
         self.assertEqual(knp.sort(x, axis=0).shape, (2, 3))
+        self.assertEqual(knp.sort(x, axis=None).shape, (6,))
 
     def test_split(self):
         x = KerasTensor((2, 3))
@@ -5798,6 +5799,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Sort()(x), np.sort(x))
         self.assertAllClose(knp.sort(x, axis=0), np.sort(x, axis=0))
         self.assertAllClose(knp.Sort(axis=0)(x), np.sort(x, axis=0))
+        self.assertAllClose(knp.sort(x, axis=None), np.sort(x, axis=None))
+        self.assertAllClose(knp.Sort(axis=None)(x), np.sort(x, axis=None))
 
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

@@ -2867,6 +2867,10 @@ def sort(x, axis=-1):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     # TODO: tf.sort doesn't support bool
+    if axis is None:
+        x = tf.reshape(x, [-1])
+        axis = 0
+
     if ori_dtype == "bool":
         x = tf.cast(x, "int8")
         return tf.cast(tf.sort(x, axis=axis), ori_dtype)
