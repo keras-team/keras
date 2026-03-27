@@ -137,6 +137,19 @@ def squeeze_or_expand_to_same_rank(x1, x2, expand_rank_1=True):
     return x1, x2
 
 
+def _get_num_elements(x):
+    if hasattr(x, "shape") and getattr(x.shape, "num_elements", None) is not None:
+        return x.shape.num_elements()
+    try:
+        if hasattr(x, "shape") and x.shape:
+            shape = tuple(x.shape)
+            if None not in shape:
+                import math
+                return math.prod(shape)
+    except:
+        pass
+    return ops.prod(ops.convert_to_tensor(ops.shape(x), dtype="int32"))
+
 def reduce_values(values, sample_weight=None, reduction="sum_over_batch_size"):
     if (
         reduction is None
@@ -150,12 +163,7 @@ def reduce_values(values, sample_weight=None, reduction="sum_over_batch_size"):
         if reduction == "mean_with_sample_weight" and sample_weight is not None:
             divisor = ops.cast(ops.sum(sample_weight), loss.dtype)
         else:
-            divisor = ops.cast(
-                ops.prod(
-                    ops.convert_to_tensor(ops.shape(values), dtype="int32")
-                ),
-                loss.dtype,
-            )
+            divisor = ops.cast(_get_num_elements(values), loss.dtype)
         loss = ops.divide_no_nan(loss, divisor)
         loss = scale_loss_for_distribution(loss)
     return loss
@@ -206,10 +214,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
             #   = sum(loss * sample_weight * total / valid) / total
             #   = sum(loss * sample_weight) / total * total / valid
             #   = sum(loss * sample_weight) / valid
-            total = ops.cast(
-                ops.prod(ops.convert_to_tensor(ops.shape(mask), dtype="int32")),
-                dtype,
-            )
+            total = ops.cast(_get_num_elements(mask), dtype)
             valid = ops.sum(mask)  # May be 0!
             mask *= ops.divide_no_nan(total, valid)
 

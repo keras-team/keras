@@ -229,19 +229,18 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype is not None:
             x = x.to(to_torch_dtype(dtype))
         return x
-    if dtype is None:
-        if isinstance(x, bool):
-            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
-        elif isinstance(x, int):
-            if x < -(2**31) or x >= 2**31:
-                return torch.as_tensor(
-                    x, dtype=torch.int64, device=get_device()
-                )
-            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
-        elif isinstance(x, float):
-            return torch.as_tensor(
-                x, dtype=to_torch_dtype(floatx()), device=get_device()
-            )
+    # Fast path for python primitives
+    if isinstance(x, (bool, int, float)):
+        if dtype is None:
+            if isinstance(x, bool):
+                dtype = "bool"
+            elif isinstance(x, int):
+                dtype = "int64" if x < -(2**31) or x >= 2**31 else "int32"
+            else:
+                dtype = floatx()
+        return torch.as_tensor(
+            x, dtype=to_torch_dtype(dtype), device=get_device()
+        )
 
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
@@ -280,6 +279,7 @@ def convert_to_numpy(x):
                 # convert to the numpy friendly bfloat16 type.
                 # https://github.com/pytorch/pytorch/issues/90574
                 return np.array(x.to(torch.float32)).astype(ml_dtypes.bfloat16)
+            return x.numpy()
         return np.array(x)
 
     if isinstance(x, (list, tuple)):

@@ -16,12 +16,15 @@ class Adam(torch_parallel_optimizer.TorchParallelOptimizer, optimizers.Adam):
         variables = [v.value for v in variables]
 
         dtype = variables[0].dtype
-        lr = ops.cast(learning_rate, dtype)
-        local_step = ops.cast(self.iterations + 1, dtype)
+        device = variables[0].device
+        
+        lr = learning_rate.value if hasattr(learning_rate, "value") else learning_rate
+        lr = torch.as_tensor(lr, dtype=dtype, device=device)
+        local_step = self.iterations.value.to(dtype=dtype, device=device) + 1
 
-        beta_1_power = ops.power(ops.cast(self.beta_1, dtype), local_step)
-        beta_2_power = ops.power(ops.cast(self.beta_2, dtype), local_step)
-        alpha = lr * ops.sqrt(1 - beta_2_power) / (1 - beta_1_power)
+        beta_1_power = torch.pow(self.beta_1, local_step)
+        beta_2_power = torch.pow(self.beta_2, local_step)
+        alpha = lr * torch.sqrt(1.0 - beta_2_power) / (1.0 - beta_1_power)
 
         m_list = [
             self._momentums[self._get_variable_index(variable)].value
