@@ -1349,11 +1349,17 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_argmax(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argmax(x).shape, ())
-        self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 1))
+        self.assertEqual(knp.argmax(x, keepdims=True).shape, (1, 1))
+        self.assertEqual(knp.argmax(x, axis=0, keepdims=True).shape, (1, 3))
+        self.assertEqual(knp.argmax(x, axis=1, keepdims=True).shape, (None, 1))
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.argmax(x, axis=1).shape, (None, 3))
-        self.assertEqual(knp.argmax(x, keepdims=True).shape, (None, 1, 1))
+        self.assertEqual(knp.argmax(x, keepdims=True).shape, (1, 1, 1))
+        self.assertEqual(knp.argmax(x, axis=0, keepdims=True).shape, (1, 3, 3))
+        self.assertEqual(
+            knp.argmax(x, axis=1, keepdims=True).shape, (None, 1, 3)
+        )
 
     @pytest.mark.skipif(
         keras.config.backend() == "openvino" or testing.jax_uses_tpu(),
@@ -2366,6 +2372,8 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_argmax(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.argmax(x).shape, ())
+        self.assertEqual(knp.argmax(x, axis=0).shape, (3,))
+        self.assertEqual(knp.argmax(x, axis=1).shape, (2,))
         self.assertEqual(knp.argmax(x, keepdims=True).shape, (1, 1))
 
     def test_argmin(self):
