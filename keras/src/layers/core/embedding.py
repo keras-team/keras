@@ -166,7 +166,7 @@ class Embedding(Layer):
                         self.lora_embeddings_a, self.lora_embeddings_b
                     ),
                 ),
-                dtype=self.variable_dtype,
+                dtype=self.compute_dtype,
             )
         return embeddings
 

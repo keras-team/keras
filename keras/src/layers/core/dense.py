@@ -213,7 +213,7 @@ class Dense(Layer):
                     (self.lora_alpha / self.lora_rank)
                     * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
                 ),
-                dtype=self.variable_dtype,
+                dtype=self.compute_dtype,
             )
 
         return kernel
