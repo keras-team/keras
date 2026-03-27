@@ -1,4 +1,5 @@
 import builtins
+import math
 import re
 
 import numpy as np
@@ -9191,8 +9192,6 @@ class Argpartition(Operation):
             if None in x.shape:
                 output_shape = (None,)
             else:
-                import math
-
                 output_shape = (math.prod(x.shape),)
             return KerasTensor(output_shape, dtype="int32")
         return KerasTensor(x.shape, dtype="int32")
