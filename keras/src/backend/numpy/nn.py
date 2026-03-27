@@ -664,7 +664,7 @@ def conv(
             feature_group_count=feature_group_count,
         )
     )
-    if result.size == 0:
+    if result.size == 0 and inputs.size != 0:
         raise ValueError(
             "The convolution operation resulted in an empty output. "
             "This can happen if the input is too small for the given "

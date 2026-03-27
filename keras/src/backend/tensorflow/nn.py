@@ -805,6 +805,7 @@ def conv(
         if (
             result_shape.is_fully_defined()
             and math.prod(result_shape.as_list()) == 0
+            and math.prod(inputs.shape.as_list()) != 0
         ):
             raise ValueError(
                 "The convolution operation resulted in an empty output. "
