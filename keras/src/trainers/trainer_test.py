@@ -118,7 +118,8 @@ class ListInputModel(Trainer, layers.Layer):
         )
 
     def call(self, x):
-        assert isinstance(x, (list, tuple))
+        if not isinstance(x, (list, tuple)):
+            raise ValueError("x must be a list or tuple")
         return self.dense_1(x[0]) + self.dense_2(x[1])
 
 
@@ -337,12 +338,14 @@ class StepCount(Callback):
         self.epoch_end_count += 1
 
     def on_batch_begin(self, batch, logs=None):
-        assert batch == self.begin_count * self.steps_per_execution
+        if batch != self.begin_count * self.steps_per_execution:
+            raise ValueError("Batch index is not correct")
         self.begin_count += 1
 
     def on_batch_end(self, batch, logs=None):
         self.end_count += 1
-        assert batch == self.end_count * self.steps_per_execution - 1
+        if batch != self.end_count * self.steps_per_execution - 1:
+            raise ValueError("Batch index is not correct")
 
 
 class TestTrainer(testing.TestCase):
@@ -661,11 +664,11 @@ class TestTrainer(testing.TestCase):
         self, dataset_type, dataset_kwargs={}, fit_kwargs={}
     ):
         jit_compile = True
-        if (
-            dataset_kwargs.get("use_multiprocessing", False)
-            and backend.backend() == "jax"
-        ):
-            pytest.skip("Multiprocessing not supported with JAX backend")
+        if dataset_kwargs.get("use_multiprocessing", False):
+            if backend.backend() == "jax":
+                pytest.skip("Multiprocessing not supported with JAX backend")
+            elif testing.tensorflow_uses_gpu():
+                pytest.skip("Multiprocessing crashes on Tensorflow with GPU")
         if dataset_type == "grain_datast" and backend.backend() == "torch":
             # Grain datasets are not supported with torch + jit_compile.
             jit_compile = False
@@ -985,6 +988,8 @@ class TestTrainer(testing.TestCase):
         reason="Memory optimization is only implemented in JAX",
     )
     def test_fit_eval_flow_for_jax_model_weights(self):
+        test_obj = self
+
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -1001,19 +1006,19 @@ class TestTrainer(testing.TestCase):
             # will trigger a sync of the jax training state back to the model.
             def on_train_batch_end(self, batch, logs=None):
                 for v in self._model.trainable_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.non_trainable_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.optimizer.variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.metrics_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
 
             def on_test_batch_end(self, batch, logs=None):
                 for v in self._model.non_trainable_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.metrics_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
 
         model.compile(
             optimizer=optimizers.SGD(),
@@ -1755,6 +1760,8 @@ class TestTrainer(testing.TestCase):
         reason="`steps_per_execution` not implemented for torch yet",
     )
     def test_steps_per_execution_steps_count_without_training(self):
+        test_obj = self
+
         class StepCount(Callback):
             def __init__(self):
                 super().__init__()
@@ -1763,11 +1770,11 @@ class TestTrainer(testing.TestCase):
                 self.batches = [0, 3, 6]
 
             def on_test_batch_begin(self, batch, logs=None):
-                assert batch == self.batches[self.test_count]
+                test_obj.assertEqual(batch, self.batches[self.test_count])
                 self.test_count += 1
 
             def on_predict_batch_begin(self, batch, logs=None):
-                assert batch == self.batches[self.predict_count]
+                test_obj.assertEqual(batch, self.batches[self.predict_count])
                 self.predict_count += 1
 
         x = np.ones((100, 4))
@@ -2031,7 +2038,7 @@ class TestTrainer(testing.TestCase):
             batch_size=4,
             validation_data=(x_test, y_test),
         )
-        assert getattr(model, "_eval_epoch_iterator", None) is None
+        self.assertIsNone(getattr(model, "_eval_epoch_iterator", None))
 
         # Try model.fit with reshaped validation_data
         # This will throw an exception which is intended
@@ -2056,76 +2063,84 @@ class TestTrainer(testing.TestCase):
             batch_size=4,
             validation_data=(x_test, y_test),
         )
-        assert getattr(model, "_eval_epoch_iterator", None) is None
+        self.assertIsNone(getattr(model, "_eval_epoch_iterator", None))
 
     @pytest.mark.requires_trainable_backend
     def test_callback_methods_keys(self):
+        test_obj = self
+
         class CustomCallback(Callback):
             def on_train_begin(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_train_end(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == [
-                    "loss",
-                    "mean_absolute_error",
-                    "val_loss",
-                    "val_mean_absolute_error",
-                ]
+                test_obj.assertEqual(
+                    keys,
+                    [
+                        "loss",
+                        "mean_absolute_error",
+                        "val_loss",
+                        "val_mean_absolute_error",
+                    ],
+                )
 
             def on_epoch_begin(self, epoch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_epoch_end(self, epoch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == [
-                    "loss",
-                    "mean_absolute_error",
-                    "val_loss",
-                    "val_mean_absolute_error",
-                ]
+                test_obj.assertEqual(
+                    keys,
+                    [
+                        "loss",
+                        "mean_absolute_error",
+                        "val_loss",
+                        "val_mean_absolute_error",
+                    ],
+                )
 
             def on_test_begin(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_test_end(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["loss", "mean_absolute_error"]
+                test_obj.assertEqual(keys, ["loss", "mean_absolute_error"])
 
             def on_predict_begin(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_predict_end(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_train_batch_begin(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_train_batch_end(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["loss", "mean_absolute_error"]
+                test_obj.assertEqual(keys, ["loss", "mean_absolute_error"])
 
             def on_test_batch_begin(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_test_batch_end(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["loss", "mean_absolute_error"]
+                test_obj.assertEqual(keys, ["loss", "mean_absolute_error"])
 
             def on_predict_batch_begin(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_predict_batch_end(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["outputs"]
+                test_obj.assertEqual(keys, ["outputs"])
 
         model = ExampleModel(units=3)
         model.compile(

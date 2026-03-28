@@ -237,9 +237,14 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _interleave(a, b, axis):
         """Given two Tensors of static shape, interleave them along axis."""
-        assert (
+        if not (
             a.shape[axis] == b.shape[axis] or a.shape[axis] == b.shape[axis] + 1
-        )
+        ):
+            raise ValueError(
+                "Shapes are incompatible for associative_scan interleaving. "
+                f"a.shape[{axis}]={a.shape[axis]}, "
+                f"b.shape[{axis}]={b.shape[axis]}"
+            )
 
         # we want to get a: [a1, a2], b: [b1, b2]
         # to a: [a1, 0, a2, 0], b: [0, b1, 0, b2]
@@ -330,9 +335,8 @@ def scatter(indices, values, shape):
     indices = np.reshape(indices, [-1, index_length])
     values = np.reshape(values, [-1] + list(value_shape))
 
-    for i in range(indices.shape[0]):
-        index = indices[i]
-        zeros[tuple(index)] += values[i]
+    idx = tuple(indices.T)
+    np.add.at(zeros, idx, values)
     return zeros
 
 
@@ -357,7 +361,11 @@ def scatter_update(inputs, indices, updates, reduction=None):
 
 def slice(inputs, start_indices, shape):
     # Validate inputs
-    assert len(start_indices) == len(shape)
+    if len(start_indices) != len(shape):
+        raise ValueError(
+            "Length of `start_indices` must match length of `shape`. "
+            f"Received: start_indices={start_indices}, shape={shape}"
+        )
 
     # Generate list of indices arrays for each dimension
     indices = [
@@ -397,8 +405,8 @@ def while_loop(
     maximum_iterations=None,
 ):
     current_iter = 0
-    iteration_check = (
-        lambda iter: maximum_iterations is None or iter < maximum_iterations
+    iteration_check = lambda iter: (
+        maximum_iterations is None or iter < maximum_iterations
     )
     is_tuple = isinstance(loop_vars, (tuple, list))
     loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)

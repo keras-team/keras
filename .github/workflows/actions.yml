@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     strategy:
@@ -21,17 +25,26 @@ jobs:
         python-version: ['3.11']
         backend: [tensorflow, jax, torch, numpy, openvino]
         nnx_enabled: [false]
+        multi_device: [false]
         include:
           - python-version: '3.11'
             backend: jax
             nnx_enabled: true
-    name: ${{ matrix.backend == 'jax' && format('Run tests ({0}, {1}, nnx_enabled = {2})', matrix.python-version, matrix.backend, matrix.nnx_enabled) || format('Run tests ({0}, {1})', matrix.python-version, matrix.backend) }}
+            multi_device: false
+          - python-version: '3.11'
+            backend: jax
+            nnx_enabled: false
+            multi_device: true
+    name: ${{ format('Run tests ({0}, {1}{2})', matrix.python-version, matrix.backend, matrix.nnx_enabled && ', NNX' || matrix.multi_device && ', multi-CPU' || '') }}
     runs-on: ubuntu-latest
     env:
       PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+      JAX_NUM_CPU_DEVICES: ${{ matrix.multi_device && 4 || 1 }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6.0.2
+
       - name: Check for changes in keras/src/applications
         uses: dorny/paths-filter@v3
         id: filter
@@ -107,11 +120,13 @@ jobs:
         run: |
           if [ "${{ matrix.backend }}" == "openvino" ]; then
             IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
-            IGNORE_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
+            PYTEST_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
+          elif [ "${{ matrix.multi_device }}" == "true" ]; then
+            PYTEST_ARGS="-m multi_device"
           else
-            IGNORE_ARGS=""
+            PYTEST_ARGS=""
           fi
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
+          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $PYTEST_ARGS
           coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
       - name: Codecov keras
         if: ${{ matrix.nnx_enabled == false }}
@@ -127,7 +142,8 @@ jobs:
     name: Check the code format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6.0.2
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:

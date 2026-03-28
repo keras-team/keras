@@ -25,3 +25,13 @@ class ProgbarTest(testing.TestCase):
         pb = progbar.Progbar(target=1, verbose=1)
 
         pb.update(1, values=[("values", values)], finalize=True)
+
+    @parameterized.named_parameters(
+        [
+            ("verbose_1", 1),
+            ("verbose_2", 2),
+        ]
+    )
+    def test_zero_target(self, verbose):
+        pb = progbar.Progbar(target=0, verbose=verbose)
+        pb.update(0, finalize=True)

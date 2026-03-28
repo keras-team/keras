@@ -11,28 +11,33 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
 
   test-in-container:
-    name: Run tests on TPU
-    runs-on: linux-x86-ct6e-44-1tpu
+    strategy:
+      fail-fast: false
+      matrix:
+        multi_device: [false, true]
+        backend: [jax]
+
+    name: ${{ format('Run tests on {0}TPU', matrix.multi_device && 'multi-' || '') }}
+    runs-on: ${{ matrix.multi_device && 'linux-x86-ct5lp-112-4tpu' || 'linux-x86-ct6e-44-1tpu' }}
     # Only run on pushes to master, releases or "kokoro:force-run" unlabel
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      (github.event_name == 'pull_request' && github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
-
-    strategy:
-      fail-fast: false
-      matrix:
-        backend: [jax]
+      (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
 
     container:
       image: python:3.11-slim
       options: --privileged --network host
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout ${{ github.ref }}
         uses: actions/checkout@v6.0.2
       
       - name: Install Dependencies
@@ -45,4 +50,9 @@ jobs:
         run: python3 -c "import jax; print('JAX devices:', jax.devices()); assert jax.default_backend() == 'tpu'"
 
       - name: Run Tests
+        if: ${{ !matrix.multi_device }}
         run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+
+      - name: Run Multi-device Tests
+        if: ${{ matrix.multi_device }}
+        run: pytest keras -m multi_device --cov=keras --cov-config=pyproject.toml

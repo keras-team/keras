@@ -1,8 +1,4 @@
-"""Unified high-level distribution APIs across backends.
-
-Currently only the JAX backend is supported. The TensorFlow backend
-will be supported in the future (via tf.dtensor API).
-"""
+"""Unified high-level distribution APIs across backends."""
 
 import collections
 import contextlib
@@ -27,28 +23,39 @@ def list_devices(device_type=None):
 
     Note: in a distributed setting, global devices are returned.
 
+    When `device_type` is not provided, devices of the default type are
+    returned. This function nevers return a mix of device types, for instance
+    GPUs and CPUs.
+
     Args:
-        device_type: string, one of `"cpu"`, `"gpu"` or `"tpu"`.
-            Defaults to `"gpu"` or `"tpu"` if available when
-            `device_type` is not provided. Otherwise
-            will return the `"cpu"` devices.
+        device_type: string, one of `"cpu"`, `"gpu"` or `"tpu"`. Defaults to
+            `"gpu"` or `"tpu"` if available when `device_type` is not provided.
+            Otherwise returns the `"cpu"` devices.
 
     Return:
-        List of devices that are available for distribute computation.
+        List of string, the devices that are available for distributed
+        computation. Each device is formatted as "device_type:id", for instance
+        "gpu:1" or "cpu:0".
+
     """
     return distribution_lib.list_devices(device_type)
 
 
 @keras_export("keras.distribution.get_device_count")
 def get_device_count(device_type=None):
-    """Returns the number of available JAX devices.
+    """Returns the number of available devices based on the device type.
+
+    When `device_type` is not provided, the count of devices of the default type
+    is returned. This function nevers counts a mix of device types, for instance
+    GPUs and CPUs.
+
     Args:
-        device_type: Optional device type to count (e.g., "cpu", "gpu", "tpu").
-            If `None`, it defaults to counting "gpu" or "tpu" devices if
-            available, otherwise it counts "cpu" devices. It does not
-            return the sum of all device types.
+        device_type: string, one of `"cpu"`, `"gpu"` or `"tpu"`. Defaults to
+            `"gpu"` or `"tpu"` if available when `device_type` is not provided.
+            Otherwise returns the `"cpu"` devices.
+
     Returns:
-        int: The total number of JAX devices for the specified type.
+        int: The total number of devices for the specified type.
     """
     return distribution_lib.get_device_count(device_type=device_type)
 
@@ -84,10 +91,10 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
             also configure this value via environment variable
             `KERAS_DISTRIBUTION_PROCESS_ID`.
 
-        Example:
-            Suppose there are two GPU processes, and process 0 is running at
-            address `10.0.0.1:1234`, and process 1 is running at address
-            `10.0.0.2:2345`. To configure such cluster, you can run
+    Example:
+        Suppose there are two GPU processes, and process 0 is running at
+        address `10.0.0.1:1234`, and process 1 is running at address
+        `10.0.0.2:2345`. To configure such cluster, you can run
 
         On process 0:
         ```python
@@ -147,13 +154,11 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
 class DeviceMesh:
     """A cluster of computation devices for distributed computation.
 
-    This API is aligned with `jax.sharding.Mesh` and `tf.dtensor.Mesh`, which
-    represents the computation devices in the global context.
+    This API is aligned with `jax.sharding.Mesh`, which represents the
+    computation devices in the global context.
 
     See more details in [jax.sharding.Mesh](
-        https://jax.readthedocs.io/en/latest/jax.sharding.html#jax.sharding.Mesh)
-    and [tf.dtensor.Mesh](
-        https://www.tensorflow.org/api_docs/python/tf/experimental/dtensor/Mesh).
+        https://jax.readthedocs.io/en/latest/jax.sharding.html#jax.sharding.Mesh).
 
     Args:
         shape: tuple of list of integers. The shape of the overall
@@ -231,13 +236,10 @@ class DeviceMesh:
 class TensorLayout:
     """A layout to apply to a tensor.
 
-    This API is aligned with `jax.sharding.NamedSharding`
-    and `tf.dtensor.Layout`.
+    This API is aligned with `jax.sharding.NamedSharding`.
 
     See more details in [jax.sharding.NamedSharding](
-        https://jax.readthedocs.io/en/latest/jax.sharding.html#jax.sharding.NamedSharding)
-    and [tf.dtensor.Layout](
-        https://www.tensorflow.org/api_docs/python/tf/experimental/dtensor/Layout).
+        https://jax.readthedocs.io/en/latest/jax.sharding.html#jax.sharding.NamedSharding).
 
     Args:
         axes: tuple of strings that should map to the `axis_names` in

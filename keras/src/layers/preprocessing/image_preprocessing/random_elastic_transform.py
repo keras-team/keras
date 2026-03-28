@@ -212,61 +212,55 @@ class RandomElasticTransform(BaseImagePreprocessingLayer):
 
         return alpha, sigma
 
-    def transform_images(self, images, transformation, training=True):
+    def _transform_images(self, images, transformation, interpolation):
+        if transformation is None:
+            return images
+
+        apply_transform = transformation["apply_transform"]
+        distortion_factor = transformation["distortion_factor"]
+        seed = transformation["seed"]
+
+        height, width = (
+            images.shape[self.height_axis],
+            images.shape[self.width_axis],
+        )
+
+        alpha, sigma = self.get_elastic_transform_params(
+            height, width, distortion_factor
+        )
+
+        transformed_images = self.backend.image.elastic_transform(
+            images,
+            alpha=alpha,
+            sigma=sigma,
+            interpolation=interpolation,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
+            seed=seed,
+            data_format=self.data_format,
+        )
+
+        apply_transform = (
+            apply_transform[:, None, None]
+            if len(images.shape) == 3
+            else apply_transform[:, None, None, None]
+        )
+
+        images = self.backend.numpy.where(
+            apply_transform,
+            transformed_images,
+            images,
+        )
+
+        images = self.backend.numpy.clip(
+            images, self.value_range[0], self.value_range[1]
+        )
+
         images = self.backend.cast(images, self.compute_dtype)
-        if training and transformation is not None:
-            apply_transform = transformation["apply_transform"]
-            distortion_factor = transformation["distortion_factor"]
-            seed = transformation["seed"]
-
-            height, width = (
-                images.shape[self.height_axis],
-                images.shape[self.width_axis],
-            )
-
-            alpha, sigma = self.get_elastic_transform_params(
-                height, width, distortion_factor
-            )
-
-            transformed_images = self.backend.image.elastic_transform(
-                images,
-                alpha=alpha,
-                sigma=sigma,
-                interpolation=self.interpolation,
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-                seed=seed,
-                data_format=self.data_format,
-            )
-
-            apply_transform = (
-                apply_transform[:, None, None]
-                if len(images.shape) == 3
-                else apply_transform[:, None, None, None]
-            )
-
-            images = self.backend.numpy.where(
-                apply_transform,
-                transformed_images,
-                images,
-            )
-
-            images = self.backend.numpy.clip(
-                images, self.value_range[0], self.value_range[1]
-            )
-
-            images = self.backend.cast(images, self.compute_dtype)
         return images
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
-
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
 
     def compute_output_shape(self, input_shape):
         return input_shape

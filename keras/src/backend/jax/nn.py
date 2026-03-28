@@ -764,7 +764,7 @@ def conv(
         dimension_numbers=dimension_numbers,
         feature_group_count=feature_group_count,
     )
-    if result.size == 0:
+    if result.size == 0 and inputs.size != 0:
         raise ValueError(
             "The convolution operation resulted in an empty output. "
             "This can happen if the input is too small for the given "
@@ -1594,10 +1594,11 @@ def wrap_flash_attention(
             with decoder_segment_ids.
     """
     if decoder_segment_ids is not None:
-        assert query.shape[2] == decoder_segment_ids.q.shape[1], (
-            "Sharding along sequence dimension not allowed"
-            " in TPU kernel attention"
-        )
+        if query.shape[2] != decoder_segment_ids.q.shape[1]:
+            raise ValueError(
+                "Sharding along sequence dimension not allowed"
+                " in TPU kernel attention"
+            )
 
     if custom_mask is not None:
         mask = splash_attention_mask.NumpyMask(array=custom_mask)
@@ -1826,7 +1827,7 @@ def dot_product_attention(
     G = N // K
     query = jnp.reshape(query, (B, T, K, G, H))
 
-    def _reshape_to_grouped(t):
+    def _reshape_to_grouped(t, t_name):
         if t is not None:
             while t.ndim < 4:
                 if t.ndim == 3 and t.shape[1] == N:
@@ -1837,12 +1838,16 @@ def dot_product_attention(
             if tN == 1:
                 t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
             else:
-                assert tN == N
+                if tN != N:
+                    raise ValueError(
+                        f"Expected `{t_name}` to have shape (B, 1, T, S) or "
+                        f"(B, N, T, S) with N={N} but got {t.shape}."
+                    )
                 t = jnp.reshape(t, (tB, K, G, tT, tS))
         return t
 
-    bias = _reshape_to_grouped(bias)
-    mask = _reshape_to_grouped(mask)
+    bias = _reshape_to_grouped(bias, "bias")
+    mask = _reshape_to_grouped(mask, "mask")
     vmapped_fn = jax.vmap(
         _dot_product_attention_core,
         in_axes=(3, None, None, 2, 2, None, None),
@@ -1893,6 +1898,76 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     # ---- reshape -> (N, C*kH*kW, L) ----
     _, CKK, oH, oW = patches.shape
     return patches.reshape(N, CKK, oH * oW)
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """JAX implementation of Fold (col2im).
+    Combine an array of sliding local blocks into a large tensor.
+
+    Uses ``lax.conv_transpose`` with an identity kernel so that the
+    entire operation is JIT-compilable and runs on XLA.
+
+    Args:
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+
+    def _pair(val):
+        return (val, val) if isinstance(val, int) else val
+
+    oH, oW = _pair(output_size)
+    kH, kW = _pair(kernel_size)
+    dH, dW = _pair(dilation)
+    pH, pW = _pair(padding)
+    sH, sW = _pair(stride)
+
+    N, CKK, L = x.shape
+    C = CKK // (kH * kW)
+
+    # Number of output patches along each dimension
+    nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
+    nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
+
+    # Reshape: (N, C*kH*kW, L) -> (N, C*kH*kW, nH, nW)
+    x = jnp.reshape(x, (N, CKK, nH, nW))
+
+    # Identity kernel: maps each (c, i, j) input channel to output
+    # channel c at kernel position (i, j).
+    # eye(CKK) -> (CKK, CKK) -> reshape (CKK, C, kH, kW) ->
+    # transpose to HWIO: (kH, kW, CKK, C)
+    kernel = jnp.eye(CKK, dtype=x.dtype)
+    kernel = kernel.reshape(CKK, C, kH, kW)
+    kernel = kernel.transpose(2, 3, 0, 1)  # -> (kH, kW, CKK, C)
+    # conv_transpose flips the kernel spatially, so pre-flip to cancel
+    kernel = jnp.flip(kernel, axis=(0, 1))
+
+    # Padded output size
+    oH_pad = oH + 2 * pH
+    oW_pad = oW + 2 * pW
+
+    # conv_transpose with padding="VALID" produces output of size:
+    #   (nH - 1) * sH + (kH - 1) * dH + 1  (= oH_pad)
+    output = lax.conv_transpose(
+        x,
+        kernel,
+        strides=(sH, sW),
+        padding="VALID",
+        rhs_dilation=(dH, dW),
+        dimension_numbers=("NCHW", "HWIO", "NCHW"),
+    )
+
+    # Remove padding
+    if pH > 0 or pW > 0:
+        output = output[:, :, pH : oH_pad - pH, pW : oW_pad - pW]
+
+    return output
 
 
 def depth_to_space(x, block_size, data_format="channels_last"):

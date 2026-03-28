@@ -5,7 +5,6 @@ import pytest
 
 from keras.src import layers
 from keras.src import models
-from keras.src import ops
 from keras.src import testing
 from keras.src.saving import load_model
 
@@ -26,7 +25,6 @@ class MaskingTest(testing.TestCase):
             assert_built_after_instantiation=True,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_masking_correctness(self):
         x = np.array(
             [
@@ -50,7 +48,7 @@ class MaskingTest(testing.TestCase):
                 return input_shape
 
             def call(self, inputs, mask=None):
-                assert mask is not None
+                test_obj.assertIsNotNone(mask)
                 test_obj.assertAllClose(mask, expected_mask)
                 return inputs
 
@@ -62,18 +60,17 @@ class MaskingTest(testing.TestCase):
         )
         model(x)
 
-    @pytest.mark.requires_trainable_backend
     def test_masking_with_tensor(self):
         model = models.Sequential(
             [
-                layers.Masking(mask_value=ops.convert_to_tensor([0.0])),
+                layers.Masking(mask_value=0.0),
                 layers.LSTM(1),
             ]
         )
         x = np.array(
             [
-                [[0.0, 0.0], [1.0, 2.0], [0.0, 0.0]],
-                [[2.0, 2.0], [0.0, 0.0], [2.0, 1.0]],
+                [[1.0, 2.0], [0.0, 0.0], [0.0, 0.0]],
+                [[2.0, 2.0], [2.0, 1.0], [0.0, 0.0]],
             ]
         )
         model(x)

@@ -2501,6 +2501,44 @@ def deg2rad(x):
     return backend.numpy.deg2rad(x)
 
 
+class Rad2deg(Operation):
+    def call(self, x):
+        return backend.numpy.rad2deg(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype)
+
+
+@keras_export(["keras.ops.rad2deg", "keras.ops.numpy.rad2deg"])
+def rad2deg(x):
+    """Convert angles from radians to degrees.
+
+    The conversion is defined as:
+    `deg = rad * (180 / π)`
+
+    Args:
+        x: Input tensor of angles in radians.
+
+    Returns:
+        A tensor containing angles converted to degrees.
+
+    Examples:
+    >>> from keras import ops
+    >>> ops.rad2deg(3.141592653589793)
+    180.0
+    >>> ops.rad2deg([0.0, 1.57079633, 3.14159265])
+    array([0., 90., 180.])
+    """
+    if any_symbolic_tensors((x,)):
+        return Rad2deg().symbolic_call(x)
+    return backend.numpy.rad2deg(x)
+
+
 class Diag(Operation):
     def __init__(self, k=0, *, name=None):
         super().__init__(name=name)
@@ -3477,6 +3515,70 @@ def flip(x, axis=None):
     return backend.numpy.flip(x, axis=axis)
 
 
+class Fliplr(Operation):
+    def call(self, x):
+        return backend.numpy.fliplr(x)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 2:
+            raise ValueError(
+                "`fliplr` requires input with 2 or more dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.fliplr", "keras.ops.numpy.fliplr"])
+def fliplr(x):
+    """Reverse the order of elements along axis 1 (left/right).
+
+    For a 2-D tensor, this flips the entries in each row in the
+    left/right direction. Columns are preserved, but appear in a
+    different order than before.
+
+    Args:
+        x: Input tensor, must be at least 2-D.
+
+    Returns:
+        Output tensor with columns reversed.
+    """
+    if any_symbolic_tensors((x,)):
+        return Fliplr().symbolic_call(x)
+    return backend.numpy.fliplr(x)
+
+
+class Flipud(Operation):
+    def call(self, x):
+        return backend.numpy.flipud(x)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                "`flipud` requires input with 1 or more dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.flipud", "keras.ops.numpy.flipud"])
+def flipud(x):
+    """Reverse the order of elements along axis 0 (up/down).
+
+    For a 2-D tensor, this flips the entries in each column in the
+    up/down direction. Rows are preserved, but appear in a different
+    order than before.
+
+    Args:
+        x: Input tensor, must be at least 1-D.
+
+    Returns:
+        Output tensor with rows reversed.
+    """
+    if any_symbolic_tensors((x,)):
+        return Flipud().symbolic_call(x)
+    return backend.numpy.flipud(x)
+
+
 class Floor(Operation):
     def call(self, x):
         return backend.numpy.floor(x)
@@ -3685,6 +3787,80 @@ def get_item(x, key):
     if any_symbolic_tensors((x,)):
         return GetItem().symbolic_call(x, key)
     return x[key]
+
+
+class Geomspace(Operation):
+    def __init__(self, num=50, endpoint=True, dtype=None, axis=0, *, name=None):
+        super().__init__(name=name)
+        self.num = num
+        self.endpoint = endpoint
+        self.dtype = dtype
+        self.axis = axis
+
+    def call(self, start, stop):
+        return backend.numpy.geomspace(
+            start,
+            stop,
+            num=self.num,
+            endpoint=self.endpoint,
+            dtype=self.dtype,
+            axis=self.axis,
+        )
+
+    def compute_output_spec(self, start, stop):
+        start_shape = getattr(start, "shape", [])
+        stop_shape = getattr(stop, "shape", [])
+        output_shape = broadcast_shapes(start_shape, stop_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape = list(output_shape)
+        output_shape.insert(axis, self.num)
+        dtype = (
+            self.dtype
+            if self.dtype is not None
+            else backend.standardize_dtype(getattr(start, "dtype", type(start)))
+        )
+        dtype = backend.result_type(dtype, float)
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.geomspace", "keras.ops.numpy.geomspace"])
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    """Returns numbers spaced evenly on a log scale (a geometric progression).
+
+    This is similar to `logspace`, but with endpoints specified directly
+    instead of as logarithms. Each output sample is a constant multiple of
+    the previous.
+
+    Args:
+        start: The starting value of the sequence.
+        stop: The final value of the sequence, unless `endpoint` is `False`.
+            In that case, `num + 1` values are spaced over the interval in
+            log-space, of which all but the last (a sequence of length `num`)
+            are returned.
+        num: Number of samples to generate. Defaults to `50`.
+        endpoint: If `True`, `stop` is the last sample. Otherwise, it is not
+            included. Defaults to `True`.
+        dtype: The type of the output tensor.
+        axis: The axis in the result to store the samples. Relevant only
+            if start or stop are array-like.
+
+    Note:
+        Torch backend does not support `axis` argument.
+
+    Returns:
+        A tensor of `num` samples, evenly spaced on a log scale.
+    """
+    dtype = None if dtype is None else backend.standardize_dtype(dtype)
+    if any_symbolic_tensors((start, stop)):
+        return Geomspace(num, endpoint, dtype, axis)(start, stop)
+    return backend.numpy.geomspace(
+        start,
+        stop,
+        num=num,
+        endpoint=endpoint,
+        dtype=dtype,
+        axis=axis,
+    )
 
 
 class Greater(Operation):
@@ -3940,6 +4116,35 @@ def imag(x):
     if any_symbolic_tensors((x,)):
         return Imag().symbolic_call(x)
     return backend.numpy.imag(x)
+
+
+class I0(Operation):
+    def call(self, x):
+        return backend.numpy.i0(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.i0", "keras.ops.numpy.i0"])
+def i0(x):
+    """Modified Bessel function of the first kind, order 0.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor, element-wise modified Bessel function of the
+        first kind, order 0 of `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return I0().symbolic_call(x)
+    return backend.numpy.i0(x)
 
 
 class Isclose(Operation):
@@ -4398,20 +4603,9 @@ class Linspace(Operation):
         start_shape = getattr(start, "shape", [])
         stop_shape = getattr(stop, "shape", [])
         output_shape = broadcast_shapes(start_shape, stop_shape)
-        if self.axis == -1:
-            output_shape = output_shape + [self.num]
-        elif self.axis >= 0:
-            output_shape = (
-                output_shape[: self.axis]
-                + [self.num]
-                + output_shape[self.axis :]
-            )
-        else:
-            output_shape = (
-                output_shape[: self.axis + 1]
-                + [self.num]
-                + output_shape[self.axis + 1 :]
-            )
+        output_shape = list(output_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape.insert(axis, self.num)
 
         dtype = (
             self.dtype
@@ -4786,20 +4980,9 @@ class Logspace(Operation):
         start_shape = getattr(start, "shape", [])
         stop_shape = getattr(stop, "shape", [])
         output_shape = broadcast_shapes(start_shape, stop_shape)
-        if self.axis == -1:
-            output_shape = output_shape + [self.num]
-        elif self.axis >= 0:
-            output_shape = (
-                output_shape[: self.axis]
-                + [self.num]
-                + output_shape[self.axis :]
-            )
-        else:
-            output_shape = (
-                output_shape[: self.axis + 1]
-                + [self.num]
-                + output_shape[self.axis + 1 :]
-            )
+        output_shape = list(output_shape)
+        axis = canonicalize_axis(self.axis, len(output_shape) + 1)
+        output_shape.insert(axis, self.num)
         dtype = (
             self.dtype
             if self.dtype is not None
@@ -5203,6 +5386,44 @@ def mod(x1, x2):
     return backend.numpy.mod(x1, x2)
 
 
+class Fmod(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.fmod(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        if output_dtype == "bool":
+            output_dtype = "int32"
+        return KerasTensor(output_shape, dtype=output_dtype)
+
+
+@keras_export(["keras.ops.fmod", "keras.ops.numpy.fmod"])
+def fmod(x1, x2):
+    """Returns the element-wise remainder of division with truncation.
+
+    Computes the remainder complementary to the `floor_divide` function,
+    equivalent to the C library function ``fmod``. The result has the same
+    sign as the dividend ``x1``. This is different from `keras.ops.mod`
+    which has the same sign as the divisor ``x2``.
+
+    Args:
+        x1: First tensor, the dividend.
+        x2: Second tensor, the divisor.
+
+    Returns:
+        Output tensor, element-wise remainder with truncation.
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Fmod().symbolic_call(x1, x2)
+    return backend.numpy.fmod(x1, x2)
+
+
 class Moveaxis(Operation):
     def __init__(self, source, destination, *, name=None):
         super().__init__(name=name)
@@ -5265,6 +5486,246 @@ def moveaxis(x, source, destination):
     if any_symbolic_tensors((x,)):
         return Moveaxis(source, destination).symbolic_call(x)
     return backend.numpy.moveaxis(x, source=source, destination=destination)
+
+
+class Nanargmax(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanargmax(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        axis = [self.axis] if self.axis is not None else None
+        return KerasTensor(
+            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
+            dtype="int32",
+        )
+
+
+@keras_export(["keras.ops.nanargmax", "keras.ops.numpy.nanargmax"])
+def nanargmax(x, axis=None, keepdims=False):
+    """Returns the indices of the maximum values along an axis, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: By default, the index is into the flattened tensor, otherwise
+            along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Tensor of indices. It has the same shape as `x`, with the dimension
+        along `axis` removed. NaN values are ignored when computing the maximum.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 0.0]])
+
+    >>> ops.nanargmax(x)
+    array(2, dtype=int32)
+
+    >>> ops.nanargmax(x, axis=0)
+    array([0, 1, 0], dtype=int32)
+
+    >>> ops.nanargmax(x, axis=1)
+    array([2, 1], dtype=int32)
+
+    >>> ops.nanargmax(x, axis=1, keepdims=True)
+    array([[2],
+           [1]], dtype=int32)
+    """
+
+    if any_symbolic_tensors((x,)):
+        return Nanargmax(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanargmax(x, axis=axis, keepdims=keepdims)
+
+
+class Nanargmin(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanargmin(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        axis = [self.axis] if self.axis is not None else None
+        return KerasTensor(
+            reduce_shape(x.shape, axis=axis, keepdims=self.keepdims),
+            dtype="int32",
+        )
+
+
+@keras_export(["keras.ops.nanargmin", "keras.ops.numpy.nanargmin"])
+def nanargmin(x, axis=None, keepdims=False):
+    """Returns the indices of the minimum values along an axis, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: By default, the index is into the flattened tensor, otherwise
+            along the specified axis.
+        keepdims: If this is set to `True`, the axes which are reduced are left
+                in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Tensor of indices. It has the same shape as `x`, with the dimension
+        along `axis` removed. NaN values are ignored when computing the minimum.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 0.0]])
+
+    >>> ops.nanargmin(x)
+    array(5, dtype=int32)
+
+    >>> ops.nanargmin(x, axis=0)
+    array([0, 1, 1], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1)
+    array([0, 2], dtype=int32)
+
+    >>> ops.nanargmin(x, axis=1, keepdims=True)
+    array([[0],
+           [2]], dtype=int32)
+    """
+
+    if any_symbolic_tensors((x,)):
+        return Nanargmin(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanargmin(x, axis=axis, keepdims=keepdims)
+
+
+class Nancumsum(Operation):
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.nancumsum(x, axis=self.axis, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+        else:
+            output_shape = x.shape
+
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+
+        if output_dtype == "bool":
+            output_dtype = "int32"
+
+        return KerasTensor(output_shape, output_dtype)
+
+
+@keras_export(["keras.ops.nancumsum", "keras.ops.numpy.nancumsum"])
+def nancumsum(x, axis=None, dtype=None):
+    """Returns the cumulative sum of elements along a given axis,
+    treating NaNs as zero.
+
+    Args:
+        x: Input tensor.
+        axis: Axis along which the cumulative sum is computed.
+            By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
+
+    Returns:
+        Output tensor.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nancumsum(x)
+    array([1., 1., 4., 4., 6., 7.])
+
+    >>> ops.nancumsum(x, axis=1)
+    array([[1., 1., 4.],
+           [0., 2., 3.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nancumsum(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.nancumsum(x, axis=axis, dtype=dtype)
+
+
+class Nancumprod(Operation):
+    def __init__(self, axis=None, dtype=None, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.dtype = dtype
+
+    def call(self, x):
+        return backend.numpy.nancumprod(x, axis=self.axis, dtype=self.dtype)
+
+    def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+        else:
+            output_shape = x.shape
+
+        output_dtype = (
+            backend.standardize_dtype(x.dtype)
+            if self.dtype is None
+            else self.dtype
+        )
+
+        if output_dtype == "bool":
+            output_dtype = "int32"
+
+        return KerasTensor(output_shape, output_dtype)
+
+
+@keras_export(["keras.ops.nancumprod", "keras.ops.numpy.nancumprod"])
+def nancumprod(x, axis=None, dtype=None):
+    """Returns the cumulative product of elements along a given axis,
+    treating NaNs as one.
+
+    Args:
+        x: Input tensor.
+        axis: Axis along which the cumulative product is computed.
+            By default the input is flattened.
+        dtype: dtype of returned tensor. Defaults to x.dtype.
+
+    Returns:
+        Output tensor.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nancumprod(x)
+    array([1., 1., 3., 3., 6., 6.])
+
+    >>> ops.nancumprod(x, axis=1)
+    array([[1., 1., 3.],
+           [1., 2., 2.]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nancumprod(axis=axis, dtype=dtype).symbolic_call(x)
+    return backend.numpy.nancumprod(x, axis=axis, dtype=dtype)
 
 
 class Nanmax(Operation):
@@ -5498,6 +5959,143 @@ def nanprod(x, axis=None, keepdims=False):
     if any_symbolic_tensors((x,)):
         return Nanprod(axis=axis, keepdims=keepdims).symbolic_call(x)
     return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
+
+
+class Nanquantile(Operation):
+    def __init__(
+        self, axis=None, method="linear", keepdims=False, *, name=None
+    ):
+        super().__init__(name=name)
+        self.axis = axis
+        self.method = method
+        self.keepdims = keepdims
+
+    def call(self, x, q):
+        return backend.numpy.nanquantile(
+            x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x, q):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        if hasattr(q, "shape"):
+            if len(q.shape) > 0:
+                output_shape = (q.shape[0],) + output_shape
+
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nanquantile", "keras.ops.numpy.nanquantile"])
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    """Compute the q-th quantile(s) of the data along the specified axis,
+    while ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        q: Probability or sequence of probabilities for the quantiles to
+            compute. Values must be between 0 and 1 inclusive.
+        axis: Axis or axes along which the quantiles are computed. Defaults to
+            `axis=None` which is to compute the quantile(s) along a flattened
+            version of the array.
+        method: A string specifies the method to use for estimating the
+            quantile. Available methods are `"linear"`, `"lower"`, `"higher"`,
+            `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
+            If the desired quantile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
+        keepdims: If this is set to `True`, the axes which are reduced
+            are left in the result as dimensions with size one.
+
+    Returns:
+        The quantile(s) ignoring NaNs.
+
+    Examples:
+    >>> import keras
+    >>> from keras import ops
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanquantile(x, 0.5)
+    2.5
+    >>> x = keras.ops.array([1., 2., float("nan"), 4.])
+    >>> keras.ops.nanquantile(x, 0.5)
+    2.0
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanquantile(x, [0.25, 0.75])
+    array([1.75, 3.25])
+    >>> x = keras.ops.array([[1., 2., float("nan")],
+    ...                      [4., 5., 6.]])
+    >>> keras.ops.nanquantile(x, 0.5, axis=1)
+    array([1.5, 5.0])
+    """
+    if any_symbolic_tensors((x, q)):
+        return Nanquantile(
+            axis=axis, method=method, keepdims=keepdims
+        ).symbolic_call(x, q)
+
+    return backend.numpy.nanquantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    )
+
+
+class Nanstd(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanstd(x, axis=self.axis, keepdims=self.keepdims)
+
+    def compute_output_spec(self, x):
+        output_dtype = backend.result_type(getattr(x, "dtype", type(x)), float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=output_dtype,
+        )
+
+
+@keras_export(["keras.ops.nanstd", "keras.ops.numpy.nanstd"])
+def nanstd(x, axis=None, keepdims=False):
+    """Compute the standard deviation along the specified axes, ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the standard deviation is computed.
+            The default is to compute the std of the flattened tensor.
+        keepdims: If `True`, the axes which are reduced are left
+            in the result as dimensions with size one. Defaults to `False`.
+
+    Returns:
+        Output tensor containing the standard deviation ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+
+    >>> ops.nanstd(x)
+    0.8291562
+
+    >>> ops.nanstd(x, axis=1)
+    array([1. , 0.5])
+
+    >>> ops.nanstd(x, axis=1, keepdims=True)
+    array([[1. ],
+           [0.5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanstd(axis=axis, keepdims=keepdims).symbolic_call(x)
+    return backend.numpy.nanstd(x, axis=axis, keepdims=keepdims)
 
 
 class Nansum(Operation):
@@ -6579,6 +7177,43 @@ def sin(x):
     return backend.numpy.sin(x)
 
 
+class Sinc(Operation):
+    def call(self, x):
+        return backend.numpy.sinc(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(getattr(x, "dtype", backend.floatx()))
+        if dtype == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(dtype, float)
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.sinc", "keras.ops.numpy.sinc"])
+def sinc(x):
+    """Return the normalized sinc function.
+
+    The sinc function is equal to `sin(pi*x) / (pi*x)` for any argument
+    `x != 0`, and `sinc(0)` takes the limit value 1, making `sinc` not
+    just everywhere continuous but also infinitely differentiable.
+
+    Arguments:
+        x: Input tensor.
+
+    Returns:
+        Output tensor of same shape as `x`.
+
+    Examples:
+    >>> x = keras.ops.convert_to_tensor([0.0, 1.0, 2.0])
+    >>> keras.ops.sinc(x)
+    array([1., 0., 0.], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Sinc().symbolic_call(x)
+    return backend.numpy.sinc(x)
+
+
 class Sinh(Operation):
     def call(self, x):
         return backend.numpy.sinh(x)
@@ -6640,6 +7275,12 @@ class Sort(Operation):
         return backend.numpy.sort(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+            return KerasTensor(output_shape, x.dtype)
         return KerasTensor(x.shape, x.dtype)
 
 

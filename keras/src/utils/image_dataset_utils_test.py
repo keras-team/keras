@@ -164,7 +164,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         dataset = image_dataset_utils.image_dataset_from_directory(
             directory, batch_size=8, image_size=(18, 18), label_mode="int"
         )
-        test_case = self
+        test_obj = self
         if backend.config.image_data_format() == "channels_last":
             output_shape = [None, 18, 18, 3]
         else:
@@ -173,7 +173,7 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
         @tf.function
         def symbolic_fn(ds):
             for x, _ in ds.take(1):
-                test_case.assertListEqual(x.shape.as_list(), output_shape)
+                test_obj.assertListEqual(x.shape.as_list(), output_shape)
 
         symbolic_fn(dataset)
 

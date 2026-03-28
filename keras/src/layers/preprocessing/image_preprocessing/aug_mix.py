@@ -313,9 +313,34 @@ class AugMix(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
+        if training:
+            chain_mixing_weights = self.backend.cast(
+                transformation["chain_mixing_weights"], dtype=self.compute_dtype
+            )
+            weight_sample = self.backend.cast(
+                transformation["weight_sample"], dtype=self.compute_dtype
+            )
+            chain_transforms = transformation["chain_transforms"]
+
+            aug_masks = self.backend.numpy.zeros_like(segmentation_masks)
+            for idx, chain_transform in enumerate(chain_transforms):
+                copied_masks = self.backend.numpy.copy(segmentation_masks)
+                for depth_transform in chain_transform:
+                    layer_name = depth_transform["layer_name"]
+                    layer_transform = depth_transform["transformation"]
+
+                    augmentation_layer = getattr(self, layer_name)
+                    copied_masks = (
+                        augmentation_layer.transform_segmentation_masks(
+                            copied_masks, layer_transform
+                        )
+                    )
+                aug_masks += copied_masks * chain_mixing_weights[idx]
+            segmentation_masks = (
+                weight_sample * segmentation_masks
+                + (1 - weight_sample) * aug_masks
+            )
+        return segmentation_masks
 
     def compute_output_shape(self, input_shape):
         return input_shape

@@ -14,6 +14,7 @@ from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
@@ -151,7 +152,10 @@ class OpenVINOKerasTensor:
         x_type = x.get_element_type()
         x_keras_type = ov_to_keras_type(x_type)
         self.output = x
-        self.shape = tuple(x_keras_shape)
+        if x_keras_shape is not None:
+            self.shape = tuple(x_keras_shape)
+        else:
+            self.shape = None
         self.dtype = x_keras_type
         self.ndim = None
         self.data = data
@@ -490,11 +494,26 @@ class OpenVINOKerasTensor:
     def __len__(self):
         ov_output = self.output
         ov_shape = ov_output.get_partial_shape()
-        assert ov_shape.rank.is_static and ov_shape.rank.get_length() > 0, (
-            "rank must be static and greater than zero"
-        )
-        assert ov_shape[0].is_static, "the first dimension must be static"
+        if not (ov_shape.rank.is_static and ov_shape.rank.get_length() > 0):
+            raise ValueError(
+                "Rank must be static and greater than zero to compute `len()`. "
+                f"rank={ov_shape.rank}"
+            )
+        if not ov_shape[0].is_static:
+            raise ValueError(
+                "The first dimension must be static to compute `len()`. "
+                f"shape={ov_shape}"
+            )
         return ov_shape[0].get_length()
+
+    def __iter__(self):
+        if self.shape is None or len(self.shape) == 0:
+            raise TypeError("iteration over a 0-d tensor")
+        for i in range(self.shape[0]):
+            yield self[i]
+
+    def __bool__(self):
+        return bool(self.numpy())
 
     def __mod__(self, other):
         first = self.output
@@ -518,6 +537,138 @@ class OpenVINOKerasTensor:
 
     def numpy(self):
         return self.__array__()
+
+    def __rmod__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rmod__"
+        )
+        return OpenVINOKerasTensor(ov_opset.mod(other, first).output(0))
+
+    def __matmul__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__matmul__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.matmul(first, other, False, False).output(0)
+        )
+
+    def __rmatmul__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rmatmul__"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.matmul(other, first, False, False).output(0)
+        )
+
+    def __div__(self, other):
+        return self.__truediv__(other)
+
+    def __rdiv__(self, other):
+        return self.__rtruediv__(other)
+
+    def __and__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__and__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_and(first, other).output(0))
+
+    def __rand__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rand__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_and(other, first).output(0))
+
+    def __or__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__or__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_or(first, other).output(0))
+
+    def __ror__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__ror__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_or(other, first).output(0))
+
+    def __xor__(self, other):
+        first = self.output
+        other = get_ov_output(other)
+        first, other = align_operand_types(
+            first, other, "OpenVINOKerasTensor::__xor__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_xor(first, other).output(0))
+
+    def __rxor__(self, other):
+        other = get_ov_output(other)
+        first = self.output
+        other, first = align_operand_types(
+            other, first, "OpenVINOKerasTensor::__rxor__"
+        )
+        return OpenVINOKerasTensor(ov_opset.logical_xor(other, first).output(0))
+
+    def __int__(self):
+        arr = convert_to_numpy(self)
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return int(arr)
+
+    def __float__(self):
+        arr = convert_to_numpy(self)
+        if arr.ndim > 0:
+            raise TypeError(
+                "Only scalar arrays can be converted to Python scalars. "
+                f"Got: shape={arr.shape}"
+            )
+        return float(arr)
+
+    def __repr__(self):
+        return f"<OpenVINOKerasTensor shape={self.shape}, dtype={self.dtype}>"
+
+    def __round__(self, ndigits=None):
+        first = self.output
+        decimals = ndigits or 0
+        if decimals == 0:
+            result = ov_opset.round(first, "half_to_even")
+        else:
+            factor = ov_opset.constant(10.0**decimals, first.get_element_type())
+            scaled = ov_opset.multiply(first, factor)
+            rounded = ov_opset.round(scaled, "half_to_even")
+            result = ov_opset.divide(rounded, factor)
+        return OpenVINOKerasTensor(result.output(0))
+
+    def reshape(self, new_shape):
+        first = self.output
+        shape_const = get_ov_output(new_shape)
+        return OpenVINOKerasTensor(
+            ov_opset.reshape(first, shape_const, False).output(0)
+        )
+
+    def squeeze(self, axis=None):
+        first = self.output
+        if axis is not None:
+            axes = get_ov_output([axis] if isinstance(axis, int) else axis)
+        else:
+            axes = get_ov_output(
+                [i for i, d in enumerate(self.shape) if d == 1]
+            )
+        return OpenVINOKerasTensor(ov_opset.squeeze(first, axes).output(0))
 
 
 def ov_to_keras_type(ov_type):
@@ -560,21 +711,14 @@ class Variable(KerasVariable):
         return convert_to_tensor(value, dtype=dtype)
 
     def __array__(self):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            return self.value.output.get_node().data
-        return self.value.data
+        return convert_to_numpy(self)
 
     def __getitem__(self, idx):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            arr = self.value.output.get_node().data
-            return arr.__getitem__(idx)
-        return self.value.__getitem__(idx)
+        arr = convert_to_numpy(self)
+        return arr.__getitem__(idx)
 
     def __int__(self):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            arr = self.value.output.get_node().data
-        else:
-            arr = self.value.data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -583,10 +727,7 @@ class Variable(KerasVariable):
         return int(arr)
 
     def __float__(self):
-        if isinstance(self.value, OpenVINOKerasTensor):
-            arr = self.value.output.get_node().data
-        else:
-            arr = self.value.data
+        arr = convert_to_numpy(self)
         if arr.ndim > 0:
             raise TypeError(
                 "Only scalar arrays can be converted to Python scalars. "
@@ -676,11 +817,17 @@ def convert_to_numpy(x):
             x = x.value
         else:
             return x.value.data
-    assert isinstance(x, OpenVINOKerasTensor), (
-        "unsupported type {} for `convert_to_numpy` in openvino backend".format(
-            type(x)
-        )
-    )
+    if not isinstance(x, OpenVINOKerasTensor):
+        raise ValueError(f"unsupported type {type(x)} for `convert_to_numpy`.")
+    # if the tensor is backed by a Constant OV node, extract
+    # its data array directly without compiling a model.
+    try:
+        node = x.output.get_node()
+        if node.get_type_name() == "Constant":
+            return np.array(node.data)
+    except Exception:
+        # fall back to the slow path.
+        pass
     try:
         ov_result = x.output
         ov_model = Model(results=[ov_result], parameters=[])
@@ -690,7 +837,7 @@ def convert_to_numpy(x):
         raise RuntimeError(
             "`convert_to_numpy` failed to convert the tensor."
         ) from inner_exception
-    return result
+    return np.array(result)
 
 
 def is_tensor(x):
@@ -713,13 +860,69 @@ def cast(x, dtype):
 
 
 def cond(pred, true_fn, false_fn):
-    raise NotImplementedError("`cond` is not supported with openvino backend")
+    class _TrackingScope(StatelessScope):
+        """StatelessScope that retains variable object references."""
+
+        def __init__(self):
+            super().__init__()
+            self._var_objects = {}
+
+        def add_update(self, update):
+            variable, value = update
+            super().add_update(update)
+            self._var_objects[id(variable)] = variable
+
+    # Run both branches in isolated scopes so variable assignments are
+    # captured but not applied eagerly (same semantics as torch.cond).
+    true_scope = _TrackingScope()
+    with true_scope:
+        true_val = true_fn()
+
+    false_scope = _TrackingScope()
+    with false_scope:
+        false_val = false_fn()
+
+    if isinstance(pred, bool):
+        pred_ov = ov_opset.constant(pred, Type.boolean).output(0)
+    else:
+        pred_ov = get_ov_output(pred)
+        if pred_ov.get_element_type() != Type.boolean:
+            pred_ov = ov_opset.convert(pred_ov, Type.boolean).output(0)
+
+    def _select(t, f):
+        t_ov, f_ov = align_operand_types(
+            get_ov_output(t), get_ov_output(f), "cond"
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.select(pred_ov, t_ov, f_ov).output(0)
+        )
+
+    # Apply selected variable updates: for each variable touched by either
+    # branch, select between the true-branch value and the false-branch value
+    # (defaulting to the pre-cond stored value for the branch that didn't
+    # update it).
+    all_var_ids = set(true_scope.state_mapping) | set(false_scope.state_mapping)
+    for var_id in all_var_ids:
+        if var_id in true_scope._var_objects:
+            var = true_scope._var_objects[var_id]
+        else:
+            var = false_scope._var_objects[var_id]
+        true_new = true_scope.state_mapping.get(var_id, var._value)
+        false_new = false_scope.state_mapping.get(var_id, var._value)
+        var._direct_assign(_select(true_new, false_new))
+
+    if true_val is None:
+        return None
+
+    if isinstance(true_val, (list, tuple)):
+        return type(true_val)(
+            _select(t, f) for t, f in zip(true_val, false_val)
+        )
+    return _select(true_val, false_val)
 
 
 def vectorized_map(function, elements):
-    raise NotImplementedError(
-        "`vectorized_map` is not supported with openvino backend"
-    )
+    return map(function, elements)
 
 
 # Shape / dtype inference util
@@ -760,20 +963,259 @@ def compute_output_spec(fn, *args, **kwargs):
     return output_spec
 
 
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
+
+
 def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
-    raise NotImplementedError("`scan` is not supported with openvino backend")
+    # Ref: jax.lax.scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    if not isinstance(unroll, bool):
+        if not isinstance(unroll, int) or unroll < 1:
+            raise ValueError(
+                "`unroll` must be an positive integer or boolean. "
+                f"Received: unroll={unroll}"
+            )
+    if xs is None and length is None:
+        raise ValueError("Got no `xs` to scan over and `length` not provided.")
+
+    input_is_sequence = tree.is_nested(xs)
+    output_is_sequence = tree.is_nested(init)
+
+    def pack_input(x):
+        return tree.pack_sequence_as(xs, x) if input_is_sequence else x[0]
+
+    def pack_output(x):
+        return tree.pack_sequence_as(init, x) if output_is_sequence else x[0]
+
+    if xs is None:
+        xs_flat = []
+        n = int(length)
+    else:
+        xs_flat = tree.flatten(xs)
+        xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
+        n = (
+            int(length)
+            if length is not None
+            else (shape(xs_flat[0])[0] if xs_flat else 0)
+        )
+
+    init_flat = tree.flatten(init)
+    init_flat = [convert_to_tensor(i) for i in init_flat]
+    init = pack_output(init_flat)
+
+    dummy_y = []
+    for i in init_flat:
+        i_ov = get_ov_output(i)
+        zero = ov_opset.constant(0, i_ov.get_element_type()).output(0)
+        shape_node = ov_opset.shape_of(i_ov, Type.i32).output(0)
+        dummy_y.append(
+            OpenVINOKerasTensor(ov_opset.broadcast(zero, shape_node).output(0))
+        )
+
+    carry = init
+    ys = []
+    maybe_reversed = reversed if reverse else lambda x: x
+    for i in maybe_reversed(range(n)):
+        xs_slice = [x[i] for x in xs_flat]
+        packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
+        carry, y = f(carry, packed_xs)
+        ys.append(y if y is not None else dummy_y)
+
+    def _stack(tensors):
+        elems = [get_ov_output(t) for t in tensors]
+        const_axis = ov_opset.constant(0, Type.i32).output(0)
+        elems = [ov_opset.unsqueeze(e, const_axis).output(0) for e in elems]
+        return OpenVINOKerasTensor(ov_opset.concat(elems, 0).output(0))
+
+    stacked_y = tree.map_structure(
+        lambda *y: _stack(list(y)), *maybe_reversed(ys)
+    )
+    return carry, stacked_y
+
+
+def associative_scan(f, elems, reverse=False, axis=0):
+    # Ref: jax.lax.associative_scan
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    elems_flat = tree.flatten(elems)
+    elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
+
+    def _flip(x, axis):
+        x_ov = get_ov_output(x)
+        ndim = len(x_ov.get_partial_shape())
+        begin = [0] * ndim
+        end = [0] * ndim
+        strides = [1] * ndim
+        strides[axis] = -1
+        mask = [1] * ndim
+        result = ov_opset.strided_slice(
+            data=x_ov,
+            begin=begin,
+            end=end,
+            strides=strides,
+            begin_mask=mask,
+            end_mask=mask,
+        ).output(0)
+        return OpenVINOKerasTensor(result)
+
+    def _concat(tensors, axis):
+        elems = [get_ov_output(t) for t in tensors]
+        keras_types = [ov_to_keras_type(e.get_element_type()) for e in elems]
+        if keras_types:
+            target = OPENVINO_DTYPES[result_type(*keras_types)]
+            elems = [
+                ov_opset.convert(e, target).output(0)
+                if e.get_element_type() != target
+                else e
+                for e in elems
+            ]
+        return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
+
+    def _unsqueeze(x, axis):
+        x_ov = get_ov_output(x)
+        const_axis = ov_opset.constant(axis, Type.i32).output(0)
+        return OpenVINOKerasTensor(
+            ov_opset.unsqueeze(x_ov, const_axis).output(0)
+        )
+
+    if reverse:
+        elems_flat = [_flip(elem, axis) for elem in elems_flat]
+
+    def _combine(a_flat, b_flat):
+        a = tree.pack_sequence_as(elems, a_flat)
+        b = tree.pack_sequence_as(elems, b_flat)
+        c = f(a, b)
+        return tree.flatten(c)
+
+    num_elems = int(elems_flat[0].shape[axis])
+    if not all(int(elem.shape[axis]) == num_elems for elem in elems_flat[1:]):
+        raise ValueError(
+            "Array inputs to associative_scan must have the same "
+            "first dimension. (saw: {})".format(
+                [elem.shape for elem in elems_flat]
+            )
+        )
+
+    def _interleave(a, b, axis):
+        n_a = a.shape[axis]
+        n_b = b.shape[axis]
+
+        a_common = slice_along_axis(a, 0, n_b, axis=axis)
+        a_exp = _unsqueeze(a_common, axis + 1)
+        b_exp = _unsqueeze(b, axis + 1)
+        interleaved = _concat([a_exp, b_exp], axis + 1)
+
+        interleaved_ov = get_ov_output(interleaved)
+        orig_shape = ov_opset.shape_of(interleaved_ov, Type.i32).output(0)
+        ndim = len(interleaved_ov.get_partial_shape())
+        pre = ov_opset.slice(
+            orig_shape,
+            ov_opset.constant([0], Type.i32),
+            ov_opset.constant([axis], Type.i32),
+            ov_opset.constant([1], Type.i32),
+        ).output(0)
+        merged_dim = ov_opset.constant([n_b * 2], Type.i32).output(0)
+        post = ov_opset.slice(
+            orig_shape,
+            ov_opset.constant([axis + 2], Type.i32),
+            ov_opset.constant([ndim], Type.i32),
+            ov_opset.constant([1], Type.i32),
+        ).output(0)
+        target_shape = ov_opset.concat([pre, merged_dim, post], 0).output(0)
+        interleaved = OpenVINOKerasTensor(
+            ov_opset.reshape(interleaved_ov, target_shape, False).output(0)
+        )
+
+        if n_a > n_b:
+            last = slice_along_axis(a, n_b, n_b + 1, axis=axis)
+            interleaved = _concat([interleaved, last], axis)
+
+        return interleaved
+
+    def _scan(elems):
+        num_elems = elems[0].shape[axis]
+        if num_elems < 2:
+            return elems
+
+        reduced_elems = _combine(
+            [slice_along_axis(e, 0, -1, step=2, axis=axis) for e in elems],
+            [slice_along_axis(e, 1, None, step=2, axis=axis) for e in elems],
+        )
+        odd_elems = _scan(reduced_elems)
+
+        if num_elems % 2 == 0:
+            even_elems = _combine(
+                [slice_along_axis(e, 0, -1, axis=axis) for e in odd_elems],
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
+            )
+        else:
+            even_elems = _combine(
+                odd_elems,
+                [
+                    slice_along_axis(e, 2, None, step=2, axis=axis)
+                    for e in elems
+                ],
+            )
+        even_elems = [
+            _concat(
+                [slice_along_axis(elem, 0, 1, axis=axis), result],
+                axis,
+            )
+            for elem, result in zip(elems, even_elems)
+        ]
+        return [_interleave(e, o, axis) for e, o in zip(even_elems, odd_elems)]
+
+    scanned_elems = _scan(elems_flat)
+    if reverse:
+        scanned_elems = [_flip(elem, axis) for elem in scanned_elems]
+    return tree.pack_sequence_as(elems, scanned_elems)
 
 
 def scatter(indices, values, shape):
-    raise NotImplementedError(
-        "`scatter` is not supported with openvino backend"
-    )
+    indices = get_ov_output(indices)
+    values = get_ov_output(values)
+
+    # Create a zeros tensor of the target shape.
+    shape = get_ov_output(shape)
+    zero_const = ov_opset.constant(0, values.get_element_type())
+    zeros = ov_opset.broadcast(zero_const, shape).output(0)
+
+    return scatter_update(zeros, indices, values, "add")
 
 
 def scatter_update(inputs, indices, updates, reduction=None):
-    raise NotImplementedError(
-        "`scatter_update` is not supported with openvino backend"
-    )
+    inputs = get_ov_output(inputs)
+    indices = get_ov_output(indices)
+    updates = get_ov_output(updates)
+
+    inputs, updates = align_operand_types(inputs, updates, "scatter_update")
+
+    # Map Keras reduction to OpenVINO ScatterNDUpdate reduction.
+    # OpenVINO Opset 15 supports: "none", "sum", "sub", "prod", "min", "max".
+    if reduction is None:
+        ov_reduction = "none"
+    elif reduction == "add":
+        ov_reduction = "sum"
+    elif reduction == "mul":
+        ov_reduction = "prod"
+    elif reduction in ("max", "min"):
+        ov_reduction = reduction
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
+
+    result = ov_opset.scatter_nd_update(
+        inputs, indices, updates, reduction=ov_reduction
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def slice(inputs, start_indices, shape):
@@ -782,14 +1224,16 @@ def slice(inputs, start_indices, shape):
         start_indices = tuple(start_indices)
     if isinstance(shape, (list, np.ndarray)):
         shape = tuple(shape)
-    assert isinstance(start_indices, tuple), (
-        "`slice` is not supported by openvino backend"
-        " for `start_indices` of type {}".format(type(start_indices))
-    )
-    assert isinstance(shape, tuple), (
-        "`slice` is not supported by openvino backend"
-        " for `shape` of type {}".format(type(shape))
-    )
+    if not isinstance(start_indices, tuple):
+        raise ValueError(
+            "`slice` operation requires tuple for `start_indices with the "
+            f"openvino backend. Received: start_indices={start_indices}"
+        )
+    if not isinstance(shape, tuple):
+        raise ValueError(
+            "`slice` operation requires tuple for `shape` with the "
+            f"openvino backend. Received: shape={shape}"
+        )
 
     axes = []
     start = []
@@ -1005,6 +1449,85 @@ def slice_update(inputs, start_indices, updates):
     return OpenVINOKerasTensor(result)
 
 
+def switch(index, branches, *operands):
+    if len(branches) == 1:
+        return branches[0](*operands)
+
+    n = len(branches)
+    index_ov = get_ov_output(convert_to_tensor(index, "int32"))
+    index_ov = ov_opset.clamp(index_ov, 0, n - 1).output(0)
+    operands_ov = [get_ov_output(op_val) for op_val in operands]
+
+    def _trace_branch(branch_fn):
+        params, wrapped = [], []
+        for ov_out in operands_ov:
+            p = ov_opset.parameter(
+                ov_out.get_partial_shape(), ov_out.get_element_type()
+            )
+            params.append(p)
+            wrapped.append(OpenVINOKerasTensor(p.output(0)))
+        raw = branch_fn(*wrapped)
+        if raw is None:
+            flat = []
+        elif isinstance(raw, (list, tuple)):
+            flat = [get_ov_output(o) for o in raw]
+        else:
+            flat = [get_ov_output(raw)]
+        return params, Model(flat, params), raw
+
+    def _build(branch_idx):
+        inner_outputs = None
+        then_params, then_body, then_raw = _trace_branch(branches[branch_idx])
+        if branch_idx == n - 2:
+            else_params, else_body, _ = _trace_branch(branches[branch_idx + 1])
+        else:
+            inner_outputs, _ = _build(branch_idx + 1)
+            else_params, pt_results = [], []
+            for inner_out in inner_outputs:
+                ep = ov_opset.parameter(
+                    inner_out.get_partial_shape(),
+                    inner_out.get_element_type(),
+                )
+                else_params.append(ep)
+                pt_results.append(ep.output(0))
+            else_body = Model(pt_results, else_params)
+
+        cond = ov_opset.equal(
+            index_ov,
+            ov_opset.constant(branch_idx, Type.i32).output(0),
+        ).output(0)
+        if_node = ov_opset.if_op(cond)
+        if_node.set_then_body(then_body)
+        if_node.set_else_body(else_body)
+
+        if inner_outputs is None:
+            for ov_inp, tp, ep in zip(operands_ov, then_params, else_params):
+                if_node.set_input(ov_inp, tp, ep)
+        else:
+            for ov_inp, tp in zip(operands_ov, then_params):
+                if_node.set_input(ov_inp, tp, None)
+            for inner_out, ep in zip(inner_outputs, else_params):
+                if_node.set_input(inner_out, None, ep)
+
+        outputs = [
+            if_node.set_output(then_body.results[i], else_body.results[i])
+            for i in range(len(then_body.results))
+        ]
+        return outputs, then_raw
+
+    final_outputs, template_raw = _build(0)
+    wrapped = [OpenVINOKerasTensor(o) for o in final_outputs]
+
+    if template_raw is None:
+        return None
+    elif isinstance(template_raw, tuple):
+        return tuple(wrapped)
+    elif isinstance(template_raw, list):
+        return list(wrapped)
+    else:
+        return wrapped[0]
+
+
 def while_loop(
     cond,
     body,
@@ -1045,9 +1568,11 @@ def while_loop(
     elif isinstance(loop_vars, (list, np.ndarray)):
         loop_vars = tuple(loop_vars)
     else:
-        assert isinstance(loop_vars, (tuple, dict)), (
-            f"Unsupported type {type(loop_vars)} for loop_vars"
-        )
+        if not isinstance(loop_vars, (tuple, dict)):
+            raise ValueError(
+                "Expected tuple or dict for `loop_vars`, "
+                f"Received: {type(loop_vars)}"
+            )
 
     flat_loop_vars = flatten_structure(loop_vars)
     loop_vars_ov = [get_ov_output(var) for var in flat_loop_vars]
@@ -1118,9 +1643,11 @@ def while_loop(
 
 
 def fori_loop(lower, upper, body_fun, init_val):
-    raise NotImplementedError(
-        "`fori_loop` is not supported with openvino backend"
-    )
+    return while_loop(
+        lambda i, val: i < upper,
+        lambda i, val: (i + 1, body_fun(i, val)),
+        (lower, init_val),
+    )[1]
 
 
 def stop_gradient(variable):
@@ -1128,29 +1655,44 @@ def stop_gradient(variable):
 
 
 def unstack(x, num=None, axis=0):
-    raise NotImplementedError(
-        "`unstack` is not supported with openvino backend"
-    )
+    x_ov = get_ov_output(x)
+    axis_ov = get_ov_output(axis)
+
+    if num is None:
+        shape = x_ov.get_partial_shape()
+        num = shape[axis].get_length()
+
+    split_ov = ov_opset.split(x_ov, axis_ov, num)
+
+    return [
+        OpenVINOKerasTensor(ov_opset.squeeze(out, axis_ov).output(0))
+        for out in split_ov.outputs()
+    ]
 
 
 def random_seed_dtype():
-    return "uint32"
+    # OpenVINO arithmetic promotes uint32 * int32 → int32 (Python ints are
+    # i32 in get_ov_output), so the seed tensor from SeedGenerator.next()
+    # ends up as int32. Returning int32 keeps the declared dtype consistent
+    # with what the backend actually produces.
+    return "int32"
 
 
-def custom_gradient(fun):
+class custom_gradient:
     """Decorator for custom gradients.
 
-    Args:
-        fun: Forward pass function.
+    OpenVINO is an inference-only backend, so this acts as a pass-through:
+    it runs the forward pass and discards the gradient function.
+
+    Arguments:
+        fun: The forward pass function.
     """
 
     def __init__(self, fun):
         warnings.warn(
-            "`custom_gradient` for the openvino backend"
-            " acts as a pass-through to "
-            "support the forward pass."
-            " No gradient computation or modification "
-            "takes place."
+            "`custom_gradient` for the openvino backend acts as a "
+            "pass-through to support the forward pass. No gradient "
+            "computation or modification takes place."
         )
         self.fun = fun
 

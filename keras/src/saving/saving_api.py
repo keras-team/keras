@@ -6,11 +6,13 @@ from absl import logging
 from keras.src.api_export import keras_export
 from keras.src.legacy.saving import legacy_h5_format
 from keras.src.saving import saving_lib
+from keras.src.saving.orbax_util import build_orbax_abstract_pytree
 from keras.src.saving.orbax_util import find_latest_orbax_checkpoint
 from keras.src.saving.orbax_util import is_orbax_checkpoint
 from keras.src.utils import file_utils
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import h5py
+from keras.src.utils.module_utils import ocp
 
 
 @keras_export(["keras.saving.save_model", "keras.models.save_model"])
@@ -319,14 +321,12 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
                 )
     elif is_orbax_checkpoint(filepath):
         # Load weights from Orbax checkpoint
-        from keras.src.utils.module_utils import ocp
-
         filepath = str(filepath)
 
         # Determine if this is a root directory or a step directory
-        items = os.listdir(filepath)
+        items = file_utils.listdir(filepath)
         has_step_subdirs = any(
-            os.path.isdir(os.path.join(filepath, item)) and item.isdigit()
+            file_utils.isdir(file_utils.join(filepath, item)) and item.isdigit()
             for item in items
         )
 
@@ -337,9 +337,14 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             # It's a step directory, use it directly
             checkpoint_path = filepath
 
-        # Load weights only (no assets) from Orbax checkpoint
+        # Build abstract pytree with target shardings so Orbax can
+        # reshard arrays onto the current distribution layout.
+        abstract_pytree = build_orbax_abstract_pytree(
+            checkpoint_path, model.get_state_tree()
+        )
+
         loaded_checkpointables = ocp.load_checkpointables(
-            checkpoint_path, dict(pytree=None)
+            checkpoint_path, dict(pytree=abstract_pytree)
         )
 
         loaded_state = loaded_checkpointables["pytree"]
@@ -358,10 +363,18 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
 def _load_model_from_orbax_checkpoint(
     filepath, custom_objects=None, compile=True, safe_mode=True
 ):
-    """Load a model from an Orbax checkpoint directory."""
+    """Load a model from an Orbax checkpoint directory.
 
-    from keras.src.utils.module_utils import ocp
+    `model_config` is stored as its own checkpointable (separate from
+    `pytree`), so loading proceeds in two simple steps:
 
+      1. Load the `model_config` checkpointable to obtain the model
+         configuration string and rebuild the model.
+      2. Load the `pytree` checkpointable (all arrays).  When a JAX
+         distribution is active, an abstract pytree with target
+         shardings is provided so that Orbax reshards arrays onto the
+         current layout.
+    """
     # Ensure orbax is available
     ocp.initialize()
 
@@ -372,45 +385,51 @@ def _load_model_from_orbax_checkpoint(
     # Load the composite state efficiently
     checkpointer = ocp.training.Checkpointer(directory=filepath)
 
-    with ocp.Context():
-        # Check which checkpointables were saved so we only request
-        # keys that actually exist (Orbax raises KeyError otherwise).
-        saved_keys = set(
-            checkpointer.checkpointables_metadata(step).metadata.keys()
-        )
-        request = {"pytree": None}
-        if "assets" in saved_keys:
-            request["assets"] = None
-
-        loaded_checkpointables = checkpointer.load_checkpointables(
-            step, request
-        )
-        composite_state = loaded_checkpointables["pytree"]
-        assets_data = loaded_checkpointables.get("assets")
-
-    # Validate and extract model config
-    if "model_config" not in composite_state:
-        raise ValueError(
-            "Checkpoint does not contain model configuration. "
-            "This checkpoint may have been saved with save_weights_only=True."
-        )
-
-    # Create and build model from config using saving_lib helper
-    # This properly handles shared objects and compile_config
-    model = saving_lib._model_from_config(
-        composite_state["model_config"],
-        custom_objects=custom_objects,
-        compile=compile,
-        safe_mode=safe_mode,
-    )
-
-    # Prepare state tree with only variable keys for set_state_tree
     variable_keys = [
         "trainable_variables",
         "non_trainable_variables",
         "optimizer_variables",
         "metrics_variables",
     ]
+
+    with ocp.Context():
+        # Check which checkpointables were saved so we only request
+        # keys that actually exist (Orbax raises KeyError otherwise).
+        saved_keys = set(
+            checkpointer.checkpointables_metadata(step).metadata.keys()
+        )
+
+        # Step 1: Load model_config to rebuild the model.
+        if "model_config" not in saved_keys:
+            raise ValueError(
+                "Checkpoint does not contain model configuration. "
+                "This checkpoint may have been saved with "
+                "save_weights_only=True."
+            )
+
+        config_loaded = checkpointer.load_checkpointables(
+            step, {"model_config": None}
+        )
+        model = saving_lib._model_from_config(
+            config_loaded["model_config"]["config"],
+            custom_objects=custom_objects,
+            compile=compile,
+            safe_mode=safe_mode,
+        )
+
+        # Step 2: Load pytree (arrays) with optional resharding.
+        abstract_pytree = build_orbax_abstract_pytree(
+            checkpoint_path, model.get_state_tree()
+        )
+
+        request = {"pytree": abstract_pytree}
+        if "assets" in saved_keys:
+            request["assets"] = None
+
+        loaded = checkpointer.load_checkpointables(step, request)
+        composite_state = loaded["pytree"]
+        assets_data = loaded.get("assets")
+
     state_tree = {
         key: composite_state[key]
         for key in variable_keys

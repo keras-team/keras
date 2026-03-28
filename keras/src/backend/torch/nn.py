@@ -322,6 +322,21 @@ def _transpose_conv_kernel(kernel):
     return kernel
 
 
+def _get_channels_last_memory_format(ndim):
+    if ndim == 4:
+        return torch.channels_last
+    elif ndim == 5:
+        return torch.channels_last_3d
+    return None
+
+
+def _maybe_convert_to_channels_last(tensor):
+    mem_fmt = _get_channels_last_memory_format(tensor.ndim)
+    if mem_fmt is not None and not tensor.is_contiguous(memory_format=mem_fmt):
+        return tensor.contiguous(memory_format=mem_fmt)
+    return tensor
+
+
 def max_pool(
     inputs,
     pool_size,
@@ -566,6 +581,10 @@ def conv(
 
     kernel = _transpose_conv_kernel(kernel)
 
+    if data_format == "channels_last":
+        inputs = _maybe_convert_to_channels_last(inputs)
+        kernel = _maybe_convert_to_channels_last(kernel)
+
     # calc. groups snippet
     in_channels = inputs.shape[1]
     kernel_in_channels = kernel.shape[1]
@@ -701,6 +720,11 @@ def conv_transpose(
         inputs = _transpose_spatial_inputs(inputs)
     # Transpose kernel from keras format to torch format.
     kernel = _transpose_conv_kernel(kernel)
+
+    if data_format == "channels_last":
+        inputs = _maybe_convert_to_channels_last(inputs)
+        kernel = _maybe_convert_to_channels_last(kernel)
+
     kernel_spatial_shape = kernel.shape[2:]
     if isinstance(dilation_rate, int):
         dilation_rate = [dilation_rate] * len(kernel_spatial_shape)
@@ -1232,6 +1256,31 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     """
     return tnn.unfold(
         input,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """Native PyTorch implementation of Fold.
+    Combine an array of sliding local blocks into a large tensor (col2im).
+
+    Args:
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+    return tnn.fold(
+        x,
+        output_size=output_size,
         kernel_size=kernel_size,
         dilation=dilation,
         padding=padding,
