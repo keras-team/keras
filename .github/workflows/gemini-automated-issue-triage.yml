@@ -183,7 +183,7 @@ jobs:
             ## Role
 
             You are an issue triage and response assistant for Keras. Your role is twofold:
-            1. Analyze the issue and determine the best single label based on the definitions provided.
+            1. Analyze the issue and determine all applicable labels based on the definitions provided.
             2. Draft an automated response to the issue using the provided codebase search context.
 
             ## Context
