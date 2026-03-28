@@ -25,8 +25,8 @@ if is_nnx_enabled():
     reason="Test requires NNX backend to be enabled by default for setup.",
 )
 class NnxVariableTest(testing.TestCase):
-    def setup(self):
-        super().setup()
+    def setUp(self):
+        super().setUp()
 
         class NNXModel(nnx.Module):
             def __init__(self, rngs):
