@@ -32,7 +32,7 @@ module.exports = async ({ github, context }) => {
     console.log(issue_title,issue_description,issue_number)
     
     for(const [keyword, label] of Object.entries(keyword_label)){
-     if(issue_title.toLowerCase().indexOf(keyword) !=-1 || issue_description.toLowerCase().indexOf(keyword) !=-1 ){
+     if ((issue_title && issue_title.toLowerCase().indexOf(keyword) !== -1) || (issue_description && issue_description.toLowerCase().indexOf(keyword) !== -1)) {
         console.log(`'${keyword}'keyword is present inside the title or description. Pushing label '${label}' to row.`)
         labelsToAdd.push(label)
     }
