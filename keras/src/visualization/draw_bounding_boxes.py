@@ -125,6 +125,9 @@ def draw_bounding_boxes(
         else:
             images = np.clip(images, 0, 255)
     images = images.astype("uint8")
+    # cv2 always operates on (H, W, C); transpose channels_first input.
+    if data_format == "channels_first":
+        images = np.ascontiguousarray(np.transpose(images, (0, 2, 3, 1)))
     boxes = ops.convert_to_numpy(bounding_boxes["boxes"])
     labels = ops.convert_to_numpy(bounding_boxes["labels"])
     if "confidences" in bounding_boxes:
@@ -135,7 +138,7 @@ def draw_bounding_boxes(
     result = []
     batch_size = images.shape[0]
     for i in range(batch_size):
-        _image = images[i]
+        _image = np.ascontiguousarray(images[i])
         _box = boxes[i]
         _class = labels[i]
         for box_i in range(_box.shape[0]):

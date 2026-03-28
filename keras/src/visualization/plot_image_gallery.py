@@ -156,8 +156,6 @@ def plot_image_gallery(
     )
 
     images = ops.convert_to_numpy(images)
-    if data_format == "channels_first":
-        images = images.transpose(0, 2, 3, 1)
 
     if y_true is not None:
         y_true = ops.convert_to_numpy(y_true)
