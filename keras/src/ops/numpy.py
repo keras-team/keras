@@ -5839,6 +5839,65 @@ def nanmean(x, axis=None, keepdims=False):
     return backend.numpy.nanmean(x, axis=axis, keepdims=keepdims)
 
 
+class Nanmedian(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanmedian(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanmedian", "keras.ops.numpy.nanmedian"])
+def nanmedian(x, axis=None, keepdims=False):
+    """Median of a tensor over the given axes, ignoring NaNs.
+
+    This function computes the median along the specified axis or axes,
+    skipping any NaN values. If all values along a reduced axis are NaN,
+    the result is NaN.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the median is computed.
+            If None (default), the median of the flattened tensor is returned.
+        keepdims: If True, the reduced axes are retained as dimensions
+            with size one.
+            Defaults to False.
+
+    Returns:
+        Tensor with the median values, ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanmedian(x)
+    1.5
+
+    >>> ops.nanmedian(x, axis=1)
+    array([2., 1.5])
+
+    >>> ops.nanmedian(x, axis=1, keepdims=True)
+    array([[2. ],
+           [1.5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanmedian(axis=axis, keepdims=keepdims).symbolic_call(x)
+
+    return backend.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
+
+
 class Nanmin(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
