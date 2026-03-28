@@ -152,6 +152,35 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, (1, 4, 4, 3))
 
+    def test_compute_conv_output_shape_kernel_exceeds_input(self):
+        # kernel_size > input spatial dims should raise (issues #22414, #22416)
+        with self.assertRaises(ValueError):
+            operation_utils.compute_conv_output_shape(
+                (1, 10, 10, 128),
+                filters=1,
+                kernel_size=(11, 11),
+                strides=(1, 1),
+                padding="valid",
+            )
+        # Also for 1D
+        with self.assertRaises(ValueError):
+            operation_utils.compute_conv_output_shape(
+                (1, 10, 128),
+                filters=1,
+                kernel_size=(11,),
+                strides=(1,),
+                padding="valid",
+            )
+        # Same padding should NOT raise (output is valid)
+        output_shape = operation_utils.compute_conv_output_shape(
+            (1, 10, 10, 128),
+            filters=1,
+            kernel_size=(11, 11),
+            strides=(1, 1),
+            padding="same",
+        )
+        self.assertEqual(output_shape, (1, 10, 10, 1))
+
     def test_compute_reshape_output_shape(self):
         input_shape = (1, 4, 4, 1)
         target_shape = (16, 1)

@@ -825,6 +825,28 @@ class ConvBasicTest(testing.TestCase):
         with self.assertRaises(ValueError):
             layer(inputs)
 
+    @parameterized.parameters(
+        # kernel_size > input spatial dim (issues #22414 and #22416)
+        (layers.Conv1D, (10, 128), 11),
+        (layers.Conv2D, (10, 10, 128), (11, 11)),
+        (layers.Conv3D, (10, 10, 10, 128), (11, 11, 11)),
+        # kernel_size > input in only one spatial dim
+        (layers.Conv2D, (10, 20, 128), (11, 5)),
+        (layers.Conv3D, (10, 20, 30, 128), (5, 21, 5)),
+    )
+    def test_conv_symbolic_kernel_exceeds_input(
+        self, layer_cls, input_shape, kernel_size
+    ):
+        """Raise ValueError when kernel_size > input spatial dims."""
+        inputs = layers.Input(shape=input_shape)
+        layer = layer_cls(
+            filters=1,
+            kernel_size=kernel_size,
+        )
+
+        with self.assertRaises(ValueError):
+            layer(inputs)
+
 
 class ConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
