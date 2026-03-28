@@ -380,6 +380,17 @@ class Functional(Function, Model):
         if hasattr(self, "_manual_input_spec"):
             return self._manual_input_spec
 
+        # Cache the auto-computed spec.  The spec is determined entirely by
+        # self._inputs_struct / self.inputs, which are fixed after the model
+        # is built.  Recreating the closure objects (shape_with_no_batch_size,
+        # make_spec_for_tensor) on every access causes torch.compile / Dynamo
+        # to see new Python function objects each call, failing its identity
+        # guard and triggering a full retrace.  Using a cached value gives
+        # Dynamo a stable object it can guard on once and reuse.
+        cached = getattr(self, "_auto_input_spec_cache", None)
+        if cached is not None:
+            return cached
+
         def shape_with_no_batch_size(x):
             x = list(x)
             if x:
@@ -405,16 +416,27 @@ class Functional(Function, Model):
             ):
                 # Case where `_nested_inputs` is a plain dict of Inputs.
                 names = sorted(self._inputs_struct.keys())
-                return [
+                result = [
                     make_spec_for_tensor(self._inputs_struct[name], name=name)
                     for name in names
                 ]
-            return None  # Deeply nested dict: skip checks.
-        return [make_spec_for_tensor(x) for x in self.inputs]
+            else:
+                return None  # Deeply nested dict: skip checks.
+        else:
+            result = [make_spec_for_tensor(x) for x in self.inputs]
+
+        # Use object.__setattr__ to bypass Layer's __setattr__ overhead.
+        object.__setattr__(self, "_auto_input_spec_cache", result)
+        return result
 
     @input_spec.setter
     def input_spec(self, value):
         self._manual_input_spec = value
+        # Invalidate the auto-cache when the spec is manually overridden.
+        try:
+            object.__delattr__(self, "_auto_input_spec_cache")
+        except AttributeError:
+            pass
 
     def get_config(self):
         if not functional_like_constructor(self.__class__):

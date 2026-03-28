@@ -4,6 +4,10 @@ import ml_dtypes
 
 from keras.src import activations
 from keras.src import backend
+
+if backend.backend() == "torch":
+    import torch
+    import torch.nn.functional as _F
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -219,14 +223,14 @@ class Dense(Layer):
         if (
             backend.backend() == "torch"
             and backend.is_tensor(inputs)
-            and self.quantization_mode is None
+            and self._quantization_mode is None
             and not self.lora_enabled
         ):
-            import torch
-
-            x = torch.matmul(inputs, self._kernel.value)
             if self.bias is not None:
-                x = torch.add(x, self.bias.value)
+                # F.linear fuses matmul + bias add in a single CUDA kernel.
+                x = _F.linear(inputs, self._kernel.value.t(), self.bias.value)
+            else:
+                x = torch.matmul(inputs, self._kernel.value)
             if self.activation is not None:
                 x = self.activation(x)
             return x

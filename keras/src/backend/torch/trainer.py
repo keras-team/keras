@@ -24,6 +24,23 @@ class TorchTrainer(base_trainer.Trainer):
         self.test_function = None
         self.predict_function = None
 
+    def __setattr__(self, name, value):
+        # Auto-compile `generate_function` with torch.compile when
+        # jit_compile=True.  keras-hub's CausalLM.make_generate_function
+        # sets self.generate_function after wrapping generate_step in
+        # torch.no_grad().  By intercepting the assignment here (which is
+        # earlier in the MRO than keras-hub's CausalLM) we can transparently
+        # add torch.compile on top without touching keras-hub code.
+        if (
+            name == "generate_function"
+            and value is not None
+            and callable(value)
+            and getattr(self, "_jit_compile", False)
+            and parse(torch.__version__) >= parse("2.1.0")
+        ):
+            value = torch.compile(value)
+        super().__setattr__(name, value)
+
     def _should_torch_compile(self):
         # require torch>=2.1.0 to enable dynamo since it
         # includes many improvements/fixes to torch.compile()
@@ -171,15 +188,34 @@ class TorchTrainer(base_trainer.Trainer):
                 f"Received: steps_per_execution={self.steps_per_execution}"
             )
 
-        def one_step_on_data(data):
-            """Runs a predict test step on a batch of data."""
-            data = data[0]
-            with torch.no_grad():
-                return self.predict_step(data)
-
         if self._should_torch_compile():
-            self.predict_function = torch.compile(one_step_on_data)
+            # Compile the model's forward pass directly rather than wrapping
+            # predict_step.  TorchLayer.forward has a fast path that calls
+            # self.call() directly for built models with real tensors,
+            # bypassing all Keras __call__ overhead (CallSpec construction,
+            # input-spec validation, name-scope work, etc.).  This gives
+            # Dynamo a much simpler graph to trace and avoids Keras Python
+            # objects showing up as Dynamo guards.
+            _compiled_forward = torch.compile(self.forward)
+            _has_training_arg = self._call_has_training_arg
+
+            def one_step_on_data(data):
+                """Runs a predict step on a batch of data."""
+                data = data[0]
+                x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+                with torch.no_grad():
+                    if _has_training_arg:
+                        return _compiled_forward(x, training=False)
+                    return _compiled_forward(x)
+
+            self.predict_function = one_step_on_data
         else:
+            def one_step_on_data(data):
+                """Runs a predict test step on a batch of data."""
+                data = data[0]
+                with torch.no_grad():
+                    return self.predict_step(data)
+
             self.predict_function = one_step_on_data
 
     @traceback_utils.filter_traceback

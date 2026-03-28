@@ -67,6 +67,22 @@ else:
         f"Backend '{backend.backend()}' must implement a layer mixin class."
     )
 
+# Decorator to prevent torch.compile / Dynamo from tracing into a function.
+# Pure-Python validation methods (e.g. _assert_input_compatibility) contain
+# no tensor ops, but Dynamo aggressively traces them and generates guards on
+# every Python object they touch, including closure objects that are recreated
+# on every property access.  Disabling Dynamo for these methods eliminates
+# the guard overhead and the recompilation it causes.
+if backend.backend() == "torch":
+    try:
+        import torch as _torch_for_dynamo
+        _dynamo_disable = _torch_for_dynamo._dynamo.disable
+        del _torch_for_dynamo
+    except (ImportError, AttributeError):
+        _dynamo_disable = lambda fn: fn
+else:
+    _dynamo_disable = lambda fn: fn
+
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
 class Layer(BackendLayer, Operation):
@@ -343,6 +359,8 @@ class Layer(BackendLayer, Operation):
         # full __call__ path are absent (no masking, no regularizer, no
         # autocast mismatch, no distribution, single-input call signature).
         self._fast_call = False
+        # Cached quantization mode (updated in _update_fast_call).
+        self._quantization_mode = None
         self._initialize_tracker()
 
     @tracking.no_automatic_dependency_tracking
@@ -430,6 +448,8 @@ class Layer(BackendLayer, Operation):
             and not self._allow_non_tensor_positional_args
             and self._mask_always_none
         )
+        # Cache quantization_mode so the hot path avoids the property lookup.
+        self._quantization_mode = self.quantization_mode
 
     @property
     def _mask_always_none(self):
@@ -904,27 +924,19 @@ class Layer(BackendLayer, Operation):
         # Node is created at the end of `__call__` instead of `symbolic_call`.
         return self.compute_output_spec(*args, **kwargs)
 
-    @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
-        self._check_super_called()
-        self._called = True
-
-        # Ultra-fast path for the most common cases:
-        # single or dual tensor inputs, layer already built, no regularizer/
-        # mask/distribution/autocast overhead, no symbolic tensors, no mask on
-        # inputs.  Also covers `layer(x, training=False)` since _fast_call
-        # layers don't change behavior based on the training flag.
-        # Avoids CallSpec construction, name-scope, and all the feature-
-        # detection work in the full path.
+        # Ultra-fast path: bypass traceback filtering, _check_super_called,
+        # and all feature-detection when the layer is known-safe.
         if (
             self.built
             and self._fast_call
             and distribution_lib.distribution() is None
             and self._remat_mode is None
-            and getattr(self, "quantization_mode", None) is None
+            and self._quantization_mode is None
+            and backend.get_autocast_scope() is None
         ):
-            _skip_fast = False
-            _kw = kwargs
+            _use_full_path = False
+            _kwargs = kwargs
 
             # Check for inherited context args from a parent layer call.
             if self._accepts_context_arg:
@@ -935,38 +947,32 @@ class Layer(BackendLayer, Operation):
                 )
                 if _ctx is not None:
                     if self._layers or len(self._call_context_args) > 1:
-                        # Has sublayers or custom context args: full path
-                        # needed for proper propagation.
-                        _skip_fast = True
+                        _use_full_path = True
                     elif self._call_has_training_arg:
-                        # Leaf layer: inject training from parent context
-                        # directly into kwargs for the fast path.
-                        # Only inject if the caller didn't explicitly pass it.
-                        if "training" not in _kw:
+                        if "training" not in _kwargs:
                             _trn_val = getattr(_ctx, "training", None)
                             if _trn_val is not None:
-                                _kw = (
-                                    {**_kw, "training": _trn_val}
-                                    if _kw
+                                _kwargs = (
+                                    {**_kwargs, "training": _trn_val}
+                                    if _kwargs
                                     else {"training": _trn_val}
                                 )
 
-            if _kw and not _skip_fast:
-                _trn = _kw.get("training")
+            if _kwargs and not _use_full_path:
+                _trn = _kwargs.get("training")
                 if _trn:
-                    # Outer layer with sublayers: need full path to create
-                    # CallContext so inner layers inherit training=True.
                     if self._layers:
-                        _skip_fast = True
+                        _use_full_path = True
                     elif not self._call_has_training_arg:
-                        _kw = {k: v for k, v in _kw.items() if k != "training"}
-                    # else: keep training=True in _kw as-is (leaf layer)
-                elif "training" in _kw:
-                    _kw = {k: v for k, v in _kw.items() if k != "training"}
+                        _kwargs = {
+                            k: v for k, v in _kwargs.items() if k != "training"
+                        }
+                elif "training" in _kwargs:
+                    _kwargs = {
+                        k: v for k, v in _kwargs.items() if k != "training"
+                    }
 
-            if not _skip_fast and (
-                not _kw or not any(backend.is_tensor(v) for v in _kw.values())
-            ):
+            if not _use_full_path:
                 n = len(args)
                 if (
                     n == 1
@@ -974,7 +980,9 @@ class Layer(BackendLayer, Operation):
                     and backend.get_keras_mask(args[0]) is None
                 ):
                     return (
-                        self.call(args[0], **_kw) if _kw else self.call(args[0])
+                        self.call(args[0], **_kwargs)
+                        if _kwargs
+                        else self.call(args[0])
                     )
                 if (
                     n == 2
@@ -983,10 +991,18 @@ class Layer(BackendLayer, Operation):
                     and backend.get_keras_mask(args[0]) is None
                 ):
                     return (
-                        self.call(args[0], args[1], **_kw)
-                        if _kw
+                        self.call(args[0], args[1], **_kwargs)
+                        if _kwargs
                         else self.call(args[0], args[1])
                     )
+
+        # Full path with traceback filtering.
+        return self._call_full(*args, **kwargs)
+
+    @traceback_utils.filter_traceback
+    def _call_full(self, *args, **kwargs):
+        self._check_super_called()
+        self._called = True
 
         original_args = args
         original_kwargs = kwargs
@@ -1834,6 +1850,7 @@ class Layer(BackendLayer, Operation):
                 "in the `__init__()` method. Go add it!"
             )
 
+    @_dynamo_disable
     def _assert_input_compatibility(self, arg_0):
         if self.input_spec:
             try:

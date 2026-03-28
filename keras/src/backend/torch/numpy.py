@@ -429,21 +429,25 @@ def arctanh(x):
 def argmax(x, axis=None, keepdims=False):
     if type(x) is not torch.Tensor:
         x = convert_to_tensor(x)
-    # TODO: torch.argmax doesn't support bool
-    if standardize_dtype(x.dtype) == "bool":
-        x = cast(x, "uint8")
-
-    return cast(torch.argmax(x, dim=axis, keepdim=keepdims), dtype="int32")
+    # Fast path: non-bool tensor (the common case)
+    if x.dtype != torch.bool:
+        return torch.argmax(x, dim=axis, keepdim=keepdims).to(torch.int32)
+    return cast(
+        torch.argmax(x.to(torch.uint8), dim=axis, keepdim=keepdims),
+        dtype="int32",
+    )
 
 
 def argmin(x, axis=None, keepdims=False):
     if type(x) is not torch.Tensor:
         x = convert_to_tensor(x)
-    # TODO: torch.argmin doesn't support bool
-    if standardize_dtype(x.dtype) == "bool":
-        x = cast(x, "uint8")
-
-    return cast(torch.argmin(x, dim=axis, keepdim=keepdims), dtype="int32")
+    # Fast path: non-bool tensor (the common case)
+    if x.dtype != torch.bool:
+        return torch.argmin(x, dim=axis, keepdim=keepdims).to(torch.int32)
+    return cast(
+        torch.argmin(x.to(torch.uint8), dim=axis, keepdim=keepdims),
+        dtype="int32",
+    )
 
 
 def argsort(x, axis=-1):
