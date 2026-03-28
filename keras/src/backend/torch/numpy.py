@@ -1436,6 +1436,11 @@ def nanmean(x, axis=None, keepdims=False):
     return torch.nanmean(cast(x, dtype), dim=axis, keepdim=keepdims)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return nanquantile(x, q=0.5, axis=axis, keepdims=keepdims)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
