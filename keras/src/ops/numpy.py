@@ -2293,7 +2293,7 @@ class Cross(Operation):
         x2_shape = list(x2.shape)
 
         x1_value_size = x1_shape[self.axisa]
-        x2_value_size = x2_shape[self.axisa]
+        x2_value_size = x2_shape[self.axisb]
         del x1_shape[self.axisa]
         del x2_shape[self.axisb]
         output_shape = broadcast_shapes(x1_shape, x2_shape)
@@ -2314,9 +2314,10 @@ class Cross(Operation):
         else:
             value_size = []
 
-        output_shape = (
-            output_shape[: self.axisc] + value_size + output_shape[self.axisc :]
-        )
+        # Normalize axisc so negative indices insert correctly.
+        ndim = len(output_shape) + len(value_size)
+        axisc = self.axisc if self.axisc >= 0 else ndim + self.axisc
+        output_shape = output_shape[:axisc] + value_size + output_shape[axisc:]
 
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
         return KerasTensor(output_shape, dtype=dtype)
