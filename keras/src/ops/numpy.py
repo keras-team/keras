@@ -5871,8 +5871,7 @@ def nanmedian(x, axis=None, keepdims=False):
         axis: Axis or axes along which the median is computed.
             If None (default), the median of the flattened tensor is returned.
         keepdims: If True, the reduced axes are retained as dimensions
-            with size one.
-            Defaults to False.
+            with size one. Defaults to False.
 
     Returns:
         Tensor with the median values, ignoring NaNs.

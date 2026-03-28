@@ -153,9 +153,11 @@ NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
 NNOpsDynamicShapeTest::test_glu
+NumpyDtypeTest::test_nanmedian
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
+NumpyOneInputOpsCorrectnessTest::test_nanmedian
 NumpyOneInputOpsCorrectnessTest::test_real
 QuantizersTest::test_abs_max_quantizer
 QuantizersTest::test_compute_float8_scale
