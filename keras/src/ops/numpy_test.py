@@ -6513,7 +6513,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_nanmedian(self):
-        x = np.array([[1.0, np.nan, 3.0, 4.0], [np.nan, 2.0, np.inf, -np.inf]])
+        x = np.array(
+            [[1.0, np.nan, 3.0, 4.0, 5.0], [np.nan, 2.0, 3.0, np.inf, -np.inf]]
+        )
 
         self.assertAllClose(knp.nanmedian(x), np.nanmedian(x))
         self.assertAllClose(knp.nanmedian(x, axis=()), np.nanmedian(x, axis=()))
