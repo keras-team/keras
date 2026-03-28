@@ -201,13 +201,7 @@ jobs:
             Your output must be a valid JSON object with the following schema:
             {
               "labels_to_set": ["label-name"],
-              "response_body": "Your response text here. Use markdown.",
-              "files_to_modify": [
-                {
-                  "path": "keras/src/layers/core.py",
-                  "content": "new python code here..."
-                }
-              ]
+              "response_body": "Your response text here. Use markdown."
             }
 
             ## Guidelines
