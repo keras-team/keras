@@ -1,0 +1,169 @@
+name: Gemini PR Re-Fix Loop
+
+on:
+  workflow_run:
+    workflows: ["Tests"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  re_fix:
+    name: 'Re-Fix Failing PR'
+    runs-on: ubuntu-latest
+    if: |-
+      github.event.workflow_run.conclusion == 'failure' &&
+      startsWith(github.event.workflow_run.head_branch, 'auto-fix-')
+    steps:
+      - name: Checkout ${{ github.event.workflow_run.head_branch }}
+        uses: actions/checkout@v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: 'Download Failed Run Logs'
+        uses: 'actions/github-script@v7'
+        id: 'download_logs'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |-
+            const fs = require('fs');
+            const path = require('path');
+            const { execSync } = require('child_process');
+
+            const runId = context.payload.workflow_run.id;
+            core.info(`Downloading logs for run ${runId}`);
+
+            try {
+              const logsZip = await github.rest.actions.downloadWorkflowRunLogs({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: runId
+              });
+
+              fs.writeFileSync('logs.zip', Buffer.from(logsZip.data));
+              execSync('unzip logs.zip -d logs_dir');
+              
+              // Find python test failures or pytest output
+              // In pytest, failure usually contains "FAILED" or tracebacks
+              const grepOutput = execSync('grep -rnw "logs_dir/" -e "FAILED" || true', { encoding: 'utf-8' });
+              
+              // Find the first few failures to avoid huge output
+              const summary = grepOutput.split('\n').filter(line => line.includes('FAILED')).slice(0, 10).join('\n');
+              core.setOutput('error_summary', summary);
+              core.info(`Extracted error summary: ${summary}`);
+            } catch (e) {
+              core.warning(`Error downloading/parsing logs: ${e.message}`);
+              core.setOutput('error_summary', `Could not download logs automatically. Manual check required.\nError: ${e.message}`);
+            }
+
+      - name: 'Ask Gemini to Fix Failed Tests'
+        uses: 'google-github-actions/run-gemini-cli@a3bf79042542528e91937b3a3a6fbc4967ee3c31'
+        id: 'gemini_re_fix'
+        env:
+          GITHUB_TOKEN: '' # Do not pass any auth token here
+          ERROR_SUMMARY: '${{ steps.download_logs.outputs.error_summary }}'
+          BRANCH_NAME: '${{ github.event.workflow_run.head_branch }}'
+        with:
+          gemini_api_key: '${{ secrets.GEMINI_API }}'
+          gemini_model: 'gemini-2.5-pro'
+          settings: |-
+            {
+              "maxSessionTurns": 5,
+              "telemetry": {
+                "enabled": false
+              }
+            }
+          prompt: |-
+            ## Role
+
+            You are an issue fix verification assistant. A previous automated fix you generated was pushed to branch `${{ env.BRANCH_NAME }}`, but it resulted in test failures.
+
+            ## Context
+            - Fails on branch `${{ env.BRANCH_NAME }}`
+            - Error Summary / Test Failures: ${{ env.ERROR_SUMMARY }}
+
+            ## Steps
+            1. Analyze the errors and find the root cause.
+            2. Propose a new fix for the files that were modified.
+            3. Output your response in the JSON format specified below.
+
+            ## Output Format
+            Your output must be a valid JSON object with the following schema:
+            {
+              "files_to_modify": [
+                {
+                  "path": "path/to/file.py",
+                  "content": "new python code here..."
+                }
+              ]
+            }
+
+            ## Guidelines
+            - Try to fix the specific tests that are failing.
+            - Provide a drop-in replacement for the whole file content in `content` if you modify it.
+
+      - name: 'Apply New Fixes'
+        if: |-
+          ${{ steps.gemini_re_fix.outputs.summary != '' }}
+        env:
+          GEMINI_OUTPUT: '${{ steps.gemini_re_fix.outputs.summary }}'
+        uses: 'actions/github-script@v7'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const rawOutput = process.env.GEMINI_OUTPUT;
+            core.info(`Raw output from model: ${rawOutput}`);
+            let parsed;
+            try {
+              parsed = JSON.parse(rawOutput);
+            } catch (jsonError) {
+              const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
+              if (jsonMatch && jsonMatch[1]) {
+                parsed = JSON.parse(jsonMatch[1].trim());
+              } else {
+                const jsonObjectMatch = rawOutput.match(/(\{[\s\S]*"files_to_modify"[\s\S]*\})/);
+                if (jsonObjectMatch) {
+                  parsed = JSON.parse(jsonObjectMatch[0]);
+                } else {
+                  core.setFailed(`Output is not valid JSON.\nRaw output: ${rawOutput}`);
+                  return;
+                }
+              }
+            }
+
+            const filesToModify = parsed.files_to_modify || [];
+
+            if (filesToModify.length === 0) {
+              core.info("No files to modify found in model output.");
+              return;
+            }
+
+            for (const fileObj of filesToModify) {
+              const filePath = fileObj.path;
+              const content = fileObj.content;
+              core.info(`Applying changes to ${filePath}`);
+              
+              try {
+                fs.writeFileSync(filePath, content);
+              } catch (e) {
+                core.warning(`Failed to write to ${filePath}: ${e.message}`);
+              }
+            }
+
+      - name: 'Push Fix to same branch'
+        uses: 'peter-evans/create-pull-request@v7'
+        with:
+          token: '${{ secrets.GITHUB_TOKEN }}'
+          branch: '${{ github.event.workflow_run.head_branch }}'
+          title: 'Automated Fix Retried'
+          commit-message: 'Automated fix retried by Gemini on test failure'
+          body: 'This PR branch was automatically updated by Gemini after the previous test run failed.'
+          draft: true
+          push-to-fork: ''
