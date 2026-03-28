@@ -81,6 +81,7 @@ class GroupNormalization(Layer):
     ):
         super().__init__(**kwargs)
         self.supports_masking = True
+        self.autocast = False
         self.groups = groups
         self.axis = axis
         self.epsilon = epsilon
@@ -129,6 +130,7 @@ class GroupNormalization(Layer):
                 initializer=self.gamma_initializer,
                 regularizer=self.gamma_regularizer,
                 constraint=self.gamma_constraint,
+                autocast=False,
             )
         else:
             self.gamma = None
@@ -140,6 +142,7 @@ class GroupNormalization(Layer):
                 initializer=self.beta_initializer,
                 regularizer=self.beta_regularizer,
                 constraint=self.beta_constraint,
+                autocast=False,
             )
         else:
             self.beta = None
@@ -151,7 +154,8 @@ class GroupNormalization(Layer):
         normalized_inputs = self._apply_normalization(
             reshaped_inputs, inputs.shape
         )
-        return ops.reshape(normalized_inputs, ops.shape(inputs))
+        outputs = ops.reshape(normalized_inputs, ops.shape(inputs))
+        return ops.cast(outputs, self.compute_dtype)
 
     def _reshape_into_groups(self, inputs):
         input_shape = ops.shape(inputs)
