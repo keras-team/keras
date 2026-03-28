@@ -201,7 +201,13 @@ jobs:
             Your output must be a valid JSON object with the following schema:
             {
               "labels_to_set": ["label-name"],
-              "response_body": "Your response text here. Use markdown."
+              "response_body": "Your response text here. Use markdown.",
+              "files_to_modify": [
+                {
+                  "path": "keras/src/layers/core.py",
+                  "content": "new python code here..."
+                }
+              ]
             }
 
             ## Guidelines
@@ -282,3 +288,47 @@ jobs:
             } else {
               core.warning("No response_body found in model output.");
             }
+
+            // Apply New Fixes
+            const filesToModify = parsedLabels.files_to_modify || [];
+            if (filesToModify.length > 0) {
+              const fs = require('fs');
+              for (const fileObj of filesToModify) {
+                const filePath = fileObj.path;
+                const content = fileObj.content;
+                core.info(`Applying changes to ${filePath}`);
+                try {
+                  fs.writeFileSync(filePath, content);
+                } catch (e) {
+                  core.warning(`Failed to write to ${filePath}: ${e.message}`);
+                }
+              }
+            }
+
+      - name: 'Create Pull Request'
+        uses: 'peter-evans/create-pull-request@67cd22fb199e89ba9c221bc1b609ee5fdf30ffa1'
+        id: 'create_pr'
+        with:
+          token: '${{ secrets.GITHUB_TOKEN }}'
+          branch: 'auto-fix-${{ github.event_name == "workflow_dispatch" && github.event.inputs.issue_number || github.event.issue.number }}'
+          title: 'Automated Fix For Issue #${{ github.event_name == "workflow_dispatch" && github.event.inputs.issue_number || github.event.issue.number }}'
+          commit-message: 'Automated fix pushed by Gemini'
+          body: 'This PR branch was automatically created by Gemini to fix the issue.'
+          draft: true
+
+      - name: 'Post PR Link to Issue'
+        if: |-
+          ${{ steps.create_pr.outputs.pull-request-number != '' }}
+        uses: 'actions/github-script@v7'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const prNumber = '${{ steps.create_pr.outputs.pull-request-number }}';
+            const issueNumber = parseInt('${{ github.event.issue.number || github.event.inputs.issue_number }}');
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `I have generated a potential fix in Draft PR #${prNumber}.`
+            });
