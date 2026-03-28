@@ -222,7 +222,7 @@ def get_file(
 
     ```python
     path_to_downloaded_file = get_file(
-        origin="[https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz](https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz)",
+        origin="https://storage.googleapis.com/download.tensorflow.org/example_images/flower_photos.tgz",
         extract=True
     )
     ```
@@ -264,7 +264,7 @@ def get_file(
     Returns:
         Path to the downloaded file.
 
-    ** Warning on malicious downloads **
+    **⚠️ Warning on malicious downloads ⚠️**
 
     Downloading something from the Internet carries a risk.
     NEVER download a file/archive if you do not trust the source.
