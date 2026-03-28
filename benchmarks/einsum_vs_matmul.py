@@ -1,8 +1,11 @@
 import os
+
 os.environ["KERAS_BACKEND"] = "torch"
-from keras import layers
-import torch
 import timeit
+
+import torch
+
+from keras import layers
 
 d_model, num_heads, seq_len, batch = 256, 4, 128, 2
 mha = layers.MultiHeadAttention(num_heads, d_model // num_heads)
@@ -15,6 +18,7 @@ print("Bias axes:", q_dense.bias_axes)
 
 W = q_dense.kernel.value.detach()
 eq = q_dense.equation  # typically 'abc,cde->abde' or similar
+
 
 def f_einsum():
     return torch.einsum(eq, x, W)
@@ -42,4 +46,4 @@ t1 = timeit.timeit(f_einsum, number=N) / N * 1e6
 t2 = timeit.timeit(f_matmul, number=N) / N * 1e6
 print(f"torch.einsum: {t1:.3f} us")
 print(f"torch.matmul (reshape): {t2:.3f} us")
-print(f"einsum overhead: {(t1/t2-1)*100:.1f}%")
+print(f"einsum overhead: {(t1 / t2 - 1) * 100:.1f}%")

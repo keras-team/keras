@@ -5,7 +5,6 @@ from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
-from keras.src.backend.common import global_state
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
@@ -64,7 +63,7 @@ class Operation(KerasSaveable):
                         if call_fn is None:
                             call_fn = traceback_utils.inject_argument_info_in_traceback(
                                 self.call,
-                                object_name=(f"{self.__class__.__name__}.call()"),
+                                object_name=f"{self.__class__.__name__}.call()",
                             )
                             self._call_wrapper = call_fn
                         return call_fn(*args, **kwargs)

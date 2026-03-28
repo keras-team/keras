@@ -1,19 +1,31 @@
 """Measure Functional model __call__ overhead vs direct .call()"""
-import time
-import torch
-import numpy as np
-import keras
-from keras import layers, ops
 
-VOCAB = 1024; SEQ = 64; HDIM = 256; HEADS = 4; NLAYERS = 2; BATCH = 4
+import time
+
+import numpy as np
+import torch
+
+import keras
+from keras import layers
+from keras import ops
+
+VOCAB = 1024
+SEQ = 64
+HDIM = 256
+HEADS = 4
+NLAYERS = 2
+BATCH = 4
 
 inp = keras.Input((None,), dtype="int32")
 x = layers.Embedding(VOCAB, HDIM)(inp)
 for _ in range(NLAYERS):
     r = x
     x = layers.LayerNormalization()(x)
-    x = layers.MultiHeadAttention(HEADS, HDIM // HEADS)(x, x, use_causal_mask=True)
-    x = x + r; r = x
+    x = layers.MultiHeadAttention(HEADS, HDIM // HEADS)(
+        x, x, use_causal_mask=True
+    )
+    x = x + r
+    r = x
     x = layers.LayerNormalization()(x)
     x = layers.Dense(HDIM * 4, activation="gelu")(x)
     x = layers.Dense(HDIM)(x) + r

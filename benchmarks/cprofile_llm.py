@@ -1,13 +1,17 @@
 """cProfile the Keras LLM forward to find Python overhead."""
+
 import os
+
 os.environ["KERAS_BACKEND"] = "torch"
 
+import cProfile
+import io
+import pstats
+
 import torch
+
 import keras
 from keras import layers
-import cProfile
-import pstats
-import io
 
 vocab_size = 4096
 seq_len = 128

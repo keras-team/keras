@@ -502,6 +502,44 @@ class BaseOptimizer(KerasSaveable):
                 self.built = True
             self._check_variables_are_known(trainable_variables)
 
+        # Fast path: skip validation overhead when no special features active.
+        # After the first call, we cache whether we can use the fast path.
+        if getattr(self, "_fast_apply", None) is None:
+            self._fast_apply = (
+                not self.gradient_accumulation_steps
+                and not self.use_ema
+                and self.loss_scale_factor is None
+                and self.weight_decay is None
+                and self.clipnorm is None
+                and self.global_clipnorm is None
+                and self.clipvalue is None
+                and not any(
+                    v.constraint is not None for v in trainable_variables
+                )
+                and not any(
+                    self._overwrite_variable_with_gradient(v)
+                    for v in trainable_variables
+                )
+            )
+        if self._fast_apply:
+            # Filter None grads inline (common case: all non-None).
+            if any(g is None for g in grads):
+                grads, trainable_variables = self._filter_empty_gradients(
+                    grads, trainable_variables
+                )
+            self._backend_update_step(
+                grads, trainable_variables, self.learning_rate
+            )
+            # Fast increment: use in-place add to avoid Variable dispatch
+            # overhead (assign_add → __add__ → numpy.add → convert_to_tensor).
+            if hasattr(self._iterations, "_value") and hasattr(
+                self._iterations._value, "add_"
+            ):
+                self._iterations._value.add_(1)
+            else:
+                self._iterations.assign_add(1)
+            return
+
         with backend.name_scope(self.name, caller=self):
             # Filter empty gradients.
             grads, trainable_variables = self._filter_empty_gradients(

@@ -239,9 +239,10 @@ class Variable:
         return shape
 
     def _maybe_autocast(self, value):
-        autocast_scope = get_autocast_scope()
-        if self._autocast and autocast_scope is not None:
-            return autocast_scope.maybe_cast(value)
+        if self._autocast:
+            autocast_scope = get_autocast_scope()
+            if autocast_scope is not None:
+                return autocast_scope.maybe_cast(value)
         return value
 
     def numpy(self):
@@ -294,6 +295,19 @@ class Variable:
         return value
 
     def assign_add(self, value):
+        # Fast path for torch backend: use in-place add to avoid the
+        # self + value → numpy.add → convert_to_tensor → assign chain.
+        if (
+            not in_stateless_scope()
+            and self._value is not None
+            and hasattr(self._value, "add_")
+        ):
+            if isinstance(value, (int, float)) or hasattr(value, "device"):
+                try:
+                    self._value.add_(value)
+                    return self._value
+                except (RuntimeError, TypeError, ValueError):
+                    pass
         return self.assign(self + value)
 
     def assign_sub(self, value):

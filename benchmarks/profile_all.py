@@ -1,11 +1,17 @@
 """Deep cProfile of CNN and LLM for both torch and JAX."""
-import os, cProfile, pstats, io, time
+
+import cProfile
+import io
+import os
+import pstats
 
 BACKEND = os.environ.get("KERAS_BACKEND", "torch")
 import numpy as np
-import keras
-from keras import layers, ops
 import torch
+
+import keras
+from keras import layers
+from keras import ops
 
 # ── models ──────────────────────────────────────────────────────────────
 BATCH = 4
@@ -22,42 +28,59 @@ cnn = keras.Model(ci, cx)
 imgs = ops.convert_to_tensor(np.ones((BATCH, 32, 32, 3), dtype="float32"))
 
 # LLM
-VOCAB=256; SEQ=32; HDIM=128; HEADS=2; NLAYERS=1
+VOCAB = 256
+SEQ = 32
+HDIM = 128
+HEADS = 2
+NLAYERS = 1
 li = keras.Input((None,), dtype="int32")
 lx = layers.Embedding(VOCAB, HDIM)(li)
 r = lx
 lx = layers.LayerNormalization()(lx)
-lx = layers.MultiHeadAttention(HEADS, HDIM//HEADS)(lx, lx, use_causal_mask=True)
-lx = lx + r; r = lx
+lx = layers.MultiHeadAttention(HEADS, HDIM // HEADS)(
+    lx, lx, use_causal_mask=True
+)
+lx = lx + r
+r = lx
 lx = layers.LayerNormalization()(lx)
-lx = layers.Dense(HDIM*4, activation="gelu")(lx)
+lx = layers.Dense(HDIM * 4, activation="gelu")(lx)
 lx = layers.Dense(HDIM)(lx) + r
 lx = layers.Dense(VOCAB)(layers.LayerNormalization()(lx))
 llm = keras.Model(li, lx)
 ids = ops.convert_to_tensor(np.ones((BATCH, SEQ), dtype="int32"))
 
+
 def sync():
     if BACKEND == "torch":
-        if torch.backends.mps.is_available(): torch.mps.synchronize()
+        if torch.backends.mps.is_available():
+            torch.mps.synchronize()
     elif BACKEND == "jax":
-        import jax; jax.effects_barrier()
+        import jax
+
+        jax.effects_barrier()
+
 
 # warmup
-for _ in range(20): cnn(imgs, training=False)
-for _ in range(20): llm(ids, training=False)
+for _ in range(20):
+    cnn(imgs, training=False)
+for _ in range(20):
+    llm(ids, training=False)
 sync()
+
 
 def profile(fn, label, n=200):
     pr = cProfile.Profile()
     pr.enable()
-    for _ in range(n): fn()
+    for _ in range(n):
+        fn()
     pr.disable()
     sync()
     s = io.StringIO()
     ps = pstats.Stats(pr, stream=s).sort_stats("tottime")
     ps.print_stats(30)
-    print(f"\n{'='*70}\n  {label}  ({n} iters)\n{'='*70}")
+    print(f"\n{'=' * 70}\n  {label}  ({n} iters)\n{'=' * 70}")
     print(s.getvalue())
+
 
 profile(lambda: cnn(imgs, training=False), f"CNN  [{BACKEND}]", 200)
 profile(lambda: llm(ids, training=False), f"LLM  [{BACKEND}]", 200)

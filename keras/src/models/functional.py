@@ -145,6 +145,11 @@ class Functional(Function, Model):
         self._allow_non_tensor_positional_args = True
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
+        # Pre-compute flag for fast path in call().
+        self._single_input_model = (
+            isinstance(self._inputs_struct, list)
+            and len(self._inputs_struct) == 1
+        )
 
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
@@ -171,6 +176,25 @@ class Functional(Function, Model):
         )
 
     def call(self, inputs, training=None, mask=None, **kwargs):
+        # Fast path: single tensor input, no mask, no extra kwargs.
+        # Skips _standardize_inputs, mask list allocation, and
+        # kwargs.copy() overhead.
+        if (
+            mask is None
+            and not kwargs
+            and getattr(self, "_single_input_model", None)
+            and backend.is_tensor(inputs)
+            and len(inputs.shape) == len(self._inputs[0].shape)
+        ):
+            ref = self._inputs[0]
+            if backend.standardize_dtype(inputs.dtype) != ref.dtype:
+                inputs = ops.convert_to_tensor(inputs, dtype=ref.dtype)
+            ctx = {"training": training} if training is not None else None
+            outputs = self._run_through_graph([inputs], call_context_dict=ctx)
+            if isinstance(outputs, (list, tuple)) and len(outputs) == 1:
+                return outputs[0]
+            return outputs
+
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
@@ -184,7 +208,7 @@ class Functional(Function, Model):
         call_context_args = kwargs.copy()
         if training is not None:
             call_context_args["training"] = training
-            
+
         outputs = self._run_through_graph(
             inputs,
             call_context_dict=call_context_args if call_context_args else None,

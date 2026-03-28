@@ -65,6 +65,14 @@ def rot90(array, k=1, axes=(0, 1)):
 
 
 def add(x1, x2):
+    # Fast path: torch.add handles Python scalars natively, so avoid
+    # convert_to_tensor overhead on scalar operands.
+    if isinstance(x1, torch.Tensor):
+        if isinstance(x2, torch.Tensor) or isinstance(x2, (int, float)):
+            return torch.add(x1, x2)
+    elif isinstance(x2, torch.Tensor):
+        if isinstance(x1, (int, float)):
+            return torch.add(x2, x1)
     if type(x1) is not torch.Tensor:
         x1 = convert_to_tensor(x1)
     if type(x2) is not torch.Tensor:
@@ -89,6 +97,13 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
+    if isinstance(x1, torch.Tensor) and isinstance(x2, torch.Tensor):
+        # TODO: torch.subtract doesn't support bool
+        if standardize_dtype(x1.dtype) == "bool":
+            x1 = cast(x1, x2.dtype)
+        if standardize_dtype(x2.dtype) == "bool":
+            x2 = cast(x2, x1.dtype)
+        return torch.subtract(x1, x2)
     if type(x1) is not torch.Tensor:
         x1 = convert_to_tensor(x1)
     if type(x2) is not torch.Tensor:
@@ -167,6 +182,12 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
+    if isinstance(x1, torch.Tensor):
+        if isinstance(x2, torch.Tensor) or isinstance(x2, (int, float)):
+            return torch.multiply(x1, x2)
+    elif isinstance(x2, torch.Tensor):
+        if isinstance(x1, (int, float)):
+            return torch.multiply(x2, x1)
     if type(x1) is not torch.Tensor:
         x1 = convert_to_tensor(x1)
     if type(x2) is not torch.Tensor:

@@ -326,6 +326,8 @@ class Layer(BackendLayer, Operation):
             arg: (arg in self.call_signature_parameters)
             for arg in self._call_context_args
         }
+        # True when call() accepts any context arg (training, foo_mode, etc.)
+        self._accepts_context_arg = any(self._call_has_context_arg.values())
 
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
@@ -907,7 +909,7 @@ class Layer(BackendLayer, Operation):
         self._check_super_called()
         self._called = True
 
-        # Ultra-fast path for the most common inference cases:
+        # Ultra-fast path for the most common cases:
         # single or dual tensor inputs, layer already built, no regularizer/
         # mask/distribution/autocast overhead, no symbolic tensors, no mask on
         # inputs.  Also covers `layer(x, training=False)` since _fast_call
@@ -918,28 +920,73 @@ class Layer(BackendLayer, Operation):
             self.built
             and self._fast_call
             and distribution_lib.distribution() is None
-            and (
-                not kwargs
-                or (
-                    len(kwargs) == 1
-                    and kwargs.get("training") is False
-                )
-            )
+            and self._remat_mode is None
+            and getattr(self, "quantization_mode", None) is None
         ):
-            n = len(args)
-            if (
-                n == 1
-                and backend.is_tensor(args[0])
-                and backend.get_keras_mask(args[0]) is None
+            _skip_fast = False
+            _kw = kwargs
+
+            # Check for inherited context args from a parent layer call.
+            if self._accepts_context_arg:
+                _ctx = getattr(
+                    global_state.GLOBAL_STATE_TRACKER,
+                    "current_call_ctx",
+                    None,
+                )
+                if _ctx is not None:
+                    if self._layers or len(self._call_context_args) > 1:
+                        # Has sublayers or custom context args: full path
+                        # needed for proper propagation.
+                        _skip_fast = True
+                    elif self._call_has_training_arg:
+                        # Leaf layer: inject training from parent context
+                        # directly into kwargs for the fast path.
+                        # Only inject if the caller didn't explicitly pass it.
+                        if "training" not in _kw:
+                            _trn_val = getattr(_ctx, "training", None)
+                            if _trn_val is not None:
+                                _kw = (
+                                    {**_kw, "training": _trn_val}
+                                    if _kw
+                                    else {"training": _trn_val}
+                                )
+
+            if _kw and not _skip_fast:
+                _trn = _kw.get("training")
+                if _trn:
+                    # Outer layer with sublayers: need full path to create
+                    # CallContext so inner layers inherit training=True.
+                    if self._layers:
+                        _skip_fast = True
+                    elif not self._call_has_training_arg:
+                        _kw = {k: v for k, v in _kw.items() if k != "training"}
+                    # else: keep training=True in _kw as-is (leaf layer)
+                elif "training" in _kw:
+                    _kw = {k: v for k, v in _kw.items() if k != "training"}
+
+            if not _skip_fast and (
+                not _kw or not any(backend.is_tensor(v) for v in _kw.values())
             ):
-                return self.call(args[0])
-            if (
-                n == 2
-                and backend.is_tensor(args[0])
-                and backend.is_tensor(args[1])
-                and backend.get_keras_mask(args[0]) is None
-            ):
-                return self.call(args[0], args[1])
+                n = len(args)
+                if (
+                    n == 1
+                    and backend.is_tensor(args[0])
+                    and backend.get_keras_mask(args[0]) is None
+                ):
+                    return (
+                        self.call(args[0], **_kw) if _kw else self.call(args[0])
+                    )
+                if (
+                    n == 2
+                    and backend.is_tensor(args[0])
+                    and backend.is_tensor(args[1])
+                    and backend.get_keras_mask(args[0]) is None
+                ):
+                    return (
+                        self.call(args[0], args[1], **_kw)
+                        if _kw
+                        else self.call(args[0], args[1])
+                    )
 
         original_args = args
         original_kwargs = kwargs
@@ -2018,6 +2065,7 @@ class Layer(BackendLayer, Operation):
         self._call_has_context_arg.update(
             {arg: (arg in self.call_signature_parameters) for arg in names}
         )
+        self._accepts_context_arg = any(self._call_has_context_arg.values())
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):

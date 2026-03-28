@@ -6,20 +6,27 @@ Usage:
     KERAS_BACKEND=torch python benchmarks/deep_profile.py
     KERAS_BACKEND=jax   python benchmarks/deep_profile.py
 """
+
 import cProfile
-import pstats
 import io
 import os
-import sys
+import pstats
 import time
+
 import numpy as np
 
 BACKEND = os.environ.get("KERAS_BACKEND", "torch")
 
 import keras
-from keras import layers, ops
+from keras import layers
+from keras import ops
 
-VOCAB = 1024; SEQ = 64; HDIM = 256; HEADS = 4; NLAYERS = 2; BATCH = 4
+VOCAB = 1024
+SEQ = 64
+HDIM = 256
+HEADS = 4
+NLAYERS = 2
+BATCH = 4
 
 # ── Build LLM model ────────────────────────────────────────────────────
 inp = keras.Input((None,), dtype="int32")
@@ -27,8 +34,11 @@ x = layers.Embedding(VOCAB, HDIM)(inp)
 for _ in range(NLAYERS):
     r = x
     x = layers.LayerNormalization()(x)
-    x = layers.MultiHeadAttention(HEADS, HDIM // HEADS)(x, x, use_causal_mask=True)
-    x = x + r; r = x
+    x = layers.MultiHeadAttention(HEADS, HDIM // HEADS)(
+        x, x, use_causal_mask=True
+    )
+    x = x + r
+    r = x
     x = layers.LayerNormalization()(x)
     x = layers.Dense(HDIM * 4, activation="gelu")(x)
     x = layers.Dense(HDIM)(x) + r
@@ -41,12 +51,14 @@ ids = ops.convert_to_tensor(np.ones((BATCH, SEQ), dtype="int32"))
 def sync():
     if BACKEND == "torch":
         import torch
+
         if torch.backends.mps.is_available():
             torch.mps.synchronize()
         elif torch.cuda.is_available():
             torch.cuda.synchronize()
     elif BACKEND == "jax":
         import jax
+
         jax.effects_barrier()
 
 
@@ -68,17 +80,17 @@ ps = pstats.Stats(pr, stream=s).sort_stats("tottime")
 ps.print_stats(50)
 full = s.getvalue()
 
-print(f"\n{'='*70}")
+print(f"\n{'=' * 70}")
 print(f"  BACKEND={BACKEND}  LLM Forward  50 iters")
-print(f"{'='*70}")
+print(f"{'=' * 70}")
 
 # Show full top-50 by tottime
 print(full)
 
 # Also print by cumulative to see call chains
-print(f"\n{'='*70}")
-print(f"  TOP 30 by cumtime (call chains)")
-print(f"{'='*70}")
+print(f"\n{'=' * 70}")
+print("  TOP 30 by cumtime (call chains)")
+print(f"{'=' * 70}")
 s2 = io.StringIO()
 ps2 = pstats.Stats(pr, stream=s2).sort_stats("cumulative")
 ps2.print_stats(30)

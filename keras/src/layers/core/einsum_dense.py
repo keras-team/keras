@@ -28,7 +28,8 @@ def _parse_matmul_path(equation, kernel_shape):
     Returns (n_input_free, contr_size, free_kernel_shape) when the equation
     can be replaced by reshape + matmul + reshape, or None otherwise.
 
-    Supported pattern: `free_in...contr...,contr...free_k...->free_in...free_k...`
+    Supported pattern:
+    `free_in...contr...,contr...free_k...->free_in...free_k...`
     e.g. `abc,cde->abde` or `abcd,cde->abe`.
     """
     if "..." in equation:
@@ -199,7 +200,9 @@ class EinsumDense(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
-        self._matmul_path = None  # set in build() if equation supports matmul path
+        self._matmul_path = (
+            None  # set in build() if equation supports matmul path
+        )
         self.gptq_unpacked_column_size = gptq_unpacked_column_size
         self.quantization_config = quantization_config
 
@@ -249,9 +252,7 @@ class EinsumDense(Layer):
             self.bias = None
         self.built = True
         if self.quantization_mode is None:
-            self._matmul_path = _parse_matmul_path(
-                self.equation, kernel_shape
-            )
+            self._matmul_path = _parse_matmul_path(self.equation, kernel_shape)
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
@@ -323,16 +324,37 @@ class EinsumDense(Layer):
         if self._matmul_path is not None:
             n_free, contr_size, free_k_shape = self._matmul_path
             free_batch = inputs.shape[:n_free]
-            kernel = self.kernel
-            x = ops.matmul(
-                ops.reshape(inputs, (-1, contr_size)),
-                ops.reshape(kernel, (contr_size, -1)),
-            )
-            x = ops.reshape(x, list(free_batch) + list(free_k_shape))
+            # Torch fast path: bypass ops dispatch chain and expensive
+            # kernel property. Uses _kernel.value directly.
+            if (
+                backend.backend() == "torch"
+                and backend.is_tensor(inputs)
+                and self.quantization_mode is None
+                and not self.lora_enabled
+            ):
+                import torch
+
+                k = self._kernel.value
+                x = torch.matmul(
+                    inputs.reshape(-1, contr_size),
+                    k.reshape(contr_size, -1),
+                )
+                x = x.reshape(*free_batch, *free_k_shape)
+                if self.bias is not None:
+                    x = torch.add(x, self.bias.value)
+            else:
+                kernel = self.kernel
+                x = ops.matmul(
+                    ops.reshape(inputs, (-1, contr_size)),
+                    ops.reshape(kernel, (contr_size, -1)),
+                )
+                x = ops.reshape(x, list(free_batch) + list(free_k_shape))
+                if self.bias is not None:
+                    x = ops.add(x, self.bias)
         else:
             x = ops.einsum(self.equation, inputs, self.kernel)
-        if self.bias is not None:
-            x = ops.add(x, self.bias)
+            if self.bias is not None:
+                x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x

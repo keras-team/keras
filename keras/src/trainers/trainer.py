@@ -210,6 +210,17 @@ class Trainer:
         self.test_function = None
         self.predict_function = None
 
+        # Invalidate per-step caches that depend on model structure.
+        # Use object.__setattr__ to bypass Layer/torch.nn.Module tracking.
+        object.__setattr__(self, "_cached_metrics", None)
+        object.__setattr__(self, "_cached_metric_names", None)
+        object.__setattr__(self, "_symbolic_build_done", False)
+        object.__setattr__(self, "_has_extra_losses", None)
+        # Reset trainable_weights cache (set via object.__setattr__
+        # in torch trainer to bypass tracking).
+        if hasattr(self, "_cached_trainable_weights"):
+            object.__delattr__(self, "_cached_trainable_weights")
+
         self._compile_config = serialization_lib.SerializableDict(
             optimizer=optimizer,
             loss=loss,
@@ -373,8 +384,22 @@ class Trainer:
             loss = self._compile_loss(y, y_pred, sample_weight)
             if loss is not None:
                 losses.append(loss)
-        for loss in self.losses:
-            losses.append(self._aggregate_additional_loss(loss))
+        # Cache whether model has additional losses (regularization,
+        # add_loss) to avoid expensive _flatten_layers + trainable_weights
+        # traversal every step when there are none.
+        has_extra = getattr(self, "_has_extra_losses", None)
+        if has_extra is None:
+            extra = self.losses
+            if extra:
+                has_extra = True
+                for loss in extra:
+                    losses.append(self._aggregate_additional_loss(loss))
+            else:
+                has_extra = False
+            object.__setattr__(self, "_has_extra_losses", has_extra)
+        elif has_extra:
+            for loss in self.losses:
+                losses.append(self._aggregate_additional_loss(loss))
         if backend.backend() != "jax" and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
@@ -523,7 +548,10 @@ class Trainer:
             Example: `{'loss': 0.2, 'accuracy': 0.7}`.
         """
         return_metrics = {}
-        for metric in self.metrics:
+        # Cache metrics list to avoid _flatten_layers traversal every step.
+        if not hasattr(self, "_cached_metrics") or self._cached_metrics is None:
+            object.__setattr__(self, "_cached_metrics", self.metrics)
+        for metric in self._cached_metrics:
             result = metric.result()
             if isinstance(result, dict):
                 return_metrics.update(result)
@@ -1051,14 +1079,21 @@ class Trainer:
 
     def _flatten_metrics_in_order(self, logs):
         """Turns `logs` dict into a list as per key order of `metrics_names`."""
-        metric_names = []
-        for metric in self.metrics:
-            if isinstance(metric, CompileMetrics):
-                metric_names += [
-                    sub_metric.name for sub_metric in metric.metrics
-                ]
-            else:
-                metric_names.append(metric.name)
+        # Cache metric names to avoid re-traversing _flatten_layers every step.
+        if (
+            not hasattr(self, "_cached_metric_names")
+            or self._cached_metric_names is None
+        ):
+            metric_names = []
+            for metric in self.metrics:
+                if isinstance(metric, CompileMetrics):
+                    metric_names += [
+                        sub_metric.name for sub_metric in metric.metrics
+                    ]
+                else:
+                    metric_names.append(metric.name)
+            object.__setattr__(self, "_cached_metric_names", metric_names)
+        metric_names = self._cached_metric_names
         results = []
         for name in metric_names:
             if name in logs:
@@ -1080,6 +1115,9 @@ class Trainer:
             raise ValueError(msg)
 
     def _symbolic_build(self, iterator=None, data_batch=None):
+        # Fast path: skip expensive _flatten_layers when already fully built.
+        if getattr(self, "_symbolic_build_done", False):
+            return
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
         compile_metrics_unbuilt = (
             self._compile_metrics is not None
@@ -1091,6 +1129,14 @@ class Trainer:
         optimizer_unbuilt = (
             self.optimizer is not None and not self.optimizer.built
         )
+        if not (
+            model_unbuilt
+            or compile_metrics_unbuilt
+            or compile_loss_unbuilt
+            or optimizer_unbuilt
+        ):
+            object.__setattr__(self, "_symbolic_build_done", True)
+            return
         if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
             # Create symbolic tensors matching an input batch.
 
@@ -1152,7 +1198,13 @@ class Trainer:
         if optimizer_unbuilt:
             # Build optimizer
             self.optimizer.build(self.trainable_variables)
-        self._post_build()
+        if (
+            model_unbuilt
+            or compile_metrics_unbuilt
+            or compile_loss_unbuilt
+            or optimizer_unbuilt
+        ):
+            self._post_build()
 
 
 def model_supports_jit(model):

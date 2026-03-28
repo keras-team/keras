@@ -36,7 +36,9 @@ class SymbolicArguments:
             and len(self.args) == 2
             and isinstance(self.args[0], KerasTensor)
             and isinstance(self.args[1], KerasTensor)
-            and not any(isinstance(v, KerasTensor) for v in self.kwargs.values())
+            and not any(
+                isinstance(v, KerasTensor) for v in self.kwargs.values()
+            )
         ):
             self._dual_tensors_static_kwargs = (
                 self.args[0],

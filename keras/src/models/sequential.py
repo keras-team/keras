@@ -236,9 +236,11 @@ class Sequential(Model):
 
     def call(self, inputs, training=None, mask=None, **kwargs):
         # Ultra-fast path for eager execution of simple tensors.
-        # This bypasses the Functional graph execution which is heavily 
+        # This bypasses the Functional graph execution which is heavily
         # optimized for symbolic graph tracing but slow for eager Python loops.
-        is_simple_tensor = not isinstance(inputs, (dict, list, tuple)) and not backend.any_symbolic_tensors([inputs])
+        is_simple_tensor = not isinstance(
+            inputs, (dict, list, tuple)
+        ) and not backend.any_symbolic_tensors([inputs])
         if self._functional and not is_simple_tensor:
             return self._functional.call(
                 inputs, training=training, mask=mask, **kwargs
@@ -253,7 +255,10 @@ class Sequential(Model):
             }
             if getattr(layer, "_call_has_mask_arg", False):
                 layer_kwargs["mask"] = mask
-            if getattr(layer, "_call_has_training_arg", False) and training is not None:
+            if (
+                getattr(layer, "_call_has_training_arg", False)
+                and training is not None
+            ):
                 layer_kwargs["training"] = training
             outputs = layer(inputs, **layer_kwargs)
             inputs = outputs

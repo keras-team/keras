@@ -25,26 +25,28 @@ FLOAT8_TYPES = ("float8_e4m3fn", "float8_e5m2")
 
 # All supported dtypes in Keras
 # frozenset for O(1) membership test in standardize_dtype (hot path)
-ALLOWED_DTYPES = frozenset((
-    "float16",
-    "float32",
-    "float64",
-    "uint8",
-    "uint16",
-    "uint32",
-    "uint64",
-    "int8",
-    "int16",
-    "int32",
-    "int64",
-    "bfloat16",
-    "bool",
-    "string",
-    "float8_e4m3fn",
-    "float8_e5m2",
-    "complex64",
-    "complex128",
-))
+ALLOWED_DTYPES = frozenset(
+    (
+        "float16",
+        "float32",
+        "float64",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "bfloat16",
+        "bool",
+        "string",
+        "float8_e4m3fn",
+        "float8_e5m2",
+        "complex64",
+        "complex128",
+    )
+)
 PYTHON_DTYPES_MAP = {
     bool: "bool",
     int: "int64" if config.backend() == "tensorflow" else "int32",

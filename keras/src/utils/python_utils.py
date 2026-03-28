@@ -184,8 +184,11 @@ def pythonify_logs(logs):
             result.update(pythonify_logs(value))
         else:
             try:
-                # Prevent torch compiler from breaking the graph.
-                if backend.is_tensor(value):
+                # Fast path: scalar tensors (loss, metrics) — use .item()
+                # to avoid the overhead of convert_to_numpy + .cpu() + sync.
+                if backend.is_tensor(value) and hasattr(value, "item"):
+                    value = value.item()
+                elif backend.is_tensor(value):
                     value = backend.convert_to_numpy(value)
                 value = float(value)
             except:

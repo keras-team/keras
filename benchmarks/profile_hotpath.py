@@ -1,18 +1,32 @@
 """Profile name_scope and CallSpec overhead per 100 LLM forwards."""
-import cProfile, pstats, io
-import numpy as np
-import keras
-from keras import layers, ops
 
-VOCAB=1024; SEQ=64; HDIM=256; HEADS=4; NLAYERS=2; BATCH=4
+import cProfile
+import io
+import pstats
+
+import numpy as np
+
+import keras
+from keras import layers
+from keras import ops
+
+VOCAB = 1024
+SEQ = 64
+HDIM = 256
+HEADS = 4
+NLAYERS = 2
+BATCH = 4
 
 inp = keras.Input((None,), dtype="int32")
 x = layers.Embedding(VOCAB, HDIM)(inp)
 for _ in range(NLAYERS):
     r = x
     x = layers.LayerNormalization()(x)
-    x = layers.MultiHeadAttention(HEADS, HDIM // HEADS)(x, x, use_causal_mask=True)
-    x = x + r; r = x
+    x = layers.MultiHeadAttention(HEADS, HDIM // HEADS)(
+        x, x, use_causal_mask=True
+    )
+    x = x + r
+    r = x
     x = layers.LayerNormalization()(x)
     x = layers.Dense(HDIM * 4, activation="gelu")(x)
     x = layers.Dense(HDIM)(x) + r
@@ -36,9 +50,20 @@ output = s.getvalue()
 
 print("=== KEY FUNCTIONS ===")
 for line in output.split("\n"):
-    if any(k in line for k in ["name_scope", "CallSpec", "_maybe_build", "fill_in",
-                                "_run_through_graph", "__enter__", "__exit__",
-                                "call_spec", "operation_fn"]):
+    if any(
+        k in line
+        for k in [
+            "name_scope",
+            "CallSpec",
+            "_maybe_build",
+            "fill_in",
+            "_run_through_graph",
+            "__enter__",
+            "__exit__",
+            "call_spec",
+            "operation_fn",
+        ]
+    ):
         print(line)
 
 print("\n=== TOP 25 by tottime ===")

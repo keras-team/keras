@@ -141,10 +141,29 @@ class Variable(KerasVariable):
 
     @property
     def value(self):
-        # We cannot chain super() here because it will fail TorchDynamo. The
-        # reason why is unclear.
+        # Fast path: initialized variable, no stateless scope, no meta device.
+        # This is the common case during training and inference.
+        if self._value is not None and not global_state._IN_STATELESS_SCOPE:
+            value = self._maybe_autocast(self._value)
+            # Skip symbolic tensor stub unless meta device is active.
+            device = getattr(
+                global_state.GLOBAL_STATE_TRACKER, "torch_device", None
+            )
+            if device is None or device != "meta":
+                return value
+            if str(value.device) == "meta":
+                return value
+            return torch.nn.Parameter(
+                torch.empty(
+                    size=self._shape,
+                    dtype=to_torch_dtype(self._dtype),
+                    device="meta",
+                ),
+                requires_grad=self.trainable,
+            )
+
+        # We cannot chain super() here because it will fail TorchDynamo.
         def maybe_use_symbolic_tensor(value):
-            # Create and use a symbolic tensor stub in symbolic calls.
             if str(get_device()) == "meta" and str(value.device) != "meta":
                 return torch.nn.Parameter(
                     torch.empty(
@@ -163,10 +182,6 @@ class Variable(KerasVariable):
                 value = self._maybe_autocast(value)
                 return maybe_use_symbolic_tensor(value)
         if self._value is None:
-            # Uninitialized variable. Return a placeholder.
-            # This is fine because it's only ever used
-            # in during shape inference / graph tracing
-            # (anything else would be a bug, to be fixed.)
             value = self._maybe_autocast(
                 self._initializer(self._shape, dtype=self._dtype)
             )
@@ -197,7 +212,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     # even the sparse/ragged guard overhead on the hot path.
     # Check x.device.type first (no string allocation); fall back to str()
     # only when DEFAULT_DEVICE was set with a device index (e.g. "cuda:0").
-    if type(x) is torch.Tensor and dtype is None:
+    # Covers both torch.Tensor and torch.nn.Parameter (common for weights).
+    if isinstance(x, torch.Tensor) and dtype is None:
         device = get_device()
         if x.device.type == device or str(x.device) == device:
             return x
@@ -306,13 +322,16 @@ def shape(x):
 
 def cast(x, dtype):
     dtype = to_torch_dtype(dtype)
-    # Fast path: torch.Tensor already has the right dtype
-    if type(x) is torch.Tensor:
+    # Fast path: torch.Tensor (including Parameter) already has the right dtype
+    if isinstance(x, torch.Tensor):
         if x.dtype == dtype:
             return x
         return x.to(dtype)
     if isinstance(x, Variable):
         x = x.value
+        if x.dtype == dtype:
+            return x
+        return x.to(dtype)
     if is_tensor(x):
         if x.dtype == dtype:
             return x
@@ -717,9 +736,6 @@ def while_loop(
     maximum_iterations=None,
 ):
     current_iter = 0
-    iteration_check = lambda iter: (
-        maximum_iterations is None or iter < maximum_iterations
-    )
     is_tuple = isinstance(loop_vars, (tuple, list))
     loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
     # Only convert non-scalar types to tensors. Python int/float/bool

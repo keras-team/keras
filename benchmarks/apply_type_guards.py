@@ -58,4 +58,6 @@ if __name__ == "__main__":
         if not dry_run and n:
             with open(path, "w") as f:
                 f.write(new_src)
-    print(f"\nTotal: {total} transforms {'(dry run)' if dry_run else 'applied'}")
+    print(
+        f"\nTotal: {total} transforms {'(dry run)' if dry_run else 'applied'}"
+    )

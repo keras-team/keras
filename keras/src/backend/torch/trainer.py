@@ -64,13 +64,24 @@ class TorchTrainer(base_trainer.Trainer):
             loss = self.optimizer.scale_loss(loss)
 
         # Compute gradients
-        if self.trainable_weights:
+        # Cache trainable_weights to avoid recursive layer traversal
+        # every step (weights don't change during training).
+        cached = getattr(self, "_cached_trainable_weights", None)
+        if cached is not None:
+            trainable_weights = cached
+        else:
+            trainable_weights = self.trainable_weights
+            # Use object.__setattr__ to bypass Layer's __setattr__
+            # tracker overhead.
+            object.__setattr__(
+                self, "_cached_trainable_weights", trainable_weights
+            )
+        if trainable_weights:
             # Call torch.Tensor.backward() on the loss to compute gradients
             # for the weights.
             loss.backward()
 
-            trainable_weights = self.trainable_weights[:]
-            gradients = [v.value.grad for v in trainable_weights]
+            gradients = [v._value.grad for v in trainable_weights]
 
             # Update weights
             with torch.no_grad():

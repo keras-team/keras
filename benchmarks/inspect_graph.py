@@ -1,4 +1,5 @@
 import os
+
 os.environ["KERAS_BACKEND"] = "torch"
 import keras
 from keras import layers
@@ -15,7 +16,6 @@ for _ in range(n):
 outputs = layers.Dense(vocab_size)(x)
 model = keras.Model(inputs, outputs)
 
-from keras.src.ops.operation import Operation
 from keras.src.layers.layer import Layer
 
 all_nodes = [
@@ -35,9 +35,8 @@ for node in op_nodes:
 
 # Check fast_call for each layer type
 from collections import Counter
-layer_types = Counter(
-    type(n.operation).__name__ for n in layer_nodes
-)
+
+layer_types = Counter(type(n.operation).__name__ for n in layer_nodes)
 print("\nLayer type distribution:")
 for layer_type, count in layer_types.most_common():
     print(f"  {layer_type}: {count}")

@@ -1694,9 +1694,7 @@ def dot_product_attention(
             # sharding pattern
             flash_attention = True
         else:
-            flash_attention = _can_use_flash_attention(
-                query, key, value, bias
-            )
+            flash_attention = _can_use_flash_attention(query, key, value, bias)
     elif flash_attention is True and not is_tpu:
         # If flash attention is explicitly requested, validate compatibility
         # Skip validation for TPU as it has specialized hardware support

@@ -1,8 +1,11 @@
 """Profile where the remaining 1.65ms of overhead is in the Keras[torch] LLM forward."""
+
 import os
+
 os.environ["KERAS_BACKEND"] = "torch"
 
 import torch
+
 import keras
 from keras import layers
 
@@ -40,4 +43,8 @@ with torch.profiler.profile(
         model(inp)
 
 # Show top Python-level functions by CPU time
-print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20, max_name_column_width=60))
+print(
+    prof.key_averages().table(
+        sort_by="cpu_time_total", row_limit=20, max_name_column_width=60
+    )
+)

@@ -3,6 +3,7 @@ import math
 import ml_dtypes
 
 from keras.src import activations
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -214,6 +215,22 @@ class Dense(Layer):
         return kernel
 
     def call(self, inputs, training=None):
+        # Torch fast path: bypass ops dispatch and expensive kernel property.
+        if (
+            backend.backend() == "torch"
+            and backend.is_tensor(inputs)
+            and self.quantization_mode is None
+            and not self.lora_enabled
+        ):
+            import torch
+
+            x = torch.matmul(inputs, self._kernel.value)
+            if self.bias is not None:
+                x = torch.add(x, self.bias.value)
+            if self.activation is not None:
+                x = self.activation(x)
+            return x
+
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)

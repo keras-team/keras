@@ -451,6 +451,7 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         training=None,
         return_attention_scores=False,
+        _use_is_causal=False,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -491,6 +492,41 @@ class MultiHeadAttention(Layer):
         )
 
         if use_dot_product_attention:
+            if _use_is_causal:
+                # Ultra-fast path: call torch SDPA directly, skipping
+                # the entire ops dispatch chain (any_symbolic_tensors,
+                # convert_to_tensor, _can_use_flash_attention, etc.)
+                if (
+                    backend.backend() == "torch"
+                    and backend.is_tensor(query)
+                    and backend.is_tensor(key)
+                    and backend.is_tensor(value)
+                ):
+                    import torch
+
+                    # SDPA expects (B, N, T, H), inputs are (B, T, N, H)
+                    attention_output = (
+                        torch.nn.functional.scaled_dot_product_attention(
+                            query.transpose(1, 2).contiguous(),
+                            key.transpose(1, 2).contiguous(),
+                            value.transpose(1, 2).contiguous(),
+                            is_causal=True,
+                            scale=self._inverse_sqrt_key_dim,
+                        ).transpose(1, 2)
+                    )
+                else:
+                    attention_output = ops.dot_product_attention(
+                        query=query,
+                        key=key,
+                        value=value,
+                        bias=None,
+                        mask=None,
+                        scale=self._inverse_sqrt_key_dim,
+                        is_causal=True,
+                        flash_attention=self._flash_attention,
+                    )
+                return attention_output, None
+
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
@@ -569,15 +605,30 @@ class MultiHeadAttention(Layer):
         backend.set_keras_mask(value, None)
         backend.set_keras_mask(key, None)
 
-        attention_mask = self._compute_attention_mask(
-            query,
-            value,
-            query_mask=query_mask,
-            value_mask=value_mask,
-            key_mask=key_mask,
-            attention_mask=attention_mask,
-            use_causal_mask=use_causal_mask,
+        # Fast path: when only causal masking is needed (no other masks),
+        # skip _compute_attention_mask entirely and use native is_causal
+        # flag in SDPA. This avoids causal mask tensor creation and enables
+        # fused causal kernels.
+        _use_is_causal = (
+            use_causal_mask
+            and attention_mask is None
+            and query_mask is None
+            and value_mask is None
+            and key_mask is None
         )
+
+        if _use_is_causal:
+            attention_mask = None
+        else:
+            attention_mask = self._compute_attention_mask(
+                query,
+                value,
+                query_mask=query_mask,
+                value_mask=value_mask,
+                key_mask=key_mask,
+                attention_mask=attention_mask,
+                use_causal_mask=use_causal_mask,
+            )
         #   N = `num_attention_heads`
         #   H = `size_per_head`
 
@@ -600,6 +651,7 @@ class MultiHeadAttention(Layer):
             attention_mask,
             training,
             return_attention_scores,
+            _use_is_causal=_use_is_causal,
         )
         if self._use_gate:
             attention_output = self._output_dense(

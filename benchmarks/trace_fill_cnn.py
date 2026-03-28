@@ -1,23 +1,32 @@
 """Check slow fill_in for CNN."""
-import os; os.environ["KERAS_BACKEND"] = "torch"
+
+import os
+
+os.environ["KERAS_BACKEND"] = "torch"
 import numpy as np
+
 import keras
-from keras import layers, ops
+from keras import layers
+from keras import ops
 from keras.src.ops.symbolic_arguments import SymbolicArguments
-from keras.src.backend import KerasTensor
 
 orig_fill_in = SymbolicArguments.fill_in
 slow_nodes = []
 
+
 def traced(self, tensor_dict):
     if self._single_positional_tensor is not None:
         return orig_fill_in(self, tensor_dict)
-    slow_nodes.append({
-        "args_len": len(self.args),
-        "kwargs": list(self.kwargs.keys()),
-        "args_types": [type(a).__name__ for a in self.args],
-    })
+    slow_nodes.append(
+        {
+            "args_len": len(self.args),
+            "kwargs": list(self.kwargs.keys()),
+            "args_types": [type(a).__name__ for a in self.args],
+        }
+    )
     return orig_fill_in(self, tensor_dict)
+
+
 SymbolicArguments.fill_in = traced
 
 ci = keras.Input((32, 32, 3))

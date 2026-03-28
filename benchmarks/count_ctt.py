@@ -1,7 +1,16 @@
 import os
+
 os.environ["KERAS_BACKEND"] = "torch"
+import torch
+
 import keras
+import keras.src.backend.torch.nn as torch_nn
+import keras.src.backend.torch.numpy as torch_numpy
 from keras.src.backend.torch import core as torch_core
+from keras.src.layers import Dense
+from keras.src.layers import Embedding
+from keras.src.layers import LayerNormalization
+from keras.src.layers import MultiHeadAttention
 
 call_count = 0
 original = torch_core.convert_to_tensor
@@ -15,19 +24,8 @@ def counting_ctt(*args, **kwargs):
 
 torch_core.convert_to_tensor = counting_ctt
 
-import keras.src.backend.torch.nn as torch_nn
-import keras.src.backend.torch.numpy as torch_numpy
-
 torch_nn.convert_to_tensor = counting_ctt
 torch_numpy.convert_to_tensor = counting_ctt
-
-from keras.src.layers import (
-    Dense,
-    Embedding,
-    LayerNormalization,
-    MultiHeadAttention,
-)
-import torch
 
 vocab_size, seq_len, d_model, num_heads = 1000, 64, 128, 4
 inputs = keras.Input(shape=(seq_len,), dtype="int32")
