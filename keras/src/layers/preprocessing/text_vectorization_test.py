@@ -1,5 +1,6 @@
 import os
 
+import grain
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -62,11 +63,6 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertIn("hello", [str(v) for v in vocab])
 
     def test_adapt_with_grain_dataset(self):
-        try:
-            import grain
-        except ImportError:
-            self.skipTest("Grain is not installed.")
-
         texts = ["hello world", "foo bar", "baz qux", "hello foo"]
 
         class Source(grain.sources.RandomAccessDataSource):

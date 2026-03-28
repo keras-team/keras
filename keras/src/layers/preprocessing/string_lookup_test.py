@@ -1,5 +1,6 @@
 import os
 
+import grain
 import numpy as np
 import pytest
 from tensorflow import data as tf_data
@@ -92,11 +93,6 @@ class StringLookupTest(testing.TestCase):
         self.assertIn("cat", [str(v) for v in vocab])
 
     def test_adapt_with_grain_dataset(self):
-        try:
-            import grain
-        except ImportError:
-            self.skipTest("Grain is not installed.")
-
         words = ["cat", "dog", "bird", "cat", "dog", "bird"]
 
         class Source(grain.sources.RandomAccessDataSource):

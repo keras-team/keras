@@ -1,5 +1,6 @@
 import os
 
+import grain
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -69,11 +70,6 @@ class DiscretizationTest(testing.TestCase):
         self.assertLen(layer.bin_boundaries, 2)
 
     def test_adapt_with_grain_dataset(self):
-        try:
-            import grain
-        except ImportError:
-            self.skipTest("Grain is not installed.")
-
         raw = np.random.uniform(0, 10, size=(100,)).astype("float32")
 
         class Source(grain.sources.RandomAccessDataSource):
