@@ -310,8 +310,8 @@ jobs:
         id: 'create_pr'
         with:
           token: '${{ secrets.GITHUB_TOKEN }}'
-          branch: 'auto-fix-${{ github.event_name == "workflow_dispatch" && github.event.inputs.issue_number || github.event.issue.number }}'
-          title: 'Automated Fix For Issue #${{ github.event_name == "workflow_dispatch" && github.event.inputs.issue_number || github.event.issue.number }}'
+          branch: "auto-fix-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number || github.event.issue.number }}"
+          title: "Automated Fix For Issue #${{ github.event_name == 'workflow_dispatch' && github.event.inputs.issue_number || github.event.issue.number }}"
           commit-message: 'Automated fix pushed by Gemini'
           body: 'This PR branch was automatically created by Gemini to fix the issue.'
           draft: true
