@@ -682,7 +682,7 @@ def lu_factor(a):
     k_next = ov_opset.add(k, one_const).output(0)
     cond = ov_opset.constant(True, Type.boolean).output(0)
     
-    body = Model([A_next, P_next, k_next, cond], [A_body_param, P_body_param, k_param, B_body_param, M_body_param, N_body_param])
+    body = Model([A_body_param, P_body_param, k_param, B_body_param, M_body_param, N_body_param], [A_next, P_next, k_next, cond])
     loop.set_function(body)
     loop.set_special_body_ports([-1, 3])
     
