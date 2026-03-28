@@ -237,27 +237,57 @@ jobs:
           script: |
             const rawOutput = process.env.LABELS_OUTPUT;
             core.info(`Raw output from model: ${rawOutput}`);
-            let parsedLabels;
+            let labelsToAdd = [];
+            let responseBody = '';
+
             try {
-              parsedLabels = JSON.parse(rawOutput);
+              const parsed = JSON.parse(rawOutput);
+              labelsToAdd = parsed.labels_to_set || [];
+              responseBody = parsed.response_body || '';
             } catch (jsonError) {
+              core.info('Standard JSON parse failed, trying fallbacks...');
+              
+              let jsonText = rawOutput;
               const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
               if (jsonMatch && jsonMatch[1]) {
-                parsedLabels = JSON.parse(jsonMatch[1].trim());
+                jsonText = jsonMatch[1].trim();
               } else {
                 const jsonObjectMatch = rawOutput.match(/(\{[\s\S]*"labels_to_set"[\s\S]*\})/);
                 if (jsonObjectMatch) {
-                  parsedLabels = JSON.parse(jsonObjectMatch[0]);
-                } else {
-                  core.setFailed(`Output is not valid JSON.\nRaw output: ${rawOutput}`);
+                   jsonText = jsonObjectMatch[0];
+                }
+              }
+
+              try {
+                const parsed = JSON.parse(jsonText);
+                labelsToAdd = parsed.labels_to_set || [];
+                responseBody = parsed.response_body || '';
+              } catch (innerError) {
+                core.info('Extract JSON block parse failed, trying regex fallback...');
+                
+                const labelsMatch = rawOutput.match(/"labels_to_set":\s*\[(.*?)\]/s);
+                if (labelsMatch) {
+                  try {
+                    labelsToAdd = JSON.parse(`[${labelsMatch[1]}]`);
+                  } catch (_) {
+                    labelsToAdd = labelsMatch[1].split(',').map(l => l.replace(/"/g, '').trim()).filter(Boolean);
+                  }
+                }
+
+                const responseMatch = rawOutput.match(/"response_body":\s*"([\s\S]*?)"\s*(?:,|\}|$)/s);
+                if (responseMatch) {
+                  responseBody = responseMatch[1];
+                  responseBody = responseBody.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                }
+
+                if (labelsToAdd.length === 0 && !responseBody) {
+                  core.setFailed(`Failed to parse model output.\nRaw output: ${rawOutput}`);
                   return;
                 }
               }
             }
 
             const issueNumber = parseInt(process.env.ISSUE_NUMBER);
-            const labelsToAdd = parsedLabels.labels_to_set || [];
-            const responseBody = parsedLabels.response_body || '';
 
             // Add Labels
             if (labelsToAdd.length > 0) {
