@@ -401,19 +401,18 @@ class CompileLoss(losses_module.Loss):
                 f"Received instead: loss_weights={loss_weights} "
                 f"of type {type(loss_weights)}"
             )
+        super().__init__(name="compile_loss", reduction=reduction)
         self._user_loss = loss
         self._user_loss_weights = loss_weights
         self.built = False
         self.output_names = output_names
-        super().__init__(name="compile_loss", reduction=reduction)
-
-        # Use `Tracker` to track metrics for individual losses.
         self._metrics = []
         self._tracker = Tracker(
             {
                 "metrics": (
                     lambda x: isinstance(x, metrics_module.Metric),
                     self._metrics,
+                    "_metrics",
                 )
             }
         )

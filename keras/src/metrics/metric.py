@@ -90,20 +90,31 @@ class Metric(KerasSaveable):
     """
 
     def __init__(self, dtype=None, name=None):
-        self.name = name or auto_name(self.__class__.__name__)
-        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
-        self._dtype = self._dtype_policy.compute_dtype
-        self._metrics = []
-        self._variables = []
+        # Initialize tracker first (before assigning other attributes)
+        metrics = []
+        variables = []
         self._tracker = Tracker(
             {
                 "variables": (
                     lambda x: isinstance(x, backend.Variable),
-                    self._variables,
+                    variables,
+                    "_variables",
                 ),
-                "metrics": (lambda x: isinstance(x, Metric), self._metrics),
+                "metrics": (
+                    lambda x: isinstance(x, Metric),
+                    metrics,
+                    "_metrics",
+                ),
             }
         )
+        # Now safe to assign other attributes
+        self.name = name or auto_name(self.__class__.__name__)
+        self._dtype_policy = dtype_policies.get(dtype or backend.floatx())
+        self._dtype = self._dtype_policy.compute_dtype
+        # Use object.__setattr__ to bypass tracking wrap so self._metrics and
+        # self._variables stay as the same list objects the Tracker references.
+        object.__setattr__(self, "_metrics", metrics)
+        object.__setattr__(self, "_variables", variables)
 
     def reset_state(self):
         """Reset all of the metric state variables.
@@ -235,6 +246,18 @@ class Metric(KerasSaveable):
         return cls(**config)
 
     def __setattr__(self, name, value):
+        # Raise if user code reassigns a reserved tracked attribute.
+        if (
+            hasattr(self, "_tracker")
+            and name in self._tracker.tracking_collections_attr_names
+            and hasattr(self, name)
+        ):
+            raise AttributeError(
+                f"`{name}` is a reserved attribute in Keras metrics and "
+                "should not be used as a variable name in a Metric "
+                "subclass. Assigning to it can break metric state "
+                "tracking. Please use a different attribute name."
+            )
         # Track Variables, Layers, Metrics
         if hasattr(self, "_tracker"):
             value = self._tracker.track(value)
