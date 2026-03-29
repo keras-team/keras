@@ -2694,6 +2694,15 @@ class Diagonal(Operation):
                 f"`x` is of shape {x.shape}."
             )
 
+        ndim = len(x_shape)
+        ax1 = self.axis1 if self.axis1 >= 0 else self.axis1 + ndim
+        ax2 = self.axis2 if self.axis2 >= 0 else self.axis2 + ndim
+        if ax1 == ax2:
+            raise ValueError(
+                "`axis1` and `axis2` cannot be the same. "
+                f"Received: axis1={self.axis1}, axis2={self.axis2}"
+            )
+
         shape_2d = [x_shape[self.axis1], x_shape[self.axis2]]
         x_shape[self.axis1] = -1
         x_shape[self.axis2] = -1
@@ -2767,6 +2776,14 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
             axis1=axis1,
             axis2=axis2,
         ).symbolic_call(x)
+    x_ndim = len(x.shape)
+    ax1 = axis1 if axis1 >= 0 else axis1 + x_ndim
+    ax2 = axis2 if axis2 >= 0 else axis2 + x_ndim
+    if ax1 == ax2:
+        raise ValueError(
+            "`axis1` and `axis2` cannot be the same. "
+            f"Received: axis1={axis1}, axis2={axis2}"
+        )
     return backend.numpy.diagonal(
         x,
         offset=offset,
