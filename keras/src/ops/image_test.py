@@ -2510,6 +2510,29 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.extract_patches(image, size)
 
+    def test_extract_patches_invalid_channels_first_input_shape(self):
+        image = np.random.uniform(size=(2, 20, 20, 3)).astype("float32")
+        with self.assertRaisesRegex(
+            ValueError, "Computed output size would be zero or negative"
+        ):
+            kimage.extract_patches(
+                image,
+                size=(3, 5),
+                padding="valid",
+                data_format="channels_first",
+            )
+
+        symbolic_image = KerasTensor(shape=(20, 20, 3))
+        with self.assertRaisesRegex(
+            ValueError, "Computed output size would be zero or negative"
+        ):
+            kimage.extract_patches(
+                symbolic_image,
+                size=(3, 5),
+                padding="valid",
+                data_format="channels_first",
+            )
+
     def test_extract_patches_unified_3d(self):
         # Test that extract_patches handles 3D volumes when size has 3 elements
         # channels_last
