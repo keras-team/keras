@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import pytest
+import tensorflow as tf
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -82,8 +83,6 @@ class StringLookupTest(testing.TestCase):
         not backend.backend() == "tensorflow", reason="Requires tf.SparseTensor"
     )
     def test_sparse_inputs(self):
-        import tensorflow as tf
-
         layer = layers.StringLookup(
             output_mode="int",
             vocabulary=["a", "b", "c"],
@@ -202,8 +201,6 @@ class StringLookupTest(testing.TestCase):
         reason="Requires tf.SparseTensor",
     )
     def test_sparse_output_in_multi_hot(self):
-        import tensorflow as tf
-
         layer = layers.StringLookup(
             vocabulary=["a", "b", "c"],
             output_mode="multi_hot",
