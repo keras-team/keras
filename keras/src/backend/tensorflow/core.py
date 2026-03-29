@@ -447,6 +447,24 @@ def associative_scan(f, elems, reverse=False, axis=0):
         )
 
         def _interleave_with_b(a):
+            a_shape = a.shape.as_list() if a.shape.rank is not None else None
+            if a_shape is not None and all(
+                d is not None for i, d in enumerate(a_shape) if i != axis
+            ):
+                new_shape = (
+                    a_shape[:axis]
+                    + [2 * num_elems_b]
+                    + a_shape[axis + 1 :]
+                )
+            else:
+                new_shape = tf.concat(
+                    [
+                        tf.shape(a)[:axis],
+                        [2 * num_elems_b],
+                        tf.shape(a)[axis + 1 :],
+                    ],
+                    axis=0,
+                )
             return tf.reshape(
                 # Work around lack of support for Tensor axes in
                 # `tf.stack` by using `concat` and `expand_dims` instead.
@@ -457,14 +475,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
                     ],
                     axis=axis + 1,
                 ),
-                tf.concat(
-                    [
-                        tf.shape(a)[:axis],
-                        [2 * num_elems_b],
-                        tf.shape(a)[axis + 1 :],
-                    ],
-                    axis=0,
-                ),
+                new_shape,
             )
 
         return tf.cond(
