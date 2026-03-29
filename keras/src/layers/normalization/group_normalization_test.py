@@ -1,8 +1,10 @@
 import numpy as np
 import pytest
 
+from keras.src import backend
 from keras.src import constraints
 from keras.src import layers
+from keras.src import ops
 from keras.src import regularizers
 from keras.src import testing
 
@@ -177,3 +179,21 @@ class GroupNormalizationTest(testing.TestCase):
             ),
             atol=1e-3,
         )
+
+    def test_large_value_within_autocast_scope(self):
+        layer = layers.GroupNormalization(groups=2)
+        layer.build((1, 4, 4, 4))
+        large_value = ops.full(layer.gamma.shape, 70000)
+        with backend.AutocastScope("float16"):
+            layer.gamma.assign(large_value)
+            self.assertAllClose(layer.gamma.value, large_value)
+
+    def test_mixed_float16_large_inputs(self):
+        layer = layers.GroupNormalization(
+            groups=2, axis=-1, scale=False, center=False
+        )
+        x = np.full((1, 4, 4), 70000.0, dtype="float32")
+        with backend.AutocastScope("float16"):
+            output = layer(x)
+        output = backend.convert_to_numpy(output)
+        self.assertFalse(np.any(np.isnan(output)))
