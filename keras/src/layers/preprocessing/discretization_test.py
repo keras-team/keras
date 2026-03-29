@@ -1,5 +1,6 @@
 import os
 
+import grain
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -37,6 +38,51 @@ class DiscretizationTest(testing.TestCase):
         )
         output = layer(np.array([[0.0, 0.1, 0.3]]))
         self.assertTrue(output.dtype, "int32")
+        self.assertLen(layer.bin_boundaries, 3)
+
+    def test_adapt_with_generator(self):
+        def data_gen():
+            for _ in range(5):
+                yield np.random.uniform(0, 10, size=(20,))
+
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(data_gen())
+        self.assertLen(layer.bin_boundaries, 3)
+        output = layer(np.array([[1.0, 5.0, 9.0]]))
+        self.assertEqual(output.shape, (1, 3))
+
+    def test_adapt_with_infinite_generator_and_steps(self):
+        def data_gen():
+            while True:
+                yield np.random.uniform(0, 10, size=(20,))
+
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(data_gen(), steps=5)
+        self.assertLen(layer.bin_boundaries, 3)
+
+    def test_adapt_with_list_of_arrays(self):
+        batches = [
+            np.array([1.0, 2.0, 3.0]),
+            np.array([4.0, 5.0, 6.0]),
+        ]
+        layer = layers.Discretization(num_bins=3)
+        layer.adapt(batches)
+        self.assertLen(layer.bin_boundaries, 2)
+
+    def test_adapt_with_grain_dataset(self):
+        raw = np.random.uniform(0, 10, size=(100,)).astype("float32")
+
+        class Source(grain.sources.RandomAccessDataSource):
+            def __getitem__(self, idx):
+                return raw[idx : idx + 10]
+
+            def __len__(self):
+                return 10
+
+        dataset = grain.MapDataset.source(Source()).batch(batch_size=5)
+        layer = layers.Discretization(num_bins=4)
+        layer.adapt(dataset)
+        self.assertLen(layer.bin_boundaries, 3)
 
     @parameterized.named_parameters(
         named_product(
