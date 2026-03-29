@@ -2884,6 +2884,59 @@ class TestTrainer(testing.TestCase):
         self.assertLessEqual(tracing_count[0], 2)
 
 
+class TFTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
+    @parameterized.named_parameters(
+        ("uncompiled", None, None),
+        ("compiled_jit_false", {"jit_compile": False}, False),
+    )
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="TF-only test",
+    )
+    def test_predict_on_batch_xla_behavior(
+        self, compile_kwargs, expected_jit_compile_value
+    ):
+        """predict_on_batch() should not auto-enable XLA and respect compile().
+
+        Verifies that predict_on_batch() does not silently enable XLA on
+        uncompiled models, and that it honours the jit_compile setting when
+        the model is explicitly compiled.
+
+        Regression test for https://github.com/keras-team/keras/issues/22380.
+        """
+        import tensorflow as tf
+
+        inputs = keras.Input(shape=(4,))
+        x = layers.Dense(
+            8,
+            use_bias=False,
+            kernel_initializer=initializers.Ones(),
+        )(inputs)
+        outputs = layers.Dense(
+            3,
+            use_bias=False,
+            kernel_initializer=initializers.Ones(),
+        )(x)
+        model = keras.Model(inputs, outputs)
+
+        if compile_kwargs is not None:
+            model.compile(**compile_kwargs)
+
+        test_input = np.ones((2, 4), dtype=np.float32)
+
+        @tf.function(jit_compile=False)
+        def direct_call(x):
+            return model(x, training=False)
+
+        y_direct = direct_call(test_input).numpy()
+        y_predict = model.predict_on_batch(test_input)
+
+        self.assertAllClose(y_direct, y_predict, atol=1e-6, rtol=1e-6)
+
+        if expected_jit_compile_value is not None:
+            self.assertEqual(model._jit_compile, expected_jit_compile_value)
+
+
 class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
     @parameterized.named_parameters(
         ("single_device", False),
