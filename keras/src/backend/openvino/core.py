@@ -819,8 +819,6 @@ def convert_to_numpy(x):
         else:
             return x.value.data
     if not isinstance(x, OpenVINOKerasTensor):
-        # objects like tf.EagerTensor support the __array__
-        # protocol, so np.array() handles them without special-casing.
         try:
             return np.array(x)
         except Exception as e:
