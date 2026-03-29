@@ -1,5 +1,5 @@
 import builtins
-import math
+import math as python_math
 import re
 
 import numpy as np
@@ -9187,15 +9187,14 @@ class Argpartition(Operation):
 
     def compute_output_spec(self, x):
         if self.axis is None:
-            is_dynamic = False
+            has_none = False
             for d in x.shape:
                 if d is None:
-                    is_dynamic = True
+                    has_none = True
                     break
-
-            if is_dynamic:
+            if has_none:
                 return KerasTensor((None,), dtype="int32")
-            return KerasTensor((math.prod(x.shape),), dtype="int32")
+            return KerasTensor((python_math.prod(x.shape),), dtype="int32")
 
         return KerasTensor(x.shape, dtype="int32")
 
