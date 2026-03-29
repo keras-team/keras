@@ -558,31 +558,25 @@ class IndexLookup(Layer):
     def compute_output_shape(self, input_shape):
         if self.output_mode == "int":
             return input_shape
-        depth = (
+
+        depth = self._get_output_depth()
+        input_shape = tuple(input_shape)
+
+        if self.output_mode == "one_hot":
+            return input_shape + (depth,)
+
+        return input_shape[:-1] + (depth,)
+
+    def _get_output_depth(self):
+        return (
             self.max_tokens
             if self.pad_to_max_tokens and self.max_tokens is not None
             else self.vocabulary_size()
         )
-        input_shape = tuple(input_shape)
-        if self.output_mode == "one_hot":
-            return input_shape + (depth,)
-        return input_shape[:-1] + (depth,)
 
     def compute_output_spec(self, inputs):
-        if self.output_mode == "int":
-            output_dtype = "int64"
-        else:
-            output_dtype = backend.floatx()
-        input_shape = inputs.shape
-        if self.output_mode == "one_hot":
-            depth = (
-                self.max_tokens
-                if self.pad_to_max_tokens and self.max_tokens is not None
-                else self.vocabulary_size()
-            )
-            output_shape = input_shape + (depth,)
-        else:
-            output_shape = self.compute_output_shape(input_shape)
+        output_dtype = "int64" if self.output_mode == "int" else backend.floatx()
+        output_shape = self.compute_output_shape(inputs.shape)
         return backend.KerasTensor(output_shape, dtype=output_dtype)
 
     def adapt(self, data, steps=None):
