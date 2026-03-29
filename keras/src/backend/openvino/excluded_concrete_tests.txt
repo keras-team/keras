@@ -62,6 +62,7 @@ ImageOpsDtypeTest::test_perspective_transform
 ImageOpsDtypeTest::test_resize
 ImageOpsDtypeTest::test_scale_and_translate
 LambTest::test_correctness_with_golden
+LayerTest::test_call_context_args_with_func_seq_models_as_layers
 LayerTest::test_complex_dtype_support
 LayerTest::test_end_to_end_masking
 LayerTest::test_stateless_call
