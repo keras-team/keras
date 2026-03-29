@@ -2288,6 +2288,23 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.rgb_to_grayscale(invalid_image)
 
+    def test_rgb_to_grayscale_invalid_channels_first_with_batched_3d_input(self):
+        # Test for issue #22472: keras.Input creates (None, H, W) for
+        # shape=(H, W), which is incompatible with channels_first format.
+        invalid_image = KerasTensor(shape=(None, 4, 3), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid input shape for channels_first format",
+        ):
+            kimage.rgb_to_grayscale(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid input shape for channels_first format",
+        ):
+            kimage.RGBToGrayscale(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_rgb_to_hsv_invalid_rank(self, rank):
         shape = [3] * rank
@@ -2351,6 +2368,25 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
 
+    def test_rgb_to_hsv_invalid_channels_first_with_batched_3d_input(self):
+        # Test for issue #22472: keras.Input creates (None, H, W) for
+        # shape=(H, W), which is incompatible with channels_first format
+        # expecting (C, H, W) for unbatched 3D input or (N, C, H, W) for
+        # batched 4D input.
+        invalid_image = KerasTensor(shape=(None, 4, 3), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid input shape for channels_first format",
+        ):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid input shape for channels_first format",
+        ):
+            kimage.RGBToHSV(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
     def test_hsv_to_rgb_invalid_channels(self):
         invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
         with self.assertRaises(Exception):
@@ -2379,6 +2415,23 @@ class ImageOpsBehaviorTests(testing.TestCase):
             "4 channels\\.",
         ):
             kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+
+    def test_hsv_to_rgb_invalid_channels_first_with_batched_3d_input(self):
+        # Test for issue #22472: keras.Input creates (None, H, W) for
+        # shape=(H, W), which is incompatible with channels_first format.
+        invalid_image = KerasTensor(shape=(None, 4, 3), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid input shape for channels_first format",
+        ):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Invalid input shape for channels_first format",
+        ):
+            kimage.HSVToRGB(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
 
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_hsv_to_rgb_invalid_rank(self, rank):
