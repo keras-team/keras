@@ -452,9 +452,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 d is not None for i, d in enumerate(a_shape) if i != axis
             ):
                 new_shape = (
-                    a_shape[:axis]
-                    + [2 * num_elems_b]
-                    + a_shape[axis + 1 :]
+                    a_shape[:axis] + [2 * num_elems_b] + a_shape[axis + 1 :]
                 )
             else:
                 new_shape = tf.concat(
