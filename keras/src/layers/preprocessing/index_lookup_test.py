@@ -11,9 +11,7 @@ from keras.src import testing
 from keras.src.saving import saving_api
 
 
-@pytest.mark.skipif(
-    backend.backend() == "numpy", reason="Failing for numpy backend."
-)
+@pytest.mark.skipif(backend.backend() == "numpy", reason="Failing for numpy backend.")
 class IndexLookupLayerTest(testing.TestCase):
     def test_basics_string_vocab(self):
         # Case: adapt + list inputs
@@ -28,9 +26,7 @@ class IndexLookupLayerTest(testing.TestCase):
         }
         layer = layers.IndexLookup(**kwargs)
         layer.adapt(adapt_data)
-        self.assertEqual(
-            layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"]
-        )
+        self.assertEqual(layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"])
         self.assertEqual(
             layer.get_vocabulary(include_special_tokens=False),
             ["one", "two", "three"],
@@ -47,9 +43,7 @@ class IndexLookupLayerTest(testing.TestCase):
         # Case: fixed vocab + list inputs
         vocabulary = ["one", "two", "three"]
         layer = layers.IndexLookup(vocabulary=vocabulary, **kwargs)
-        self.assertEqual(
-            layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"]
-        )
+        self.assertEqual(layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"])
         self.assertEqual(
             layer.get_vocabulary(include_special_tokens=False),
             ["one", "two", "three"],
@@ -61,12 +55,8 @@ class IndexLookupLayerTest(testing.TestCase):
 
         # Case: fixed vocab with special tokens + list inputs
         vocabulary_with_special_tokens = ["", "[OOV]", "one", "two", "three"]
-        layer = layers.IndexLookup(
-            vocabulary=vocabulary_with_special_tokens, **kwargs
-        )
-        self.assertEqual(
-            layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"]
-        )
+        layer = layers.IndexLookup(vocabulary=vocabulary_with_special_tokens, **kwargs)
+        self.assertEqual(layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"])
         self.assertEqual(
             layer.get_vocabulary(include_special_tokens=False),
             ["one", "two", "three"],
@@ -79,9 +69,7 @@ class IndexLookupLayerTest(testing.TestCase):
         # Case: set vocabulary
         layer = layers.IndexLookup(**kwargs)
         layer.set_vocabulary(vocabulary)
-        self.assertEqual(
-            layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"]
-        )
+        self.assertEqual(layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"])
         self.assertEqual(
             layer.get_vocabulary(include_special_tokens=False),
             ["one", "two", "three"],
@@ -94,9 +82,7 @@ class IndexLookupLayerTest(testing.TestCase):
         # Case: set vocabulary (with special tokens)
         layer = layers.IndexLookup(**kwargs)
         layer.set_vocabulary(vocabulary_with_special_tokens)
-        self.assertEqual(
-            layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"]
-        )
+        self.assertEqual(layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"])
         self.assertEqual(
             layer.get_vocabulary(include_special_tokens=False),
             ["one", "two", "three"],
@@ -148,9 +134,7 @@ class IndexLookupLayerTest(testing.TestCase):
 
         # Case: fixed vocab with special tokens + list inputs
         vocabulary_with_special_tokens = [0, -1, 1, 2, 3]
-        layer = layers.IndexLookup(
-            vocabulary=vocabulary_with_special_tokens, **kwargs
-        )
+        layer = layers.IndexLookup(vocabulary=vocabulary_with_special_tokens, **kwargs)
         self.assertEqual(layer.get_vocabulary(), [0, -1, 1, 2, 3])
         self.assertEqual(
             layer.get_vocabulary(include_special_tokens=False),
@@ -309,6 +293,48 @@ class IndexLookupLayerTest(testing.TestCase):
             eager_output.shape[1:],
             msg="Symbolic and eager output shapes must match (except batch)",
         )
+
+    def test_integer_lookup_one_hot_compute_output_spec_2d(self):
+        """compute_output_spec for one_hot must preserve 2D input dims.
+
+        Regression test for shape collapse where output was (None, depth)
+        instead of (None, sequence_length, depth) for 2D symbolic inputs.
+        """
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            num_oov_indices=2,
+            mask_token=0,
+            output_mode="one_hot",
+        )
+
+        inp = layers.Input(shape=(5,), dtype="int32")
+        spec = layer.compute_output_spec(inp)
+
+        # depth = 3 vocab + 2 OOV = 5
+        self.assertEqual(spec.shape, (None, 5, 5))
+
+    def test_integer_lookup_one_hot_symbolic_shape_2d_input(self):
+        """one_hot symbolic output must preserve 2D input dims.
+
+        Regression test for shape collapse in symbolic mode.
+        """
+        layer = layers.IntegerLookup(
+            vocabulary=[12, 36, 1138, 42],
+            num_oov_indices=3,
+            mask_token=-1,
+            output_mode="one_hot",
+        )
+
+        inp = layers.Input(shape=(3,), dtype="int64")
+        out = layer(inp)
+
+        # depth = 4 vocab + 3 OOV = 7
+        self.assertEqual(tuple(out.shape), (None, 3, 7))
+        x = np.array([[12, 36, 1138], [42, 999, 12]])
+        eager_out = layer(x)
+
+        self.assertEqual(eager_out.shape, (2, 3, 7))
+        self.assertEqual(tuple(out.shape)[1:], eager_out.shape[1:])
 
     def test_one_hot_compute_output_shape_multi_hot_consistency(self):
         """multi_hot/count/tf_idf last dim is sample in output shape."""
@@ -477,9 +503,7 @@ class IndexLookupLayerTest(testing.TestCase):
         }
         layer = layers.IndexLookup(**kwargs)
         layer.adapt(adapt_data)
-        self.assertEqual(
-            layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"]
-        )
+        self.assertEqual(layer.get_vocabulary(), ["", "[OOV]", "one", "two", "three"])
         self.assertEqual(
             layer.get_vocabulary(include_special_tokens=False),
             ["one", "two", "three"],
@@ -578,9 +602,7 @@ class IndexLookupLayerTest(testing.TestCase):
             )
 
     def test_unrecognized_kwargs(self):
-        with self.assertRaisesRegex(
-            ValueError, "Unrecognized keyword argument"
-        ):
+        with self.assertRaisesRegex(ValueError, "Unrecognized keyword argument"):
             layers.IndexLookup(
                 num_oov_indices=1,
                 max_tokens=None,
@@ -693,9 +715,7 @@ class IndexLookupLayerTest(testing.TestCase):
         layer.set_vocabulary(vocabulary)
 
         vocab_before = layer.get_vocabulary(include_special_tokens=True)
-        vocab_before_no_special = layer.get_vocabulary(
-            include_special_tokens=False
-        )
+        vocab_before_no_special = layer.get_vocabulary(include_special_tokens=False)
 
         sample_input = ["apple", "banana", "unknown"]
         output_before = layer(sample_input).numpy()
@@ -708,9 +728,7 @@ class IndexLookupLayerTest(testing.TestCase):
         layer2.load_assets(tmpdir)
 
         vocab_after = layer2.get_vocabulary(include_special_tokens=True)
-        vocab_after_no_special = layer2.get_vocabulary(
-            include_special_tokens=False
-        )
+        vocab_after_no_special = layer2.get_vocabulary(include_special_tokens=False)
 
         self.assertEqual(vocab_before, vocab_after)
         self.assertEqual(vocab_before_no_special, vocab_after_no_special)
