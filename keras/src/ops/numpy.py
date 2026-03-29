@@ -9182,18 +9182,21 @@ class Argpartition(Operation):
     def call(self, x):
         if self.axis is None:
             x = backend.numpy.reshape(x, [-1])
-            axis = 0
-        else:
-            axis = self.axis
-        return backend.numpy.argpartition(x, self.kth, axis=axis)
+            return backend.numpy.argpartition(x, kth=self.kth, axis=0)
+        return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
 
     def compute_output_spec(self, x):
         if self.axis is None:
-            if None in x.shape:
-                output_shape = (None,)
-            else:
-                output_shape = (math.prod(x.shape),)
-            return KerasTensor(output_shape, dtype="int32")
+            is_dynamic = False
+            for d in x.shape:
+                if d is None:
+                    is_dynamic = True
+                    break
+
+            if is_dynamic:
+                return KerasTensor((None,), dtype="int32")
+            return KerasTensor((math.prod(x.shape),), dtype="int32")
+
         return KerasTensor(x.shape, dtype="int32")
 
 
@@ -9219,12 +9222,16 @@ def argpartition(x, kth, axis=-1):
     Returns:
         Array of indices that partition `x` along the specified `axis`.
     """
+
     if any_symbolic_tensors((x,)):
         return Argpartition(kth, axis).symbolic_call(x)
+
     x = backend.convert_to_tensor(x)
+
     if axis is None:
         x = backend.numpy.reshape(x, [-1])
         return backend.numpy.argpartition(x, kth, axis=0)
+
     return backend.numpy.argpartition(x, kth, axis)
 
 
