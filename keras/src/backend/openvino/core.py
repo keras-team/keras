@@ -819,7 +819,12 @@ def convert_to_numpy(x):
         else:
             return x.value.data
     if not isinstance(x, OpenVINOKerasTensor):
-        raise ValueError(f"unsupported type {type(x)} for `convert_to_numpy`.")
+        try:
+            return np.array(x)
+        except Exception as e:
+            raise ValueError(
+                f"unsupported type {type(x)} for `convert_to_numpy`."
+            ) from e
     # if the tensor is backed by a Constant OV node, extract
     # its data array directly without compiling a model.
     try:
