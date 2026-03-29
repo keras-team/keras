@@ -1590,7 +1590,10 @@ def flip(x, axis=None):
     x = convert_to_tensor(x)
     if axis is None:
         return tf.reverse(x, tf.range(tf.rank(x)))
-    return tf.reverse(x, [axis])
+    axis = to_tuple_or_list(axis)
+    axis = tf.convert_to_tensor(axis, dtype=tf.int32)
+    axis = tf.where(axis < 0, axis + tf.rank(x), axis)
+    return tf.reverse(x, axis)
 
 
 def fliplr(x):
