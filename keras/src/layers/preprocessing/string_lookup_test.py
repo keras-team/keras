@@ -261,3 +261,16 @@ class StringLookupTest(testing.TestCase):
             tuple(symbolic_output.shape)[1:],
             eager_output.shape[1:],
         )
+
+    def test_salt_siphash(self):
+        vocab = ["a", "b", "c"]
+        layer_farmhash = layers.StringLookup(
+            vocabulary=vocab, num_oov_indices=4
+        )
+        layer_siphash = layers.StringLookup(
+            vocabulary=vocab, num_oov_indices=4, salt=[137, 42]
+        )
+        oov_values = ["x", "y", "z", "w", "v", "u"]
+        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_values))
+        out_siphash = backend.convert_to_numpy(layer_siphash(oov_values))
+        self.assertFalse(np.array_equal(out_farmhash, out_siphash))
