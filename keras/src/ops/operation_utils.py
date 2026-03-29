@@ -216,16 +216,10 @@ def compute_conv_output_shape(
             )
             + 1
         )
+
         for i in range(len(output_spatial_shape)):
             if i not in none_dims and output_spatial_shape[i] <= 0:
-                raise ValueError(
-                    "Computed output size would be zero or negative. Received "
-                    f"`inputs shape={input_shape}`, "
-                    f"`kernel shape={kernel_shape}`, "
-                    f"`dilation_rate={dilation_rate}`, "
-                    f"`strides={strides}`, "
-                    f"`padding={padding}`."
-                )
+                output_spatial_shape[i] = 0
 
     elif padding in ("same", "causal"):
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
@@ -245,6 +239,13 @@ def compute_conv_output_shape(
     else:
         output_shape = (input_shape[0], kernel_shape[-1]) + output_spatial_shape
     return output_shape
+
+
+def unexpand_kernel_shape(kernel_shape, input_rank):
+    """Removes a leading batch dimension from `kernel_shape` if present."""
+    if len(kernel_shape) == input_rank + 1 and kernel_shape[0] in (None, 1):
+        return kernel_shape[1:]
+    return kernel_shape
 
 
 def compute_matmul_output_shape(shape1, shape2):
