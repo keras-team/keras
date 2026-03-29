@@ -44,7 +44,7 @@ class RandomPosterizationTest(testing.TestCase):
         expected_output = np.asarray(
             [[[128.0, 128.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]]
         )
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_random_posterization_value_range_0_to_1(self):
         image = keras.random.uniform(shape=(3, 3, 3), minval=0, maxval=1)

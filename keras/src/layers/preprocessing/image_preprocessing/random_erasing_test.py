@@ -76,7 +76,7 @@ class RandomErasingTest(testing.TestCase):
 
         print(output)
 
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()

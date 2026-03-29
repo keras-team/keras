@@ -717,8 +717,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.fft(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output)
-        self.assertAllClose(imag_ref, imag_output)
+        self.assertAllClose(real_output, real_ref)
+        self.assertAllClose(imag_output, imag_ref)
 
     def test_fft2(self):
         real = np.random.random((2, 4, 3))
@@ -729,8 +729,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.fft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output)
-        self.assertAllClose(imag_ref, imag_output)
+        self.assertAllClose(real_output, real_ref)
+        self.assertAllClose(imag_output, imag_ref)
 
     def test_ifft2(self):
         real = np.random.random((2, 4, 3)).astype(np.float32)
@@ -741,8 +741,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.ifft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output)
-        self.assertAllClose(imag_ref, imag_output)
+        self.assertAllClose(real_output, real_ref)
+        self.assertAllClose(imag_output, imag_ref)
 
     @parameterized.parameters([(None,), (3,), (15,)])
     def test_rfft(self, n):
@@ -752,8 +752,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.rfft(x, n=n)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-05, rtol=1e-05)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-05, rtol=1e-05)
 
         # Test N-D case.
         x = np.random.random((2, 3, 10))
@@ -761,8 +761,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.rfft(x, n=n)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-05, rtol=1e-05)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-05, rtol=1e-05)
 
     @parameterized.parameters([(None,), (3,), (15,)])
     def test_irfft(self, n):
@@ -804,8 +804,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         real_ref, imag_ref = _stft(
             x, sequence_length, sequence_stride, fft_length, window, center
         )
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-05, rtol=1e-05)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-05, rtol=1e-05)
 
         # Test N-D case.
         x = np.random.random((2, 3, 32))
@@ -815,8 +815,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         real_ref, imag_ref = _stft(
             x, sequence_length, sequence_stride, fft_length, window, center
         )
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-05, rtol=1e-05)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-05, rtol=1e-05)
 
     @parameterized.parameters(
         [
@@ -914,7 +914,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         output_from_erf_op = kmath.erf(sample_values)
 
         # Assert that the outputs are close
-        self.assertAllClose(expected_output, output_from_erf_op, atol=1e-4)
+        self.assertAllClose(output_from_erf_op, expected_output, atol=0.0001)
 
     def test_erf_operation_dtype(self):
         # Test for float32 and float64 data types
@@ -924,14 +924,18 @@ class MathOpsCorrectnessTest(testing.TestCase):
             )
             expected_output = scipy.special.erf(sample_values)
             output_from_erf_op = kmath.erf(sample_values)
-            self.assertAllClose(expected_output, output_from_erf_op, atol=1e-4)
+            self.assertAllClose(
+                output_from_erf_op, expected_output, atol=0.0001
+            )
 
     def test_erf_operation_edge_cases(self):
         # Test for edge cases
         edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
         expected_output = scipy.special.erf(edge_values)
         output_from_edge_erf_op = kmath.erf(edge_values)
-        self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
+        self.assertAllClose(
+            output_from_edge_erf_op, expected_output, atol=0.0001
+        )
 
     def test_erfinv_operation_basic(self):
         # Sample values for testing
@@ -944,7 +948,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         output_from_erfinv_op = kmath.erfinv(sample_values)
 
         # Assert that the outputs are close
-        self.assertAllClose(expected_output, output_from_erfinv_op, atol=1e-4)
+        self.assertAllClose(output_from_erfinv_op, expected_output, atol=0.0001)
 
     def test_erfinv_operation_dtype(self):
         # Test for float32 and float64 data types
@@ -955,7 +959,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             expected_output = scipy.special.erfinv(sample_values)
             output_from_erfinv_op = kmath.erfinv(sample_values)
             self.assertAllClose(
-                expected_output, output_from_erfinv_op, atol=1e-4
+                output_from_erfinv_op, expected_output, atol=0.0001
             )
 
     def test_erfinv_operation_edge_cases(self):
@@ -964,7 +968,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         expected_output = scipy.special.erfinv(edge_values)
         output_from_edge_erfinv_op = kmath.erfinv(edge_values)
         self.assertAllClose(
-            expected_output, output_from_edge_erfinv_op, atol=1e-4
+            output_from_edge_erfinv_op, expected_output, atol=0.0001
         )
 
     def test_logdet(self):

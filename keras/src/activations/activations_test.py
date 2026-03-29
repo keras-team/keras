@@ -955,33 +955,33 @@ class ActivationsTest(testing.TestCase):
         x_1d = np.linspace(1, 12, num=12)
         expected_result = np.zeros_like(x_1d)
         expected_result[-1] = 1.0
-        self.assertAllClose(expected_result, activations.sparsemax(x_1d))
+        self.assertAllClose(activations.sparsemax(x_1d), expected_result)
 
         # result check with 2d
         x_2d = np.linspace(1, 12, num=12).reshape(-1, 2)
         expected_result = np.zeros_like(x_2d)
         expected_result[:, -1] = 1.0
-        self.assertAllClose(expected_result, activations.sparsemax(x_2d))
+        self.assertAllClose(activations.sparsemax(x_2d), expected_result)
 
         # result check with 3d
         x_3d = np.linspace(1, 12, num=12).reshape(-1, 1, 3)
         expected_result = np.zeros_like(x_3d)
         expected_result[:, :, -1] = 1.0
-        self.assertAllClose(expected_result, activations.sparsemax(x_3d))
+        self.assertAllClose(activations.sparsemax(x_3d), expected_result)
 
         # result check with axis=-2 with 2d input
         x_2d = np.linspace(1, 12, num=12).reshape(-1, 2)
         expected_result = np.zeros_like(x_2d)
         expected_result[-1, :] = 1.0
         self.assertAllClose(
-            expected_result, activations.sparsemax(x_2d, axis=-2)
+            activations.sparsemax(x_2d, axis=-2), expected_result
         )
 
         # result check with axis=-2 with 3d input
         x_3d = np.linspace(1, 12, num=12).reshape(-1, 1, 3)
         expected_result = np.ones_like(x_3d)
         self.assertAllClose(
-            expected_result, activations.sparsemax(x_3d, axis=-2)
+            activations.sparsemax(x_3d, axis=-2), expected_result
         )
 
         # result check with axis=-3 with 3d input
@@ -989,14 +989,14 @@ class ActivationsTest(testing.TestCase):
         expected_result = np.zeros_like(x_3d)
         expected_result[-1, :, :] = 1.0
         self.assertAllClose(
-            expected_result, activations.sparsemax(x_3d, axis=-3)
+            activations.sparsemax(x_3d, axis=-3), expected_result
         )
 
         # result check with axis=-3 with 4d input
         x_4d = np.linspace(1, 12, num=12).reshape(-1, 1, 1, 2)
         expected_result = np.ones_like(x_4d)
         self.assertAllClose(
-            expected_result, activations.sparsemax(x_4d, axis=-3)
+            activations.sparsemax(x_4d, axis=-3), expected_result
         )
 
     def test_get_method(self):

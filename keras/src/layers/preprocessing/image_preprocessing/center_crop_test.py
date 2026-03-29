@@ -94,7 +94,7 @@ class CenterCropTest(testing.TestCase):
             )
         else:
             ref_out = self.np_center_crop(img, size[0], size[1])
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
         # unbatched case
         if data_format == "channels_first":
@@ -122,7 +122,7 @@ class CenterCropTest(testing.TestCase):
                 size[0],
                 size[1],
             )
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters(
         [
@@ -145,7 +145,7 @@ class CenterCropTest(testing.TestCase):
         ref_out = layers.Resizing(
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
         # unbatched case
         if data_format == "channels_first":
@@ -160,7 +160,7 @@ class CenterCropTest(testing.TestCase):
         ref_out = layers.Resizing(
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     def test_tf_data_compatibility(self):
         if backend.config.image_data_format() == "channels_last":
@@ -209,7 +209,7 @@ class CenterCropTest(testing.TestCase):
         ref_out = layers.Resizing(
             size[0], size[1], data_format=data_format, crop_to_aspect_ratio=True
         )(img)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.named_parameters(
         (
