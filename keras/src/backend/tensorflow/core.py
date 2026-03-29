@@ -451,7 +451,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
             if isinstance(axis, int):
                 b_shape_at_axis = b.shape[axis]
                 num_elems_b_static = tf.get_static_value(
-                    b_shape_at_axis if b_shape_at_axis is not None else tf.shape(b)[axis]
+                    b_shape_at_axis
+                    if b_shape_at_axis is not None
+                    else tf.shape(b)[axis]
                 )
             else:
                 num_elems_b_static = None
@@ -460,17 +462,21 @@ def associative_scan(f, elems, reverse=False, axis=0):
                 isinstance(axis, int)
                 and a_shape is not None
                 and num_elems_b_static is not None
-                and all(d is not None for i, d in enumerate(a_shape) if i != axis)
+                and all(
+                    d is not None for i, d in enumerate(a_shape) if i != axis
+                )
             ):
                 new_shape = (
-                    a_shape[:axis] + [2 * num_elems_b_static] + a_shape[axis + 1:]
+                    a_shape[:axis]
+                    + [2 * num_elems_b_static]
+                    + a_shape[axis + 1 :]
                 )
             else:
                 new_shape = tf.concat(
                     [
                         tf.shape(a)[:axis],
                         [2 * num_elems_b],
-                        tf.shape(a)[axis + 1:],
+                        tf.shape(a)[axis + 1 :],
                     ],
                     axis=0,
                 )
