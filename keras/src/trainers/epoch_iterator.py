@@ -165,6 +165,27 @@ class EpochIterator:
             self._current_iterator = None
             self.data_adapter.on_epoch_end()
 
+    # ------------------------------------------------------------------
+    # Iterator checkpoint / resume
+    # ------------------------------------------------------------------
+
+    def get_iterator_state(self):
+        """Return serializable state for the current data iterator.
+
+        Delegates to the underlying ``DataAdapter``.  Returns ``None``
+        when the adapter does not support checkpointing.
+        """
+        return self.data_adapter.get_iterator_state()
+
+    def set_iterator_state(self, state):
+        """Schedule iterator state restoration.
+
+        The state will be applied lazily when the next iterator is
+        created (i.e. at the start of the next epoch).
+        """
+        if state is not None:
+            self.data_adapter.set_iterator_state(state)
+
     @property
     def num_batches(self):
         if self.steps_per_epoch:

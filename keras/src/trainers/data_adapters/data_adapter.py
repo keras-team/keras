@@ -88,6 +88,24 @@ class DataAdapter:
         """
         raise NotImplementedError
 
+    def get_iterator_state(self):
+        """Return serializable state for the current data iterator.
+
+        Adapters that support deterministic checkpoint/resume (e.g. Grain)
+        override this to return a small dict that can reconstruct the
+        iterator position. The default returns ``None`` (not supported).
+        """
+        return None
+
+    def set_iterator_state(self, state):
+        """Restore the data iterator to a previously saved state.
+
+        Called before the next ``iter()`` call so the iterator resumes
+        from the saved position. Adapters that do not support
+        checkpointing ignore this (the default is a no-op).
+        """
+        pass
+
     def on_epoch_begin(self):
         """A hook called before each epoch."""
         pass

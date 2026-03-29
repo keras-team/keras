@@ -418,6 +418,10 @@ class JAXTrainer(base_trainer.Trainer):
         self._symbolic_build(iterator=epoch_iterator)
         epoch_iterator.reset()
 
+        # Expose the iterator so callbacks (e.g. BackupAndRestore) can
+        # save / restore data-pipeline state for fault tolerance.
+        self._epoch_iterator = epoch_iterator
+
         # Container that configures and calls callbacks.
         if not isinstance(callbacks, callbacks_module.CallbackList):
             callbacks = callbacks_module.CallbackList(
@@ -541,6 +545,7 @@ class JAXTrainer(base_trainer.Trainer):
             # are done.
             if getattr(self, "_eval_epoch_iterator", None) is not None:
                 del self._eval_epoch_iterator
+            self._epoch_iterator = None
             if training_finished:
                 callbacks.on_train_end(logs=training_logs)
             self._jax_state = None
