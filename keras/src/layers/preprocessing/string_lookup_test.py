@@ -1,5 +1,6 @@
 import os
 
+import grain
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -68,6 +69,45 @@ class StringLookupTest(testing.TestCase):
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([2, 3, 0]))
+        self.assertIn("a", [str(v) for v in layer.get_vocabulary()])
+
+    def test_adapt_with_generator(self):
+        def vocab_gen():
+            yield ["cat", "dog"]
+            yield ["bird", "cat"]
+
+        layer = layers.StringLookup()
+        layer.adapt(vocab_gen())
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+        self.assertIn("dog", [str(v) for v in vocab])
+        self.assertIn("bird", [str(v) for v in vocab])
+
+    def test_adapt_with_infinite_generator_and_steps(self):
+        def vocab_gen():
+            while True:
+                yield ["cat", "dog", "bird"]
+
+        layer = layers.StringLookup()
+        layer.adapt(vocab_gen(), steps=3)
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
+
+    def test_adapt_with_grain_dataset(self):
+        words = ["cat", "dog", "bird", "cat", "dog", "bird"]
+
+        class Source(grain.sources.RandomAccessDataSource):
+            def __getitem__(self, idx):
+                return words[idx]
+
+            def __len__(self):
+                return len(words)
+
+        dataset = grain.MapDataset.source(Source()).batch(batch_size=2)
+        layer = layers.StringLookup()
+        layer.adapt(dataset)
+        vocab = layer.get_vocabulary()
+        self.assertIn("cat", [str(v) for v in vocab])
 
     def test_fixed_vocabulary(self):
         layer = layers.StringLookup(
