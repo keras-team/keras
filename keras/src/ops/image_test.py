@@ -1164,6 +1164,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     f"Received: interpolation={interpolation}, "
                     f"antialias={antialias}."
                 )
+        if backend.backend() == "openvino":
+            if "lanczos" in interpolation:
+                self.skipTest(
+                    "Resizing with Lanczos interpolation is "
+                    "not supported by the OpenVINO backend. "
+                    f"Received: interpolation={interpolation}."
+                )
         # Test channels_last
         x = np.random.random((30, 30, 3)).astype("float32") * 255
         out = kimage.resize(
