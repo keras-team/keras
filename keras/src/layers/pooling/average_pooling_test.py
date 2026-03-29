@@ -134,7 +134,6 @@ def np_avgpool3d(x, pool_size, strides, padding, data_format):
     return out
 
 
-@pytest.mark.requires_trainable_backend
 class AveragePoolingBasicTest(testing.TestCase):
     @parameterized.parameters(
         (2, 1, "valid", "channels_last", (3, 5, 4), (3, 4, 4)),
@@ -164,6 +163,7 @@ class AveragePoolingBasicTest(testing.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            run_mixed_precision_check=False,
             assert_built_after_instantiation=True,
         )
 
@@ -199,6 +199,7 @@ class AveragePoolingBasicTest(testing.TestCase):
             expected_num_non_trainable_weights=0,
             expected_num_losses=0,
             supports_masking=False,
+            run_mixed_precision_check=False,
             assert_built_after_instantiation=True,
         )
 

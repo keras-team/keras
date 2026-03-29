@@ -15,7 +15,6 @@ class PermuteTest(testing.TestCase):
             {"testcase_name": "sparse", "sparse": True},
         ]
     )
-    @pytest.mark.requires_trainable_backend
     def test_permute(self, sparse):
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             pytest.skip("Backend does not support sparse tensors.")
