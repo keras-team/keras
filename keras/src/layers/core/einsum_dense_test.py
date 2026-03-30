@@ -313,7 +313,6 @@ class EinsumDenseTest(testing.TestCase):
             "expected_output_shape": (2, 3, 4, 2),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_einsum_dense_basics(
         self,
         equation,
@@ -435,7 +434,6 @@ class EinsumDenseTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-    @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
         # Use a simple equation that mimics a `Dense` layer behavior.
         equation = "ab,bc->ac"
@@ -480,7 +478,6 @@ class EinsumDenseTest(testing.TestCase):
             actual_kernel, expected_kernel, tpu_atol=1e-3, tpu_rtol=1e-3
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.EinsumDense,
@@ -764,7 +761,6 @@ class EinsumDenseTest(testing.TestCase):
         ("float8", "float8_from_mixed_bfloat16", 8, 0),
         ("int4", "int4_from_mixed_bfloat16", 1, 2),
     )
-    @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):

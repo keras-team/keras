@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import layers
 from keras.src import testing
@@ -7,7 +6,6 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 
 
 class UpSamplingTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_upsampling_1d(self):
         self.run_layer_test(
             layers.UpSampling1D,

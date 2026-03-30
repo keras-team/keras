@@ -10,7 +10,6 @@ from keras.src.trainers.data_adapters.py_dataset_adapter import PyDataset
 
 
 class NormalizationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_normalization_basics(self):
         self.run_layer_test(
             layers.Normalization,
@@ -408,7 +407,6 @@ class NormalizationTest(testing.TestCase):
         self.assertAllClose(np.var(output, axis=0), 1.0, atol=1e-5)
         self.assertAllClose(np.mean(output, axis=0), 0.0, atol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_adapt_grain_dataset(self):
         grain = pytest.importorskip("grain")
         x = np.random.random((24, 3)).astype("float32")

@@ -1,7 +1,6 @@
 import os
 
 import numpy as np
-import pytest
 
 from keras.src import layers
 from keras.src import models
@@ -10,7 +9,6 @@ from keras.src.saving import load_model
 
 
 class MaskingTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_masking_basics(self):
         self.run_layer_test(
             layers.Masking,
