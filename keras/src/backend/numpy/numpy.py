@@ -1084,6 +1084,11 @@ def nanmean(x, axis=None, keepdims=False):
     return np.nanmean(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    return np.nanmedian(x, axis=axis, keepdims=keepdims).astype(dtype)
+
+
 def nanmin(x, axis=None, keepdims=False):
     return np.nanmin(x, axis=axis, keepdims=keepdims)
 
