@@ -3,6 +3,7 @@ AdagradTest::test_correctness_with_golden
 AdamaxTest::test_correctness_with_golden
 AdamTest::test_correctness_with_golden
 AdamWTest::test_correctness_with_golden
+AdditiveAttentionTest::test_attention_basics
 AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_manual_labels
 CircleTest::test_correctness
 CircleTest::test_correctness_weighted
