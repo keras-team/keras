@@ -82,9 +82,10 @@ def device(device_name):
     multi-device setups.
 
     Args:
-        device_name: String specifying the device in format `"device_type:device_index"`.
-            For example: `"cpu:0"`, `"gpu:0"`, `"gpu:1"`.
-            For PyTorch backend, `"gpu"` is automatically converted to `"cuda"`.
+        device_name: String specifying the device in format
+            `"device_type:device_index"`. For example: `"cpu:0"`, `"gpu:0"`,
+            `"gpu:1"`. For the PyTorch backend, `"gpu"` is automatically
+            converted to `"cuda"`.
 
     Example:
 
@@ -127,8 +128,8 @@ def device(device_name):
     Use cases:
 
     - **Memory management**: Keep large tensors on CPU to save GPU memory
-    - **Data preprocessing**: Process data on CPU before moving to GPU for training
-    - **GPU / TPU setups**: Control what runs on GPU / TPU vs CPU 
+    - **Data preprocessing**: Process data on CPU before training on GPU
+    - **GPU / TPU setups**: Control what runs on GPU / TPU vs CPU
     - **Multi-device setups**: Control which device receives which tensors
 
     Device naming conventions:
