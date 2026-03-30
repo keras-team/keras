@@ -1041,8 +1041,9 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return (carry[1], carry[0] + carry[1]), None
 
         init = (np.array(0, dtype="float32"), np.array(1, dtype="float32"))
-        carry, _ = core.scan(fibonaccis, init, length=6)
-        self.assertAllClose(carry, [8, 13])
+        (carry1, carry2), _ = core.scan(fibonaccis, init, length=6)
+        self.assertAllClose(carry1, 8)
+        self.assertAllClose(carry2, 13)
 
         # Test nested init
         if backend.backend() != "tensorflow":
