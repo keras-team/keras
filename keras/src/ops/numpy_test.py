@@ -2018,6 +2018,17 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
             knp.pad(x, ((1, 2), (3, 4), (5, 6))).shape, (None, 10, 14)
         )
 
+    def test_pad_edge_cases(self):
+        x = keras.ops.convert_to_tensor([[[1.0, 2.0], [3.0, 4.0]]])
+        out = keras.ops.pad(x, 0)
+        self.assertAllClose(x, out)
+        out = keras.ops.pad(x, ((0, 0), (0, 0), (0, 0)))
+        self.assertAllClose(x, out)
+
+        out = keras.ops.pad(x, 1)
+        expected_shape = (x.shape[0] + 2, x.shape[1] + 2, x.shape[2] + 2)
+        self.assertEqual(out.shape, expected_shape)
+
     def test_prod(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.prod(x).shape, ())
