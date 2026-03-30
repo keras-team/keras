@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from numpy.lib.stride_tricks import as_strided
 
@@ -199,7 +198,6 @@ class DepthwiseConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 24),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_depthwise_conv1d_basic(
         self,
         depth_multiplier,
@@ -261,7 +259,6 @@ class DepthwiseConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 2, 24),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_depthwise_conv2d_basic(
         self,
         depth_multiplier,

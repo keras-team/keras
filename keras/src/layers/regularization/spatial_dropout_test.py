@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -7,7 +6,6 @@ from keras.src.testing import test_case
 
 
 class SpatialDropoutTest(test_case.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_spatial_dropout_1d(self):
         self.run_layer_test(
             layers.SpatialDropout1D,
@@ -25,7 +23,6 @@ class SpatialDropoutTest(test_case.TestCase):
             assert_built_after_instantiation=True,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_spatial_dropout_2d(self):
         self.run_layer_test(
             layers.SpatialDropout2D,
@@ -43,7 +40,6 @@ class SpatialDropoutTest(test_case.TestCase):
             assert_built_after_instantiation=True,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_spatial_dropout_3d(self):
         self.run_layer_test(
             layers.SpatialDropout3D,

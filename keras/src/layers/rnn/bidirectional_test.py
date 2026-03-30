@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import initializers
 from keras.src import layers
@@ -7,7 +6,6 @@ from keras.src import testing
 
 
 class SimpleRNNTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.Bidirectional,
@@ -295,7 +293,6 @@ class SimpleRNNTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_output_shape(self):
         x = np.array([[[101, 202], [303, 404]]])
         for merge_mode in ["ave", "concat", "mul", "sum", None]:

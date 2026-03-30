@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -33,7 +32,6 @@ class CenterCropTest(testing.TestCase):
                 ..., h_start : h_start + h_new, w_start : w_start + w_new
             ]
 
-    @pytest.mark.requires_trainable_backend
     def test_center_crop_basics(self):
         self.run_layer_test(
             layers.CenterCrop,

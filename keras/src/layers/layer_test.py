@@ -604,7 +604,6 @@ class LayerTest(testing.TestCase):
         expected_loss = 0.0 if batch_size == 0 else 0.2
         self.assertAllClose(layer.losses[0], expected_loss)
 
-    @pytest.mark.requires_trainable_backend
     def test_add_loss(self):
         class LossLayer(layers.Layer):
             def call(self, x):

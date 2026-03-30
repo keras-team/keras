@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -14,7 +13,6 @@ class UpSampling3dTest(testing.TestCase):
         length_dim2=[2],
         length_dim3=[3],
     )
-    @pytest.mark.requires_trainable_backend
     def test_upsampling_3d(
         self, data_format, length_dim1, length_dim2, length_dim3
     ):

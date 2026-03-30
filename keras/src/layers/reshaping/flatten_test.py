@@ -17,7 +17,6 @@ class FlattenTest(testing.TestCase):
             {"testcase_name": "sparse", "sparse": True},
         ]
     )
-    @pytest.mark.requires_trainable_backend
     def test_flatten(self, sparse):
         if sparse and not backend.SUPPORTS_SPARSE_TENSORS:
             pytest.skip("Backend does not support sparse tensors.")
@@ -87,7 +86,6 @@ class FlattenTest(testing.TestCase):
             run_training_check=not sparse,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_flatten_with_scalar_channels(self):
         inputs = np.random.random((10,)).astype("float32")
         expected_output = ops.convert_to_tensor(np.expand_dims(inputs, -1))

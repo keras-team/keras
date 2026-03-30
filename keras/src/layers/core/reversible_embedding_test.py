@@ -75,7 +75,6 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         ("tie_weights", True),
         ("untie_weights", False),
     )
-    @pytest.mark.requires_trainable_backend
     def test_reversible_embedding_basics(self, tie_weights):
         self.run_layer_test(
             layers.ReversibleEmbedding,
@@ -212,7 +211,6 @@ class ReversibleEmbeddingTest(test_case.TestCase):
         ("int4_tie_weights", "int4_from_mixed_bfloat16", True, 0, 2),
         ("int4_untie_weights", "int4_from_mixed_bfloat16", False, 0, 4),
     )
-    @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(
         self,
         dtype,

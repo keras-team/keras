@@ -1,5 +1,3 @@
-import pytest
-
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
@@ -13,7 +11,6 @@ class ExampleWrapper(layers.Wrapper):
 
 
 class WrapperTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_wrapper_basics(self):
         self.run_layer_test(
             ExampleWrapper,

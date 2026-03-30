@@ -242,7 +242,7 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Add()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [1, 2], [6, 8]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Add()([x1, x2])
@@ -256,7 +256,7 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Subtract()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [-1, -2], [0, 0]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Subtract()([x1, x2])
@@ -270,7 +270,7 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Average()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0.5, 1], [0.5, 1], [3, 4]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Average()([x1, x2])
@@ -284,7 +284,7 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Multiply()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [1, 2], [9, 16]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Multiply()([x1, x2])
@@ -300,7 +300,7 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Maximum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [-1, -2], [-3, -4]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Maximum()([x1, x2])
@@ -314,7 +314,7 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Minimum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [1, 2], [3, 4]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Minimum()([x1, x2])

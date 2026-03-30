@@ -9,7 +9,6 @@ from keras.src import testing
 
 
 class GRUTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.GRU,

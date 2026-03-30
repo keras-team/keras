@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import initializers
@@ -7,8 +6,7 @@ from keras.src import layers
 from keras.src import testing
 
 
-class ConvLSTM1DTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
+class ConvLSTM3DTest(testing.TestCase):
     def test_basics(self):
         channels_last = backend.config.image_data_format() == "channels_last"
         self.run_layer_test(
