@@ -1632,3 +1632,16 @@ def argpartition(x, kth, axis=-1):
 
 def histogram(x, bins=10, range=None):
     return jnp.histogram(x, bins=bins, range=range)
+
+
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    return jnp.unique(
+        input,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        sorted=sorted,
+        equal_nan=False,
+    )

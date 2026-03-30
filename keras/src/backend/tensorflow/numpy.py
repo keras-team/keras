@@ -3745,3 +3745,75 @@ def histogram(x, bins=10, range=None):
         shape=(bins,),
     )
     return bin_counts, bin_edges
+
+
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    input = tf.convert_to_tensor(input)
+    original_shape = tf.shape(input)
+    is_flatten = axis is None
+
+    if is_flatten:
+        input = tf.reshape(input, [-1])
+        axis_to_use = tf.constant([0], dtype=tf.int32)
+    else:
+        axis_to_use = tf.constant([axis], dtype=tf.int32)
+
+    # TF native op returns unique elements in appearance order
+    # Force out_idx to int32 to match tf.range and tf.math.invert_permutation
+    y, idx, count = tf.raw_ops.UniqueWithCountsV2(
+        x=input, axis=axis_to_use, out_idx=tf.int32
+    )
+
+    if sorted:
+        num_unique = tf.shape(y)[0]
+        if len(y.shape) == 1:
+            sort_indices = tf.argsort(y)
+        else:
+            # Multi-D lexicographical sort using tf.while_loop for graph mode
+            y_2d = tf.reshape(y, [num_unique, -1])
+            num_cols = tf.shape(y_2d)[1]
+
+            # Start with identity indices [0, 1, 2, ...]
+            sort_indices = tf.range(num_unique, dtype=tf.int32)
+
+            def body(i, current_indices):
+                # Gather column based on current sort order
+                col = tf.gather(y_2d[:, i], current_indices)
+                # Stable sort current column
+                perm = tf.argsort(col, stable=True)
+                # Update global sort order
+                new_indices = tf.gather(current_indices, perm)
+                return i - 1, new_indices
+
+            def cond(i, current_indices):
+                return i >= 0
+
+            # Iterate from (num_cols - 1) down to 0
+            _, sort_indices = tf.while_loop(
+                cond,
+                body,
+                [num_cols - 1, sort_indices],
+                parallel_iterations=1,  # Ensure strict stable sequence
+            )
+
+        # Apply the final sort indices
+        y = tf.gather(y, sort_indices)
+        count = tf.gather(count, sort_indices)
+
+        if return_inverse:
+            # Map original appearance indices to the new sorted positions
+            inv_perm = tf.math.invert_permutation(sort_indices)
+            idx = tf.gather(inv_perm, idx)
+
+    if return_inverse and is_flatten:
+        idx = tf.reshape(idx, original_shape)
+
+    results = [y]
+    if return_inverse:
+        results.append(idx)
+    if return_counts:
+        results.append(count)
+
+    return tuple(results) if len(results) > 1 else results[0]

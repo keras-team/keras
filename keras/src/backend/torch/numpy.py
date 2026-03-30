@@ -2318,3 +2318,17 @@ def argpartition(x, kth, axis=-1):
 def histogram(x, bins=10, range=None):
     hist_result = torch.histogram(x, bins=bins, range=range)
     return hist_result.hist, hist_result.bin_edges
+
+
+def unique(
+    input, sorted=True, return_inverse=False, return_counts=False, axis=None
+):
+    if not isinstance(input, torch.Tensor):
+        input = torch.as_tensor(input)
+    return torch.unique(
+        input,
+        sorted=sorted,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        dim=axis,
+    )

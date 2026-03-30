@@ -11376,3 +11376,153 @@ class TileTest(testing.TestCase):
         output = TileLayer()(inputs)
 
         self.assertEqual(output.shape, (None, 6, 2, 2))
+
+
+@pytest.mark.skipif(
+    keras.config.backend() == "openvino",
+    reason="OpenVINO backend does not support unique op yet.",
+)
+class UniqueTest(testing.TestCase):
+    def test_unique_basic(self):
+        # Test 1D array default behavior (sorted=True, axis=None)
+        x = np.array([3, 1, 2, 1, 4, 2])
+        expected_v = np.array([1, 2, 3, 4])
+        self.assertAllClose(knp.unique(x), expected_v)
+
+    def test_unique_full_outputs_1d(self):
+        # Test return_inverse and return_counts for 1D
+        x = np.array([3, 1, 2, 1])
+        expected_v = np.array([1, 2, 3])
+        expected_c = np.array([2, 1, 1])
+
+        v, inv, counts = knp.unique(x, return_inverse=True, return_counts=True)
+
+        self.assertAllClose(v, expected_v)
+        self.assertAllClose(counts, expected_c)
+        # Verify reconstruction using inverse indices
+        # For axis=None, inv has the same shape as input
+        reconstructed = ops.take(v, inv)
+        self.assertAllClose(reconstructed, x)
+
+    def test_unique_axis_0(self):
+        # Test unique rows (axis=0)
+        x = np.array([[1, 0, 0], [0, 1, 0], [1, 0, 0]])
+        # Values should be sorted lexicographically: [[0, 1, 0], [1, 0, 0]]
+        expected_v = np.array([[0, 1, 0], [1, 0, 0]])
+
+        v, inv = knp.unique(x, axis=0, return_inverse=True)
+
+        self.assertAllClose(v, expected_v)
+        # Verify reconstruction: np.take(v, inv, axis=0) == x
+        reconstructed = ops.take(v, inv, axis=0)
+        self.assertAllClose(reconstructed, x)
+        # Inverse indices for axis should be 1D with length of that axis
+        self.assertEqual(inv.shape, (3,))
+
+    def test_unique_axis_1(self):
+        # Test unique columns (axis=1)
+        x = np.array([[1, 0, 1], [0, 1, 0]])
+        # Unique columns: [[1, 0], [0, 1]] -> sorted to [[0, 1], [1, 0]]
+        expected_v = np.array([[0, 1], [1, 0]])
+
+        v, inv = knp.unique(x, axis=1, return_inverse=True)
+
+        self.assertAllClose(v, expected_v)
+        reconstructed = ops.take(v, inv, axis=1)
+        self.assertAllClose(reconstructed, x)
+
+    def test_unique_symbolic_dynamic(self):
+        # Test shape inference with dynamic dimensions
+        x = KerasTensor((None, 3))
+
+        # Default flattening
+        out = knp.unique(x)
+        self.assertEqual(out.shape, (None,))
+
+        # Full outputs with axis=None
+        v, inv, c = knp.unique(x, return_inverse=True, return_counts=True)
+        self.assertEqual(v.shape, (None,))
+        self.assertEqual(inv.shape, (None, 3))  # Matches input shape
+        self.assertEqual(c.shape, (None,))
+
+    def test_unique_symbolic_static(self):
+        # Test shape inference with static dimensions
+        x = KerasTensor((2, 4))
+
+        # Test with axis=0
+        v, inv = knp.unique(x, axis=0, return_inverse=True)
+        # The size of the unique axis is unknown at compile time
+        self.assertEqual(v.shape, (None, 4))
+        # Inverse indices for axis is always 1D with length of that axis
+        self.assertEqual(inv.shape, (2,))
+
+    def test_unique_op_class_call(self):
+        # Test calling the Operation class directly
+        x = np.array([5, 5, 2, 1])
+        op = knp.Unique(return_counts=True)
+        v, c = op.call(x)
+        self.assertAllClose(v, [1, 2, 5])
+        self.assertAllClose(c, [1, 1, 2])
+
+    def test_unique_unsorted(self):
+        # Test sorted=False
+        # Even if backends still sort, we ensure the set of values is correct.
+        x = np.array([3, 1, 2])
+        res = knp.unique(x, sorted=False)
+        # Convert to numpy and sort to verify the content
+        self.assertAllClose(np.sort(backend.convert_to_numpy(res)), [1, 2, 3])
+
+    def test_unique_negative_axis(self):
+        # Test axis=-1 (last axis)
+        x = np.array([[1, 0, 1], [0, 1, 0]])
+        # Same logic as axis=1
+        expected_v = np.array([[0, 1], [1, 0]])
+        v, inv = knp.unique(x, axis=-1, return_inverse=True)
+        self.assertAllClose(v, expected_v)
+        # Verify reconstruction
+        reconstructed = ops.take(v, inv, axis=-1)
+        self.assertAllClose(reconstructed, x)
+
+    def test_unique_3d(self):
+        # Test 3D array with axis
+        x = np.array(
+            [[[1, 1], [1, 1]], [[0, 0], [0, 0]], [[1, 1], [1, 1]]]
+        )  # shape (3, 2, 2)
+        # Along axis 0, index 0 and 2 are same
+        expected_v = np.array([[[0, 0], [0, 0]], [[1, 1], [1, 1]]])
+        v, inv, counts = knp.unique(
+            x, axis=0, return_inverse=True, return_counts=True
+        )
+        self.assertAllClose(v, expected_v)
+        self.assertAllClose(counts, [1, 2])
+        # Reconstruct
+        self.assertAllClose(ops.take(v, inv, axis=0), x)
+
+    def test_unique_empty(self):
+        # Test with an empty array
+        x = np.array([], dtype="float32")
+        v = knp.unique(x)
+        self.assertEqual(ops.shape(v)[0], 0)
+
+        # Test with empty dimension along axis
+        x_2d = np.zeros((0, 3), dtype="float32")
+        v_2d = knp.unique(x_2d, axis=0)
+        self.assertEqual(ops.shape(v_2d)[0], 0)
+
+    def test_unique_all_same(self):
+        # Test with all elements being the same
+        x = np.ones((10, 10))
+        v, inv, counts = knp.unique(x, return_inverse=True, return_counts=True)
+        self.assertAllClose(v, [1.0])
+        self.assertAllClose(counts, [100])
+        self.assertEqual(inv.shape, (10, 10))
+        self.assertAllClose(inv, np.zeros((10, 10)))
+
+    # 针对你之前爆掉的那个 class call 的额外参数组合测试
+    def test_unique_op_class_combinations(self):
+        x = np.array([[1, 2], [1, 2], [3, 4]])
+        # Test return_inverse only
+        op = knp.Unique(axis=0, return_inverse=True)
+        v, inv = op.call(x)
+        self.assertAllClose(v, [[1, 2], [3, 4]])
+        self.assertAllClose(inv, [0, 0, 1])
