@@ -478,6 +478,59 @@ class LayoutMapTest(testing.TestCase):
         self.assertEqual(values, [self.sharded_2d, self.sharded_1d])
 
 
+class DataShardingIntegrationTest(testing.TestCase):
+    def test_distribute_dataset_sharding_behavior(self):
+        devices = [f"cpu:{i}" for i in range(4)]
+        device_mesh = distribution_lib.DeviceMesh(
+            (2, 2),
+            ["data", "model"],
+            devices,
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        global_dataset = tf.data.Dataset.range(8).batch(4)
+
+        shards = []
+
+        # Mock internal distribution_lib so ModelParallel can read
+        # num_processes/process_id during construction.
+        for pid in range(4):
+            fake_backend = mock.Mock()
+            fake_backend.num_processes.return_value = 4
+            fake_backend.process_id.return_value = pid
+
+            with mock.patch(
+                "keras.src.distribution.distribution_lib.distribution_lib",
+                new=fake_backend,
+            ):
+                distribution = distribution_lib.ModelParallel(
+                    layout_map=layout_map,
+                    batch_dim_name="data",
+                )
+
+                distribution._auto_shard_dataset = True
+                ds = distribution.distribute_dataset(global_dataset)
+
+                items = list(ds.unbatch().as_numpy_iterator())
+
+                shards.append(items)
+
+        self.assertEqual(
+            shards[0],
+            shards[1],
+            f"Process 0 and 1 should have same shard, got {shards}",
+        )
+        self.assertEqual(
+            shards[2],
+            shards[3],
+            f"Process 2 and 3 should have same shard, got {shards}",
+        )
+        self.assertNotEqual(
+            shards[0],
+            shards[2],
+            f"Replica groups should have different shards, got {shards}",
+        )
+
+
 # @pytest.mark.skipif(
 #     backend.backend() != "tensorflow",
 #     reason="Backend specific test",
