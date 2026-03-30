@@ -96,7 +96,6 @@ LinalgOpsCorrectnessTest::test_lu_factor
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc
-LinalgOpsCorrectnessTest::test_solve_triangular
 LinalgOpsCorrectnessTest::test_svd
 LionTest::test_correctness_with_golden
 MaskingTest::test_masking_with_tensor
