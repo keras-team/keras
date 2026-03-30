@@ -136,6 +136,21 @@ class Mean(Metric):
         )
 
     def update_state(self, values, sample_weight=None):
+        # Fast path: scalar values with scalar int/float sample_weight.
+        # Avoids reduce_to_samplewise_values overhead (convert_to_tensor,
+        # broadcast, shape manipulation) which creates expensive device
+        # tensors from Python scalars.
+        if (
+            sample_weight is not None
+            and isinstance(sample_weight, (int, float))
+            and hasattr(values, "shape")
+            and len(values.shape) == 0
+        ):
+            values = ops.cast(values, self.dtype)
+            self.total.assign_add(values * sample_weight)
+            self.count.assign_add(sample_weight)
+            return
+
         values, sample_weight = reduce_to_samplewise_values(
             values, sample_weight, reduce_fn=ops.mean, dtype=self.dtype
         )

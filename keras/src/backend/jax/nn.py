@@ -1688,11 +1688,29 @@ def dot_product_attention(
 
     # Determine flash attention compatibility
     if flash_attention is None:
-        flash_attention = _can_use_flash_attention(query, key, value, bias)
-    elif flash_attention is True:
-        # Use `raise_error=True` to provide more details if the inputs failed to
-        # use flash attention
-        _can_use_flash_attention(query, key, value, bias, raise_error=True)
+        # Auto-detect flash attention availability
+        if is_tpu:
+            # TPUs have specialized hardware for attention that works with any
+            # sharding pattern
+            flash_attention = True
+        else:
+            flash_attention = _can_use_flash_attention(query, key, value, bias)
+    elif flash_attention is True and not is_tpu:
+        # If flash attention is explicitly requested, validate compatibility
+        # Skip validation for TPU as it has specialized hardware support
+        try:
+            _can_use_flash_attention(query, key, value, bias, raise_error=True)
+        except Exception:
+            # Only disable flash attention on non-TPU platforms
+            # if validation fails
+            flash_attention = False
+
+    # TPU-specific flash attention path
+    if is_tpu and flash_attention:
+        # Transpose to ('batch', 'heads', 'length', 'head_dim')
+        query_tpu_layout = jnp.transpose(query, axes=(0, 2, 1, 3))
+        key_tpu_layout = jnp.transpose(key, axes=(0, 2, 1, 3))
+        value_tpu_layout = jnp.transpose(value, axes=(0, 2, 1, 3))
 
     # TPU-specific flash attention path
     if is_tpu and flash_attention:

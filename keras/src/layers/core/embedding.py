@@ -174,6 +174,10 @@ class Embedding(Layer):
             return None
         return ops.not_equal(inputs, 0)
 
+    @property
+    def _mask_always_none(self):
+        return not self.mask_zero
+
     def compute_output_shape(self, input_shape):
         return (*input_shape, self.output_dim)
 

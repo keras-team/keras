@@ -67,6 +67,22 @@ else:
         f"Backend '{backend.backend()}' must implement a layer mixin class."
     )
 
+# Decorator to prevent torch.compile / Dynamo from tracing into a function.
+# Pure-Python validation methods (e.g. _assert_input_compatibility) contain
+# no tensor ops, but Dynamo aggressively traces them and generates guards on
+# every Python object they touch, including closure objects that are recreated
+# on every property access.  Disabling Dynamo for these methods eliminates
+# the guard overhead and the recompilation it causes.
+if backend.backend() == "torch":
+    try:
+        import torch as _torch_for_dynamo
+        _dynamo_disable = _torch_for_dynamo._dynamo.disable
+        del _torch_for_dynamo
+    except (ImportError, AttributeError):
+        _dynamo_disable = lambda fn: fn
+else:
+    _dynamo_disable = lambda fn: fn
+
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
 class Layer(BackendLayer, Operation):
@@ -326,6 +342,8 @@ class Layer(BackendLayer, Operation):
             arg: (arg in self.call_signature_parameters)
             for arg in self._call_context_args
         }
+        # True when call() accepts any context arg (training, foo_mode, etc.)
+        self._accepts_context_arg = any(self._call_has_context_arg.values())
 
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
@@ -337,6 +355,12 @@ class Layer(BackendLayer, Operation):
         # Parent path
         self._parent_path = None
         self._remat_mode = get_current_remat_mode()
+        # Fast-call flag: set True after build when features that require the
+        # full __call__ path are absent (no masking, no regularizer, no
+        # autocast mismatch, no distribution, single-input call signature).
+        self._fast_call = False
+        # Cached quantization mode (updated in _update_fast_call).
+        self._quantization_mode = None
         self._initialize_tracker()
 
     @tracking.no_automatic_dependency_tracking
@@ -403,6 +427,39 @@ class Layer(BackendLayer, Operation):
             self.built = True
             self._post_build()
             self._lock_state()
+
+    def _post_build(self):
+        """Update the fast-call flag after build is complete."""
+        super()._post_build()
+        self._update_fast_call()
+
+    def _update_fast_call(self):
+        """Recompute _fast_call based on current layer configuration.
+
+        _fast_call=True enables bypassing most of __call__ overhead during
+        inference when none of the heavier framework features are active.
+        Distribution and input-mask presence are checked at call time.
+        """
+        self._fast_call = (
+            self.activity_regularizer is None
+            and not self._call_has_mask_arg
+            and self.compute_dtype == self.variable_dtype
+            and self._convert_input_args
+            and not self._allow_non_tensor_positional_args
+            and self._mask_always_none
+        )
+        # Cache quantization_mode so the hot path avoids the property lookup.
+        self._quantization_mode = self.quantization_mode
+
+    @property
+    def _mask_always_none(self):
+        """Returns True if compute_mask always returns None for this layer.
+
+        Subclasses that override compute_mask but guarantee None output (e.g.
+        Embedding with mask_zero=False) should override this to return True so
+        they remain eligible for the fast __call__ path.
+        """
+        return utils.is_default(self.compute_mask)
 
     @property
     def path(self):
@@ -856,6 +913,8 @@ class Layer(BackendLayer, Operation):
     @supports_masking.setter
     def supports_masking(self, value):
         self._supports_masking = value
+        if self.built:
+            self._update_fast_call()
 
     @utils.default
     def compute_mask(self, inputs, previous_mask):
@@ -865,8 +924,83 @@ class Layer(BackendLayer, Operation):
         # Node is created at the end of `__call__` instead of `symbolic_call`.
         return self.compute_output_spec(*args, **kwargs)
 
-    @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        # Ultra-fast path: bypass traceback filtering, _check_super_called,
+        # and all feature-detection when the layer is known-safe.
+        if (
+            self.built
+            and self._fast_call
+            and distribution_lib.distribution() is None
+            and self._remat_mode is None
+            and self._quantization_mode is None
+            and backend.get_autocast_scope() is None
+        ):
+            _use_full_path = False
+            _kwargs = kwargs
+
+            # Check for inherited context args from a parent layer call.
+            if self._accepts_context_arg:
+                _ctx = getattr(
+                    global_state.GLOBAL_STATE_TRACKER,
+                    "current_call_ctx",
+                    None,
+                )
+                if _ctx is not None:
+                    if self._layers or len(self._call_context_args) > 1:
+                        _use_full_path = True
+                    elif self._call_has_training_arg:
+                        if "training" not in _kwargs:
+                            _trn_val = getattr(_ctx, "training", None)
+                            if _trn_val is not None:
+                                _kwargs = (
+                                    {**_kwargs, "training": _trn_val}
+                                    if _kwargs
+                                    else {"training": _trn_val}
+                                )
+
+            if _kwargs and not _use_full_path:
+                _trn = _kwargs.get("training")
+                if _trn:
+                    if self._layers:
+                        _use_full_path = True
+                    elif not self._call_has_training_arg:
+                        _kwargs = {
+                            k: v for k, v in _kwargs.items() if k != "training"
+                        }
+                elif "training" in _kwargs:
+                    _kwargs = {
+                        k: v for k, v in _kwargs.items() if k != "training"
+                    }
+
+            if not _use_full_path:
+                n = len(args)
+                if (
+                    n == 1
+                    and backend.is_tensor(args[0])
+                    and backend.get_keras_mask(args[0]) is None
+                ):
+                    return (
+                        self.call(args[0], **_kwargs)
+                        if _kwargs
+                        else self.call(args[0])
+                    )
+                if (
+                    n == 2
+                    and backend.is_tensor(args[0])
+                    and backend.is_tensor(args[1])
+                    and backend.get_keras_mask(args[0]) is None
+                ):
+                    return (
+                        self.call(args[0], args[1], **_kwargs)
+                        if _kwargs
+                        else self.call(args[0], args[1])
+                    )
+
+        # Full path with traceback filtering.
+        return self._call_full(*args, **kwargs)
+
+    @traceback_utils.filter_traceback
+    def _call_full(self, *args, **kwargs):
         self._check_super_called()
         self._called = True
 
@@ -892,14 +1026,40 @@ class Layer(BackendLayer, Operation):
             or not is_backend_tensor_or_symbolic(args[0], allow_none=False)
             or backend.standardize_dtype(args[0].dtype) != self.input_dtype
         ) and self._convert_input_args:
-            args = tree.map_structure(maybe_convert, args)
-            kwargs = tree.map_structure(maybe_convert, kwargs)
+            # Fast path: single tensor arg (with or without kwargs)
+            if len(args) == 1 and is_backend_tensor_or_symbolic(
+                args[0], allow_none=False
+            ):
+                # Only convert the tensor arg if dtype differs
+                if backend.standardize_dtype(args[0].dtype) != self.input_dtype:
+                    args = (maybe_convert(args[0]),)
+                # kwargs don't need dtype conversion (they're masks, caches,
+                # indices, booleans — not input tensors)
+            else:
+                args = tree.map_structure(maybe_convert, args)
+                kwargs = tree.map_structure(maybe_convert, kwargs)
 
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
-            for arg in tree.flatten(args):
-                if not is_backend_tensor_or_symbolic(arg, allow_none=True):
+            # Fast path: check args directly when it's a simple tuple
+            for arg in args:
+                if is_backend_tensor_or_symbolic(arg, allow_none=True):
+                    continue
+                # For nested structures, flatten and check
+                if isinstance(arg, (list, tuple, dict)):
+                    for item in tree.flatten(arg):
+                        if not is_backend_tensor_or_symbolic(
+                            item, allow_none=True
+                        ):
+                            raise ValueError(
+                                "Only input tensors may be passed as "
+                                "positional arguments. The following "
+                                "argument value should be passed as a "
+                                f"keyword argument: {item} "
+                                f"(of type {type(item)})"
+                            )
+                else:
                     raise ValueError(
                         "Only input tensors may be passed as "
                         "positional arguments. The following argument value "
@@ -948,10 +1108,14 @@ class Layer(BackendLayer, Operation):
             ):
                 arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
                 only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
-                mask = tree.map_structure(
-                    backend.get_keras_mask,
-                    only_tensor_arg,
-                )
+                # Fast path: skip tree.map_structure for single tensor
+                if isinstance(only_tensor_arg, (list, tuple, dict)):
+                    mask = tree.map_structure(
+                        backend.get_keras_mask,
+                        only_tensor_arg,
+                    )
+                else:
+                    mask = backend.get_keras_mask(only_tensor_arg)
                 kwargs["mask"] = mask
         elif len(call_spec.tensor_arguments_dict) > 1:
             for k, v in call_spec.tensor_arguments_dict.items():
@@ -968,9 +1132,14 @@ class Layer(BackendLayer, Operation):
             previous_mask = kwargs["mask"]
         else:
             # Case 2: Fallback to the mask attached to the first input tensor.
-            previous_mask = tree.map_structure(
-                backend.get_keras_mask, call_spec.first_arg
-            )
+            # Fast path: skip tree.map_structure for single tensor
+            first_arg = call_spec.first_arg
+            if isinstance(first_arg, (list, tuple, dict)):
+                previous_mask = tree.map_structure(
+                    backend.get_keras_mask, first_arg
+                )
+            else:
+                previous_mask = backend.get_keras_mask(first_arg)
 
         ####################
         # 7. Call the layer.
@@ -1031,7 +1200,9 @@ class Layer(BackendLayer, Operation):
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif any(m is not None for m in tree.flatten(previous_mask)):
+            elif previous_mask is not None and any(
+                m is not None for m in tree.flatten(previous_mask)
+            ):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
                     "was passed an input with a mask attached to it. "
@@ -1317,6 +1488,8 @@ class Layer(BackendLayer, Operation):
         return losses
 
     def _clear_losses(self):
+        if not self._losses and not self._loss_ids and not self._layers:
+            return
         if backend.in_stateless_scope():
             scope = backend.get_stateless_scope()
             if scope.collect_losses:
@@ -1617,7 +1790,25 @@ class Layer(BackendLayer, Operation):
     def __str__(self):
         return self.__repr__()
 
+    # Pre-computed set of attribute names that never need tracking.
+    # These are simple scalars (bool, None, int) set during __call__.
+    _UNTRACKED_ATTRS = frozenset(
+        {
+            "_called",
+            "built",
+            "_lock",
+        }
+    )
+
     def __setattr__(self, name, value):
+        # Fast path: skip tracking for known scalar internal attrs
+        # that are never Variables, Layers, Metrics, or SeedGenerators.
+        # Use object.__setattr__ to bypass torch.nn.Module.__setattr__
+        # which does expensive parameter/module registration checks.
+        if name in Layer._UNTRACKED_ATTRS:
+            object.__setattr__(self, name, value)
+            return
+
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
         if name != "_tracker":
@@ -1659,6 +1850,7 @@ class Layer(BackendLayer, Operation):
                 "in the `__init__()` method. Go add it!"
             )
 
+    @_dynamo_disable
     def _assert_input_compatibility(self, arg_0):
         if self.input_spec:
             try:
@@ -1677,20 +1869,21 @@ class Layer(BackendLayer, Operation):
 
     def _get_call_context(self):
         """Returns currently active `CallContext`."""
-        layer_call_ctx = global_state.get_global_attribute("current_call_ctx")
+        # Direct access to avoid function call overhead
+        tracker = global_state.GLOBAL_STATE_TRACKER
+        layer_call_ctx = getattr(tracker, "current_call_ctx", None)
         if layer_call_ctx is None:
             # Enter new call context.
             layer_call_ctx = CallContext(entry_layer=self)
-            global_state.set_global_attribute(
-                "current_call_ctx", layer_call_ctx
-            )
+            tracker.current_call_ctx = layer_call_ctx
             self._clear_losses()
         return layer_call_ctx
 
     def _maybe_reset_call_context(self):
-        layer_call_ctx = global_state.get_global_attribute("current_call_ctx")
+        tracker = global_state.GLOBAL_STATE_TRACKER
+        layer_call_ctx = getattr(tracker, "current_call_ctx", None)
         if layer_call_ctx is None or layer_call_ctx.entry_layer == self:
-            global_state.set_global_attribute("current_call_ctx", None)
+            tracker.current_call_ctx = None
 
     def _flatten_layers(self, include_self=True, recursive=True):
         layers = []
@@ -1710,6 +1903,24 @@ class Layer(BackendLayer, Operation):
         return layers
 
     def _set_mask_metadata(self, inputs, outputs, previous_mask):
+        # Fast path for single tensor output (most common case)
+        if backend.is_tensor(outputs):
+            if backend.get_keras_mask(outputs) is not None:
+                return
+            output_masks = self.compute_mask(inputs, previous_mask)
+            if output_masks is None:
+                return
+            # Fast path: output_masks is often a single value (not nested)
+            if backend.is_tensor(output_masks):
+                backend.set_keras_mask(outputs, output_masks)
+            else:
+                flat_masks = tree.flatten(output_masks)
+                for mask in flat_masks:
+                    if mask is not None:
+                        backend.set_keras_mask(outputs, mask)
+                        break
+            return
+
         flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(
@@ -1871,6 +2082,7 @@ class Layer(BackendLayer, Operation):
         self._call_has_context_arg.update(
             {arg: (arg in self.call_signature_parameters) for arg in names}
         )
+        self._accepts_context_arg = any(self._call_has_context_arg.values())
 
 
 def is_backend_tensor_or_symbolic(x, allow_none=False):
@@ -1884,6 +2096,90 @@ class CallSpec:
         # Strip out user-supplied call-context args that this layer’s `call()`
         # does not accept (otherwise `signature.bind` would raise).
         # This includes built-in args like `training`, and user-defined args.
+        # Fast path for the most common case during inference:
+        # single positional tensor argument, no kwargs except context args
+        # (like training). This avoids expensive inspect._bind and
+        # apply_defaults.
+        if len(args) == 1 and backend.is_tensor(args[0]) and not kwargs:
+            first_arg = args[0]
+            params = signature.parameters
+            param_names = list(params.keys())
+            first_name = param_names[0]
+
+            self.first_arg = first_arg
+            self.user_arguments_dict = {}
+            self.arguments_dict = {first_name: first_arg}
+            self.argument_names = [first_name]
+            self.tensor_arguments_dict = {first_name: first_arg}
+            self.tensor_arguments_names = [first_name]
+            self.nested_tensor_argument_names = []
+            self.eager = True
+
+            # Fill in defaults for remaining params
+            _empty = inspect.Parameter.empty
+            for name in param_names[1:]:
+                param = params[name]
+                if param.default is not _empty:
+                    self.arguments_dict[name] = param.default
+                    self.argument_names.append(name)
+            return
+
+        # Extended fast path: single positional tensor arg + kwargs
+        # (common for transformer layers called with cache kwargs).
+        # Still avoids inspect._bind / apply_defaults.
+        if len(args) == 1 and backend.is_tensor(args[0]) and kwargs:
+            # Pop context args not in signature
+            call_args = {}
+            pop_keys = []
+            for ca in call_context_args:
+                if ca in kwargs and ca not in signature.parameters:
+                    call_args[ca] = kwargs[ca]
+                    pop_keys.append(ca)
+            for k in pop_keys:
+                kwargs.pop(k)
+
+            first_arg = args[0]
+            params = signature.parameters
+            param_names = list(params.keys())
+            first_name = param_names[0]
+
+            arg_dict = {first_name: first_arg}
+            arg_names = [first_name]
+            tensor_arg_dict = {first_name: first_arg}
+            tensor_arg_names = [first_name]
+            nested_tensor_arg_names = []
+
+            # Merge kwargs into arg_dict
+            for kw_name, kw_val in kwargs.items():
+                arg_dict[kw_name] = kw_val
+                arg_names.append(kw_name)
+                if is_backend_tensor_or_symbolic(kw_val):
+                    tensor_arg_dict[kw_name] = kw_val
+                    tensor_arg_names.append(kw_name)
+
+            # Fill in defaults for remaining params
+            _empty = inspect.Parameter.empty
+            for name in param_names[1:]:
+                if name not in arg_dict:
+                    param = params[name]
+                    if param.default is not _empty:
+                        arg_dict[name] = param.default
+                        arg_names.append(name)
+
+            self.first_arg = first_arg
+            self.user_arguments_dict = {
+                **call_args,
+                first_name: first_arg,
+                **kwargs,
+            }
+            self.arguments_dict = arg_dict
+            self.argument_names = arg_names
+            self.tensor_arguments_dict = tensor_arg_dict
+            self.tensor_arguments_names = tensor_arg_names
+            self.nested_tensor_argument_names = nested_tensor_arg_names
+            self.eager = True
+            return
+
         call_args = {
             context_arg: kwargs.pop(context_arg)
             for context_arg in call_context_args

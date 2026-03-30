@@ -327,15 +327,24 @@ def should_shard_at_init(init_layout, shape):
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if ragged:
         raise ValueError("`ragged=True` is not supported with jax backend")
+    if isinstance(x, (jnp.ndarray, jax.Array)):
+        if dtype is None:
+            return x
+        elif isinstance(dtype, str):
+            dtype = standardize_dtype(dtype)
+
+        # Check against x.dtype
+        if (
+            hasattr(dtype, "name")
+            and dtype.name == x.dtype.name
+            or dtype == x.dtype.name
+            or dtype == x.dtype
+        ):
+            return x
+        return x.astype(dtype)
+
     if dtype is not None:
         dtype = standardize_dtype(dtype)
-    if isinstance(x, (jnp.ndarray, jax.Array)) and (
-        dtype is None or x.dtype == dtype
-    ):
-        # Skip the conversion early if the instance is already a JAX array.
-        # This is important in the multi-process context since jax.array(x) for
-        # an existing distributed jax array will raise error.
-        return x
 
     if isinstance(x, Variable):
         if dtype is not None and x.dtype != dtype:
@@ -350,7 +359,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         else:
             return x
 
-    if not is_tensor(x) and standardize_dtype(dtype) == "bfloat16":
+    if (
+        not is_tensor(x)
+        and dtype is not None
+        and standardize_dtype(dtype) == "bfloat16"
+    ):
         # Can't create bfloat16 arrays on the fly (e.g. from a h5 Dataset).
         # Instead we convert "as is" (to stored dtype) and cast.
         return jnp.asarray(x).astype(dtype)

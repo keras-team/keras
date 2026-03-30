@@ -22,6 +22,48 @@ from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
 
+def _parse_matmul_path(equation, kernel_shape):
+    """Check if the einsum equation is a simple matmul and return path info.
+
+    Returns (n_input_free, contr_size, free_kernel_shape) when the equation
+    can be replaced by reshape + matmul + reshape, or None otherwise.
+
+    Supported pattern:
+    `free_in...contr...,contr...free_k...->free_in...free_k...`
+    e.g. `abc,cde->abde` or `abcd,cde->abe`.
+    """
+    if "..." in equation:
+        return None  # ellipsis notation not supported
+    arrow = equation.index("->")
+    lhs = equation[:arrow]
+    output = equation[arrow + 2 :]
+    comma = lhs.index(",")
+    input_subs = lhs[:comma]
+    kernel_subs = lhs[comma + 1 :]
+
+    output_set = set(output)
+    contr = [c for c in input_subs if c in kernel_subs and c not in output_set]
+    if not contr:
+        return None
+
+    free_in = [c for c in input_subs if c not in contr]
+    free_k = [c for c in kernel_subs if c not in contr]
+
+    if list(input_subs) != free_in + contr:
+        return None  # contraction axes not at end of input
+    if list(kernel_subs) != contr + free_k:
+        return None  # contraction axes not at start of kernel
+    if list(output) != free_in + free_k:
+        return None  # output not in expected order
+
+    n_contr = len(contr)
+    contr_size = 1
+    for size in kernel_shape[:n_contr]:
+        contr_size *= int(size)
+    free_kernel_shape = tuple(int(s) for s in kernel_shape[n_contr:])
+    return len(free_in), contr_size, free_kernel_shape
+
+
 @keras_export("keras.layers.EinsumDense")
 class EinsumDense(Layer):
     """A layer that uses `einsum` as the backing computation.
@@ -158,6 +200,9 @@ class EinsumDense(Layer):
         self.lora_rank = lora_rank
         self.lora_alpha = lora_alpha if lora_alpha is not None else lora_rank
         self.lora_enabled = False
+        self._matmul_path = (
+            None  # set in build() if equation supports matmul path
+        )
         self.gptq_unpacked_column_size = gptq_unpacked_column_size
         self.quantization_config = quantization_config
 
@@ -206,6 +251,8 @@ class EinsumDense(Layer):
         else:
             self.bias = None
         self.built = True
+        if self.quantization_mode is None:
+            self._matmul_path = _parse_matmul_path(self.equation, kernel_shape)
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
@@ -274,9 +321,40 @@ class EinsumDense(Layer):
         return self.full_output_shape
 
     def call(self, inputs, training=None):
-        x = ops.einsum(self.equation, inputs, self.kernel)
-        if self.bias is not None:
-            x = ops.add(x, self.bias)
+        if self._matmul_path is not None:
+            n_free, contr_size, free_k_shape = self._matmul_path
+            free_batch = inputs.shape[:n_free]
+            # Torch fast path: bypass ops dispatch chain and expensive
+            # kernel property. Uses _kernel.value directly.
+            if (
+                backend.backend() == "torch"
+                and backend.is_tensor(inputs)
+                and self.quantization_mode is None
+                and not self.lora_enabled
+            ):
+                import torch
+
+                k = self._kernel.value
+                x = torch.matmul(
+                    inputs.reshape(-1, contr_size),
+                    k.reshape(contr_size, -1),
+                )
+                x = x.reshape(*free_batch, *free_k_shape)
+                if self.bias is not None:
+                    x = torch.add(x, self.bias.value)
+            else:
+                kernel = self.kernel
+                x = ops.matmul(
+                    ops.reshape(inputs, (-1, contr_size)),
+                    ops.reshape(kernel, (contr_size, -1)),
+                )
+                x = ops.reshape(x, list(free_batch) + list(free_k_shape))
+                if self.bias is not None:
+                    x = ops.add(x, self.bias)
+        else:
+            x = ops.einsum(self.equation, inputs, self.kernel)
+            if self.bias is not None:
+                x = ops.add(x, self.bias)
         if self.activation is not None:
             x = self.activation(x)
         return x

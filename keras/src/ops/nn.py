@@ -3110,6 +3110,32 @@ def _layer_normalization(
 ):
     if epsilon is None:
         epsilon = backend.epsilon()
+
+    # Ultra-fast path for torch backend: float32 input with continuous axes.
+    # Skips standardize_dtype, result_type, convert_to_tensor, and the
+    # final cast — all of which are no-ops for float32 tensors.
+    if (
+        backend.config.backend() == "torch"
+        and not rms_scaling
+        and is_continuous_axis(axis)
+    ):
+        import torch
+        import torch.nn.functional as F
+
+        if isinstance(x, torch.Tensor) and x.dtype == torch.float32:
+            _axis = [axis] if isinstance(axis, int) else sorted(axis)
+            normalized_shape = tuple(x.shape[dim] for dim in _axis)
+            # gamma/beta are often Variables — extract raw tensors.
+            if gamma is not None and not isinstance(gamma, torch.Tensor):
+                gamma = gamma.value
+            if beta is not None and not isinstance(beta, torch.Tensor):
+                beta = beta.value
+            # Ensure all tensors are on the same device.
+            if (gamma is None or x.device == gamma.device) and (
+                beta is None or x.device == beta.device
+            ):
+                return F.layer_norm(x, normalized_shape, gamma, beta, epsilon)
+
     original_dtype = backend.standardize_dtype(x.dtype)
     # Computes in at least float32 precision for stability in half precision
     # training.

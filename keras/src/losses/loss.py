@@ -54,6 +54,23 @@ class Loss(KerasSaveable):
         return self._dtype
 
     def __call__(self, y_true, y_pred, sample_weight=None):
+        # Fast path for torch backend: single tensors, no masks, no
+        # sample_weight.  Skips name_scope, tree.map_structure,
+        # get_keras_mask and reduce_weighted_values overhead.
+        if (
+            sample_weight is None
+            and backend.backend() == "torch"
+            and backend.is_tensor(y_pred)
+            and backend.is_tensor(y_true)
+            and not hasattr(y_pred, "_keras_mask")
+            and not hasattr(y_true, "_keras_mask")
+        ):
+            dtype = self.dtype
+            y_pred_cast = ops.convert_to_tensor(y_pred, dtype=dtype)
+            y_true_cast = ops.convert_to_tensor(y_true, dtype=dtype)
+            losses = self.call(y_true_cast, y_pred_cast)
+            return reduce_values(losses, reduction=self.reduction)
+
         in_mask = backend.get_keras_mask(y_pred)
 
         with ops.name_scope(self.name):
@@ -137,6 +154,24 @@ def squeeze_or_expand_to_same_rank(x1, x2, expand_rank_1=True):
     return x1, x2
 
 
+def _get_num_elements(x):
+    if (
+        hasattr(x, "shape")
+        and getattr(x.shape, "num_elements", None) is not None
+    ):
+        return x.shape.num_elements()
+    try:
+        if hasattr(x, "shape") and x.shape:
+            shape = tuple(x.shape)
+            if None not in shape:
+                import math
+
+                return math.prod(shape)
+    except:
+        pass
+    return ops.prod(ops.convert_to_tensor(ops.shape(x), dtype="int32"))
+
+
 def reduce_values(values, sample_weight=None, reduction="sum_over_batch_size"):
     if (
         reduction is None
@@ -149,14 +184,17 @@ def reduce_values(values, sample_weight=None, reduction="sum_over_batch_size"):
     if reduction in ("sum_over_batch_size", "mean", "mean_with_sample_weight"):
         if reduction == "mean_with_sample_weight" and sample_weight is not None:
             divisor = ops.cast(ops.sum(sample_weight), loss.dtype)
+            loss = ops.divide_no_nan(loss, divisor)
         else:
-            divisor = ops.cast(
-                ops.prod(
-                    ops.convert_to_tensor(ops.shape(values), dtype="int32")
-                ),
-                loss.dtype,
-            )
-        loss = ops.divide_no_nan(loss, divisor)
+            # Use Python scalar division directly when num_elements is a
+            # Python int/float to avoid expensive device tensor creation
+            # (e.g. MPS scalar tensor from Python int).
+            num_elements = _get_num_elements(values)
+            if isinstance(num_elements, (int, float)) and num_elements > 0:
+                loss = loss / num_elements
+            else:
+                divisor = ops.cast(num_elements, loss.dtype)
+                loss = ops.divide_no_nan(loss, divisor)
         loss = scale_loss_for_distribution(loss)
     return loss
 
@@ -206,10 +244,7 @@ def apply_mask(sample_weight, mask, dtype, reduction):
             #   = sum(loss * sample_weight * total / valid) / total
             #   = sum(loss * sample_weight) / total * total / valid
             #   = sum(loss * sample_weight) / valid
-            total = ops.cast(
-                ops.prod(ops.convert_to_tensor(ops.shape(mask), dtype="int32")),
-                dtype,
-            )
+            total = ops.cast(_get_num_elements(mask), dtype)
             valid = ops.sum(mask)  # May be 0!
             mask *= ops.divide_no_nan(total, valid)
 

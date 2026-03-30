@@ -14,22 +14,26 @@ from keras.src.utils.argument_validation import standardize_tuple
 
 
 def relu(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.relu(x)
 
 
 def relu6(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.relu6(x)
 
 
 def sigmoid(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.sigmoid(x)
 
 
 def sparse_sigmoid(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.where(
         x <= -1,
         torch.tensor(0.0, device=x.device, dtype=x.dtype),
@@ -42,32 +46,38 @@ def sparse_sigmoid(x):
 
 
 def tanh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.tanh(x)
 
 
 def tanh_shrink(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.tanhshrink(x)
 
 
 def softplus(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.softplus(x)
 
 
 def softsign(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.softsign(x)
 
 
 def soft_shrink(x, threshold=0.5):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.softshrink(x, lambd=threshold)
 
 
 def sparse_plus(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.where(
         x <= -1,
         torch.zeros_like(x),
@@ -76,82 +86,109 @@ def sparse_plus(x):
 
 
 def silu(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.silu(x)
 
 
 def squareplus(x, b=4):
-    x = convert_to_tensor(x)
-    b = convert_to_tensor(b)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(b) is not torch.Tensor:
+        b = convert_to_tensor(b)
     y = x + torch.sqrt(x**2 + b)
     return y / 2
 
 
 def log_sigmoid(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.logsigmoid(x)
 
 
 def leaky_relu(x, negative_slope=0.2):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.leaky_relu(x, negative_slope=negative_slope)
 
 
 def hard_sigmoid(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.hardsigmoid(x)
 
 
 def hard_silu(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.hardswish(x)
 
 
 def elu(x, alpha=1.0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.elu(x, alpha)
 
 
 def selu(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.selu(x)
 
 
 def gelu(x, approximate=True):
     # TODO: torch.nn.gelu expects string approximate of `"none"` or `"tanh"`
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if approximate:
         return tnn.gelu(x, approximate="tanh")
     return tnn.gelu(x)
 
 
 def celu(x, alpha=1.0):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.celu(x, alpha=alpha)
 
 
 def glu(x, axis=-1):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.glu(x, dim=axis)
 
 
 def hard_tanh(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.hardtanh(x, min_val=-1.0, max_val=1.0)
 
 
 def hard_shrink(x, threshold=0.5):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.hardshrink(x, lambd=threshold)
 
 
 def threshold(x, threshold, default_value):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return tnn.threshold(x, threshold=threshold, value=default_value)
 
 
 def softmax(x, axis=-1):
-    x = convert_to_tensor(x)
+    # Fast path: float32 torch tensor (most common inference case)
+    if (
+        isinstance(x, torch.Tensor)
+        and x.dtype.is_floating_point
+        and x.dtype != torch.float16
+    ):
+        if axis is None:
+            output = torch.reshape(x, [-1])
+            output = tnn.softmax(output, dim=-1)
+            return torch.reshape(output, x.shape)
+        return tnn.softmax(x, dim=axis)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
     # TODO: tnn.softmax doesn't support float16 using cpu
     if (
@@ -171,7 +208,8 @@ def softmax(x, axis=-1):
 
 
 def log_softmax(x, axis=-1):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     dtype = backend.standardize_dtype(x.dtype)
     # TODO: tnn.log_softmax doesn't support float16 using cpu
     if (
@@ -345,7 +383,8 @@ def max_pool(
     data_format=None,
 ):
     """Fixed max pooling implementation."""
-    inputs = convert_to_tensor(inputs)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
     pool_size = standardize_tuple(pool_size, num_spatial_dims, "pool_size")
     if strides is None:
@@ -407,7 +446,8 @@ def average_pool(
     data_format=None,
 ):
     """Fixed average pooling with correct padding calculation."""
-    inputs = convert_to_tensor(inputs)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
     pool_size = standardize_tuple(pool_size, num_spatial_dims, "pool_size")
     strides = (
@@ -475,7 +515,8 @@ def average_pool(
 
 def adaptive_average_pool(inputs, output_size, data_format=None):
     """Adaptive average pooling(1D/2D/3D) with channels_last support."""
-    inputs = convert_to_tensor(inputs)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
     data_format = backend.standardize_data_format(data_format)
@@ -518,7 +559,8 @@ def adaptive_average_pool(inputs, output_size, data_format=None):
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
     """Adaptive max pooling(1D/2D/3D) with channels_last support."""
-    inputs = convert_to_tensor(inputs)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
     num_spatial_dims = inputs.ndim - 2
 
     data_format = backend.standardize_data_format(data_format)
@@ -570,8 +612,10 @@ def conv(
     dilation_rate=1,
 ):
     """Convolution with fixed group handling."""
-    inputs = convert_to_tensor(inputs)
-    kernel = convert_to_tensor(kernel)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
+    if type(kernel) is not torch.Tensor:
+        kernel = convert_to_tensor(kernel)
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
@@ -656,7 +700,8 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    kernel = convert_to_tensor(kernel)
+    if type(kernel) is not torch.Tensor:
+        kernel = convert_to_tensor(kernel)
     kernel = torch.reshape(
         kernel, kernel.shape[:-2] + (1, kernel.shape[-2] * kernel.shape[-1])
     )
@@ -699,8 +744,10 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    inputs = convert_to_tensor(inputs)
-    kernel = convert_to_tensor(kernel)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
+    if type(kernel) is not torch.Tensor:
+        kernel = convert_to_tensor(kernel)
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
@@ -796,7 +843,8 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with torch backend")
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     reduction_axis = 1 if len(x.shape) > 1 else 0
     outputs = torch.amax(
         one_hot(cast(x, "int32"), num_classes, axis=axis, dtype=dtype),
@@ -806,9 +854,10 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    target = convert_to_tensor(target)
-    output = convert_to_tensor(output)
-
+    if type(target) is not torch.Tensor:
+        target = convert_to_tensor(target)
+    if type(output) is not torch.Tensor:
+        output = convert_to_tensor(output)
     if target.shape != output.shape:
         raise ValueError(
             "Arguments `target` and `output` must have the same shape. "
@@ -833,8 +882,8 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
-    output = convert_to_tensor(output)
-
+    if type(output) is not torch.Tensor:
+        output = convert_to_tensor(output)
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
         target = torch.squeeze(target, dim=-1)
 
@@ -881,9 +930,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 
 def binary_crossentropy(target, output, from_logits=False):
-    target = convert_to_tensor(target)
-    output = convert_to_tensor(output)
-
+    if type(target) is not torch.Tensor:
+        target = convert_to_tensor(target)
+    if type(output) is not torch.Tensor:
+        output = convert_to_tensor(output)
     # We only apply the squeeze fix if we are on an MPS device,
     # as this change breaks tests on other platforms that
     # expect the original tensor shape to be preserved.
@@ -920,7 +970,8 @@ def moments(x, axes, keepdims=False, synchronized=False):
         raise NotImplementedError(
             "Argument synchronized=True is not supported with PyTorch."
         )
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     # The dynamic range of float16 is too limited for statistics. As a
     # workaround, we simply perform the operations on float32 and convert back
     # to float16
@@ -963,22 +1014,26 @@ def moments(x, axes, keepdims=False, synchronized=False):
 def batch_normalization(
     x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
 ):
-    x = convert_to_tensor(x)
-    mean = convert_to_tensor(mean)
-    variance = convert_to_tensor(variance)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
+    if type(mean) is not torch.Tensor:
+        mean = convert_to_tensor(mean)
+    if type(variance) is not torch.Tensor:
+        variance = convert_to_tensor(variance)
     shape = [1] * len(x.shape)
     shape[axis] = mean.shape[0]
     mean = torch.reshape(mean, shape)
     variance = torch.reshape(variance, shape)
 
     if offset is not None:
-        offset = convert_to_tensor(offset)
+        if type(offset) is not torch.Tensor:
+            offset = convert_to_tensor(offset)
         offset = torch.reshape(offset, shape)
     else:
         offset = torch.zeros_like(mean)
     if scale is not None:
-        scale = convert_to_tensor(scale)
+        if type(scale) is not torch.Tensor:
+            scale = convert_to_tensor(scale)
         scale = torch.reshape(scale, shape)
     else:
         scale = torch.ones_like(variance)
@@ -991,11 +1046,14 @@ def batch_normalization(
 
 
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
-    target = convert_to_tensor(target)
-    output = convert_to_tensor(output)
-    target_length = convert_to_tensor(target_length)
-    output_length = convert_to_tensor(output_length)
-
+    if type(target) is not torch.Tensor:
+        target = convert_to_tensor(target)
+    if type(output) is not torch.Tensor:
+        output = convert_to_tensor(output)
+    if type(target_length) is not torch.Tensor:
+        target_length = convert_to_tensor(target_length)
+    if type(output_length) is not torch.Tensor:
+        output_length = convert_to_tensor(output_length)
     # Ensure that the dtype promotion behavior matches that of `tf.nn.ctc_loss`
     dtype = backend.result_type(output.dtype, "float32")
     output = cast(output, dtype)
@@ -1019,7 +1077,8 @@ def _ctc_greedy_decode(
     merge_repeated=True,
     mask_index=None,
 ):
-    inputs = convert_to_tensor(inputs)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
     sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     batch_size, max_length, num_classes = inputs.shape
 
@@ -1068,7 +1127,8 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=0,
 ):
-    inputs = convert_to_tensor(inputs)
+    if type(inputs) is not torch.Tensor:
+        inputs = convert_to_tensor(inputs)
     dtype = backend.result_type(inputs.dtype, "float32")
     inputs = cast(inputs, dtype)
 
@@ -1108,23 +1168,45 @@ def psnr(x1, x2, max_val):
     return psnr
 
 
+_LARGE_NEGATIVE_CACHE = {}
+
+
 def _get_large_negative(dtype):
-    dtype = backend.standardize_dtype(dtype)
-    if dtype == "float16":
-        val = 65500.0
-    else:
-        val = 3.38953e38
-    return convert_to_tensor(val * -0.7, dtype=dtype)
+    device = get_device()
+    key = (dtype, device)
+    if key not in _LARGE_NEGATIVE_CACHE:
+        std_dtype = backend.standardize_dtype(dtype)
+        if std_dtype == "float16":
+            val = 65500.0
+        else:
+            val = 3.38953e38
+        _LARGE_NEGATIVE_CACHE[key] = convert_to_tensor(
+            val * -0.7, dtype=std_dtype
+        )
+    return _LARGE_NEGATIVE_CACHE[key]
+
+
+_flash_attention_available = None
 
 
 def _can_use_flash_attention(
     query, key, value, mask=None, is_causal=False, raise_error=False
 ):
     """Verify the availability of flash attention."""
+    global _flash_attention_available
+    if _flash_attention_available is False:
+        if raise_error:
+            raise ImportError(
+                "Flash attention is not supported in your current PyTorch "
+                "version. Please update it by following the official guide: "
+                "https://pytorch.org/get-started/locally/"
+            )
+        return False
     try:
         from torch.backends.cuda import SDPAParams
         from torch.backends.cuda import can_use_flash_attention
     except ImportError:
+        _flash_attention_available = False
         if raise_error:
             raise ImportError(
                 "Flash attention is not supported in your current PyTorch "
@@ -1172,9 +1254,12 @@ def dot_product_attention(
     flash_attention=None,
     attn_logits_soft_cap=None,
 ):
-    query = convert_to_tensor(query)
-    key = convert_to_tensor(key)
-    value = convert_to_tensor(value)
+    if type(query) is not torch.Tensor:
+        query = convert_to_tensor(query)
+    if type(key) is not torch.Tensor:
+        key = convert_to_tensor(key)
+    if type(value) is not torch.Tensor:
+        value = convert_to_tensor(value)
     if len(query.shape) != 4 or len(key.shape) != 4 or len(value.shape) != 4:
         raise ValueError(
             "`dot_product_attention` only supports 4D inputs. "
@@ -1185,18 +1270,24 @@ def dot_product_attention(
         raise ValueError(
             "Only one of `bias` and `mask` can be provided. Received both."
         )
-    compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
-    query = cast(query, compute_dtype)
-    key = cast(key, compute_dtype)
-    value = cast(value, compute_dtype)
+    # Skip dtype casting when all inputs have the same dtype (common case)
+    if not (query.dtype == key.dtype == value.dtype):
+        compute_dtype = backend.result_type(query.dtype, key.dtype, value.dtype)
+        query = cast(query, compute_dtype)
+        key = cast(key, compute_dtype)
+        value = cast(value, compute_dtype)
 
-    mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
+        if not isinstance(mask, torch.Tensor):
+            mask = convert_to_tensor(mask, dtype="bool")
+        elif mask.dtype != torch.bool:
+            mask = mask.to(torch.bool)
         # Explicit set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:
-        bias = convert_to_tensor(bias, dtype=compute_dtype)
+        if not isinstance(bias, torch.Tensor):
+            bias = convert_to_tensor(bias, dtype=query.dtype)
         mask = bias  # Use `bias` as `mask` for scaled_dot_product_attention.
 
     axis0, axis1 = 1, 2
@@ -1305,7 +1396,8 @@ def depth_to_space(x, block_size, data_format="channels_last"):
         for channels_last or (N, C/block_size**2, H*block_size, W*block_size)
         for channels_first.
     """
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if data_format == "channels_last":
         # NHWC format
         n, h, w, c = x.shape
@@ -1346,7 +1438,8 @@ def space_to_depth(x, block_size, data_format="channels_last"):
         for channels_last or (N, C*block_size**2, H/block_size, W/block_size)
         for channels_first.
     """
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if data_format == "channels_last":
         # NHWC format
         n, h, w, c = x.shape

@@ -83,6 +83,37 @@ class Function(Operation):
         self._operations = operations
         self._operations_by_depth = operations_by_depth
 
+        depth_keys = list(nodes_by_depth.keys())
+        depth_keys.sort(reverse=True)
+        compiled_nodes = []
+        for depth in depth_keys:
+            for node in nodes_by_depth[depth]:
+                if not node.operation or node.is_input:
+                    continue
+                compiled_nodes.append(node)
+        self._compiled_nodes = compiled_nodes
+
+        # Pre-compute per-node metadata for the hot loop in
+        # _run_through_graph.  Each tuple contains:
+        #   (node, input_ids, context_args, single_output_id, op)
+        # - input_ids: tuple of id(x) for input tensors (avoid id()
+        #   calls in hot loop)
+        # - context_args: frozenset of accepted context arg names, or
+        #   None if empty
+        # - single_output_id: id(outputs[0]) when len(outputs)==1,
+        #   else None
+        self._compiled_node_data = []
+        for node in compiled_nodes:
+            input_ids = tuple(id(x) for x in node.input_tensors)
+            ctx_args = getattr(node.operation, "_call_context_args", None)
+            ctx_args = frozenset(ctx_args) if ctx_args else None
+            single_out_id = (
+                id(node.outputs[0]) if len(node.outputs) == 1 else None
+            )
+            self._compiled_node_data.append(
+                (node, input_ids, ctx_args, single_out_id, node.operation)
+            )
+
         # Run through graph to check all outputs are connected to the inputs.
         def empty_op_outputs(op, *args, **kwargs):
             return [None] * len(tree.flatten(op.output))
@@ -171,7 +202,7 @@ class Function(Operation):
         return self._run_through_graph(inputs)
 
     def _run_through_graph(
-        self, inputs, operation_fn=lambda op: op, call_fn=None
+        self, inputs, operation_fn=None, call_fn=None, call_context_dict=None
     ):
         """Execute the graph.
 
@@ -185,33 +216,134 @@ class Function(Operation):
         for x, y in zip(self.inputs, inputs):
             tensor_dict[id(x)] = y
 
-        nodes_by_depth = self._nodes_by_depth
-        depth_keys = list(nodes_by_depth.keys())
-        depth_keys.sort(reverse=True)
+        # Cache NNX mapping lookup outside the loop.
+        nnx_map = getattr(self, "_nnx_op_mapping", None)
+        td_contains = tensor_dict.__contains__
+        td_set = tensor_dict.__setitem__
 
-        for depth in depth_keys:
-            nodes = nodes_by_depth[depth]
-            for node in nodes:
-                if not node.operation or node.is_input:
-                    continue  # Input tensors already exist.
-
-                if any(id(x) not in tensor_dict for x in node.input_tensors):
-                    continue  # Node is not computable, try skipping.
-
-                args, kwargs = node.arguments.fill_in(tensor_dict)
-                if call_fn is not None:
-                    # Use call_fn if provided (e.g., for symbolic execution)
-                    op = operation_fn(node.operation)
-                    outputs = call_fn(op, *args, **kwargs)
+        # Hot loop over compiled nodes.
+        # The common inference path has operation_fn=None, call_fn=None,
+        # so we hoist those checks out of the loop.
+        if call_fn is None and operation_fn is None:
+            # Use pre-computed node data to avoid per-iteration getattr,
+            # id() calls, and len() checks.
+            node_data = getattr(self, "_compiled_node_data", None)
+            if node_data is not None and nnx_map is None:
+                # Fastest path: pre-computed data, no NNX mapping.
+                if call_context_dict:
+                    for (
+                        node,
+                        input_ids,
+                        ctx_args,
+                        single_out_id,
+                        op,
+                    ) in node_data:
+                        if any(not td_contains(t) for t in input_ids):
+                            continue
+                        args, kwargs = node.arguments.fill_in(tensor_dict)
+                        if ctx_args:
+                            kwargs = dict(kwargs)
+                            for name, value in call_context_dict.items():
+                                if name in ctx_args and value is not None:
+                                    kwargs[name] = value
+                        outputs = op(*args, **kwargs)
+                        if single_out_id is not None:
+                            td_set(single_out_id, outputs)
+                        else:
+                            for x, y in zip(
+                                node.outputs, tree.flatten(outputs)
+                            ):
+                                td_set(id(x), y)
                 else:
-                    # Use NNX operation mapping
-                    operation = self._get_operation_for_node(node)
-                    op = operation_fn(operation)
+                    for (
+                        node,
+                        input_ids,
+                        ctx_args,
+                        single_out_id,
+                        op,
+                    ) in node_data:
+                        if any(not td_contains(t) for t in input_ids):
+                            continue
+                        args, kwargs = node.arguments.fill_in(tensor_dict)
+                        outputs = op(*args, **kwargs)
+                        if single_out_id is not None:
+                            td_set(single_out_id, outputs)
+                        else:
+                            for x, y in zip(
+                                node.outputs, tree.flatten(outputs)
+                            ):
+                                td_set(id(x), y)
+            else:
+                # Fallback: original loop (NNX mapping or no pre-computed data)
+                for node in self._compiled_nodes:
+                    if any(not td_contains(id(x)) for x in node.input_tensors):
+                        continue
+
+                    args, kwargs = node.arguments.fill_in(tensor_dict)
+
+                    if call_context_dict:
+                        valid_context_args = getattr(
+                            node.operation, "_call_context_args", {}
+                        )
+                        if valid_context_args:
+                            kwargs = dict(kwargs)
+                            for name, value in call_context_dict.items():
+                                if (
+                                    name in valid_context_args
+                                    and value is not None
+                                ):
+                                    kwargs[name] = value
+
+                    # Resolve operation: prefer NNX mapping if present.
+                    op = node.operation
+                    if nnx_map is not None:
+                        op = nnx_map.get(id(op), op)
+
                     outputs = op(*args, **kwargs)
 
-                # Update tensor_dict.
-                for x, y in zip(node.outputs, tree.flatten(outputs)):
-                    tensor_dict[id(x)] = y
+                    # Fast path: single-output nodes (most common) skip
+                    # tree.flatten overhead.
+                    if len(node.outputs) == 1:
+                        td_set(id(node.outputs[0]), outputs)
+                    else:
+                        for x, y in zip(node.outputs, tree.flatten(outputs)):
+                            td_set(id(x), y)
+        else:
+            for node in self._compiled_nodes:
+                if any(not td_contains(id(x)) for x in node.input_tensors):
+                    continue
+
+                args, kwargs = node.arguments.fill_in(tensor_dict)
+
+                if call_context_dict:
+                    valid_context_args = getattr(
+                        node.operation, "_call_context_args", {}
+                    )
+                    if valid_context_args:
+                        kwargs = dict(kwargs)
+                        for name, value in call_context_dict.items():
+                            if name in valid_context_args and value is not None:
+                                kwargs[name] = value
+
+                if call_fn is not None:
+                    op = (
+                        operation_fn(node.operation)
+                        if operation_fn is not None
+                        else node.operation
+                    )
+                    outputs = call_fn(op, *args, **kwargs)
+                else:
+                    op = node.operation
+                    if nnx_map is not None:
+                        op = nnx_map.get(id(op), op)
+                    op = operation_fn(op) if operation_fn is not None else op
+                    outputs = op(*args, **kwargs)
+
+                if len(node.outputs) == 1:
+                    td_set(id(node.outputs[0]), outputs)
+                else:
+                    for x, y in zip(node.outputs, tree.flatten(outputs)):
+                        td_set(id(x), y)
 
         output_tensors = []
         for i, x in enumerate(self.outputs):
