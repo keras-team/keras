@@ -76,9 +76,10 @@ class name_scope(backend_name_scope):
 def device(device_name):
     """Context manager for backend-agnostic device placement.
 
-    Use this context manager to control which device tensors are allocated on across
-    all backends (TensorFlow, JAX, PyTorch). This is useful for memory management,
-    data preprocessing, and multi-device setups.
+    Use this context manager to control on which device operations are performed
+    and tensors are allocated. This works across all backends (TensorFlow, JAX,
+    PyTorch). This is useful for memory management, data preprocessing, and
+    multi-device setups.
 
     Args:
         device_name: String specifying the device in format `"device_type:device_index"`.
@@ -90,9 +91,6 @@ def device(device_name):
     Basic usage with CPU and GPU:
 
     ```python
-    import keras
-    import numpy as np
-
     # Allocate tensors on CPU
     with keras.device("cpu:0"):
         cpu_tensor = keras.ops.ones((2, 2))
@@ -105,9 +103,6 @@ def device(device_name):
     Practical example with CPU preprocessing and GPU training:
 
     ```python
-    import keras
-    import numpy as np
-
     # Create dummy data and model
     x_raw = np.random.rand(128, 784)
     y_train = np.random.randint(0, 10, size=(128,))
@@ -133,7 +128,8 @@ def device(device_name):
 
     - **Memory management**: Keep large tensors on CPU to save GPU memory
     - **Data preprocessing**: Process data on CPU before moving to GPU for training
-    - **Multi-GPU setups**: Explicitly control which GPU receives which tensors
+    - **GPU / TPU setups**: Control what runs on GPU / TPU vs CPU 
+    - **Multi-device setups**: Control which device receives which tensors
 
     Device naming conventions:
 
