@@ -501,10 +501,14 @@ def deserialize_keras_object(
         config: Python dict describing the object.
         custom_objects: Python dict containing a mapping between custom
             object names the corresponding classes or functions.
-        safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
-            When `safe_mode=False`, loading an object has the potential to
-            trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to `True`.
+        safe_mode: Boolean, defaults to False. If True, disables unsafe
+            lambda deserialization.
+
+            Note that safe_mode is designed to protect against code
+            serialized within the Keras model file being loaded. It does
+            not provide isolation from the local Python environment and
+            does not guard against modifications made outside of the
+            serialized file.
 
     Returns:
         The object described by the `config` dictionary.
