@@ -86,17 +86,26 @@ class IndexLookup(Layer):
             `"count"` and `"tf-idf"` output modes.
             If `True`, returns a `SparseTensor` instead of a dense `Tensor`.
             Defaults to `False`.
-        oov_method: Only relevant when `num_oov_indices > 1` and the input
-            dtype is integer (i.e. for `IntegerLookup`). Controls how
+        oov_method: Only relevant when `num_oov_indices > 1`. Controls how
             Out-Of-Vocabulary (OOV) tokens are assigned to OOV buckets.
             - `"floormod"` (default): uses `token % num_oov_indices`.
               Preserves backwards compatibility but can produce severe bucket
               imbalance when input IDs share a common factor with
               `num_oov_indices` (e.g. all-even IDs with an even bucket count).
-            - `"farmhash"`: applies FarmHash64. Distributes OOV tokens
-            uniformly regardless of the arithmetic structure of the input IDs.
-            This parameter is ignored for string inputs, which always use
-            FarmHash64.
+              Only applies to integer inputs; string inputs always use
+              FarmHash64.
+            - `"farmhash"`: applies FarmHash64 for integer inputs.
+              Distributes OOV tokens uniformly regardless of the arithmetic
+              structure of the input IDs. String inputs always use FarmHash64
+              regardless of this setting.
+        salt: Only valid when `oov_method="farmhash"`. If passed, the hash
+            function used for OOV bucket assignment will be SipHash64,
+            with these values used as an additional input (known as a
+            "salt" in cryptography).
+            Can be a tuple or list of 2 integers, or a single integer
+            (which is used for both key components). If `None` (default),
+            FarmHash64 is used. Applies to both integer and string inputs.
+            Defaults to `None`.
     """
 
     def __init__(
@@ -114,6 +123,7 @@ class IndexLookup(Layer):
         pad_to_max_tokens=False,
         oov_method="floormod",
         name=None,
+        salt=None,
         **kwargs,
     ):
         # If max_tokens is set, the value must be greater than 1 - otherwise we
@@ -142,6 +152,26 @@ class IndexLookup(Layer):
             caller_name=self.__class__.__name__,
             arg_name="oov_method",
         )
+
+        if salt is not None:
+            if (
+                tf.as_dtype(vocabulary_dtype).is_integer
+                and oov_method != "farmhash"
+            ):
+                raise ValueError(
+                    "`salt` can only be used when `oov_method='farmhash'`. "
+                    f"Received: oov_method={oov_method}"
+                )
+            if isinstance(salt, (tuple, list)) and len(salt) == 2:
+                salt = list(salt)
+            elif isinstance(salt, int):
+                salt = [salt, salt]
+            else:
+                raise ValueError(
+                    "The `salt` argument for `IndexLookup` can only be a tuple "
+                    "of 2 integers, or a single integer. "
+                    f"Received: salt={salt}."
+                )
 
         # Support deprecated names for output_modes.
         if output_mode == "binary":
@@ -197,6 +227,7 @@ class IndexLookup(Layer):
         self.pad_to_max_tokens = pad_to_max_tokens
         self.vocabulary_dtype = tf.as_dtype(vocabulary_dtype).name
         self.oov_method = oov_method
+        self.salt = salt
         self._frozen_vocab_size = kwargs.pop("vocabulary_size", None)
 
         # Remember original `vocabulary` as `input_vocabulary` for serialization
@@ -367,6 +398,7 @@ class IndexLookup(Layer):
             "vocabulary": listify_tensors(self.input_vocabulary),
             "vocabulary_size": self._frozen_vocab_size,
             "oov_method": self.oov_method,
+            "salt": self.salt,
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -842,21 +874,33 @@ class IndexLookup(Layer):
             )
             assertion = tf.Assert(tf.equal(tf.size(oov_indices), 0), [msg])
             lookup_checks.append(assertion)
+
         elif self.num_oov_indices > 1:
-            if tf.as_dtype(self._key_dtype).is_integer:
-                if self.oov_method == "farmhash":
-                    # Cast int to string so we can apply FarmHash64
-                    oov_indices = tf.strings.to_hash_bucket_fast(
-                        tf.strings.as_string(inputs),
+            if (
+                tf.as_dtype(self._key_dtype).is_integer
+                and self.oov_method != "farmhash"
+            ):
+                # Default: backwards-compatible floormod behaviour for integers.
+                oov_indices = tf.math.floormod(inputs, self.num_oov_indices)
+            else:
+                # Hashing with`oov_method="farmhash"`.
+                hash_inputs = inputs
+                if tf.as_dtype(self._key_dtype).is_integer:
+                    hash_inputs = tf.strings.as_string(inputs)
+
+                if self.salt is not None:
+                    # SipHash64
+                    oov_indices = tf.strings.to_hash_bucket_strong(
+                        hash_inputs,
                         num_buckets=self.num_oov_indices,
+                        key=self.salt,
                     )
                 else:
-                    # Default: backwards-compatible floormod behaviour.
-                    oov_indices = tf.math.floormod(inputs, self.num_oov_indices)
-            else:
-                oov_indices = tf.strings.to_hash_bucket_fast(
-                    inputs, num_buckets=self.num_oov_indices
-                )
+                    # FarmHash64
+                    oov_indices = tf.strings.to_hash_bucket_fast(
+                        hash_inputs,
+                        num_buckets=self.num_oov_indices,
+                    )
             oov_indices = oov_indices + self._oov_start_index()
             oov_locations = tf.equal(lookups, self._default_value)
             lookups = tf.where(oov_locations, oov_indices, lookups)
