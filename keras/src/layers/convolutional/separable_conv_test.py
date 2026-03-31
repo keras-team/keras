@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras.src import layers
@@ -50,7 +49,6 @@ class SeparableConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_separable_conv1d_basic(
         self,
         depth_multiplier,
@@ -117,7 +115,6 @@ class SeparableConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_separable_conv2d_basic(
         self,
         depth_multiplier,

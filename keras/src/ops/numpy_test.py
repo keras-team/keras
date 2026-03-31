@@ -1427,6 +1427,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.blackman(x).shape[0], x)
 
+    def test_blackman_length_1_symbolic_shape(self):
+        x = KerasTensor((1,), dtype="int32")
+        y = knp.blackman(x)
+        self.assertEqual(y.shape, (1,))
+
     def test_hamming(self):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.hamming(x).shape[0], x)
@@ -2886,6 +2891,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.sort(x).shape, (2, 3))
         self.assertEqual(knp.sort(x, axis=1).shape, (2, 3))
         self.assertEqual(knp.sort(x, axis=0).shape, (2, 3))
+        self.assertEqual(knp.sort(x, axis=None).shape, (6,))
 
     def test_split(self):
         x = KerasTensor((2, 3))
@@ -4772,6 +4778,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Blackman()(x), np.blackman(x))
 
+    def test_blackman_length_1(self):
+        x = 1
+        x_tensor = keras.ops.convert_to_tensor(x)
+        expected = np.blackman(x)
+        out = knp.blackman(x_tensor)
+        self.assertEqual(out.shape[0], x)
+        self.assertAllClose(out, expected)
+
+        out = knp.Blackman()(x_tensor)
+        self.assertEqual(out.shape[0], x)
+        self.assertAllClose(out, expected)
+
     def test_hamming(self):
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.hamming(x), np.hamming(x))
@@ -5798,6 +5816,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Sort()(x), np.sort(x))
         self.assertAllClose(knp.sort(x, axis=0), np.sort(x, axis=0))
         self.assertAllClose(knp.Sort(axis=0)(x), np.sort(x, axis=0))
+        self.assertAllClose(knp.sort(x, axis=None), np.sort(x, axis=None))
+        self.assertAllClose(knp.Sort(axis=None)(x), np.sort(x, axis=None))
 
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

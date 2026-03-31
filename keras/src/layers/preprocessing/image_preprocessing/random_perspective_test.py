@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -9,7 +8,6 @@ from keras.src import testing
 
 
 class RandomPerspectiveTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.RandomPerspective,

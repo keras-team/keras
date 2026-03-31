@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
