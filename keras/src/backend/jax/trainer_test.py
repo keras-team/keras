@@ -1,6 +1,8 @@
 import warnings
 
+import jax
 import numpy as np
+import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -11,13 +13,9 @@ from keras.src.backend import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
 
 
+@pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
+@pytest.mark.multi_device
 class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
-    def _skip_if_not_distributed(self):
-        if backend.backend() != "jax":
-            self.skipTest("Requires JAX backend")
-        if len(backend_dlib.list_devices()) < 2:
-            self.skipTest("Requires at least 2 devices")
-
     def _make_distribution(self, dist_type):
         if dist_type == "data_parallel":
             return distribution_lib.DataParallel()
@@ -40,9 +38,6 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
     )
     def test_warns_when_model_built_outside_scope(self, dist_type):
         """Model built outside distribution -> mixed warning on compile."""
-        self._skip_if_not_distributed()
-        import jax
-
         n = len(backend_dlib.list_devices())
         units = n * max(1, 4 // n)
         dist = self._make_distribution(dist_type)
@@ -81,8 +76,6 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
     )
     def test_no_warning_when_model_built_inside_scope(self, dist_type):
         """Model built inside distribution scope -> no warning."""
-        self._skip_if_not_distributed()
-
         n = len(backend_dlib.list_devices())
         units = n * max(1, 4 // n)
         dist = self._make_distribution(dist_type)

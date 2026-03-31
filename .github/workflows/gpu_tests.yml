@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
 
   test-in-container:
@@ -20,20 +24,20 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
-      (github.event_name == 'pull_request' && github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
+      (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
 
     strategy:
       fail-fast: false
       matrix:
-        backend: [torch]
+        backend: [jax, tensorflow, torch]
 
     container:
       image: python:3.11-slim
       options: --privileged --network host
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6.0.2
 
       - name: Check CUDA Version
         run: nvidia-smi

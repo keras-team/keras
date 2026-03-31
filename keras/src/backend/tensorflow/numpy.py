@@ -1142,11 +1142,14 @@ def blackman(x):
     x = tf.cast(x, dtype)
     n = tf.range(x, dtype=dtype)
     n_minus_1 = tf.cast(x - 1, dtype)
+    n_minus_1_safe = tf.where(
+        tf.equal(n_minus_1, 0), tf.ones_like(n_minus_1), n_minus_1
+    )
     term1 = 0.42
-    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1)
-    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1)
+    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1_safe)
+    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1_safe)
     window = term1 + term2 + term3
-    return window
+    return tf.where(tf.equal(n_minus_1, 0), tf.ones_like(window), window)
 
 
 def broadcast_to(x, shape):
@@ -1352,6 +1355,28 @@ def deg2rad(x):
 
     pi = tf.constant(math.pi, dtype=dtype)
     return x * (pi / tf.constant(180.0, dtype=dtype))
+
+
+def rad2deg(x):
+    x = convert_to_tensor(x)
+
+    dtype = x.dtype
+    if standardize_dtype(dtype) in [
+        "bool",
+        "int8",
+        "int16",
+        "int32",
+        "uint8",
+        "uint16",
+        "uint32",
+    ]:
+        dtype = config.floatx()
+    elif standardize_dtype(dtype) in ["int64"]:
+        dtype = "float64"
+    x = tf.cast(x, dtype)
+
+    pi = tf.constant(math.pi, dtype=dtype)
+    return x * (tf.constant(180.0, dtype=dtype) / pi)
 
 
 def diag(x, k=0):
@@ -1571,6 +1596,16 @@ def flip(x, axis=None):
     return tf.reverse(x, [axis])
 
 
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return tf.reverse(x, [1])
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return tf.reverse(x, [0])
+
+
 @sparse.elementwise_unary
 def floor(x):
     x = convert_to_tensor(x)
@@ -1717,6 +1752,17 @@ def identity(n, dtype=None):
 @sparse.elementwise_unary
 def imag(x):
     return tf.math.imag(x)
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16"]:
+        dtype = config.floatx()
+    x = tf.cast(x, dtype)
+    return tf.math.bessel_i0(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -2324,6 +2370,72 @@ def nanprod(x, axis=None, keepdims=False):
     return prod(x_safe, axis=axis, keepdims=keepdims)
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx())
+
+    def _nanquantile_1d(v):
+        valid = tf.boolean_mask(v, ~tf.math.is_nan(cast(v, config.floatx())))
+        return tf.cond(
+            tf.size(valid) > 0,
+            lambda: quantile(valid, q, method=method, keepdims=False),
+            lambda: tf.constant(float("nan"), dtype=x.dtype),
+        )
+
+    if axis is None:
+        x_flat = tf.reshape(x, [-1])
+        result = _nanquantile_1d(x_flat)
+
+        if keepdims:
+            new_shape = tf.concat(
+                [tf.shape(result), tf.ones(tf.rank(x), dtype=tf.int32)], axis=0
+            )
+            result = tf.reshape(result, new_shape)
+
+        return result
+
+    if isinstance(axis, int):
+        axis = [axis]
+    elif isinstance(axis, tuple):
+        axis = list(axis)
+
+    ndims = x.shape.rank
+    axis = [a if a >= 0 else a + ndims for a in axis]
+    other_axes = [i for i in range(ndims) if i not in axis]
+
+    perm = other_axes + axis
+    x_t = tf.transpose(x, perm)
+
+    shape = tf.shape(x_t)
+    other_rank = len(other_axes)
+    other_shape = shape[:other_rank]
+    reduce_shape = shape[other_rank:]
+
+    batch_size = tf.reduce_prod(other_shape)
+    reduction_size = tf.reduce_prod(reduce_shape)
+    x_flat = tf.reshape(x_t, [batch_size, reduction_size])
+
+    q_shape = tf.shape(q)
+
+    results = tf.map_fn(
+        _nanquantile_1d,
+        x_flat,
+        fn_output_signature=tf.TensorSpec(shape=q_shape, dtype=x.dtype),
+    )
+
+    if tf.rank(q) > 0:
+        results = tf.transpose(results)
+        results = tf.reshape(results, tf.concat([q_shape, other_shape], axis=0))
+    else:
+        results = tf.reshape(results, other_shape)
+
+    if keepdims:
+        for ax in sorted(axis):
+            results = tf.expand_dims(results, axis=ax + tf.rank(q))
+
+    return results
+
+
 def nanstd(x, axis=None, keepdims=False):
     var_val = nanvar(x, axis=axis, keepdims=keepdims)
     return tf.sqrt(var_val)
@@ -2758,6 +2870,10 @@ def sort(x, axis=-1):
     x = convert_to_tensor(x)
     ori_dtype = standardize_dtype(x.dtype)
     # TODO: tf.sort doesn't support bool
+    if axis is None:
+        x = tf.reshape(x, [-1])
+        axis = 0
+
     if ori_dtype == "bool":
         x = tf.cast(x, "int8")
         return tf.cast(tf.sort(x, axis=axis), ori_dtype)

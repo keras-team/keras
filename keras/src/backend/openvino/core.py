@@ -2,6 +2,7 @@ import builtins
 import contextlib
 import warnings
 
+import ml_dtypes
 import numpy as np
 import openvino as ov
 import openvino.opset15 as ov_opset
@@ -106,7 +107,7 @@ def get_ov_output(x, ov_type=None):
             ov_type = Type.i32
         x = ov_opset.constant(x, ov_type).output(0)
     elif isinstance(x, np.ndarray):
-        if x.dtype == np.dtype("bfloat16"):
+        if x.dtype == "bfloat16":
             x = ov_opset.constant(x, OPENVINO_DTYPES["bfloat16"]).output(0)
         else:
             x = ov_opset.constant(x).output(0)
@@ -824,7 +825,13 @@ def convert_to_numpy(x):
     try:
         node = x.output.get_node()
         if node.get_type_name() == "Constant":
-            return np.array(node.data)
+            data = node.data
+            # OpenVINO returns bf16 constant bytes as float16 (same width,
+            # but wrong dtype) because numpy has no native bfloat16 type.
+            # Re-interpret the raw bytes as ml_dtypes.bfloat16.
+            if node.output(0).get_element_type() == Type.bf16:
+                data = data.view(ml_dtypes.bfloat16)
+            return np.array(data)
     except Exception:
         # fall back to the slow path.
         pass
@@ -837,7 +844,11 @@ def convert_to_numpy(x):
         raise RuntimeError(
             "`convert_to_numpy` failed to convert the tensor."
         ) from inner_exception
-    return np.array(result)
+    data = np.array(result)
+    # Same byte-reinterpretation issue applies to inference results.
+    if x.dtype == "bfloat16" and data.dtype != ml_dtypes.bfloat16:
+        data = data.view(ml_dtypes.bfloat16)
+    return data
 
 
 def is_tensor(x):
@@ -860,11 +871,27 @@ def cast(x, dtype):
 
 
 def cond(pred, true_fn, false_fn):
-    true_val = true_fn()
-    false_val = false_fn()
+    class _TrackingScope(StatelessScope):
+        """StatelessScope that retains variable object references."""
 
-    if true_val is None:
-        return None
+        def __init__(self):
+            super().__init__()
+            self._var_objects = {}
+
+        def add_update(self, update):
+            variable, value = update
+            super().add_update(update)
+            self._var_objects[id(variable)] = variable
+
+    # Run both branches in isolated scopes so variable assignments are
+    # captured but not applied eagerly (same semantics as torch.cond).
+    true_scope = _TrackingScope()
+    with true_scope:
+        true_val = true_fn()
+
+    false_scope = _TrackingScope()
+    with false_scope:
+        false_val = false_fn()
 
     if isinstance(pred, bool):
         pred_ov = ov_opset.constant(pred, Type.boolean).output(0)
@@ -880,6 +907,23 @@ def cond(pred, true_fn, false_fn):
         return OpenVINOKerasTensor(
             ov_opset.select(pred_ov, t_ov, f_ov).output(0)
         )
+
+    # Apply selected variable updates: for each variable touched by either
+    # branch, select between the true-branch value and the false-branch value
+    # (defaulting to the pre-cond stored value for the branch that didn't
+    # update it).
+    all_var_ids = set(true_scope.state_mapping) | set(false_scope.state_mapping)
+    for var_id in all_var_ids:
+        if var_id in true_scope._var_objects:
+            var = true_scope._var_objects[var_id]
+        else:
+            var = false_scope._var_objects[var_id]
+        true_new = true_scope.state_mapping.get(var_id, var._value)
+        false_new = false_scope.state_mapping.get(var_id, var._value)
+        var._direct_assign(_select(true_new, false_new))
+
+    if true_val is None:
+        return None
 
     if isinstance(true_val, (list, tuple)):
         return type(true_val)(
@@ -1645,20 +1689,21 @@ def random_seed_dtype():
     return "int32"
 
 
-def custom_gradient(fun):
+class custom_gradient:
     """Decorator for custom gradients.
 
-    Args:
-        fun: Forward pass function.
+    OpenVINO is an inference-only backend, so this acts as a pass-through:
+    it runs the forward pass and discards the gradient function.
+
+    Arguments:
+        fun: The forward pass function.
     """
 
     def __init__(self, fun):
         warnings.warn(
-            "`custom_gradient` for the openvino backend"
-            " acts as a pass-through to "
-            "support the forward pass."
-            " No gradient computation or modification "
-            "takes place."
+            "`custom_gradient` for the openvino backend acts as a "
+            "pass-through to support the forward pass. No gradient "
+            "computation or modification takes place."
         )
         self.fun = fun
 

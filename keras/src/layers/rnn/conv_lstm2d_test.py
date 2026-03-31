@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import initializers
@@ -8,7 +7,6 @@ from keras.src import testing
 
 
 class ConvLSTM2DTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         channels_last = backend.config.image_data_format() == "channels_last"
         self.run_layer_test(
@@ -89,3 +87,18 @@ class ConvLSTM2DTest(testing.TestCase):
             tpu_atol=1e-3,
             tpu_rtol=1e-3,
         )
+
+    def test_symbolic_invalid_strides_dilation_rate(self):
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Specifying `strides > 1` is not compatible with "
+            r"`dilation_rate > 1`",
+        ):
+            layers.ConvLSTM2D(
+                filters=1,
+                kernel_size=1,
+                strides=2,
+                padding="same",
+                dilation_rate=3,
+                return_sequences=True,
+            )

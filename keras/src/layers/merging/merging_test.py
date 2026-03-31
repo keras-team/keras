@@ -77,9 +77,9 @@ TEST_PARAMETERS = [
 ]
 
 
-@pytest.mark.requires_trainable_backend
 class MergingLayersTest(testing.TestCase):
     @parameterized.named_parameters(TEST_PARAMETERS)
+    @pytest.mark.requires_trainable_backend
     def test_basic(
         self,
         layer_class,
@@ -242,12 +242,12 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Add()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [1, 2], [6, 8]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Add()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [1, 2], [6, 8]]])
-        self.assertAllClose(output._keras_mask, [[0, 1, 1, 1]])
+        self.assertAllClose(backend.get_keras_mask(output), [[0, 1, 1, 1]])
 
     def test_subtract_with_mask(self):
         mask = layers.Masking()
@@ -256,12 +256,12 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Subtract()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [-1, -2], [0, 0]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Subtract()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [-1, -2], [0, 0]]])
-        self.assertAllClose(output._keras_mask, [[0, 1, 1, 1]])
+        self.assertAllClose(backend.get_keras_mask(output), [[0, 1, 1, 1]])
 
     def test_average_with_mask(self):
         mask = layers.Masking()
@@ -270,12 +270,12 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Average()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0.5, 1], [0.5, 1], [3, 4]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Average()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0.5, 1], [0.5, 1], [3, 4]]])
-        self.assertAllClose(output._keras_mask, [[0, 1, 1, 1]])
+        self.assertAllClose(backend.get_keras_mask(output), [[0, 1, 1, 1]])
 
     def test_multiply_with_mask(self):
         mask = layers.Masking()
@@ -284,12 +284,12 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Multiply()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [1, 2], [9, 16]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Multiply()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [1, 2], [9, 16]]])
-        self.assertAllClose(output._keras_mask, [[0, 1, 1, 1]])
+        self.assertAllClose(backend.get_keras_mask(output), [[0, 1, 1, 1]])
 
     def test_maximum_with_mask(self):
         mask = layers.Masking()
@@ -300,12 +300,12 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Maximum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [-1, -2], [-3, -4]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Maximum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [-1, -2], [-1, -2], [-3, -4]]])
-        self.assertAllClose(output._keras_mask, [[0, 1, 1, 1]])
+        self.assertAllClose(backend.get_keras_mask(output), [[0, 1, 1, 1]])
 
     def test_minimum_with_mask(self):
         mask = layers.Masking()
@@ -314,12 +314,12 @@ class MergingLayersTest(testing.TestCase):
 
         output = layers.Minimum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [0, 0], [1, 2], [3, 4]]])
-        self.assertIsNone(getattr(output, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(output))
 
         x2 = mask(x2)
         output = layers.Minimum()([x1, x2])
         self.assertAllClose(output, [[[0, 0], [1, 2], [1, 2], [3, 4]]])
-        self.assertAllClose(output._keras_mask, [[0, 1, 1, 1]])
+        self.assertAllClose(backend.get_keras_mask(output), [[0, 1, 1, 1]])
 
     def test_concatenate_with_mask(self):
         mask = layers.Masking()
@@ -331,14 +331,16 @@ class MergingLayersTest(testing.TestCase):
             output,
             [[[0, 0], [1, 2], [0, 0], [3, 4], [0, 0], [0, 0], [1, 2], [3, 4]]],
         )
-        self.assertAllClose(output._keras_mask, [[0, 1, 0, 1, 1, 1, 1, 1]])
+        self.assertAllClose(
+            backend.get_keras_mask(output), [[0, 1, 0, 1, 1, 1, 1, 1]]
+        )
 
         output = layers.Concatenate(axis=2)([x1, x2])
         self.assertAllClose(
             output,
             [[[0, 0, 0, 0], [1, 2, 0, 0], [0, 0, 1, 2], [3, 4, 3, 4]]],
         )
-        self.assertAllClose(output._keras_mask, [[1, 1, 1, 1]])
+        self.assertAllClose(backend.get_keras_mask(output), [[1, 1, 1, 1]])
 
     def test_concatenate_with_mask_symbolic(self):
         input1 = layers.Input((4, 2))
@@ -346,7 +348,7 @@ class MergingLayersTest(testing.TestCase):
         mask = layers.Masking()
         output = layers.Concatenate(axis=1)([mask(input1), input2])
         model = models.Model(
-            inputs=[input1, input2], outputs=output._keras_mask
+            inputs=[input1, input2], outputs=backend.get_keras_mask(output)
         )
         x1 = backend.convert_to_tensor([[[0, 0], [1, 2], [0, 0], [3, 4]]])
         x2 = backend.convert_to_tensor([[[0, 0], [0, 0], [1, 2], [3, 4]]])

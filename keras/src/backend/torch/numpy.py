@@ -716,6 +716,15 @@ def deg2rad(x):
     return torch.deg2rad(x)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.rad2deg(x), "float64")
+
+    return torch.rad2deg(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return torch.diag(x, diagonal=k)
@@ -828,6 +837,16 @@ def flip(x, axis=None):
         axis = tuple(range(x.ndim))
     axis = to_tuple_or_list(axis)
     return torch.flip(x, dims=axis)
+
+
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return torch.fliplr(x)
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return torch.flipud(x)
 
 
 def floor(x):
@@ -946,6 +965,17 @@ def imag(x):
     if not isinstance(x, torch.Tensor):
         x = torch.from_numpy(x)  # needed for complex type conversion
     return torch.imag(x)
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16"]:
+        dtype = config.floatx()
+    x = cast(x, dtype)
+    return torch.i0(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -1443,6 +1473,45 @@ def nanprod(x, axis=None, keepdims=False):
     )
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    axis = to_tuple_or_list(axis)
+
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+
+    x = cast(x, compute_dtype)
+    if x.dtype != q.dtype:
+        q = cast(q, x.dtype)
+
+    if axis is None:
+        y = reshape(x, [-1])
+    else:
+        axis = [canonicalize_axis(a, x.ndim) for a in axis]
+        other_dims = sorted(set(range(x.ndim)).difference(axis))
+        x_permed = torch.permute(x, dims=(other_dims + list(axis)))
+
+        x_shape = list(x.shape)
+        other_shape = [x_shape[i] for i in other_dims]
+        end_shape = [math.prod([x_shape[i] for i in axis])]
+        full_shape = other_shape + end_shape
+        y = reshape(x_permed, full_shape)
+
+    y = torch.nanquantile(y, q, dim=-1, interpolation=method)
+
+    if keepdims:
+        if axis is None:
+            for _ in range(x.ndim):
+                y = expand_dims(y, axis=-1)
+        else:
+            for i in sorted(axis):
+                i = i + 1 if q.ndim > 0 else i
+                y = expand_dims(y, axis=i)
+
+    return cast(y, result_dtype)
+
+
 def nanstd(x, axis=None, keepdims=False):
     var_val = nanvar(x, axis=axis, keepdims=keepdims)
     return torch.sqrt(var_val)
@@ -1751,6 +1820,9 @@ def size(x):
 
 def sort(x, axis=-1):
     x = convert_to_tensor(x)
+    if axis is None:
+        x = x.reshape(-1)
+        axis = 0
     # TODO: torch.sort doesn't support bool with cuda
     if get_device() == "cuda" and standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")

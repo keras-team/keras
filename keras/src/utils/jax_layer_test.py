@@ -335,17 +335,23 @@ class TestJaxLayer(testing.TestCase):
 
         # export, load back and compare results
         path = os.path.join(self.get_temp_dir(), "jax_layer_export")
-        model2.export(path, format="tf_saved_model")
+        export_kwargs = {}
+        if testing.jax_uses_gpu():
+            export_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "cuda")
+                }
+            }
+        elif testing.jax_uses_tpu():
+            export_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "tpu")
+                }
+            }
+        model2.export(path, format="tf_saved_model", **export_kwargs)
         model4 = tf.saved_model.load(path)
         output4 = model4.serve(x_test)
-        # The output difference is greater when using the GPU or bfloat16
-        lower_precision = testing.jax_uses_gpu() or "dtype" in layer_init_kwargs
-        self.assertAllClose(
-            output1,
-            output4,
-            atol=1e-2 if lower_precision else 1e-6,
-            rtol=1e-3 if lower_precision else 1e-6,
-        )
+        self.assertAllClose(output1, output4, atol=1e-2, rtol=1e-3)
 
         # test subclass model building without a build method
         class TestModel(models.Model):
@@ -406,6 +412,18 @@ class TestJaxLayer(testing.TestCase):
             "trainable_params": 266610,
             "non_trainable_weights": 1,
             "non_trainable_params": 1,
+        },
+        {
+            "testcase_name": "native_serialization",
+            "init_kwargs": {
+                "call_fn": jax_model_no_state_apply,
+                "init_fn": jax_model_no_state_init,
+                "native_serialization_platforms": ("cpu", "tpu"),
+            },
+            "trainable_weights": 6,
+            "trainable_params": 266610,
+            "non_trainable_weights": 0,
+            "non_trainable_params": 0,
         },
     )
     def test_jax_layer(

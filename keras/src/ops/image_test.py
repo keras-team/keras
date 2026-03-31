@@ -19,14 +19,14 @@ from keras.src.testing.test_utils import named_product
 
 class ImageOpsDynamicShapeTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -251,14 +251,14 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -1025,14 +1025,14 @@ def _compute_homography_matrix(start_points, end_points):
 
 class ImageOpsCorrectnessTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -2085,14 +2085,14 @@ class ImageOpsDtypeTest(testing.TestCase):
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_affine_transform(self, dtype):
@@ -2258,14 +2258,14 @@ class ImageOpsDtypeTest(testing.TestCase):
 
 class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_rgb_to_grayscale_invalid_rank(self, rank):
@@ -2321,6 +2321,64 @@ class ImageOpsBehaviorTests(testing.TestCase):
             ValueError, "Invalid images dtype: expected float dtype."
         ):
             kimage.rgb_to_hsv(invalid_image)
+
+    def test_rgb_to_hsv_invalid_channels(self):
+        invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
+        with self.assertRaises(Exception):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+
+        invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.RGBToHSV(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
+        invalid_image = KerasTensor(shape=(4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.rgb_to_hsv(invalid_image, data_format="channels_first")
+
+    def test_hsv_to_rgb_invalid_channels(self):
+        invalid_image = np.random.uniform(size=(4, 4, 3)).astype("float32")
+        with self.assertRaises(Exception):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+
+        invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.HSVToRGB(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
+        invalid_image = KerasTensor(shape=(4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(
+            ValueError,
+            "Input images must have 3 channels, but received images with "
+            "4 channels\\.",
+        ):
+            kimage.hsv_to_rgb(invalid_image, data_format="channels_first")
 
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_hsv_to_rgb_invalid_rank(self, rank):
@@ -2658,8 +2716,14 @@ class ExtractPatches3DTest(testing.TestCase):
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     def setUp(self):
+        super().setUp()
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
 
     @parameterized.named_parameters(
         named_product(

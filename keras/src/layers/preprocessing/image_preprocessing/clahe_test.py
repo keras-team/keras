@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 from tensorflow import data as tf_data
 
@@ -13,7 +12,6 @@ class ContrastLimitedAdaptiveHistogramEqualizationTest(testing.TestCase):
         self.assertTrue(np.all(array >= min_val))
         self.assertTrue(np.all(array <= max_val))
 
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.ContrastLimitedAdaptiveHistogramEqualization,

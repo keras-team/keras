@@ -28,8 +28,8 @@ class MultiHeadAttentionTest(testing.TestCase):
         disable_flash_attention()
 
     def tearDown(self):
+        super().tearDown()
         enable_flash_attention()
-        return super().tearDown()
 
     def test_basics(self):
         self.assertFalse(is_flash_attention_enabled())
@@ -422,10 +422,6 @@ class MultiHeadAttentionTest(testing.TestCase):
             layer._gate_dense.kernel,
         )
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
-    )
     def test_query_mask_propagation(self):
         """Test automatic propagation of the query's mask."""
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
@@ -435,13 +431,9 @@ class MultiHeadAttentionTest(testing.TestCase):
         query_mask = backend.get_keras_mask(masked_query)
         value = np.random.normal(size=(3, 3, 8))
         output = layer(query=masked_query, value=value)
-        self.assertAllClose(query_mask, output._keras_mask)
+        self.assertAllClose(query_mask, backend.get_keras_mask(output))
 
     @parameterized.named_parameters(("causal", True), ("not_causal", 0))
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
-    )
     def test_masking(self, use_causal_mask):
         """Test that the value and causal masks are taken into account."""
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
@@ -461,8 +453,8 @@ class MultiHeadAttentionTest(testing.TestCase):
         )
         if use_causal_mask:
             mask = mask & np.array([[[1, 0, 0], [1, 1, 0]] + [[1, 1, 1]] * 3])
-        del masked_query._keras_mask
-        del masked_value._keras_mask
+        backend.set_keras_mask(masked_query, None)
+        backend.set_keras_mask(masked_value, None)
         output_with_manual_mask = layer(
             query=masked_query, value=masked_value, attention_mask=mask
         )

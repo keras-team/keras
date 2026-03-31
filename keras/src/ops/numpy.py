@@ -2501,6 +2501,44 @@ def deg2rad(x):
     return backend.numpy.deg2rad(x)
 
 
+class Rad2deg(Operation):
+    def call(self, x):
+        return backend.numpy.rad2deg(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype)
+
+
+@keras_export(["keras.ops.rad2deg", "keras.ops.numpy.rad2deg"])
+def rad2deg(x):
+    """Convert angles from radians to degrees.
+
+    The conversion is defined as:
+    `deg = rad * (180 / π)`
+
+    Args:
+        x: Input tensor of angles in radians.
+
+    Returns:
+        A tensor containing angles converted to degrees.
+
+    Examples:
+    >>> from keras import ops
+    >>> ops.rad2deg(3.141592653589793)
+    180.0
+    >>> ops.rad2deg([0.0, 1.57079633, 3.14159265])
+    array([0., 90., 180.])
+    """
+    if any_symbolic_tensors((x,)):
+        return Rad2deg().symbolic_call(x)
+    return backend.numpy.rad2deg(x)
+
+
 class Diag(Operation):
     def __init__(self, k=0, *, name=None):
         super().__init__(name=name)
@@ -3477,6 +3515,70 @@ def flip(x, axis=None):
     return backend.numpy.flip(x, axis=axis)
 
 
+class Fliplr(Operation):
+    def call(self, x):
+        return backend.numpy.fliplr(x)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 2:
+            raise ValueError(
+                "`fliplr` requires input with 2 or more dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.fliplr", "keras.ops.numpy.fliplr"])
+def fliplr(x):
+    """Reverse the order of elements along axis 1 (left/right).
+
+    For a 2-D tensor, this flips the entries in each row in the
+    left/right direction. Columns are preserved, but appear in a
+    different order than before.
+
+    Args:
+        x: Input tensor, must be at least 2-D.
+
+    Returns:
+        Output tensor with columns reversed.
+    """
+    if any_symbolic_tensors((x,)):
+        return Fliplr().symbolic_call(x)
+    return backend.numpy.fliplr(x)
+
+
+class Flipud(Operation):
+    def call(self, x):
+        return backend.numpy.flipud(x)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 1:
+            raise ValueError(
+                "`flipud` requires input with 1 or more dimensions. "
+                f"Received: x.shape={x.shape}"
+            )
+        return KerasTensor(x.shape, dtype=x.dtype)
+
+
+@keras_export(["keras.ops.flipud", "keras.ops.numpy.flipud"])
+def flipud(x):
+    """Reverse the order of elements along axis 0 (up/down).
+
+    For a 2-D tensor, this flips the entries in each column in the
+    up/down direction. Rows are preserved, but appear in a different
+    order than before.
+
+    Args:
+        x: Input tensor, must be at least 1-D.
+
+    Returns:
+        Output tensor with rows reversed.
+    """
+    if any_symbolic_tensors((x,)):
+        return Flipud().symbolic_call(x)
+    return backend.numpy.flipud(x)
+
+
 class Floor(Operation):
     def call(self, x):
         return backend.numpy.floor(x)
@@ -4014,6 +4116,35 @@ def imag(x):
     if any_symbolic_tensors((x,)):
         return Imag().symbolic_call(x)
     return backend.numpy.imag(x)
+
+
+class I0(Operation):
+    def call(self, x):
+        return backend.numpy.i0(x)
+
+    def compute_output_spec(self, x):
+        dtype = backend.standardize_dtype(x.dtype)
+        if dtype in ["int64", "float64"]:
+            dtype = "float64"
+        elif dtype not in ["bfloat16", "float16"]:
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.i0", "keras.ops.numpy.i0"])
+def i0(x):
+    """Modified Bessel function of the first kind, order 0.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        Output tensor, element-wise modified Bessel function of the
+        first kind, order 0 of `x`.
+    """
+    if any_symbolic_tensors((x,)):
+        return I0().symbolic_call(x)
+    return backend.numpy.i0(x)
 
 
 class Isclose(Operation):
@@ -5830,6 +5961,91 @@ def nanprod(x, axis=None, keepdims=False):
     return backend.numpy.nanprod(x, axis=axis, keepdims=keepdims)
 
 
+class Nanquantile(Operation):
+    def __init__(
+        self, axis=None, method="linear", keepdims=False, *, name=None
+    ):
+        super().__init__(name=name)
+        self.axis = axis
+        self.method = method
+        self.keepdims = keepdims
+
+    def call(self, x, q):
+        return backend.numpy.nanquantile(
+            x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x, q):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+        if hasattr(q, "shape"):
+            if len(q.shape) > 0:
+                output_shape = (q.shape[0],) + output_shape
+
+        if backend.standardize_dtype(x.dtype) == "int64":
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nanquantile", "keras.ops.numpy.nanquantile"])
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    """Compute the q-th quantile(s) of the data along the specified axis,
+    while ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        q: Probability or sequence of probabilities for the quantiles to
+            compute. Values must be between 0 and 1 inclusive.
+        axis: Axis or axes along which the quantiles are computed. Defaults to
+            `axis=None` which is to compute the quantile(s) along a flattened
+            version of the array.
+        method: A string specifies the method to use for estimating the
+            quantile. Available methods are `"linear"`, `"lower"`, `"higher"`,
+            `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
+            If the desired quantile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
+        keepdims: If this is set to `True`, the axes which are reduced
+            are left in the result as dimensions with size one.
+
+    Returns:
+        The quantile(s) ignoring NaNs.
+
+    Examples:
+    >>> import keras
+    >>> from keras import ops
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanquantile(x, 0.5)
+    2.5
+    >>> x = keras.ops.array([1., 2., float("nan"), 4.])
+    >>> keras.ops.nanquantile(x, 0.5)
+    2.0
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanquantile(x, [0.25, 0.75])
+    array([1.75, 3.25])
+    >>> x = keras.ops.array([[1., 2., float("nan")],
+    ...                      [4., 5., 6.]])
+    >>> keras.ops.nanquantile(x, 0.5, axis=1)
+    array([1.5, 5.0])
+    """
+    if any_symbolic_tensors((x, q)):
+        return Nanquantile(
+            axis=axis, method=method, keepdims=keepdims
+        ).symbolic_call(x, q)
+
+    return backend.numpy.nanquantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    )
+
+
 class Nanstd(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
@@ -7059,6 +7275,12 @@ class Sort(Operation):
         return backend.numpy.sort(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is None:
+            if None in x.shape:
+                output_shape = (None,)
+            else:
+                output_shape = (int(np.prod(x.shape)),)
+            return KerasTensor(output_shape, x.dtype)
         return KerasTensor(x.shape, x.dtype)
 
 
