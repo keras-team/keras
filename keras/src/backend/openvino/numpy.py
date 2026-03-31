@@ -66,9 +66,11 @@ def einsum(subscripts, *operands, **kwargs):
     else:
         ov_compute_type = ov_result_type
     inputs = [
-        ov_opset.convert(inp, ov_compute_type).output(0)
-        if inp.get_element_type() != ov_compute_type
-        else inp
+        (
+            ov_opset.convert(inp, ov_compute_type).output(0)
+            if inp.get_element_type() != ov_compute_type
+            else inp
+        )
         for inp in inputs
     ]
     result = ov_opset.einsum(inputs, subscripts).output(0)
@@ -1206,9 +1208,11 @@ def concatenate(xs, axis=0):
         target_type = dtypes.result_type(*keras_types)
         ov_target_type = OPENVINO_DTYPES[target_type]
         elems = [
-            ov_opset.convert(x, ov_target_type).output(0)
-            if x.get_element_type() != ov_target_type
-            else x
+            (
+                ov_opset.convert(x, ov_target_type).output(0)
+                if x.get_element_type() != ov_target_type
+                else x
+            )
             for x in elems
         ]
     res = ov_opset.concat(elems, axis).output(0)
@@ -3714,7 +3718,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             constant_values, x.get_element_type()
         ).output(0)
 
-    # split pad_width into two tensors pads_begin and pads_end
+    # Split pad_width into two tensors pads_begin and pads_end.
+    # pad_width is now already broadcasted by the agnostic
+    # layer to match x.ndim.
     pads_begin = []
     pads_end = []
     for pads_pair in pad_width:
@@ -3722,6 +3728,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         pads_end.append(pads_pair[1])
     pads_begin = ov_opset.constant(pads_begin, Type.i32).output(0)
     pads_end = ov_opset.constant(pads_end, Type.i32).output(0)
+
     return OpenVINOKerasTensor(
         ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0)
     )

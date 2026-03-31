@@ -1598,14 +1598,20 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         kwargs["value"] = constant_values
     x = convert_to_tensor(x)
     pad_sum = []
-    pad_width = list(pad_width)[::-1]  # torch uses reverse order
+    # pad_width is already broadcasted to match x.ndim by the agnostic layer
+    pad_width_list = list(pad_width)[::-1]  # torch uses reverse order
+
+    # only support padding the last 1-3 dimensions.
     pad_width_sum = 0
-    for pad in pad_width:
-        pad_width_sum += pad[0] + pad[1]
-    for pad in pad_width:
-        pad_sum += pad
-        pad_width_sum -= pad[0] + pad[1]
-        if pad_width_sum == 0:  # early break when no padding in higher order
+    for p in pad_width_list:
+        pad_width_sum += p[0] + p[1]
+
+    for p in pad_width_list:
+        pad_sum += [p[0], p[1]]
+        pad_width_sum -= p[0] + p[1]
+        if (
+            pad_width_sum == 0
+        ):  # Early break when remaining higher dims have 0 padding
             break
     if mode == "symmetric":
         mode = "replicate"

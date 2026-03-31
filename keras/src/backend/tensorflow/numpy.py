@@ -1590,10 +1590,18 @@ def expm1(x):
 
 
 def flip(x, axis=None):
-    x = convert_to_tensor(x)
     if axis is None:
-        return tf.reverse(x, tf.range(tf.rank(x)))
-    return tf.reverse(x, [axis])
+        axis = list(range(len(x.shape)))
+    if not isinstance(axis, (list, tuple)):
+        axis = [axis]
+    return tf.reverse(x, axis)
+
+
+# def flip(x, axis=None):
+#     x = convert_to_tensor(x)
+#     if axis is None:
+#         return tf.reverse(x, tf.range(tf.rank(x)))
+#     return tf.reverse(x, [axis])
 
 
 def fliplr(x):
@@ -2554,7 +2562,11 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 f"Received: mode={mode}"
             )
         kwargs["constant_values"] = constant_values
-    pad_width = convert_to_tensor(pad_width, "int32")
+
+    if len(pad_width) == 1 and len(x.shape) > 1:
+        pad_width = list(pad_width) * len(x.shape)
+
+    pad_width = convert_to_tensor(pad_width, dtype="int32")
     return tf.pad(x, pad_width, mode.upper(), **kwargs)
 
 
@@ -3047,9 +3059,11 @@ def take_along_axis(x, indices, axis=None):
         # we rely on the broacast itself to fail in the incorrect case rather
         # than make some expensive dynamic checks here.
         broadcast_shape = [
-            tf.maximum(x_original_shape[i], indices_original_shape[i])
-            if dim is None
-            else dim
+            (
+                tf.maximum(x_original_shape[i], indices_original_shape[i])
+                if dim is None
+                else dim
+            )
             for i, dim in enumerate(broadcast_shape)
         ]
 
