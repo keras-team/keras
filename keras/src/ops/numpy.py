@@ -2314,9 +2314,9 @@ class Cross(Operation):
         else:
             value_size = []
 
-        # Normalize axisc so negative indices insert correctly.
-        ndim = len(output_shape) + len(value_size)
-        axisc = self.axisc if self.axisc >= 0 else ndim + self.axisc
+        axisc = canonicalize_axis(
+            self.axisc, len(output_shape) + len(value_size)
+        )
         output_shape = output_shape[:axisc] + value_size + output_shape[axisc:]
 
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
