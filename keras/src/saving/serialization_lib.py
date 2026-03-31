@@ -508,7 +508,7 @@ def deserialize_keras_object(
             serialized within the Keras model file being loaded. It does
             not provide isolation from the local Python environment and
             does not guard against modifications made outside of the
-             serialized file.
+            serialized file.
 
     Returns:
         The object described by the `config` dictionary.
