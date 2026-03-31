@@ -279,15 +279,15 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         ref_shape = (None,) + ref.shape[1:]
         self.assertEqual(output.shape, ref_shape)
 
-    def test_istft2(self):
+    def test_istft_with_length(self):
         sequence_length = 4
         sequence_stride = 1
         fft_length = 8
         length = 1
         window = "hann"
         center = False
-        real = KerasTensor((None, 10, 9), dtype="float32")
-        imag = KerasTensor((None, 10, 9), dtype="float32")
+        real = KerasTensor((None, 10, 5), dtype="float32")
+        imag = KerasTensor((None, 10, 5), dtype="float32")
 
         output = kmath.istft(
             (real, imag),
@@ -300,7 +300,7 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         )
 
         ref = _istft(
-            (np.ones((2, 10, 9)), np.ones((2, 10, 9))),
+            (np.ones((2, 10, 5)), np.ones((2, 10, 5))),
             sequence_length,
             sequence_stride,
             fft_length,
@@ -310,6 +310,20 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         )
         ref_shape = (None,) + ref.shape[1:]
         self.assertEqual(output.shape, ref_shape)
+
+        real_dyn = KerasTensor((None, None, 5), dtype="float32")
+        imag_dyn = KerasTensor((None, None, 5), dtype="float32")
+
+        output_dyn = kmath.istft(
+            (real_dyn, imag_dyn),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            length,
+            window,
+            center,
+        )
+        self.assertEqual(output_dyn.shape, (None, 1))
 
     def test_rsqrt(self):
         x = KerasTensor([None, 3])
