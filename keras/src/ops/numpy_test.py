@@ -5291,6 +5291,8 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.flip(x), np.flip(x))
         self.assertAllClose(knp.flip(x, 0), np.flip(x, 0))
         self.assertAllClose(knp.flip(x, 1), np.flip(x, 1))
+        self.assertAllClose(knp.flip(x, axis=[0, 1]), np.flip(x, axis=(0, 1)))
+        self.assertAllClose(knp.flip(x, axis=(0, 1)), np.flip(x, axis=(0, 1)))
 
         self.assertAllClose(knp.Flip()(x), np.flip(x))
         self.assertAllClose(knp.Flip(0)(x), np.flip(x, 0))
