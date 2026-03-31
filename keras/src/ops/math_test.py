@@ -280,12 +280,12 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(output.shape, ref_shape)
 
     def test_istft2(self):
-        sequence_length = (4,)
-        sequence_stride = (1,)
-        fft_length = (8,)
-        length = (1,)
-        window = ("hann",)
-        center = (False,)
+        sequence_length = 4
+        sequence_stride = 1
+        fft_length = 8
+        length = 1
+        window = "hann"
+        center = False
         real = KerasTensor((None, 10, 9), dtype="float32")
         imag = KerasTensor((None, 10, 9), dtype="float32")
 
