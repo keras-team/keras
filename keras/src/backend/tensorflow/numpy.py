@@ -1591,9 +1591,13 @@ def expm1(x):
 
 def flip(x, axis=None):
     x = convert_to_tensor(x)
+    rank = x.shape.rank
     if axis is None:
-        return tf.reverse(x, tf.range(tf.rank(x)))
-    return tf.reverse(x, [axis])
+        return tf.reverse(x, tf.range(rank))
+    else:
+        axis = to_tuple_or_list(axis)
+        axis = [canonicalize_axis(a, rank) for a in axis]
+        return tf.reverse(x, axis)
 
 
 def fliplr(x):
