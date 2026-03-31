@@ -919,6 +919,7 @@ def istft(
             sequence_length=sequence_length,
             sequence_stride=sequence_stride,
             fft_length=fft_length,
+            length=length,
             window=window,
             center=center,
         ).symbolic_call(x)
