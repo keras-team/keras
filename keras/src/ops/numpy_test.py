@@ -5493,18 +5493,30 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([1, 2, 3])
         y = np.array([4, 5, 6])
         z = np.array([7, 8, 9])
-        self.assertAllClose(knp.meshgrid(x, y), np.meshgrid(x, y))
-        self.assertAllClose(knp.meshgrid(x, z), np.meshgrid(x, z))
-        self.assertAllClose(
+
+        for mg_knp, mg_np in zip(knp.meshgrid(x, y), np.meshgrid(x, y)):
+            self.assertAllClose(mg_knp, mg_np)
+
+        for mg_knp, mg_np in zip(knp.meshgrid(x, z), np.meshgrid(x, z)):
+            self.assertAllClose(mg_knp, mg_np)
+
+        for mg_knp, mg_np in zip(
             knp.meshgrid(x, y, z, indexing="ij"),
             np.meshgrid(x, y, z, indexing="ij"),
-        )
-        self.assertAllClose(knp.Meshgrid()(x, y), np.meshgrid(x, y))
-        self.assertAllClose(knp.Meshgrid()(x, z), np.meshgrid(x, z))
-        self.assertAllClose(
+        ):
+            self.assertAllClose(mg_knp, mg_np)
+
+        for mg_knp, mg_np in zip(knp.Meshgrid()(x, y), np.meshgrid(x, y)):
+            self.assertAllClose(mg_knp, mg_np)
+
+        for mg_knp, mg_np in zip(knp.Meshgrid()(x, z), np.meshgrid(x, z)):
+            self.assertAllClose(mg_knp, mg_np)
+
+        for mg_knp, mg_np in zip(
             knp.Meshgrid(indexing="ij")(x, y, z),
             np.meshgrid(x, y, z, indexing="ij"),
-        )
+        ):
+            self.assertAllClose(mg_knp, mg_np)
 
         if backend.backend() == "tensorflow":
             # Arguments to `jax.numpy.meshgrid` must be 1D now.
@@ -5708,15 +5720,17 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_unravel_index(self):
         x = np.array([0, 1, 2, 3])
         shape = (2, 2)
-        self.assertAllClose(
+        for ind_knp, ind_np in zip(
             knp.unravel_index(x, shape), np.unravel_index(x, shape)
-        )
+        ):
+            self.assertAllClose(ind_knp, ind_np)
 
         x = np.array([[0, 1], [2, 3]])
         shape = (2, 2)
-        self.assertAllClose(
+        for ind_knp, ind_np in zip(
             knp.unravel_index(x, shape), np.unravel_index(x, shape)
-        )
+        ):
+            self.assertAllClose(ind_knp, ind_np)
 
     def test_real(self):
         x = np.array([[1, 2, 3 - 3j], [3, 2, 1 + 5j]])
@@ -5830,16 +5844,24 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertIsInstance(knp.split(x, 2), list)
-        self.assertAllClose(knp.split(x, 2), np.split(x, 2))
-        self.assertAllClose(knp.Split(2)(x), np.split(x, 2))
-        self.assertAllClose(
+
+        for split_knp, split_np in zip(knp.split(x, 2), np.split(x, 2)):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(knp.Split(2)(x), np.split(x, 2)):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(
             knp.split(x, [1, 2], axis=1),
             np.split(x, [1, 2], axis=1),
-        )
-        self.assertAllClose(
+        ):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(
             knp.Split([1, 2], axis=1)(x),
             np.split(x, [1, 2], axis=1),
-        )
+        ):
+            self.assertAllClose(split_knp, split_np)
 
         # test invalid indices_or_sections
         with self.assertRaises(Exception):
@@ -5855,10 +5877,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         indices_or_sections = knp.array([1, 2])
         x_np = np.array([[1, 2, 3], [3, 2, 1]])
         indices_or_sections_np = np.array([1, 2])
-        self.assertAllClose(
+
+        for split_knp, split_np in zip(
             knp.split(x, indices_or_sections, axis=1),
             np.split(x_np, indices_or_sections_np, axis=1),
-        )
+        ):
+            self.assertAllClose(split_knp, split_np)
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
@@ -5885,8 +5909,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.arange(18).reshape((3, 6))
 
         self.assertIsInstance(knp.hsplit(x, 3), list)
-        self.assertAllClose(knp.hsplit(x, 3), np.hsplit(x, 3))
-        self.assertAllClose(knp.Hsplit(3)(x), np.hsplit(x, 3))
+
+        for split_knp, split_np in zip(knp.hsplit(x, 3), np.hsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(knp.Hsplit(3)(x), np.hsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
         indices = [1, 3, 5]
 
@@ -5918,8 +5946,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         indices_1d = [2, 5, 9]
 
         self.assertIsInstance(knp.hsplit(x_1d, 2), list)
-        self.assertAllClose(knp.hsplit(x_1d, 2), np.hsplit(x_1d, 2))
-        self.assertAllClose(knp.Hsplit(2)(x_1d), np.hsplit(x_1d, 2))
+
+        for split_knp, split_np in zip(knp.hsplit(x_1d, 2), np.hsplit(x_1d, 2)):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(knp.Hsplit(2)(x_1d), np.hsplit(x_1d, 2)):
+            self.assertAllClose(split_knp, split_np)
 
         for split_knp, split_np in zip(
             knp.hsplit(x_1d, indices_1d), np.hsplit(x_1d, indices_1d)
@@ -5947,8 +5979,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.arange(18).reshape((6, 3))
 
         self.assertIsInstance(knp.vsplit(x, 3), list)
-        self.assertAllClose(knp.vsplit(x, 3), np.vsplit(x, 3))
-        self.assertAllClose(knp.Vsplit(3)(x), np.vsplit(x, 3))
+
+        for split_knp, split_np in zip(knp.vsplit(x, 3), np.vsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
+
+        for split_knp, split_np in zip(knp.Vsplit(3)(x), np.vsplit(x, 3)):
+            self.assertAllClose(split_knp, split_np)
 
         indices = [1, 3, 5]
 
@@ -6095,10 +6131,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )(x)
         model = keras.Model(x, [y1, y2])
 
-        result = model(np.ones((1, 2, 3), "float32"))
-        self.assertAllClose(
-            result, [np.tril(np.ones((2, 2))), np.tril(np.ones((2, 2)), k=-1)]
-        )
+        result1, result2 = model(np.ones((1, 2, 3), "float32"))
+        self.assertAllClose(result1, np.tril(np.ones((2, 2))))
+        self.assertAllClose(result2, np.tril(np.ones((2, 2)), k=-1))
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
@@ -6147,10 +6182,9 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )(x)
         model = keras.Model(x, [y1, y2])
 
-        result = model(np.ones((1, 2, 3), "float32"))
-        self.assertAllClose(
-            result, [np.triu(np.ones((2, 2))), np.triu(np.ones((2, 2)), k=-1)]
-        )
+        result1, result2 = model(np.ones((1, 2, 3), "float32"))
+        self.assertAllClose(result1, np.triu(np.ones((2, 2))))
+        self.assertAllClose(result2, np.triu(np.ones((2, 2)), k=-1))
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
