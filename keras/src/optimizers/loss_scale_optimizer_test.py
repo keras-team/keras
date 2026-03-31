@@ -39,7 +39,7 @@ class LossScaleOptimizerTest(testing.TestCase):
         optimizer.build(vars)
         optimizer.apply(grads)
         self.assertAllClose(
-            vars, [[0.5, -1.0, -0.5, 3.0]], rtol=1e-4, atol=1e-4
+            vars[0], [0.5, -1.0, -0.5, 3.0], rtol=1e-4, atol=1e-4
         )
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
@@ -60,7 +60,7 @@ class LossScaleOptimizerTest(testing.TestCase):
         else:
             optimizer.apply(grads, vars)
         self.assertAllClose(
-            vars, [[0.5, -1.0, -0.5, 3.0]], rtol=1e-4, atol=1e-4
+            vars[0], [0.5, -1.0, -0.5, 3.0], rtol=1e-4, atol=1e-4
         )
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
@@ -82,7 +82,7 @@ class LossScaleOptimizerTest(testing.TestCase):
         else:
             optimizer.apply(grads, vars)
         self.assertAllClose(
-            vars, [[0.5, -1.0, -0.5, 3.0]], rtol=1e-4, atol=1e-4
+            vars[0], [0.5, -1.0, -0.5, 3.0], rtol=1e-4, atol=1e-4
         )
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
@@ -102,7 +102,7 @@ class LossScaleOptimizerTest(testing.TestCase):
             )
         else:
             optimizer.apply(grads, vars)
-        self.assertAllClose(vars, [[1.0, 2.0, 3.0, 4.0]], rtol=1e-4, atol=1e-4)
+        self.assertAllClose(vars[0], [1.0, 2.0, 3.0, 4.0], rtol=1e-4, atol=1e-4)
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
     def test_finite_step_with_overwrite(self, stateless):
@@ -123,7 +123,7 @@ class LossScaleOptimizerTest(testing.TestCase):
             )
         else:
             optimizer.apply(grads, vars)
-        self.assertAllClose(vars, grads)
+        self.assertAllClose(vars[0], grads[0])
 
     @parameterized.named_parameters(("stateless", True), ("stateful", False))
     def test_downscaling(self, stateless):

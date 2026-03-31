@@ -201,7 +201,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             self.assertEqual(bx.shape, (16, 4))
             self.assertEqual(by.shape, (16, 2))
             for i in range(by.shape[0]):
-                sample_order.append(by[i, 0])
+                sample_order.append(backend.convert_to_numpy(by[i, 0]))
             if infinite:
                 if len(sample_order) == 64:
                     adapter.on_epoch_end()

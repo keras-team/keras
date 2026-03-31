@@ -356,8 +356,7 @@ class RandomBehaviorTest(testing.TestCase):
         input_data = np.random.random([2, 4, 4, 3])
         ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
-            output = ops.convert_to_numpy(output)
-        self.assertEqual(output.shape, (2, 4, 4, 3))
+            self.assertEqual(output.shape, (2, 4, 4, 3))
 
     def test_categorical_errors(self):
         with self.assertRaises(ValueError):
