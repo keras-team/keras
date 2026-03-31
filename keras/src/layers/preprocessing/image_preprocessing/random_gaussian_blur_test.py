@@ -75,8 +75,8 @@ class RandomGaussianBlurTest(testing.TestCase):
         output = layer.transform_images(inputs, transformation)
 
         self.assertAllClose(
-            expected_output,
             output,
+            expected_output,
             atol=1e-4,
             rtol=1e-4,
             tpu_atol=1e-2,

@@ -323,12 +323,12 @@ class TestSpectrogram(testing.TestCase):
             init_args["mode"] = "magnitude"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(y_true, y, **tol_kwargs)
+            self.assertAllClose(y, y_true, **tol_kwargs)
 
             init_args["mode"] = "psd"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(y_true, y, **tol_kwargs)
+            self.assertAllClose(y, y_true, **tol_kwargs)
 
             init_args["mode"] = "angle"
             y_true, y = self._calc_spectrograms(x, **init_args)

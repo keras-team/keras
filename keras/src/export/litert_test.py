@@ -208,7 +208,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     @parameterized.named_parameters(
         named_product(struct_type=["tuple", "array", "dict"])
@@ -264,14 +264,14 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
         # Verify export still works after saving/loading via saving_lib.
         archive_path = os.path.join(self.get_temp_dir(), "revived.keras")
         saving_lib.save_model(model, archive_path)
         revived_model = saving_lib.load_model(archive_path)
         revived_output = _convert_to_numpy(revived_model(ref_input))
-        self.assertAllClose(ref_output, revived_output)
+        self.assertAllClose(revived_output, ref_output)
 
     def test_model_with_multiple_inputs(self):
         """Test exporting models with multiple inputs and batch resizing."""
@@ -300,7 +300,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
         # Test with a different batch size by resizing interpreter inputs.
         larger_x = np.concatenate([ref_input_x, ref_input_x], axis=0)
@@ -318,7 +318,7 @@ class ExportLitertTest(testing.TestCase):
         larger_output = _get_interpreter_outputs(interpreter)
         larger_ref_output = _convert_to_numpy(model([larger_x, larger_y]))
         self.assertAllClose(
-            larger_ref_output, larger_output, atol=1e-4, rtol=1e-4
+            larger_output, larger_ref_output, atol=1e-4, rtol=1e-4
         )
 
     def test_export_with_custom_input_signature(self):
@@ -453,7 +453,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_export_with_optimizations_default(self):
         """Test export with DEFAULT optimization."""
@@ -485,7 +485,7 @@ class ExportLitertTest(testing.TestCase):
         litert_output = _get_interpreter_outputs(interpreter)
 
         # Quantized model should be close but not exact
-        self.assertAllClose(ref_output, litert_output, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(litert_output, ref_output, atol=1e-2, rtol=1e-2)
 
     def test_export_with_optimizations_sparsity(self):
         """Test export with EXPERIMENTAL_SPARSITY optimization."""
@@ -811,7 +811,7 @@ class ExportLitertTest(testing.TestCase):
         else:
             litert_output = list(sig_output.values())
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_signature_def_with_functional_model(self):
         """Test that SignatureDef preserves input/output names for
@@ -887,7 +887,7 @@ class ExportLitertTest(testing.TestCase):
         else:
             litert_output = list(sig_output.values())
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_signature_def_with_multi_input_model(self):
         """Test that SignatureDef preserves names for multi-input models."""
@@ -971,7 +971,7 @@ class ExportLitertTest(testing.TestCase):
         else:
             litert_output = list(sig_output.values())
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_signature_def_with_multi_output_model(self):
         """Test that SignatureDef handles multi-output models correctly."""
@@ -1036,7 +1036,7 @@ class ExportLitertTest(testing.TestCase):
         sig_output_values = list(sig_output.values())
         for i, ref_out in enumerate(ref_outputs):
             self.assertAllClose(
-                ref_out, sig_output_values[i], atol=1e-4, rtol=1e-4
+                sig_output_values[i], ref_out, atol=1e-4, rtol=1e-4
             )
 
     def test_dict_input_adapter_creation(self):
@@ -1085,7 +1085,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_dict_input_signature_inference(self):
         """Test automatic inference of dict input signatures."""
@@ -1170,7 +1170,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_dict_input_numerical_accuracy(self):
         """Test numerical accuracy of dict input models with complex ops."""
@@ -1218,7 +1218,7 @@ class ExportLitertTest(testing.TestCase):
         litert_output = _get_interpreter_outputs(interpreter)
 
         # Should have good numerical accuracy
-        self.assertAllClose(ref_output, litert_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(litert_output, ref_output, atol=1e-5, rtol=1e-5)
 
     def test_dict_input_preserves_variable_sharing(self):
         """Test that adapter preserves variable sharing from original model."""
@@ -1274,7 +1274,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_dict_input_multi_output_model(self):
         """Test dict input model with multiple outputs exports successfully."""

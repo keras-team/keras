@@ -79,7 +79,7 @@ class RandomPerspectiveTest(testing.TestCase):
         }
         output = layer.transform_images(inputs, transformation)
 
-        self.assertAllClose(expected_output, output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(output, expected_output, atol=1e-4, rtol=1e-4)
 
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()

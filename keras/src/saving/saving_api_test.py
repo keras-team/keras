@@ -250,8 +250,8 @@ class LoadWeightsTests(test_case.TestCase):
             self.assertAllClose(
                 orig.astype("float32"),
                 loaded.astype("float32"),
-                atol=0.001,
-                rtol=0.01,
+                atol=1e-3,
+                rtol=1e-2,
             )
 
     def test_load_weights_invalid_kwargs(self):

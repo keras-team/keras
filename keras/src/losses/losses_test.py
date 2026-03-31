@@ -1183,7 +1183,7 @@ class CategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose((0.001822, 0.000459, 0.169846), loss)
+        self.assertAllClose(loss, (0.001822, 0.000459, 0.169846))
 
     def test_label_smoothing(self):
         logits = np.array([[100.0, -100.0, -100.0]])
@@ -1308,7 +1308,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose((0.001822, 0.000459, 0.169846), loss)
+        self.assertAllClose(loss, (0.001822, 0.000459, 0.169846))
 
     def test_ignore_class(self):
         y_true = np.array([[-1, 2]])
@@ -1317,7 +1317,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, ignore_class=-1, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose([[0.0, 1.480129]], loss)
+        self.assertAllClose(loss, [[0.0, 1.480129]])
 
         y_true = np.array([[[-1], [2]]])
         logits = np.array([[[0.854, 0.698, 0.598], [0.088, 0.86, 0.018]]])
@@ -1325,7 +1325,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, ignore_class=-1, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose([[0.0, 1.480129]], loss)
+        self.assertAllClose(loss, [[0.0, 1.480129]])
 
     def test_binary_segmentation(self):
         y_true = np.array(
@@ -1815,10 +1815,7 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose(
-            (1.5096224e-09, 2.4136547e-11, 1.0360638e-03),
-            loss,
-        )
+        self.assertAllClose(loss, (1.5096224e-09, 2.4136547e-11, 1.0360638e-03))
 
     def test_label_smoothing(self):
         logits = np.array([[4.9, -0.5, 2.05]])

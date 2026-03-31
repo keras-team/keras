@@ -87,11 +87,11 @@ class LegacyH5WeightsTest(testing.TestCase):
         tf_keras_model.save_weights(temp_filepath)
         model.load_weights(temp_filepath)
         output = model(ref_input)
-        self.assertAllClose(ref_output, output, atol=1e-5)
+        self.assertAllClose(output, ref_output, atol=1e-5)
         model.set_weights(initial_weights)
         model.load_weights(temp_filepath)
         output = model(ref_input)
-        self.assertAllClose(ref_output, output, atol=1e-5)
+        self.assertAllClose(output, ref_output, atol=1e-5)
 
     def test_sequential_model_weights(self):
         model = get_sequential_model(keras)
@@ -121,7 +121,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
         legacy_h5_format.save_model_to_hdf5(model, temp_filepath)
         loaded = legacy_h5_format.load_model_from_hdf5(temp_filepath)
         output = loaded(ref_input)
-        self.assertAllClose(ref_output, output, atol=1e-5)
+        self.assertAllClose(output, ref_output, atol=1e-5)
 
     def test_sequential_model(self):
         model = get_sequential_model(keras)
@@ -188,7 +188,7 @@ class LegacyH5WholeModelTest(testing.TestCase):
             _ = loaded.optimizer
 
         # Compare output
-        self.assertAllClose(ref_output, output, atol=1e-5)
+        self.assertAllClose(output, ref_output, atol=1e-5)
 
     def test_custom_sequential_registered_no_scope(self):
         @object_registration.register_keras_serializable(package="my_package")
@@ -328,7 +328,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         tf_keras_model.save(temp_filepath)
         loaded = legacy_h5_format.load_model_from_hdf5(temp_filepath)
         output = loaded(ref_input)
-        self.assertAllClose(ref_output, output, atol=1e-5)
+        self.assertAllClose(output, ref_output, atol=1e-5)
 
     def test_sequential_model(self):
         model = get_sequential_model(keras)
@@ -404,7 +404,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
             _ = loaded.optimizer
 
         # Compare output
-        self.assertAllClose(ref_output, output, atol=1e-5)
+        self.assertAllClose(output, ref_output, atol=1e-5)
 
     @pytest.mark.skipif(tf_keras is None, reason="Test requires tf_keras")
     def test_custom_sequential_registered_no_scope(self):
@@ -548,7 +548,7 @@ class LegacyH5BackwardsCompatTest(testing.TestCase):
         self.assertEqual(loaded_layer.sublayers[1].name, "MySubLayer")
 
         # Compare output
-        self.assertAllClose(ref_output, output, atol=1e-5)
+        self.assertAllClose(output, ref_output, atol=1e-5)
 
 
 @pytest.mark.requires_trainable_backend

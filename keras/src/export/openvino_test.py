@@ -119,7 +119,7 @@ class ExportOpenVINOTest(testing.TestCase):
 
         ov_output = compiled_model([ref_input])[compiled_model.output(0)]
 
-        self.assertAllClose(ref_output, ov_output)
+        self.assertAllClose(ov_output, ref_output)
 
         larger_input = np.concatenate([ref_input, ref_input], axis=0)
         compiled_model([larger_input])
@@ -178,7 +178,7 @@ class ExportOpenVINOTest(testing.TestCase):
             ov_inputs = list(ref_input)
 
         ov_output = compiled_model(ov_inputs)[compiled_model.output(0)]
-        self.assertAllClose(ref_output, ov_output)
+        self.assertAllClose(ov_output, ref_output)
 
         # Test with keras.saving_lib
         temp_filepath = os.path.join(
@@ -193,7 +193,7 @@ class ExportOpenVINOTest(testing.TestCase):
                 "DictModel": DictModel,
             },
         )
-        self.assertAllClose(ref_output, revived_model(ref_input))
+        self.assertAllClose(revived_model(ref_input), ref_output)
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model2.xml")
         try:
             openvino.export_openvino(revived_model, temp_filepath)
@@ -243,7 +243,7 @@ class ExportOpenVINOTest(testing.TestCase):
         ov_output = compiled_model([ref_input_x, ref_input_y])[
             compiled_model.output(0)
         ]
-        self.assertAllClose(ref_output, ov_output)
+        self.assertAllClose(ov_output, ref_output)
         larger_input_x = np.concatenate([ref_input_x, ref_input_x], axis=0)
         larger_input_y = np.concatenate([ref_input_y, ref_input_y], axis=0)
         compiled_model([larger_input_x, larger_input_y])

@@ -82,10 +82,7 @@ class ConvLSTM2DTest(testing.TestCase):
         )
         output = layer(sequence)
         self.assertAllClose(
-            expected_output,
-            output,
-            tpu_atol=1e-3,
-            tpu_rtol=1e-3,
+            output, expected_output, tpu_atol=1e-3, tpu_rtol=1e-3
         )
 
     def test_symbolic_invalid_strides_dilation_rate(self):

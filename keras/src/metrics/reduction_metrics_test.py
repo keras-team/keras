@@ -136,7 +136,7 @@ class MetricWrapperTest(testing.TestCase):
 
         mse_obj.update_state(y_true, y_pred)
         result = mse_obj.result()
-        self.assertAllClose(0.5, result, atol=1e-5)
+        self.assertAllClose(result, 0.5, atol=1e-5)
 
     def test_weighted(self):
         mse_obj = reduction_metrics.MeanMetricWrapper(
@@ -150,7 +150,7 @@ class MetricWrapperTest(testing.TestCase):
         )
         sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.54285, result, atol=1e-5)
+        self.assertAllClose(result, 0.54285, atol=1e-5)
 
     def test_weighted_broadcast(self):
         mse_obj = reduction_metrics.MeanMetricWrapper(
@@ -164,7 +164,7 @@ class MetricWrapperTest(testing.TestCase):
         )
         sample_weight = np.array([[1.0, 0.0, 0.5, 0.0, 1.0]])
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.45, result, atol=1e-5)
+        self.assertAllClose(result, 0.45, atol=1e-5)
 
     def test_weighted_dynamic_shape(self):
         mse_obj = reduction_metrics.MeanMetricWrapper(

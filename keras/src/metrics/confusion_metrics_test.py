@@ -37,7 +37,7 @@ class FalsePositivesTest(testing.TestCase):
         )
 
         fp_obj.update_state(y_true, y_pred)
-        self.assertAllClose(7.0, fp_obj.result())
+        self.assertAllClose(fp_obj.result(), 7.0)
 
     def test_weighted(self):
         fp_obj = metrics.FalsePositives()
@@ -49,7 +49,7 @@ class FalsePositivesTest(testing.TestCase):
         )
         sample_weight = np.array((1.0, 1.5, 2.0, 2.5))
         result = fp_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(14.0, result)
+        self.assertAllClose(result, 14.0)
 
     def test_unweighted_with_thresholds(self):
         fp_obj = metrics.FalsePositives(thresholds=[0.15, 0.5, 0.85])
@@ -67,7 +67,7 @@ class FalsePositivesTest(testing.TestCase):
         )
 
         fp_obj.update_state(y_true, y_pred)
-        self.assertAllClose([7.0, 4.0, 2.0], fp_obj.result())
+        self.assertAllClose(fp_obj.result(), [7.0, 4.0, 2.0])
 
     def test_weighted_with_thresholds(self):
         fp_obj = metrics.FalsePositives(thresholds=[0.15, 0.5, 0.85])
@@ -91,7 +91,7 @@ class FalsePositivesTest(testing.TestCase):
         )
 
         result = fp_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose([125.0, 42.0, 12.0], result)
+        self.assertAllClose(result, [125.0, 42.0, 12.0])
 
     def test_threshold_limit(self):
         with self.assertRaisesRegex(
@@ -131,7 +131,7 @@ class FalseNegativesTest(testing.TestCase):
         )
 
         fn_obj.update_state(y_true, y_pred)
-        self.assertAllClose(3.0, fn_obj.result())
+        self.assertAllClose(fn_obj.result(), 3.0)
 
     def test_weighted(self):
         fn_obj = metrics.FalseNegatives()
@@ -143,7 +143,7 @@ class FalseNegativesTest(testing.TestCase):
         )
         sample_weight = np.array((1.0, 1.5, 2.0, 2.5))
         result = fn_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(5.0, result)
+        self.assertAllClose(result, 5.0)
 
     def test_unweighted_with_thresholds(self):
         fn_obj = metrics.FalseNegatives(thresholds=[0.15, 0.5, 0.85])
@@ -161,7 +161,7 @@ class FalseNegativesTest(testing.TestCase):
         )
 
         fn_obj.update_state(y_true, y_pred)
-        self.assertAllClose([1.0, 4.0, 6.0], fn_obj.result())
+        self.assertAllClose(fn_obj.result(), [1.0, 4.0, 6.0])
 
     def test_weighted_with_thresholds(self):
         fn_obj = metrics.FalseNegatives(thresholds=[0.15, 0.5, 0.85])
@@ -180,7 +180,7 @@ class FalseNegativesTest(testing.TestCase):
         sample_weight = ((3.0,), (5.0,), (7.0,), (4.0,))
 
         result = fn_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose([4.0, 16.0, 23.0], result)
+        self.assertAllClose(result, [4.0, 16.0, 23.0])
 
     def test_threshold_limit(self):
         with self.assertRaisesRegex(
@@ -220,7 +220,7 @@ class TrueNegativesTest(testing.TestCase):
         )
 
         tn_obj.update_state(y_true, y_pred)
-        self.assertAllClose(3.0, tn_obj.result())
+        self.assertAllClose(tn_obj.result(), 3.0)
 
     def test_weighted(self):
         tn_obj = metrics.TrueNegatives()
@@ -232,7 +232,7 @@ class TrueNegativesTest(testing.TestCase):
         )
         sample_weight = np.array((1.0, 1.5, 2.0, 2.5))
         result = tn_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(4.0, result)
+        self.assertAllClose(result, 4.0)
 
     def test_unweighted_with_thresholds(self):
         tn_obj = metrics.TrueNegatives(thresholds=[0.15, 0.5, 0.85])
@@ -250,7 +250,7 @@ class TrueNegativesTest(testing.TestCase):
         )
 
         tn_obj.update_state(y_true, y_pred)
-        self.assertAllClose([2.0, 5.0, 7.0], tn_obj.result())
+        self.assertAllClose(tn_obj.result(), [2.0, 5.0, 7.0])
 
     def test_weighted_with_thresholds(self):
         tn_obj = metrics.TrueNegatives(thresholds=[0.15, 0.5, 0.85])
@@ -269,7 +269,7 @@ class TrueNegativesTest(testing.TestCase):
         sample_weight = ((0.0, 2.0, 3.0, 5.0),)
 
         result = tn_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose([5.0, 15.0, 23.0], result)
+        self.assertAllClose(result, [5.0, 15.0, 23.0])
 
     def test_threshold_limit(self):
         with self.assertRaisesRegex(
@@ -309,7 +309,7 @@ class TruePositiveTest(testing.TestCase):
         )
 
         tp_obj.update_state(y_true, y_pred)
-        self.assertAllClose(7.0, tp_obj.result())
+        self.assertAllClose(tp_obj.result(), 7.0)
 
     def test_weighted(self):
         tp_obj = metrics.TruePositives()
@@ -321,7 +321,7 @@ class TruePositiveTest(testing.TestCase):
         )
         sample_weight = np.array((1.0, 1.5, 2.0, 2.5))
         result = tp_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(12.0, result)
+        self.assertAllClose(result, 12.0)
 
     def test_unweighted_with_thresholds(self):
         tp_obj = metrics.TruePositives(thresholds=[0.15, 0.5, 0.85])
@@ -339,7 +339,7 @@ class TruePositiveTest(testing.TestCase):
         )
 
         tp_obj.update_state(y_true, y_pred)
-        self.assertAllClose([6.0, 3.0, 1.0], tp_obj.result())
+        self.assertAllClose(tp_obj.result(), [6.0, 3.0, 1.0])
 
     def test_weighted_with_thresholds(self):
         tp_obj = metrics.TruePositives(thresholds=[0.15, 0.5, 0.85])
@@ -358,7 +358,7 @@ class TruePositiveTest(testing.TestCase):
         sample_weight = 37.0
 
         result = tp_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose([222.0, 111.0, 37.0], result)
+        self.assertAllClose(result, [222.0, 111.0, 37.0])
 
     def test_threshold_limit(self):
         with self.assertRaisesRegex(
@@ -600,7 +600,7 @@ class RecallTest(testing.TestCase):
         r_obj = metrics.Recall(thresholds=[0.5, 0.7])
         y_pred = np.array([1, 0, 0.6, 0])
         y_true = np.array([0, 1, 1, 0])
-        self.assertAllClose([0.5, 0.0], r_obj(y_true, y_pred), 0)
+        self.assertAllClose(r_obj(y_true, y_pred), [0.5, 0.0], 0)
 
     def test_weighted_with_threshold(self):
         r_obj = metrics.Recall(thresholds=[0.5, 1.0])
@@ -611,7 +611,7 @@ class RecallTest(testing.TestCase):
         weighted_tp = 0 + 3.0
         weighted_positives = (0 + 3.0) + (4.0 + 0.0)
         expected_recall = weighted_tp / weighted_positives
-        self.assertAllClose([expected_recall, 0], result, 1e-3)
+        self.assertAllClose(result, [expected_recall, 0], 1e-3)
 
     def test_multiple_updates(self):
         r_obj = metrics.Recall(thresholds=[0.5, 1.0])
@@ -626,7 +626,7 @@ class RecallTest(testing.TestCase):
             (0 + 3.0) + (4.0 + 0.0)
         )
         expected_recall = weighted_tp / weighted_positives
-        self.assertAllClose([expected_recall, 0], r_obj.result(), 1e-3)
+        self.assertAllClose(r_obj.result(), [expected_recall, 0], 1e-3)
 
     def test_unweighted_top_k(self):
         r_obj = metrics.Recall(top_k=3)

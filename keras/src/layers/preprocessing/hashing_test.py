@@ -81,7 +81,7 @@ class HashingTest(testing.TestCase):
         layer = layers.Hashing(num_bins=1)
         inp = np.asarray([["A"], ["B"], ["C"], ["D"], ["E"]])
         output = layer(inp)
-        self.assertAllClose([[0], [0], [0], [0], [0]], output)
+        self.assertAllClose(output, [[0], [0], [0], [0], [0]])
 
     def test_hash_dense_input_farmhash(self):
         layer = layers.Hashing(num_bins=2)
@@ -90,7 +90,7 @@ class HashingTest(testing.TestCase):
         )
         output = layer(inp)
         # Assert equal for hashed output that should be true on all platforms.
-        self.assertAllClose([[0], [0], [1], [0], [0]], output)
+        self.assertAllClose(output, [[0], [0], [1], [0], [0]])
 
     def test_hash_dense_input_mask_value_farmhash(self):
         empty_mask_layer = layers.Hashing(num_bins=3, mask_value="")
@@ -102,28 +102,28 @@ class HashingTest(testing.TestCase):
         omar_mask_output = omar_mask_layer(inp)
         # Outputs should be one more than test_hash_dense_input_farmhash (the
         # zeroth bin is now reserved for masks).
-        self.assertAllClose([[1], [1], [2], [1], [1]], empty_mask_output)
+        self.assertAllClose(empty_mask_output, [[1], [1], [2], [1], [1]])
         # 'omar' should map to 0.
-        self.assertAllClose([[0], [1], [2], [1], [1]], omar_mask_output)
+        self.assertAllClose(omar_mask_output, [[0], [1], [2], [1], [1]])
 
     def test_hash_dense_list_input_farmhash(self):
         layer = layers.Hashing(num_bins=2)
         inp = [["omar"], ["stringer"], ["marlo"], ["wire"], ["skywalker"]]
         output = layer(inp)
         # Assert equal for hashed output that should be true on all platforms.
-        self.assertAllClose([[0], [0], [1], [0], [0]], output)
+        self.assertAllClose(output, [[0], [0], [1], [0], [0]])
 
         inp = ["omar", "stringer", "marlo", "wire", "skywalker"]
         output = layer(inp)
         # Assert equal for hashed output that should be true on all platforms.
-        self.assertAllClose([0, 0, 1, 0, 0], output)
+        self.assertAllClose(output, [0, 0, 1, 0, 0])
 
     def test_hash_dense_int_input_farmhash(self):
         layer = layers.Hashing(num_bins=3)
         inp = np.asarray([[0], [1], [2], [3], [4]])
         output = layer(inp)
         # Assert equal for hashed output that should be true on all platforms.
-        self.assertAllClose([[1], [0], [1], [0], [2]], output)
+        self.assertAllClose(output, [[1], [0], [1], [0], [2]])
 
     def test_hash_dense_input_siphash(self):
         layer = layers.Hashing(num_bins=2, salt=[133, 137])
@@ -133,19 +133,19 @@ class HashingTest(testing.TestCase):
         output = layer(inp)
         # Assert equal for hashed output that should be true on all platforms.
         # Note the result is different from FarmHash.
-        self.assertAllClose([[0], [1], [0], [1], [0]], output)
+        self.assertAllClose(output, [[0], [1], [0], [1], [0]])
 
         layer_2 = layers.Hashing(num_bins=2, salt=[211, 137])
         output_2 = layer_2(inp)
         # Note the result is different from (133, 137).
-        self.assertAllClose([[1], [0], [1], [0], [1]], output_2)
+        self.assertAllClose(output_2, [[1], [0], [1], [0], [1]])
 
     def test_hash_dense_int_input_siphash(self):
         layer = layers.Hashing(num_bins=3, salt=[133, 137])
         inp = np.asarray([[0], [1], [2], [3], [4]])
         output = layer(inp)
         # Assert equal for hashed output that should be true on all platforms.
-        self.assertAllClose([[1], [1], [2], [0], [1]], output)
+        self.assertAllClose(output, [[1], [1], [2], [0], [1]])
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
@@ -160,7 +160,7 @@ class HashingTest(testing.TestCase):
         )
         output = layer(inp)
         self.assertAllClose(indices, output.indices)
-        self.assertAllClose([0, 0, 1, 0, 0], output.values)
+        self.assertAllClose(output.values, [0, 0, 1, 0, 0])
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
@@ -180,9 +180,9 @@ class HashingTest(testing.TestCase):
         self.assertAllClose(indices, empty_mask_output.indices)
         # Outputs should be one more than test_hash_sparse_input_farmhash (the
         # zeroth bin is now reserved for masks).
-        self.assertAllClose([1, 1, 2, 1, 1], empty_mask_output.values)
+        self.assertAllClose(empty_mask_output.values, [1, 1, 2, 1, 1])
         # 'omar' should map to 0.
-        self.assertAllClose([0, 1, 2, 1, 1], omar_mask_output.values)
+        self.assertAllClose(omar_mask_output.values, [0, 1, 2, 1, 1])
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
@@ -195,7 +195,7 @@ class HashingTest(testing.TestCase):
         )
         output = layer(inp)
         self.assertAllClose(indices, output.indices)
-        self.assertAllClose([1, 0, 1, 0, 2], output.values)
+        self.assertAllClose(output.values, [1, 0, 1, 0, 2])
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
@@ -211,12 +211,12 @@ class HashingTest(testing.TestCase):
         output = layer(inp)
         self.assertAllClose(output.indices, indices)
         # The result should be same with test_hash_dense_input_siphash.
-        self.assertAllClose([0, 1, 0, 1, 0], output.values)
+        self.assertAllClose(output.values, [0, 1, 0, 1, 0])
 
         layer_2 = layers.Hashing(num_bins=2, salt=[211, 137])
         output = layer_2(inp)
         # The result should be same with test_hash_dense_input_siphash.
-        self.assertAllClose([1, 0, 1, 0, 1], output.values)
+        self.assertAllClose(output.values, [1, 0, 1, 0, 1])
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow", reason="Uses tf.SparseTensor."
@@ -229,7 +229,7 @@ class HashingTest(testing.TestCase):
         )
         output = layer(inp)
         self.assertAllClose(indices, output.indices)
-        self.assertAllClose([1, 1, 2, 0, 1], output.values)
+        self.assertAllClose(output.values, [1, 1, 2, 0, 1])
 
     def test_invalid_inputs(self):
         with self.assertRaisesRegex(ValueError, "cannot be `None`"):
@@ -268,7 +268,7 @@ class HashingTest(testing.TestCase):
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
-        self.assertAllClose(expected_output, output_data)
+        self.assertAllClose(output_data, expected_output)
 
     def test_multi_hot_output(self):
         input_array = np.array([[0, 1, 2, 3, 4]])
@@ -283,7 +283,7 @@ class HashingTest(testing.TestCase):
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
-        self.assertAllClose(expected_output, output_data)
+        self.assertAllClose(output_data, expected_output)
 
     @parameterized.named_parameters(
         (

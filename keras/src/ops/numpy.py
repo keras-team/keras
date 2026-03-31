@@ -302,7 +302,7 @@ def all(x, axis=None, keepdims=False):
 
 
 class AllClose(Operation):
-    def __init__(self, rtol=1e-05, atol=1e-08, equal_nan=False, *, name=None):
+    def __init__(self, rtol=1e-5, atol=1e-8, equal_nan=False, *, name=None):
         super().__init__(name=name)
         self.rtol = rtol
         self.atol = atol
@@ -322,7 +322,7 @@ class AllClose(Operation):
 
 
 @keras_export(["keras.ops.allclose", "keras.ops.numpy.allclose"])
-def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     """Returns True if two arrays are element-wise equal within a tolerance.
 
     The tolerance values are positive, typically very small numbers.  The

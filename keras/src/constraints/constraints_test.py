@@ -25,7 +25,7 @@ class ConstraintsTest(testing.TestCase):
             ]
         ).T
         output = constraint_fn(x)
-        self.assertAllClose(target, output)
+        self.assertAllClose(output, target)
 
     def test_non_neg(self):
         constraint_fn = constraints.NonNeg()
