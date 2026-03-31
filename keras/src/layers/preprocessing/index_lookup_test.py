@@ -790,3 +790,73 @@ class IndexLookupLayerTest(testing.TestCase):
         out_floormod = backend.convert_to_numpy(layer_floormod(oov_data))
         out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_data))
         self.assertAllClose(out_floormod, out_farmhash)
+
+    def test_salt_config_serialization(self):
+        layer = layers.IndexLookup(
+            max_tokens=10,
+            num_oov_indices=2,
+            mask_token=None,
+            oov_token=-1,
+            vocabulary_dtype="int64",
+            vocabulary=[1, 2, 3],
+            oov_method="farmhash",
+            salt=[137, 42],
+        )
+        if backend.backend() != "torch":
+            self.run_class_serialization_test(layer)
+
+    def test_salt_valid_and_invalid_formats(self):
+        base_kwargs = dict(
+            max_tokens=10,
+            num_oov_indices=2,
+            mask_token=None,
+            oov_token=-1,
+            vocabulary_dtype="int64",
+            oov_method="farmhash",
+        )
+        # valid formats
+        layer = layers.IndexLookup(salt=[137, 42], **base_kwargs)
+        self.assertEqual(layer.salt, [137, 42])
+        layer = layers.IndexLookup(salt=99, **base_kwargs)
+        self.assertEqual(layer.salt, [99, 99])
+        # invalid formats
+        with self.assertRaises(ValueError):
+            layers.IndexLookup(salt="bad", **base_kwargs)
+        with self.assertRaises(ValueError):
+            layers.IndexLookup(salt=[1, 2, 3], **base_kwargs)
+
+    def test_salt_requires_farmhash(self):
+        with self.assertRaises(ValueError):
+            layers.IndexLookup(
+                max_tokens=10,
+                num_oov_indices=2,
+                mask_token=None,
+                oov_token=-1,
+                vocabulary_dtype="int64",
+                oov_method="floormod",
+                salt=[137, 42],
+            )
+
+    def test_salt_produces_different_output_than_farmhash(self):
+        oov_integers = [100, 200, 300, 400, 500, 600]
+        for dtype, vocab, oov_data in [
+            ("int64", [1, 2, 3], oov_integers),
+            ("string", ["a", "b", "c"], ["x", "y", "z", "w", "v", "u"]),
+        ]:
+            base_kwargs = dict(
+                max_tokens=10,
+                num_oov_indices=4,
+                mask_token=None,
+                oov_token=-1 if dtype == "int64" else "[OOV]",
+                vocabulary_dtype=dtype,
+                vocabulary=vocab,
+                oov_method="farmhash",
+            )
+            layer_farmhash = layers.IndexLookup(**base_kwargs)
+            layer_siphash = layers.IndexLookup(salt=[137, 42], **base_kwargs)
+            out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_data))
+            out_siphash = backend.convert_to_numpy(layer_siphash(oov_data))
+            self.assertFalse(
+                np.array_equal(out_farmhash, out_siphash),
+                msg=f"Expected different outputs for dtype={dtype}",
+            )

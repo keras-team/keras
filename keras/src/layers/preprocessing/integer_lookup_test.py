@@ -307,3 +307,19 @@ class IntegerLookupTest(testing.TestCase):
         )
         output = backend.convert_to_numpy(layer([100, 200, 300, 400]))
         self.assertAllClose(output, [3, 1, 3, 1])
+
+    def test_salt_siphash(self):
+        vocab = [10, 20, 30]
+        layer_farmhash = layers.IntegerLookup(
+            vocabulary=vocab, num_oov_indices=4, oov_method="farmhash"
+        )
+        layer_siphash = layers.IntegerLookup(
+            vocabulary=vocab,
+            num_oov_indices=4,
+            oov_method="farmhash",
+            salt=[137, 42],
+        )
+        oov_values = np.array([100, 300, 700, 1100, 1700, 2000])
+        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_values))
+        out_siphash = backend.convert_to_numpy(layer_siphash(oov_values))
+        self.assertFalse(np.array_equal(out_farmhash, out_siphash))
