@@ -1044,12 +1044,9 @@ class Argmin(Operation):
         return backend.numpy.argmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        if self.keepdims:
-            return KerasTensor(x.shape, dtype="int32")
-        if self.axis is None:
-            return KerasTensor([], dtype="int32")
         return KerasTensor(
-            reduce_shape(x.shape, axis=[self.axis]), dtype="int32"
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype="int32",
         )
 
 
