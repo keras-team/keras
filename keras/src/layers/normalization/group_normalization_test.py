@@ -1,11 +1,7 @@
 import numpy as np
-<<<<<<< issue#22586
 import pytest
 import warnings
 from keras.src import backend
-=======
-
->>>>>>> master
 from keras.src import constraints
 from keras.src import layers
 from keras.src import ops
