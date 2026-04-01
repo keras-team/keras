@@ -126,6 +126,22 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
         ov_opset.constant(1, num_segments_node.get_element_type()),
     ).output(0)
 
+    # opset16 SegmentMax requires sorted segment_ids; sort both tensors
+    n = ov_opset.gather(
+        ov_opset.shape_of(safe_segment_ids, output_type=Type.i32),
+        ov_opset.constant(0, Type.i32),
+        ov_opset.constant(0, Type.i32),
+    ).output(0)
+    sort_indices = ov_opset.topk(
+        safe_segment_ids, n, axis=0, mode="min", sort="value"
+    ).output(1)
+    safe_segment_ids = ov_opset.gather(
+        safe_segment_ids, sort_indices, ov_opset.constant(0, Type.i32)
+    ).output(0)
+    data = ov_opset.gather(
+        data, sort_indices, ov_opset.constant(0, Type.i32)
+    ).output(0)
+
     result = ov_segment_max16(
         data,
         safe_segment_ids,
@@ -141,6 +157,16 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     axes = ov_opset.constant([0], Type.i32).output(0)
     step = ov_opset.constant([1], Type.i32).output(0)
     result = ov_opset.slice(result, start, end, step, axes).output(0)
+
+    # fill_mode="LOWEST" fills empty segments with the most negative finite
+    # float, but Keras expects -inf; replace it
+    data_type = data.get_element_type()
+    if data_type.is_real():
+        np_dtype = np.float32 if data_type == Type.f32 else np.float64
+        flt_min = ov_opset.constant(np.finfo(np_dtype).min, data_type).output(0)
+        neg_inf = ov_opset.constant(-np.inf, data_type).output(0)
+        is_empty = ov_opset.equal(result, flt_min).output(0)
+        result = ov_opset.select(is_empty, neg_inf, result).output(0)
 
     return OpenVINOKerasTensor(result)
 
@@ -569,6 +595,9 @@ def istft(
         win = np.ones(fft_length, dtype=np.float32)
 
     win_node = ov_opset.constant(win, Type.f32).output(0)
+    cd_type = complex_data.get_element_type()
+    if cd_type != Type.f32:
+        win_node = ov_opset.convert(win_node, cd_type).output(0)
     frame_size_node = ov_opset.constant(fft_length, Type.i32).output(0)
     frame_step_node = ov_opset.constant(sequence_stride, Type.i32).output(0)
 
