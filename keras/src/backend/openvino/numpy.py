@@ -4,6 +4,7 @@ import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
+from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.variables import standardize_dtype
@@ -358,10 +359,11 @@ def append(x1, x2, axis=None):
 def arange(start, stop=None, step=None, dtype=None):
     # For concrete scalar inputs, delegate to NumPy directly (matches its
     # semantics exactly). Only build a graph for symbolic inputs.
+    _symbolic_types = (OpenVINOKerasTensor, ov.Output, KerasVariable)
     _is_symbolic = (
-        isinstance(start, OpenVINOKerasTensor)
-        or isinstance(stop, OpenVINOKerasTensor)
-        or isinstance(step, OpenVINOKerasTensor)
+        isinstance(start, _symbolic_types)
+        or isinstance(stop, _symbolic_types)
+        or isinstance(step, _symbolic_types)
     )
     if not _is_symbolic:
         _start = 0 if stop is None else start
