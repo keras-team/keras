@@ -1,4 +1,3 @@
-AdditiveAttentionTest::test_attention_basics
 CircleTest::test_correctness
 CircleTest::test_correctness_weighted
 CircleTest::test_dtype_arg
@@ -10,15 +9,12 @@ ComputeScaleZeroTest::test_per_tensor_shapes_and_basic_invariants_bits2_sym
 ComputeScaleZeroTest::test_per_tensor_shapes_and_basic_invariants_bits4_sym
 ComputeScaleZeroTest::test_per_tensor_shapes_and_basic_invariants_bits8_sym
 ComputeScaleZeroTest::test_per_tensor_symmetric_on_constant_input_uses_safe_range
-ConvBasicTest::test_lora_rank_argument
 ConvLSTM1DTest::test_correctness
 ConvLSTM2DTest::test_correctness
 ConvLSTM3DTest::test_correctness
 ConvLSTMTest::test_correctness
 CTCTest::test_correctness
 CTCTest::test_dtype_arg
-DenseTest::test_lora_rank_argument
-EinsumDenseTest::test_lora_rank_argument
 GroupedQuantizationParametersTest::test_grouped_weight_shapes_non_divisible
 HistogramTest::test_histogram_predict_jit_compile_false
 HistogramTest::test_histogram_predict_jit_compile_true
@@ -90,7 +86,6 @@ NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_real
 QuantizersTest::test_compute_float8_scale
 QuantizersTest::test_grouped_quantize_with_padding
-ReLUTest::test_relu
 ReshapeTest::test_reshape_with_dynamic_batch_size_and_minus_one
 SavingAPITest::test_normalization_kpl
 SavingBattleTest::test_bidirectional_lstm_saving
