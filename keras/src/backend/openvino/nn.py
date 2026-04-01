@@ -1,6 +1,8 @@
 import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
+from openvino.opset16.ops import avg_pool as ov_avg_pool16
+from openvino.opset16.ops import one_hot as ov_one_hot16
 
 import keras.src.backend.openvino.numpy as onp
 from keras.src import backend
@@ -285,7 +287,7 @@ def average_pool(
     return _pool(
         inputs,
         pool_size,
-        ov_opset.avg_pool,
+        ov_avg_pool16,
         strides,
         padding,
         data_format,
@@ -469,6 +471,8 @@ def _pool(
         "pads_end": pads_end,
         **kwargs,
     }
+    if pooling_func is ov_avg_pool16:
+        pool_kwargs["dilations"] = [1] * num_spatial_dims
     pooled = pooling_func(inputs, **pool_kwargs).output(0)
     adjusted_pooled = _adjust_outputs(pooled, num_spatial_dims, data_format)
     return OpenVINOKerasTensor(adjusted_pooled)
@@ -788,12 +792,13 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     ov_dtype = OPENVINO_DTYPES[dtype]
     on_value = get_ov_output(1, ov_dtype)
     off_value = get_ov_output(0, ov_dtype)
-    one_hot_encoded = ov_opset.one_hot(
+    one_hot_encoded = ov_one_hot16(
         x,
         depth=num_classes,
-        axis=axis,
         on_value=on_value,
         off_value=off_value,
+        axis=axis,
+        negative_indices_mode="ignore_negative",
     ).output(0)
     return OpenVINOKerasTensor(one_hot_encoded)
 
