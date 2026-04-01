@@ -1,5 +1,4 @@
 import builtins
-import math as python_math
 import re
 
 import numpy as np
@@ -9175,27 +9174,14 @@ class Argpartition(Operation):
     def __init__(self, kth, axis=-1, *, name=None):
         super().__init__(name=name)
         if not isinstance(kth, int):
-            raise ValueError(f"`kth` must be an integer. Received: kth={kth}")
+            raise ValueError(f"kth must be an integer. Received:kth = {kth}")
         self.kth = kth
         self.axis = axis
 
     def call(self, x):
-        if self.axis is None:
-            x = backend.numpy.reshape(x, [-1])
-            return backend.numpy.argpartition(x, kth=self.kth, axis=0)
         return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
 
     def compute_output_spec(self, x):
-        if self.axis is None:
-            has_none = False
-            for d in x.shape:
-                if d is None:
-                    has_none = True
-                    break
-            if has_none:
-                return KerasTensor((None,), dtype="int32")
-            return KerasTensor((python_math.prod(x.shape),), dtype="int32")
-
         return KerasTensor(x.shape, dtype="int32")
 
 
@@ -9221,16 +9207,8 @@ def argpartition(x, kth, axis=-1):
     Returns:
         Array of indices that partition `x` along the specified `axis`.
     """
-
     if any_symbolic_tensors((x,)):
         return Argpartition(kth, axis).symbolic_call(x)
-
-    x = backend.convert_to_tensor(x)
-
-    if axis is None:
-        x = backend.numpy.reshape(x, [-1])
-        return backend.numpy.argpartition(x, kth, axis=0)
-
     return backend.numpy.argpartition(x, kth, axis)
 
 

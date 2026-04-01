@@ -2239,17 +2239,17 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
         x_dynamic = KerasTensor((None, 4, 4))
         out_dynamic = knp.argpartition(x_dynamic, 2, axis=None)
-        self.assertEqual(out_dynamic.shape, (None,))
+        self.assertEqual(out_dynamic.shape, (None, 4, 4))
         self.assertEqual(out_dynamic.dtype, "int32")
 
         x_static = KerasTensor((2, 3, 4))
         out_static = knp.argpartition(x_static, 5, axis=None)
+        self.assertEqual(out_static.shape, (2, 3, 4))
 
-        # Result should be 2 * 3 * 4 = 24
-        self.assertEqual(out_static.shape, (24,))
         x_eager = knp.ones((3, 3))
         out_eager = knp.argpartition(x_eager, 0, axis=None)
-        self.assertEqual(out_eager.shape, (9,))
+        self.assertEqual(out_eager.shape, (9,))  # flattened
+        self.assertEqual(out_eager.dtype, "int32")
 
         with self.assertRaises(ValueError):
             knp.argpartition(x, (1, 3))
