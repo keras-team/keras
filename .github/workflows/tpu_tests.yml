@@ -38,7 +38,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.ref }}
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
       
       - name: Install Dependencies
         run: pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt
