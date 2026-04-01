@@ -783,6 +783,9 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("`sparse=True` is not supported with openvino backend")
     x = get_ov_output(x)
+    # one_hot requires integer indices; cast if float
+    if x.get_element_type().is_real():
+        x = ov_opset.convert(x, Type.i64).output(0)
     if dtype is None:
         dtype = backend.floatx()
     ov_dtype = OPENVINO_DTYPES[dtype]
@@ -843,6 +846,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = get_ov_output(target)
+    # one_hot requires integer indices
+    # cast unconditionally, matching JAX/TF/Torch
+    target = ov_opset.convert(target, Type.i64).output(0)
     output = get_ov_output(output)
 
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
