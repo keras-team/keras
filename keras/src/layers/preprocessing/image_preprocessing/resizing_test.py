@@ -181,9 +181,9 @@ class ResizingTest(testing.TestCase):
         self.assertTrue(backend.is_tensor(output))
         # Ensure the device of the data is on CPU.
         if backend.backend() == "tensorflow":
-            self.assertIn("CPU", str(output.device))
+            self.assertIn("CPU", str(output.device).upper())
         elif backend.backend() == "jax":
-            self.assertIn("CPU", str(output.device))
+            self.assertIn("CPU", str(output.device).upper())
         elif backend.backend() == "torch":
             self.assertEqual("cpu", str(output.device))
 
