@@ -583,9 +583,18 @@ def istft(
                 "The shape of `window` must be equal to [sequence_length]."
                 f"Received: window shape={win.shape}"
             )
-        win = np.pad(win, [[l_pad, r_pad]]).astype(np.float32)
+        win = np.pad(win, [[l_pad, r_pad]])
     else:
-        win = np.ones(fft_length, dtype=np.float32)
+        win = np.ones(fft_length, dtype=np.float64)
+
+    denom = np.square(win)
+    overlaps = -(-fft_length // sequence_stride)
+    denom = np.pad(denom, [(0, overlaps * sequence_stride - fft_length)])
+    denom = denom.reshape([overlaps, sequence_stride]).sum(
+        axis=0, keepdims=True
+    )
+    denom = np.tile(denom, [overlaps, 1]).reshape([overlaps * sequence_stride])
+    win = (win / denom[:fft_length]).astype(np.float32)
 
     win_node = ov_opset.constant(win, Type.f32).output(0)
     cd_type = complex_data.get_element_type()
