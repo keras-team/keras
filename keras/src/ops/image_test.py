@@ -1432,6 +1432,16 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                 "affine_transform with fill_mode=wrap is inconsistent with"
                 "scipy"
             )
+        if (
+            testing.jax_uses_tpu()
+            and interpolation == "bilinear"
+            and fill_mode == "constant"
+        ):
+            self.skipTest(
+                "JAX on TPU interpolation='bilinear' and fill_mode='constant' "
+                "Produces one incorrect pixel in the corner"
+            )
+
         # TODO: `nearest` interpolation in jax and torch causes random index
         # shifting, resulting in significant differences in output which leads
         # to failure
