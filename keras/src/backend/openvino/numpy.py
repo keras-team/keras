@@ -356,6 +356,30 @@ def append(x1, x2, axis=None):
 
 
 def arange(start, stop=None, step=None, dtype=None):
+    # For concrete scalar inputs, delegate to NumPy directly (matches its
+    # semantics exactly). Only build a graph for symbolic inputs.
+    _is_symbolic = (
+        isinstance(start, OpenVINOKerasTensor)
+        or isinstance(stop, OpenVINOKerasTensor)
+        or isinstance(step, OpenVINOKerasTensor)
+    )
+    if not _is_symbolic:
+        _start = 0 if stop is None else start
+        _stop = start if stop is None else stop
+        _step = 1 if step is None else step
+        keras_dtype = (
+            standardize_dtype(dtype)
+            if dtype is not None
+            else dtypes.result_type(
+                type(_start), type(_stop), type(_step), "int32"
+            )
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.constant(
+                np.arange(_start, _stop, _step, dtype=keras_dtype)
+            ).output(0)
+        )
+
     if stop is None:
         start, stop = get_ov_output(0), get_ov_output(start)
     else:

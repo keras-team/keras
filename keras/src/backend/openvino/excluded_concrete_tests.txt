@@ -1,8 +1,3 @@
-AdadeltaTest::test_correctness_with_golden
-AdagradTest::test_correctness_with_golden
-AdamaxTest::test_correctness_with_golden
-AdamTest::test_correctness_with_golden
-AdamWTest::test_correctness_with_golden
 AdditiveAttentionTest::test_attention_basics
 AudioDatasetFromDirectoryTest::test_audio_dataset_from_directory_manual_labels
 CircleTest::test_correctness
@@ -65,7 +60,6 @@ ImageOpsDtypeTest::test_map_coordinates
 ImageOpsDtypeTest::test_perspective_transform
 ImageOpsDtypeTest::test_resize
 ImageOpsDtypeTest::test_scale_and_translate
-LambTest::test_correctness_with_golden
 LayerTest::test_call_context_args_with_func_seq_models_as_layers
 LayerTest::test_complex_dtype_support
 LayerTest::test_end_to_end_masking
@@ -79,14 +73,12 @@ LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc
 LinalgOpsCorrectnessTest::test_solve_triangular
 LinalgOpsCorrectnessTest::test_svd
-LionTest::test_correctness_with_golden
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_logdet
 MeanTest::test_weighted_dynamic_shapes
 MergingLayersTest::test_average_with_mask
 MetricWrapperTest::test_weighted_dynamic_shape
-NadamTest::test_correctness_with_golden
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_glu
@@ -104,11 +96,9 @@ QuantizersTest::test_grouped_quantize_with_padding
 RandomBehaviorTest::test_beta_tf_data_compatibility
 ReLUTest::test_relu
 ReshapeTest::test_reshape_with_dynamic_batch_size_and_minus_one
-RMSpropTest::test_correctness_with_golden
 SavingAPITest::test_normalization_kpl
 SavingBattleTest::test_bidirectional_lstm_saving
 SavingTest::test_load_weights_only_with_unbuilt_model
-SGDTest::test_correctness_with_golden
 SimpleRNNTest::test_output_shape
 SparseCategoricalCrossentropyTest::test_all_correct_unweighted
 SparseCategoricalCrossentropyTest::test_binary_segmentation
