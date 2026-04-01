@@ -801,6 +801,19 @@ def _extract_patches_2d(
     if len(images_shape) == 3:
         images_shape = [1] + images_shape
     out_dim = patch_h * patch_w * channels_in
+    if channels_in is not None:
+        try:
+            compute_conv_output_shape(
+                images_shape,
+                out_dim,
+                (patch_h, patch_w),
+                strides=strides,
+                padding=padding,
+                data_format=data_format,
+                dilation_rate=dilation_rate,
+            )
+        except TypeError:
+            pass
     kernel = backend.numpy.eye(out_dim, dtype=images.dtype)
     kernel = backend.numpy.reshape(
         kernel, (patch_h, patch_w, channels_in, out_dim)
@@ -809,14 +822,30 @@ def _extract_patches_2d(
     if len(images.shape) == 3:
         _unbatched = True
         images = backend.numpy.expand_dims(images, axis=0)
-    patches = backend.nn.conv(
-        inputs=images,
-        kernel=kernel,
-        strides=strides,
-        padding=padding,
-        data_format=data_format,
-        dilation_rate=dilation_rate,
-    )
+    try:
+        patches = backend.nn.conv(
+            inputs=images,
+            kernel=kernel,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+    except (ValueError, RuntimeError) as e:
+        message = str(e)
+        message_lower = message.lower()
+        if (
+            "empty output" in message_lower
+            or "computed output size would be zero or negative" in message_lower
+            or "kernel after dilation has size" in message_lower
+            or "kernel size can't be greater than actual input size"
+            in message_lower
+            or "calculated padded input size per channel" in message_lower
+        ):
+            raise ValueError(
+                "Computed output size would be zero or negative."
+            ) from e
+        raise
     if _unbatched:
         patches = backend.numpy.squeeze(patches, axis=0)
     return patches
@@ -860,6 +889,23 @@ def _extract_patches_3d(
     if len(volumes_shape) == 4:
         volumes_shape = [1] + volumes_shape
     out_dim = patch_d * patch_w * patch_h * channels_in
+    # Validate output shape early to ensure consistent error messages across
+    # backends (some backends raise backend-specific runtime errors).
+    if channels_in is not None:
+        try:
+            compute_conv_output_shape(
+                volumes_shape,
+                out_dim,
+                (patch_d, patch_h, patch_w),
+                strides=strides,
+                padding=padding,
+                data_format=data_format,
+                dilation_rate=dilation_rate,
+            )
+        except TypeError:
+            # Some backends may represent unknown dims with non-int objects.
+            # In that case, defer to the backend implementation.
+            pass
     kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
     kernel = backend.numpy.reshape(
         kernel, (patch_d, patch_h, patch_w, channels_in, out_dim)
@@ -868,14 +914,30 @@ def _extract_patches_3d(
     if len(volumes.shape) == 4:
         _unbatched = True
         volumes = backend.numpy.expand_dims(volumes, axis=0)
-    patches = backend.nn.conv(
-        inputs=volumes,
-        kernel=kernel,
-        strides=strides,
-        padding=padding,
-        data_format=data_format,
-        dilation_rate=dilation_rate,
-    )
+    try:
+        patches = backend.nn.conv(
+            inputs=volumes,
+            kernel=kernel,
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+    except (ValueError, RuntimeError) as e:
+        message = str(e)
+        message_lower = message.lower()
+        if (
+            "empty output" in message_lower
+            or "computed output size would be zero or negative" in message_lower
+            or "kernel after dilation has size" in message_lower
+            or "kernel size can't be greater than actual input size"
+            in message_lower
+            or "calculated padded input size per channel" in message_lower
+        ):
+            raise ValueError(
+                "Computed output size would be zero or negative."
+            ) from e
+        raise
     if _unbatched:
         patches = backend.numpy.squeeze(patches, axis=0)
     return patches
