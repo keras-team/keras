@@ -219,7 +219,14 @@ def compute_conv_output_shape(
 
         for i in range(len(output_spatial_shape)):
             if i not in none_dims and output_spatial_shape[i] <= 0:
-                output_spatial_shape[i] = 0
+                raise ValueError(
+                    "Computed output size would be zero or negative. Received "
+                    f"`inputs shape={input_shape}`, "
+                    f"`kernel shape={kernel_shape}`, "
+                    f"`dilation_rate={tuple(dilation_rate)}`, "
+                    f"`strides={tuple(strides)}`, "
+                    f"`padding={padding}`."
+                )
 
     elif padding in ("same", "causal"):
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
@@ -241,9 +248,17 @@ def compute_conv_output_shape(
     return output_shape
 
 
-def unexpand_kernel_shape(kernel_shape, input_rank):
-    """Removes a leading batch dimension from `kernel_shape` if present."""
-    if len(kernel_shape) == input_rank + 1 and kernel_shape[0] in (None, 1):
+def unexpand_kernel_shape(kernel_shape, expected_kernel_rank):
+    """Removes an extra leading dimension from `kernel_shape` if present.
+    In symbolic shape inference, `kernel` may be created via `Input(...)`, which
+    prepends a leading `None` dimension (as if it were batched). Convolution
+    kernels are not batched; this helper strips such a leading dimension of
+    `None` or `1` when the kernel rank is one greater than expected.
+    """
+    if (
+        len(kernel_shape) == expected_kernel_rank + 1
+        and kernel_shape[0] in (None, 1)
+    ):
         return kernel_shape[1:]
     return kernel_shape
 

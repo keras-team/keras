@@ -273,18 +273,6 @@ class BaseConv(Layer):
             data_format=self.data_format,
             dilation_rate=self.dilation_rate,
         )
-        if self.padding == "valid":
-            if self.data_format == "channels_last":
-                spatial_dims = output_shape[1:-1]
-            else:
-                spatial_dims = output_shape[2:]
-            if any(d == 0 for d in spatial_dims if d is not None):
-                raise ValueError(
-                    "Computed output size would be negative. Received: "
-                    f"`inputs.shape={input_shape}`, "
-                    f"`kernel_size={self.kernel_size}`, `dilation_rate="
-                    f"{self.dilation_rate}`, `strides={self.strides}`."
-                )
         return output_shape
 
     def enable_lora(

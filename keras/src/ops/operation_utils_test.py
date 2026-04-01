@@ -122,6 +122,18 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, (1, 1, 1, 1))
 
+    def test_compute_conv_output_shape_valid_padding_invalid_spatial_dims(self):
+        input_shape = (1, 2, 2, 1)
+        kernel_size = (3, 3)
+        filters = 1
+        strides = (1, 1)
+        with self.assertRaisesRegex(
+            ValueError, r"Computed output size would be zero or negative"
+        ):
+            operation_utils.compute_conv_output_shape(
+                input_shape, filters, kernel_size, strides, padding="valid"
+            )
+
     def test_compute_conv_output_shape_channels_last(self):
         input_shape = (1, 4, 4, 3)
         kernel_size = (3, 3)
