@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-
+import warnings
 from keras.src import backend
 from keras.src import constraints
 from keras.src import layers
@@ -197,3 +197,38 @@ class GroupNormalizationTest(testing.TestCase):
             output = layer(x)
         output = backend.convert_to_numpy(output)
         self.assertFalse(np.any(np.isnan(output)))
+
+    def test_autocast_is_user_controllable(self):
+        layer_default = layers.GroupNormalization()
+        self.assertTrue(layer_default.autocast)
+
+        layer_no_autocast = layers.GroupNormalization(autocast=False)
+        self.assertFalse(layer_no_autocast.autocast)
+
+    def test_warns_when_epsilon_too_small_for_compute_dtype(self):
+        x = np.ones((1, 4, 4), dtype="float32")
+
+        with pytest.warns(UserWarning, match="epsilon"):
+            layer = layers.GroupNormalization(
+                groups=2,
+                axis=-1,
+                scale=False,
+                center=False,
+                epsilon=1e-12,
+                dtype="mixed_float16",
+            )
+            _ = layer(x)
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            layer = layers.GroupNormalization(
+                groups=2,
+                axis=-1,
+                scale=False,
+                center=False,
+                epsilon=1e-12,
+                dtype="mixed_float16",
+                autocast=False,
+            )
+            _ = layer(x)
+            self.assertFalse(any("epsilon" in str(x.message) for x in w))

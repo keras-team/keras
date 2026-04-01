@@ -1,3 +1,5 @@
+import warnings
+import ml_dtypes
 from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
@@ -44,6 +46,8 @@ class GroupNormalization(Layer):
             When the next layer is linear (also e.g. `relu`), this can be
             disabled since the scaling will be done by the next layer.
             Defaults to `True`.
+        autocast: Boolean, whether to autocast inputs while calling the layer.
+            Defaults to `True`.
         beta_initializer: Initializer for the beta weight. Defaults to zeros.
         gamma_initializer: Initializer for the gamma weight. Defaults to ones.
         beta_regularizer: Optional regularizer for the beta weight. None by
@@ -77,11 +81,11 @@ class GroupNormalization(Layer):
         gamma_regularizer=None,
         beta_constraint=None,
         gamma_constraint=None,
+        autocast=True,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(autocast=autocast, **kwargs)
         self.supports_masking = True
-        self.autocast = False
         self.groups = groups
         self.axis = axis
         self.epsilon = epsilon
@@ -93,6 +97,7 @@ class GroupNormalization(Layer):
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
         self.beta_constraint = constraints.get(beta_constraint)
         self.gamma_constraint = constraints.get(gamma_constraint)
+        self._epsilon_too_small_warning_issued = False
 
     def build(self, input_shape):
         dim = input_shape[self.axis]
@@ -150,12 +155,36 @@ class GroupNormalization(Layer):
         super().build(input_shape)
 
     def call(self, inputs):
+        self._maybe_warn_about_epsilon_precision()
         reshaped_inputs = self._reshape_into_groups(inputs)
         normalized_inputs = self._apply_normalization(
             reshaped_inputs, inputs.shape
         )
         outputs = ops.reshape(normalized_inputs, ops.shape(inputs))
         return ops.cast(outputs, self.compute_dtype)
+
+    def _maybe_warn_about_epsilon_precision(self):
+        if self._epsilon_too_small_warning_issued:
+            return
+        if not self.autocast:
+            return
+        compute_dtype = backend.standardize_dtype(self.compute_dtype)
+        if compute_dtype not in ("float16", "bfloat16"):
+            return
+        try:
+            finfo = ml_dtypes.finfo(compute_dtype)
+            min_pos = getattr(finfo, "smallest_subnormal", finfo.tiny)
+        except Exception:
+            return
+        if self.epsilon != 0 and self.epsilon < float(min_pos):
+            warnings.warn(
+                "The configured `epsilon` is smaller than what can be "
+                f"represented in the layer compute dtype ({compute_dtype}); "
+                "it may be rounded to 0 under autocast. Consider increasing "
+                "`epsilon` or setting `autocast=False` for this layer.",
+                stacklevel=3,
+            )
+            self._epsilon_too_small_warning_issued = True
 
     def _reshape_into_groups(self, inputs):
         input_shape = ops.shape(inputs)
@@ -239,6 +268,7 @@ class GroupNormalization(Layer):
             "gamma_regularizer": regularizers.serialize(self.gamma_regularizer),
             "beta_constraint": constraints.serialize(self.beta_constraint),
             "gamma_constraint": constraints.serialize(self.gamma_constraint),
+            "autocast": self.autocast,
         }
         base_config = super().get_config()
         return {**base_config, **config}
