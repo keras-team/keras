@@ -255,9 +255,9 @@ def unexpand_kernel_shape(kernel_shape, expected_kernel_rank):
     kernels are not batched; this helper strips such a leading dimension of
     `None` or `1` when the kernel rank is one greater than expected.
     """
-    if (
-        len(kernel_shape) == expected_kernel_rank + 1
-        and kernel_shape[0] in (None, 1)
+    if len(kernel_shape) == expected_kernel_rank + 1 and kernel_shape[0] in (
+        None,
+        1,
     ):
         return kernel_shape[1:]
     return kernel_shape
