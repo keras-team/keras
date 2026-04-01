@@ -791,6 +791,47 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
+    data_format = backend.standardize_data_format(data_format)
+
+    if data_format == "channels_first":
+        ndim = len(inputs.shape)
+        if ndim == 3:
+            inputs = tf.transpose(inputs, (0, 2, 1))
+            data_format = "channels_last"
+            result = conv(
+                inputs,
+                kernel,
+                strides=strides,
+                padding=padding,
+                data_format=data_format,
+                dilation_rate=dilation_rate,
+            )
+            return tf.transpose(result, (0, 2, 1))
+        elif ndim == 4:
+            inputs = tf.transpose(inputs, (0, 2, 3, 1))
+            data_format = "channels_last"
+            result = conv(
+                inputs,
+                kernel,
+                strides=strides,
+                padding=padding,
+                data_format=data_format,
+                dilation_rate=dilation_rate,
+            )
+            return tf.transpose(result, (0, 3, 1, 2))
+        elif ndim == 5:
+            inputs = tf.transpose(inputs, (0, 2, 3, 4, 1))
+            data_format = "channels_last"
+            result = conv(
+                inputs,
+                kernel,
+                strides=strides,
+                padding=padding,
+                data_format=data_format,
+                dilation_rate=dilation_rate,
+            )
+            return tf.transpose(result, (0, 4, 1, 2, 3))
+
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
         result = tf.nn.convolution(
@@ -825,7 +866,6 @@ def conv(
     # Channels first "NCDHW" (3d convolutions) are broken on CPU without XLA.
     needs_xla = data_format == "channels_first" and len(inputs.shape) == 5
     # grouped convolutions are broken on CPU without XLA.
-    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels = inputs.shape[-1]
     else:

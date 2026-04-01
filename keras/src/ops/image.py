@@ -800,15 +800,6 @@ def _extract_patches_2d(
     images_shape = list(images.shape)
     if len(images_shape) == 3:
         images_shape = [1] + images_shape
-    compute_conv_output_shape(
-        images_shape,
-        filters=1,
-        kernel_size=(patch_h, patch_w),
-        strides=strides,
-        padding=padding,
-        data_format=data_format,
-        dilation_rate=dilation_rate,
-    )
     out_dim = patch_h * patch_w * channels_in
     kernel = backend.numpy.eye(out_dim, dtype=images.dtype)
     kernel = backend.numpy.reshape(
@@ -818,20 +809,14 @@ def _extract_patches_2d(
     if len(images.shape) == 3:
         _unbatched = True
         images = backend.numpy.expand_dims(images, axis=0)
-    conv_data_format = data_format
-    if backend.backend() == "tensorflow" and data_format == "channels_first":
-        images = backend.numpy.transpose(images, (0, 2, 3, 1))
-        conv_data_format = "channels_last"
     patches = backend.nn.conv(
         inputs=images,
         kernel=kernel,
         strides=strides,
         padding=padding,
-        data_format=conv_data_format,
+        data_format=data_format,
         dilation_rate=dilation_rate,
     )
-    if backend.backend() == "tensorflow" and data_format == "channels_first":
-        patches = backend.numpy.transpose(patches, (0, 3, 1, 2))
     if _unbatched:
         patches = backend.numpy.squeeze(patches, axis=0)
     return patches
@@ -874,15 +859,6 @@ def _extract_patches_3d(
     volumes_shape = list(volumes.shape)
     if len(volumes_shape) == 4:
         volumes_shape = [1] + volumes_shape
-    compute_conv_output_shape(
-        volumes_shape,
-        filters=1,
-        kernel_size=(patch_d, patch_h, patch_w),
-        strides=strides,
-        padding=padding,
-        data_format=data_format,
-        dilation_rate=dilation_rate,
-    )
     out_dim = patch_d * patch_w * patch_h * channels_in
     kernel = backend.numpy.eye(out_dim, dtype=volumes.dtype)
     kernel = backend.numpy.reshape(
@@ -892,20 +868,14 @@ def _extract_patches_3d(
     if len(volumes.shape) == 4:
         _unbatched = True
         volumes = backend.numpy.expand_dims(volumes, axis=0)
-    conv_data_format = data_format
-    if backend.backend() == "tensorflow" and data_format == "channels_first":
-        volumes = backend.numpy.transpose(volumes, (0, 2, 3, 4, 1))
-        conv_data_format = "channels_last"
     patches = backend.nn.conv(
         inputs=volumes,
         kernel=kernel,
         strides=strides,
         padding=padding,
-        data_format=conv_data_format,
+        data_format=data_format,
         dilation_rate=dilation_rate,
     )
-    if backend.backend() == "tensorflow" and data_format == "channels_first":
-        patches = backend.numpy.transpose(patches, (0, 4, 1, 2, 3))
     if _unbatched:
         patches = backend.numpy.squeeze(patches, axis=0)
     return patches
