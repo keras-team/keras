@@ -1,5 +1,6 @@
 import os
 
+import grain
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -38,6 +39,44 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         output = layer(input_data)
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, np.array([[4, 1, 3, 0], [1, 2, 0, 0]]))
+        self.assertIn("foo", [str(v) for v in layer.get_vocabulary()])
+
+    def test_adapt_with_generator(self):
+        def text_gen():
+            yield ["hello world", "foo bar"]
+            yield ["baz qux", "hello foo"]
+
+        layer = layers.TextVectorization()
+        layer.adapt(text_gen())
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
+        self.assertIn("foo", [str(v) for v in vocab])
+
+    def test_adapt_with_infinite_generator_and_steps(self):
+        def text_gen():
+            while True:
+                yield ["hello world", "foo bar"]
+
+        layer = layers.TextVectorization()
+        layer.adapt(text_gen(), steps=3)
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
+
+    def test_adapt_with_grain_dataset(self):
+        texts = ["hello world", "foo bar", "baz qux", "hello foo"]
+
+        class Source(grain.sources.RandomAccessDataSource):
+            def __getitem__(self, idx):
+                return texts[idx]
+
+            def __len__(self):
+                return len(texts)
+
+        dataset = grain.MapDataset.source(Source()).batch(batch_size=2)
+        layer = layers.TextVectorization()
+        layer.adapt(dataset)
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", [str(v) for v in vocab])
 
     def test_fixed_vocabulary(self):
         max_tokens = 5000

@@ -55,7 +55,6 @@ class TestSpectrogram(testing.TestCase):
         y_true = np.transpose(spec, [0, 2, 1])
         return y_true, y
 
-    @pytest.mark.requires_trainable_backend
     def test_spectrogram_channels_broadcasting(self):
         rnd = np.random.RandomState(41)
         audio = rnd.uniform(-1, 1, size=(3, 16000, 7))
@@ -103,7 +102,6 @@ class TestSpectrogram(testing.TestCase):
         backend.backend() == "tensorflow",
         reason="TF doesn't support channels_first",
     )
-    @pytest.mark.requires_trainable_backend
     def test_spectrogram_channels_first(self):
         rnd = np.random.RandomState(41)
         audio = rnd.uniform(-1, 1, size=(3, 16000, 7))
@@ -179,7 +177,6 @@ class TestSpectrogram(testing.TestCase):
             supports_masking=False,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_spectrogram_basics(self):
         self.run_layer_test(
             layers.STFTSpectrogram,
@@ -297,7 +294,6 @@ class TestSpectrogram(testing.TestCase):
 
         model.predict(generator())
 
-    @pytest.mark.requires_trainable_backend
     def test_spectrogram_error(self):
         rnd = np.random.RandomState(41)
         x = rnd.uniform(low=-1, high=1, size=(4, 160000, 1)).astype(self.DTYPE)
@@ -327,12 +323,12 @@ class TestSpectrogram(testing.TestCase):
             init_args["mode"] = "magnitude"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(y_true, y, **tol_kwargs)
+            self.assertAllClose(y, y_true, **tol_kwargs)
 
             init_args["mode"] = "psd"
             y_true, y = self._calc_spectrograms(x, **init_args)
             self.assertEqual(np.shape(y_true), np.shape(y))
-            self.assertAllClose(y_true, y, **tol_kwargs)
+            self.assertAllClose(y, y_true, **tol_kwargs)
 
             init_args["mode"] = "angle"
             y_true, y = self._calc_spectrograms(x, **init_args)

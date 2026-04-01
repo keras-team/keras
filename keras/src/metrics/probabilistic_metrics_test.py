@@ -140,7 +140,7 @@ class BinaryCrossentropyTest(testing.TestCase):
         )
         result = bce_obj(y_true, logits)
         expected_value = (10.0 + 5.0 * label_smoothing) / 3.0
-        self.assertAllClose(expected_value, result, atol=1e-3)
+        self.assertAllClose(result, expected_value, atol=1e-3)
 
 
 class CategoricalCrossentropyTest(testing.TestCase):

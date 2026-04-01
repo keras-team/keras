@@ -22,7 +22,7 @@ class HingeTest(testing.TestCase):
         y_pred = np.array([[-0.3, 0.2, -0.1, 1.6], [-0.25, -1.0, 0.5, 0.6]])
         hinge_obj.update_state(y_true, y_pred)
         result = hinge_obj.result()
-        self.assertAllClose(0.506, result, atol=1e-3)
+        self.assertAllClose(result, 0.506, atol=1e-3)
 
     def test_weighted(self):
         hinge_obj = hinge_metrics.Hinge()
@@ -30,7 +30,7 @@ class HingeTest(testing.TestCase):
         y_pred = np.array([[-0.3, 0.2, -0.1, 1.6], [-0.25, -1.0, 0.5, 0.6]])
         sample_weight = np.array([1.5, 2.0])
         result = hinge_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.493, result, atol=1e-3)
+        self.assertAllClose(result, 0.493, atol=1e-3)
 
 
 class SquaredHingeTest(testing.TestCase):
@@ -55,7 +55,7 @@ class SquaredHingeTest(testing.TestCase):
         y_pred = np.array([[-0.3, 0.2, -0.1, 1.6], [-0.25, -1.0, 0.5, 0.6]])
         sq_hinge_obj.update_state(y_true, y_pred)
         result = sq_hinge_obj.result()
-        self.assertAllClose(0.364, result, atol=1e-3)
+        self.assertAllClose(result, 0.364, atol=1e-3)
 
     def test_weighted(self):
         sq_hinge_obj = hinge_metrics.SquaredHinge()
@@ -63,7 +63,7 @@ class SquaredHingeTest(testing.TestCase):
         y_pred = np.array([[-0.3, 0.2, -0.1, 1.6], [-0.25, -1.0, 0.5, 0.6]])
         sample_weight = np.array([1.5, 2.0])
         result = sq_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.347, result, atol=1e-3)
+        self.assertAllClose(result, 0.347, atol=1e-3)
 
 
 class CategoricalHingeTest(testing.TestCase):
@@ -104,7 +104,7 @@ class CategoricalHingeTest(testing.TestCase):
         )
         cat_hinge_obj.update_state(y_true, y_pred)
         result = cat_hinge_obj.result()
-        self.assertAllClose(0.5, result, atol=1e-5)
+        self.assertAllClose(result, 0.5, atol=1e-5)
 
     def test_weighted(self):
         cat_hinge_obj = hinge_metrics.CategoricalHinge()
@@ -128,4 +128,4 @@ class CategoricalHingeTest(testing.TestCase):
         )
         sample_weight = np.array((1.0, 1.5, 2.0, 2.5))
         result = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.5, result, atol=1e-5)
+        self.assertAllClose(result, 0.5, atol=1e-5)

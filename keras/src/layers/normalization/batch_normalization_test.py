@@ -13,7 +13,6 @@ from keras.src.models import Model
 
 
 class BatchNormalizationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_bn_basics(self):
         # vector case
         self.run_layer_test(
@@ -240,7 +239,6 @@ class BatchNormalizationTest(testing.TestCase):
         self.assertAllClose(layer.moving_mean, ops.ones((4,)), atol=1e-6)
         self.assertAllClose(layer.moving_variance, ops.zeros((4,)), atol=1e-6)
 
-    @pytest.mark.requires_trainable_backend
     def test_renorm_basics(self):
         # Test basic renorm functionality
         self.run_layer_test(
@@ -326,7 +324,6 @@ class BatchNormalizationTest(testing.TestCase):
 
         self.assertAllClose(out, out_renorm, atol=1e-5, rtol=1e-5)
 
-    @pytest.mark.requires_trainable_backend
     def test_renorm_correctness(self):
         epsilon = 1e-3
         momentum = 0.9

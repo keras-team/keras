@@ -1,7 +1,11 @@
 import numpy as np
+<<<<<<< issue#22586
 import pytest
 import warnings
 from keras.src import backend
+=======
+
+>>>>>>> master
 from keras.src import constraints
 from keras.src import layers
 from keras.src import ops
@@ -10,7 +14,6 @@ from keras.src import testing
 
 
 class GroupNormalizationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_groupnorm(self):
         self.run_layer_test(
             layers.GroupNormalization,
