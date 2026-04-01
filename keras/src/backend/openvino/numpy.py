@@ -3655,7 +3655,14 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 
 def ndim(x):
     x = get_ov_output(x)
-    return x.get_partial_shape().rank.get_length()
+    rank = x.get_partial_shape().rank
+    if not rank.is_static:
+        raise ValueError(
+            "Cannot determine `ndim`: tensor has a dynamically-ranked "
+            "PartialShape. All tensors in the OpenVINO backend are expected "
+            "to have a statically-known rank."
+        )
+    return rank.get_length()
 
 
 def nonzero(x):
