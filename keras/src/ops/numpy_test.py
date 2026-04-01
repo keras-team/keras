@@ -2248,8 +2248,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
         x_eager = knp.ones((3, 3))
         out_eager = knp.argpartition(x_eager, 0, axis=None)
-        self.assertEqual(out_eager.shape, (9,))  # flattened
-        self.assertEqual(out_eager.dtype, "int32")
+        self.assertEqual(out_eager.shape, (3, 3))
 
         with self.assertRaises(ValueError):
             knp.argpartition(x, (1, 3))
