@@ -604,7 +604,6 @@ class LayerTest(testing.TestCase):
         expected_loss = 0.0 if batch_size == 0 else 0.2
         self.assertAllClose(layer.losses[0], expected_loss)
 
-    @pytest.mark.requires_trainable_backend
     def test_add_loss(self):
         class LossLayer(layers.Layer):
             def call(self, x):
@@ -1047,7 +1046,7 @@ class LayerTest(testing.TestCase):
         for ref_v, v in zip(
             layer1.non_trainable_variables, non_trainable_variables
         ):
-            self.assertAllClose(ref_v, v)
+            self.assertAllClose(v, ref_v)
 
         # Test with loss collection
         layer3 = TestLayer()
@@ -1063,10 +1062,10 @@ class LayerTest(testing.TestCase):
         for ref_v, v in zip(
             layer1.non_trainable_variables, non_trainable_variables
         ):
-            self.assertAllClose(ref_v, v)
+            self.assertAllClose(v, ref_v)
         self.assertLen(losses, 2)
         for ref_loss, loss in zip(layer1.losses, losses):
-            self.assertAllClose(ref_loss, loss)
+            self.assertAllClose(loss, ref_loss)
 
     def test_trainable_setting(self):
         class NonTrainableWeightsLayer(layers.Layer):

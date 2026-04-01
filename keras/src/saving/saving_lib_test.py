@@ -266,8 +266,8 @@ class SavingTest(testing.TestCase):
         loaded_model = saving_lib.load_model(temp_filepath)
         self.assertFalse(model.compiled)
         for w_ref, w in zip(model.variables, loaded_model.variables):
-            self.assertAllClose(w_ref, w)
-        self.assertAllClose(y_ref, loaded_model(x_ref))
+            self.assertAllClose(w, w_ref)
+        self.assertAllClose(loaded_model(x_ref), y_ref)
 
     @parameterized.named_parameters(
         ("subclassed", _get_subclassed_model),
@@ -299,8 +299,8 @@ class SavingTest(testing.TestCase):
         self.assertTrue(model.compiled)
         self.assertTrue(loaded_model.built)
         for w_ref, w in zip(model.variables, loaded_model.variables):
-            self.assertAllClose(w_ref, w)
-        self.assertAllClose(out_ref, loaded_model(x_ref))
+            self.assertAllClose(w, w_ref)
+        self.assertAllClose(loaded_model(x_ref), out_ref)
 
         self.assertEqual(
             model.optimizer.__class__, loaded_model.optimizer.__class__
@@ -311,11 +311,11 @@ class SavingTest(testing.TestCase):
         for w_ref, w in zip(
             model.optimizer.variables, loaded_model.optimizer.variables
         ):
-            self.assertAllClose(w_ref, w)
+            self.assertAllClose(w, w_ref)
 
         new_metrics = loaded_model.evaluate(x_ref, y_ref)
         for ref_m, m in zip(ref_metrics, new_metrics):
-            self.assertAllClose(ref_m, m)
+            self.assertAllClose(m, ref_m)
 
     @parameterized.named_parameters(
         ("subclassed", _get_subclassed_model),
@@ -590,7 +590,7 @@ class SavingTest(testing.TestCase):
         new_weights = new_model.layers[0].get_weights()
         self.assertEqual(len(ref_weights), len(new_weights))
         for ref_w, w in zip(ref_weights, new_weights):
-            self.assertAllClose(ref_w, w)
+            self.assertAllClose(w, ref_w)
         self.assertAllClose(
             np.array(new_model.layers[1].kernel), new_layer_kernel_value
         )
@@ -615,7 +615,7 @@ class SavingTest(testing.TestCase):
             new_weights = new_model.layers[layer_index].get_weights()
             self.assertEqual(len(ref_weights), len(new_weights))
             for ref_w, w in zip(ref_weights, new_weights):
-                self.assertAllClose(ref_w, w)
+                self.assertAllClose(w, ref_w)
         self.assertAllClose(
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
@@ -899,7 +899,7 @@ class SavingAPITest(testing.TestCase):
         model.save(temp_filepath)
         model = saving_lib.load_model(temp_filepath)
         out = model(data)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
         # Without adapt
         model = keras.Sequential(
@@ -915,7 +915,7 @@ class SavingAPITest(testing.TestCase):
         model.save(temp_filepath)
         model = saving_lib.load_model(temp_filepath)
         out = model(data)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
 
 # This class is properly registered with a `get_config()` method.
@@ -1057,7 +1057,7 @@ class SavingBattleTest(testing.TestCase):
         model.save(temp_filepath)
         new_model = keras.saving.load_model(temp_filepath)
         out = new_model(x)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
     def test_legacy_h5_format(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")
@@ -1073,7 +1073,7 @@ class SavingBattleTest(testing.TestCase):
         model.save(temp_filepath)
         new_model = keras.saving.load_model(temp_filepath)
         out = new_model(x)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
     def test_nested_functional_model_saving(self):
         def func(in_size=4, out_size=2, name=None):
@@ -1130,7 +1130,7 @@ class SavingBattleTest(testing.TestCase):
         x = np.random.random((1, 3, 2))
         ref_out = model(x)
         out = new_model(x)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     def test_remove_weights_only_saving_and_loading(self):
         def is_remote_path(path):

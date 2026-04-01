@@ -13,6 +13,21 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def _np_to_ov_const(arr):
+    """Create an OV Constant from a numpy array, handling bfloat16 specially.
+
+    OpenVINO's Python binding resolves numpy dtypes via an internal C++ map that
+    only covers standard numpy scalar types.  ``ml_dtypes.bfloat16`` is not a
+    standard numpy dtype, so passing a bfloat16 array directly to
+    ``ov_opset.constant()`` raises ``RuntimeError: Unsupported data type:
+    bfloat16``.  Supplying ``Type.bf16`` explicitly routes the call through the
+    packed-type constructor path that OpenVINO does support.
+    """
+    if arr.dtype == "bfloat16":
+        return ov_opset.constant(arr, OPENVINO_DTYPES["bfloat16"]).output(0)
+    return ov_opset.constant(arr).output(0)
+
+
 def _rng_from_seed_data(seed_data):
     """Create a NumPy RNG from seed tensor data.
 
@@ -57,7 +72,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     seed = draw_seed(seed)
     rng = _rng_from_seed_data(seed.data)
     normal_const = rng.normal(size=shape, loc=mean, scale=stddev).astype(dtype)
-    return OpenVINOKerasTensor(ov_opset.constant(normal_const).output(0))
+    return OpenVINOKerasTensor(_np_to_ov_const(normal_const))
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -69,7 +84,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         seed_data = seed_val.data
     rng = _rng_from_seed_data(seed_data)
     random_values = rng.uniform(minval, maxval, size=shape).astype(dtype)
-    return OpenVINOKerasTensor(ov_opset.constant(random_values).output(0))
+    return OpenVINOKerasTensor(_np_to_ov_const(random_values))
 
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
@@ -188,7 +203,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
     # Truncate the result array to the desired size and reshape it
     np_array_res = random_numbers[:flat_shape].astype(dtype).reshape(shape)
-    return OpenVINOKerasTensor(ov_opset.constant(np_array_res).output(0))
+    return OpenVINOKerasTensor(_np_to_ov_const(np_array_res))
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):

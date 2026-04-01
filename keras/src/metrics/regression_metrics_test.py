@@ -21,7 +21,7 @@ class MeanSquaredErrorTest(testing.TestCase):
 
         mse_obj.update_state(y_true, y_pred)
         result = mse_obj.result()
-        self.assertAllClose(0.5, result, atol=1e-5)
+        self.assertAllClose(result, 0.5, atol=1e-5)
 
     def test_weighted(self):
         mse_obj = metrics.MeanSquaredError()
@@ -33,7 +33,7 @@ class MeanSquaredErrorTest(testing.TestCase):
         )
         sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.54285, result, atol=1e-5)
+        self.assertAllClose(result, 0.54285, atol=1e-5)
 
 
 class CosineSimilarityTest(testing.TestCase):
@@ -115,7 +115,7 @@ class MeanAbsoluteErrorTest(testing.TestCase):
 
         mae_obj.update_state(y_true, y_pred)
         result = mae_obj.result()
-        self.assertAllClose(0.5, result, atol=1e-5)
+        self.assertAllClose(result, 0.5, atol=1e-5)
 
     def test_weighted(self):
         mae_obj = metrics.MeanAbsoluteError()
@@ -127,7 +127,7 @@ class MeanAbsoluteErrorTest(testing.TestCase):
         )
         sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
         result = mae_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.54285, result, atol=1e-5)
+        self.assertAllClose(result, 0.54285, atol=1e-5)
 
 
 class MeanAbsolutePercentageErrorTest(testing.TestCase):
@@ -161,7 +161,7 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
         )
 
         result = mape_obj(y_true, y_pred)
-        self.assertAllClose(35e7, result, atol=1e-5)
+        self.assertAllClose(result, 35e7, atol=1e-5)
 
     def test_weighted(self):
         mape_obj = metrics.MeanAbsolutePercentageError()
@@ -180,7 +180,7 @@ class MeanAbsolutePercentageErrorTest(testing.TestCase):
 
         sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
         result = mape_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(40e7, result, atol=1e-5)
+        self.assertAllClose(result, 40e7, atol=1e-5)
 
 
 class MeanSquaredLogarithmicErrorTest(testing.TestCase):
@@ -209,7 +209,7 @@ class MeanSquaredLogarithmicErrorTest(testing.TestCase):
 
         msle_obj.update_state(y_true, y_pred)
         result = msle_obj.result()
-        self.assertAllClose(0.24022, result, atol=1e-5)
+        self.assertAllClose(result, 0.24022, atol=1e-5)
 
     def test_weighted(self):
         msle_obj = metrics.MeanSquaredLogarithmicError()
@@ -221,7 +221,7 @@ class MeanSquaredLogarithmicErrorTest(testing.TestCase):
         )
         sample_weight = np.array([1.0, 1.5, 2.0, 2.5])
         result = msle_obj(y_true, y_pred, sample_weight=sample_weight)
-        self.assertAllClose(0.26082, result, atol=1e-5)
+        self.assertAllClose(result, 0.26082, atol=1e-5)
 
 
 class RootMeanSquaredErrorTest(testing.TestCase):

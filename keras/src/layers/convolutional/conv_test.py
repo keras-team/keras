@@ -324,7 +324,6 @@ class ConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv1d_basic(
         self,
         filters,
@@ -391,7 +390,6 @@ class ConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 4, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv2d_basic(
         self,
         filters,
@@ -458,7 +456,6 @@ class ConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 4, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv3d_basic(
         self,
         filters,
@@ -716,7 +713,6 @@ class ConvBasicTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_weight_name(self):
         class MyModel(models.Model):
             def __init__(self):
@@ -736,7 +732,6 @@ class ConvBasicTest(testing.TestCase):
             model.conv2d.lora_kernel_a.path, "mymodel/conv2d/lora_kernel_a"
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
         # Create a `Conv2D` layer with a small kernel for simplicity.
         layer = layers.Conv2D(filters=3, kernel_size=(2, 2), padding="valid")
@@ -786,7 +781,6 @@ class ConvBasicTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Conv2D,

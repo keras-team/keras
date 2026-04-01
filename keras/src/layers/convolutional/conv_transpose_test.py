@@ -322,7 +322,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (2, 16, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv1d_transpose_basic(
         self,
         filters,
@@ -400,7 +399,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (1, 224, 224, 2),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv2d_transpose_basic(
         self,
         filters,
@@ -473,7 +471,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (2, 16, 9, 17, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv3d_transpose_basic(
         self,
         filters,
@@ -905,7 +902,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
                 )
                 with pytest.warns(UserWarning):
                     kc_res = kc_layer(input)
-                self.assertAllClose(expected_res, kc_res, atol=1e-5)
+                self.assertAllClose(kc_res, expected_res, atol=1e-5)
                 return
 
             # torch_padding > 0 and torch_output_padding > 0 case
@@ -923,12 +920,12 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             if torch_padding > 0 and torch_output_padding > 0:
                 with pytest.raises(AssertionError):
                     kc_res = kc_layer(input)
-                    self.assertAllClose(expected_res, kc_res, atol=1e-5)
+                    self.assertAllClose(kc_res, expected_res, atol=1e-5)
                 return
 
         # Compare results
         kc_res = kc_layer(input)
-        self.assertAllClose(expected_res, kc_res, atol=1e-5)
+        self.assertAllClose(kc_res, expected_res, atol=1e-5)
 
     @parameterized.product(
         kernel_size=list(range(1, 5)),

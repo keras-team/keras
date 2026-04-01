@@ -2079,7 +2079,8 @@ def where(condition, x1=None, x2=None):
         x2 = convert_to_tensor(x2)
         return torch.where(condition, x1, x2)
     else:
-        return torch.where(condition)
+        # `torch.where(condition)` returns a tuple of tensors.
+        return torch.stack(torch.where(condition), dim=0)
 
 
 def divide(x1, x2):
