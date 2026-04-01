@@ -1,6 +1,8 @@
+import warnings
+
 import numpy as np
 import pytest
-import warnings
+
 from keras.src import backend
 from keras.src import constraints
 from keras.src import layers
