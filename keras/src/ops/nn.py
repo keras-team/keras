@@ -1615,6 +1615,18 @@ def depthwise_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
+    strides_max = max(strides) if isinstance(strides, (list, tuple)) else strides
+    dilation_rate_max = (
+        max(dilation_rate)
+        if isinstance(dilation_rate, (list, tuple))
+        else dilation_rate
+    )
+    if strides_max > 1 and dilation_rate_max > 1:
+        raise ValueError(
+            "`strides > 1` not supported in conjunction with "
+            f"`dilation_rate > 1`. Received: strides={strides} and "
+            f"dilation_rate={dilation_rate}"
+        )
     if any_symbolic_tensors((inputs, kernel)):
         return DepthwiseConv(
             strides, padding, data_format, dilation_rate
@@ -1731,6 +1743,18 @@ def separable_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
+    strides_max = max(strides) if isinstance(strides, (list, tuple)) else strides
+    dilation_rate_max = (
+        max(dilation_rate)
+        if isinstance(dilation_rate, (list, tuple))
+        else dilation_rate
+    )
+    if strides_max > 1 and dilation_rate_max > 1:
+        raise ValueError(
+            "`strides > 1` not supported in conjunction with "
+            f"`dilation_rate > 1`. Received: strides={strides} and "
+            f"dilation_rate={dilation_rate}"
+        )
     if any_symbolic_tensors((inputs,)):
         return SeparableConv(
             strides,
