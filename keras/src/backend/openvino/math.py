@@ -11,12 +11,8 @@ from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import standardize_dtype
 from keras.src.backend.openvino.numpy import stack
 
-INT32_MAX = 2**31 - 1
 
-
-def _segment_reduction_fn(
-    data, segment_ids, reduction_method, num_segments, sorted
-):
+def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     data = get_ov_output(data)
     segment_ids = get_ov_output(segment_ids)
 
@@ -71,15 +67,11 @@ def _segment_reduction_fn(
             num_segments_plus_1, ov_opset.constant(0, Type.i32)
         ).output(0)
 
-    init_val = 0
-
-    init_val_node = ov_opset.constant(init_val, data.get_element_type()).output(
-        0
-    )
+    init_val_node = ov_opset.constant(0, data.get_element_type()).output(0)
     buffer = ov_opset.broadcast(init_val_node, buffer_shape).output(0)
 
     scattered = ov_opset.scatter_nd_update(
-        buffer, indices, data, reduction=reduction_method
+        buffer, indices, data, reduction="sum"
     ).output(0)
 
     start = ov_opset.constant([0], Type.i32).output(0)
@@ -91,10 +83,6 @@ def _segment_reduction_fn(
     result = ov_opset.slice(scattered, start, end, step, axes).output(0)
 
     return OpenVINOKerasTensor(result)
-
-
-def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    return _segment_reduction_fn(data, segment_ids, "sum", num_segments, sorted)
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
@@ -113,7 +101,6 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
             num_segments, segment_ids.get_element_type()
         ).output(0)
 
-    # Route negative IDs to a garbage slot beyond valid range
     is_negative = ov_opset.less(
         segment_ids, ov_opset.constant(0, segment_ids.get_element_type())
     ).output(0)
@@ -126,21 +113,22 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
         ov_opset.constant(1, num_segments_node.get_element_type()),
     ).output(0)
 
-    # opset16 SegmentMax requires sorted segment_ids; sort both tensors
-    n = ov_opset.gather(
-        ov_opset.shape_of(safe_segment_ids, output_type=Type.i32),
-        ov_opset.constant(0, Type.i32),
-        ov_opset.constant(0, Type.i32),
-    ).output(0)
-    sort_indices = ov_opset.topk(
-        safe_segment_ids, n, axis=0, mode="min", sort="value"
-    ).output(1)
-    safe_segment_ids = ov_opset.gather(
-        safe_segment_ids, sort_indices, ov_opset.constant(0, Type.i32)
-    ).output(0)
-    data = ov_opset.gather(
-        data, sort_indices, ov_opset.constant(0, Type.i32)
-    ).output(0)
+    # SegmentMax requires sorted ids
+    if not sorted:
+        n = ov_opset.gather(
+            ov_opset.shape_of(safe_segment_ids, output_type=Type.i32),
+            ov_opset.constant(0, Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+        sort_indices = ov_opset.topk(
+            safe_segment_ids, n, axis=0, mode="min", sort="value"
+        ).output(1)
+        safe_segment_ids = ov_opset.gather(
+            safe_segment_ids, sort_indices, ov_opset.constant(0, Type.i32)
+        ).output(0)
+        data = ov_opset.gather(
+            data, sort_indices, ov_opset.constant(0, Type.i32)
+        ).output(0)
 
     result = ov_segment_max16(
         data,
@@ -149,7 +137,6 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
         fill_mode="LOWEST",
     ).output(0)
 
-    # Slice away the garbage slot
     start = ov_opset.constant([0], Type.i32).output(0)
     end = ov_opset.unsqueeze(
         num_segments_node, ov_opset.constant(0, Type.i32)
@@ -158,13 +145,19 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     step = ov_opset.constant([1], Type.i32).output(0)
     result = ov_opset.slice(result, start, end, step, axes).output(0)
 
-    # fill_mode="LOWEST" fills empty segments with the most negative finite
-    # float, but Keras expects -inf; replace it
+    # fill_mode="LOWEST" uses FLT_MIN, not -inf; fix empty segments
     data_type = data.get_element_type()
     if data_type.is_real():
-        np_dtype = np.float32 if data_type == Type.f32 else np.float64
+        _NP_DTYPE_MAP = {
+            Type.f16: np.float16,
+            Type.f32: np.float32,
+            Type.f64: np.float64,
+        }
+        np_dtype = _NP_DTYPE_MAP.get(data_type, np.float32)
         flt_min = ov_opset.constant(np.finfo(np_dtype).min, data_type).output(0)
-        neg_inf = ov_opset.constant(-np.inf, data_type).output(0)
+        neg_inf = ov_opset.constant(
+            np.array(-np.inf, dtype=np_dtype), data_type
+        ).output(0)
         is_empty = ov_opset.equal(result, flt_min).output(0)
         result = ov_opset.select(is_empty, neg_inf, result).output(0)
 
@@ -544,17 +537,17 @@ def istft(
 
     ori_partial_shape = x0.get_partial_shape()
     num_dims = ori_partial_shape.rank.get_length()
-    ori_shape_list = [
-        None if dim.is_dynamic else dim.get_length()
-        for dim in ori_partial_shape
-    ]
 
-    # Stack real/imag on last axis → [..., frames, fft//2+1, 2]
     x0_exp = ov_opset.unsqueeze(x0, ov_opset.constant(-1, Type.i32)).output(0)
     x1_exp = ov_opset.unsqueeze(x1, ov_opset.constant(-1, Type.i32)).output(0)
     complex_data = ov_opset.concat([x0_exp, x1_exp], axis=-1).output(0)
 
-    # opset16 ISTFT expects [batch, frames, bins, 2]; flatten extra batch dims.
+    # Input is [..., frames, bins, 2]; op expects [..., bins, frames, 2]
+    perm = list(range(num_dims - 2)) + [num_dims - 1, num_dims - 2, num_dims]
+    complex_data = ov_opset.transpose(
+        complex_data, ov_opset.constant(perm, Type.i32)
+    ).output(0)
+
     if num_dims == 2:
         complex_data = ov_opset.unsqueeze(
             complex_data, ov_opset.constant(0, Type.i32)
@@ -615,17 +608,34 @@ def istft(
         signal_length=signal_length_node,
     ).output(0)
 
-    # Restore batch dims: result is [batch, signal] or [1, signal]
     if num_dims == 2:
         result = ov_opset.squeeze(
             result, ov_opset.constant([0], Type.i32)
         ).output(0)
     elif num_dims > 3:
-        batch_dims = ori_shape_list[:-2]
-        target_shape = [d if d is not None else -1 for d in batch_dims] + [-1]
-        result = ov_opset.reshape(
-            result, ov_opset.constant(target_shape, Type.i32).output(0), False
+        x0_shape = ov_opset.shape_of(x0, output_type=Type.i32).output(0)
+        batch_shape = ov_opset.slice(
+            x0_shape,
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant([num_dims - 2], Type.i32).output(0),
+            ov_opset.constant([1], Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
         ).output(0)
+        signal_len = ov_opset.gather(
+            ov_opset.shape_of(result, output_type=Type.i32).output(0),
+            ov_opset.constant(1, Type.i32),
+            ov_opset.constant(0, Type.i32),
+        ).output(0)
+        target_shape = ov_opset.concat(
+            [
+                batch_shape,
+                ov_opset.unsqueeze(
+                    signal_len, ov_opset.constant(0, Type.i32)
+                ).output(0),
+            ],
+            axis=0,
+        ).output(0)
+        result = ov_opset.reshape(result, target_shape, False).output(0)
 
     if ori_dtype == "float64":
         result = ov_opset.convert(result, Type.f64).output(0)
