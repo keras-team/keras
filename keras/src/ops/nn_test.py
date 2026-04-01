@@ -1839,13 +1839,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         dilation_rate=(1, (2, 2)),
     )
     def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == (2, 2)
-            and dilation_rate == (2, 2)
-        ):
-            # This case is not supported by the TF backend.
-            return
         print(strides, padding, dilation_rate)
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 3)
@@ -1853,6 +1846,24 @@ class NNOpsCorrectnessTest(testing.TestCase):
             input_shape = (2, 3, 10, 10)
         inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
+
+        strides_max = max(strides) if isinstance(strides, tuple) else strides
+        dilation_rate_max = (
+            max(dilation_rate)
+            if isinstance(dilation_rate, tuple)
+            else dilation_rate
+        )
+        if strides_max > 1 and dilation_rate_max > 1:
+            # strides > 1 combined with dilation_rate > 1 is not supported.
+            with self.assertRaisesRegex(ValueError, "strides > 1"):
+                knn.depthwise_conv(
+                    inputs_2d,
+                    kernel,
+                    strides,
+                    padding=padding,
+                    dilation_rate=dilation_rate,
+                )
+            return
 
         outputs = knn.depthwise_conv(
             inputs_2d,
@@ -1878,13 +1889,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         dilation_rate=(1, (2, 2)),
     )
     def test_separable_conv_2d(self, strides, padding, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 2)
-        ):
-            # This case is not supported by the TF backend.
-            return
         # Test 2D conv.
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 3)
@@ -1893,6 +1897,25 @@ class NNOpsCorrectnessTest(testing.TestCase):
         inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         depthwise_kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
         pointwise_kernel = np.arange(72, dtype=float).reshape([1, 1, 6, 12])
+
+        strides_max = max(strides) if isinstance(strides, tuple) else strides
+        dilation_rate_max = (
+            max(dilation_rate)
+            if isinstance(dilation_rate, tuple)
+            else dilation_rate
+        )
+        if strides_max > 1 and dilation_rate_max > 1:
+            # strides > 1 combined with dilation_rate > 1 is not supported.
+            with self.assertRaisesRegex(ValueError, "strides > 1"):
+                knn.separable_conv(
+                    inputs_2d,
+                    depthwise_kernel,
+                    pointwise_kernel,
+                    strides,
+                    padding=padding,
+                    dilation_rate=dilation_rate,
+                )
+            return
 
         outputs = knn.separable_conv(
             inputs_2d,
