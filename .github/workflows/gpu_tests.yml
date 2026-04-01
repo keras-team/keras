@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.ref }}
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Check CUDA Version
         run: nvidia-smi

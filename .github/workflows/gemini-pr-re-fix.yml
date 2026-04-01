@@ -20,12 +20,12 @@ jobs:
       startsWith(github.event.workflow_run.head_branch, 'auto-fix-')
     steps:
       - name: Checkout ${{ github.event.workflow_run.head_branch }}
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: 'Download Failed Run Logs'
-        uses: 'actions/github-script@v7'
+        uses: 'actions/github-script@v8'
         id: 'download_logs'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
@@ -61,7 +61,7 @@ jobs:
             }
 
       - name: 'Ask Gemini to Fix Failed Tests'
-        uses: 'google-github-actions/run-gemini-cli@a3bf79042542528e91937b3a3a6fbc4967ee3c31'
+        uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
         id: 'gemini_re_fix'
         env:
           GITHUB_TOKEN: '' # Do not pass any auth token here
@@ -111,7 +111,7 @@ jobs:
           ${{ steps.gemini_re_fix.outputs.summary != '' }}
         env:
           GEMINI_OUTPUT: '${{ steps.gemini_re_fix.outputs.summary }}'
-        uses: 'actions/github-script@v7'
+        uses: 'actions/github-script@v8'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
