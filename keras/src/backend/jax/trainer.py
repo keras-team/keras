@@ -770,6 +770,7 @@ class JAXTrainer(base_trainer.Trainer):
         def data():
             yield _distribute_data((x, y, sample_weight))
 
+        self.reset_metrics()
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
         self.make_train_function()
@@ -814,6 +815,7 @@ class JAXTrainer(base_trainer.Trainer):
         return_dict=False,
     ):
         self._assert_compile_called("test_on_batch")
+        self.reset_metrics()
 
         def data():
             yield _distribute_data((x, y, sample_weight))

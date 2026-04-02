@@ -619,6 +619,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 y, class_weight
             )
 
+        self.reset_metrics()
         # Maybe build model
         self._maybe_symbolic_build(data_batch=(x, y, sample_weight))
         self.make_train_function()
@@ -640,6 +641,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return_dict=False,
     ):
         self._assert_compile_called("test_on_batch")
+        self.reset_metrics()
 
         def data():
             yield (x, y, sample_weight)
