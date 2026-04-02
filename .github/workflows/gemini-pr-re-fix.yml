@@ -100,6 +100,11 @@ jobs:
                - Change whitespace, imports, or formatting of untouched lines
             5. A typical bug fix changes fewer than 20 lines. If you are changing more, stop and reconsider.
             6. After editing, verify your changes make sense by reading the modified sections.
+            7. Add unit tests for your fix:
+               - Find the existing test file for the module you modified (look in the corresponding `*_test.py` file under the same directory or under `keras/src/**/`).
+               - Add a focused test that reproduces the original bug and verifies the fix.
+               - Follow the existing test style and conventions in that file.
+               - The test should FAIL without your fix and PASS with it.
 
             DO NOT output JSON. Use your file editing tools to directly modify the files.
 
@@ -297,6 +302,10 @@ jobs:
                - Change whitespace, imports, or formatting of untouched lines
             4. A re-fix should typically change fewer than 20 lines.
             5. After editing, verify your changes make sense by reading the modified sections.
+            6. If the failing tests reveal that a unit test is missing for the fix, add one:
+               - Find the existing test file for the module (the corresponding `*_test.py` file).
+               - Add a focused test that covers the fixed behavior.
+               - Follow the existing test style and conventions in that file.
 
             DO NOT output JSON. Use your file editing tools to directly modify the files.
 
