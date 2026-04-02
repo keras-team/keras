@@ -1,6 +1,9 @@
-name: Gemini PR Re-Fix Loop
+name: Gemini Auto-Fix
 
 on:
+  issues:
+    types:
+      - labeled
   workflow_run:
     workflows: ["Tests"]
     types:
@@ -9,13 +12,247 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
   actions: read
 
 jobs:
+  # ── Job 1: Generate a fix PR when the "auto-fix" label is added to an issue ──
+  fix_issue:
+    name: 'Generate Fix PR from Issue'
+    runs-on: ubuntu-latest
+    if: |-
+      github.event_name == 'issues' &&
+      github.event.label.name == 'auto-fix'
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v6
+
+      - name: 'Get Issue Details'
+        id: 'issue_details'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const issue = context.payload.issue;
+            core.setOutput('issue_number', issue.number);
+            core.setOutput('issue_title', issue.title);
+            core.setOutput('issue_body', issue.body || '');
+
+      - name: 'Search Codebase for Context'
+        id: 'search_codebase'
+        env:
+          ISSUE_TITLE: '${{ steps.issue_details.outputs.issue_title }}'
+          ISSUE_BODY: '${{ steps.issue_details.outputs.issue_body }}'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            const title = process.env.ISSUE_TITLE || '';
+            const body = process.env.ISSUE_BODY || '';
+            const searchTerms = (title + ' ' + body)
+              .split(/\W+/)
+              .filter(word => word.length > 3)
+              .slice(0, 5);
+
+            core.info(`Searching for terms: ${searchTerms.join(', ')}`);
+
+            let searchContext = '### Relevant Code Snippets\n\n';
+            let filesFound = new Set();
+
+            for (const term of searchTerms) {
+              try {
+                const gitGrepOutput = execSync(
+                  `git grep -l "${term}" -- keras/ || true`,
+                  { encoding: 'utf-8' }
+                );
+                for (const file of gitGrepOutput.split('\n').filter(Boolean)) {
+                  filesFound.add(file);
+                }
+              } catch (e) {
+                core.warning(`Error searching for "${term}": ${e.message}`);
+              }
+            }
+
+            const topFiles = Array.from(filesFound).slice(0, 5);
+            for (const file of topFiles) {
+              const content = fs.readFileSync(file, 'utf8');
+              const lines = content.split('\n').slice(0, 100).join('\n');
+              searchContext += `#### File: ${file}\n\`\`\`python\n${lines}\n\`\`\`\n\n`;
+            }
+
+            if (topFiles.length === 0) {
+              searchContext += 'No specific code snippets found for these terms.\n';
+            }
+
+            core.setOutput('search_context', searchContext);
+            core.info(`Found context files: ${topFiles.join(', ')}`);
+
+      - name: 'Pre-create .gemini directory'
+        run: mkdir -p ~/.gemini
+
+      - name: 'Ask Gemini to Generate a Fix'
+        uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
+        id: 'gemini_fix'
+        env:
+          GITHUB_TOKEN: ''
+          ISSUE_TITLE: '${{ steps.issue_details.outputs.issue_title }}'
+          ISSUE_BODY: '${{ steps.issue_details.outputs.issue_body }}'
+          SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
+        with:
+          gemini_api_key: '${{ secrets.GEMINI_API }}'
+          gemini_model: 'gemini-2.5-pro'
+          settings: |-
+            {
+              "maxSessionTurns": 5,
+              "telemetry": {
+                "enabled": false
+              }
+            }
+          prompt: |-
+            ## Role
+
+            You are a code fix assistant for the Keras repository. An issue has been filed and you need to generate a fix.
+
+            ## Context
+            - Issue Title: ${{ env.ISSUE_TITLE }}
+            - Issue Body: ${{ env.ISSUE_BODY }}
+            - Codebase Search Context: ${{ env.SEARCH_CONTEXT }}
+
+            ## Steps
+            1. Analyze the issue carefully and understand the root cause.
+            2. Search the codebase to find the relevant files that need to be modified.
+            3. Generate a fix for the issue.
+            4. Output your response in the JSON format specified below.
+
+            ## Output Format
+            Your output must be a valid JSON object with the following schema:
+            {
+              "fix_description": "A brief description of the fix",
+              "files_to_modify": [
+                {
+                  "path": "path/to/file.py",
+                  "content": "full new file content here..."
+                }
+              ]
+            }
+
+            ## Guidelines
+            - Provide a drop-in replacement for the whole file content in `content` for each file you modify.
+            - Only modify files that are necessary to fix the issue.
+            - Make sure the fix is minimal and focused — do not refactor unrelated code.
+            - Output only the JSON object. Do not include any explanation or additional text before/after the JSON.
+
+      - name: 'Apply Fix and Create PR'
+        if: |-
+          ${{ steps.gemini_fix.outputs.summary != '' }}
+        env:
+          GEMINI_OUTPUT: '${{ steps.gemini_fix.outputs.summary }}'
+          ISSUE_NUMBER: '${{ steps.issue_details.outputs.issue_number }}'
+          ISSUE_TITLE: '${{ steps.issue_details.outputs.issue_title }}'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            const rawOutput = process.env.GEMINI_OUTPUT;
+            const issueNumber = process.env.ISSUE_NUMBER;
+            const issueTitle = process.env.ISSUE_TITLE;
+            core.info(`Raw output from model: ${rawOutput}`);
+
+            let parsed;
+            try {
+              parsed = JSON.parse(rawOutput);
+            } catch (jsonError) {
+              const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
+              if (jsonMatch && jsonMatch[1]) {
+                parsed = JSON.parse(jsonMatch[1].trim());
+              } else {
+                const jsonObjectMatch = rawOutput.match(/(\{[\s\S]*"files_to_modify"[\s\S]*\})/);
+                if (jsonObjectMatch) {
+                  parsed = JSON.parse(jsonObjectMatch[0]);
+                } else {
+                  core.setFailed(`Output is not valid JSON.\nRaw output: ${rawOutput}`);
+                  return;
+                }
+              }
+            }
+
+            const filesToModify = parsed.files_to_modify || [];
+            const fixDescription = parsed.fix_description || '';
+
+            if (filesToModify.length === 0) {
+              core.info("No files to modify found in model output.");
+              return;
+            }
+
+            // Create a new branch
+            const branchName = `auto-fix-${issueNumber}`;
+            execSync(`git checkout -b ${branchName}`);
+
+            for (const fileObj of filesToModify) {
+              core.info(`Applying changes to ${fileObj.path}`);
+              try {
+                fs.writeFileSync(fileObj.path, fileObj.content);
+              } catch (e) {
+                core.warning(`Failed to write to ${fileObj.path}: ${e.message}`);
+              }
+            }
+
+            // Commit and push
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+            execSync('git add -A');
+            try {
+              execSync(`git commit -m "Auto-fix for issue #${issueNumber}"`);
+            } catch (e) {
+              core.info("No changes to commit.");
+              return;
+            }
+            execSync(`git push origin ${branchName} --force`);
+
+            // Create PR
+            const prBody = [
+              `## Auto-generated fix for #${issueNumber}`,
+              '',
+              fixDescription,
+              '',
+              '---',
+              `Fixes #${issueNumber}`,
+              '',
+              '*This PR was automatically generated by Gemini.*'
+            ].join('\n');
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Fix #${issueNumber}: ${issueTitle}`,
+              head: branchName,
+              base: 'master',
+              body: prBody,
+              draft: true
+            });
+
+            core.info(`Created PR #${pr.number}: ${pr.html_url}`);
+
+            // Comment on the issue linking to the PR
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(issueNumber),
+              body: `🤖 An automated fix has been generated: #${pr.number}\n\nPlease review the draft PR and run tests before merging.`
+            });
+
+  # ── Job 2: Re-fix when tests fail on auto-fix branches ──
   re_fix:
     name: 'Re-Fix Failing PR'
     runs-on: ubuntu-latest
     if: |-
+      github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'failure' &&
       startsWith(github.event.workflow_run.head_branch, 'auto-fix-')
     steps:
@@ -46,11 +283,11 @@ jobs:
 
               fs.writeFileSync('logs.zip', Buffer.from(logsZip.data));
               execSync('unzip logs.zip -d logs_dir');
-              
+
               // Find python test failures or pytest output
               // In pytest, failure usually contains "FAILED" or tracebacks
               const grepOutput = execSync('grep -rnw "logs_dir/" -e "FAILED" || true', { encoding: 'utf-8' });
-              
+
               // Find the first few failures to avoid huge output
               const summary = grepOutput.split('\n').filter(line => line.includes('FAILED')).slice(0, 10).join('\n');
               core.setOutput('error_summary', summary);
@@ -59,6 +296,9 @@ jobs:
               core.warning(`Error downloading/parsing logs: ${e.message}`);
               core.setOutput('error_summary', `Could not download logs automatically. Manual check required.\nError: ${e.message}`);
             }
+
+      - name: 'Pre-create .gemini directory'
+        run: mkdir -p ~/.gemini
 
       - name: 'Ask Gemini to Fix Failed Tests'
         uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
@@ -106,20 +346,23 @@ jobs:
             - Try to fix the specific tests that are failing.
             - Provide a drop-in replacement for the whole file content in `content` if you modify it.
 
-      - name: 'Apply New Fixes'
+      - name: 'Apply Fixes and Push'
         if: |-
           ${{ steps.gemini_re_fix.outputs.summary != '' }}
         env:
           GEMINI_OUTPUT: '${{ steps.gemini_re_fix.outputs.summary }}'
+          BRANCH_NAME: '${{ github.event.workflow_run.head_branch }}'
         uses: 'actions/github-script@v8'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
             const fs = require('fs');
-            const path = require('path');
+            const { execSync } = require('child_process');
 
             const rawOutput = process.env.GEMINI_OUTPUT;
+            const branchName = process.env.BRANCH_NAME;
             core.info(`Raw output from model: ${rawOutput}`);
+
             let parsed;
             try {
               parsed = JSON.parse(rawOutput);
@@ -146,24 +389,22 @@ jobs:
             }
 
             for (const fileObj of filesToModify) {
-              const filePath = fileObj.path;
-              const content = fileObj.content;
-              core.info(`Applying changes to ${filePath}`);
-              
+              core.info(`Applying changes to ${fileObj.path}`);
               try {
-                fs.writeFileSync(filePath, content);
+                fs.writeFileSync(fileObj.path, fileObj.content);
               } catch (e) {
-                core.warning(`Failed to write to ${filePath}: ${e.message}`);
+                core.warning(`Failed to write to ${fileObj.path}: ${e.message}`);
               }
             }
 
-      - name: 'Push Fix to same branch'
-        uses: 'peter-evans/create-pull-request@v8'
-        with:
-          token: '${{ secrets.GITHUB_TOKEN }}'
-          branch: '${{ github.event.workflow_run.head_branch }}'
-          title: 'Automated Fix Retried'
-          commit-message: 'Automated fix retried by Gemini on test failure'
-          body: 'This PR branch was automatically updated by Gemini after the previous test run failed.'
-          draft: true
-          push-to-fork: ''
+            // Commit and push directly to the existing branch
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+            execSync('git add -A');
+            try {
+              execSync('git commit -m "Automated re-fix by Gemini after test failure"');
+              execSync(`git push origin ${branchName}`);
+              core.info(`Pushed re-fix to ${branchName}`);
+            } catch (e) {
+              core.info(`No changes to commit or push failed: ${e.message}`);
+            }
