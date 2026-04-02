@@ -870,6 +870,49 @@ class Layer(BackendLayer, Operation):
         self._check_super_called()
         self._called = True
 
+        # Fast path for the common eager inference case: single tensor
+        # input, no kwargs, layer already built, matching dtype.
+        # Bypasses CallSpec construction, input validation, mask
+        # population, and other overhead that is unnecessary here.
+        if (
+            self.built
+            and len(args) == 1
+            and not kwargs
+            and backend.is_tensor(args[0])
+            and backend.standardize_dtype(args[0].dtype) == self.input_dtype
+            and self.compute_dtype == self.variable_dtype
+            and backend.get_autocast_scope() is None
+            and self.activity_regularizer is None
+            and all(
+                a == "training" for a in self._call_context_args
+            )
+            and not getattr(self, "_remat_mode", None)
+            and not getattr(self, "quantization_mode", None)
+            and distribution_lib.distribution() is None
+        ):
+                try:
+                    call_context = self._get_call_context()
+                    # Pass training if the layer's call() accepts it.
+                    if (
+                        "training" in self._call_context_args
+                        and "training" in self._call_signature.parameters
+                    ):
+                        training = call_context.get_value(
+                            "training", False
+                        )
+                        outputs = self.call(
+                            args[0], training=bool(training)
+                        )
+                    else:
+                        outputs = self.call(args[0])
+                finally:
+                    self._maybe_reset_call_context()
+                if self.supports_masking:
+                    self._set_mask_metadata(
+                        args[0], outputs, backend.get_keras_mask(args[0])
+                    )
+                return outputs
+
         original_args = args
         original_kwargs = kwargs
 
@@ -898,14 +941,23 @@ class Layer(BackendLayer, Operation):
         ##########################################################
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
-            for arg in tree.flatten(args):
-                if not is_backend_tensor_or_symbolic(arg, allow_none=True):
-                    raise ValueError(
-                        "Only input tensors may be passed as "
-                        "positional arguments. The following argument value "
-                        f"should be passed as a keyword argument: {arg} "
-                        f"(of type {type(arg)})"
-                    )
+            # Fast path: single tensor arg (the common case).
+            if (
+                len(args) == 1
+                and is_backend_tensor_or_symbolic(args[0], allow_none=True)
+            ):
+                pass
+            else:
+                for arg in tree.flatten(args):
+                    if not is_backend_tensor_or_symbolic(
+                        arg, allow_none=True
+                    ):
+                        raise ValueError(
+                            "Only input tensors may be passed as "
+                            "positional arguments. The following argument "
+                            f"value should be passed as a keyword argument: "
+                            f"{arg} (of type {type(arg)})"
+                        )
 
         # Caches info about `call()` signature, args, kwargs.
         call_spec = CallSpec(
@@ -948,17 +1000,25 @@ class Layer(BackendLayer, Operation):
             ):
                 arg_name = list(call_spec.tensor_arguments_dict.keys())[0]
                 only_tensor_arg = call_spec.tensor_arguments_dict[arg_name]
-                mask = tree.map_structure(
-                    backend.get_keras_mask,
-                    only_tensor_arg,
-                )
+                if backend.is_tensor(only_tensor_arg):
+                    mask = backend.get_keras_mask(only_tensor_arg)
+                else:
+                    mask = tree.map_structure(
+                        backend.get_keras_mask,
+                        only_tensor_arg,
+                    )
                 kwargs["mask"] = mask
         elif len(call_spec.tensor_arguments_dict) > 1:
             for k, v in call_spec.tensor_arguments_dict.items():
                 expected_mask_arg_name = f"{k}_mask"
                 if expected_mask_arg_name in call_spec.argument_names:
                     if call_spec.arguments_dict[expected_mask_arg_name] is None:
-                        mask = tree.map_structure(backend.get_keras_mask, v)
+                        if backend.is_tensor(v):
+                            mask = backend.get_keras_mask(v)
+                        else:
+                            mask = tree.map_structure(
+                                backend.get_keras_mask, v
+                            )
                         kwargs[expected_mask_arg_name] = mask
 
         # We need to cache the `previous_mask` before `__call__` because the
@@ -968,9 +1028,13 @@ class Layer(BackendLayer, Operation):
             previous_mask = kwargs["mask"]
         else:
             # Case 2: Fallback to the mask attached to the first input tensor.
-            previous_mask = tree.map_structure(
-                backend.get_keras_mask, call_spec.first_arg
-            )
+            first_arg = call_spec.first_arg
+            if backend.is_tensor(first_arg):
+                previous_mask = backend.get_keras_mask(first_arg)
+            else:
+                previous_mask = tree.map_structure(
+                    backend.get_keras_mask, first_arg
+                )
 
         ####################
         # 7. Call the layer.
@@ -1031,7 +1095,9 @@ class Layer(BackendLayer, Operation):
                 self._set_mask_metadata(
                     call_spec.first_arg, outputs, previous_mask
                 )
-            elif any(m is not None for m in tree.flatten(previous_mask)):
+            elif previous_mask is not None and any(
+                m is not None for m in tree.flatten(previous_mask)
+            ):
                 warnings.warn(
                     f"Layer '{self.name}' (of type {self.__class__.__name__}) "
                     "was passed an input with a mask attached to it. "
@@ -1710,6 +1776,16 @@ class Layer(BackendLayer, Operation):
         return layers
 
     def _set_mask_metadata(self, inputs, outputs, previous_mask):
+        # Fast path: single tensor output (the common case).
+        if backend.is_tensor(outputs):
+            if backend.get_keras_mask(outputs) is not None:
+                return
+            output_masks = self.compute_mask(inputs, previous_mask)
+            if output_masks is None:
+                return
+            backend.set_keras_mask(outputs, output_masks)
+            return
+
         flat_outputs = tree.flatten(outputs)
 
         mask_already_computed = all(

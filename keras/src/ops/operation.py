@@ -32,7 +32,6 @@ class Operation(KerasSaveable):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         if traceback_utils.is_traceback_filtering_enabled():
-            # Wrap self.call to provide helpful info in case of exception
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
@@ -52,11 +51,20 @@ class Operation(KerasSaveable):
                         call_fn = self.quantized_call
                     else:
                         call_fn = self.call
-            call_fn = traceback_utils.inject_argument_info_in_traceback(
-                call_fn,
-                object_name=(f"{self.__class__.__name__}.call()"),
-            )
-            return call_fn(*args, **kwargs)
+            # Call directly and only inject argument info on error,
+            # avoiding a wrapper function creation per call.
+            try:
+                return call_fn(*args, **kwargs)
+            except Exception as e:
+                if not hasattr(e, "_keras_call_info_injected"):
+                    e = traceback_utils.inject_argument_info_in_error(
+                        e,
+                        call_fn,
+                        args,
+                        kwargs,
+                        object_name=f"{self.__class__.__name__}.call()",
+                    )
+                raise e.with_traceback(e.__traceback__) from None
 
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
