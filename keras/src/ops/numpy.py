@@ -3510,10 +3510,21 @@ def flip(x, axis=None):
     Returns:
         Output tensor with entries of `axis` reversed.
     """
+    x = backend.convert_to_tensor(x)
     if axis is not None:
-        ndim = len(getattr(x, "shape", []))
+        shape = getattr(x, "shape", None)
+        if shape is None:
+            ndim = None
+        else:
+            ndim = getattr(shape, "rank", None)
+            if ndim is None:
+                try:
+                    ndim = len(shape)
+                except TypeError:
+                    ndim = None
         if isinstance(axis, int):
-            canonicalize_axis(axis, ndim)
+            if ndim is not None:
+                canonicalize_axis(axis, ndim)
         elif isinstance(axis, (tuple, list)):
             for a in axis:
                 if not isinstance(a, int):
@@ -3521,7 +3532,8 @@ def flip(x, axis=None):
                         "Argument `axis` must be an integer or a sequence of "
                         f"integers. Received: axis={axis}"
                     )
-                canonicalize_axis(a, ndim)
+                if ndim is not None:
+                    canonicalize_axis(a, ndim)
         else:
             raise TypeError(
                 "Argument `axis` must be an integer, a sequence of integers, "
@@ -7029,7 +7041,17 @@ def roll(x, shift, axis=None):
     Returns:
         Output tensor.
     """
-    ndim = len(getattr(x, "shape", []))
+    x = backend.convert_to_tensor(x)
+    shape = getattr(x, "shape", None)
+    if shape is None:
+        ndim = None
+    else:
+        ndim = getattr(shape, "rank", None)
+        if ndim is None:
+            try:
+                ndim = len(shape)
+            except TypeError:
+                ndim = None
     if axis is None:
         if isinstance(shift, (tuple, list)):
             raise ValueError(
@@ -7037,11 +7059,12 @@ def roll(x, shift, axis=None):
                 f"Received: shift={shift}"
             )
     elif isinstance(axis, int):
-        canonicalize_axis(axis, ndim)
-        if isinstance(shift, (tuple, list)):
-            raise ValueError(
-                "When `axis` is an integer, `shift` must be an integer. "
-                f"Received: shift={shift}"
+        if ndim is not None:
+            canonicalize_axis(axis, ndim)
+        if not isinstance(shift, int):
+            raise TypeError(
+                "Argument `shift` must be an integer or a sequence of "
+                f"integers. Received: shift={shift}"
             )
     elif isinstance(axis, (tuple, list)):
         for a in axis:
@@ -7050,18 +7073,25 @@ def roll(x, shift, axis=None):
                     "Argument `axis` must be an integer or a sequence of "
                     f"integers. Received: axis={axis}"
                 )
-            canonicalize_axis(a, ndim)
-        if not isinstance(shift, (tuple, list)) or len(shift) != len(axis):
-            raise ValueError(
-                "`shift` and `axis` must have the same size. "
-                f"Received: shift={shift}, axis={axis}"
-            )
-        for s in shift:
-            if not isinstance(s, int):
-                raise TypeError(
-                    "Argument `shift` must be an integer or a sequence of "
-                    f"integers. Received: shift={shift}"
+            if ndim is not None:
+                canonicalize_axis(a, ndim)
+        if isinstance(shift, (tuple, list)):
+            if len(shift) != len(axis):
+                raise ValueError(
+                    "`shift` and `axis` must have the same size. "
+                    f"Received: shift={shift}, axis={axis}"
                 )
+            for s in shift:
+                if not isinstance(s, int):
+                    raise TypeError(
+                        "Argument `shift` must be an integer or a sequence of "
+                        f"integers. Received: shift={shift}"
+                    )
+        elif not isinstance(shift, int):
+            raise TypeError(
+                "Argument `shift` must be an integer or a sequence of "
+                f"integers. Received: shift={shift}"
+            )
     else:
         raise TypeError(
             "Argument `axis` must be an integer, a sequence of integers, "
@@ -7843,7 +7873,14 @@ class Trace(Operation):
         )
 
     def compute_output_spec(self, x):
-        ndim = len(getattr(x, "shape", []))
+        if getattr(x, "shape", None) is None:
+            raise ValueError(
+                "`trace` requires a known input rank for symbolic shape "
+                "inference. Received: x.shape=None"
+            )
+        ndim = getattr(x.shape, "rank", None)
+        if ndim is None:
+            ndim = len(x.shape)
         axis1 = canonicalize_axis(self.axis1, ndim)
         axis2 = canonicalize_axis(self.axis2, ndim)
         if axis1 == axis2:
@@ -7894,9 +7931,20 @@ def trace(x, offset=0, axis1=0, axis2=1):
         larger dimensions, then a tensor of sums along diagonals is
         returned.
     """
-    ndim = len(getattr(x, "shape", []))
-    axis1 = canonicalize_axis(axis1, ndim)
-    axis2 = canonicalize_axis(axis2, ndim)
+    x = backend.convert_to_tensor(x)
+    shape = getattr(x, "shape", None)
+    if shape is None:
+        ndim = None
+    else:
+        ndim = getattr(shape, "rank", None)
+        if ndim is None:
+            try:
+                ndim = len(shape)
+            except TypeError:
+                ndim = None
+    if ndim is not None:
+        axis1 = canonicalize_axis(axis1, ndim)
+        axis2 = canonicalize_axis(axis2, ndim)
     if axis1 == axis2:
         raise ValueError(
             f"axis1 and axis2 must be different. Received: axis1={axis1}, "
