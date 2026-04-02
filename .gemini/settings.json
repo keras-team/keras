@@ -1,0 +1,6 @@
+{
+  "maxSessionTurns": 5,
+  "telemetry": {
+    "enabled": false
+  }
+}
