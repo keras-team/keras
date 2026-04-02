@@ -3659,8 +3659,8 @@ def ndim(x):
     if not rank.is_static:
         raise ValueError(
             "Cannot determine `ndim`: tensor has a dynamically-ranked "
-            "PartialShape. All tensors in the OpenVINO backend are expected "
-            "to have a statically-known rank."
+            "PartialShape. The OpenVINO backend requires a statically-known "
+            "rank for this operation."
         )
     return rank.get_length()
 
