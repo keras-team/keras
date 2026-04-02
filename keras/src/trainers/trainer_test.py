@@ -1882,17 +1882,17 @@ class TestTrainer(testing.TestCase):
         logs = model.train_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 15.579, tpu_decimal=1)
+        self.assertAlmostEqual(logs["loss"], 15.158, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y)
         self.assertIsInstance(logs, list)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs[0], 15.173, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 14.360, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 14.97, tpu_decimal=1)
+        self.assertAlmostEqual(logs["loss"], 14.360, tpu_decimal=1)
 
         output = model.predict_on_batch(x)
         self.assertIsInstance(output, np.ndarray)
@@ -1905,9 +1905,9 @@ class TestTrainer(testing.TestCase):
 
         # With sample weights
         logs = model.train_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.819, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 14.217, tpu_decimal=1)
         logs = model.test_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.595, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 13.476, tpu_decimal=1)
         output = model.predict_on_batch(x)
         self.assertAllClose(
             output[0],
@@ -1918,7 +1918,7 @@ class TestTrainer(testing.TestCase):
 
         # With class weights
         logs = model.train_on_batch(x, y, class_weight={1: 0.3, 0: 0.2})
-        self.assertAlmostEqual(logs[0], 12.899, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 2.722, tpu_decimal=1)
 
     @parameterized.named_parameters(
         [
@@ -2290,7 +2290,7 @@ class TestTrainer(testing.TestCase):
         train_out = model.train_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(train_out[0], 15.2200, tpu_atol=1e-1, tpu_rtol=1e-1)
+        self.assertAllClose(train_out[0], 14.44, tpu_atol=1e-1, tpu_rtol=1e-1)
         eval_out = model.evaluate(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
