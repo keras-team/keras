@@ -2756,6 +2756,17 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     array([[0, 6],
            [1, 7]])
     """
+    x_rank = len(x.shape)
+    if x_rank < 2:
+        raise ValueError(
+            "`diagonal` requires an array of at least two dimensions."
+        )
+    if canonicalize_axis(axis1, x_rank) == canonicalize_axis(axis2, x_rank):
+        raise ValueError(
+            "axis1 and axis2 must be different. "
+            f"Received: axis1={axis1}, axis2={axis2}"
+        )
+
     if any_symbolic_tensors((x,)):
         return Diagonal(
             offset=offset,

@@ -6259,6 +6259,56 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.vstack([x, y]), np.vstack([x, y]))
         self.assertAllClose(knp.Vstack()([x, y]), np.vstack([x, y]))
 
+    def test_diagonal(self):
+        x = np.arange(9).reshape((3, 3))
+        self.assertAllClose(knp.diagonal(x), np.diagonal(x))
+        self.assertAllClose(knp.diagonal(x, offset=1), np.diagonal(x, offset=1))
+        x = np.arange(8).reshape((2, 2, 2))
+        self.assertAllClose(
+            knp.diagonal(x, offset=0, axis1=0, axis2=1),
+            np.diagonal(x, offset=0, axis1=0, axis2=1),
+        )
+
+        # Test with a symbolic tensor
+        x = KerasTensor((3, 3))
+        self.assertEqual(knp.diagonal(x).shape, (3,))
+        x = KerasTensor((2, 2, 2))
+        self.assertEqual(knp.diagonal(x, axis1=0, axis2=1).shape, (2, 2))
+
+        # Test case where axis1 and axis2 are the same
+        x = np.random.rand(2, 3, 4)
+        with self.assertRaisesRegex(
+            ValueError, "axis1 and axis2 must be different"
+        ):
+            knp.diagonal(x, axis1=1, axis2=1)
+
+        # Test with a symbolic tensor
+        x = KerasTensor((2, 3, 4))
+        with self.assertRaisesRegex(
+            ValueError, "axis1 and axis2 must be different"
+        ):
+            knp.diagonal(x, axis1=1, axis2=1)
+
+        # Test with negative axes
+        with self.assertRaisesRegex(
+            ValueError, "axis1 and axis2 must be different"
+        ):
+            knp.diagonal(x, axis1=0, axis2=-3)
+
+        # Test with a tensor with rank < 2
+        x = np.array([1, 2, 3])
+        with self.assertRaisesRegex(
+            ValueError,
+            "`diagonal` requires an array of at least two dimensions",
+        ):
+            knp.diagonal(x)
+        x = KerasTensor((3,))
+        with self.assertRaisesRegex(
+            ValueError,
+            "`diagonal` requires an array of at least two dimensions",
+        ):
+            knp.diagonal(x)
+
     def test_dstack(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [6, 5, 4]])
