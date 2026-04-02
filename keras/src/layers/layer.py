@@ -883,35 +883,36 @@ class Layer(BackendLayer, Operation):
             and self.compute_dtype == self.variable_dtype
             and backend.get_autocast_scope() is None
             and self.activity_regularizer is None
-            and all(
-                a == "training" for a in self._call_context_args
-            )
+            and all(a == "training" for a in self._call_context_args)
             and not getattr(self, "_remat_mode", None)
             and not getattr(self, "quantization_mode", None)
             and distribution_lib.distribution() is None
         ):
-                try:
-                    call_context = self._get_call_context()
-                    # Pass training if the layer's call() accepts it.
-                    if (
-                        "training" in self._call_context_args
-                        and "training" in self._call_signature.parameters
-                    ):
-                        training = call_context.get_value(
-                            "training", False
-                        )
-                        outputs = self.call(
-                            args[0], training=bool(training)
-                        )
+            try:
+                call_context = self._get_call_context()
+                # Pass training if the layer's call() accepts it
+                # and there is an explicit value from an outer call.
+                # If no outer value exists, let the layer use its own
+                # default (typically None) so BN etc. behave correctly.
+                if (
+                    "training" in self._call_context_args
+                    and "training" in self._call_signature.parameters
+                ):
+                    training = call_context.get_value("training")
+                    if training is not None:
+                        call_context.set_value("training", training)
+                        outputs = self.call(args[0], training=bool(training))
                     else:
                         outputs = self.call(args[0])
-                finally:
-                    self._maybe_reset_call_context()
-                if self.supports_masking:
-                    self._set_mask_metadata(
-                        args[0], outputs, backend.get_keras_mask(args[0])
-                    )
-                return outputs
+                else:
+                    outputs = self.call(args[0])
+            finally:
+                self._maybe_reset_call_context()
+            if self.supports_masking:
+                self._set_mask_metadata(
+                    args[0], outputs, backend.get_keras_mask(args[0])
+                )
+            return outputs
 
         original_args = args
         original_kwargs = kwargs
@@ -942,16 +943,13 @@ class Layer(BackendLayer, Operation):
         # 2. Enforce that only tensors can be passed positionally.
         if not self._allow_non_tensor_positional_args:
             # Fast path: single tensor arg (the common case).
-            if (
-                len(args) == 1
-                and is_backend_tensor_or_symbolic(args[0], allow_none=True)
+            if len(args) == 1 and is_backend_tensor_or_symbolic(
+                args[0], allow_none=True
             ):
                 pass
             else:
                 for arg in tree.flatten(args):
-                    if not is_backend_tensor_or_symbolic(
-                        arg, allow_none=True
-                    ):
+                    if not is_backend_tensor_or_symbolic(arg, allow_none=True):
                         raise ValueError(
                             "Only input tensors may be passed as "
                             "positional arguments. The following argument "
@@ -1016,9 +1014,7 @@ class Layer(BackendLayer, Operation):
                         if backend.is_tensor(v):
                             mask = backend.get_keras_mask(v)
                         else:
-                            mask = tree.map_structure(
-                                backend.get_keras_mask, v
-                            )
+                            mask = tree.map_structure(backend.get_keras_mask, v)
                         kwargs[expected_mask_arg_name] = mask
 
         # We need to cache the `previous_mask` before `__call__` because the
