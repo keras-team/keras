@@ -474,10 +474,10 @@ class TorchTrainer(base_trainer.Trainer):
 
         data = (x, y, sample_weight)
 
-        self.reset_metrics()
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_train_function()
+        self.reset_metrics()
 
         logs = self.train_function([data])
         logs = pythonify_logs(logs)
@@ -493,13 +493,13 @@ class TorchTrainer(base_trainer.Trainer):
         return_dict=False,
     ):
         self._assert_compile_called("test_on_batch")
-        self.reset_metrics()
 
         data = (x, y, sample_weight)
 
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_test_function()
+        self.reset_metrics()
 
         logs = self.test_function([data])
         logs = pythonify_logs(logs)
