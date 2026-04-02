@@ -2690,8 +2690,8 @@ class Diagonal(Operation):
             )
 
         ndim = len(x_shape)
-        ax1 = self.axis1 if self.axis1 >= 0 else self.axis1 + ndim
-        ax2 = self.axis2 if self.axis2 >= 0 else self.axis2 + ndim
+        ax1 = canonicalize_axis(self.axis1, ndim)
+        ax2 = canonicalize_axis(self.axis2, ndim)
         if ax1 == ax2:
             raise ValueError(
                 "`axis1` and `axis2` cannot be the same. "
@@ -2772,8 +2772,8 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
             axis2=axis2,
         ).symbolic_call(x)
     x_ndim = len(x.shape)
-    ax1 = axis1 if axis1 >= 0 else axis1 + x_ndim
-    ax2 = axis2 if axis2 >= 0 else axis2 + x_ndim
+    ax1 = canonicalize_axis(axis1, x_ndim)
+    ax2 = canonicalize_axis(axis2, x_ndim)
     if ax1 == ax2:
         raise ValueError(
             "`axis1` and `axis2` cannot be the same. "
