@@ -3698,6 +3698,7 @@ def slogdet(x):
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x, tf.int32)
 
+    original_axis = axis
     if axis is None:
         axis = 0
 
@@ -3712,6 +3713,10 @@ def argpartition(x, kth, axis=-1):
 
     top_ind = tf.math.top_k(final_mask, tf.shape(x)[-1] - kth - 1).indices
     out = tf.concat([bottom_ind, top_ind], axis=x.ndim - 1)
+
+    if original_axis is None:
+        return out
+
     return swapaxes(out, -1, axis)
 
 
