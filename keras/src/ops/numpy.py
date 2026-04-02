@@ -2689,15 +2689,6 @@ class Diagonal(Operation):
                 f"`x` is of shape {x.shape}."
             )
 
-        ndim = len(x_shape)
-        ax1 = canonicalize_axis(self.axis1, ndim)
-        ax2 = canonicalize_axis(self.axis2, ndim)
-        if ax1 == ax2:
-            raise ValueError(
-                "`axis1` and `axis2` cannot be the same. "
-                f"Received: axis1={self.axis1}, axis2={self.axis2}"
-            )
-
         shape_2d = [x_shape[self.axis1], x_shape[self.axis2]]
         x_shape[self.axis1] = -1
         x_shape[self.axis2] = -1
@@ -2765,12 +2756,6 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     array([[0, 6],
            [1, 7]])
     """
-    if any_symbolic_tensors((x,)):
-        return Diagonal(
-            offset=offset,
-            axis1=axis1,
-            axis2=axis2,
-        ).symbolic_call(x)
     x_ndim = len(x.shape)
     ax1 = canonicalize_axis(axis1, x_ndim)
     ax2 = canonicalize_axis(axis2, x_ndim)
@@ -2779,6 +2764,12 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
             "`axis1` and `axis2` cannot be the same. "
             f"Received: axis1={axis1}, axis2={axis2}"
         )
+    if any_symbolic_tensors((x,)):
+        return Diagonal(
+            offset=offset,
+            axis1=axis1,
+            axis2=axis2,
+        ).symbolic_call(x)
     return backend.numpy.diagonal(
         x,
         offset=offset,
