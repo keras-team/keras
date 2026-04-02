@@ -107,7 +107,11 @@ def get_ov_output(x, ov_type=None, context_dtype=None):
     if isinstance(x, float):
         if ov_type is None:
             ov_type = Type.f32
-        x = ov_opset.constant(x, ov_type).output(0)
+        if ov_type == Type.bf16:
+            x = ov_opset.constant(x, Type.f32).output(0)
+            x = ov_opset.convert(x, Type.bf16).output(0)
+        else:
+            x = ov_opset.constant(x, ov_type).output(0)
     elif isinstance(x, int):
         if ov_type is None:
             ov_type = Type.i32

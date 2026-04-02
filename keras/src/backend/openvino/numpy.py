@@ -2031,8 +2031,14 @@ def full_like(x, fill_value, dtype=None):
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
     else:
         ov_type = x.get_element_type()
-    const_value = ov_opset.constant(fill_value, ov_type).output(0)
-    res = ov_opset.broadcast(const_value, shape_x).output(0)
+    if isinstance(fill_value, (OpenVINOKerasTensor, ov.Output)):
+        fill_ov = get_ov_output(fill_value)
+        fill_ov = ov_opset.convert(fill_ov, ov_type).output(0)
+        scalar_shape = ov_opset.constant([], Type.i32).output(0)
+        fill_ov = ov_opset.reshape(fill_ov, scalar_shape, False).output(0)
+    else:
+        fill_ov = ov_opset.constant(fill_value, ov_type).output(0)
+    res = ov_opset.broadcast(fill_ov, shape_x).output(0)
     return OpenVINOKerasTensor(res)
 
 
@@ -4674,6 +4680,8 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
 
 def where(condition, x1=None, x2=None):
     condition = get_ov_output(condition)
+    if condition.get_element_type() != Type.boolean:
+        condition = ov_opset.convert(condition, Type.boolean).output(0)
     if x1 is None and x2 is None:
         nonzero_indices = ov_opset.non_zero(condition)
         return OpenVINOKerasTensor(nonzero_indices.output(0))
@@ -5060,11 +5068,30 @@ def eye(N, M=None, k=0, dtype=None):
     ov_type = OPENVINO_DTYPES[dtype]
     if M is None:
         M = N
+    if isinstance(N, (OpenVINOKerasTensor, ov.Output)):
+        N_ov = get_ov_output(N)
+        if N_ov.get_element_type() != Type.i32:
+            N_ov = ov_opset.convert(N_ov, Type.i32).output(0)
+        N_ov = ov_opset.reshape(
+            N_ov, ov_opset.constant([1], Type.i32).output(0), False
+        ).output(0)
+    else:
+        N_ov = ov_opset.constant([N], Type.i32).output(0)
+    if isinstance(M, (OpenVINOKerasTensor, ov.Output)):
+        M_ov = get_ov_output(M)
+        if M_ov.get_element_type() != Type.i32:
+            M_ov = ov_opset.convert(M_ov, Type.i32).output(0)
+        M_ov = ov_opset.reshape(
+            M_ov, ov_opset.constant([1], Type.i32).output(0), False
+        ).output(0)
+    else:
+        M_ov = ov_opset.constant([M], Type.i32).output(0)
+    k_ov = ov_opset.constant(k, Type.i32).output(0)
     return OpenVINOKerasTensor(
         ov_opset.eye(
-            ov_opset.constant(N, Type.i32),
-            ov_opset.constant(M, Type.i32),
-            ov_opset.constant(k, Type.i32),
+            N_ov,
+            M_ov,
+            k_ov,
             output_type=ov_type,
         ).output(0)
     )
