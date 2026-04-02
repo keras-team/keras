@@ -3035,7 +3035,6 @@ def take_along_axis(x, indices, axis=None):
     broadcast_shape = operation_utils.broadcast_shapes(
         x_static_shape, indices_static_shape
     )
-
     if None in broadcast_shape:
         # Dynamic broadcast case. Note that `tf.broadcast_dynamic_shape` is
         # not always XLA compilable with dynamic dimensions.
