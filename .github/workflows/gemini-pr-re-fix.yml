@@ -27,7 +27,7 @@ jobs:
       - name: 'Checkout'
         uses: actions/checkout@v6
 
-      - name: 'Get Issue Details'
+      - name: 'Get Issue Details and Comments'
         id: 'issue_details'
         uses: 'actions/github-script@v8'
         with:
@@ -37,6 +37,18 @@ jobs:
             core.setOutput('issue_number', issue.number);
             core.setOutput('issue_title', issue.title);
             core.setOutput('issue_body', issue.body || '');
+
+            // Fetch issue comments (includes triage bot analysis)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+            });
+
+            const commentText = comments
+              .map(c => `**${c.user.login}** wrote:\n${c.body}`)
+              .join('\n\n---\n\n');
+            core.setOutput('issue_comments', commentText || 'No comments on this issue.');
 
       - name: 'Search Codebase for Context'
         id: 'search_codebase'
@@ -100,6 +112,7 @@ jobs:
           GITHUB_TOKEN: ''
           ISSUE_TITLE: '${{ steps.issue_details.outputs.issue_title }}'
           ISSUE_BODY: '${{ steps.issue_details.outputs.issue_body }}'
+          ISSUE_COMMENTS: '${{ steps.issue_details.outputs.issue_comments }}'
           SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
         with:
           gemini_api_key: '${{ secrets.GEMINI_API }}'
@@ -114,18 +127,20 @@ jobs:
           prompt: |-
             ## Role
 
-            You are a code fix assistant for the Keras repository. An issue has been filed and you need to generate a fix.
+            You are a surgical code fix assistant for the Keras repository. An issue has been filed, triaged, and you need to generate a minimal, targeted fix.
 
             ## Context
             - Issue Title: ${{ env.ISSUE_TITLE }}
             - Issue Body: ${{ env.ISSUE_BODY }}
+            - Issue Comments & Triage Analysis: ${{ env.ISSUE_COMMENTS }}
             - Codebase Search Context: ${{ env.SEARCH_CONTEXT }}
 
             ## Steps
-            1. Analyze the issue carefully and understand the root cause.
-            2. Search the codebase to find the relevant files that need to be modified.
-            3. Generate a fix for the issue.
-            4. Output your response in the JSON format specified below.
+            1. Read the issue comments carefully — they contain triage analysis and conclusions about the root cause. Use that as your primary guide.
+            2. Identify the exact file(s) and function(s) that need to change.
+            3. Read those files fully to understand the surrounding code.
+            4. Generate the smallest possible fix that addresses the issue. Change ONLY the lines that are necessary.
+            5. Output your response in the JSON format specified below.
 
             ## Output Format
             Your output must be a valid JSON object with the following schema:
@@ -134,15 +149,16 @@ jobs:
               "files_to_modify": [
                 {
                   "path": "path/to/file.py",
-                  "content": "full new file content here..."
+                  "content": "full file content with your fix applied..."
                 }
               ]
             }
 
-            ## Guidelines
-            - Provide a drop-in replacement for the whole file content in `content` for each file you modify.
-            - Only modify files that are necessary to fix the issue.
-            - Make sure the fix is minimal and focused — do not refactor unrelated code.
+            ## CRITICAL Guidelines
+            - The issue comments contain triage conclusions — follow their guidance on root cause and which code to fix.
+            - Be SURGICAL: only change the lines that fix the bug. Do NOT reformat, refactor, reorder, add comments, or touch any code unrelated to the fix.
+            - The `content` field must contain the COMPLETE file with your minimal fix applied. The rest of the file must be IDENTICAL to the original — same whitespace, same comments, same formatting.
+            - Typically a bug fix should change fewer than 20 lines. If you find yourself changing more, reconsider your approach.
             - Output only the JSON object. Do not include any explanation or additional text before/after the JSON.
 
       - name: 'Apply Fix and Create PR'
@@ -194,19 +210,28 @@ jobs:
             const branchName = `auto-fix-${issueNumber}`;
             execSync(`git checkout -b ${branchName}`);
 
+            const addedFiles = [];
             for (const fileObj of filesToModify) {
               core.info(`Applying changes to ${fileObj.path}`);
               try {
                 fs.writeFileSync(fileObj.path, fileObj.content);
+                addedFiles.push(fileObj.path);
               } catch (e) {
                 core.warning(`Failed to write to ${fileObj.path}: ${e.message}`);
               }
             }
 
-            // Commit and push
+            if (addedFiles.length === 0) {
+              core.info("No files were written successfully.");
+              return;
+            }
+
+            // Commit and push only the files Gemini modified
             execSync('git config user.name "github-actions[bot]"');
             execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
-            execSync('git add -A');
+            for (const f of addedFiles) {
+              execSync(`git add "${f}"`);
+            }
             try {
               execSync(`git commit -m "Auto-fix for issue #${issueNumber}"`);
             } catch (e) {
@@ -388,19 +413,28 @@ jobs:
               return;
             }
 
+            const addedFiles = [];
             for (const fileObj of filesToModify) {
               core.info(`Applying changes to ${fileObj.path}`);
               try {
                 fs.writeFileSync(fileObj.path, fileObj.content);
+                addedFiles.push(fileObj.path);
               } catch (e) {
                 core.warning(`Failed to write to ${fileObj.path}: ${e.message}`);
               }
             }
 
-            // Commit and push directly to the existing branch
+            if (addedFiles.length === 0) {
+              core.info("No files were written successfully.");
+              return;
+            }
+
+            // Commit and push only the files Gemini modified
             execSync('git config user.name "github-actions[bot]"');
             execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
-            execSync('git add -A');
+            for (const f of addedFiles) {
+              execSync(`git add "${f}"`);
+            }
             try {
               execSync('git commit -m "Automated re-fix by Gemini after test failure"');
               execSync(`git push origin ${branchName}`);
