@@ -57,14 +57,15 @@ class Operation(KerasSaveable):
                 return call_fn(*args, **kwargs)
             except Exception as e:
                 if not hasattr(e, "_keras_call_info_injected"):
-                    e = traceback_utils.inject_argument_info_in_error(
+                    new_e = traceback_utils.inject_argument_info_in_error(
                         e,
                         call_fn,
                         args,
                         kwargs,
                         object_name=f"{self.__class__.__name__}.call()",
                     )
-                raise e.with_traceback(e.__traceback__) from None
+                    raise new_e.with_traceback(e.__traceback__) from None
+                raise e
 
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
