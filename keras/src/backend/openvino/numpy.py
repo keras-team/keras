@@ -3267,6 +3267,12 @@ def nanmean(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanmedian` is not supported with openvino backend"
+    )
+
+
 def nanmin(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
         # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
