@@ -1026,7 +1026,8 @@ def log_softmax(x, axis=-1):
         if ndim is not None:
             if axis < -ndim or axis >= ndim:
                 raise ValueError(
-                    f"axis {axis} is out of bounds for array of dimension {ndim}"
+                    f"axis {axis} is out of bounds for array of dimension "
+                    f"{ndim}"
                 )
             axis = axis if axis >= 0 else axis + ndim
     elif isinstance(axis, tuple):
@@ -1040,7 +1041,8 @@ def log_softmax(x, axis=-1):
             if ndim is not None:
                 if a < -ndim or a >= ndim:
                     raise ValueError(
-                        f"axis {a} is out of bounds for array of dimension {ndim}"
+                        f"axis {a} is out of bounds for array of dimension "
+                        f"{ndim}"
                     )
                 a = a if a >= 0 else a + ndim
             canonical_axis.append(a)
