@@ -262,6 +262,7 @@ from keras.src.ops.numpy import nancumprod as nancumprod
 from keras.src.ops.numpy import nancumsum as nancumsum
 from keras.src.ops.numpy import nanmax as nanmax
 from keras.src.ops.numpy import nanmean as nanmean
+from keras.src.ops.numpy import nanmedian as nanmedian
 from keras.src.ops.numpy import nanmin as nanmin
 from keras.src.ops.numpy import nanprod as nanprod
 from keras.src.ops.numpy import nanquantile as nanquantile

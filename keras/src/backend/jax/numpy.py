@@ -1105,6 +1105,11 @@ def nanmean(x, axis=None, keepdims=False):
     return jnp.nanmean(x, axis=axis, keepdims=keepdims)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanmedian(x, axis=axis, keepdims=keepdims)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
