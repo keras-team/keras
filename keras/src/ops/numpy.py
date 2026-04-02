@@ -3510,6 +3510,36 @@ def flip(x, axis=None):
     Returns:
         Output tensor with entries of `axis` reversed.
     """
+    if any_symbolic_tensors((x,)):
+        if axis is not None:
+            shape = getattr(x, "shape", None)
+            if shape is None:
+                ndim = None
+            else:
+                ndim = getattr(shape, "rank", None)
+                if ndim is None:
+                    try:
+                        ndim = len(shape)
+                    except TypeError:
+                        ndim = None
+            if isinstance(axis, int):
+                if ndim is not None:
+                    canonicalize_axis(axis, ndim)
+            elif isinstance(axis, (tuple, list)):
+                for a in axis:
+                    if not isinstance(a, int):
+                        raise TypeError(
+                            "Argument `axis` must be an integer or a sequence "
+                            f"of integers. Received: axis={axis}"
+                        )
+                    if ndim is not None:
+                        canonicalize_axis(a, ndim)
+            else:
+                raise TypeError(
+                    "Argument `axis` must be an integer, a sequence of "
+                    f"integers, or `None`. Received: axis={axis}"
+                )
+        return Flip(axis=axis).symbolic_call(x)
     x = backend.convert_to_tensor(x)
     if axis is not None:
         shape = getattr(x, "shape", None)
@@ -3539,8 +3569,6 @@ def flip(x, axis=None):
                 "Argument `axis` must be an integer, a sequence of integers, "
                 f"or `None`. Received: axis={axis}"
             )
-    if any_symbolic_tensors((x,)):
-        return Flip(axis=axis).symbolic_call(x)
     return backend.numpy.flip(x, axis=axis)
 
 
@@ -7041,6 +7069,63 @@ def roll(x, shift, axis=None):
     Returns:
         Output tensor.
     """
+    if any_symbolic_tensors((x,)):
+        shape = getattr(x, "shape", None)
+        if shape is None:
+            ndim = None
+        else:
+            ndim = getattr(shape, "rank", None)
+            if ndim is None:
+                try:
+                    ndim = len(shape)
+                except TypeError:
+                    ndim = None
+        if axis is None:
+            if isinstance(shift, (tuple, list)):
+                raise ValueError(
+                    "When `axis` is `None`, `shift` must be an integer. "
+                    f"Received: shift={shift}"
+                )
+        elif isinstance(axis, int):
+            if ndim is not None:
+                canonicalize_axis(axis, ndim)
+            if not isinstance(shift, int):
+                raise TypeError(
+                    "Argument `shift` must be an integer or a sequence of "
+                    f"integers. Received: shift={shift}"
+                )
+        elif isinstance(axis, (tuple, list)):
+            for a in axis:
+                if not isinstance(a, int):
+                    raise TypeError(
+                        "Argument `axis` must be an integer or a sequence of "
+                        f"integers. Received: axis={axis}"
+                    )
+                if ndim is not None:
+                    canonicalize_axis(a, ndim)
+            if isinstance(shift, (tuple, list)):
+                if len(shift) != len(axis):
+                    raise ValueError(
+                        "`shift` and `axis` must have the same size. "
+                        f"Received: shift={shift}, axis={axis}"
+                    )
+                for s in shift:
+                    if not isinstance(s, int):
+                        raise TypeError(
+                            "Argument `shift` must be an integer or a sequence "
+                            f"of integers. Received: shift={shift}"
+                        )
+            elif not isinstance(shift, int):
+                raise TypeError(
+                    "Argument `shift` must be an integer or a sequence of "
+                    f"integers. Received: shift={shift}"
+                )
+        else:
+            raise TypeError(
+                "Argument `axis` must be an integer, a sequence of integers, "
+                f"or `None`. Received: axis={axis}"
+            )
+        return Roll(shift, axis=axis).symbolic_call(x)
     x = backend.convert_to_tensor(x)
     shape = getattr(x, "shape", None)
     if shape is None:
@@ -7097,8 +7182,6 @@ def roll(x, shift, axis=None):
             "Argument `axis` must be an integer, a sequence of integers, "
             f"or `None`. Received: axis={axis}"
         )
-    if any_symbolic_tensors((x,)):
-        return Roll(shift, axis=axis).symbolic_call(x)
     return backend.numpy.roll(x, shift, axis=axis)
 
 
@@ -7931,6 +8014,26 @@ def trace(x, offset=0, axis1=0, axis2=1):
         larger dimensions, then a tensor of sums along diagonals is
         returned.
     """
+    if any_symbolic_tensors((x,)):
+        shape = getattr(x, "shape", None)
+        if shape is None:
+            ndim = None
+        else:
+            ndim = getattr(shape, "rank", None)
+            if ndim is None:
+                try:
+                    ndim = len(shape)
+                except TypeError:
+                    ndim = None
+        if ndim is not None:
+            axis1 = canonicalize_axis(axis1, ndim)
+            axis2 = canonicalize_axis(axis2, ndim)
+        if axis1 == axis2:
+            raise ValueError(
+                f"axis1 and axis2 must be different. Received: axis1={axis1}, "
+                f"axis2={axis2}"
+            )
+        return Trace(offset, axis1, axis2).symbolic_call(x)
     x = backend.convert_to_tensor(x)
     shape = getattr(x, "shape", None)
     if shape is None:
@@ -7950,8 +8053,6 @@ def trace(x, offset=0, axis1=0, axis2=1):
             f"axis1 and axis2 must be different. Received: axis1={axis1}, "
             f"axis2={axis2}"
         )
-    if any_symbolic_tensors((x,)):
-        return Trace(offset, axis1, axis2).symbolic_call(x)
     return backend.numpy.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 

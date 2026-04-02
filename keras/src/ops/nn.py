@@ -1014,6 +1014,40 @@ def log_softmax(x, axis=-1):
     array([-2.40760596, -1.40760596, -0.40760596], shape=(3,), dtype=float64)
 
     """
+    if any_symbolic_tensors((x,)):
+        shape = getattr(x, "shape", None)
+        if shape is None:
+            ndim = None
+        else:
+            ndim = getattr(shape, "rank", None)
+            if ndim is None:
+                ndim = len(shape)
+        if isinstance(axis, int):
+            if ndim is not None:
+                if axis < -ndim or axis >= ndim:
+                    raise ValueError(
+                        f"axis {axis} is out of bounds for array of dimension "
+                        f"{ndim}"
+                    )
+                axis = axis if axis >= 0 else axis + ndim
+        elif isinstance(axis, tuple):
+            canonical_axis = []
+            for a in axis:
+                if not isinstance(a, int):
+                    raise TypeError(
+                        "Argument `axis` must be an integer or tuple of "
+                        f"integers. Received: axis={axis}"
+                    )
+                if ndim is not None:
+                    if a < -ndim or a >= ndim:
+                        raise ValueError(
+                            f"axis {a} is out of bounds for array of dimension "
+                            f"{ndim}"
+                        )
+                    a = a if a >= 0 else a + ndim
+                canonical_axis.append(a)
+            axis = tuple(canonical_axis) if ndim is not None else axis
+        return LogSoftmax(axis).symbolic_call(x)
     x = backend.convert_to_tensor(x)
     shape = getattr(x, "shape", None)
     if shape is None:
@@ -1047,8 +1081,6 @@ def log_softmax(x, axis=-1):
                 a = a if a >= 0 else a + ndim
             canonical_axis.append(a)
         axis = tuple(canonical_axis) if ndim is not None else axis
-    if any_symbolic_tensors((x,)):
-        return LogSoftmax(axis).symbolic_call(x)
     if isinstance(axis, tuple):
         if shape is None:
             raise ValueError(
@@ -1112,6 +1144,26 @@ def sparsemax(x, axis=-1):
     array([0., 0., 1.], shape=(3,), dtype=float64)
 
     """
+    if any_symbolic_tensors((x,)):
+        shape = getattr(x, "shape", None)
+        if shape is None:
+            ndim = None
+        else:
+            ndim = getattr(shape, "rank", None)
+            if ndim is None:
+                ndim = len(shape)
+        if not isinstance(axis, int):
+            raise TypeError(
+                f"Argument `axis` must be an integer. Received: axis={axis}"
+            )
+        if ndim is not None:
+            if axis < -ndim or axis >= ndim:
+                raise ValueError(
+                    f"axis {axis} is out of bounds for array of dimension "
+                    f"{ndim}"
+                )
+            axis = axis if axis >= 0 else axis + ndim
+        return Sparsemax(axis).symbolic_call(x)
     x = backend.convert_to_tensor(x)
     shape = getattr(x, "shape", None)
     if shape is None:
@@ -1130,8 +1182,6 @@ def sparsemax(x, axis=-1):
                 f"axis {axis} is out of bounds for array of dimension {ndim}"
             )
         axis = axis if axis >= 0 else axis + ndim
-    if any_symbolic_tensors((x,)):
-        return Sparsemax(axis).symbolic_call(x)
     return backend.nn.sparsemax(x, axis=axis)
 
 
