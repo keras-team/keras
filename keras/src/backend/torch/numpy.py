@@ -2329,14 +2329,12 @@ def histogram(x, bins=10, range=None):
     hist_result = torch.histogram(x, bins=bins, range=range)
     return hist_result.hist, hist_result.bin_edges
 
-
 def unique(
     x,
+    sorted=True,
     return_inverse=False,
     return_counts=False,
     axis=None,
-    *,
-    sorted=True,
     size=None,
     fill_value=None,
 ):

@@ -5548,10 +5548,10 @@ def histogram(x, bins=10, range=None):
 
 def unique(
     x,
+    sorted=True,
     return_inverse=False,
     return_counts=False,
     axis=None,
-    *,
     size=None,
     fill_value=None,
 ):
