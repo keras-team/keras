@@ -1924,3 +1924,65 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+class SobelEdges(Operation):
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.sobel_edges(images, data_format=self.data_format)
+
+    def compute_output_spec(self, images):
+        if len(images.shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). Received input with shape: "
+                f"images.shape={images.shape}"
+            )
+        return KerasTensor(
+            images.shape + (2,), dtype=backend.result_type(images.dtype, float)
+        )
+
+
+@keras_export("keras.ops.image.sobel_edges")
+def sobel_edges(images, data_format=None):
+    """Computes Sobel edge maps of the given images.
+
+    The Sobel operator highlights regions of high spatial frequency
+    (edges) by approximating the image gradient. For each pixel the
+    vertical (dy) and horizontal (dx) gradients are returned as the
+    last dimension of the output tensor.
+
+    Args:
+        images: Input image or batch of images. Must be 3D or 4D.
+        data_format: A string specifying the data format of the input
+            tensor. It can be either `"channels_last"` or
+            `"channels_first"`. `"channels_last"` corresponds to inputs
+            with shape `(batch, height, width, channels)`, while
+            `"channels_first"` corresponds to inputs with shape
+            `(batch, channels, height, width)`. If not specified, the
+            value will default to `keras.config.image_data_format`.
+
+    Returns:
+        A tensor with the same dtype (promoted to float) and one
+        additional trailing dimension of size 2 containing `[dy, dx]`.
+        For a 4D input of shape `(batch, height, width, channels)` the
+        output shape is `(batch, height, width, channels, 2)`.
+
+    Examples:
+
+    >>> x = np.random.random((2, 64, 80, 3))
+    >>> y = keras.ops.image.sobel_edges(x)
+    >>> y.shape
+    (2, 64, 80, 3, 2)
+
+    >>> x = np.random.random((64, 80, 3))
+    >>> y = keras.ops.image.sobel_edges(x)
+    >>> y.shape
+    (64, 80, 3, 2)
+    """
+    if any_symbolic_tensors((images,)):
+        return SobelEdges(data_format=data_format).symbolic_call(images)
+    return backend.image.sobel_edges(images, data_format=data_format)

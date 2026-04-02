@@ -35,6 +35,7 @@ ImageOpsBehaviorTests::test_elastic_transform
 ImageOpsBehaviorTests::test_gaussian_blur
 ImageOpsBehaviorTests::test_map_coordinates
 ImageOpsBehaviorTests::test_perspective_transform
+ImageOpsBehaviorTests::test_sobel_edges
 ImageOpsBehaviorTests::test_resize
 ImageOpsCorrectnessTest::test_affine_transform
 ImageOpsCorrectnessTest::test_crop_images
@@ -46,6 +47,7 @@ ImageOpsCorrectnessTest::test_pad_images
 ImageOpsCorrectnessTest::test_perspective_transform
 ImageOpsCorrectnessTest::test_resize
 ImageOpsCorrectnessTest::test_scale_and_translate
+ImageOpsCorrectnessTest::test_sobel_edges
 ImageOpsDtypeTest::test_affine_transform
 ImageOpsDtypeTest::test_elastic_transform
 ImageOpsDtypeTest::test_gaussian_blur
@@ -53,6 +55,7 @@ ImageOpsDtypeTest::test_map_coordinates
 ImageOpsDtypeTest::test_perspective_transform
 ImageOpsDtypeTest::test_resize
 ImageOpsDtypeTest::test_scale_and_translate
+ImageOpsDtypeTest::test_sobel_edges
 LayerTest::test_call_context_args_with_func_seq_models_as_layers
 LayerTest::test_complex_dtype_support
 LayerTest::test_end_to_end_masking
