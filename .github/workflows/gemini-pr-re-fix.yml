@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |-
       github.event_name == 'issues' &&
-      github.event.label.name == 'auto-fix'
+      github.event.label.name == 'type:auto-fix'
     steps:
       - name: 'Checkout'
         uses: actions/checkout@v6
