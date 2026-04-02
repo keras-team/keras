@@ -8,6 +8,7 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend import standardize_data_format
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
@@ -2230,16 +2231,21 @@ class SparseCategoricalCrossentropy(Operation):
                 "Received: "
                 f"output.shape={output.shape}"
             )
+        ndim = len(output.shape)
+        axis = canonicalize_axis(self.axis, ndim)
         target_shape = target.shape
         if len(target_shape) == len(output.shape) and target_shape[-1] == 1:
             target_shape = target_shape[:-1]
-        if target_shape != output.shape[:-1]:
+        output_shape_without_class = (
+            output.shape[:axis] + output.shape[axis + 1 :]
+        )
+        if target_shape != output_shape_without_class:
             raise ValueError(
                 "Arguments `target` and `output` must have the same shape "
                 "up until the last dimension: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+        return KerasTensor(output_shape_without_class, dtype=output.dtype)
 
 
 @keras_export(
@@ -2288,10 +2294,6 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     >>> sparse_categorical_crossentropy(target, output)
     array([0.10536056 0.22314355 0.6931472 ], shape=(3,), dtype=float32)
     """
-    if axis != -1:
-        raise ValueError(
-            f"Only axis=-1 is currently supported. Received: axis={axis}"
-        )
     if any_symbolic_tensors((target, output)):
         return SparseCategoricalCrossentropy(
             from_logits=from_logits, axis=axis
