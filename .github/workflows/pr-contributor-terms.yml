@@ -1,4 +1,4 @@
-name: 'PR Contributor Terms Check'
+name: 'PR Contributor Agreement'
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
   pull-requests: 'read'
 
 jobs:
-  check-terms:
+  verify:
     if: github.repository == 'keras-team/keras' || github.repository == 'keras-team/maintainers-keras'
     runs-on: 'ubuntu-latest'
     steps:
