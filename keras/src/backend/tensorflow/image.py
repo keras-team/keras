@@ -1074,3 +1074,17 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    images = convert_to_tensor(images)
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    edges = tf.image.sobel_edges(images)
+
+    if data_format == "channels_first":
+        # (N, H, W, C, 2) -> (N, C, H, W, 2)
+        edges = tf.transpose(edges, (0, 3, 1, 2, 4))
+
+    return edges
