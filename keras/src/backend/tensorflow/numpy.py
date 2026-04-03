@@ -3711,8 +3711,29 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
-    x = convert_to_tensor(x, tf.int32)
+    x = convert_to_tensor(x)
+    if axis is None:
+        x_flat = tf.reshape(x, [-1])
+        x_flat = tf.cast(x_flat, tf.int32)
 
+        bottom_ind = tf.math.top_k(-x_flat, kth + 1).indices
+
+        n = tf.shape(x_flat)[0]
+
+        mask = tf.reduce_sum(tf.one_hot(bottom_ind, n, dtype=tf.int32), axis=0)
+
+        indices = tf.where(mask)
+        updates = tf.squeeze(tf.zeros(tf.shape(indices)[0], dtype=tf.int32))
+
+        final_mask = tf.tensor_scatter_nd_update(x_flat, indices, updates)
+
+        top_ind = tf.math.top_k(
+            final_mask, tf.shape(x_flat)[0] - kth - 1
+        ).indices
+
+        return tf.cast(tf.concat([bottom_ind, top_ind], axis=0), dtype="int32")
+
+    x = tf.cast(x, tf.int32)
     x = swapaxes(x, axis, -1)
     bottom_ind = tf.math.top_k(-x, kth + 1).indices
 

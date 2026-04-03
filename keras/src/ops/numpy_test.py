@@ -6870,6 +6870,56 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
+    def test_argpartition_with_axis_none(self):
+        x = np.array(
+            [
+                [
+                    [3, 4, 1, 0],
+                    [2, 3, 4, 1],
+                ],
+                [
+                    [1, 2, 0, 1],
+                    [4, 0, 1, 2],
+                ],
+            ]
+        )
+        kth = 5
+        keras_indices = knp.argpartition(x, kth, axis=None)
+
+        # To verify correctness without relying on exact index order,
+        # we can check the properties of the partitioned array.
+        x_flat = x.flatten()
+        keras_partitioned_values = x_flat[keras_indices]
+
+        # The element at the kth position should be the kth smallest element
+        # if the array was sorted.
+        sorted_x_flat = np.sort(x_flat)
+        kth_element_from_sorted = sorted_x_flat[kth]
+
+        # In numpy's argpartition, the element at the kth index is the
+        # kth smallest.
+        self.assertEqual(keras_partitioned_values[kth], kth_element_from_sorted)
+
+        # All elements before the kth element should be less than or equal to it.
+        self.assertTrue(
+            np.all(
+                keras_partitioned_values[:kth] <= keras_partitioned_values[kth]
+            )
+        )
+
+        # All elements after the kth element should be greater than or equal to
+        # it.
+        self.assertTrue(
+            np.all(
+                keras_partitioned_values[kth:] >= keras_partitioned_values[kth]
+            )
+        )
+
+        # Also check the shape for symbolic tensor
+        x_symbolic = keras.KerasTensor(shape=(2, 2, 4))
+        symbolic_out = knp.argpartition(x_symbolic, kth, axis=None)
+        self.assertEqual(symbolic_out.shape, (16,))
+
     def test_angle(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         self.assertAllClose(knp.angle(x), np.angle(x))
