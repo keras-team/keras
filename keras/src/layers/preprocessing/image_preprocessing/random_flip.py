@@ -243,9 +243,10 @@ class RandomFlip(BaseImagePreprocessingLayer):
         return config
 
 
-RandomFlip.__doc__ = RandomFlip.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandomFlip"
-    ),
-)
+if RandomFlip.__doc__ is not None:
+    RandomFlip.__doc__ = RandomFlip.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomFlip"
+        ),
+    )

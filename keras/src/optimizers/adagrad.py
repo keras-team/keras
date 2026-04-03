@@ -103,6 +103,7 @@ class Adagrad(optimizer.Optimizer):
         return config
 
 
-Adagrad.__doc__ = Adagrad.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adagrad.__doc__ is not None:
+    Adagrad.__doc__ = Adagrad.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

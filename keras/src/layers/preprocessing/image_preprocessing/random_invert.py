@@ -136,9 +136,10 @@ class RandomInvert(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandomInvert.__doc__ = RandomInvert.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomInvert"
-    ),
-)
+if RandomInvert.__doc__ is not None:
+    RandomInvert.__doc__ = RandomInvert.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomInvert"
+        ),
+    )
