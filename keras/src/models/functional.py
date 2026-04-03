@@ -146,16 +146,47 @@ class Functional(Function, Model):
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
         # Pre-compute flag for fast path in call().
-        self._single_input_model = (
-            isinstance(self._inputs_struct, list)
-            and len(self._inputs_struct) == 1
-        )
+        self._single_input_model = len(self._inputs) == 1
 
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
         # build. E.g. to attach a layer to a model that is not part of the
         # functional DAG.
         pass
+
+    def __call__(self, *args, **kwargs):
+        # Ultra-fast inference path for the most common case:
+        #   model(tensor)  or  model(tensor, training=False)
+        # Bypasses Layer.__call__ → _call_full → CallSpec entirely.
+        if (
+            len(args) == 1
+            and backend.is_tensor(args[0])
+            and self.built
+            and getattr(self, "_forward_plan", None) is not None
+            and getattr(self, "_single_input_model", None)
+        ):
+            training = kwargs.get("training")
+            mask = kwargs.get("mask")
+            # Only use ultra-fast path for inference (no training, no mask,
+            # no other kwargs beyond training/mask).
+            if (
+                not training
+                and mask is None
+                and len(kwargs) <= 1
+            ):
+                inputs = args[0]
+                if len(inputs.shape) == len(self._inputs[0].shape):
+                    ref = self._inputs[0]
+                    if (
+                        backend.standardize_dtype(inputs.dtype)
+                        != ref.dtype
+                    ):
+                        inputs = ops.convert_to_tensor(
+                            inputs, dtype=ref.dtype
+                        )
+                    return self._execute_forward_plan([inputs])
+
+        return super().__call__(*args, **kwargs)
 
     def _obj_type(self):
         return "Functional"
@@ -176,9 +207,24 @@ class Functional(Function, Model):
         )
 
     def call(self, inputs, training=None, mask=None, **kwargs):
+        # Ultra-fast path: single tensor input, no mask, no extra kwargs,
+        # no training mode.  Uses pre-compiled forward plan with integer
+        # slot indexing instead of dict-based graph traversal.
+        if (
+            mask is None
+            and not kwargs
+            and training is None
+            and getattr(self, "_single_input_model", None)
+            and backend.is_tensor(inputs)
+            and len(inputs.shape) == len(self._inputs[0].shape)
+            and getattr(self, "_forward_plan", None) is not None
+        ):
+            ref = self._inputs[0]
+            if backend.standardize_dtype(inputs.dtype) != ref.dtype:
+                inputs = ops.convert_to_tensor(inputs, dtype=ref.dtype)
+            return self._execute_forward_plan([inputs])
+
         # Fast path: single tensor input, no mask, no extra kwargs.
-        # Skips _standardize_inputs, mask list allocation, and
-        # kwargs.copy() overhead.
         if (
             mask is None
             and not kwargs

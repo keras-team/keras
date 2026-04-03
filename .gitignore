@@ -26,3 +26,4 @@ pytest.ini
 venv/
 /venv_keras
 /venv_pip
+/bench_results/

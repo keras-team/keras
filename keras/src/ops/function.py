@@ -126,6 +126,10 @@ class Function(Operation):
         if is_nnx_enabled():
             self._setup_nnx_op_mapping()
 
+        # Pre-compile an index-based execution plan for fast inference.
+        # Uses integer slot indices instead of id()-based dict lookups.
+        self._compile_forward_plan()
+
     @property
     def operations(self):
         return self._operations[:]
@@ -150,6 +154,138 @@ class Function(Operation):
         for operation in self._operations:
             # Map the operation id to this operation instance
             self._nnx_op_mapping[id(operation)] = operation
+
+    def _compile_forward_plan(self):
+        """Pre-compile an index-based execution plan for fast inference.
+
+        Instead of using id()-based dictionary lookups and fill_in() per
+        node, this builds a flat list of (callable, input_slot_indices,
+        output_slot_index, static_kwargs) tuples.  The execution engine
+        uses a simple Python list as the slot array, with integer indexing
+        replacing all dict and id() overhead.
+
+        For layers with ``_fast_call=True``, the plan stores
+        ``layer.call`` directly, bypassing ``Layer.__call__`` overhead.
+        """
+        idx_map = {}
+        for i, inp in enumerate(self._inputs):
+            idx_map[id(inp)] = i
+
+        next_idx = len(self._inputs)
+        plan = []
+
+        for node in self._compiled_nodes:
+            input_ids = [id(x) for x in node.input_tensors]
+            if any(xid not in idx_map for xid in input_ids):
+                continue
+
+            op = node.operation
+            sa = node.arguments
+
+            # Use layer.call directly when safe (bypasses __call__).
+            call_fn = op
+            if (
+                hasattr(op, "_fast_call")
+                and op._fast_call
+                and op.built
+                and hasattr(op, "call")
+            ):
+                call_fn = op.call
+
+            if sa._single_positional_tensor is not None:
+                in_slots = (idx_map[id(sa._single_positional_tensor)],)
+                pattern = 1
+                static_kw = None
+            elif sa._dual_positional_tensors is not None:
+                t0, t1 = sa._dual_positional_tensors
+                in_slots = (idx_map[id(t0)], idx_map[id(t1)])
+                pattern = 2
+                static_kw = None
+            elif sa._dual_tensors_static_kwargs is not None:
+                t0, t1, kw = sa._dual_tensors_static_kwargs
+                in_slots = (idx_map[id(t0)], idx_map[id(t1)])
+                pattern = 3
+                static_kw = kw
+            else:
+                in_slots = tuple(idx_map[xid] for xid in input_ids)
+                pattern = 0
+                static_kw = node
+                call_fn = op  # General case: go through __call__
+
+            if len(node.outputs) == 1:
+                out_slot = next_idx
+                idx_map[id(node.outputs[0])] = next_idx
+                next_idx += 1
+                multi_out = None
+            else:
+                out_slot = next_idx
+                multi_out = []
+                for out_t in node.outputs:
+                    idx_map[id(out_t)] = next_idx
+                    multi_out.append(next_idx)
+                    next_idx += 1
+                multi_out = tuple(multi_out)
+
+            plan.append(
+                (call_fn, in_slots, out_slot, pattern, static_kw, multi_out)
+            )
+
+        output_slots = tuple(idx_map.get(id(x)) for x in self._outputs)
+        self._forward_plan = tuple(plan)
+        self._forward_plan_slots = next_idx
+        self._forward_output_slots = output_slots
+        self._forward_plan_single_output = len(output_slots) == 1
+        # Store idx_map for the general fallback path.
+        self._forward_idx_map = idx_map
+
+    def _execute_forward_plan(self, inputs):
+        """Execute the pre-compiled forward plan.
+
+        Uses a flat list with integer indexing for intermediate results,
+        eliminating dict lookups, id() calls, and fill_in() overhead.
+        """
+        plan = self._forward_plan
+        slots = [None] * self._forward_plan_slots
+
+        for i, inp in enumerate(inputs):
+            slots[i] = inp
+
+        for fn, in_slots, out_slot, pattern, static_kw, multi_out in plan:
+            if pattern == 1:
+                result = fn(slots[in_slots[0]])
+            elif pattern == 2:
+                result = fn(slots[in_slots[0]], slots[in_slots[1]])
+            elif pattern == 3:
+                result = fn(
+                    slots[in_slots[0]], slots[in_slots[1]], **static_kw
+                )
+            else:
+                # General: use fill_in with id-based tensor_dict.
+                node = static_kw
+                tensor_dict = {}
+                for j, ref_inp in enumerate(self._inputs):
+                    tensor_dict[id(ref_inp)] = slots[j]
+                # Reconstruct tensor_dict for all computed outputs.
+                for prev_node in self._compiled_nodes:
+                    for out_t in prev_node.outputs:
+                        oid = id(out_t)
+                        if oid in self._forward_idx_map:
+                            si = self._forward_idx_map[oid]
+                            if slots[si] is not None:
+                                tensor_dict[oid] = slots[si]
+                args, kwargs = node.arguments.fill_in(tensor_dict)
+                result = fn(*args, **kwargs)
+
+            if multi_out is None:
+                slots[out_slot] = result
+            else:
+                flat = tree.flatten(result)
+                for slot_idx, val in zip(multi_out, flat):
+                    slots[slot_idx] = val
+
+        if self._forward_plan_single_output:
+            return slots[self._forward_output_slots[0]]
+        return [slots[i] for i in self._forward_output_slots]
 
     def _get_operation_for_node(self, node):
         """Get the operation for a node, using NNX mapping if enabled."""

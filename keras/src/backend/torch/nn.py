@@ -603,6 +603,54 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
     return outputs
 
 
+def _conv2d_channels_last_fast(inputs, kernel, strides, padding):
+    """Inlined fast path for 2D convolution with channels_last, groups=1."""
+    # Transpose NHWC → NCHW (view only).
+    inputs = torch.permute(inputs, (0, 3, 1, 2))
+    # Transpose kernel (H,W,Cin,Cout) → (Cout,Cin,H,W) (view only).
+    kernel = torch.permute(kernel, (3, 2, 0, 1))
+    # Ensure channels_last memory format for fast cuDNN path.
+    cl = torch.channels_last
+    if not inputs.is_contiguous(memory_format=cl):
+        inputs = inputs.contiguous(memory_format=cl)
+    if not kernel.is_contiguous(memory_format=cl):
+        kernel = kernel.contiguous(memory_format=cl)
+    # Handle strides.
+    if isinstance(strides, int):
+        sh = sw = strides
+    else:
+        sh, sw = strides if len(strides) == 2 else (strides[0], strides[0])
+    # Handle padding.
+    if padding == "same":
+        kh, kw = kernel.shape[2], kernel.shape[3]
+        if sh == 1 and sw == 1:
+            # Stride-1: total padding = kernel_size - 1.
+            pad_h = kh - 1
+            pad_w = kw - 1
+        else:
+            # General stride: compute "same" output padding.
+            ih, iw = inputs.shape[2], inputs.shape[3]
+            oh = (ih + sh - 1) // sh
+            ow = (iw + sw - 1) // sw
+            pad_h = max(0, (oh - 1) * sh + kh - ih)
+            pad_w = max(0, (ow - 1) * sw + kw - iw)
+        # Symmetric padding: compatible with conv2d padding arg.
+        if pad_h % 2 == 0 and pad_w % 2 == 0:
+            torch_pad = (pad_h // 2, pad_w // 2)
+        else:
+            # Asymmetric padding: must use F.pad.
+            inputs = tnn.pad(
+                inputs,
+                (pad_w // 2, pad_w - pad_w // 2, pad_h // 2, pad_h - pad_h // 2),
+            )
+            torch_pad = 0
+    else:
+        torch_pad = 0
+    outputs = tnn.conv2d(inputs, kernel, stride=(sh, sw), padding=torch_pad)
+    # Transpose NCHW → NHWC.
+    return torch.permute(outputs, (0, 2, 3, 1))
+
+
 def conv(
     inputs,
     kernel,
@@ -616,6 +664,35 @@ def conv(
         inputs = convert_to_tensor(inputs)
     if type(kernel) is not torch.Tensor:
         kernel = convert_to_tensor(kernel)
+
+    # Fast path: 2D conv, channels_last, groups=1, no dilation.
+    # Inlines transpose, padding, and format conversion to avoid
+    # multiple function calls.
+    if (
+        inputs.ndim == 4
+        and (data_format is None or data_format == "channels_last")
+        and kernel.shape[2] == inputs.shape[3]  # groups == 1
+    ):
+        # Check dilation_rate is trivial.
+        no_dilation = (
+            dilation_rate == 1
+            or dilation_rate == (1, 1)
+            or dilation_rate == [1, 1]
+        )
+        if data_format is None:
+            data_format = backend.standardize_data_format(data_format)
+            if data_format != "channels_last":
+                # Fall through to general path.
+                pass
+            elif no_dilation:
+                return _conv2d_channels_last_fast(
+                    inputs, kernel, strides, padding
+                )
+        elif no_dilation:
+            return _conv2d_channels_last_fast(
+                inputs, kernel, strides, padding
+            )
+
     num_spatial_dims = inputs.ndim - 2
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 

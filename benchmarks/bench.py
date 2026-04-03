@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""
-Keras Inference Benchmark — PR #22139
-https://github.com/keras-team/keras/pull/22139
+"""Keras inference overhead benchmark vs pure PyTorch and JAX.
 
-Compares inference latency across frameworks:
-  - Pure JAX (eager + jax.jit)
-  - Pure PyTorch (eager + torch.compile)
-  - Keras model(x), model.predict(), greedy generate
-
-Models:
-  CNN — Conv64->Conv64->Pool->Conv128->GAP->Dense10           ~114K params
-  LLM — 2-layer causal transformer (256d, 4h, vocab 1024)     ~2.1M params
+Measures the per-call overhead that Keras adds on top of native frameworks.
+Models are deliberately small so that framework overhead dominates GPU time.
 
 Usage:
-    KERAS_BACKEND=torch python bench.py --tag baseline
-    KERAS_BACKEND=torch python bench.py --tag optimized
+    # Pure frameworks (no Keras import):
+    python bench.py --mode pure
 
-Requires: keras, torch, jax, flax, numpy
+    # Keras with torch backend:
+    KERAS_BACKEND=torch python bench.py --mode keras
+
+    # Keras with jax backend:
+    KERAS_BACKEND=jax python bench.py --mode keras
+
+    # All modes:
+    KERAS_BACKEND=torch python bench.py --mode all
 """
 
 import argparse
@@ -27,219 +26,91 @@ import time
 
 import numpy as np
 
-# ── Config ──────────────────────────────────────────────────────────────
-WARMUP = 2
-RUNS = 10
+# ── Model config (small: overhead-dominated) ────────────────────────────
+WARMUP = 5
+RUNS = 50
 BATCH = 4
+IMG_SIZE = 32
 VOCAB = 256
 SEQ = 32
 HDIM = 128
 HEADS = 2
 NLAYERS = 1
-GEN = 8
+GEN_TOKENS = 8
 
-R = {}  # results collector
+R = {}
 
 
-# ── Timing ──────────────────────────────────────────────────────────────
-def bench(fn, *a, sync=None, label=""):
-    """Warmup, then time fn(*a) and record median."""
+def bench(fn, *args, sync=None, label=""):
+    """Warmup then measure median and p95 latency."""
     for _ in range(WARMUP):
-        out = fn(*a)
+        out = fn(*args)
         if sync:
             sync(out)
-    ts = []
+    times = []
     for _ in range(RUNS):
         t0 = time.perf_counter()
-        out = fn(*a)
+        out = fn(*args)
         if sync:
             sync(out)
-        ts.append(time.perf_counter() - t0)
-    ts.sort()
-    med = ts[len(ts) // 2] * 1e3
-    p95 = ts[int(0.95 * len(ts))] * 1e3
-    print(f"  {label:<52s} {med:8.2f} ms  (p95 {p95:.2f})")
-    R[label] = round(med, 3)
+        times.append(time.perf_counter() - t0)
+    times.sort()
+    med = times[len(times) // 2] * 1e3
+    p5 = times[int(0.05 * len(times))] * 1e3
+    p95 = times[int(0.95 * len(times))] * 1e3
+    print(f"  {label:<55s} {med:7.3f} ms  (p5={p5:.3f}  p95={p95:.3f})")
+    R[label] = round(med, 4)
     return med
 
 
-def hdr(s):
-    print(f"\n{'=' * 62}\n  {s}\n{'=' * 62}")
-
-
-# ── Pure JAX ────────────────────────────────────────────────────────────
-def run_jax():
-    try:
-        import flax.linen as nn
-        import jax
-        import jax.numpy as jnp
-    except ImportError:
-        print("\n  [SKIP] JAX/Flax not installed")
-        return
-
-    hdr(f"Pure JAX {jax.__version__}  [{jax.devices()[0]}]")
-
-    def sync(out):
-        if hasattr(out, "block_until_ready"):
-            out.block_until_ready()
-
-    # ── CNN ──
-    class CNN(nn.Module):
-        @nn.compact
-        def __call__(self, x):
-            x = nn.relu(nn.Conv(64, (3, 3), padding="SAME")(x))
-            x = nn.relu(nn.Conv(64, (3, 3), padding="SAME")(x))
-            x = nn.max_pool(x, (2, 2), strides=(2, 2))
-            x = nn.relu(nn.Conv(128, (3, 3), padding="SAME")(x))
-            return nn.Dense(10)(x.mean(axis=(1, 2)))
-
-    cnn = CNN()
-    imgs = jnp.ones((BATCH, 32, 32, 3))
-    pc = cnn.init(jax.random.PRNGKey(0), imgs)
-    print(f"  CNN params: {sum(x.size for x in jax.tree.leaves(pc)):,}")
-
-    fwd = lambda x: cnn.apply(pc, x)
-    fwd_jit = jax.jit(fwd)
-    fwd_jit(imgs).block_until_ready()  # trigger compilation
-
-    bench(fwd, imgs, sync=sync, label="jax  CNN  eager")
-    bench(fwd_jit, imgs, sync=sync, label="jax  CNN  jit")
-
-    # ── LLM ──
-    class Block(nn.Module):
-        @nn.compact
-        def __call__(self, x):
-            B, T, _ = x.shape
-            h = HDIM // HEADS
-            r = x
-            x = nn.LayerNorm()(x)
-            q = nn.Dense(HDIM)(x).reshape(B, T, HEADS, h).transpose(0, 2, 1, 3)
-            k = nn.Dense(HDIM)(x).reshape(B, T, HEADS, h).transpose(0, 2, 1, 3)
-            v = nn.Dense(HDIM)(x).reshape(B, T, HEADS, h).transpose(0, 2, 1, 3)
-            s = (q @ k.transpose(0, 1, 3, 2)) / (h**0.5)
-            s = jax.nn.softmax(
-                jnp.where(jnp.tril(jnp.ones((T, T))), s, -1e9), -1
-            )
-            x = (
-                nn.Dense(HDIM)(
-                    (s @ v).transpose(0, 2, 1, 3).reshape(B, T, HDIM)
-                )
-                + r
-            )
-            r = x
-            x = nn.LayerNorm()(x)
-            return nn.Dense(HDIM)(nn.gelu(nn.Dense(HDIM * 4)(x))) + r
-
-    class LLM(nn.Module):
-        @nn.compact
-        def __call__(self, ids):
-            x = nn.Embed(VOCAB, HDIM)(ids)
-            for _ in range(NLAYERS):
-                x = Block()(x)
-            return nn.Dense(VOCAB)(nn.LayerNorm()(x))
-
-    llm = LLM()
-    ids = jnp.ones((BATCH, SEQ), dtype=jnp.int32)
-    pl = llm.init(jax.random.PRNGKey(1), ids)
-    print(f"  LLM params: {sum(x.size for x in jax.tree.leaves(pl)):,}")
-
-    fwd_llm_eager = lambda x: llm.apply(pl, x)
-    fwd_llm_jit = jax.jit(fwd_llm_eager)
-    fwd_llm_jit(ids).block_until_ready()  # trigger compilation
-
-    bench(fwd_llm_eager, ids, sync=sync, label="jax  LLM  forward  eager")
-    bench(fwd_llm_jit, ids, sync=sync, label="jax  LLM  forward  jit")
-
-    def gen_jax_eager(prompt):
-        cur = prompt
-        for _ in range(GEN):
-            nxt = llm.apply(pl, cur)[:, -1:, :].argmax(-1)
-            cur = jnp.concatenate([cur[:, 1:], nxt], 1)
-        return cur
-
-    @jax.jit
-    def gen_jax_jit(prompt):
-        def body(c, _):
-            nxt = llm.apply(pl, c)[:, -1:, :].argmax(-1)
-            return jnp.concatenate([c[:, 1:], nxt], 1), None
-
-        return jax.lax.scan(body, prompt, None, length=GEN)[0]
-
-    gen_jax_jit(ids).block_until_ready()  # trigger compilation
-
-    bench(
-        gen_jax_eager,
-        ids,
-        sync=sync,
-        label=f"jax  LLM  generate {GEN}tok  eager",
-    )
-    bench(
-        gen_jax_jit,
-        ids,
-        sync=sync,
-        label=f"jax  LLM  generate {GEN}tok  jit+scan",
-    )
+def header(s):
+    print(f"\n{'=' * 70}\n  {s}\n{'=' * 70}")
 
 
 # ── Pure PyTorch ────────────────────────────────────────────────────────
-def run_torch():
+def run_pure_torch():
     import torch
     import torch.nn as tnn
 
-    dev = (
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
-    )
-    hdr(f"Pure PyTorch {torch.__version__}  [{dev}]")
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    header(f"Pure PyTorch {torch.__version__}  [{dev}]")
 
     def sync(_=None):
         if dev == "cuda":
             torch.cuda.synchronize()
-        elif dev == "mps":
-            torch.mps.synchronize()
 
-    # ── CNN (NCHW) ──
-    cnn = (
-        tnn.Sequential(
-            tnn.Conv2d(3, 64, 3, padding=1),
-            tnn.ReLU(),
-            tnn.Conv2d(64, 64, 3, padding=1),
-            tnn.ReLU(),
-            tnn.MaxPool2d(2),
-            tnn.Conv2d(64, 128, 3, padding=1),
-            tnn.ReLU(),
-            tnn.AdaptiveAvgPool2d(1),
-            tnn.Flatten(),
-            tnn.Linear(128, 10),
-        )
-        .to(dev)
-        .eval()
-    )
-    imgs = torch.randn(BATCH, 3, 32, 32, device=dev)
+    # CNN
+    cnn = tnn.Sequential(
+        tnn.Conv2d(3, 64, 3, padding=1), tnn.ReLU(),
+        tnn.Conv2d(64, 64, 3, padding=1), tnn.ReLU(),
+        tnn.MaxPool2d(2),
+        tnn.Conv2d(64, 128, 3, padding=1), tnn.ReLU(),
+        tnn.AdaptiveAvgPool2d(1), tnn.Flatten(),
+        tnn.Linear(128, 10),
+    ).to(dev).eval()
+
+    imgs = torch.randn(BATCH, 3, IMG_SIZE, IMG_SIZE, device=dev)
     print(f"  CNN params: {sum(p.numel() for p in cnn.parameters()):,}")
 
     with torch.no_grad():
         bench(cnn, imgs, sync=sync, label="torch  CNN  eager")
         try:
-            bench(
-                torch.compile(cnn), imgs, sync=sync, label="torch  CNN  compile"
-            )
+            cnn_c = torch.compile(cnn)
+            bench(cnn_c, imgs, sync=sync, label="torch  CNN  compile")
         except Exception as e:
-            print(f"  torch  CNN  torch.compile  SKIP ({e})")
+            print(f"  torch CNN compile SKIP: {e}")
 
-    # ── LLM ──
+    # LLM
     class Block(tnn.Module):
         def __init__(self):
             super().__init__()
             self.ln1 = tnn.LayerNorm(HDIM)
             self.ln2 = tnn.LayerNorm(HDIM)
-            self.attn = tnn.MultiheadAttention(HDIM, HEADS, batch_first=True)
+            self.attn = tnn.MultiheadAttention(
+                HDIM, HEADS, batch_first=True
+            )
             self.ff = tnn.Sequential(
-                tnn.Linear(HDIM, HDIM * 4),
-                tnn.GELU(),
+                tnn.Linear(HDIM, HDIM * 4), tnn.GELU(),
                 tnn.Linear(HDIM * 4, HDIM),
             )
 
@@ -275,61 +146,149 @@ def run_torch():
             llm_c = torch.compile(llm)
             bench(llm_c, ids, sync=sync, label="torch  LLM  forward  compile")
         except Exception as e:
-            print(f"  torch  LLM  forward  compile  SKIP ({e})")
-            llm_c = llm
+            print(f"  torch LLM compile SKIP: {e}")
 
-        def gen_torch(prompt):
+        def gen_eager(prompt):
             cur = prompt.clone()
-            for _ in range(GEN):
-                cur = torch.cat([cur[:, 1:], llm(cur)[:, -1:].argmax(-1)], 1)
+            for _ in range(GEN_TOKENS):
+                logits = llm(cur)
+                nxt = logits[:, -1:].argmax(-1)
+                cur = torch.cat([cur[:, 1:], nxt], 1)
             return cur
 
-        bench(
-            gen_torch,
-            ids,
-            sync=sync,
-            label=f"torch  LLM  generate {GEN}tok  eager",
-        )
+        bench(gen_eager, ids, sync=sync,
+              label=f"torch  LLM  generate {GEN_TOKENS}tok  eager")
+
         try:
-            gen_torch_c = torch.compile(gen_torch)
-            bench(
-                gen_torch_c,
-                ids,
-                sync=sync,
-                label=f"torch  LLM  generate {GEN}tok  compile",
-            )
+            gen_c = torch.compile(gen_eager)
+            bench(gen_c, ids, sync=sync,
+                  label=f"torch  LLM  generate {GEN_TOKENS}tok  compile")
         except Exception as e:
-            print(f"  torch  LLM  generate  compile  SKIP ({e})")
+            print(f"  torch LLM generate compile SKIP: {e}")
+
+
+# ── Pure JAX ────────────────────────────────────────────────────────────
+def run_pure_jax():
+    try:
+        import flax.linen as nn
+        import jax
+        import jax.numpy as jnp
+    except ImportError:
+        print("\n  [SKIP] JAX/Flax not installed")
+        return
+
+    header(f"Pure JAX {jax.__version__}  [{jax.devices()[0]}]")
+
+    def sync(out):
+        if hasattr(out, "block_until_ready"):
+            out.block_until_ready()
+
+    # CNN
+    class CNN(nn.Module):
+        @nn.compact
+        def __call__(self, x):
+            x = nn.relu(nn.Conv(64, (3, 3), padding="SAME")(x))
+            x = nn.relu(nn.Conv(64, (3, 3), padding="SAME")(x))
+            x = nn.max_pool(x, (2, 2), strides=(2, 2))
+            x = nn.relu(nn.Conv(128, (3, 3), padding="SAME")(x))
+            return nn.Dense(10)(x.mean(axis=(1, 2)))
+
+    cnn = CNN()
+    imgs = jnp.ones((BATCH, IMG_SIZE, IMG_SIZE, 3))
+    params = cnn.init(jax.random.PRNGKey(0), imgs)
+    print(f"  CNN params: {sum(x.size for x in jax.tree.leaves(params)):,}")
+
+    fwd = lambda x: cnn.apply(params, x)
+    fwd_jit = jax.jit(fwd)
+    fwd_jit(imgs).block_until_ready()
+
+    bench(fwd, imgs, sync=sync, label="jax  CNN  eager")
+    bench(fwd_jit, imgs, sync=sync, label="jax  CNN  jit")
+
+    # LLM
+    class Block(nn.Module):
+        @nn.compact
+        def __call__(self, x):
+            B, T, _ = x.shape
+            h = HDIM // HEADS
+            r = x
+            x = nn.LayerNorm()(x)
+            q = nn.Dense(HDIM)(x).reshape(B, T, HEADS, h).transpose(0, 2, 1, 3)
+            k = nn.Dense(HDIM)(x).reshape(B, T, HEADS, h).transpose(0, 2, 1, 3)
+            v = nn.Dense(HDIM)(x).reshape(B, T, HEADS, h).transpose(0, 2, 1, 3)
+            s = (q @ k.transpose(0, 1, 3, 2)) / (h**0.5)
+            s = jax.nn.softmax(
+                jnp.where(jnp.tril(jnp.ones((T, T))), s, -1e9), -1
+            )
+            x = nn.Dense(HDIM)(
+                (s @ v).transpose(0, 2, 1, 3).reshape(B, T, HDIM)
+            ) + r
+            r = x
+            x = nn.LayerNorm()(x)
+            return nn.Dense(HDIM)(nn.gelu(nn.Dense(HDIM * 4)(x))) + r
+
+    class LLM(nn.Module):
+        @nn.compact
+        def __call__(self, ids):
+            x = nn.Embed(VOCAB, HDIM)(ids)
+            for _ in range(NLAYERS):
+                x = Block()(x)
+            return nn.Dense(VOCAB)(nn.LayerNorm()(x))
+
+    llm = LLM()
+    ids = jnp.ones((BATCH, SEQ), dtype=jnp.int32)
+    pl = llm.init(jax.random.PRNGKey(1), ids)
+    print(f"  LLM params: {sum(x.size for x in jax.tree.leaves(pl)):,}")
+
+    fwd_eager = lambda x: llm.apply(pl, x)
+    fwd_jit = jax.jit(fwd_eager)
+    fwd_jit(ids).block_until_ready()
+
+    bench(fwd_eager, ids, sync=sync, label="jax  LLM  forward  eager")
+    bench(fwd_jit, ids, sync=sync, label="jax  LLM  forward  jit")
+
+    def gen_eager(prompt):
+        cur = prompt
+        for _ in range(GEN_TOKENS):
+            nxt = llm.apply(pl, cur)[:, -1:, :].argmax(-1)
+            cur = jnp.concatenate([cur[:, 1:], nxt], 1)
+        return cur
+
+    @jax.jit
+    def gen_jit(prompt):
+        def body(c, _):
+            nxt = llm.apply(pl, c)[:, -1:, :].argmax(-1)
+            return jnp.concatenate([c[:, 1:], nxt], 1), None
+        return jax.lax.scan(body, prompt, None, length=GEN_TOKENS)[0]
+
+    gen_jit(ids).block_until_ready()
+
+    bench(gen_eager, ids, sync=sync,
+          label=f"jax  LLM  generate {GEN_TOKENS}tok  eager")
+    bench(gen_jit, ids, sync=sync,
+          label=f"jax  LLM  generate {GEN_TOKENS}tok  jit+scan")
 
 
 # ── Keras ───────────────────────────────────────────────────────────────
 def run_keras():
     bk = os.environ.get("KERAS_BACKEND", "torch")
     import keras
-    from keras import layers
-    from keras import ops
+    from keras import layers, ops
 
-    hdr(f"Keras {keras.__version__}  backend={bk}  path={keras.__file__}")
+    header(f"Keras {keras.__version__}  backend={bk}  [{keras.__file__}]")
+    tag = f"keras[{bk}]"
 
     def sync(out=None):
         if bk == "torch":
             import torch
-
             if torch.cuda.is_available():
                 torch.cuda.synchronize()
-            elif (
-                hasattr(torch.backends, "mps")
-                and torch.backends.mps.is_available()
-            ):
-                torch.mps.synchronize()
         elif bk == "jax":
             if out is not None and hasattr(out, "block_until_ready"):
                 out.block_until_ready()
 
-    tag = f"keras[{bk}]"
-
-    # ── CNN (channels_last) ──
-    inp = keras.Input((32, 32, 3))
+    # CNN
+    inp = keras.Input((IMG_SIZE, IMG_SIZE, 3))
     x = layers.Conv2D(64, 3, padding="same", activation="relu")(inp)
     x = layers.Conv2D(64, 3, padding="same", activation="relu")(x)
     x = layers.MaxPooling2D()(x)
@@ -339,53 +298,40 @@ def run_keras():
     cnn = keras.Model(inp, x)
     print(f"  CNN params: {cnn.count_params():,}")
 
-    imgs = np.random.randn(BATCH, 32, 32, 3).astype("float32")
-
     if bk == "torch":
-        import torch as _torch
-
-        with _torch.no_grad():
-            bench(
-                lambda x: cnn(x, training=False),
-                imgs,
-                sync=sync,
-                label=f"{tag}  CNN  eager",
-            )
+        import torch
+        dev = "cuda" if torch.cuda.is_available() else "cpu"
+        imgs = torch.randn(BATCH, IMG_SIZE, IMG_SIZE, 3, device=dev)
     else:
-        bench(
-            lambda x: cnn(x, training=False),
-            imgs,
-            sync=sync,
-            label=f"{tag}  CNN  eager",
-        )
+        imgs = np.random.randn(BATCH, IMG_SIZE, IMG_SIZE, 3).astype("float32")
+
+    # Build
+    _ = cnn(imgs, training=False)
+    if bk == "torch" and torch.cuda.is_available():
+        torch.cuda.synchronize()
 
     if bk == "torch":
-        try:
-            import torch as _torch
-
-            with _torch.no_grad():
-                cnn_c = _torch.compile(cnn)
-                bench(
-                    lambda x: cnn_c(x, training=False),
-                    imgs,
-                    sync=sync,
-                    label=f"{tag}  CNN  compile",
-                )
-        except Exception as e:
-            print(f"  {tag}  CNN  compile  SKIP ({e})")
-    elif bk == "jax":
-        try:
-            import jax as _jax
-
-            cnn_jit = _jax.jit(lambda x: cnn(x, training=False))
+        with torch.no_grad():
+            bench(lambda x: cnn(x, training=False), imgs, sync=sync,
+                  label=f"{tag}  CNN  eager")
+            try:
+                cnn_c = torch.compile(cnn)
+                bench(lambda x: cnn_c(x, training=False), imgs, sync=sync,
+                      label=f"{tag}  CNN  compile")
+            except Exception as e:
+                print(f"  {tag} CNN compile SKIP: {e}")
+    else:
+        bench(lambda x: cnn(x, training=False), imgs, sync=sync,
+              label=f"{tag}  CNN  eager")
+        if bk == "jax":
+            import jax
+            cnn_jit = jax.jit(lambda x: cnn(x, training=False))
             r = cnn_jit(imgs)
             if hasattr(r, "block_until_ready"):
-                r.block_until_ready()  # trigger compilation
+                r.block_until_ready()
             bench(cnn_jit, imgs, sync=sync, label=f"{tag}  CNN  jit")
-        except Exception as e:
-            print(f"  {tag}  CNN  jit  SKIP ({e})")
 
-    # ── LLM ──
+    # LLM
     inp = keras.Input((None,), dtype="int32")
     x = layers.Embedding(VOCAB, HDIM)(inp)
     for _ in range(NLAYERS):
@@ -403,161 +349,87 @@ def run_keras():
     llm = keras.Model(inp, x)
     print(f"  LLM params: {llm.count_params():,}")
 
-    ids = np.ones((BATCH, SEQ), dtype="int32")
-
     if bk == "torch":
-        import torch as _torch
-
-        with _torch.no_grad():
-            bench(
-                lambda x: llm(x, training=False),
-                ids,
-                sync=sync,
-                label=f"{tag}  LLM  forward  eager",
-            )
+        ids = torch.ones(BATCH, SEQ, dtype=torch.long, device=dev)
     else:
-        bench(
-            lambda x: llm(x, training=False),
-            ids,
-            sync=sync,
-            label=f"{tag}  LLM  forward  eager",
-        )
+        ids = np.ones((BATCH, SEQ), dtype="int32")
 
-    llm_call = None  # compiled/jitted model call if available
+    # Build
+    _ = llm(ids, training=False)
+    if bk == "torch" and torch.cuda.is_available():
+        torch.cuda.synchronize()
 
     if bk == "torch":
-        try:
-            import torch as _torch
-
-            with _torch.no_grad():
-                llm_c = _torch.compile(llm)
-                bench(
-                    lambda x: llm_c(x, training=False),
-                    ids,
-                    sync=sync,
-                    label=f"{tag}  LLM  forward  compile",
-                )
-                llm_call = llm_c
-        except Exception as e:
-            print(f"  {tag}  LLM  forward  compile  SKIP ({e})")
-    elif bk == "jax":
-        try:
-            import jax as _jax
-
-            llm_jit = _jax.jit(lambda x: llm(x, training=False))
+        with torch.no_grad():
+            bench(lambda x: llm(x, training=False), ids, sync=sync,
+                  label=f"{tag}  LLM  forward  eager")
+            try:
+                llm_c = torch.compile(llm)
+                bench(lambda x: llm_c(x, training=False), ids, sync=sync,
+                      label=f"{tag}  LLM  forward  compile")
+            except Exception as e:
+                print(f"  {tag} LLM compile SKIP: {e}")
+    else:
+        bench(lambda x: llm(x, training=False), ids, sync=sync,
+              label=f"{tag}  LLM  forward  eager")
+        if bk == "jax":
+            import jax
+            llm_jit = jax.jit(lambda x: llm(x, training=False))
             r = llm_jit(ids)
             if hasattr(r, "block_until_ready"):
-                r.block_until_ready()  # trigger compilation
+                r.block_until_ready()
             bench(llm_jit, ids, sync=sync, label=f"{tag}  LLM  forward  jit")
-            llm_call = llm_jit
-        except Exception as e:
-            print(f"  {tag}  LLM  forward  jit  SKIP ({e})")
 
-    def gen_keras(call_fn, prompt):
+    # Generation (autoregressive loop)
+    def gen_keras(prompt):
         cur = ops.convert_to_tensor(prompt)
-        for _ in range(GEN):
-            logits = call_fn(cur)
+        for _ in range(GEN_TOKENS):
+            logits = llm(cur, training=False)
             nxt = ops.cast(ops.argmax(logits[:, -1:, :], axis=-1), "int32")
             cur = ops.concatenate([cur[:, 1:], nxt], axis=1)
         return cur
 
-    eager_call = lambda x: llm(x, training=False)
     if bk == "torch":
-        import torch as _torch
-
-        with _torch.no_grad():
-            bench(
-                lambda x: gen_keras(eager_call, x),
-                ids,
-                sync=sync,
-                label=f"{tag}  LLM  generate {GEN}tok  eager",
-            )
+        with torch.no_grad():
+            bench(gen_keras, ids, sync=sync,
+                  label=f"{tag}  LLM  generate {GEN_TOKENS}tok  eager")
     else:
-        bench(
-            lambda x: gen_keras(eager_call, x),
-            ids,
-            sync=sync,
-            label=f"{tag}  LLM  generate {GEN}tok  eager",
-        )
-
-    if llm_call is not None:
-        compile_tag = "compile" if bk == "torch" else "jit"
-        if bk == "torch":
-            import torch as _torch
-
-            with _torch.no_grad():
-                bench(
-                    lambda x: gen_keras(llm_call, x),
-                    ids,
-                    sync=sync,
-                    label=f"{tag}  LLM  generate {GEN}tok  {compile_tag}",
-                )
-        else:
-            bench(
-                lambda x: gen_keras(llm_call, x),
-                ids,
-                sync=sync,
-                label=f"{tag}  LLM  generate {GEN}tok  {compile_tag}",
-            )
+        bench(gen_keras, ids, sync=sync,
+              label=f"{tag}  LLM  generate {GEN_TOKENS}tok  eager")
 
 
 # ── Main ────────────────────────────────────────────────────────────────
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--tag", default="")
-    ap.add_argument(
-        "--skip",
-        default="",
-        help="Comma-separated sections to skip: jax,torch,keras",
-    )
-    args = ap.parse_args()
-    tag = args.tag or os.environ.get("KERAS_BACKEND", "torch")
-    skip = {s.strip() for s in args.skip.split(",") if s.strip()}
+    parser = argparse.ArgumentParser(description="Keras inference benchmark")
+    parser.add_argument("--mode", choices=["pure", "keras", "all"],
+                        default="all")
+    parser.add_argument("--out", default="", help="Output JSON filename")
+    args = parser.parse_args()
 
-    print(f"\n  sys.argv={sys.argv}")
-    print(f"  args.skip='{args.skip}'")
-    print(f"  skip={skip}")
+    bk = os.environ.get("KERAS_BACKEND", "torch")
+    tag = args.out or f"bench_{args.mode}_{bk}"
+    if not tag.endswith(".json"):
+        tag += ".json"
 
-    print(f"\n{'#' * 66}")
-    print(f"  Keras Inference Benchmark  [{tag}]")
+    print(f"\n  Keras Inference Benchmark")
     print(f"  Python {sys.version.split()[0]}  numpy {np.__version__}")
     print(f"  warmup={WARMUP}  runs={RUNS}  batch={BATCH}")
-    print(f"  skip={skip}")
-    print(f"{'#' * 66}")
+    print(f"  mode={args.mode}  backend={bk}")
 
-    if "jax" not in skip:
-        try:
-            run_jax()
-        except Exception as e:
-            print(f"\n  JAX failed: {e}")
+    if args.mode in ("pure", "all"):
+        run_pure_torch()
+        run_pure_jax()
 
-    if "torch" not in skip:
-        try:
-            run_torch()
-        except Exception as e:
-            print(f"\n  PyTorch failed: {e}")
+    if args.mode in ("keras", "all"):
+        run_keras()
 
-    if "keras" not in skip:
-        try:
-            run_keras()
-        except Exception as e:
-            import traceback
-
-            print(f"\n  Keras failed: {e}")
-            traceback.print_exc()
-
-    # Summary
-    hdr("Summary")
+    header("Results")
     for k, v in R.items():
-        print(f"  {v:8.2f} ms   {k}")
+        print(f"  {v:8.3f} ms   {k}")
 
-    fname = f"bench_{tag}.json"
-    try:
-        with open(fname, "w") as f:
-            json.dump(R, f, indent=2)
-        print(f"\n  -> {fname}")
-    except OSError:
-        print(f"\n  (could not write {fname})")
+    with open(tag, "w") as f:
+        json.dump(R, f, indent=2)
+    print(f"\n  -> {tag}")
 
 
 if __name__ == "__main__":

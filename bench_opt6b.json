@@ -1,8 +1,0 @@
-{
-  "keras[torch]  CNN  eager": 0.818,
-  "keras[torch]  CNN  compile": 0.972,
-  "keras[torch]  LLM  forward  eager": 2.829,
-  "keras[torch]  LLM  forward  compile": 3.66,
-  "keras[torch]  LLM  generate 32tok  eager": 126.425,
-  "keras[torch]  LLM  generate 32tok  compile": 111.766
-}

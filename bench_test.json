@@ -1,8 +1,0 @@
-{
-  "jax  CNN  eager": 3.139,
-  "jax  CNN  jit": 0.449,
-  "jax  LLM  forward  eager": 13.774,
-  "jax  LLM  forward  jit": 1.749,
-  "jax  LLM  generate 32tok  eager": 476.397,
-  "jax  LLM  generate 32tok  jit+scan": 90.797
-}
