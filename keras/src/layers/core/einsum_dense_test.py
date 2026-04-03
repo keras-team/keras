@@ -1756,9 +1756,6 @@ class EinsumDenseTest(testing.TestCase):
         # Verify g_idx is NOT created for per-channel
         self.assertFalse(hasattr(layer, "g_idx"))
 
-    @pytest.mark.skipif(
-        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
-    )
     def test_int4_subchannel_g_idx_serialization(self):
         """Test that g_idx is properly serialized and deserialized."""
         layer = layers.EinsumDense(
