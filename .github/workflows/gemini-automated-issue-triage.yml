@@ -40,7 +40,7 @@ permissions:
 jobs:
   triage-issue:
     if: |-
-      (github.repository == 'keras-team/keras' || github.repository == 'keras-team/maintainers-keras') &&
+      github.repository == 'keras-team/keras' &&
       (
         github.event_name == 'workflow_dispatch' ||
         (
