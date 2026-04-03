@@ -286,6 +286,7 @@ def np_conv3d_transpose(
     return output
 
 
+@pytest.mark.skipif(testing.jax_uses_tpu(), reason="Crashes with JAX on TPU")
 class ConvTransposeBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
