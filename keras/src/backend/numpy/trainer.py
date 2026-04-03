@@ -235,7 +235,6 @@ class NumpyTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
-        # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
             raise ValueError(f"Arguments not recognized: {kwargs}")
