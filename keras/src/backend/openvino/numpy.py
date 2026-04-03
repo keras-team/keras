@@ -2031,8 +2031,16 @@ def full_like(x, fill_value, dtype=None):
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
     else:
         ov_type = x.get_element_type()
-    const_value = ov_opset.constant(fill_value, ov_type).output(0)
-    res = ov_opset.broadcast(const_value, shape_x).output(0)
+    fill_ov = get_ov_output(fill_value, ov_type)
+    if fill_ov.get_element_type() != ov_type:
+        fill_ov = ov_opset.convert(fill_ov, ov_type).output(0)
+    if (
+        isinstance(fill_value, (OpenVINOKerasTensor, ov.Output))
+        and len(fill_ov.get_partial_shape()) != 0
+    ):
+        scalar_shape = ov_opset.constant([], Type.i32).output(0)
+        fill_ov = ov_opset.reshape(fill_ov, scalar_shape, False).output(0)
+    res = ov_opset.broadcast(fill_ov, shape_x).output(0)
     return OpenVINOKerasTensor(res)
 
 
@@ -3661,9 +3669,14 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 
 def ndim(x):
     x = get_ov_output(x)
-    shape_tensor = ov_opset.shape_of(x, Type.i64).output(0)
-    rank_tensor = ov_opset.shape_of(shape_tensor, Type.i64).output(0)
-    return OpenVINOKerasTensor(rank_tensor)
+    rank = x.get_partial_shape().rank
+    if not rank.is_static:
+        raise ValueError(
+            "Cannot determine `ndim`: tensor has a dynamically-ranked "
+            "PartialShape. The OpenVINO backend requires a statically-known "
+            "rank for this operation."
+        )
+    return rank.get_length()
 
 
 def nonzero(x):
@@ -4674,6 +4687,8 @@ def vectorize(pyfunc, *, excluded=None, signature=None):
 
 def where(condition, x1=None, x2=None):
     condition = get_ov_output(condition)
+    if condition.get_element_type() != Type.boolean:
+        condition = ov_opset.convert(condition, Type.boolean).output(0)
     if x1 is None and x2 is None:
         nonzero_indices = ov_opset.non_zero(condition)
         return OpenVINOKerasTensor(nonzero_indices.output(0))
@@ -5060,11 +5075,25 @@ def eye(N, M=None, k=0, dtype=None):
     ov_type = OPENVINO_DTYPES[dtype]
     if M is None:
         M = N
+
+    def _to_dim_tensor(val):
+        if isinstance(val, (OpenVINOKerasTensor, ov.Output)):
+            val_ov = get_ov_output(val)
+            if val_ov.get_element_type() != Type.i32:
+                val_ov = ov_opset.convert(val_ov, Type.i32).output(0)
+            return ov_opset.reshape(
+                val_ov, ov_opset.constant([1], Type.i32).output(0), False
+            ).output(0)
+        return ov_opset.constant([val], Type.i32).output(0)
+
+    N_ov = _to_dim_tensor(N)
+    M_ov = _to_dim_tensor(M)
+    k_ov = ov_opset.constant(k, Type.i32).output(0)
     return OpenVINOKerasTensor(
         ov_opset.eye(
-            ov_opset.constant(N, Type.i32),
-            ov_opset.constant(M, Type.i32),
-            ov_opset.constant(k, Type.i32),
+            N_ov,
+            M_ov,
+            k_ov,
             output_type=ov_type,
         ).output(0)
     )

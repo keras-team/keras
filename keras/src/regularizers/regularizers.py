@@ -192,26 +192,23 @@ class L1L2(Regularizer):
         # and no l1 penalty.
         l1 = 0.0 if l1 is None else l1
         l2 = 0.0 if l2 is None else l2
-        validate_float_arg(l1, name="l1")
-        validate_float_arg(l2, name="l2")
-
-        self.l1 = ops.convert_to_tensor(l1)
-        self.l2 = ops.convert_to_tensor(l2)
+        self.l1 = validate_float_arg(l1, name="l1")
+        self.l2 = validate_float_arg(l2, name="l2")
 
     def __call__(self, x):
         regularization = ops.convert_to_tensor(0.0, dtype=x.dtype)
-        if self.l1:
+        if self.l1 != 0.0:
             regularization += ops.cast(self.l1, dtype=x.dtype) * ops.sum(
                 ops.absolute(x)
             )
-        if self.l2:
+        if self.l2 != 0.0:
             regularization += ops.cast(self.l2, dtype=x.dtype) * ops.sum(
                 ops.square(x)
             )
         return regularization
 
     def get_config(self):
-        return {"l1": float(self.l1), "l2": float(self.l2)}
+        return {"l1": self.l1, "l2": self.l2}
 
 
 @keras_export(["keras.regularizers.L1", "keras.regularizers.l1"])
@@ -233,7 +230,7 @@ class L1(Regularizer):
 
     def __init__(self, l1=0.01):
         l1 = 0.01 if l1 is None else l1
-        validate_float_arg(l1, name="l1")
+        l1 = validate_float_arg(l1, name="l1")
         self.l1 = ops.convert_to_tensor(l1)
 
     def __call__(self, x):
@@ -262,14 +259,13 @@ class L2(Regularizer):
 
     def __init__(self, l2=0.01):
         l2 = 0.01 if l2 is None else l2
-        validate_float_arg(l2, name="l2")
-        self.l2 = ops.convert_to_tensor(l2)
+        self.l2 = validate_float_arg(l2, name="l2")
 
     def __call__(self, x):
         return ops.cast(self.l2, dtype=x.dtype) * ops.sum(ops.square(x))
 
     def get_config(self):
-        return {"l2": float(self.l2)}
+        return {"l2": self.l2}
 
 
 @keras_export(
