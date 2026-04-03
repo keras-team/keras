@@ -900,8 +900,7 @@ class Layer(BackendLayer, Operation):
                 ):
                     training = call_context.get_value("training")
                     if training is not None:
-                        call_context.set_value("training", training)
-                        outputs = self.call(args[0], training=bool(training))
+                        outputs = self.call(args[0], training=training)
                     else:
                         outputs = self.call(args[0])
                 else:
