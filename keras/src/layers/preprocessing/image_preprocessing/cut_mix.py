@@ -236,7 +236,8 @@ class CutMix(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-CutMix.__doc__ = CutMix.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace("{LayerName}", "CutMix"),
-)
+if CutMix.__doc__ is not None:
+    CutMix.__doc__ = CutMix.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace("{LayerName}", "CutMix"),
+    )

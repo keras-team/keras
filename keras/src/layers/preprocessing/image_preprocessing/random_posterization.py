@@ -161,9 +161,10 @@ class RandomPosterization(BaseImagePreprocessingLayer):
         return input_shape
 
 
-RandomPosterization.__doc__ = RandomPosterization.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomPosterization"
-    ),
-)
+if RandomPosterization.__doc__ is not None:
+    RandomPosterization.__doc__ = RandomPosterization.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomPosterization"
+        ),
+    )
