@@ -1,14 +1,3 @@
-CircleTest::test_correctness
-CircleTest::test_correctness_weighted
-CircleTest::test_dtype_arg
-CircleTest::test_mean_with_sample_weight_reduction
-CircleTest::test_no_reduction
-CircleTest::test_sum_reduction
-ComputeScaleZeroTest::test_dtype_and_finiteness_sym_true
-ComputeScaleZeroTest::test_per_tensor_shapes_and_basic_invariants_bits2_sym
-ComputeScaleZeroTest::test_per_tensor_shapes_and_basic_invariants_bits4_sym
-ComputeScaleZeroTest::test_per_tensor_shapes_and_basic_invariants_bits8_sym
-ComputeScaleZeroTest::test_per_tensor_symmetric_on_constant_input_uses_safe_range
 ConvLSTM1DTest::test_correctness
 ConvLSTM2DTest::test_correctness
 ConvLSTM3DTest::test_correctness
@@ -93,7 +82,6 @@ SavingBattleTest::test_bidirectional_lstm_saving
 SavingTest::test_load_weights_only_with_unbuilt_model
 SimpleRNNTest::test_output_shape
 SpectralNormalizationTest::test_apply_layer
-TestNumericalUtils::test_build_pos_neg_masks
 TestTrainer::test_predict_dropout
 UnitNormalizationTest::test_un_basics
 UpSampling2dTest::test_upsampling_2d_bilinear0
