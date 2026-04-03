@@ -52,22 +52,10 @@ def pytest_collection_modifyitems(config, items):
                 line.strip() for line in openvino_skipped_tests if line.strip()
             ]
 
-    tpu_skipped_tests = []
     if backend() == "jax":
         import jax
 
         has_multiple_devices = jax.device_count() > 1
-
-        if jax.default_backend() == "tpu":
-            with open(
-                "keras/src/backend/jax/excluded_tpu_tests.txt", "r"
-            ) as file:
-                tpu_skipped_tests = file.readlines()
-                # it is necessary to check if stripped line is not empty
-                # and exclude such lines
-                tpu_skipped_tests = [
-                    line.strip() for line in tpu_skipped_tests if line.strip()
-                ]
 
     requires_trainable_backend = pytest.mark.skipif(
         backend() in ["numpy", "openvino"],
@@ -94,14 +82,6 @@ def pytest_collection_modifyitems(config, items):
                     skip_if_backend(
                         "openvino",
                         "Not supported operation by openvino backend",
-                    )
-                )
-        # also, skip concrete tests for TPU when using JAX backend
-        for skipped_test in tpu_skipped_tests:
-            if skipped_test in item.nodeid:
-                item.add_marker(
-                    pytest.mark.skip(
-                        reason="Known TPU test failure",
                     )
                 )
 
