@@ -2034,7 +2034,10 @@ def full_like(x, fill_value, dtype=None):
     fill_ov = get_ov_output(fill_value, ov_type)
     if fill_ov.get_element_type() != ov_type:
         fill_ov = ov_opset.convert(fill_ov, ov_type).output(0)
-    if len(fill_ov.get_partial_shape()) != 0:
+    if (
+        isinstance(fill_value, (OpenVINOKerasTensor, ov.Output))
+        and len(fill_ov.get_partial_shape()) != 0
+    ):
         scalar_shape = ov_opset.constant([], Type.i32).output(0)
         fill_ov = ov_opset.reshape(fill_ov, scalar_shape, False).output(0)
     res = ov_opset.broadcast(fill_ov, shape_x).output(0)
