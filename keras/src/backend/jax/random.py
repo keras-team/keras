@@ -6,6 +6,11 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def split_seed(seed, ordered=True):
+    keys = jax.random.split(seed)
+    return keys[0], keys[1]
+
+
 def jax_draw_seed(seed):
     if isinstance(seed, jax.Array):
         return seed

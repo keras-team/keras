@@ -105,6 +105,46 @@ class SeedGeneratorTest(testing.TestCase):
         ):
             traced_function()
 
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="This test requires the JAX backend"
+    )
+    def test_jax_split_produces_independent_keys(self):
+        gen = seed_generator.SeedGenerator(seed=42)
+        seeds = [ops.convert_to_numpy(gen.next()) for _ in range(5)]
+
+        # All seeds should be distinct
+        for i in range(len(seeds)):
+            for j in range(i + 1, len(seeds)):
+                self.assertFalse(np.array_equal(seeds[i], seeds[j]))
+
+        # Verify jax.random.split is being used: the first element
+        # should NOT just be the initial seed repeated (as a counter
+        # would do).
+        self.assertNotEqual(seeds[0][0], seeds[1][0])
+
+    @pytest.mark.skipif(
+        backend.backend() != "jax", reason="This test requires the JAX backend"
+    )
+    def test_jax_dropout_different_masks_across_steps(self):
+        """Dropout should produce different masks on each stateless_call."""
+        import jax.numpy as jnp
+
+        from keras.src.layers.regularization.dropout import Dropout
+
+        layer = Dropout(0.5)
+        x = jnp.ones((8, 16))
+        layer(x, training=True)
+
+        trainable = [v.value for v in layer.trainable_variables]
+        non_trainable = [v.value for v in layer.non_trainable_variables]
+
+        out1, nt1 = layer.stateless_call(
+            trainable, non_trainable, x, training=True
+        )
+        out2, nt2 = layer.stateless_call(trainable, nt1, x, training=True)
+        # Masks should differ between successive calls
+        self.assertFalse(np.array_equal(out1, out2))
+
     def test_seed_generator_serialization(self):
         random_generator = seed_generator.SeedGenerator(seed=42, name="sg")
         self.run_class_serialization_test(random_generator)
