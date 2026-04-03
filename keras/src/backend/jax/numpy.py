@@ -1632,6 +1632,8 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
+    if axis is None:
+        axis = 0
     return jnp.argpartition(x, kth, axis)
 
 
