@@ -19,14 +19,14 @@ class ExampleLoss(Loss):
 
 class LossTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         self._global_dtype_policy = dtype_policies.dtype_policy.dtype_policy()
         self._floatx = backend.floatx()
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         dtype_policies.dtype_policy.set_dtype_policy(self._global_dtype_policy)
         backend.set_floatx(self._floatx)
-        return super().tearDown()
 
     def test_squeeze_or_expand(self):
         x1 = ops.ones((3,))

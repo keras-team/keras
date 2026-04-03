@@ -4,7 +4,6 @@ import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import ops
 from keras.src import testing
 from keras.src.utils import image_dataset_utils
 from keras.src.utils import image_utils
@@ -603,14 +602,8 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             shuffle=False,
             format=format,
         )
-        batches_1 = []
-        batches_2 = []
-        for b in dataset:
-            batches_1.append(ops.convert_to_numpy(b))
-        batches_1 = np.concatenate(batches_1, axis=0)
-        for b in dataset:
-            batches_2.append(ops.convert_to_numpy(b))
-        batches_2 = np.concatenate(batches_2, axis=0)
+        batches_1 = np.concatenate([b for b in dataset], axis=0)
+        batches_2 = np.concatenate([b for b in dataset], axis=0)
         self.assertAllClose(batches_1, batches_2, atol=1e-6)
 
         dataset = image_dataset_utils.image_dataset_from_directory(
@@ -623,14 +616,8 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             seed=1337,
             format=format,
         )
-        batches_1 = []
-        batches_2 = []
-        for b in dataset:
-            batches_1.append(ops.convert_to_numpy(b))
-        batches_1 = np.concatenate(batches_1, axis=0)
-        for b in dataset:
-            batches_2.append(ops.convert_to_numpy(b))
-        batches_2 = np.concatenate(batches_2, axis=0)
+        batches_1 = np.concatenate([b for b in dataset], axis=0)
+        batches_2 = np.concatenate([b for b in dataset], axis=0)
         if format == "tf":
             self.assertNotAllClose(batches_1, batches_2, atol=1e-6)
         else:
@@ -648,8 +635,5 @@ class ImageDatasetFromDirectoryTest(testing.TestCase):
             seed=1337,
             format=format,
         )
-        batches_1_alt = []
-        for b in dataset:
-            batches_1_alt.append(ops.convert_to_numpy(b))
-        batches_1_alt = np.concatenate(batches_1_alt, axis=0)
+        batches_1_alt = np.concatenate([b for b in dataset], axis=0)
         self.assertAllClose(batches_1, batches_1_alt, atol=1e-6)

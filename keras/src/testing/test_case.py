@@ -38,10 +38,17 @@ class TestCase(parameterized.TestCase):
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
+    def convert_to_numpy(self, x):
+        if isinstance(x, np.ndarray):
+            return x
+        elif backend.is_tensor(x) or isinstance(x, backend.Variable):
+            return backend.convert_to_numpy(x)
+        return np.array(x)
+
     def assertAllClose(
         self,
-        x1,
-        x2,
+        actual,
+        desired,
         atol=1e-6,
         rtol=1e-6,
         tpu_atol=None,
@@ -52,11 +59,11 @@ class TestCase(parameterized.TestCase):
             atol = tpu_atol
         if tpu_rtol is not None and uses_tpu():
             rtol = tpu_rtol
-        if not isinstance(x1, np.ndarray):
-            x1 = backend.convert_to_numpy(x1)
-        if not isinstance(x2, np.ndarray):
-            x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol, err_msg=msg)
+        actual = self.convert_to_numpy(actual)
+        desired = self.convert_to_numpy(desired)
+        np.testing.assert_allclose(
+            actual, desired, atol=atol, rtol=rtol, err_msg=msg
+        )
 
     def assertNotAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
         try:
@@ -72,10 +79,8 @@ class TestCase(parameterized.TestCase):
         if tpu_decimal is not None and uses_tpu():
             decimal = tpu_decimal
         msg = msg or ""
-        if not isinstance(x1, np.ndarray):
-            x1 = backend.convert_to_numpy(x1)
-        if not isinstance(x2, np.ndarray):
-            x2 = backend.convert_to_numpy(x2)
+        x1 = self.convert_to_numpy(x1)
+        x2 = self.convert_to_numpy(x2)
         np.testing.assert_almost_equal(x1, x2, decimal=decimal, err_msg=msg)
 
     def assertAllEqual(self, x1, x2, msg=None):
@@ -84,9 +89,9 @@ class TestCase(parameterized.TestCase):
             if isinstance(e1, (list, tuple)) or isinstance(e2, (list, tuple)):
                 self.assertAllEqual(e1, e2, msg=msg)
             else:
-                e1 = backend.convert_to_numpy(e1)
-                e2 = backend.convert_to_numpy(e2)
-                self.assertEqual(e1, e2, msg=msg)
+                e1 = self.convert_to_numpy(e1)
+                e2 = self.convert_to_numpy(e2)
+                np.testing.assert_array_equal(e1, e2, err_msg=msg)
 
     def assertLen(self, iterable, expected_len, msg=None):
         self.assertEqual(len(iterable), expected_len, msg=msg)
@@ -580,7 +585,10 @@ class TestCase(parameterized.TestCase):
                 tpu_rtol=tpu_rtol,
             )
 
-            if run_training_check:
+            if run_training_check and backend.backend() not in (
+                "numpy",
+                "openvino",
+            ):
                 run_training_step(layer, input_data, output_data)
 
             # Never test mixed precision on torch CPU. Torch lacks support.

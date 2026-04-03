@@ -545,7 +545,7 @@ class ModelCheckpointTest(testing.TestCase):
         new_weights = new_model.get_weights()
         self.assertEqual(len(ref_weights), len(new_weights))
         for ref_w, w in zip(ref_weights, new_weights):
-            self.assertAllClose(ref_w, w)
+            self.assertAllClose(w, ref_w)
 
         # Model Checkpoint load model weights
         model = get_model()
@@ -580,4 +580,4 @@ class ModelCheckpointTest(testing.TestCase):
         new_weights = new_model.get_weights()
         self.assertEqual(len(ref_weights), len(new_weights))
         for ref_w, w in zip(ref_weights, new_weights):
-            self.assertAllClose(ref_w, w)
+            self.assertAllClose(w, ref_w)

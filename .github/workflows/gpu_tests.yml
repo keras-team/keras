@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
 
@@ -37,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout ${{ github.ref }}
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Check CUDA Version
         run: nvidia-smi

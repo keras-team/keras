@@ -1142,11 +1142,14 @@ def blackman(x):
     x = tf.cast(x, dtype)
     n = tf.range(x, dtype=dtype)
     n_minus_1 = tf.cast(x - 1, dtype)
+    n_minus_1_safe = tf.where(
+        tf.equal(n_minus_1, 0), tf.ones_like(n_minus_1), n_minus_1
+    )
     term1 = 0.42
-    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1)
-    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1)
+    term2 = -0.5 * tf.cos(2 * np.pi * n / n_minus_1_safe)
+    term3 = 0.08 * tf.cos(4 * np.pi * n / n_minus_1_safe)
     window = term1 + term2 + term3
-    return window
+    return tf.where(tf.equal(n_minus_1, 0), tf.ones_like(window), window)
 
 
 def broadcast_to(x, shape):
@@ -1588,9 +1591,13 @@ def expm1(x):
 
 def flip(x, axis=None):
     x = convert_to_tensor(x)
+    rank = x.shape.rank
     if axis is None:
-        return tf.reverse(x, tf.range(tf.rank(x)))
-    return tf.reverse(x, [axis])
+        return tf.reverse(x, tf.range(rank))
+    else:
+        axis = to_tuple_or_list(axis)
+        axis = [canonicalize_axis(a, rank) for a in axis]
+        return tf.reverse(x, axis)
 
 
 def fliplr(x):
@@ -2335,6 +2342,15 @@ def nanmean(x, axis=None, keepdims=False):
         keepdims=keepdims,
     )
     return tf.divide(total_sum, normalizer)
+
+
+def nanmedian(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return x
+
+    return nanquantile(x, q=0.5, axis=axis, keepdims=keepdims)
 
 
 def nanmin(x, axis=None, keepdims=False):

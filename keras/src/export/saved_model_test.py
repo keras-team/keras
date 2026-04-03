@@ -64,6 +64,22 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
     reason="Torch backend export (via torch_xla) is incompatible with np 2.0",
 )
 class ExportSavedModelTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.export_kwargs = {}
+        if testing.jax_uses_gpu():
+            self.export_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "cuda")
+                }
+            }
+        elif testing.jax_uses_tpu():
+            self.export_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "tpu")
+                }
+            }
+
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
     )
@@ -74,9 +90,16 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
-        saved_model.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(
+            model, temp_filepath, **self.export_kwargs
+        )
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            revived_model.serve(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
 
@@ -106,7 +129,9 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = tf.random.normal((3, 10))
         ref_output = model(ref_input)
 
-        saved_model.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(
+            model, temp_filepath, **self.export_kwargs
+        )
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertEqual(ref_output.shape, revived_model.serve(ref_input).shape)
         # Test with a different batch size
@@ -142,17 +167,19 @@ class ExportSavedModelTest(testing.TestCase):
         model = get_model(model_type, layer_list=[StateLayer()])
         model(tf.random.normal((3, 10)))
 
-        saved_model.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(
+            model, temp_filepath, **self.export_kwargs
+        )
         revived_model = tf.saved_model.load(temp_filepath)
 
         # The non-trainable counter is expected to increment
         input = tf.random.normal((6, 10))
         output1, counter1 = revived_model.serve(input)
-        self.assertAllClose(output1, input)
-        self.assertAllClose(counter1, 2)
+        self.assertAllClose(output1, input, tpu_atol=0.01, tpu_rtol=0.01)
+        self.assertAllClose(counter1, 2, tpu_atol=0.01, tpu_rtol=0.01)
         output2, counter2 = revived_model.serve(input)
-        self.assertAllClose(output2, input)
-        self.assertAllClose(counter2, 3)
+        self.assertAllClose(output2, input, tpu_atol=0.01, tpu_rtol=0.01)
+        self.assertAllClose(counter2, 3, tpu_atol=0.01, tpu_rtol=0.01)
 
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
@@ -164,9 +191,16 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input)
 
-        saved_model.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(
+            model, temp_filepath, **self.export_kwargs
+        )
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            revived_model.serve(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
 
@@ -206,9 +240,16 @@ class ExportSavedModelTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
         ref_output = model(tree.map_structure(ops.convert_to_tensor, ref_input))
 
-        saved_model.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(
+            model, temp_filepath, **self.export_kwargs
+        )
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            revived_model.serve(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
 
         # Test with keras.saving_lib
         temp_filepath = os.path.join(
@@ -223,8 +264,12 @@ class ExportSavedModelTest(testing.TestCase):
                 "DictModel": DictModel,
             },
         )
-        self.assertAllClose(ref_output, revived_model(ref_input))
-        saved_model.export_saved_model(revived_model, self.get_temp_dir())
+        self.assertAllClose(
+            revived_model(ref_input), ref_output, tpu_atol=0.01, tpu_rtol=0.01
+        )
+        saved_model.export_saved_model(
+            revived_model, self.get_temp_dir(), **self.export_kwargs
+        )
 
         # Test with a different batch size
         bigger_input = tree.map_structure(
@@ -247,10 +292,15 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input_y = np.random.normal(size=(batch_size, 10)).astype("float32")
         ref_output = model(ref_input_x, ref_input_y)
 
-        saved_model.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(
+            model, temp_filepath, **self.export_kwargs
+        )
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
-            ref_output, revived_model.serve(ref_input_x, ref_input_y)
+            revived_model.serve(ref_input_x, ref_input_y),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
         )
         # Test with a different batch size
         revived_model.serve(
@@ -282,11 +332,17 @@ class ExportSavedModelTest(testing.TestCase):
         else:
             input_signature = (input_signature,)
         saved_model.export_saved_model(
-            model, temp_filepath, input_signature=input_signature
+            model,
+            temp_filepath,
+            input_signature=input_signature,
+            **self.export_kwargs,
         )
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertAllClose(
-            ref_output, revived_model.serve(ops.convert_to_numpy(ref_input))
+            revived_model.serve(ops.convert_to_numpy(ref_input)),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
         )
 
     def test_input_signature_error(self):
@@ -318,14 +374,23 @@ class ExportSavedModelTest(testing.TestCase):
         ref_input = ops.random.uniform((3, 10))
         ref_output = model(ref_input)
 
+        export_kwargs = self.export_kwargs.copy()
+        if jax2tf_kwargs is not None:
+            export_kwargs.setdefault("jax2tf_kwargs", {}).update(jax2tf_kwargs)
+
         saved_model.export_saved_model(
             model,
             temp_filepath,
             is_static=is_static,
-            jax2tf_kwargs=jax2tf_kwargs,
+            **export_kwargs,
         )
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            revived_model.serve(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
 
 
 @pytest.mark.skipif(
@@ -342,6 +407,22 @@ class ExportSavedModelTest(testing.TestCase):
     testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
 )
 class ExportArchiveTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.add_endpoint_kwargs = {}
+        if testing.jax_uses_gpu():
+            self.add_endpoint_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "cuda")
+                }
+            }
+        elif testing.jax_uses_tpu():
+            self.add_endpoint_kwargs = {
+                "jax2tf_kwargs": {
+                    "native_serialization_platforms": ("cpu", "tpu")
+                }
+            }
+
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
     )
@@ -365,10 +446,16 @@ class ExportArchiveTest(testing.TestCase):
             "call",
             model.__call__,
             input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.call(ref_input))
+        self.assertAllClose(
+            revived_model.call(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_model.call(tf.random.normal((6, 10)))
 
@@ -385,6 +472,7 @@ class ExportArchiveTest(testing.TestCase):
             "call",
             model.__call__,
             input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(
             temp_filepath,
@@ -397,7 +485,10 @@ class ExportArchiveTest(testing.TestCase):
             ),
         )
         self.assertAllClose(
-            ref_output, revived_model.function_aliases["call_alias"](ref_input)
+            revived_model.function_aliases["call_alias"](ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
         )
         # Test with a different batch size
         revived_model.function_aliases["call_alias"](tf.random.normal((6, 10)))
@@ -431,10 +522,16 @@ class ExportArchiveTest(testing.TestCase):
                     tf.TensorSpec(shape=(None, None), dtype=tf.float32),
                 ]
             ],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.call(ref_input))
+        self.assertAllClose(
+            revived_model.call(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_model.call([tf.random.normal((6, 8)), tf.random.normal((6, 6))])
         # Test with a different batch size and different dynamic sizes
@@ -445,29 +542,13 @@ class ExportArchiveTest(testing.TestCase):
         reason="This test is only for the JAX backend.",
     )
     def test_low_level_model_export_with_jax2tf_kwargs(self):
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
-
-        model = get_model()
-        ref_input = tf.random.normal((3, 10))
-        ref_output = model(ref_input)
-
         export_archive = saved_model.ExportArchive()
-        export_archive.track(model)
-        export_archive.add_endpoint(
-            "call",
-            model.__call__,
-            input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
-            jax2tf_kwargs={
-                "native_serialization": True,
-                "native_serialization_platforms": ("cpu", "tpu"),
-            },
-        )
         with self.assertRaisesRegex(
             ValueError, "native_serialization_platforms.*bogus"
         ):
             export_archive.add_endpoint(
-                "call2",
-                model.__call__,
+                "call",
+                lambda x: x,
                 input_signature=[
                     tf.TensorSpec(shape=(None, 10), dtype=tf.float32)
                 ],
@@ -476,9 +557,6 @@ class ExportArchiveTest(testing.TestCase):
                     "native_serialization_platforms": ("cpu", "bogus"),
                 },
             )
-        export_archive.write_out(temp_filepath)
-        revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.call(ref_input))
 
     @pytest.mark.skipif(
         backend.backend() != "jax",
@@ -506,21 +584,30 @@ class ExportArchiveTest(testing.TestCase):
                 "call",
                 model.__call__,
                 input_signature=signature,
-                jax2tf_kwargs={},
+                **self.add_endpoint_kwargs,
             )
             export_archive.write_out(temp_filepath)
 
         export_archive = saved_model.ExportArchive()
         export_archive.track(model)
+        add_endpoint_kwargs = self.add_endpoint_kwargs.copy()
+        add_endpoint_kwargs.setdefault("jax2tf_kwargs", {}).update(
+            {"polymorphic_shapes": ["(batch, a, a)"]}
+        )
         export_archive.add_endpoint(
             "call",
             model.__call__,
             input_signature=signature,
-            jax2tf_kwargs={"polymorphic_shapes": ["(batch, a, a)"]},
+            **add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.call(ref_input))
+        self.assertAllClose(
+            revived_model.call(ref_input),
+            ref_output,
+            tpu_atol=0.05,
+            tpu_rtol=1.0,
+        )
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
@@ -550,12 +637,13 @@ class ExportArchiveTest(testing.TestCase):
         export_archive.add_endpoint(
             "call",
             my_endpoint,
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
 
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertFalse(hasattr(revived_model, "_tracked"))
-        self.assertAllClose(ref_output, revived_model.call(ref_input))
+        self.assertAllClose(revived_model.call(ref_input), ref_output)
         self.assertLen(revived_model.variables, 8)
         self.assertLen(revived_model.trainable_variables, 6)
         self.assertLen(revived_model.non_trainable_variables, 2)
@@ -573,18 +661,16 @@ class ExportArchiveTest(testing.TestCase):
         def model_call(x):
             return model(x)
 
-        from jax import default_backend as jax_device
         from jax.experimental import jax2tf
 
-        native_jax_compatible = not (
-            jax_device() == "gpu"
-            and len(tf.config.list_physical_devices("GPU")) == 0
-        )
+        add_endpoint_kwargs = self.add_endpoint_kwargs.copy()
+        add_endpoint_kwargs.setdefault("jax2tf_kwargs", {})
+
         # now, convert JAX function
         converted_model_call = jax2tf.convert(
             model_call,
-            native_serialization=native_jax_compatible,
             polymorphic_shapes=["(b, 10)"],
+            **add_endpoint_kwargs["jax2tf_kwargs"],
         )
 
         # you can now build a TF inference function
@@ -601,13 +687,20 @@ class ExportArchiveTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
         export_archive = saved_model.ExportArchive()
         export_archive.track(model)
-        export_archive.add_endpoint("serve", infer_fn)
+        export_archive.add_endpoint(
+            "serve", infer_fn, **self.add_endpoint_kwargs
+        )
         export_archive.write_out(temp_filepath)
 
         # Reload and verify outputs
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertFalse(hasattr(revived_model, "_tracked"))
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            revived_model.serve(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         self.assertLen(revived_model.variables, 8)
         self.assertLen(revived_model.trainable_variables, 6)
         self.assertLen(revived_model.non_trainable_variables, 2)
@@ -647,18 +740,16 @@ class ExportArchiveTest(testing.TestCase):
         def model_call(x):
             return model(x)
 
-        from jax import default_backend as jax_device
         from jax.experimental import jax2tf
 
-        native_jax_compatible = not (
-            jax_device() == "gpu"
-            and len(tf.config.list_physical_devices("GPU")) == 0
-        )
+        add_endpoint_kwargs = self.add_endpoint_kwargs.copy()
+        add_endpoint_kwargs.setdefault("jax2tf_kwargs", {})
+
         # now, convert JAX function
         converted_model_call = jax2tf.convert(
             model_call,
-            native_serialization=native_jax_compatible,
             polymorphic_shapes=["(b, t, 1)"],
+            **add_endpoint_kwargs["jax2tf_kwargs"],
         )
 
         # you can now build a TF inference function
@@ -678,13 +769,20 @@ class ExportArchiveTest(testing.TestCase):
         temp_filepath = os.path.join(self.get_temp_dir(), "my_model")
         export_archive = saved_model.ExportArchive()
         export_archive.track(model)
-        export_archive.add_endpoint("serve", infer_fn)
+        export_archive.add_endpoint(
+            "serve", infer_fn, **self.add_endpoint_kwargs
+        )
         export_archive.write_out(temp_filepath)
 
         # Reload and verify outputs
         revived_model = tf.saved_model.load(temp_filepath)
         self.assertFalse(hasattr(revived_model, "_tracked"))
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            revived_model.serve(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         self.assertLen(revived_model.variables, 6)
         self.assertLen(revived_model.trainable_variables, 6)
         self.assertLen(revived_model.non_trainable_variables, 0)
@@ -708,10 +806,16 @@ class ExportArchiveTest(testing.TestCase):
             "call",
             layer.call,
             input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
         revived_layer = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_layer.call(ref_input))
+        self.assertAllClose(
+            revived_layer.call(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
 
     def test_multi_input_output_functional_model(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -724,10 +828,20 @@ class ExportArchiveTest(testing.TestCase):
         ref_inputs = [tf.random.normal((3, 2)), tf.random.normal((3, 2))]
         ref_outputs = model(ref_inputs)
 
-        model.export(temp_filepath)
+        model.export(temp_filepath, **self.add_endpoint_kwargs)
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_outputs[0], revived_model.serve(ref_inputs)[0])
-        self.assertAllClose(ref_outputs[1], revived_model.serve(ref_inputs)[1])
+        self.assertAllClose(
+            ref_outputs[0],
+            revived_model.serve(ref_inputs)[0],
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
+        self.assertAllClose(
+            ref_outputs[1],
+            revived_model.serve(ref_inputs)[1],
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_model.serve(
             [tf.random.normal((6, 2)), tf.random.normal((6, 2))]
@@ -742,10 +856,20 @@ class ExportArchiveTest(testing.TestCase):
         }
         ref_outputs = model(ref_inputs)
 
-        model.export(temp_filepath)
+        model.export(temp_filepath, **self.add_endpoint_kwargs)
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_outputs[0], revived_model.serve(ref_inputs)[0])
-        self.assertAllClose(ref_outputs[1], revived_model.serve(ref_inputs)[1])
+        self.assertAllClose(
+            ref_outputs[0],
+            revived_model.serve(ref_inputs)[0],
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
+        self.assertAllClose(
+            ref_outputs[1],
+            revived_model.serve(ref_inputs)[1],
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_model.serve(
             {
@@ -773,9 +897,11 @@ class ExportArchiveTest(testing.TestCase):
         ref_input = tf.convert_to_tensor(["one two three four"])
         ref_output = model(ref_input)
 
-        saved_model.export_saved_model(model, temp_filepath)
+        saved_model.export_saved_model(
+            model, temp_filepath, **self.add_endpoint_kwargs
+        )
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(revived_model.serve(ref_input), ref_output)
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
@@ -803,9 +929,10 @@ class ExportArchiveTest(testing.TestCase):
             model,
             temp_filepath,
             input_signature=[tf.TensorSpec(shape=[1], dtype=tf.string)],
+            **self.add_endpoint_kwargs,
         )
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(revived_model.serve(ref_input), ref_output)
 
     def test_track_multiple_layers(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_model")
@@ -821,16 +948,28 @@ class ExportArchiveTest(testing.TestCase):
             "call_1",
             layer_1.call,
             input_signature=[tf.TensorSpec(shape=(None, 4), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.add_endpoint(
             "call_2",
             layer_2.call,
             input_signature=[tf.TensorSpec(shape=(None, 5), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
         revived_layer = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output_1, revived_layer.call_1(ref_input_1))
-        self.assertAllClose(ref_output_2, revived_layer.call_2(ref_input_2))
+        self.assertAllClose(
+            revived_layer.call_1(ref_input_1),
+            ref_output_1,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
+        self.assertAllClose(
+            revived_layer.call_2(ref_input_2),
+            ref_output_2,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
 
     def test_non_standard_layer_signature(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
@@ -848,10 +987,13 @@ class ExportArchiveTest(testing.TestCase):
                 tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
                 tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
             ],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
         revived_layer = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_layer.call(x1, x2))
+        self.assertAllClose(
+            revived_layer.call(x1, x2), ref_output, tpu_atol=0.05, tpu_rtol=0.1
+        )
 
     def test_non_standard_layer_signature_with_kwargs(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "exported_layer")
@@ -869,10 +1011,16 @@ class ExportArchiveTest(testing.TestCase):
                 tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
                 tf.TensorSpec(shape=(None, 2, 2), dtype=tf.float32),
             ],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
         revived_layer = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_layer.call(query=x1, value=x2))
+        self.assertAllClose(
+            revived_layer.call(query=x1, value=x2),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_layer.call(
             query=tf.random.normal((6, 2, 2)), value=tf.random.normal((6, 2, 2))
@@ -896,6 +1044,7 @@ class ExportArchiveTest(testing.TestCase):
             "call",
             model.__call__,
             input_signature=[tf.TensorSpec(shape=(None, 10), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.add_variable_collection(
             "my_vars", model.layers[1].weights
@@ -987,6 +1136,7 @@ class ExportArchiveTest(testing.TestCase):
             "call",
             model.__call__,
             input_signature=[tf.TensorSpec(shape=(None, 3), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.write_out(temp_filepath)
 
@@ -999,9 +1149,14 @@ class ExportArchiveTest(testing.TestCase):
         ref_input = tf.random.normal((3, 10))
         ref_output = model(ref_input)
 
-        model.export(temp_filepath)
+        model.export(temp_filepath, **self.add_endpoint_kwargs)
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(ref_output, revived_model.serve(ref_input))
+        self.assertAllClose(
+            revived_model.serve(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
 
@@ -1025,6 +1180,7 @@ class ExportArchiveTest(testing.TestCase):
             "model",
             model,
             input_signature=[tf.TensorSpec(shape=(None, 5), dtype=tf.float32)],
+            **self.add_endpoint_kwargs,
         )
         export_archive.track(lookup_table)
 
@@ -1034,10 +1190,19 @@ class ExportArchiveTest(testing.TestCase):
             x = model_fn(x)
             return x
 
-        self.assertAllClose(combined_fn(ref_input), ref_output)
+        self.assertAllClose(
+            combined_fn(ref_input), ref_output, tpu_atol=0.01, tpu_rtol=0.01
+        )
 
-        export_archive.add_endpoint("combined_fn", combined_fn)
+        export_archive.add_endpoint(
+            "combined_fn", combined_fn, **self.add_endpoint_kwargs
+        )
         export_archive.write_out(temp_filepath)
 
         revived_model = tf.saved_model.load(temp_filepath)
-        self.assertAllClose(revived_model.combined_fn(ref_input), ref_output)
+        self.assertAllClose(
+            revived_model.combined_fn(ref_input),
+            ref_output,
+            tpu_atol=0.01,
+            tpu_rtol=0.01,
+        )

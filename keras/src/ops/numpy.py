@@ -302,7 +302,7 @@ def all(x, axis=None, keepdims=False):
 
 
 class AllClose(Operation):
-    def __init__(self, rtol=1e-05, atol=1e-08, equal_nan=False, *, name=None):
+    def __init__(self, rtol=1e-5, atol=1e-8, equal_nan=False, *, name=None):
         super().__init__(name=name)
         self.rtol = rtol
         self.atol = atol
@@ -322,7 +322,7 @@ class AllClose(Operation):
 
 
 @keras_export(["keras.ops.allclose", "keras.ops.numpy.allclose"])
-def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     """Returns True if two arrays are element-wise equal within a tolerance.
 
     The tolerance values are positive, typically very small numbers.  The
@@ -996,12 +996,9 @@ class Argmax(Operation):
         return backend.numpy.argmax(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        if self.keepdims:
-            return KerasTensor(x.shape, dtype="int32")
-        if self.axis is None:
-            return KerasTensor([], dtype="int32")
         return KerasTensor(
-            reduce_shape(x.shape, axis=[self.axis]), dtype="int32"
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype="int32",
         )
 
 
@@ -1047,12 +1044,9 @@ class Argmin(Operation):
         return backend.numpy.argmin(x, axis=self.axis, keepdims=self.keepdims)
 
     def compute_output_spec(self, x):
-        if self.keepdims:
-            return KerasTensor(x.shape, dtype="int32")
-        if self.axis is None:
-            return KerasTensor([], dtype="int32")
         return KerasTensor(
-            reduce_shape(x.shape, axis=[self.axis]), dtype="int32"
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype="int32",
         )
 
 
@@ -2293,7 +2287,7 @@ class Cross(Operation):
         x2_shape = list(x2.shape)
 
         x1_value_size = x1_shape[self.axisa]
-        x2_value_size = x2_shape[self.axisa]
+        x2_value_size = x2_shape[self.axisb]
         del x1_shape[self.axisa]
         del x2_shape[self.axisb]
         output_shape = broadcast_shapes(x1_shape, x2_shape)
@@ -2314,9 +2308,10 @@ class Cross(Operation):
         else:
             value_size = []
 
-        output_shape = (
-            output_shape[: self.axisc] + value_size + output_shape[self.axisc :]
+        axisc = canonicalize_axis(
+            self.axisc, len(output_shape) + len(value_size)
         )
+        output_shape = output_shape[:axisc] + value_size + output_shape[axisc:]
 
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
         return KerasTensor(output_shape, dtype=dtype)
@@ -5839,6 +5834,64 @@ def nanmean(x, axis=None, keepdims=False):
     return backend.numpy.nanmean(x, axis=axis, keepdims=keepdims)
 
 
+class Nanmedian(Operation):
+    def __init__(self, axis=None, keepdims=False, *, name=None):
+        super().__init__(name=name)
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def call(self, x):
+        return backend.numpy.nanmedian(
+            x, axis=self.axis, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x):
+        dtype = dtypes.result_type(x.dtype, float)
+        return KerasTensor(
+            reduce_shape(x.shape, axis=self.axis, keepdims=self.keepdims),
+            dtype=dtype,
+        )
+
+
+@keras_export(["keras.ops.nanmedian", "keras.ops.numpy.nanmedian"])
+def nanmedian(x, axis=None, keepdims=False):
+    """Median of a tensor over the given axes, ignoring NaNs.
+
+    This function computes the median along the specified axis or axes,
+    skipping any NaN values. If all values along a reduced axis are NaN,
+    the result is NaN.
+
+    Args:
+        x: Input tensor.
+        axis: Axis or axes along which the median is computed.
+            If None (default), the median of the flattened tensor is returned.
+        keepdims: If True, the reduced axes are retained as dimensions
+            with size one. Defaults to False.
+
+    Returns:
+        Tensor with the median values, ignoring NaNs.
+
+    Examples:
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> x = np.array([[1.0, np.nan, 3.0],
+    ...               [np.nan, 2.0, 1.0]])
+    >>> ops.nanmedian(x)
+    1.5
+
+    >>> ops.nanmedian(x, axis=1)
+    array([2., 1.5])
+
+    >>> ops.nanmedian(x, axis=1, keepdims=True)
+    array([[2. ],
+           [1.5]])
+    """
+    if any_symbolic_tensors((x,)):
+        return Nanmedian(axis=axis, keepdims=keepdims).symbolic_call(x)
+
+    return backend.numpy.nanmedian(x, axis=axis, keepdims=keepdims)
+
+
 class Nanmin(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
@@ -5982,6 +6035,8 @@ class Nanquantile(Operation):
         if hasattr(q, "shape"):
             if len(q.shape) > 0:
                 output_shape = (q.shape[0],) + output_shape
+        elif isinstance(q, (list, tuple)) and len(q) > 1:
+            output_shape = (len(q),) + output_shape
 
         if backend.standardize_dtype(x.dtype) == "int64":
             dtype = backend.floatx()
@@ -6697,6 +6752,8 @@ class Quantile(Operation):
         if hasattr(q, "shape"):
             if len(q.shape) > 0:
                 output_shape = (q.shape[0],) + output_shape
+        elif isinstance(q, (list, tuple)) and len(q) > 1:
+            output_shape = (len(q),) + output_shape
         if backend.standardize_dtype(x.dtype) == "int64":
             dtype = backend.floatx()
         else:

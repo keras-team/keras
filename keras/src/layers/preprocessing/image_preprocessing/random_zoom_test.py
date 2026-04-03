@@ -123,7 +123,7 @@ class RandomZoomTest(testing.TestCase):
             ]
         ).reshape(input_shape)
         output = next(iter(ds)).numpy()
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_dynamic_shape(self):
         inputs = layers.Input((None, None, 3))

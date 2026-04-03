@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import layers
 from keras.src import ops
@@ -66,7 +65,6 @@ class TwoStatesRNNCell(layers.Layer):
 
 
 class RNNTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.RNN,
@@ -255,109 +253,109 @@ class RNNTest(testing.TestCase):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         output = layer(sequence)
-        self.assertAllClose(np.array([[9.0, 9.0]]), output)
+        self.assertAllClose(output, np.array([[9.0, 9.0]]))
 
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=True)
         output = layer(sequence)
-        self.assertAllClose(np.array([[[3.0, 3.0], [9.0, 9.0]]]), output)
+        self.assertAllClose(output, np.array([[[3.0, 3.0], [9.0, 9.0]]]))
 
         layer = layers.RNN(
             OneStateRNNCell(2), return_sequences=False, return_state=True
         )
         output, state = layer(sequence)
-        self.assertAllClose(np.array([[9.0, 9.0]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state)
+        self.assertAllClose(output, np.array([[9.0, 9.0]]))
+        self.assertAllClose(state, np.array([[9.0, 9.0]]))
 
         layer = layers.RNN(
             OneStateRNNCell(2), return_sequences=True, return_state=True
         )
         output, state = layer(sequence)
-        self.assertAllClose(np.array([[[3.0, 3.0], [9.0, 9.0]]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state)
+        self.assertAllClose(output, np.array([[[3.0, 3.0], [9.0, 9.0]]]))
+        self.assertAllClose(state, np.array([[9.0, 9.0]]))
 
     def test_forward_pass_two_states(self):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)
         output = layer(sequence)
-        self.assertAllClose(np.array([[18.0, 18.0]]), output)
+        self.assertAllClose(output, np.array([[18.0, 18.0]]))
 
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=True)
         output = layer(sequence)
-        self.assertAllClose(np.array([[[6.0, 6.0], [18.0, 18.0]]]), output)
+        self.assertAllClose(output, np.array([[[6.0, 6.0], [18.0, 18.0]]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), return_sequences=False, return_state=True
         )
         output, state1, state2 = layer(sequence)
-        self.assertAllClose(np.array([[18.0, 18.0]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state1)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state2)
+        self.assertAllClose(output, np.array([[18.0, 18.0]]))
+        self.assertAllClose(state1, np.array([[9.0, 9.0]]))
+        self.assertAllClose(state2, np.array([[9.0, 9.0]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), return_sequences=True, return_state=True
         )
         output, state1, state2 = layer(sequence)
-        self.assertAllClose(np.array([[[6.0, 6.0], [18.0, 18.0]]]), output)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state1)
-        self.assertAllClose(np.array([[9.0, 9.0]]), state2)
+        self.assertAllClose(output, np.array([[[6.0, 6.0], [18.0, 18.0]]]))
+        self.assertAllClose(state1, np.array([[9.0, 9.0]]))
+        self.assertAllClose(state2, np.array([[9.0, 9.0]]))
 
     def test_passing_initial_state_single_state(self):
         sequence = np.ones((2, 3, 2))
         state = np.ones((2, 2))
         layer = layers.RNN(OneStateRNNCell(2), return_sequences=False)
         output = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), output)
+        self.assertAllClose(output, np.array([[22.0, 22.0], [22.0, 22.0]]))
 
         layer = layers.RNN(
             OneStateRNNCell(2), return_sequences=False, return_state=True
         )
         output, state = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), output)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), state)
+        self.assertAllClose(output, np.array([[22.0, 22.0], [22.0, 22.0]]))
+        self.assertAllClose(state, np.array([[22.0, 22.0], [22.0, 22.0]]))
 
     def test_passing_initial_state_two_states(self):
         sequence = np.ones((2, 3, 2))
         state = [np.ones((2, 2)), np.ones((2, 2))]
         layer = layers.RNN(TwoStatesRNNCell(2), return_sequences=False)
         output = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[44.0, 44.0], [44.0, 44.0]]), output)
+        self.assertAllClose(output, np.array([[44.0, 44.0], [44.0, 44.0]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), return_sequences=False, return_state=True
         )
         output, state_1, state_2 = layer(sequence, initial_state=state)
-        self.assertAllClose(np.array([[44.0, 44.0], [44.0, 44.0]]), output)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), state_1)
-        self.assertAllClose(np.array([[22.0, 22.0], [22.0, 22.0]]), state_2)
+        self.assertAllClose(output, np.array([[44.0, 44.0], [44.0, 44.0]]))
+        self.assertAllClose(state_1, np.array([[22.0, 22.0], [22.0, 22.0]]))
+        self.assertAllClose(state_2, np.array([[22.0, 22.0], [22.0, 22.0]]))
 
     def test_statefulness_single_state(self):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(OneStateRNNCell(2), stateful=True)
         layer(sequence)
         output = layer(sequence)
-        self.assertAllClose(np.array([[45.0, 45.0]]), output)
+        self.assertAllClose(output, np.array([[45.0, 45.0]]))
 
         layer = layers.RNN(OneStateRNNCell(2), stateful=True, return_state=True)
         layer(sequence)
         output, state = layer(sequence)
-        self.assertAllClose(np.array([[45.0, 45.0]]), output)
-        self.assertAllClose(np.array([[45.0, 45.0]]), state)
+        self.assertAllClose(output, np.array([[45.0, 45.0]]))
+        self.assertAllClose(state, np.array([[45.0, 45.0]]))
 
     def test_statefulness_two_states(self):
         sequence = np.ones((1, 2, 3))
         layer = layers.RNN(TwoStatesRNNCell(2), stateful=True)
         layer(sequence)
         output = layer(sequence)
-        self.assertAllClose(np.array([[90.0, 90.0]]), output)
+        self.assertAllClose(output, np.array([[90.0, 90.0]]))
 
         layer = layers.RNN(
             TwoStatesRNNCell(2), stateful=True, return_state=True
         )
         layer(sequence)
         output, state_1, state_2 = layer(sequence)
-        self.assertAllClose(np.array([[90.0, 90.0]]), output)
-        self.assertAllClose(np.array([[45.0, 45.0]]), state_1)
-        self.assertAllClose(np.array([[45.0, 45.0]]), state_2)
+        self.assertAllClose(output, np.array([[90.0, 90.0]]))
+        self.assertAllClose(state_1, np.array([[45.0, 45.0]]))
+        self.assertAllClose(state_2, np.array([[45.0, 45.0]]))
 
     def test_go_backwards(self):
         sequence = np.arange(24).reshape((2, 3, 4)).astype("float32")
@@ -365,8 +363,8 @@ class RNNTest(testing.TestCase):
         layer(sequence)
         output = layer(sequence)
         self.assertAllClose(
-            np.array([[202.0, 202.0], [538.0, 538.0]]),
             output,
+            np.array([[202.0, 202.0], [538.0, 538.0]]),
             tpu_atol=1e-4,
             tpu_rtol=1e-4,
         )
@@ -375,14 +373,14 @@ class RNNTest(testing.TestCase):
         layer(sequence)
         output, state = layer(sequence)
         self.assertAllClose(
-            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
             output,
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
             tpu_atol=1e-2,
             tpu_rtol=1e-2,
         )
         self.assertAllClose(
-            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
             state,
+            np.array([[954.0, 954.0], [3978.0, 3978.0]]),
             tpu_atol=1e-2,
             tpu_rtol=1e-2,
         )

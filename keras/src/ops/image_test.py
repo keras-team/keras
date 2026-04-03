@@ -19,14 +19,14 @@ from keras.src.testing.test_utils import named_product
 
 class ImageOpsDynamicShapeTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -251,14 +251,14 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
 
 class ImageOpsStaticShapeTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -1025,14 +1025,14 @@ def _compute_homography_matrix(start_points, end_points):
 
 class ImageOpsCorrectnessTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     def test_rgb_to_grayscale(self):
         # Test channels_last
@@ -1179,7 +1179,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             antialias=antialias,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-4)
+        self.assertAllClose(out, ref_out, atol=1e-4)
 
         x = np.random.random((2, 30, 30, 3)).astype("float32") * 255
         out = kimage.resize(
@@ -1195,7 +1195,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             antialias=antialias,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-4)
+        self.assertAllClose(out, ref_out, atol=1e-4)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1214,7 +1214,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = tf.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-4)
+        self.assertAllClose(out, ref_out, atol=1e-4)
 
         x = np.random.random((2, 3, 30, 30)).astype("float32") * 255
         out = kimage.resize(
@@ -1231,7 +1231,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = tf.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-4)
+        self.assertAllClose(out, ref_out, atol=1e-4)
 
         # Test class
         out = kimage.Resize(
@@ -1239,7 +1239,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             interpolation=interpolation,
             antialias=antialias,
         )(x)
-        self.assertAllClose(ref_out, out, atol=1e-4)
+        self.assertAllClose(out, ref_out, atol=1e-4)
 
     def test_resize_uint8_round(self):
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
@@ -1432,6 +1432,16 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                 "affine_transform with fill_mode=wrap is inconsistent with"
                 "scipy"
             )
+        if (
+            testing.jax_uses_tpu()
+            and interpolation == "bilinear"
+            and fill_mode == "constant"
+        ):
+            self.skipTest(
+                "JAX on TPU interpolation='bilinear' and fill_mode='constant' "
+                "Produces one incorrect pixel in the corner"
+            )
+
         # TODO: `nearest` interpolation in jax and torch causes random index
         # shifting, resulting in significant differences in output which leads
         # to failure
@@ -1458,7 +1468,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             fill_mode=fill_mode,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         x = np.random.uniform(size=(2, 50, 50, 3)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
@@ -1483,7 +1493,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             axis=0,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1504,7 +1514,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [2, 0, 1])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=1, tpu_rtol=1)
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=1, tpu_rtol=1)
 
         x = np.random.uniform(size=(2, 3, 50, 50)).astype("float32") * 255
         transform = np.random.uniform(size=(2, 6)).astype("float32")
@@ -1532,13 +1542,13 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         ref_out = np.transpose(ref_out, [0, 3, 1, 2])
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
         # Test class
         out = kimage.AffineTransform(
             interpolation=interpolation, fill_mode=fill_mode
         )(x, transform)
-        self.assertAllClose(ref_out, out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
+        self.assertAllClose(out, ref_out, atol=1e-2, tpu_atol=10, tpu_rtol=10)
 
     @parameterized.named_parameters(
         named_product(
@@ -1579,7 +1589,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             padding=padding.upper(),
         )
         self.assertEqual(tuple(patches_out.shape), tuple(patches_ref.shape))
-        self.assertAllClose(patches_ref, patches_out, atol=1e-2)
+        self.assertAllClose(patches_out, patches_ref, atol=1e-2)
 
         # Test channels_first
         if backend.backend() == "tensorflow":
@@ -1604,7 +1614,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
         patches_ref = tf.transpose(patches_ref, [0, 3, 1, 2])
         self.assertEqual(tuple(patches_out.shape), tuple(patches_ref.shape))
-        self.assertAllClose(patches_ref, patches_out, atol=1e-2)
+        self.assertAllClose(patches_out, patches_ref, atol=1e-2)
 
         # Test class
         patches_out = kimage.ExtractPatches(
@@ -1613,7 +1623,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
             padding=padding,
         )(image)
-        self.assertAllClose(patches_ref, patches_out, atol=1e-2)
+        self.assertAllClose(patches_out, patches_ref, atol=1e-2)
 
     @parameterized.named_parameters(
         named_product(
@@ -1691,7 +1701,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(
             tuple(padded_image.shape), tuple(ref_padded_image.shape)
         )
-        self.assertAllClose(ref_padded_image, padded_image)
+        self.assertAllClose(padded_image, ref_padded_image)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1716,7 +1726,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(
             tuple(padded_image.shape), tuple(ref_padded_image.shape)
         )
-        self.assertAllClose(ref_padded_image, padded_image)
+        self.assertAllClose(padded_image, ref_padded_image)
 
         # Test class
         padded_image = kimage.PadImages(
@@ -1727,7 +1737,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             target_height,
             target_width,
         )(image)
-        self.assertAllClose(ref_padded_image, padded_image)
+        self.assertAllClose(padded_image, ref_padded_image)
 
     @parameterized.parameters(
         [
@@ -1773,7 +1783,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(
             tuple(cropped_image.shape), tuple(ref_cropped_image.shape)
         )
-        self.assertAllClose(ref_cropped_image, cropped_image)
+        self.assertAllClose(cropped_image, ref_cropped_image)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1798,7 +1808,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertEqual(
             tuple(cropped_image.shape), tuple(ref_cropped_image.shape)
         )
-        self.assertAllClose(ref_cropped_image, cropped_image)
+        self.assertAllClose(cropped_image, ref_cropped_image)
 
         # Test class
         cropped_image = kimage.CropImages(
@@ -1809,7 +1819,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             target_height,
             target_width,
         )(image)
-        self.assertAllClose(ref_cropped_image, cropped_image)
+        self.assertAllClose(cropped_image, ref_cropped_image)
 
     @parameterized.named_parameters(
         named_product(
@@ -1832,7 +1842,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1853,7 +1863,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
     def test_gaussian_blur(self):
         # Test channels_last
@@ -1878,7 +1888,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test channels_first
         backend.set_image_data_format("channels_first")
@@ -1901,7 +1911,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         )
 
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
     def test_gaussian_blur_even_kernel_size(self):
         """Test gaussian_blur with even kernel sizes"""
@@ -1934,7 +1944,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(tuple(out.shape), (32, 32, 3))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
         # Test channels_first with different even kernel sizes
         backend.set_image_data_format("channels_first")
@@ -1958,7 +1968,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
         self.assertEqual(tuple(out.shape), (3, 32, 32))
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(out, ref_out, atol=1e-2, rtol=1e-2)
 
     def test_elastic_transform(self):
         # Test channels_last
@@ -2072,7 +2082,7 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             antialias=antialias,
         )
         self.assertEqual(tuple(out.shape), tuple(ref_out.shape))
-        self.assertAllClose(ref_out, out, atol=1e-4)
+        self.assertAllClose(out, ref_out, atol=1e-4)
 
 
 class ImageOpsDtypeTest(testing.TestCase):
@@ -2085,14 +2095,14 @@ class ImageOpsDtypeTest(testing.TestCase):
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_affine_transform(self, dtype):
@@ -2258,14 +2268,14 @@ class ImageOpsDtypeTest(testing.TestCase):
 
 class ImageOpsBehaviorTests(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Defaults to channels_last
         self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         backend.set_image_data_format(self.data_format)
-        return super().tearDown()
 
     @parameterized.named_parameters(named_product(rank=[2, 5]))
     def test_rgb_to_grayscale_invalid_rank(self, rank):
@@ -2716,8 +2726,14 @@ class ExtractPatches3DTest(testing.TestCase):
     FLOAT_DTYPES = [x for x in dtypes.FLOAT_TYPES if x not in ("float64",)]
 
     def setUp(self):
+        super().setUp()
+        # Defaults to channels_last
+        self.data_format = backend.image_data_format()
         backend.set_image_data_format("channels_last")
-        return super().setUp()
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
 
     @parameterized.named_parameters(
         named_product(

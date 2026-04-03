@@ -109,7 +109,7 @@ class CategoryEncodingTest(testing.TestCase):
             num_tokens=num_tokens, output_mode="multi_hot", sparse=sparse
         )
         output_data = layer(input_data)
-        self.assertAllClose(expected_output, output_data)
+        self.assertAllClose(output_data, expected_output)
         self.assertEqual(expected_output_shape, output_data.shape)
         self.assertSparse(output_data, sparse)
 
@@ -133,7 +133,7 @@ class CategoryEncodingTest(testing.TestCase):
             num_tokens=num_tokens, output_mode="multi_hot", sparse=sparse
         )
         output_data = layer(input_data)
-        self.assertAllClose(expected_output, output_data)
+        self.assertAllClose(output_data, expected_output)
         self.assertEqual(expected_output_shape, output_data.shape)
         self.assertSparse(output_data, sparse)
 
@@ -174,7 +174,7 @@ class CategoryEncodingTest(testing.TestCase):
             num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
         )
         output_data = layer(input_data)
-        self.assertAllClose(expected_output, output_data)
+        self.assertAllClose(output_data, expected_output)
         self.assertEqual(expected_output_shape, output_data.shape)
         self.assertSparse(output_data, sparse)
 
@@ -241,7 +241,7 @@ class CategoryEncodingTest(testing.TestCase):
             num_tokens=num_tokens, output_mode="one_hot", sparse=sparse
         )
         output_data = layer(input_data)
-        self.assertAllClose(expected_output, output_data)
+        self.assertAllClose(output_data, expected_output)
         self.assertEqual(expected_output_shape, output_data.shape)
         self.assertSparse(output_data, sparse)
 
@@ -311,7 +311,7 @@ class CategoryEncodingTest(testing.TestCase):
             ]
         )
         output = layer._encode(input_array)
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_encode_one_hot_batched_samples(self):
         layer = layers.CategoryEncoding(num_tokens=4, output_mode="one_hot")
@@ -323,18 +323,18 @@ class CategoryEncodingTest(testing.TestCase):
             ]
         )
         output = layer._encode(input_array)
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_count_single_sample(self):
         layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
         input_array = np.array([1, 2, 3, 1])
         expected_output = np.array([0, 2, 1, 1])
         output = layer(input_array)
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_count_batched_samples(self):
         layer = layers.CategoryEncoding(num_tokens=4, output_mode="count")
         input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
         expected_output = np.array([[0, 2, 1, 1], [2, 1, 0, 1]])
         output = layer(input_array)
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)

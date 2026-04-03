@@ -4,6 +4,7 @@ import openvino.opset15 as ov_opset
 from openvino import Type
 
 from keras.src.backend import config
+from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.variables import standardize_dtype
@@ -243,7 +244,7 @@ def all(x, axis=None, keepdims=False):
     )
 
 
-def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     if (
         not isinstance(x1, OpenVINOKerasTensor)
         and not isinstance(x2, OpenVINOKerasTensor)
@@ -356,6 +357,31 @@ def append(x1, x2, axis=None):
 
 
 def arange(start, stop=None, step=None, dtype=None):
+    # For concrete scalar inputs, delegate to NumPy directly (matches its
+    # semantics exactly). Only build a graph for symbolic inputs.
+    _symbolic_types = (OpenVINOKerasTensor, ov.Output, KerasVariable)
+    _is_symbolic = (
+        isinstance(start, _symbolic_types)
+        or isinstance(stop, _symbolic_types)
+        or isinstance(step, _symbolic_types)
+    )
+    if not _is_symbolic:
+        _start = 0 if stop is None else start
+        _stop = start if stop is None else stop
+        _step = 1 if step is None else step
+        keras_dtype = (
+            standardize_dtype(dtype)
+            if dtype is not None
+            else dtypes.result_type(
+                type(_start), type(_stop), type(_step), "int32"
+            )
+        )
+        return OpenVINOKerasTensor(
+            ov_opset.constant(
+                np.arange(_start, _stop, _step, dtype=keras_dtype)
+            ).output(0)
+        )
+
     if stop is None:
         start, stop = get_ov_output(0), get_ov_output(start)
     else:
@@ -1125,13 +1151,23 @@ def blackman(x):
     n_minus_1 = ov_opset.subtract(
         ov_opset.convert(x, Type.f64), ov_opset.constant(1.0, Type.f64)
     ).output(0)
-    angle_2pi = ov_opset.divide(ov_opset.multiply(two_pi, n), n_minus_1)
+    n_minus_1_safe = ov_opset.select(
+        ov_opset.equal(n_minus_1, ov_opset.constant(0.0, Type.f64)),
+        ov_opset.constant(1.0, Type.f64),
+        n_minus_1,
+    ).output(0)
+    angle_2pi = ov_opset.divide(ov_opset.multiply(two_pi, n), n_minus_1_safe)
     angle_4pi = ov_opset.multiply(angle_2pi, ov_opset.constant(2.0, Type.f64))
     cos_2pi = ov_opset.cos(angle_2pi)
     cos_4pi = ov_opset.cos(angle_4pi)
     term_2_final = ov_opset.multiply(term_2, cos_2pi)
     term_3_final = ov_opset.multiply(term_3, cos_4pi)
     window = ov_opset.add(ov_opset.subtract(term_1, term_2_final), term_3_final)
+    window = ov_opset.select(
+        ov_opset.equal(n_minus_1, ov_opset.constant(0.0, Type.f64)),
+        ov_opset.constant(1.0, Type.f64),
+        window,
+    ).output(0)
     window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
         0
     )
@@ -3229,6 +3265,12 @@ def nanmean(x, axis=None, keepdims=False):
     count = ov_opset.reduce_sum(not_nan_float, axis, keepdims).output(0)
     result = ov_opset.divide(nan_sum, count).output(0)
     return OpenVINOKerasTensor(result)
+
+
+def nanmedian(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanmedian` is not supported with openvino backend"
+    )
 
 
 def nanmin(x, axis=None, keepdims=False):

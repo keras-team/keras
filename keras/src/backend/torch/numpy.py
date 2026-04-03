@@ -1588,6 +1588,15 @@ def nanmean(x, axis=None, keepdims=False):
     return torch.nanmean(cast(x, dtype), dim=axis, keepdim=keepdims)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return x
+
+    return nanquantile(x, q=0.5, axis=axis, keepdims=keepdims)
+
+
 def nanmin(x, axis=None, keepdims=False):
     if type(x) is not torch.Tensor:
         x = convert_to_tensor(x)
@@ -2283,7 +2292,8 @@ def where(condition, x1=None, x2=None):
         return torch.where(condition, x1, x2)
     else:
         condition = convert_to_tensor(condition, dtype=bool)
-        return torch.where(condition)
+        # `torch.where(condition)` returns a tuple of tensors.
+        return torch.stack(torch.where(condition), dim=0)
 
 
 def divide(x1, x2):

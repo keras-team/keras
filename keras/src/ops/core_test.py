@@ -174,6 +174,31 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
         for o in out:
             self.assertEqual(o.shape, (2, None))
 
+    def test_associative_scan_dynamic_scan_body_unknown_length(self):
+        """fully unknown leading dim forces the TF symbolic path."""
+        xs = KerasTensor((None, 6))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (None, 6))
+
+    def test_associative_scan_dynamic_scan_body_unknown_length_structured(self):
+        """symbolic path with structured (tuple) input."""
+        xs = (KerasTensor((None, 4)), KerasTensor((None, 4)))
+
+        def _add(a, b):
+            return (a[0] + b[0], a[1] + b[1])
+
+        ys = core.associative_scan(f=_add, elems=xs, axis=0)
+        self.assertEqual(ys[0].shape, (None, 4))
+        self.assertEqual(ys[1].shape, (None, 4))
+
+    def test_associative_scan_dynamic_scan_body_unknown_length_reverse(self):
+        """symbolic path with reverse=True."""
+        xs = KerasTensor((None, 3))
+        ys = core.associative_scan(
+            f=operator.add, elems=xs, axis=0, reverse=True
+        )
+        self.assertEqual(ys.shape, (None, 3))
+
 
 class CoreOpsStaticShapeTest(testing.TestCase):
     def test_associative_scan(self):
@@ -413,6 +438,41 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(len(out), 3)
         for o in out:
             self.assertEqual(o.shape, (2, 4))
+
+    def test_associative_scan_dynamic_scan_body_static_length_two(self):
+        """_dynamic_scan_body: static elem_length == 2
+        hits base-case-two branch."""
+        xs = KerasTensor((2, 4))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (2, 4))
+
+    def test_associative_scan_dynamic_scan_body_static_length_three(self):
+        """_dynamic_scan_body: static elem_length == 3
+        hits base-case-three branch."""
+        xs = KerasTensor((3, 4))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (3, 4))
+
+    def test_associative_scan_dynamic_scan_body_static_even_length(self):
+        """_dynamic_scan_body: static even elem_length
+        takes the recursive even path."""
+        xs = KerasTensor((8, 5))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (8, 5))
+
+    def test_associative_scan_dynamic_scan_body_static_odd_length(self):
+        """_dynamic_scan_body: static odd elem_length > 3
+        takes the recursive odd path."""
+        xs = KerasTensor((7, 5))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (7, 5))
+
+    def test_associative_scan_dynamic_scan_body_static_length_one(self):
+        """_dynamic_scan_body: static elem_length == 1
+        returns elems unchanged."""
+        xs = KerasTensor((1, 4))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (1, 4))
 
 
 class CoreOpsCorrectnessTest(testing.TestCase):
@@ -981,8 +1041,9 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return (carry[1], carry[0] + carry[1]), None
 
         init = (np.array(0, dtype="float32"), np.array(1, dtype="float32"))
-        carry, _ = core.scan(fibonaccis, init, length=6)
-        self.assertAllClose(carry, [8, 13])
+        (carry1, carry2), _ = core.scan(fibonaccis, init, length=6)
+        self.assertAllClose(carry1, 8)
+        self.assertAllClose(carry2, 13)
 
         # Test nested init
         if backend.backend() != "tensorflow":
@@ -1457,6 +1518,98 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         for o, o_e in zip(out, out_ex):
             o = ops.convert_to_numpy(o)
             self.assertAllClose(o, o_e)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_tensorspec_dynamic_fallback(
+        self,
+    ):
+        """Exercises _dynamic_scan_body base-case paths in eager mode."""
+        import tensorflow as tf
+
+        def run_scan(x):
+            return core.associative_scan(f=operator.add, elems=x, axis=0)
+
+        # length == 2
+        x2 = tf.constant([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]])
+        self.assertAllClose(run_scan(x2), np.cumsum(x2.numpy(), axis=0))
+
+        # length == 3
+        x3 = tf.constant(
+            [[1.0, 0.0, 0.0, 0.0], [2.0, 0.0, 0.0, 0.0], [3.0, 0.0, 0.0, 0.0]]
+        )
+        self.assertAllClose(run_scan(x3), np.cumsum(x3.numpy(), axis=0))
+
+        # length == 1  (trivial / no-op path)
+        x1 = tf.constant([[10.0, 20.0, 30.0, 40.0]])
+        self.assertAllClose(run_scan(x1), x1.numpy())
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_tensorspec_reverse(self):
+        """Dynamic fallback with reverse=True."""
+        import tensorflow as tf
+
+        # length == 3 with reverse
+        arr = tf.constant([1.0, 2.0, 3.0])
+        result = core.associative_scan(
+            f=operator.add, elems=arr, axis=0, reverse=True
+        )
+        # reverse prefix-sum: [1+2+3, 2+3, 3]
+        expected = np.array([6.0, 5.0, 3.0], dtype="float32")
+        self.assertAllClose(result, expected)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_tensorspec_structured_input(
+        self,
+    ):
+        """Dynamic fallback with a tuple of tensors, lengths <= 3."""
+        import tensorflow as tf
+
+        def _add(x, y):
+            return (x[0] + y[0], x[1] + y[1])
+
+        # length == 3
+        a = tf.constant(np.ones((3, 3), dtype="float32"))
+        b = tf.constant(np.ones((3, 3), dtype="float32") * 2.0)
+        ra, rb = core.associative_scan(f=_add, elems=(a, b), axis=0)
+
+        self.assertAllClose(ra, np.cumsum(a.numpy(), axis=0))
+        self.assertAllClose(rb, np.cumsum(b.numpy(), axis=0))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_function_dynamic_lengths(
+        self,
+    ):
+        """Exercises the recursive unwind path for lengths > 3 under
+        tf.function with fully dynamic input_signature."""
+        import tensorflow as tf
+
+        @tf.function(input_signature=[tf.TensorSpec([None, 4])])
+        def run_scan(x):
+            return core.associative_scan(f=operator.add, elems=x, axis=0)
+
+        for length in [1, 2, 3, 4, 5, 7, 8, 16]:
+            x = tf.constant(
+                np.arange(length * 4, dtype="float32").reshape(length, 4)
+            )
+            result = run_scan(x)
+            expected = np.cumsum(x.numpy(), axis=0)
+            self.assertAllClose(
+                result,
+                expected,
+                msg=f"Failed for dynamic length={length}",
+            )
 
 
 class CoreOpsDtypeTest(testing.TestCase):

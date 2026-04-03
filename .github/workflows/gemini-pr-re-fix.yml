@@ -1,0 +1,360 @@
+name: Gemini Auto-Fix
+
+on:
+  issues:
+    types:
+      - labeled
+  workflow_run:
+    workflows: ["Tests"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+jobs:
+  # ── Job 1: Generate a fix PR when the "type:auto-fix" label is added to an issue ──
+  fix_issue:
+    name: 'Generate Fix PR from Issue'
+    runs-on: ubuntu-latest
+    if: |-
+      github.event_name == 'issues' &&
+      github.event.label.name == 'type:auto-fix'
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v6
+
+      - name: 'Set up Python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 'Install pre-commit and ruff'
+        run: pip install pre-commit ruff
+
+      - name: 'Get Issue Details and Comments'
+        id: 'issue_details'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const issue = context.payload.issue;
+            core.setOutput('issue_number', issue.number);
+            core.setOutput('issue_title', issue.title);
+            core.setOutput('issue_body', issue.body || '');
+
+            // Fetch issue comments (includes triage bot analysis)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+            });
+
+            const commentText = comments
+              .map(c => `**${c.user.login}** wrote:\n${c.body}`)
+              .join('\n\n---\n\n');
+            core.setOutput('issue_comments', commentText || 'No comments on this issue.');
+
+      - name: 'Pre-create .gemini directory'
+        run: mkdir -p ~/.gemini
+
+      - name: 'Ask Gemini to Fix the Issue'
+        uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
+        id: 'gemini_fix'
+        env:
+          GITHUB_TOKEN: ''
+          ISSUE_TITLE: '${{ steps.issue_details.outputs.issue_title }}'
+          ISSUE_BODY: '${{ steps.issue_details.outputs.issue_body }}'
+          ISSUE_COMMENTS: '${{ steps.issue_details.outputs.issue_comments }}'
+        with:
+          gemini_api_key: '${{ secrets.GEMINI_API }}'
+          gemini_model: 'gemini-2.5-pro'
+          settings: |-
+            {
+              "maxSessionTurns": 10,
+              "telemetry": {
+                "enabled": false
+              }
+            }
+          prompt: |-
+            ## Role
+
+            You are a senior Keras engineer. An issue has been filed and triaged. Your job is to directly edit the source files in this repository to fix the bug.
+
+            ## Issue
+            - Title: ${{ env.ISSUE_TITLE }}
+            - Body: ${{ env.ISSUE_BODY }}
+            - Comments & Triage Analysis: ${{ env.ISSUE_COMMENTS }}
+
+            ## Instructions
+            1. Read the issue comments carefully — they contain triage analysis with root cause conclusions. That is your primary guide.
+            2. Use your tools to search the codebase and find the relevant file(s) and function(s).
+            3. Read the FULL content of each file you plan to modify so you understand the context.
+            4. Edit ONLY the specific lines that fix the bug. Do NOT:
+               - Rewrite or reformat entire files
+               - Add comments, docstrings, or type annotations to unchanged code
+               - Refactor, rename, or reorder anything unrelated to the fix
+               - Change whitespace, imports, or formatting of untouched lines
+            5. A typical bug fix changes fewer than 20 lines. If you are changing more, stop and reconsider.
+            6. After editing, verify your changes make sense by reading the modified sections.
+            7. Add unit tests for your fix:
+               - Find the existing test file for the module you modified (look in the corresponding `*_test.py` file under the same directory or under `keras/src/**/`).
+               - Add a focused test that reproduces the original bug and verifies the fix.
+               - Follow the existing test style and conventions in that file.
+               - The test should FAIL without your fix and PASS with it.
+
+            DO NOT output JSON. Use your file editing tools to directly modify the files.
+
+      - name: 'Run pre-commit (ruff format + lint)'
+        run: |
+          SKIP=api-gen pre-commit run --all-files || true
+
+      - name: 'Validate and Create PR'
+        env:
+          ISSUE_NUMBER: '${{ steps.issue_details.outputs.issue_number }}'
+          ISSUE_TITLE: '${{ steps.issue_details.outputs.issue_title }}'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const { execSync } = require('child_process');
+
+            const issueNumber = process.env.ISSUE_NUMBER;
+            const issueTitle = process.env.ISSUE_TITLE;
+
+            // Check what Gemini actually changed (ignore .gemini artifacts)
+            execSync('git checkout -- .gemini/ || true');
+            execSync('git clean -fd .gemini/ gemini-artifacts/ || true');
+
+            const diff = execSync('git diff --stat', { encoding: 'utf-8' }).trim();
+            core.info(`Diff stat:\n${diff}`);
+
+            if (!diff) {
+              core.setFailed('Gemini made no changes to the codebase.');
+              return;
+            }
+
+            // Count changed lines
+            const diffLines = execSync('git diff --shortstat', { encoding: 'utf-8' }).trim();
+            core.info(`Changes: ${diffLines}`);
+
+            // Get list of changed files (only tracked files)
+            const changedFiles = execSync('git diff --name-only', { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
+            core.info(`Changed files: ${changedFiles.join(', ')}`);
+
+            // Safety: reject if too many files changed or too many lines
+            if (changedFiles.length > 5) {
+              core.setFailed(`Too many files changed (${changedFiles.length}). Aborting — fix should be surgical.`);
+              return;
+            }
+
+            // Get the actual diff for the PR body
+            const fullDiff = execSync('git diff', { encoding: 'utf-8' }).trim();
+            const diffPreview = fullDiff.split('\n').slice(0, 100).join('\n');
+
+            // Create branch, commit, push
+            const branchName = `auto-fix-${issueNumber}`;
+            execSync(`git checkout -b ${branchName}`);
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            for (const f of changedFiles) {
+              execSync(`git add "${f}"`);
+            }
+
+            try {
+              execSync(`git commit -m "Auto-fix for issue #${issueNumber}"`);
+            } catch (e) {
+              core.setFailed("No changes to commit after pre-commit formatting.");
+              return;
+            }
+
+            execSync(`git push origin ${branchName} --force`);
+
+            // Create PR
+            const prBody = [
+              `## Auto-generated fix for #${issueNumber}`,
+              '',
+              `### Changes (${diffLines})`,
+              '```diff',
+              diffPreview,
+              '```',
+              '',
+              '---',
+              `Fixes #${issueNumber}`,
+              '',
+              '*This PR was automatically generated by Gemini. Please review carefully before merging.*'
+            ].join('\n');
+
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Fix #${issueNumber}: ${issueTitle}`,
+              head: branchName,
+              base: 'master',
+              body: prBody,
+              draft: true
+            });
+
+            core.info(`Created PR #${pr.number}: ${pr.html_url}`);
+
+            // Comment on the issue linking to the PR
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(issueNumber),
+              body: `🤖 An automated fix has been generated: #${pr.number}\n\n**Changed files:** ${changedFiles.join(', ')}\n**Scope:** ${diffLines}\n\nPlease review the draft PR and run tests before merging.`
+            });
+
+  # ── Job 2: Re-fix when tests fail on auto-fix branches ──
+  re_fix:
+    name: 'Re-Fix Failing PR'
+    runs-on: ubuntu-latest
+    if: |-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'failure' &&
+      startsWith(github.event.workflow_run.head_branch, 'auto-fix-')
+    steps:
+      - name: Checkout ${{ github.event.workflow_run.head_branch }}
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: 'Set up Python'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 'Install pre-commit and ruff'
+        run: pip install pre-commit ruff
+
+      - name: 'Download Failed Run Logs'
+        uses: 'actions/github-script@v8'
+        id: 'download_logs'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |-
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+
+            const runId = context.payload.workflow_run.id;
+            core.info(`Downloading logs for run ${runId}`);
+
+            try {
+              const logsZip = await github.rest.actions.downloadWorkflowRunLogs({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: runId
+              });
+
+              fs.writeFileSync('logs.zip', Buffer.from(logsZip.data));
+              execSync('unzip logs.zip -d logs_dir');
+
+              const grepOutput = execSync('grep -rnw "logs_dir/" -e "FAILED" -e "Error" -e "error" || true', { encoding: 'utf-8' });
+
+              const summary = grepOutput.split('\n').filter(line => line.includes('FAILED') || line.includes('Error')).slice(0, 20).join('\n');
+              core.setOutput('error_summary', summary);
+              core.info(`Extracted error summary: ${summary}`);
+            } catch (e) {
+              core.warning(`Error downloading/parsing logs: ${e.message}`);
+              core.setOutput('error_summary', `Could not download logs automatically. Manual check required.\nError: ${e.message}`);
+            }
+
+      - name: 'Pre-create .gemini directory'
+        run: mkdir -p ~/.gemini
+
+      - name: 'Ask Gemini to Fix Failed Tests'
+        uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
+        id: 'gemini_re_fix'
+        env:
+          GITHUB_TOKEN: ''
+          ERROR_SUMMARY: '${{ steps.download_logs.outputs.error_summary }}'
+          BRANCH_NAME: '${{ github.event.workflow_run.head_branch }}'
+        with:
+          gemini_api_key: '${{ secrets.GEMINI_API }}'
+          gemini_model: 'gemini-2.5-pro'
+          settings: |-
+            {
+              "maxSessionTurns": 10,
+              "telemetry": {
+                "enabled": false
+              }
+            }
+          prompt: |-
+            ## Role
+
+            You are a senior Keras engineer. A previous automated fix on branch `${{ env.BRANCH_NAME }}` caused test failures. Your job is to directly edit the source files to fix the failing tests.
+
+            ## Context
+            - Branch: `${{ env.BRANCH_NAME }}`
+            - Test Failures: ${{ env.ERROR_SUMMARY }}
+
+            ## Instructions
+            1. Analyze the test failure output to understand what went wrong.
+            2. Use your tools to find and read the relevant source files.
+            3. Edit ONLY the specific lines that fix the failures. Do NOT:
+               - Rewrite or reformat entire files
+               - Add comments, docstrings, or type annotations to unchanged code
+               - Refactor, rename, or reorder anything unrelated to the fix
+               - Change whitespace, imports, or formatting of untouched lines
+            4. A re-fix should typically change fewer than 20 lines.
+            5. After editing, verify your changes make sense by reading the modified sections.
+            6. If the failing tests reveal that a unit test is missing for the fix, add one:
+               - Find the existing test file for the module (the corresponding `*_test.py` file).
+               - Add a focused test that covers the fixed behavior.
+               - Follow the existing test style and conventions in that file.
+
+            DO NOT output JSON. Use your file editing tools to directly modify the files.
+
+      - name: 'Run pre-commit (ruff format + lint)'
+        run: |
+          SKIP=api-gen pre-commit run --all-files || true
+
+      - name: 'Validate and Push Fix'
+        env:
+          BRANCH_NAME: '${{ github.event.workflow_run.head_branch }}'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const { execSync } = require('child_process');
+
+            const branchName = process.env.BRANCH_NAME;
+
+            // Clean up Gemini artifacts
+            execSync('git checkout -- .gemini/ || true');
+            execSync('git clean -fd .gemini/ gemini-artifacts/ || true');
+
+            const diff = execSync('git diff --stat', { encoding: 'utf-8' }).trim();
+            core.info(`Diff stat:\n${diff}`);
+
+            if (!diff) {
+              core.info('Gemini made no changes.');
+              return;
+            }
+
+            const changedFiles = execSync('git diff --name-only', { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
+            core.info(`Changed files: ${changedFiles.join(', ')}`);
+
+            if (changedFiles.length > 5) {
+              core.setFailed(`Too many files changed (${changedFiles.length}). Aborting.`);
+              return;
+            }
+
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
+
+            for (const f of changedFiles) {
+              execSync(`git add "${f}"`);
+            }
+
+            try {
+              execSync('git commit -m "Automated re-fix by Gemini after test failure"');
+              execSync(`git push origin ${branchName}`);
+              core.info(`Pushed re-fix to ${branchName}`);
+            } catch (e) {
+              core.info(`No changes to commit or push failed: ${e.message}`);
+            }
