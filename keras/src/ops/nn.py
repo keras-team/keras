@@ -1429,11 +1429,6 @@ def adaptive_average_pool(
     )
 
 
-def _get_seq_max(value):
-    """Return the max of a scalar, list, or tuple value."""
-    return max(value) if isinstance(value, (list, tuple)) else value
-
-
 class Conv(Operation):
     def __init__(
         self,
@@ -1620,12 +1615,6 @@ def depthwise_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
-    if _get_seq_max(strides) > 1 and _get_seq_max(dilation_rate) > 1:
-        raise ValueError(
-            "`strides > 1` not supported in conjunction with "
-            f"`dilation_rate > 1`. Received: strides={strides} and "
-            f"dilation_rate={dilation_rate}"
-        )
     if any_symbolic_tensors((inputs, kernel)):
         return DepthwiseConv(
             strides, padding, data_format, dilation_rate
@@ -1742,12 +1731,6 @@ def separable_conv(
     """
     data_format = standardize_data_format(data_format)
     padding = padding.lower()
-    if _get_seq_max(strides) > 1 and _get_seq_max(dilation_rate) > 1:
-        raise ValueError(
-            "`strides > 1` not supported in conjunction with "
-            f"`dilation_rate > 1`. Received: strides={strides} and "
-            f"dilation_rate={dilation_rate}"
-        )
     if any_symbolic_tensors((inputs,)):
         return SeparableConv(
             strides,
