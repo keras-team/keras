@@ -485,8 +485,10 @@ class NNOpsDynamicShapeTest(testing.TestCase):
                     else (None, 3, 20)
                 ),
             )
-        with self.assertRaises(ValueError):
-            knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2)
+        self.assertEqual(
+            knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2).shape,
+            (None, 7, 3) if data_format == "channels_last" else (None, 3, 7),
+        )
 
         # Test 2D depthwise conv.
         if data_format == "channels_last":
@@ -515,10 +517,24 @@ class NNOpsDynamicShapeTest(testing.TestCase):
                     else (None, 3, 10, 5)
                 ),
             )
-        with self.assertRaises(ValueError):
-            knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2)
-        with self.assertRaises(ValueError):
-            knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=(2, 1))
+        self.assertEqual(
+            knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2).shape,
+            (
+                (None, 4, 4, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, 4)
+            ),
+        )
+        self.assertEqual(
+            knn.depthwise_conv(
+                inputs_2d, kernel, 2, dilation_rate=(2, 1)
+            ).shape,
+            (
+                (None, 4, 5, 3)
+                if data_format == "channels_last"
+                else (None, 3, 4, 5)
+            ),
+        )
 
     def test_separable_conv(self):
         data_format = backend.config.image_data_format()
@@ -542,10 +558,12 @@ class NNOpsDynamicShapeTest(testing.TestCase):
             ).shape,
             (None, 20, 5) if data_format == "channels_last" else (None, 5, 20),
         )
-        with self.assertRaises(ValueError):
+        self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 2, dilation_rate=2
-            )
+            ).shape,
+            (None, 7, 5) if data_format == "channels_last" else (None, 5, 7),
+        )
 
         # Test 2D separable conv.
         if data_format == "channels_last":
@@ -575,10 +593,16 @@ class NNOpsDynamicShapeTest(testing.TestCase):
                 else (None, 5, 10, 5)
             ),
         )
-        with self.assertRaises(ValueError):
+        self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 2, dilation_rate=(2, 1)
-            )
+            ).shape,
+            (
+                (None, 4, 5, 5)
+                if data_format == "channels_last"
+                else (None, 5, 4, 5)
+            ),
+        )
 
     def test_conv_transpose(self):
         data_format = backend.config.image_data_format()
@@ -1039,8 +1063,10 @@ class NNOpsStaticShapeTest(testing.TestCase):
             knn.depthwise_conv(inputs_1d, kernel, (1,), padding="same").shape,
             (2, 20, 3) if data_format == "channels_last" else (2, 3, 20),
         )
-        with self.assertRaises(ValueError):
-            knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2)
+        self.assertEqual(
+            knn.depthwise_conv(inputs_1d, kernel, 2, dilation_rate=2).shape,
+            (2, 7, 3) if data_format == "channels_last" else (2, 3, 7),
+        )
 
         # Test 2D depthwise conv.
         if data_format == "channels_last":
@@ -1057,10 +1083,16 @@ class NNOpsStaticShapeTest(testing.TestCase):
             knn.depthwise_conv(inputs_2d, kernel, (1, 2), padding="same").shape,
             (2, 10, 5, 3) if data_format == "channels_last" else (2, 3, 10, 5),
         )
-        with self.assertRaises(ValueError):
-            knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2)
-        with self.assertRaises(ValueError):
-            knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=(2, 1))
+        self.assertEqual(
+            knn.depthwise_conv(inputs_2d, kernel, 2, dilation_rate=2).shape,
+            (2, 4, 4, 3) if data_format == "channels_last" else (2, 3, 4, 4),
+        )
+        self.assertEqual(
+            knn.depthwise_conv(
+                inputs_2d, kernel, 2, dilation_rate=(2, 1)
+            ).shape,
+            (2, 4, 5, 3) if data_format == "channels_last" else (2, 3, 4, 5),
+        )
 
     def test_separable_conv(self):
         data_format = backend.config.image_data_format()
@@ -1084,10 +1116,12 @@ class NNOpsStaticShapeTest(testing.TestCase):
             ).shape,
             (2, 20, 5) if data_format == "channels_last" else (2, 5, 20),
         )
-        with self.assertRaises(ValueError):
+        self.assertEqual(
             knn.separable_conv(
                 inputs_1d, kernel, pointwise_kernel, 2, dilation_rate=2
-            )
+            ).shape,
+            (2, 7, 5) if data_format == "channels_last" else (2, 5, 7),
+        )
 
         # Test 2D separable conv.
         if data_format == "channels_last":
@@ -1109,10 +1143,12 @@ class NNOpsStaticShapeTest(testing.TestCase):
             ).shape,
             (2, 10, 5, 5) if data_format == "channels_last" else (2, 5, 10, 5),
         )
-        with self.assertRaises(ValueError):
+        self.assertEqual(
             knn.separable_conv(
                 inputs_2d, kernel, pointwise_kernel, 2, dilation_rate=(2, 1)
-            )
+            ).shape,
+            (2, 4, 5, 5) if data_format == "channels_last" else (2, 5, 4, 5),
+        )
 
     def test_conv_transpose(self):
         data_format = backend.config.image_data_format()
@@ -1803,6 +1839,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         dilation_rate=(1, (2, 2)),
     )
     def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
+        if (
+            backend.backend() == "tensorflow"
+            and strides == (2, 2)
+            and dilation_rate == (2, 2)
+        ):
+            # This case is not supported by the TF backend.
+            return
         print(strides, padding, dilation_rate)
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 3)
@@ -1810,26 +1853,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
             input_shape = (2, 3, 10, 10)
         inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
-
-        strides_max = (
-            max(strides) if isinstance(strides, (list, tuple)) else strides
-        )
-        dilation_rate_max = (
-            max(dilation_rate)
-            if isinstance(dilation_rate, (list, tuple))
-            else dilation_rate
-        )
-        if strides_max > 1 and dilation_rate_max > 1:
-            # strides > 1 combined with dilation_rate > 1 is not supported.
-            with self.assertRaisesRegex(ValueError, "strides > 1"):
-                knn.depthwise_conv(
-                    inputs_2d,
-                    kernel,
-                    strides,
-                    padding=padding,
-                    dilation_rate=dilation_rate,
-                )
-            return
 
         outputs = knn.depthwise_conv(
             inputs_2d,
@@ -1855,6 +1878,13 @@ class NNOpsCorrectnessTest(testing.TestCase):
         dilation_rate=(1, (2, 2)),
     )
     def test_separable_conv_2d(self, strides, padding, dilation_rate):
+        if (
+            backend.backend() == "tensorflow"
+            and strides == 2
+            and dilation_rate == (2, 2)
+        ):
+            # This case is not supported by the TF backend.
+            return
         # Test 2D conv.
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 3)
@@ -1863,27 +1893,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
         depthwise_kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
         pointwise_kernel = np.arange(72, dtype=float).reshape([1, 1, 6, 12])
-
-        strides_max = (
-            max(strides) if isinstance(strides, (list, tuple)) else strides
-        )
-        dilation_rate_max = (
-            max(dilation_rate)
-            if isinstance(dilation_rate, (list, tuple))
-            else dilation_rate
-        )
-        if strides_max > 1 and dilation_rate_max > 1:
-            # strides > 1 combined with dilation_rate > 1 is not supported.
-            with self.assertRaisesRegex(ValueError, "strides > 1"):
-                knn.separable_conv(
-                    inputs_2d,
-                    depthwise_kernel,
-                    pointwise_kernel,
-                    strides,
-                    padding=padding,
-                    dilation_rate=dilation_rate,
-                )
-            return
 
         outputs = knn.separable_conv(
             inputs_2d,
