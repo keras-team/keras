@@ -396,6 +396,42 @@ class LayerTest(testing.TestCase):
         self.assertAllClose(layer.variables[0], [1, 1])
         self.assertAllClose(layer.variables[1], [10, 1])
 
+    def test_reserved_attribute_assignment_raises_error(self):
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+
+        layer = MyLayer()
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_metrics` is a reserved attribute",
+        ):
+            layer._metrics = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_trainable_variables` is a reserved attribute",
+        ):
+            layer._trainable_variables = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_non_trainable_variables` is a reserved attribute",
+        ):
+            layer._non_trainable_variables = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_layers` is a reserved attribute",
+        ):
+            layer._layers = []
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_seed_generators` is a reserved attribute",
+        ):
+            layer._seed_generators = []
+
     def test_layer_tracking(self):
         class LayerWithDenseLayers(layers.Layer):
             def __init__(self, units):
@@ -1238,6 +1274,24 @@ class LayerTest(testing.TestCase):
             "cannot add new elements of state",
         ):
             layer(np.random.random((3, 2)))
+
+    def test_reserved_attribute_override_raises_error(self):
+        """Raise AttributeError when user code overrides reserved tracked
+        attributes in __init__."""
+
+        class BadLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self._layers = [layers.Dense(4)]
+
+        with self.assertRaisesRegex(
+            AttributeError,
+            "`_layers` is a reserved attribute",
+        ):
+            BadLayer()
+
+        # Internal Keras classes like Sequential should NOT raise.
+        models.Sequential([layers.Dense(4)])
 
     def test_init_after_state_tracking(self):
         class MyLayer(layers.Layer):

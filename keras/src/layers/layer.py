@@ -354,23 +354,31 @@ class Layer(BackendLayer, Operation):
                 "trainable_variables": (
                     lambda x: isinstance(x, backend.Variable) and x.trainable,
                     trainable_variables,
+                    "_trainable_variables",
                 ),
                 "non_trainable_variables": (
                     lambda x: (
                         isinstance(x, backend.Variable) and not x.trainable
                     ),
                     non_trainable_variables,
+                    "_non_trainable_variables",
                 ),
-                "metrics": (lambda x: isinstance(x, Metric), metrics),
+                "metrics": (
+                    lambda x: isinstance(x, Metric),
+                    metrics,
+                    "_metrics",
+                ),
                 "layers": (
                     lambda x: (
                         isinstance(x, Layer) and not isinstance(x, Metric)
                     ),
                     layers,
+                    "_layers",
                 ),
                 "seed_generators": (
                     lambda x: isinstance(x, backend.random.SeedGenerator),
                     seed_generators,
+                    "_seed_generators",
                 ),
             },
             exclusions={"non_trainable_variables": ["trainable_variables"]},
@@ -1618,6 +1626,19 @@ class Layer(BackendLayer, Operation):
         return self.__repr__()
 
     def __setattr__(self, name, value):
+        # Raise if user code reassigns a reserved tracked attribute.
+        if (
+            hasattr(self, "_tracker")
+            and name in self._tracker.tracking_collections_attr_names
+            and hasattr(self, name)
+        ):
+            raise AttributeError(
+                f"`{name}` is a reserved attribute in Keras layers and "
+                "should not be used as a variable name in a Layer "
+                "subclass. Assigning to it can break weight saving, "
+                "metric tracking, and other functionality. "
+                f"Please use a different attribute name."
+            )
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
         if name != "_tracker":

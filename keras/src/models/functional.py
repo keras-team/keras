@@ -138,7 +138,7 @@ class Functional(Function, Model):
         if trainable is not None:
             self.trainable = trainable
 
-        self._layers = self.layers
+        self._layers.extend(self.layers)
         self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
