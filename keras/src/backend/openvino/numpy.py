@@ -2031,13 +2031,12 @@ def full_like(x, fill_value, dtype=None):
         ov_type = OPENVINO_DTYPES[standardize_dtype(dtype)]
     else:
         ov_type = x.get_element_type()
-    if isinstance(fill_value, (OpenVINOKerasTensor, ov.Output)):
-        fill_ov = get_ov_output(fill_value)
+    fill_ov = get_ov_output(fill_value, ov_type)
+    if fill_ov.get_element_type() != ov_type:
         fill_ov = ov_opset.convert(fill_ov, ov_type).output(0)
+    if len(fill_ov.get_partial_shape()) != 0:
         scalar_shape = ov_opset.constant([], Type.i32).output(0)
         fill_ov = ov_opset.reshape(fill_ov, scalar_shape, False).output(0)
-    else:
-        fill_ov = ov_opset.constant(fill_value, ov_type).output(0)
     res = ov_opset.broadcast(fill_ov, shape_x).output(0)
     return OpenVINOKerasTensor(res)
 
@@ -5068,24 +5067,19 @@ def eye(N, M=None, k=0, dtype=None):
     ov_type = OPENVINO_DTYPES[dtype]
     if M is None:
         M = N
-    if isinstance(N, (OpenVINOKerasTensor, ov.Output)):
-        N_ov = get_ov_output(N)
-        if N_ov.get_element_type() != Type.i32:
-            N_ov = ov_opset.convert(N_ov, Type.i32).output(0)
-        N_ov = ov_opset.reshape(
-            N_ov, ov_opset.constant([1], Type.i32).output(0), False
-        ).output(0)
-    else:
-        N_ov = ov_opset.constant([N], Type.i32).output(0)
-    if isinstance(M, (OpenVINOKerasTensor, ov.Output)):
-        M_ov = get_ov_output(M)
-        if M_ov.get_element_type() != Type.i32:
-            M_ov = ov_opset.convert(M_ov, Type.i32).output(0)
-        M_ov = ov_opset.reshape(
-            M_ov, ov_opset.constant([1], Type.i32).output(0), False
-        ).output(0)
-    else:
-        M_ov = ov_opset.constant([M], Type.i32).output(0)
+
+    def _to_dim_tensor(val):
+        if isinstance(val, (OpenVINOKerasTensor, ov.Output)):
+            val_ov = get_ov_output(val)
+            if val_ov.get_element_type() != Type.i32:
+                val_ov = ov_opset.convert(val_ov, Type.i32).output(0)
+            return ov_opset.reshape(
+                val_ov, ov_opset.constant([1], Type.i32).output(0), False
+            ).output(0)
+        return ov_opset.constant([val], Type.i32).output(0)
+
+    N_ov = _to_dim_tensor(N)
+    M_ov = _to_dim_tensor(M)
     k_ov = ov_opset.constant(k, Type.i32).output(0)
     return OpenVINOKerasTensor(
         ov_opset.eye(
