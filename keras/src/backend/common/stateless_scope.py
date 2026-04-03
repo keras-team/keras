@@ -70,7 +70,6 @@ class StatelessScope:
     def __enter__(self):
         self.original_scope = get_stateless_scope()
         global_state.set_global_attribute("stateless_scope", self)
-        global_state._IN_STATELESS_SCOPE = True
         return self
 
     def add_loss(self, loss):
@@ -87,7 +86,6 @@ class StatelessScope:
         global_state.set_global_attribute(
             "stateless_scope", self.original_scope
         )
-        global_state._IN_STATELESS_SCOPE = self.original_scope is not None
         if self.original_scope is None and self.initialize_variables:
             # We're back in eager scope;
             # if any variables were created within the stateless
@@ -100,7 +98,7 @@ class StatelessScope:
 
 
 def in_stateless_scope():
-    return global_state._IN_STATELESS_SCOPE
+    return global_state.get_global_attribute("stateless_scope") is not None
 
 
 def get_stateless_scope():

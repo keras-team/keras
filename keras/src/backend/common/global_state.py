@@ -7,12 +7,6 @@ from keras.src.api_export import keras_export
 GLOBAL_STATE_TRACKER = threading.local()
 GLOBAL_SETTINGS_TRACKER = threading.local()
 
-# Fast boolean flags for scope checks. Avoids getattr(GLOBAL_STATE_TRACKER)
-# overhead on every Variable.value access and op dispatch during inference.
-# Updated only when scopes are entered/exited (rare).
-_IN_STATELESS_SCOPE = False
-_IN_SYMBOLIC_SCOPE = False
-
 
 def set_global_attribute(name, value):
     setattr(GLOBAL_STATE_TRACKER, name, value)

@@ -141,29 +141,10 @@ class Variable(KerasVariable):
 
     @property
     def value(self):
-        # Fast path: initialized variable, no stateless scope, no meta device.
-        # This is the common case during training and inference.
-        if self._value is not None and not global_state._IN_STATELESS_SCOPE:
-            value = self._maybe_autocast(self._value)
-            # Skip symbolic tensor stub unless meta device is active.
-            device = getattr(
-                global_state.GLOBAL_STATE_TRACKER, "torch_device", None
-            )
-            if device is None or device != "meta":
-                return value
-            if str(value.device) == "meta":
-                return value
-            return torch.nn.Parameter(
-                torch.empty(
-                    size=self._shape,
-                    dtype=to_torch_dtype(self._dtype),
-                    device="meta",
-                ),
-                requires_grad=self.trainable,
-            )
-
-        # We cannot chain super() here because it will fail TorchDynamo.
+        # We cannot chain super() here because it will fail TorchDynamo. The
+        # reason why is unclear.
         def maybe_use_symbolic_tensor(value):
+            # Create and use a symbolic tensor stub in symbolic calls.
             if str(get_device()) == "meta" and str(value.device) != "meta":
                 return torch.nn.Parameter(
                     torch.empty(
@@ -175,19 +156,14 @@ class Variable(KerasVariable):
                 )
             return value
 
-        if in_stateless_scope():
-            scope = get_stateless_scope()
-            value = scope.get_current_value(self)
-            if value is not None:
-                value = self._maybe_autocast(value)
-                return maybe_use_symbolic_tensor(value)
-        if self._value is None:
-            value = self._maybe_autocast(
+        if self._value is not None:
+            return maybe_use_symbolic_tensor(self._maybe_autocast(self._value))
+        # Uninitialized variable — used only during shape inference / tracing.
+        return maybe_use_symbolic_tensor(
+            self._maybe_autocast(
                 self._initializer(self._shape, dtype=self._dtype)
             )
-        else:
-            value = self._maybe_autocast(self._value)
-        return maybe_use_symbolic_tensor(value)
+        )
 
     @property
     def trainable(self):

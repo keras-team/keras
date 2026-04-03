@@ -24,23 +24,6 @@ class TorchTrainer(base_trainer.Trainer):
         self.test_function = None
         self.predict_function = None
 
-    def __setattr__(self, name, value):
-        # Auto-compile `generate_function` with torch.compile when
-        # jit_compile=True.  keras-hub's CausalLM.make_generate_function
-        # sets self.generate_function after wrapping generate_step in
-        # torch.no_grad().  By intercepting the assignment here (which is
-        # earlier in the MRO than keras-hub's CausalLM) we can transparently
-        # add torch.compile on top without touching keras-hub code.
-        if (
-            name == "generate_function"
-            and value is not None
-            and callable(value)
-            and getattr(self, "_jit_compile", False)
-            and parse(torch.__version__) >= parse("2.1.0")
-        ):
-            value = torch.compile(value)
-        super().__setattr__(name, value)
-
     def _should_torch_compile(self):
         # require torch>=2.1.0 to enable dynamo since it
         # includes many improvements/fixes to torch.compile()
