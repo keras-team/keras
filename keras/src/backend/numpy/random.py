@@ -7,6 +7,16 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def split_seed(seed, ordered=True):
+    seed = np.asarray(seed)
+    sub_seed = seed.copy()
+    if ordered:
+        new_state = np.array([seed[0], seed[1] + 1], dtype=seed.dtype)
+    else:
+        new_state = ((seed + 1) * 5387 % 933199).astype(seed.dtype)
+    return new_state, sub_seed
+
+
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     seed = draw_seed(seed)

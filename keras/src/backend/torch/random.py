@@ -11,6 +11,16 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def split_seed(seed, ordered=True):
+    sub_seed = seed.clone()
+    if ordered:
+        increment = torch.tensor([0, 1], dtype=seed.dtype, device=seed.device)
+        new_state = seed + increment
+    else:
+        new_state = (seed + 1) * 5387 % 933199
+    return new_state, sub_seed
+
+
 # torch.Generator not supported with dynamo
 # see: https://github.com/pytorch/pytorch/issues/88576
 @dynamo.disable()

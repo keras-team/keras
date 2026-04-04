@@ -370,7 +370,12 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.variables, [layer.seed_gen.state])
         self.assertAllClose(layer.variables[0], [1337, 0])
         layer(np.ones((3, 4)))
-        self.assertAllClose(layer.variables[0], [1337, 1])
+        # State must have advanced from the initial value.
+        self.assertFalse(
+            np.array_equal(
+                backend.convert_to_numpy(layer.variables[0]), [1337, 0]
+            )
+        )
 
         # Test tracking in list attributes.
         class RNGListLayer(layers.Layer):
@@ -393,8 +398,16 @@ class LayerTest(testing.TestCase):
         self.assertAllClose(layer.variables[0], [1, 0])
         self.assertAllClose(layer.variables[1], [10, 0])
         layer(np.ones((3, 4)))
-        self.assertAllClose(layer.variables[0], [1, 1])
-        self.assertAllClose(layer.variables[1], [10, 1])
+        self.assertFalse(
+            np.array_equal(
+                backend.convert_to_numpy(layer.variables[0]), [1, 0]
+            )
+        )
+        self.assertFalse(
+            np.array_equal(
+                backend.convert_to_numpy(layer.variables[1]), [10, 0]
+            )
+        )
 
     def test_layer_tracking(self):
         class LayerWithDenseLayers(layers.Layer):

@@ -13,6 +13,24 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def split_seed(seed, ordered=True):
+    if isinstance(seed, OpenVINOKerasTensor):
+        seed_np = convert_to_numpy(seed)
+    else:
+        seed_np = np.asarray(seed)
+    sub_seed_np = seed_np.copy()
+    if ordered:
+        new_state_np = np.array(
+            [seed_np[0], seed_np[1] + 1], dtype=seed_np.dtype
+        )
+    else:
+        new_state_np = ((seed_np + 1) * 5387 % 933199).astype(seed_np.dtype)
+    return (
+        OpenVINOKerasTensor(ov_opset.constant(new_state_np).output(0)),
+        OpenVINOKerasTensor(ov_opset.constant(sub_seed_np).output(0)),
+    )
+
+
 def _np_to_ov_const(arr):
     """Create an OV Constant from a numpy array, handling bfloat16 specially.
 

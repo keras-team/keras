@@ -1,7 +1,5 @@
 import random as python_random
 
-import numpy as np
-
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
@@ -96,19 +94,11 @@ class SeedGenerator:
             )
 
     def next(self, ordered=True):
-        seed_state = self.state
-        # Use * 1 to create a copy
-        new_seed_value = seed_state.value * 1
-        if ordered:
-            increment = self.backend.convert_to_tensor(
-                np.array([0, 1]), dtype=seed_state.dtype
-            )
-            self.state.assign(self.backend.numpy.add(seed_state, increment))
-        else:
-            # This produces a sequence of near-unique numbers
-            # between 0 and 1M
-            self.state.assign((seed_state + 1) * 5387 % 933199)
-        return new_seed_value
+        new_state, sub_seed = self.backend.random.split_seed(
+            self.state.value, ordered
+        )
+        self.state.assign(new_state)
+        return sub_seed
 
     def get_config(self):
         return {"seed": self._initial_seed, "name": self.name}

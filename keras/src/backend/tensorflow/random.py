@@ -7,6 +7,16 @@ from keras.src.random.seed_generator import draw_seed
 from keras.src.random.seed_generator import make_default_seed
 
 
+def split_seed(seed, ordered=True):
+    sub_seed = tf.identity(seed)
+    if ordered:
+        increment = tf.constant([0, 1], dtype=seed.dtype)
+        new_state = seed + increment
+    else:
+        new_state = (seed + 1) * 5387 % 933199
+    return new_state, sub_seed
+
+
 def _cast_seed(seed):
     # TensorFlow has a device placement issue that `Variable` must be int64
     # in `SeedGenerator`. However, all `tf.random.stateless_*` expect the seed
