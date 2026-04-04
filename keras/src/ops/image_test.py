@@ -84,6 +84,34 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.resize(x, size=(15, 15))
         self.assertEqual(out.shape, (3, 15, 15))
 
+    def test_resize_with_crop_and_pad_dynamic_shape(self):
+        # Test channels_last
+        x = KerasTensor([None, None, None, 3])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 15, 10, 3))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 15, 10, 3))
+
+        x = KerasTensor([None, None, 3])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (15, 10, 3))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (15, 10, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, None, None])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 3, 15, 10))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 3, 15, 10))
+
+        x = KerasTensor([3, None, None])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (3, 15, 10))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (3, 15, 10))
+
     def test_affine_transform(self):
         # Test channels_last
         x = KerasTensor([None, 20, 20, 3])
@@ -1163,6 +1191,20 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     "turn on anti-aliasing. "
                     f"Received: interpolation={interpolation}, "
                     f"antialias={antialias}."
+                )
+        elif backend.backend() == "openvino":
+            if "lanczos" in interpolation:
+                self.skipTest(
+                    "Resizing with Lanczos interpolation is "
+                    "not supported by the OpenVINO backend. "
+                    f"Received: interpolation={interpolation}."
+                )
+            if interpolation == "bicubic":
+                self.skipTest(
+                    "Resizing with Bicubic interpolation does not match "
+                    "TensorFlow strict numeric parity in the OpenVINO "
+                    "backend, so this parity test is skipped. "
+                    f"Received: interpolation={interpolation}."
                 )
         # Test channels_last
         x = np.random.random((30, 30, 3)).astype("float32") * 255

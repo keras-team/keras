@@ -27,8 +27,11 @@ class ResizingTest(testing.TestCase):
         antialias,
         data_format,
     ):
-        if interpolation == "lanczos5" and backend.backend() == "torch":
-            self.skipTest("Torch does not support lanczos.")
+        if interpolation == "lanczos5":
+            if backend.backend() == "torch":
+                self.skipTest("Torch does not support lanczos.")
+            if backend.backend() == "openvino":
+                self.skipTest("OpenVINO does not support lanczos.")
 
         crop_to_aspect_ratio, pad_to_aspect_ratio = crop_pad
         if data_format == "channels_last":
