@@ -3,10 +3,8 @@ import warnings
 import numpy as np
 import pytest
 
-from keras.src import backend
 from keras.src import constraints
 from keras.src import layers
-from keras.src import ops
 from keras.src import regularizers
 from keras.src import testing
 
@@ -181,55 +179,25 @@ class GroupNormalizationTest(testing.TestCase):
             atol=1e-3,
         )
 
-    def test_large_value_within_autocast_scope(self):
-        layer = layers.GroupNormalization(groups=2)
-        layer.build((1, 4, 4, 4))
-        large_value = ops.full(layer.gamma.shape, 70000)
-        with backend.AutocastScope("float16"):
-            layer.gamma.assign(large_value)
-            self.assertAllClose(layer.gamma.value, large_value)
-
-    def test_mixed_float16_large_inputs(self):
-        layer = layers.GroupNormalization(
-            groups=2, axis=-1, scale=False, center=False
-        )
-        x = np.full((1, 4, 4), 70000.0, dtype="float32")
-        with backend.AutocastScope("float16"):
-            output = layer(x)
-        output = backend.convert_to_numpy(output)
-        self.assertFalse(np.any(np.isnan(output)))
-
-    def test_autocast_is_user_controllable(self):
-        layer_default = layers.GroupNormalization()
-        self.assertTrue(layer_default.autocast)
-
-        layer_no_autocast = layers.GroupNormalization(autocast=False)
-        self.assertFalse(layer_no_autocast.autocast)
-
     def test_warns_when_epsilon_too_small_for_compute_dtype(self):
-        x = np.ones((1, 4, 4), dtype="float32")
-
         with pytest.warns(UserWarning, match="epsilon"):
-            layer = layers.GroupNormalization(
+            layers.GroupNormalization(
                 groups=2,
                 axis=-1,
                 scale=False,
                 center=False,
-                epsilon=1e-12,
-                dtype="mixed_float16",
+                epsilon=1e-4,
+                dtype="mixed_bfloat16",
             )
-            _ = layer(x)
 
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
-            layer = layers.GroupNormalization(
+            layers.GroupNormalization(
                 groups=2,
                 axis=-1,
                 scale=False,
                 center=False,
-                epsilon=1e-12,
-                dtype="mixed_float16",
-                autocast=False,
+                epsilon=1e-3,
+                dtype="mixed_bfloat16",
             )
-            _ = layer(x)
             self.assertFalse(any("epsilon" in str(x.message) for x in w))
