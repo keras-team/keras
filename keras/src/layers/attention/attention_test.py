@@ -394,6 +394,20 @@ class AttentionTest(testing.TestCase):
             output.shape,
         )
 
+    def test_attention_nd_inputs(self):
+        """Test that Attention handles N-D inputs (e.g. 4D from Conv2D)."""
+        layer = layers.Attention()
+        # 4D inputs: (batch, height, width, channels)
+        query = np.random.random((2, 8, 6, 4)).astype(np.float32)
+        value = np.random.random((2, 8, 6, 4)).astype(np.float32)
+        output = layer([query, value])
+        self.assertEqual(output.shape, (2, 8, 6, 4))
+
+        # With return_attention_scores
+        output, scores = layer([query, value], return_attention_scores=True)
+        self.assertEqual(output.shape, (2, 8, 6, 4))
+        self.assertEqual(scores.shape, (2, 8, 6, 6))
+
     def test_return_attention_scores_true(self):
         """Test that the layer returns attention scores along with outputs."""
         # Generate dummy input data
