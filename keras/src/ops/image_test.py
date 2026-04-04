@@ -1164,6 +1164,22 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     f"Received: interpolation={interpolation}, "
                     f"antialias={antialias}."
                 )
+        elif backend.backend() == "openvino":
+            if "lanczos" in interpolation:
+                self.skipTest(
+                    "Resizing with Lanczos interpolation is "
+                    "approximated as cubic in the OpenVINO backend, "
+                    "producing different results than TensorFlow. "
+                    f"Received: interpolation={interpolation}."
+                )
+            if interpolation == "bicubic":
+                self.skipTest(
+                    "Resizing with Bicubic interpolation in "
+                    "OpenVINO backend uses a different interpolation "
+                    "kernel than TensorFlow, producing numerical "
+                    "differences. "
+                    f"Received: interpolation={interpolation}."
+                )
         # Test channels_last
         x = np.random.random((30, 30, 3)).astype("float32") * 255
         out = kimage.resize(
@@ -1281,36 +1297,50 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
     def test_resize_uint8_round_saturate(self):
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
-        expected = np.array(
+        if backend.backend() == "torch":
             # OpenCV as gold standard. Same for `torch` backend.
-            (
+            expected = np.array(
                 [
                     [0, 0, 0, 0],
                     [57, 58, 58, 59],
                     [196, 197, 197, 198],
                     [255, 255, 255, 255],
-                ]
-                if "torch" == backend.backend()
-                # Resize without `round` and `saturate_cast` - differences in
-                # 16 points
-                # [
-                #     [234, 234, 235, 235],
-                #     [-5, -6, -5, -6],
-                #     [5, 4, 5, 4],
-                #     [-235, -235, -234, -234],
-                # ]
-                #
-                # Resize with `round` and `saturate_cast` - differences in
-                # 8 points
-                else [
+                ],
+                dtype="uint8",
+            )
+        elif backend.backend() == "openvino":
+            # OpenVINO uses a different bicubic kernel than TensorFlow.
+            expected = np.array(
+                [
+                    [0, 0, 0, 0],
+                    [52, 52, 52, 53],
+                    [202, 203, 203, 203],
+                    [255, 255, 255, 255],
+                ],
+                dtype="uint8",
+            )
+        else:
+            # Resize without `round` and `saturate_cast` - differences in
+            # 16 points
+            # [
+            #     [234, 234, 235, 235],
+            #     [-5, -6, -5, -6],
+            #     [5, 4, 5, 4],
+            #     [-235, -235, -234, -234],
+            # ]
+            #
+            # Resize with `round` and `saturate_cast` - differences in
+            # 8 points
+            expected = np.array(
+                [
                     [0, 0, 0, 0],
                     [53, 53, 53, 54],
                     [201, 202, 202, 202],
                     [255, 255, 255, 255],
-                ]
-            ),
-            dtype="uint8",
-        ).reshape(1, 4, 4, 1)
+                ],
+                dtype="uint8",
+            )
+        expected = expected.reshape(1, 4, 4, 1)
         out = kimage.resize(
             x,
             size=(4, 4),
