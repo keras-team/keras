@@ -1295,39 +1295,36 @@ class ImageOpsCorrectnessTest(testing.TestCase):
 
     def test_resize_uint8_round_saturate(self):
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
-        if backend.backend() == "torch":
+        expected = np.array(
             # OpenCV as gold standard. Same for `torch` backend.
-            expected = np.array(
+            (
                 [
                     [0, 0, 0, 0],
                     [57, 58, 58, 59],
                     [196, 197, 197, 198],
                     [255, 255, 255, 255],
-                ],
-                dtype="uint8",
-            )
-        else:
-            # Resize without `round` and `saturate_cast` - differences in
-            # 16 points
-            # [
-            #     [234, 234, 235, 235],
-            #     [-5, -6, -5, -6],
-            #     [5, 4, 5, 4],
-            #     [-235, -235, -234, -234],
-            # ]
-            #
-            # Resize with `round` and `saturate_cast` - differences in
-            # 8 points
-            expected = np.array(
-                [
+                ]
+                if "torch" == backend.backend()
+                # Resize without `round` and `saturate_cast` - differences in
+                # 16 points
+                # [
+                #     [234, 234, 235, 235],
+                #     [-5, -6, -5, -6],
+                #     [5, 4, 5, 4],
+                #     [-235, -235, -234, -234],
+                # ]
+                #
+                # Resize with `round` and `saturate_cast` - differences in
+                # 8 points
+                else [
                     [0, 0, 0, 0],
                     [53, 53, 53, 54],
                     [201, 202, 202, 202],
                     [255, 255, 255, 255],
-                ],
-                dtype="uint8",
-            )
-        expected = expected.reshape(1, 4, 4, 1)
+                ]
+            ),
+            dtype="uint8",
+        ).reshape(1, 4, 4, 1)
         out = kimage.resize(
             x,
             size=(4, 4),
