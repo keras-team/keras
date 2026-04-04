@@ -565,10 +565,16 @@ def update_confusion_matrix_variables(
             weights_tiled = ops.multiply(weights_tiled, label_weights_tiled)
 
     def weighted_assign_add(label, pred, weights, var):
-        label_and_pred = ops.cast(ops.logical_and(label, pred), dtype=var.dtype)
+        label_and_pred = ops.logical_and(label, pred)
         if weights is not None:
-            label_and_pred *= ops.cast(weights, dtype=var.dtype)
-        var.assign(var + ops.sum(label_and_pred, 1))
+            result = ops.where(
+                label_and_pred,
+                ops.cast(weights, dtype=var.dtype),
+                0,
+            )
+        else:
+            result = ops.cast(label_and_pred, dtype=var.dtype)
+        var.assign(var + ops.sum(result, 1))
 
     loop_vars = {
         ConfusionMatrix.TRUE_POSITIVES: (label_is_pos, pred_is_pos),
