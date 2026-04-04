@@ -1137,6 +1137,19 @@ class Trainer:
                     "Exception encountered:\n"
                     f"'{e}'"
                 )
+            # Pre-build any sublayers that were not reached through `call()`
+            # (e.g. a Sequential sublayer only used in a custom `train_step`).
+            # Without this, such layers would be built lazily during the first
+            # `tf.function` trace of `train_step`, where `Sequential.build()`
+            # creates a nested `FuncGraph` inside an active `tf.function`
+            # context, causing "A KerasTensor cannot be used as input to a
+            # TensorFlow function" (gh-18459).
+            for layer in self._flatten_layers():
+                if not layer.built:
+                    try:
+                        backend.compute_output_spec(layer, x)
+                    except Exception:
+                        pass
             if compile_metrics_unbuilt:
                 # Build all metric state with `backend.compute_output_spec`.
                 backend.compute_output_spec(
