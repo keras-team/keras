@@ -84,6 +84,34 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.resize(x, size=(15, 15))
         self.assertEqual(out.shape, (3, 15, 15))
 
+    def test_resize_with_crop_and_pad_dynamic_shape(self):
+        # Test channels_last
+        x = KerasTensor([None, None, None, 3])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 15, 10, 3))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 15, 10, 3))
+
+        x = KerasTensor([None, None, 3])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (15, 10, 3))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (15, 10, 3))
+
+        # Test channels_first
+        backend.set_image_data_format("channels_first")
+        x = KerasTensor([None, 3, None, None])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 3, 15, 10))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (None, 3, 15, 10))
+
+        x = KerasTensor([3, None, None])
+        out = kimage.resize(x, size=(15, 10), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (3, 15, 10))
+        out = kimage.resize(x, size=(15, 10), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (3, 15, 10))
+
     def test_affine_transform(self):
         # Test channels_last
         x = KerasTensor([None, 20, 20, 3])

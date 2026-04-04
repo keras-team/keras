@@ -269,83 +269,135 @@ def resize(
             f"images.shape={images.get_partial_shape()}"
         )
 
-    shape = images.get_partial_shape()
-    shape = [None if dim.is_dynamic else dim.get_length() for dim in shape]
     if data_format == "channels_last":
         height_axis, width_axis = (-3, -2)
     else:
         height_axis, width_axis = (-2, -1)
-    height = shape[height_axis]
-    width = shape[width_axis]
 
-    if (crop_to_aspect_ratio or pad_to_aspect_ratio) and (
-        height is None or width is None
-    ):
-        raise ValueError(
-            "`crop_to_aspect_ratio` and `pad_to_aspect_ratio` require "
-            "static image height and width with the OpenVINO backend."
-        )
+    def _gather_dim(shape_tensor, axis):
+        axis_node = ov_opset.constant([axis], Type.i32).output(0)
+        axis0 = ov_opset.constant(0, Type.i32).output(0)
+        return ov_opset.gather(shape_tensor, axis_node, axis0).output(0)
+
+    def _floor_div_int(numerator, denominator):
+        numerator_f = ov_opset.convert(numerator, Type.f32).output(0)
+        denominator_f = ov_opset.convert(denominator, Type.f32).output(0)
+        quotient = ov_opset.divide(numerator_f, denominator_f).output(0)
+        floored = ov_opset.floor(quotient).output(0)
+        return ov_opset.convert(floored, Type.i32).output(0)
+
+    def _concat_scalars(nodes):
+        return ov_opset.concat(nodes, axis=0).output(0)
+
+    shape_node = ov_opset.shape_of(images, Type.i32).output(0)
+    height_axis_index = height_axis % rank
+    width_axis_index = width_axis % rank
+    height = _gather_dim(shape_node, height_axis_index)
+    width = _gather_dim(shape_node, width_axis_index)
+
+    target_height_node = ov_opset.constant([target_height], Type.i32).output(0)
+    target_width_node = ov_opset.constant([target_width], Type.i32).output(0)
+    one_i32 = ov_opset.constant([1], Type.i32).output(0)
+    zero_i32 = ov_opset.constant([0], Type.i32).output(0)
 
     if crop_to_aspect_ratio:
-        crop_height = int(float(width * target_height) / target_width)
-        crop_height = max(min(height, crop_height), 1)
-        crop_width = int(float(height * target_width) / target_height)
-        crop_width = max(min(width, crop_width), 1)
-        crop_box_hstart = int(float(height - crop_height) / 2)
-        crop_box_wstart = int(float(width - crop_width) / 2)
+        crop_height = _floor_div_int(
+            ov_opset.multiply(width, target_height_node).output(0),
+            target_width_node,
+        )
+        crop_height = ov_opset.minimum(height, crop_height).output(0)
+        crop_height = ov_opset.maximum(one_i32, crop_height).output(0)
 
-        images = OpenVINOKerasTensor(images)
-        if data_format == "channels_last":
-            if rank == 4:
-                images = images[
-                    :,
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                    :,
-                ]
+        crop_width = _floor_div_int(
+            ov_opset.multiply(height, target_width_node).output(0),
+            target_height_node,
+        )
+        crop_width = ov_opset.minimum(width, crop_width).output(0)
+        crop_width = ov_opset.maximum(one_i32, crop_width).output(0)
+
+        crop_box_hstart = _floor_div_int(
+            ov_opset.subtract(height, crop_height).output(0),
+            ov_opset.constant([2], Type.i32).output(0),
+        )
+        crop_box_wstart = _floor_div_int(
+            ov_opset.subtract(width, crop_width).output(0),
+            ov_opset.constant([2], Type.i32).output(0),
+        )
+
+        crop_box_hend = ov_opset.add(crop_box_hstart, crop_height).output(0)
+        crop_box_wend = ov_opset.add(crop_box_wstart, crop_width).output(0)
+
+        begin_parts = []
+        end_parts = []
+        begin_mask = [1] * rank
+        end_mask = [1] * rank
+        for axis in range(rank):
+            if axis == height_axis_index:
+                begin_parts.append(crop_box_hstart)
+                end_parts.append(crop_box_hend)
+                begin_mask[axis] = 0
+                end_mask[axis] = 0
+            elif axis == width_axis_index:
+                begin_parts.append(crop_box_wstart)
+                end_parts.append(crop_box_wend)
+                begin_mask[axis] = 0
+                end_mask[axis] = 0
             else:
-                images = images[
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                    :,
-                ]
-        else:
-            if rank == 4:
-                images = images[
-                    :,
-                    :,
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                ]
-            else:
-                images = images[
-                    :,
-                    crop_box_hstart : crop_box_hstart + crop_height,
-                    crop_box_wstart : crop_box_wstart + crop_width,
-                ]
-        images = get_ov_output(images)
+                begin_parts.append(zero_i32)
+                end_parts.append(zero_i32)
+
+        images = ov_opset.strided_slice(
+            data=images,
+            begin=_concat_scalars(begin_parts),
+            end=_concat_scalars(end_parts),
+            strides=ov_opset.constant([1] * rank, Type.i32).output(0),
+            begin_mask=begin_mask,
+            end_mask=end_mask,
+        ).output(0)
     elif pad_to_aspect_ratio:
-        pad_height = int(float(width * target_height) / target_width)
-        pad_height = max(height, pad_height)
-        pad_width = int(float(height * target_width) / target_height)
-        pad_width = max(width, pad_width)
-        img_box_hstart = int(float(pad_height - height) / 2)
-        img_box_wstart = int(float(pad_width - width) / 2)
+        pad_height = _floor_div_int(
+            ov_opset.multiply(width, target_height_node).output(0),
+            target_width_node,
+        )
+        pad_height = ov_opset.maximum(height, pad_height).output(0)
 
-        pads_begin = [0] * rank
-        pads_end = [0] * rank
-        pads_begin[height_axis] = img_box_hstart
-        pads_end[height_axis] = img_box_hstart
-        pads_begin[width_axis] = img_box_wstart
-        pads_end[width_axis] = img_box_wstart
+        pad_width = _floor_div_int(
+            ov_opset.multiply(height, target_width_node).output(0),
+            target_height_node,
+        )
+        pad_width = ov_opset.maximum(width, pad_width).output(0)
+
+        img_box_hstart = _floor_div_int(
+            ov_opset.subtract(pad_height, height).output(0),
+            ov_opset.constant([2], Type.i32).output(0),
+        )
+        img_box_wstart = _floor_div_int(
+            ov_opset.subtract(pad_width, width).output(0),
+            ov_opset.constant([2], Type.i32).output(0),
+        )
+
+        pads_begin_parts = []
+        pads_end_parts = []
+        for axis in range(rank):
+            if axis == height_axis_index:
+                pads_begin_parts.append(img_box_hstart)
+                pads_end_parts.append(img_box_hstart)
+            elif axis == width_axis_index:
+                pads_begin_parts.append(img_box_wstart)
+                pads_end_parts.append(img_box_wstart)
+            else:
+                pads_begin_parts.append(zero_i32)
+                pads_end_parts.append(zero_i32)
 
         fill_value = ov_opset.constant(
             fill_value, images.get_element_type()
         ).output(0)
-        pads_begin = ov_opset.constant(pads_begin, Type.i32).output(0)
-        pads_end = ov_opset.constant(pads_end, Type.i32).output(0)
         images = ov_opset.pad(
-            images, pads_begin, pads_end, "constant", fill_value
+            images,
+            _concat_scalars(pads_begin_parts),
+            _concat_scalars(pads_end_parts),
+            "constant",
+            fill_value,
         ).output(0)
 
     axes = [height_axis % rank, width_axis % rank]
