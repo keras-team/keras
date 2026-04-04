@@ -142,9 +142,10 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
         return input_shape
 
 
-RandomColorDegeneration.__doc__ = RandomColorDegeneration.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomColorDegeneration"
-    ),
-)
+if RandomColorDegeneration.__doc__ is not None:
+    RandomColorDegeneration.__doc__ = RandomColorDegeneration.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomColorDegeneration"
+        ),
+    )

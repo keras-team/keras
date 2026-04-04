@@ -118,10 +118,7 @@ jobs:
       - name: Test with pytest
         if: ${{ matrix.nnx_enabled == false }}
         run: |
-          if [ "${{ matrix.backend }}" == "openvino" ]; then
-            IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
-            PYTEST_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
-          elif [ "${{ matrix.multi_device }}" == "true" ]; then
+          if [ "${{ matrix.multi_device }}" == "true" ]; then
             PYTEST_ARGS="-m multi_device"
           else
             PYTEST_ARGS=""

@@ -227,9 +227,10 @@ class RandomGaussianBlur(BaseImagePreprocessingLayer):
         return config
 
 
-RandomGaussianBlur.__doc__ = RandomGaussianBlur.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomGaussianBlur"
-    ),
-)
+if RandomGaussianBlur.__doc__ is not None:
+    RandomGaussianBlur.__doc__ = RandomGaussianBlur.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomGaussianBlur"
+        ),
+    )

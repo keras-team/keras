@@ -40,7 +40,7 @@ permissions:
 jobs:
   triage-issue:
     if: |-
-      (github.repository == 'keras-team/keras' || github.repository == 'keras-team/maintainers-keras') &&
+      github.repository == 'keras-team/keras' &&
       (
         github.event_name == 'workflow_dispatch' ||
         (
@@ -101,7 +101,10 @@ jobs:
               'stat:awaiting keras-eng',
               'Good first issue',
               'keras-team-review-pending',
-              'irrelevant issue'
+              'stat:contributions welcome',
+              'wont-fix',
+              'user error',
+              'to investigate'
             ];
             const labelNames = labels.map(label => label.name).filter(name => allowedLabels.includes(name));
             core.setOutput('available_labels', labelNames.join(','));
@@ -201,12 +204,14 @@ jobs:
             Your output must be a valid JSON object with the following schema:
             {
               "labels_to_set": ["label-name"],
-              "response_body": "Your response text here. Use markdown."
+              "response_body": "Your response text here. Use markdown.",
+              "auto_close": true or false
             }
 
             ## Guidelines
             - Output only the JSON object. Do not include any explanation or additional text before/after the JSON.
             - Provide a helpful markdown response in `response_body`. Use the code context if applicable.
+            - Set `auto_close` to `true` if the issue is a user error, a usage question with a clear answer, or if a workaround is suggested and no code changes are needed in the Keras repository. Set it to `false` if the issue requires investigation, a bug fix, or any code change in Keras.
 
             Reference 1: Label Definitions
             - backend:jax: Issues related to running Keras with JAX backend.
@@ -223,7 +228,10 @@ jobs:
             - stat:awaiting keras-eng: Awaiting response from Keras engineer.
             - Good first issue: Easy tasks for contributors.
             - keras-team-review-pending: Pending team review.
-            - irrelevant issue: Issue is irrelevant or question.
+            - stat:contributions welcome: Issue is open for external contributions.
+            - wont-fix: Issue will not be fixed.
+            - user error: Issue caused by incorrect usage, not a bug.
+            - to investigate: Issue needs further investigation.
 
       - name: 'Apply Labels and Post Response'
         if: |-
@@ -239,11 +247,13 @@ jobs:
             core.info(`Raw output from model: ${rawOutput}`);
             let labelsToAdd = [];
             let responseBody = '';
+            let autoClose = false;
 
             try {
               const parsed = JSON.parse(rawOutput);
               labelsToAdd = parsed.labels_to_set || [];
               responseBody = parsed.response_body || '';
+              autoClose = parsed.auto_close || false;
             } catch (jsonError) {
               core.info('Standard JSON parse failed, trying fallbacks...');
               
@@ -262,6 +272,7 @@ jobs:
                 const parsed = JSON.parse(jsonText);
                 labelsToAdd = parsed.labels_to_set || [];
                 responseBody = parsed.response_body || '';
+                autoClose = parsed.auto_close || false;
               } catch (innerError) {
                 core.info('Extract JSON block parse failed, trying regex fallback...');
                 
@@ -311,4 +322,30 @@ jobs:
               core.info(`Successfully posted automated response for #${issueNumber}`);
             } else {
               core.warning("No response_body found in model output.");
+            }
+
+            // Auto-close if the issue is a user error or has a workaround with no code changes needed
+            if (autoClose) {
+              const issueData = context.payload.issue || (await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+              })).data;
+              const issueAuthor = issueData.user.login;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `@${issueAuthor} This issue appears to be a user error or has a suggested workaround that does not require code changes in the Keras repository. As there is no actionable item for the team, this issue will be automatically closed.\n\nIf you believe this was done in error, please reopen the issue with additional details.`
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                state: 'closed',
+                state_reason: 'not_planned'
+              });
+              core.info(`Auto-closed issue #${issueNumber} (no actionable item for the team).`);
             }

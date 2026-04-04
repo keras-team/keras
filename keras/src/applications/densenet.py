@@ -487,6 +487,9 @@ Returns:
     A Keras model instance.
 """
 
-setattr(DenseNet121, "__doc__", DenseNet121.__doc__ + DOC)
-setattr(DenseNet169, "__doc__", DenseNet169.__doc__ + DOC)
-setattr(DenseNet201, "__doc__", DenseNet201.__doc__ + DOC)
+if DenseNet121.__doc__ is not None:
+    setattr(DenseNet121, "__doc__", DenseNet121.__doc__ + DOC)
+if DenseNet169.__doc__ is not None:
+    setattr(DenseNet169, "__doc__", DenseNet169.__doc__ + DOC)
+if DenseNet201.__doc__ is not None:
+    setattr(DenseNet201, "__doc__", DenseNet201.__doc__ + DOC)
