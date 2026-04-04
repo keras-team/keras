@@ -8,7 +8,9 @@ from keras.src.ops import operation_utils
 
 class OperationUtilsTest(testing.TestCase):
     def test_get_static_tensor_ndim(self):
-        self.assertEqual(operation_utils.get_static_tensor_ndim(KerasTensor((2, 3))), 2)
+        self.assertEqual(
+            operation_utils.get_static_tensor_ndim(KerasTensor((2, 3))), 2
+        )
         self.assertIsNone(operation_utils.get_static_tensor_ndim(object()))
 
     def test_get_source_inputs(self):

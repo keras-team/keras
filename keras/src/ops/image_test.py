@@ -1,13 +1,13 @@
 import math
 
 import jax
-import keras
 import numpy as np
 import pytest
 import scipy.ndimage
 import tensorflow as tf
 from absl.testing import parameterized
 
+import keras
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common import dtypes
