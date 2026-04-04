@@ -1699,6 +1699,7 @@ def _analyze_split_string(
             output_shape_at_dim = output_shape[output_dim_map[dim]]
             if (
                 output_shape_at_dim is not None
+                and input_shape_at_dim is not None
                 and output_shape_at_dim != input_shape_at_dim
             ):
                 raise ValueError(
@@ -1707,6 +1708,9 @@ def _analyze_split_string(
                     "and output shape "
                     f"is {output_shape[output_dim_map[dim]]}."
                 )
+
+            if output_shape[output_dim_map[dim]] is None:
+                output_shape[output_dim_map[dim]] = input_shape_at_dim
 
     for dim in output_spec:
         if dim not in input_spec and dim not in weight_spec:
