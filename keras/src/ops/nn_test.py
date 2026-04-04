@@ -212,6 +212,22 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sparsemax(x).shape, (None, 2, 3))
 
+    def test_log_softmax_invalid_axis_keras_input(self):
+        x = keras.Input(shape=(3,))
+        with self.assertRaises(ValueError):
+            knn.log_softmax(x, axis=2)
+
+    def test_sparsemax_invalid_axis_keras_input(self):
+        x = keras.Input(shape=(3,))
+        with self.assertRaises(ValueError):
+            knn.sparsemax(x, axis=3)
+
+    def test_sparse_categorical_crossentropy_invalid_axis_keras_input(self):
+        target = keras.Input(shape=(2,), dtype="int32")
+        output = keras.Input(shape=(2, 4))
+        with self.assertRaises(ValueError):
+            knn.sparse_categorical_crossentropy(target, output, axis=2)
+
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":

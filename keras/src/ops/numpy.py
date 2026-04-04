@@ -13,6 +13,7 @@ from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
 from keras.src.ops.operation import Operation
 from keras.src.ops.operation_utils import broadcast_shapes
+from keras.src.ops.operation_utils import get_static_tensor_ndim
 from keras.src.ops.operation_utils import reduce_shape
 
 
@@ -3513,8 +3514,47 @@ def flip(x, axis=None):
     Returns:
         Output tensor with entries of `axis` reversed.
     """
+    if axis is not None:
+        ndim = get_static_tensor_ndim(x)
+        if isinstance(axis, int):
+            if ndim is not None:
+                canonicalize_axis(axis, ndim)
+        elif isinstance(axis, (tuple, list)):
+            for a in axis:
+                if not isinstance(a, int):
+                    raise TypeError(
+                        "Argument `axis` must be an integer or a sequence "
+                        f"of integers. Received: axis={axis}"
+                    )
+                if ndim is not None:
+                    canonicalize_axis(a, ndim)
+        else:
+            raise TypeError(
+                "Argument `axis` must be an integer, a sequence of "
+                f"integers, or `None`. Received: axis={axis}"
+            )
     if any_symbolic_tensors((x,)):
         return Flip(axis=axis).symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    if axis is not None:
+        ndim = get_static_tensor_ndim(x)
+        if isinstance(axis, int):
+            if ndim is not None:
+                canonicalize_axis(axis, ndim)
+        elif isinstance(axis, (tuple, list)):
+            for a in axis:
+                if not isinstance(a, int):
+                    raise TypeError(
+                        "Argument `axis` must be an integer or a sequence of "
+                        f"integers. Received: axis={axis}"
+                    )
+                if ndim is not None:
+                    canonicalize_axis(a, ndim)
+        else:
+            raise TypeError(
+                "Argument `axis` must be an integer, a sequence of integers, "
+                f"or `None`. Received: axis={axis}"
+            )
     return backend.numpy.flip(x, axis=axis)
 
 
@@ -7077,8 +7117,101 @@ def roll(x, shift, axis=None):
     Returns:
         Output tensor.
     """
+    ndim = get_static_tensor_ndim(x)
+    if axis is None:
+        if isinstance(shift, (tuple, list)):
+            raise ValueError(
+                "When `axis` is `None`, `shift` must be an integer. "
+                f"Received: shift={shift}"
+            )
+    elif isinstance(axis, int):
+        if ndim is not None:
+            canonicalize_axis(axis, ndim)
+        if not isinstance(shift, int):
+            raise TypeError(
+                "Argument `shift` must be an integer or a sequence of "
+                f"integers. Received: shift={shift}"
+            )
+    elif isinstance(axis, (tuple, list)):
+        for a in axis:
+            if not isinstance(a, int):
+                raise TypeError(
+                    "Argument `axis` must be an integer or a sequence of "
+                    f"integers. Received: axis={axis}"
+                )
+            if ndim is not None:
+                canonicalize_axis(a, ndim)
+        if isinstance(shift, (tuple, list)):
+            if len(shift) != len(axis):
+                raise ValueError(
+                    "`shift` and `axis` must have the same size. "
+                    f"Received: shift={shift}, axis={axis}"
+                )
+            for s in shift:
+                if not isinstance(s, int):
+                    raise TypeError(
+                        "Argument `shift` must be an integer or a sequence "
+                        f"of integers. Received: shift={shift}"
+                    )
+        elif not isinstance(shift, int):
+            raise TypeError(
+                "Argument `shift` must be an integer or a sequence of "
+                f"integers. Received: shift={shift}"
+            )
+    else:
+        raise TypeError(
+            "Argument `axis` must be an integer, a sequence of integers, "
+            f"or `None`. Received: axis={axis}"
+        )
     if any_symbolic_tensors((x,)):
         return Roll(shift, axis=axis).symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    ndim = get_static_tensor_ndim(x)
+    if axis is None:
+        if isinstance(shift, (tuple, list)):
+            raise ValueError(
+                "When `axis` is `None`, `shift` must be an integer. "
+                f"Received: shift={shift}"
+            )
+    elif isinstance(axis, int):
+        if ndim is not None:
+            canonicalize_axis(axis, ndim)
+        if not isinstance(shift, int):
+            raise TypeError(
+                "Argument `shift` must be an integer or a sequence of "
+                f"integers. Received: shift={shift}"
+            )
+    elif isinstance(axis, (tuple, list)):
+        for a in axis:
+            if not isinstance(a, int):
+                raise TypeError(
+                    "Argument `axis` must be an integer or a sequence of "
+                    f"integers. Received: axis={axis}"
+                )
+            if ndim is not None:
+                canonicalize_axis(a, ndim)
+        if isinstance(shift, (tuple, list)):
+            if len(shift) != len(axis):
+                raise ValueError(
+                    "`shift` and `axis` must have the same size. "
+                    f"Received: shift={shift}, axis={axis}"
+                )
+            for s in shift:
+                if not isinstance(s, int):
+                    raise TypeError(
+                        "Argument `shift` must be an integer or a sequence of "
+                        f"integers. Received: shift={shift}"
+                    )
+        elif not isinstance(shift, int):
+            raise TypeError(
+                "Argument `shift` must be an integer or a sequence of "
+                f"integers. Received: shift={shift}"
+            )
+    else:
+        raise TypeError(
+            "Argument `axis` must be an integer, a sequence of integers, "
+            f"or `None`. Received: axis={axis}"
+        )
     return backend.numpy.roll(x, shift, axis=axis)
 
 
@@ -7853,9 +7986,24 @@ class Trace(Operation):
         )
 
     def compute_output_spec(self, x):
+        if getattr(x, "shape", None) is None:
+            raise ValueError(
+                "`trace` requires a known input rank for symbolic shape "
+                "inference. Received: x.shape=None"
+            )
+        ndim = getattr(x.shape, "rank", None)
+        if ndim is None:
+            ndim = len(x.shape)
+        axis1 = canonicalize_axis(self.axis1, ndim)
+        axis2 = canonicalize_axis(self.axis2, ndim)
+        if axis1 == axis2:
+            raise ValueError(
+                f"axis1 and axis2 must be different. Received: "
+                f"axis1={self.axis1}, axis2={self.axis2}"
+            )
         x_shape = list(x.shape)
-        x_shape[self.axis1] = -1
-        x_shape[self.axis2] = -1
+        x_shape[axis1] = -1
+        x_shape[axis2] = -1
         output_shape = list(filter((-1).__ne__, x_shape))
         output_dtype = backend.standardize_dtype(x.dtype)
         if output_dtype in ("bool", "int8", "int16"):
@@ -7898,6 +8046,16 @@ def trace(x, offset=0, axis1=0, axis2=1):
     """
     if any_symbolic_tensors((x,)):
         return Trace(offset, axis1, axis2).symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    ndim = get_static_tensor_ndim(x)
+    if ndim is not None:
+        axis1 = canonicalize_axis(axis1, ndim)
+        axis2 = canonicalize_axis(axis2, ndim)
+    if axis1 == axis2:
+        raise ValueError(
+            f"axis1 and axis2 must be different. Received: axis1={axis1}, "
+            f"axis2={axis2}"
+        )
     return backend.numpy.trace(x, offset=offset, axis1=axis1, axis2=axis2)
 
 
