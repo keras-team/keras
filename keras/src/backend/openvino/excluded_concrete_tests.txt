@@ -50,7 +50,6 @@ ImageOpsBehaviorTests::test_resize
 ImageOpsCorrectnessTest::test_affine_transform
 ImageOpsCorrectnessTest::test_crop_images
 ImageOpsCorrectnessTest::test_elastic_transform
-ImageOpsCorrectnessTest::test_extract_patches
 ImageOpsCorrectnessTest::test_gaussian_blur
 ImageOpsCorrectnessTest::test_map_coordinates
 ImageOpsCorrectnessTest::test_pad_images

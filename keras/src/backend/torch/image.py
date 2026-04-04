@@ -1190,3 +1190,46 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def _extract_patches(
+    images,
+    size,
+    strides=None,
+    dilation_rate=1,
+    padding="valid",
+    data_format=None,
+):
+    if not isinstance(size, int) and len(size) == 3:
+        return _extract_patches_3d(
+            images, size, strides, dilation_rate, padding, data_format
+        )
+    return _extract_patches_2d(
+        images, size, strides, dilation_rate, padding, data_format
+    )
+
+
+def _extract_patches_2d(
+    images,
+    size,
+    strides,
+    dilation_rate,
+    padding,
+    data_format,
+):
+    raise NotImplementedError(
+        "`_extract_patches_2d` is not supported with torch backend"
+    )
+
+
+def _extract_patches_3d(
+    images,
+    size,
+    strides,
+    dilation_rate,
+    padding,
+    data_format,
+):
+    raise NotImplementedError(
+        "`_extract_patches_3d` is not supported with torch backend"
+    )
