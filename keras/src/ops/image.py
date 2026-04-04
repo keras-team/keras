@@ -740,6 +740,15 @@ def extract_patches(
             data_format=data_format,
         ).symbolic_call(images)
 
+    if backend.backend() in ["openvino", "torch", "tensorflow"]:
+        return backend.image._extract_patches(
+            images,
+            size,
+            strides,
+            dilation_rate,
+            padding,
+            data_format=data_format,
+        )
     return _extract_patches(
         images, size, strides, dilation_rate, padding, data_format=data_format
     )
