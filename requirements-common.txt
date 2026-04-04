@@ -32,3 +32,5 @@ tf2onnx
 grain
 # for orbax_checkpoint_test.py
 orbax-checkpoint
+pydot
+
