@@ -773,6 +773,7 @@ class JAXTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
         self.make_train_function()
+        self.reset_metrics()
 
         # Train step
         state = self._get_jax_state(
@@ -821,6 +822,7 @@ class JAXTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
         self.make_test_function()
+        self.reset_metrics()
 
         # Test step
         state = self._get_jax_state(
