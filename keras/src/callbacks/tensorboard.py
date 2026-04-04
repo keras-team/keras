@@ -310,16 +310,16 @@ class TensorBoard(Callback):
         with file_utils.File(path, "w") as f:
             f.write(config_pbtxt)
 
-    def _push_writer(self, writer, step):
+    def _push_writer(self, writer, step_var):
         """Sets the default writer for custom batch-level summaries."""
         if self.update_freq == "epoch":
             return
 
         def should_record():
-            return step % self.update_freq == 0
+            return step_var % self.update_freq == 0
 
         summary_context = (
-            writer.as_default(step),
+            writer.as_default(step_var),
             self.summary.record_if(should_record),
         )
         self._prev_summary_state.append(summary_context)
@@ -404,9 +404,12 @@ class TensorBoard(Callback):
         )
 
     def on_train_begin(self, logs=None):
+        import tensorflow as tf
+
         self._global_train_batch = 0
         self._previous_epoch_iterations = 0
-        self._push_writer(self._train_writer, self._global_train_batch)
+        self._train_step_var = tf.Variable(0, dtype=tf.int64, trainable=False)
+        self._push_writer(self._train_writer, self._train_step_var)
 
     def on_train_end(self, logs=None):
         self._pop_writer()
@@ -417,7 +420,10 @@ class TensorBoard(Callback):
         self._close_writers()
 
     def on_test_begin(self, logs=None):
-        self._push_writer(self._val_writer, self._global_test_batch)
+        import tensorflow as tf
+
+        self._test_step_var = tf.Variable(0, dtype=tf.int64, trainable=False)
+        self._push_writer(self._val_writer, self._test_step_var)
 
     def on_test_end(self, logs=None):
         if self.model.optimizer and hasattr(self.model.optimizer, "iterations"):
@@ -432,6 +438,8 @@ class TensorBoard(Callback):
 
     def on_train_batch_begin(self, batch, logs=None):
         self._global_train_batch += 1
+        if hasattr(self, "_train_step_var"):
+            self._train_step_var.assign(self._global_train_batch)
         if self.write_steps_per_second:
             self._batch_start_time = time.time()
         if not self._should_trace:
@@ -475,6 +483,8 @@ class TensorBoard(Callback):
 
     def on_test_batch_begin(self, batch, logs=None):
         self._global_test_batch += 1
+        if hasattr(self, "_test_step_var"):
+            self._test_step_var.assign(self._global_test_batch)
 
     def on_epoch_begin(self, epoch, logs=None):
         # Keeps track of epoch for profiling.
