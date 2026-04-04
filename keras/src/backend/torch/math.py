@@ -50,26 +50,32 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    data = convert_to_tensor(data)
-    segment_ids = convert_to_tensor(segment_ids)
+    if type(data) is not torch.Tensor:
+        data = convert_to_tensor(data)
+    if type(segment_ids) is not torch.Tensor:
+        segment_ids = convert_to_tensor(segment_ids)
     return _segment_reduction_fn(data, segment_ids, "sum", num_segments)
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    data = convert_to_tensor(data)
-    segment_ids = convert_to_tensor(segment_ids)
+    if type(data) is not torch.Tensor:
+        data = convert_to_tensor(data)
+    if type(segment_ids) is not torch.Tensor:
+        segment_ids = convert_to_tensor(segment_ids)
     return _segment_reduction_fn(data, segment_ids, "amax", num_segments)
 
 
 def top_k(x, k, sorted=True):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.topk(x, k, sorted=sorted)
 
 
 def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets).type(torch.int64)
     targets = targets[:, None]
-    predictions = convert_to_tensor(predictions)
+    if type(predictions) is not torch.Tensor:
+        predictions = convert_to_tensor(predictions)
     topk_values = top_k(predictions, k).values
     targets_values = torch.take_along_dim(predictions, targets, dim=-1)
     mask = targets_values >= topk_values
@@ -77,25 +83,29 @@ def in_top_k(targets, predictions, k):
 
 
 def logsumexp(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     axis = tuple(range(x.dim())) if axis is None else axis
     return torch.logsumexp(x, dim=axis, keepdim=keepdims)
 
 
 def qr(x, mode="reduced"):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if mode not in {"reduced", "complete"}:
         raise ValueError(
             "`mode` argument value not supported. "
             "Expected one of {'reduced', 'complete'}. "
             f"Received: mode={mode}"
         )
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.linalg.qr(x, mode=mode)
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.unfold_copy(
         x, dimension=-1, size=sequence_length, step=sequence_stride
     )
@@ -103,7 +113,8 @@ def extract_sequences(x, sequence_length, sequence_stride):
 
 def _overlap_sequences(x, sequence_stride):
     # Ref: https://github.com/google/jax/blob/main/jax/_src/scipy/signal.py
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     *batch_shape, num_sequences, sequence_length = x.shape
     if sequence_stride > sequence_length:
         raise ValueError(
@@ -160,8 +171,10 @@ def _get_complex_tensor_from_tuple(x):
     # `convert_to_tensor` does not support passing complex tensors. We separate
     # the input out into real and imaginary and convert them separately.
     real, imag = x
-    real = convert_to_tensor(real)
-    imag = convert_to_tensor(imag)
+    if type(real) is not torch.Tensor:
+        real = convert_to_tensor(real)
+    if type(imag) is not torch.Tensor:
+        imag = convert_to_tensor(imag)
     # Check shape.
     if real.shape != imag.shape:
         raise ValueError(
@@ -199,7 +212,8 @@ def ifft2(x):
 
 
 def rfft(x, fft_length=None):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     complex_output = torch.fft.rfft(x, n=fft_length, dim=-1, norm="backward")
     return complex_output.real, complex_output.imag
 
@@ -229,8 +243,8 @@ def stft(
                 "If a string is passed to `window`, it must be one of "
                 f'`"hann"`, `"hamming"`. Received: window={window}'
             )
-    x = convert_to_tensor(x)
-
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     if window is not None:
         if isinstance(window, str):
             if window == "hann":
@@ -381,20 +395,24 @@ def istft(
 
 
 def rsqrt(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.rsqrt(x)
 
 
 def erf(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.erf(x)
 
 
 def erfinv(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.erfinv(x)
 
 
 def logdet(x):
-    x = convert_to_tensor(x)
+    if type(x) is not torch.Tensor:
+        x = convert_to_tensor(x)
     return torch.logdet(x)

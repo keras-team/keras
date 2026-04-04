@@ -64,13 +64,24 @@ class TorchTrainer(base_trainer.Trainer):
             loss = self.optimizer.scale_loss(loss)
 
         # Compute gradients
-        if self.trainable_weights:
+        # Cache trainable_weights to avoid recursive layer traversal
+        # every step (weights don't change during training).
+        cached = getattr(self, "_cached_trainable_weights", None)
+        if cached is not None:
+            trainable_weights = cached
+        else:
+            trainable_weights = self.trainable_weights
+            # Use object.__setattr__ to bypass Layer's __setattr__
+            # tracker overhead.
+            object.__setattr__(
+                self, "_cached_trainable_weights", trainable_weights
+            )
+        if trainable_weights:
             # Call torch.Tensor.backward() on the loss to compute gradients
             # for the weights.
             loss.backward()
 
-            trainable_weights = self.trainable_weights[:]
-            gradients = [v.value.grad for v in trainable_weights]
+            gradients = [v._value.grad for v in trainable_weights]
 
             # Update weights
             with torch.no_grad():
@@ -160,15 +171,34 @@ class TorchTrainer(base_trainer.Trainer):
                 f"Received: steps_per_execution={self.steps_per_execution}"
             )
 
-        def one_step_on_data(data):
-            """Runs a predict test step on a batch of data."""
-            data = data[0]
-            with torch.no_grad():
-                return self.predict_step(data)
-
         if self._should_torch_compile():
-            self.predict_function = torch.compile(one_step_on_data)
+            # Compile the model's forward pass directly rather than wrapping
+            # predict_step.  TorchLayer.forward has a fast path that calls
+            # self.call() directly for built models with real tensors,
+            # bypassing all Keras __call__ overhead (CallSpec construction,
+            # input-spec validation, name-scope work, etc.).  This gives
+            # Dynamo a much simpler graph to trace and avoids Keras Python
+            # objects showing up as Dynamo guards.
+            _compiled_forward = torch.compile(self.forward)
+            _has_training_arg = self._call_has_training_arg
+
+            def one_step_on_data(data):
+                """Runs a predict step on a batch of data."""
+                data = data[0]
+                x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+                with torch.no_grad():
+                    if _has_training_arg:
+                        return _compiled_forward(x, training=False)
+                    return _compiled_forward(x)
+
+            self.predict_function = one_step_on_data
         else:
+            def one_step_on_data(data):
+                """Runs a predict test step on a batch of data."""
+                data = data[0]
+                with torch.no_grad():
+                    return self.predict_step(data)
+
             self.predict_function = one_step_on_data
 
     @traceback_utils.filter_traceback

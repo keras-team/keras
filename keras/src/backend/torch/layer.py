@@ -1,5 +1,6 @@
 import torch
 
+from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.ops.operation import Operation
 
@@ -38,6 +39,15 @@ class TorchLayer(torch.nn.Module):
         )
 
     def forward(self, *args, **kwargs):
+        # Fast path: when built, inputs are real tensors, and no special
+        # execution modes (remat/quantization), bypass Operation.__call__.
+        if (
+            self.built
+            and not any_symbolic_tensors(args, kwargs)
+            and getattr(self, "_remat_mode", None) is None
+            and getattr(self, "quantization_mode", None) is None
+        ):
+            return self.call(*args, **kwargs)
         return Operation.__call__(self, *args, **kwargs)
 
     def _setattr_hook(self, name, value):

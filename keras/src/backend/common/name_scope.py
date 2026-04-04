@@ -1,6 +1,19 @@
 from keras.src.backend.common import global_state
 
 
+def _get_name_scope_stack():
+    """Get the name scope stack, creating it if needed.
+
+    Uses direct getattr on GLOBAL_STATE_TRACKER for speed.
+    """
+    tracker = global_state.GLOBAL_STATE_TRACKER
+    stack = getattr(tracker, "name_scope_stack", None)
+    if stack is None:
+        stack = []
+        tracker.name_scope_stack = stack
+    return stack
+
+
 class name_scope:
     """Creates a sub-namespace for variable paths.
 
@@ -37,9 +50,7 @@ class name_scope:
         self._pop_on_exit = False
 
     def __enter__(self):
-        name_scope_stack = global_state.get_global_attribute(
-            "name_scope_stack", default=[], set_to_default=True
-        )
+        name_scope_stack = _get_name_scope_stack()
         if self.deduplicate and name_scope_stack:
             parent_caller = name_scope_stack[-1].caller
             parent_name = name_scope_stack[-1].name
@@ -55,15 +66,15 @@ class name_scope:
 
     def __exit__(self, *args, **kwargs):
         if self._pop_on_exit:
-            name_scope_stack = global_state.get_global_attribute(
-                "name_scope_stack"
-            )
+            name_scope_stack = _get_name_scope_stack()
             if name_scope_stack:
                 name_scope_stack.pop()
 
 
 def current_path():
-    name_scope_stack = global_state.get_global_attribute("name_scope_stack")
+    name_scope_stack = getattr(
+        global_state.GLOBAL_STATE_TRACKER, "name_scope_stack", None
+    )
     if name_scope_stack is None:
         return ""
     parts = []

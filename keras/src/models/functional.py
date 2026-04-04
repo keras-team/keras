@@ -145,12 +145,48 @@ class Functional(Function, Model):
         self._allow_non_tensor_positional_args = True
         output_layers = [x._keras_history[0] for x in self.outputs]
         self.output_names = [x.name for x in output_layers]
+        # Pre-compute flag for fast path in call().
+        self._single_input_model = len(self._inputs) == 1
 
     def _lock_state(self):
         # Unlike other layers, we allow Functional state to be mutable after
         # build. E.g. to attach a layer to a model that is not part of the
         # functional DAG.
         pass
+
+    def __call__(self, *args, **kwargs):
+        # Ultra-fast inference path for the most common case:
+        #   model(tensor)  or  model(tensor, training=False)
+        # Bypasses Layer.__call__ → _call_full → CallSpec entirely.
+        if (
+            len(args) == 1
+            and backend.is_tensor(args[0])
+            and self.built
+            and getattr(self, "_forward_plan", None) is not None
+            and getattr(self, "_single_input_model", None)
+        ):
+            training = kwargs.get("training")
+            mask = kwargs.get("mask")
+            # Only use ultra-fast path for inference (no training, no mask,
+            # no other kwargs beyond training/mask).
+            if (
+                not training
+                and mask is None
+                and len(kwargs) <= 1
+            ):
+                inputs = args[0]
+                if len(inputs.shape) == len(self._inputs[0].shape):
+                    ref = self._inputs[0]
+                    if (
+                        backend.standardize_dtype(inputs.dtype)
+                        != ref.dtype
+                    ):
+                        inputs = ops.convert_to_tensor(
+                            inputs, dtype=ref.dtype
+                        )
+                    return self._execute_forward_plan([inputs])
+
+        return super().__call__(*args, **kwargs)
 
     def _obj_type(self):
         return "Functional"
@@ -171,20 +207,57 @@ class Functional(Function, Model):
         )
 
     def call(self, inputs, training=None, mask=None, **kwargs):
+        # Ultra-fast path: single tensor input, no mask, no extra kwargs,
+        # no training mode.  Uses pre-compiled forward plan with integer
+        # slot indexing instead of dict-based graph traversal.
+        if (
+            mask is None
+            and not kwargs
+            and training is None
+            and getattr(self, "_single_input_model", None)
+            and backend.is_tensor(inputs)
+            and len(inputs.shape) == len(self._inputs[0].shape)
+            and getattr(self, "_forward_plan", None) is not None
+        ):
+            ref = self._inputs[0]
+            if backend.standardize_dtype(inputs.dtype) != ref.dtype:
+                inputs = ops.convert_to_tensor(inputs, dtype=ref.dtype)
+            return self._execute_forward_plan([inputs])
+
+        # Fast path: single tensor input, no mask, no extra kwargs.
+        if (
+            mask is None
+            and not kwargs
+            and getattr(self, "_single_input_model", None)
+            and backend.is_tensor(inputs)
+            and len(inputs.shape) == len(self._inputs[0].shape)
+        ):
+            ref = self._inputs[0]
+            if backend.standardize_dtype(inputs.dtype) != ref.dtype:
+                inputs = ops.convert_to_tensor(inputs, dtype=ref.dtype)
+            ctx = {"training": training} if training is not None else None
+            outputs = self._run_through_graph([inputs], call_context_dict=ctx)
+            if isinstance(outputs, (list, tuple)) and len(outputs) == 1:
+                return outputs[0]
+            return outputs
+
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:
             masks = [None] * len(inputs)
         else:
             masks = tree.flatten(mask)
-            for x, mask in zip(inputs, masks):
-                if mask is not None:
-                    backend.set_keras_mask(x, mask)
+            for x, mask_item in zip(inputs, masks):
+                if mask_item is not None:
+                    backend.set_keras_mask(x, mask_item)
+
+        call_context_args = kwargs.copy()
+        if training is not None:
+            call_context_args["training"] = training
+
         outputs = self._run_through_graph(
             inputs,
-            operation_fn=lambda op: operation_fn(
-                op, training=training, **kwargs
-            ),
+            call_context_dict=call_context_args if call_context_args else None,
         )
         return unpack_singleton(outputs)
 
@@ -395,6 +468,17 @@ class Functional(Function, Model):
         if hasattr(self, "_manual_input_spec"):
             return self._manual_input_spec
 
+        # Cache the auto-computed spec.  The spec is determined entirely by
+        # self._inputs_struct / self.inputs, which are fixed after the model
+        # is built.  Recreating the closure objects (shape_with_no_batch_size,
+        # make_spec_for_tensor) on every access causes torch.compile / Dynamo
+        # to see new Python function objects each call, failing its identity
+        # guard and triggering a full retrace.  Using a cached value gives
+        # Dynamo a stable object it can guard on once and reuse.
+        cached = getattr(self, "_auto_input_spec_cache", None)
+        if cached is not None:
+            return cached
+
         def shape_with_no_batch_size(x):
             x = list(x)
             if x:
@@ -420,16 +504,27 @@ class Functional(Function, Model):
             ):
                 # Case where `_nested_inputs` is a plain dict of Inputs.
                 names = sorted(self._inputs_struct.keys())
-                return [
+                result = [
                     make_spec_for_tensor(self._inputs_struct[name], name=name)
                     for name in names
                 ]
-            return None  # Deeply nested dict: skip checks.
-        return [make_spec_for_tensor(x) for x in self.inputs]
+            else:
+                return None  # Deeply nested dict: skip checks.
+        else:
+            result = [make_spec_for_tensor(x) for x in self.inputs]
+
+        # Use object.__setattr__ to bypass Layer's __setattr__ overhead.
+        object.__setattr__(self, "_auto_input_spec_cache", result)
+        return result
 
     @input_spec.setter
     def input_spec(self, value):
         self._manual_input_spec = value
+        # Invalidate the auto-cache when the spec is manually overridden.
+        try:
+            object.__delattr__(self, "_auto_input_spec_cache")
+        except AttributeError:
+            pass
 
     def get_config(self):
         if not functional_like_constructor(self.__class__):
@@ -678,23 +773,6 @@ def functional_from_config(cls, config, custom_objects=None):
         trainable=trainable,
         **config,
     )
-
-
-def operation_fn(operation, **call_context_args):
-    """Wraps each op to inject the call-context args."""
-
-    def call(*args, **kwargs):
-        # Propagate all registered call-context args
-        for name, value in call_context_args.items():
-            if (
-                name in getattr(operation, "_call_context_args", {})
-                and value is not None
-            ):
-                kwargs[name] = value
-
-        return operation(*args, **kwargs)
-
-    return call
 
 
 def functional_like_constructor(cls):
