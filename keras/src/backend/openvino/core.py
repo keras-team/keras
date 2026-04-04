@@ -259,7 +259,8 @@ class OpenVINOKerasTensor:
         first, other = align_operand_types(
             first, other, "OpenVINOKerasTensor::__floordiv__"
         )
-        return OpenVINOKerasTensor(ov_opset.divide(first, other).output(0))
+        div = ov_opset.divide(first, other).output(0)
+        return OpenVINOKerasTensor(ov_opset.floor(div).output(0))
 
     def __rfloordiv__(self, other):
         first = self.output
@@ -267,7 +268,8 @@ class OpenVINOKerasTensor:
         first, other = align_operand_types(
             first, other, "OpenVINOKerasTensor::__rfloordiv__"
         )
-        return OpenVINOKerasTensor(ov_opset.divide(other, first).output(0))
+        div = ov_opset.divide(other, first).output(0)
+        return OpenVINOKerasTensor(ov_opset.floor(div).output(0))
 
     def __neg__(self):
         first = self.output
