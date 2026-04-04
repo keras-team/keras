@@ -25,10 +25,26 @@ class RGBToGrayscale(Operation):
                 "or rank 4 (batch of images). "
                 f"Received: images.shape={images_shape}"
             )
+        rank = len(images_shape)
+        # Check for invalid batched 3D input with channels_first.
+        if (
+            rank == 3
+            and self.data_format == "channels_first"
+            and images_shape[0] is None
+        ):
+            raise ValueError(
+                "Invalid input shape for channels_first format: "
+                "3D input with unknown first dimension detected. "
+                "For channels_first format with keras.Input, use "
+                "shape=(3, height, width) to create a 4D batched input "
+                "(batch, channels, height, width), or pass a 3D numpy array "
+                "of shape (3, height, width) for unbatched input. "
+                f"Received: images.shape={images_shape}"
+            )
         if self.data_format == "channels_last":
             images_shape[-1] = 1
-        else:
-            images_shape[-3] = 1
+        else:  # channels_first
+            images_shape[1 if rank == 4 else 0] = 1
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
@@ -98,7 +114,30 @@ class RGBToHSV(Operation):
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
             )
-        channels_axis = -1 if self.data_format == "channels_last" else -3
+        rank = len(images_shape)
+        # Check for invalid batched 3D input with channels_first.
+        # keras.Input creates (None, H, W) for shape=(H, W), which is
+        # incompatible with channels_first format expecting (C, H, W)
+        # for unbatched 3D input or (N, C, H, W) for batched 4D input.
+        if (
+            rank == 3
+            and self.data_format == "channels_first"
+            and images_shape[0] is None
+        ):
+            raise ValueError(
+                "Invalid input shape for channels_first format: "
+                "3D input with unknown first dimension detected. "
+                "For channels_first format with keras.Input, use "
+                "shape=(3, height, width) to create a 4D batched input "
+                "(batch, channels, height, width), or pass a 3D numpy array "
+                "of shape (3, height, width) for unbatched input. "
+                f"Received: images.shape={images_shape}"
+            )
+        # Determine channel axis based on rank and data format.
+        if self.data_format == "channels_last":
+            channels_axis = -1
+        else:  # channels_first
+            channels_axis = 1 if rank == 4 else 0
         channels = images_shape[channels_axis]
         if channels is not None and channels != 3:
             raise ValueError(
@@ -177,7 +216,30 @@ class HSVToRGB(Operation):
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
             )
-        channels_axis = -1 if self.data_format == "channels_last" else -3
+        rank = len(images_shape)
+        # Check for invalid batched 3D input with channels_first.
+        # keras.Input creates (None, H, W) for shape=(H, W), which is
+        # incompatible with channels_first format expecting (C, H, W)
+        # for unbatched 3D input or (N, C, H, W) for batched 4D input.
+        if (
+            rank == 3
+            and self.data_format == "channels_first"
+            and images_shape[0] is None
+        ):
+            raise ValueError(
+                "Invalid input shape for channels_first format: "
+                "3D input with unknown first dimension detected. "
+                "For channels_first format with keras.Input, use "
+                "shape=(3, height, width) to create a 4D batched input "
+                "(batch, channels, height, width), or pass a 3D numpy array "
+                "of shape (3, height, width) for unbatched input. "
+                f"Received: images.shape={images_shape}"
+            )
+        # Determine channel axis based on rank and data format.
+        if self.data_format == "channels_last":
+            channels_axis = -1
+        else:  # channels_first
+            channels_axis = 1 if rank == 4 else 0
         channels = images_shape[channels_axis]
         if channels is not None and channels != 3:
             raise ValueError(
