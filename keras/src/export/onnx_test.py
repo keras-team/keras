@@ -101,7 +101,12 @@ class ExportONNXTest(testing.TestCase):
         ort_inputs = {
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
-        self.assertAllClose(ort_session.run(None, ort_inputs)[0], ref_output)
+        self.assertAllClose(
+            ort_session.run(None, ort_inputs)[0],
+            ref_output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-2,
+        )
         # Test with a different batch size
         ort_inputs = {
             k.name: v
@@ -291,7 +296,12 @@ class ExportONNXTest(testing.TestCase):
         ort_inputs = {
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
-        self.assertAllClose(ort_session.run(None, ort_inputs)[0], ref_output)
+        self.assertAllClose(
+            ort_session.run(None, ort_inputs)[0],
+            ref_output,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-2,
+        )
 
     @parameterized.named_parameters(
         named_product(

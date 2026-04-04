@@ -843,6 +843,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = get_ov_output(target)
+    # one_hot requires integer indices
+    # cast unconditionally, matching JAX/TF/Torch
+    target = ov_opset.convert(target, Type.i64).output(0)
     output = get_ov_output(output)
 
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:

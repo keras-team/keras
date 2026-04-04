@@ -220,9 +220,10 @@ class RandomColorJitter(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandomColorJitter.__doc__ = RandomColorJitter.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomColorJitter"
-    ),
-)
+if RandomColorJitter.__doc__ is not None:
+    RandomColorJitter.__doc__ = RandomColorJitter.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomColorJitter"
+        ),
+    )

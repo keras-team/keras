@@ -5284,6 +5284,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.diagonal(x, offset=-1, axis1=2, axis2=3),
         )
 
+        # axis1 == axis2 should raise ValueError
+        with self.assertRaises(ValueError):
+            knp.diagonal(x, axis1=0, axis2=0)
+        with self.assertRaises(ValueError):
+            knp.diagonal(x, axis1=-1, axis2=3)  # both resolve to axis 3
+
     def test_diff(self):
         x = np.array([1, 2, 4, 7, 0])
         self.assertAllClose(knp.diff(x), np.diff(x))

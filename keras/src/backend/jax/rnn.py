@@ -333,8 +333,70 @@ def lstm(
     return last_output, outputs, [h_n, c_n]
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+):
+    if not reset_after or unroll or mask is not None:
+        raise NotImplementedError
+
+    hidden_size = recurrent_kernel.shape[0]
+
+    kernel = jnp.asarray(kernel)
+    recurrent_kernel = jnp.asarray(recurrent_kernel)
+
+    if bias is not None:
+        bias = jnp.asarray(bias)
+        input_bias = bias[0]
+        recurrent_bias = bias[1]
+    else:
+        input_bias = jnp.zeros(3 * hidden_size)
+        recurrent_bias = jnp.zeros(3 * hidden_size)
+
+    inputs = jnp.asarray(inputs)
+    h_0 = jnp.asarray(initial_state)
+
+    if go_backwards:
+        inputs = jnp.flip(inputs, axis=1)
+
+    # Precompute input projections for all timesteps at once.
+    # One (batch, seq_len, input_size) @ (input_size, 3*hidden) matmul
+    # instead of T separate per-step matmuls.
+    x_all = jnp.matmul(inputs, kernel) + input_bias
+    x_all = jnp.swapaxes(x_all, 0, 1)
+
+    def step(h, x_t):
+        h_all = jnp.matmul(h, recurrent_kernel) + recurrent_bias
+
+        x_z, x_r, x_h = jnp.split(x_t, 3, axis=-1)
+        h_z, h_r, h_h = jnp.split(h_all, 3, axis=-1)
+
+        z = recurrent_activation(x_z + h_z)
+        r = recurrent_activation(x_r + h_r)
+        hh = activation(x_h + r * h_h)
+
+        h_new = z * h + (1 - z) * hh
+        return h_new, h_new
+
+    h_last, outputs = lax.scan(step, h_0, x_all)
+
+    outputs = jnp.swapaxes(outputs, 0, 1)
+    last_output = h_last
+
+    if not return_sequences:
+        outputs = last_output[:, jnp.newaxis, :]
+
+    return last_output, outputs, [h_last]
 
 
 def unstack(x, axis=0):
