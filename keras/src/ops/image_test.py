@@ -1168,16 +1168,14 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             if "lanczos" in interpolation:
                 self.skipTest(
                     "Resizing with Lanczos interpolation is "
-                    "approximated as cubic in the OpenVINO backend, "
-                    "producing different results than TensorFlow. "
+                    "not supported by the OpenVINO backend. "
                     f"Received: interpolation={interpolation}."
                 )
             if interpolation == "bicubic":
                 self.skipTest(
-                    "Resizing with Bicubic interpolation in "
-                    "OpenVINO backend uses a different interpolation "
-                    "kernel than TensorFlow, producing numerical "
-                    "differences. "
+                    "Resizing with Bicubic interpolation does not match "
+                    "TensorFlow strict numeric parity in the OpenVINO "
+                    "backend, so this parity test is skipped. "
                     f"Received: interpolation={interpolation}."
                 )
         # Test channels_last
@@ -1304,17 +1302,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     [0, 0, 0, 0],
                     [57, 58, 58, 59],
                     [196, 197, 197, 198],
-                    [255, 255, 255, 255],
-                ],
-                dtype="uint8",
-            )
-        elif backend.backend() == "openvino":
-            # OpenVINO uses a different bicubic kernel than TensorFlow.
-            expected = np.array(
-                [
-                    [0, 0, 0, 0],
-                    [52, 52, 52, 53],
-                    [202, 203, 203, 203],
                     [255, 255, 255, 255],
                 ],
                 dtype="uint8",

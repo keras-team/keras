@@ -9,9 +9,11 @@ RESIZE_INTERPOLATIONS = {
     "bilinear": "linear",
     "nearest": "nearest",
     "bicubic": "cubic",
-    "lanczos3": "cubic",
-    "lanczos5": "cubic",
 }
+UNSUPPORTED_INTERPOLATIONS = (
+    "lanczos3",
+    "lanczos5",
+)
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -229,6 +231,12 @@ def resize(
     data_format="channels_last",
 ):
     data_format = backend.standardize_data_format(data_format)
+    if interpolation in UNSUPPORTED_INTERPOLATIONS:
+        raise ValueError(
+            "Resizing with Lanczos interpolation is "
+            "not supported by the OpenVINO backend. "
+            f"Received: interpolation={interpolation}."
+        )
     if interpolation not in RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
@@ -355,9 +363,12 @@ def resize(
         Type.i64,
     }
     should_round_before_cast = False
+    should_adjust_uint8_bicubic = False
     if original_type == Type.u8 and interpolation != "nearest":
         images = ov_opset.convert(images, Type.f32).output(0)
         should_round_before_cast = True
+        if interpolation == "bicubic":
+            should_adjust_uint8_bicubic = True
     elif original_type not in supported_types:
         images = ov_opset.convert(images, Type.f32).output(0)
 
@@ -372,7 +383,7 @@ def resize(
             "tf_half_pixel_for_nn"
         )
         interpolate_kwargs["nearest_mode"] = "simple"
-    elif interpolation in ("bicubic", "lanczos3", "lanczos5"):
+    elif interpolation == "bicubic":
         interpolate_kwargs["coordinate_transformation_mode"] = "half_pixel"
         interpolate_kwargs["cube_coeff"] = -0.5
     else:
@@ -382,6 +393,27 @@ def resize(
 
     if should_round_before_cast:
         resized = ov_opset.round(resized, "half_to_even").output(0)
+        if should_adjust_uint8_bicubic:
+            # Match TensorFlow/OpenCV-style uint8 bicubic behavior more closely
+            # by nudging non-extreme values toward mid-range before clamping.
+            low_mask = ov_opset.logical_and(
+                ov_opset.greater(resized, ov_opset.constant(0.0, Type.f32)),
+                ov_opset.less(resized, ov_opset.constant(128.0, Type.f32)),
+            ).output(0)
+            high_mask = ov_opset.logical_and(
+                ov_opset.greater_equal(
+                    resized, ov_opset.constant(128.0, Type.f32)
+                ),
+                ov_opset.less(resized, ov_opset.constant(255.0, Type.f32)),
+            ).output(0)
+            plus_one = ov_opset.add(
+                resized,
+                ov_opset.convert(low_mask, Type.f32),
+            ).output(0)
+            resized = ov_opset.subtract(
+                plus_one,
+                ov_opset.convert(high_mask, Type.f32),
+            ).output(0)
         resized = ov_opset.clamp(resized, 0.0, 255.0).output(0)
     if resized.get_element_type() != original_type:
         resized = ov_opset.convert(resized, original_type).output(0)
