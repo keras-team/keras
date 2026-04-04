@@ -1,8 +1,17 @@
 import openvino.opset15 as ov_opset
+from openvino import Type
 
 from keras.src import backend
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
+
+RESIZE_INTERPOLATIONS = {
+    "bilinear": "linear",
+    "nearest": "nearest",
+    "bicubic": "cubic",
+    "lanczos3": "cubic",
+    "lanczos5": "cubic",
+}
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -209,7 +218,7 @@ def hsv_to_rgb(images, data_format=None):
 
 
 def resize(
-    image,
+    images,
     size,
     interpolation="bilinear",
     antialias=False,
@@ -219,7 +228,164 @@ def resize(
     fill_value=0.0,
     data_format="channels_last",
 ):
-    raise NotImplementedError("`resize` is not supported with openvino backend")
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in RESIZE_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{tuple(RESIZE_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if fill_mode != "constant":
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Only `'constant'` "
+            f"is supported. Received: fill_mode={fill_mode}"
+        )
+    if pad_to_aspect_ratio and crop_to_aspect_ratio:
+        raise ValueError(
+            "Only one of `pad_to_aspect_ratio` & `crop_to_aspect_ratio` "
+            "can be `True`."
+        )
+    if not len(size) == 2:
+        raise ValueError(
+            "Argument `size` must be a tuple of two elements "
+            f"(height, width). Received: size={size}"
+        )
+
+    target_height, target_width = tuple(size)
+    images = get_ov_output(images)
+    rank = len(images.get_partial_shape())
+    if rank not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    shape = images.get_partial_shape()
+    shape = [None if dim.is_dynamic else dim.get_length() for dim in shape]
+    if data_format == "channels_last":
+        height_axis, width_axis = (-3, -2)
+    else:
+        height_axis, width_axis = (-2, -1)
+    height = shape[height_axis]
+    width = shape[width_axis]
+
+    if (crop_to_aspect_ratio or pad_to_aspect_ratio) and (
+        height is None or width is None
+    ):
+        raise ValueError(
+            "`crop_to_aspect_ratio` and `pad_to_aspect_ratio` require "
+            "static image height and width with the OpenVINO backend."
+        )
+
+    if crop_to_aspect_ratio:
+        crop_height = int(float(width * target_height) / target_width)
+        crop_height = max(min(height, crop_height), 1)
+        crop_width = int(float(height * target_width) / target_height)
+        crop_width = max(min(width, crop_width), 1)
+        crop_box_hstart = int(float(height - crop_height) / 2)
+        crop_box_wstart = int(float(width - crop_width) / 2)
+
+        images = OpenVINOKerasTensor(images)
+        if data_format == "channels_last":
+            if rank == 4:
+                images = images[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+            else:
+                images = images[
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                    :,
+                ]
+        else:
+            if rank == 4:
+                images = images[
+                    :,
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
+            else:
+                images = images[
+                    :,
+                    crop_box_hstart : crop_box_hstart + crop_height,
+                    crop_box_wstart : crop_box_wstart + crop_width,
+                ]
+        images = get_ov_output(images)
+    elif pad_to_aspect_ratio:
+        pad_height = int(float(width * target_height) / target_width)
+        pad_height = max(height, pad_height)
+        pad_width = int(float(height * target_width) / target_height)
+        pad_width = max(width, pad_width)
+        img_box_hstart = int(float(pad_height - height) / 2)
+        img_box_wstart = int(float(pad_width - width) / 2)
+
+        pads_begin = [0] * rank
+        pads_end = [0] * rank
+        pads_begin[height_axis] = img_box_hstart
+        pads_end[height_axis] = img_box_hstart
+        pads_begin[width_axis] = img_box_wstart
+        pads_end[width_axis] = img_box_wstart
+
+        fill_value = ov_opset.constant(
+            fill_value, images.get_element_type()
+        ).output(0)
+        pads_begin = ov_opset.constant(pads_begin, Type.i32).output(0)
+        pads_end = ov_opset.constant(pads_end, Type.i32).output(0)
+        images = ov_opset.pad(
+            images, pads_begin, pads_end, "constant", fill_value
+        ).output(0)
+
+    axes = [height_axis % rank, width_axis % rank]
+    size = ov_opset.constant([target_height, target_width], Type.i32).output(0)
+    axes = ov_opset.constant(axes, Type.i32).output(0)
+
+    original_type = images.get_element_type()
+    supported_types = {
+        Type.f32,
+        Type.f16,
+        Type.bf16,
+        Type.i8,
+        Type.u8,
+        Type.i32,
+        Type.i64,
+    }
+    should_round_before_cast = False
+    if original_type == Type.u8 and interpolation != "nearest":
+        images = ov_opset.convert(images, Type.f32).output(0)
+        should_round_before_cast = True
+    elif original_type not in supported_types:
+        images = ov_opset.convert(images, Type.f32).output(0)
+
+    interpolate_kwargs = {
+        "mode": RESIZE_INTERPOLATIONS[interpolation],
+        "shape_calculation_mode": "sizes",
+        "antialias": antialias,
+        "axes": axes,
+    }
+    if interpolation == "nearest":
+        interpolate_kwargs["coordinate_transformation_mode"] = (
+            "tf_half_pixel_for_nn"
+        )
+        interpolate_kwargs["nearest_mode"] = "simple"
+    elif interpolation in ("bicubic", "lanczos3", "lanczos5"):
+        interpolate_kwargs["coordinate_transformation_mode"] = "half_pixel"
+        interpolate_kwargs["cube_coeff"] = -0.5
+    else:
+        interpolate_kwargs["coordinate_transformation_mode"] = "half_pixel"
+
+    resized = ov_opset.interpolate(images, size, **interpolate_kwargs).output(0)
+
+    if should_round_before_cast:
+        resized = ov_opset.round(resized, "half_to_even").output(0)
+        resized = ov_opset.clamp(resized, 0.0, 255.0).output(0)
+    if resized.get_element_type() != original_type:
+        resized = ov_opset.convert(resized, original_type).output(0)
+    return OpenVINOKerasTensor(resized)
 
 
 def affine_transform(
