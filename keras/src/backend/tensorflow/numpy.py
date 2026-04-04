@@ -3773,37 +3773,40 @@ def unique(
     fill_value=None,
 ):
     x = tf.convert_to_tensor(x)
-    original_shape = tf.shape(x)
     is_flatten = axis is None
+    original_shape = tf.shape(x)
 
     if is_flatten:
         x = tf.reshape(x, [-1])
         dim = 0
-        axis_to_use = tf.constant([0], dtype=tf.int32)
+        if return_counts:
+            y, inverse, counts = tf.unique_with_counts(x)
+        else:
+            y, inverse = tf.unique(x)
+            counts = None
     else:
         ndim = x.shape.rank
         dim = axis + ndim if axis < 0 else axis
         axis_to_use = tf.constant([dim], dtype=tf.int32)
-
-    # TF native op returns unique elements in appearance order
-    y, idx, count = tf.raw_ops.UniqueWithCountsV2(
-        x=x, axis=axis_to_use, out_idx=tf.int32
-    )
+        y, inverse, counts = tf.raw_ops.UniqueWithCountsV2(
+            x=x, axis=axis_to_use, out_idx=tf.int32
+        )
+        if not return_counts:
+            counts = None
 
     if sorted:
         num_unique = tf.shape(y)[dim]
-        if y.shape.rank == 1:
-            sort_indices = tf.argsort(y)
+        if is_flatten or y.shape.rank == 1:
+            sort_order = tf.argsort(y)
         else:
-            # Lexicographical sort for multi-D arrays
-            # Move unique axis to front and flatten subarrays for comparison
+            # Multi-D lexicographical sort
             perm = list(range(y.shape.rank))
             perm[0], perm[dim] = perm[dim], perm[0]
             y_transposed = tf.transpose(y, perm)
             y_2d = tf.reshape(y_transposed, [num_unique, -1])
             num_cols = tf.shape(y_2d)[1]
 
-            sort_indices = tf.range(num_unique, dtype=tf.int32)
+            sort_order = tf.range(num_unique, dtype=tf.int32)
 
             def body(i, current_indices):
                 col = tf.gather(y_2d[:, i], current_indices)
@@ -3813,62 +3816,55 @@ def unique(
             def cond(i, current_indices):
                 return i >= 0
 
-            _, sort_indices = tf.while_loop(
-                cond, body, [num_cols - 1, sort_indices], parallel_iterations=1
+            _, sort_order = tf.while_loop(
+                cond, body, [num_cols - 1, sort_order], parallel_iterations=1
             )
 
-        y = tf.gather(y, sort_indices, axis=dim)
-        count = tf.gather(count, sort_indices)
+        y = tf.gather(y, sort_order, axis=dim)
+        if return_counts:
+            counts = tf.gather(counts, sort_order)
         if return_inverse:
-            inv_perm = tf.math.invert_permutation(sort_indices)
-            idx = tf.gather(inv_perm, idx)
+            # Must invert permutation to map inverse indices correctly
+            inv_perm = tf.math.invert_permutation(sort_order)
+            inverse = tf.gather(inv_perm, inverse)
 
+    # Static size padding/truncation (branchless logic for graph mode safety)
     if size is not None:
         values_count = tf.shape(y)[dim]
 
-        def truncate_fn():
-            begin = tf.zeros(tf.rank(y), dtype=tf.int32)
-            slice_size = tf.shape(y)
-            slice_size = tf.tensor_scatter_nd_update(
-                slice_size, [[dim]], [size]
-            )
-            return tf.slice(y, begin, slice_size)
+        # 1. Truncate using gather
+        truncate_size = tf.minimum(values_count, size)
+        y = tf.gather(y, tf.range(truncate_size), axis=dim)
+        if return_counts:
+            counts = tf.gather(counts, tf.range(truncate_size))
 
-        def pad_fn():
-            paddings = tf.zeros([tf.rank(y), 2], dtype=tf.int32)
-            paddings = tf.tensor_scatter_nd_update(
-                paddings, [[dim, 1]], [size - values_count]
-            )
-            fill = tf.cast(0 if fill_value is None else fill_value, y.dtype)
-            return tf.pad(y, paddings, constant_values=fill)
+        # 2. Pad using tf.pad (pad_amount = 0 makes it a no-op)
+        pad_amount = tf.maximum(0, size - values_count)
+        paddings = tf.zeros([tf.rank(y), 2], dtype=tf.int32)
+        paddings = tf.tensor_scatter_nd_update(
+            paddings, [[dim, 1]], [pad_amount]
+        )
 
-        y = tf.cond(values_count > size, truncate_fn, pad_fn)
+        fill = tf.cast(0 if fill_value is None else fill_value, y.dtype)
+        y = tf.pad(y, paddings, constant_values=fill)
 
-        # Set static shape for XLA/JIT compatibility
+        if return_counts:
+            counts = tf.pad(counts, [[0, pad_amount]], constant_values=0)
+
+        # 3. Enforce static shape for JAX/XLA compatibility
         static_shape = y.shape.as_list()
         static_shape[dim] = size
         y.set_shape(static_shape)
-
         if return_counts:
-
-            def truncate_counts():
-                return tf.slice(count, [0], [size])
-
-            def pad_counts():
-                return tf.pad(
-                    count, [[0, size - values_count]], constant_values=0
-                )
-
-            count = tf.cond(values_count > size, truncate_counts, pad_counts)
-            count.set_shape([size])
+            counts.set_shape([size])
 
     if return_inverse and is_flatten:
-        idx = tf.reshape(idx, original_shape)
+        inverse = tf.reshape(inverse, original_shape)
 
     results = [y]
     if return_inverse:
-        results.append(idx)
+        results.append(inverse)
     if return_counts:
-        results.append(count)
+        results.append(counts)
 
     return tuple(results) if len(results) > 1 else results[0]

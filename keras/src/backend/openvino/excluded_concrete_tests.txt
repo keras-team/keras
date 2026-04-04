@@ -86,6 +86,7 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanmedian
 NumpyOneInputOpsCorrectnessTest::test_real
+NumpyOneInputOpsCorrectnessTest::test_unique
 QuantizersTest::test_compute_float8_scale
 QuantizersTest::test_grouped_quantize_with_padding
 ReshapeTest::test_reshape_with_dynamic_batch_size_and_minus_one
