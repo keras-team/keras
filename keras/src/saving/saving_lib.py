@@ -893,6 +893,20 @@ def _save_container_state(
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_saveables=visited_saveables,
             )
+        elif isinstance(saveable, (list, dict, tuple, set)):
+            name = "_container"
+            if name in used_names:
+                used_names[name] += 1
+                name = f"{name}_{used_names[name]}"
+            else:
+                used_names[name] = 0
+            _save_container_state(
+                saveable,
+                weights_store,
+                assets_store,
+                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
+                visited_saveables=visited_saveables,
+            )
 
 
 def _load_container_state(
@@ -920,6 +934,23 @@ def _load_container_state(
             else:
                 used_names[name] = 0
             _load_state(
+                saveable,
+                weights_store,
+                assets_store,
+                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
+                skip_mismatch=skip_mismatch,
+                visited_saveables=visited_saveables,
+                failed_saveables=failed_saveables,
+                error_msgs=error_msgs,
+            )
+        elif isinstance(saveable, (list, dict, tuple, set)):
+            name = "_container"
+            if name in used_names:
+                used_names[name] += 1
+                name = f"{name}_{used_names[name]}"
+            else:
+                used_names[name] = 0
+            _load_container_state(
                 saveable,
                 weights_store,
                 assets_store,
