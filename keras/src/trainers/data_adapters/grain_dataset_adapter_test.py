@@ -71,7 +71,10 @@ class GrainDatasetAdapterTest(testing.TestCase):
         dataset = self._get_dataset(dataset_type)
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
 
-        self.assertEqual(adapter.num_batches, None)
+        if dataset_type == "map_dataset":
+            self.assertEqual(adapter.num_batches, 3)
+        else:
+            self.assertIsNone(adapter.num_batches)
         self.assertEqual(adapter.batch_size, 16)
         self.assertEqual(adapter.has_partial_batch, None)
         self.assertEqual(adapter.partial_batch_size, None)
@@ -186,18 +189,26 @@ class GrainDatasetAdapterTest(testing.TestCase):
                 self.assertEqual(bx.dtype, by.dtype)
 
     def test_num_batches(self):
+        # Finite MapDataset: num_batches should be known.
         dataset = grain.MapDataset.source(Range2DSource(0, 42))
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
-        self.assertEqual(adapter.num_batches, None)
+        self.assertEqual(adapter.num_batches, 42)
 
-        # Test for Infinite Cardinality
+        # Batched MapDataset
+        dataset = grain.MapDataset.source(Range2DSource(0, 42)).batch(10)
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+        self.assertEqual(adapter.num_batches, 5)
+
+        # Infinite cardinality (repeat)
         dataset = grain.MapDataset.source(Range2DSource(0, 42))
         dataset = dataset.repeat()
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
         self.assertIsNone(adapter.num_batches)
 
-        # Test for Unknown Cardinality
-        dataset = dataset.filter(lambda x: True)
+        # IterDataset: unknown cardinality
+        dataset = grain.MapDataset.source(
+            Range2DSource(0, 42)
+        ).to_iter_dataset()
         adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
         self.assertIsNone(adapter.num_batches)
 
@@ -212,3 +223,82 @@ class GrainDatasetAdapterTest(testing.TestCase):
             grain_dataset_adapter.GrainDatasetAdapter(
                 "This is not a grain.Dataset"
             )
+
+    # ------------------------------------------------------------------
+    # Iterator checkpoint / resume tests
+    # ------------------------------------------------------------------
+
+    def test_get_iterator_state_map_dataset(self):
+        """get_iterator_state returns a dict after iterating a MapDataset."""
+        dataset = grain.MapDataset.source(Range2DSource(0, 10)).batch(2)
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+
+        it = adapter.get_numpy_iterator()
+        iterator = iter(it)
+        next(iterator)  # consume one batch
+
+        state = adapter.get_iterator_state()
+        self.assertIsNotNone(state)
+        self.assertIsInstance(state, dict)
+
+    def test_get_iterator_state_before_iteration(self):
+        """get_iterator_state returns None when no iterator is live."""
+        dataset = grain.MapDataset.source(Range2DSource(0, 10)).batch(2)
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+
+        self.assertIsNone(adapter.get_iterator_state())
+
+    def test_set_and_restore_iterator_state(self):
+        """set_iterator_state resumes from the saved position."""
+        data = list(range(20))
+        dataset = grain.MapDataset.source(data).batch(4)
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+
+        # Iterate through 2 batches and save state.
+        it = adapter.get_numpy_iterator()
+        iterator = iter(it)
+        next(iterator)  # [0,1,2,3]
+        next(iterator)  # [4,5,6,7]
+        state = adapter.get_iterator_state()
+        self.assertIsNotNone(state)
+
+        # Read the next batch before restoring.
+        batch_2 = next(iterator)  # [8,9,10,11]
+
+        # Schedule state restoration.
+        adapter.set_iterator_state(state)
+
+        # Create a new iterator -- state should be applied on iter().
+        it2 = adapter.get_numpy_iterator()
+        iterator2 = iter(it2)
+        restored_batch = next(iterator2)
+
+        # The restored iterator should yield the same data as batch_2.
+        np.testing.assert_array_equal(restored_batch, batch_2)
+
+    def test_get_iterator_state_data_loader(self):
+        """DataLoader does not support checkpoint -- returns None."""
+        dataset = self._get_dataset("data_loader")
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+
+        it = adapter.get_numpy_iterator()
+        for _ in it:
+            break  # consume one batch
+
+        # DataLoader iterators don't have get_state.
+        self.assertIsNone(adapter.get_iterator_state())
+
+    def test_iterator_state_json_serializable(self):
+        """The state dict must be JSON-serializable for BackupAndRestore."""
+        import json
+
+        dataset = grain.MapDataset.source(Range2DSource(0, 10)).batch(2)
+        adapter = grain_dataset_adapter.GrainDatasetAdapter(dataset)
+
+        it = adapter.get_numpy_iterator()
+        iterator = iter(it)
+        next(iterator)
+
+        state = adapter.get_iterator_state()
+        roundtripped = json.loads(json.dumps(state))
+        self.assertEqual(state, roundtripped)

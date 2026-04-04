@@ -151,6 +151,14 @@ class BackupAndRestore(Callback):
             epoch = training_metadata["epoch"]
             self.model._initial_epoch = epoch
 
+            # Restore data-pipeline iterator state when available (e.g.
+            # Grain datasets support deterministic mid-epoch resume).
+            iterator_state = training_metadata.get("iterator_state")
+            if iterator_state is not None:
+                epoch_iterator = getattr(self.model, "_epoch_iterator", None)
+                if epoch_iterator is not None:
+                    epoch_iterator.set_iterator_state(iterator_state)
+
     def on_epoch_end(self, epoch, logs=None):
         self._current_epoch = epoch + 1
         self._last_batch_seen = 0
@@ -187,6 +195,13 @@ class BackupAndRestore(Callback):
                 "epoch": self._current_epoch,
                 "batch": self._last_batch_seen,
             }
+            # Persist data-pipeline iterator state when the adapter
+            # supports it (e.g. Grain).
+            epoch_iterator = getattr(self.model, "_epoch_iterator", None)
+            if epoch_iterator is not None:
+                iterator_state = epoch_iterator.get_iterator_state()
+                if iterator_state is not None:
+                    training_metadata["iterator_state"] = iterator_state
             f.write(json.dumps(training_metadata))
 
     def _should_save_on_batch(self, batch):
