@@ -652,6 +652,9 @@ class ConvBasicTest(testing.TestCase):
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
             self.assertLen(layer.torch_params, 4)
+        self.assertDType(layer.lora_kernel_a, "float32")
+        self.assertDType(layer.lora_kernel_b, "float32")
+
         # Try eager call
         x = np.random.random((64,) + input_shape[1:])
         y = np.random.random((64,) + output_shape[1:])
