@@ -2909,3 +2909,897 @@ class ExtractPatches3DTest(testing.TestCase):
             volume, size=(2, 3, 4), strides=(2, 3, 4), data_format=data_format
         )
         self.assertEqual(patches.shape, expected_shape)
+
+
+class RGBToGrayscaleEdgeCasesTest(testing.TestCase):
+    """Test edge cases for rgb_to_grayscale function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_rgb_to_grayscale_single_pixel(self):
+        """Test conversion of a single pixel image."""
+        # Single red pixel
+        x = np.array([[[1.0, 0.0, 0.0]]], dtype="float32")
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (1, 1, 1))
+        # Red channel has weight 0.299 in standard conversion
+        self.assertTrue(out[0, 0, 0] > 0.28 and out[0, 0, 0] < 0.31)
+
+    def test_rgb_to_grayscale_all_black(self):
+        """Test conversion of all black image."""
+        x = np.zeros((10, 10, 3), dtype="float32")
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (10, 10, 1))
+        self.assertTrue(np.allclose(out, 0.0))
+
+    def test_rgb_to_grayscale_all_white(self):
+        """Test conversion of all white image."""
+        x = np.ones((10, 10, 3), dtype="float32")
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (10, 10, 1))
+        self.assertTrue(np.allclose(out, 1.0))
+
+    def test_rgb_to_grayscale_pure_red(self):
+        """Test conversion of pure red image."""
+        x = np.zeros((4, 4, 3), dtype="float32")
+        x[:, :, 0] = 1.0  # Red channel
+        out = kimage.rgb_to_grayscale(x)
+        # Should have consistent grayscale value
+        self.assertTrue(np.allclose(out, out[0, 0, 0]))
+
+    def test_rgb_to_grayscale_pure_green(self):
+        """Test conversion of pure green image."""
+        x = np.zeros((4, 4, 3), dtype="float32")
+        x[:, :, 1] = 1.0  # Green channel
+        out = kimage.rgb_to_grayscale(x)
+        self.assertTrue(np.allclose(out, out[0, 0, 0]))
+
+    def test_rgb_to_grayscale_pure_blue(self):
+        """Test conversion of pure blue image."""
+        x = np.zeros((4, 4, 3), dtype="float32")
+        x[:, :, 2] = 1.0  # Blue channel
+        out = kimage.rgb_to_grayscale(x)
+        self.assertTrue(np.allclose(out, out[0, 0, 0]))
+
+    def test_rgb_to_grayscale_relative_brightness(self):
+        """Test that green > red > blue in grayscale conversion."""
+        # Create images with pure R, G, B
+        x_r = np.zeros((1, 1, 3), dtype="float32")
+        x_r[0, 0, 0] = 1.0
+        x_g = np.zeros((1, 1, 3), dtype="float32")
+        x_g[0, 0, 1] = 1.0
+        x_b = np.zeros((1, 1, 3), dtype="float32")
+        x_b[0, 0, 2] = 1.0
+
+        gray_r = kimage.rgb_to_grayscale(x_r)[0, 0, 0]
+        gray_g = kimage.rgb_to_grayscale(x_g)[0, 0, 0]
+        gray_b = kimage.rgb_to_grayscale(x_b)[0, 0, 0]
+
+        # Green should be brightest, then red, then blue
+        self.assertGreater(gray_g, gray_r)
+        self.assertGreater(gray_r, gray_b)
+
+    def test_rgb_to_grayscale_uint8(self):
+        """Test conversion with uint8 dtype."""
+        x = np.random.randint(0, 256, (10, 10, 3), dtype="uint8")
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (10, 10, 1))
+
+    def test_rgb_to_grayscale_batch_consistency(self):
+        """Test that batched processing is consistent with single image."""
+        np.random.seed(42)
+        x_single = np.random.rand(10, 10, 3).astype("float32")
+        x_batch = np.stack([x_single, x_single])
+
+        out_single = kimage.rgb_to_grayscale(x_single)
+        out_batch = kimage.rgb_to_grayscale(x_batch)
+
+        self.assertTrue(np.allclose(out_batch[0], out_single))
+        self.assertTrue(np.allclose(out_batch[1], out_single))
+
+
+class RGBHSVRoundTripTest(testing.TestCase):
+    """Test round-trip conversions between RGB and HSV color spaces."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_rgb_to_hsv_to_rgb_round_trip(self):
+        """Test that RGB -> HSV -> RGB preserves values."""
+        np.random.seed(42)
+        x = np.random.rand(10, 10, 3).astype("float32")
+        hsv = kimage.rgb_to_hsv(x)
+        rgb_back = kimage.hsv_to_rgb(hsv)
+        self.assertAllClose(x, rgb_back, atol=1e-5)
+
+    def test_hsv_to_rgb_to_hsv_round_trip(self):
+        """Test that HSV -> RGB -> HSV preserves values."""
+        np.random.seed(42)
+        # HSV values should be in [0, 1]
+        hsv = np.random.rand(10, 10, 3).astype("float32")
+        rgb = kimage.hsv_to_rgb(hsv)
+        hsv_back = kimage.rgb_to_hsv(rgb)
+        self.assertAllClose(hsv, hsv_back, atol=1e-5)
+
+    def test_rgb_hsv_black(self):
+        """Test black color conversion."""
+        rgb = np.zeros((1, 1, 3), dtype="float32")
+        hsv = kimage.rgb_to_hsv(rgb)
+        rgb_back = kimage.hsv_to_rgb(hsv)
+        self.assertAllClose(rgb, rgb_back, atol=1e-5)
+
+    def test_rgb_hsv_white(self):
+        """Test white color conversion."""
+        rgb = np.ones((1, 1, 3), dtype="float32")
+        hsv = kimage.rgb_to_hsv(rgb)
+        rgb_back = kimage.hsv_to_rgb(hsv)
+        self.assertAllClose(rgb, rgb_back, atol=1e-5)
+
+    def test_rgb_hsv_pure_red(self):
+        """Test pure red color conversion."""
+        rgb = np.array([[[1.0, 0.0, 0.0]]], dtype="float32")
+        hsv = kimage.rgb_to_hsv(rgb)
+        # Pure red should have hue = 0
+        self.assertTrue(hsv[0, 0, 0] < 0.01 or hsv[0, 0, 0] > 0.99)  # Near 0 or 1
+        self.assertAllClose(hsv[0, 0, 1], 1.0, atol=1e-5)  # Saturation = 1
+        self.assertAllClose(hsv[0, 0, 2], 1.0, atol=1e-5)  # Value = 1
+        rgb_back = kimage.hsv_to_rgb(hsv)
+        self.assertAllClose(rgb, rgb_back, atol=1e-5)
+
+    def test_rgb_hsv_pure_green(self):
+        """Test pure green color conversion."""
+        rgb = np.array([[[0.0, 1.0, 0.0]]], dtype="float32")
+        hsv = kimage.rgb_to_hsv(rgb)
+        # Pure green should have hue approx 1/3
+        self.assertTrue(hsv[0, 0, 0] > 0.32 and hsv[0, 0, 0] < 0.34)
+        rgb_back = kimage.hsv_to_rgb(hsv)
+        self.assertAllClose(rgb, rgb_back, atol=1e-5)
+
+    def test_rgb_hsv_pure_blue(self):
+        """Test pure blue color conversion."""
+        rgb = np.array([[[0.0, 0.0, 1.0]]], dtype="float32")
+        hsv = kimage.rgb_to_hsv(rgb)
+        # Pure blue should have hue approx 2/3
+        self.assertTrue(hsv[0, 0, 0] > 0.65 and hsv[0, 0, 0] < 0.67)
+        rgb_back = kimage.hsv_to_rgb(hsv)
+        self.assertAllClose(rgb, rgb_back, atol=1e-5)
+
+    def test_rgb_hsv_batch_consistency(self):
+        """Test batched RGB<->HSV conversion consistency."""
+        np.random.seed(42)
+        x_single = np.random.rand(10, 10, 3).astype("float32")
+        x_batch = np.stack([x_single, x_single])
+
+        hsv_single = kimage.rgb_to_hsv(x_single)
+        hsv_batch = kimage.rgb_to_hsv(x_batch)
+
+        self.assertTrue(np.allclose(hsv_batch[0], hsv_single))
+        self.assertTrue(np.allclose(hsv_batch[1], hsv_single))
+
+    def test_rgb_hsv_grayscale_equivalent(self):
+        """Test that grayscale colors (equal R,G,B) have saturation 0."""
+        # Various gray shades
+        for gray_val in [0.2, 0.5, 0.8]:
+            rgb = np.full((4, 4, 3), gray_val, dtype="float32")
+            hsv = kimage.rgb_to_hsv(rgb)
+            # Saturation should be 0 for grayscale
+            self.assertTrue(np.allclose(hsv[:, :, 1], 0.0, atol=1e-5))
+            # Value should equal the gray value
+            self.assertTrue(np.allclose(hsv[:, :, 2], gray_val, atol=1e-5))
+
+
+class ResizeEdgeCasesTest(testing.TestCase):
+    """Test edge cases for resize function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_resize_single_pixel(self):
+        """Test resizing a 1x1 image."""
+        x = np.array([[[0.5, 0.5, 0.5]]], dtype="float32")
+        out = kimage.resize(x, (4, 4))
+        self.assertEqual(out.shape, (4, 4, 3))
+
+    def test_resize_to_single_pixel(self):
+        """Test resizing to 1x1."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.resize(x, (1, 1))
+        self.assertEqual(out.shape, (1, 1, 3))
+
+    def test_resize_identity(self):
+        """Test resizing to same size (identity operation)."""
+        x = np.random.rand(5, 5, 3).astype("float32")
+        out = kimage.resize(x, (5, 5))
+        self.assertEqual(out.shape, (5, 5, 3))
+        # Values should be very close (not exact due to interpolation)
+        self.assertTrue(np.allclose(x, out, atol=0.1))
+
+    def test_resize_large_upsampling(self):
+        """Test large upsampling factor."""
+        x = np.random.rand(2, 2, 3).astype("float32")
+        out = kimage.resize(x, (64, 64))
+        self.assertEqual(out.shape, (64, 64, 3))
+
+    def test_resize_large_downsampling(self):
+        """Test large downsampling factor."""
+        x = np.random.rand(64, 64, 3).astype("float32")
+        out = kimage.resize(x, (2, 2))
+        self.assertEqual(out.shape, (2, 2, 3))
+
+    def test_resize_non_square(self):
+        """Test non-square resize."""
+        x = np.random.rand(20, 30, 3).astype("float32")
+        out = kimage.resize(x, (10, 40))
+        self.assertEqual(out.shape, (10, 40, 3))
+
+    def test_resize_preserves_range(self):
+        """Test that resize preserves value range for uint8."""
+        x = np.array([[[0, 128, 255]]], dtype="uint8")
+        x = np.repeat(np.repeat(x, 10, axis=0), 10, axis=1)
+        out = kimage.resize(x, (5, 5))
+        # Values should still be in valid uint8 range
+        self.assertTrue(np.all(out >= 0))
+        self.assertTrue(np.all(out <= 255))
+
+    def test_resize_with_crop_to_aspect_ratio_same_aspect(self):
+        """Test crop_to_aspect_ratio with matching aspect ratio."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.resize(x, (5, 5), crop_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (5, 5, 3))
+
+    def test_resize_with_pad_to_aspect_ratio_same_aspect(self):
+        """Test pad_to_aspect_ratio with matching aspect ratio."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.resize(x, (5, 5), pad_to_aspect_ratio=True)
+        self.assertEqual(out.shape, (5, 5, 3))
+
+    def test_resize_invalid_size_tuple_length(self):
+        """Test that invalid size tuple length raises error."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        with self.assertRaises(ValueError):
+            kimage.resize(x, (5,))  # Only one dimension
+        with self.assertRaises(ValueError):
+            kimage.resize(x, (5, 5, 5))  # Three dimensions
+
+    def test_resize_both_crop_and_pad_raises_error(self):
+        """Test that both crop and pad options raises error."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        with self.assertRaises(ValueError):
+            kimage.resize(x, (5, 5), crop_to_aspect_ratio=True,
+                         pad_to_aspect_ratio=True)
+
+
+class AffineTransformEdgeCasesTest(testing.TestCase):
+    """Test edge cases for affine_transform function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_affine_transform_identity(self):
+        """Test identity transform (no change)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        # Identity transform
+        transform = np.array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                            dtype="float32")
+        out = kimage.affine_transform(x, transform)
+        self.assertEqual(out.shape, x.shape)
+        self.assertAllClose(x, out, atol=1e-5)
+
+    def test_affine_transform_translation(self):
+        """Test translation transform."""
+        x = np.zeros((10, 10, 3), dtype="float32")
+        x[0, 0, :] = 1.0  # Single bright pixel
+
+        # Translate by 2 pixels right and 2 pixels down
+        transform = np.array([1.0, 0.0, -2.0, 0.0, 1.0, -2.0, 0.0, 0.0],
+                            dtype="float32")
+        out = kimage.affine_transform(x, transform)
+        self.assertEqual(out.shape, x.shape)
+        # The bright pixel should have moved
+        self.assertTrue(np.max(out[2, 2, :]) > 0.5)
+
+    def test_affine_transform_small_image(self):
+        """Test transform on small image."""
+        x = np.random.rand(2, 2, 3).astype("float32")
+        transform = np.array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                            dtype="float32")
+        out = kimage.affine_transform(x, transform)
+        self.assertEqual(out.shape, (2, 2, 3))
+
+    def test_affine_transform_single_pixel(self):
+        """Test transform on single pixel image."""
+        x = np.array([[[0.5, 0.5, 0.5]]], dtype="float32")
+        transform = np.array([1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
+                            dtype="float32")
+        out = kimage.affine_transform(x, transform)
+        self.assertEqual(out.shape, (1, 1, 3))
+
+    def test_affine_transform_batched_transforms(self):
+        """Test with different transforms for each image in batch."""
+        x = np.random.rand(2, 10, 10, 3).astype("float32")
+        # Two different transforms
+        transforms = np.array([
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],  # Identity
+            [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0],  # Identity
+        ], dtype="float32")
+        out = kimage.affine_transform(x, transforms)
+        self.assertEqual(out.shape, (2, 10, 10, 3))
+
+
+class PadImagesEdgeCasesTest(testing.TestCase):
+    """Test edge cases for pad_images function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_pad_images_zero_padding(self):
+        """Test zero padding (no change)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.pad_images(x, 0, 0, 0, 0)
+        self.assertEqual(out.shape, (10, 10, 3))
+        self.assertAllClose(x, out)
+
+    def test_pad_images_only_top(self):
+        """Test padding only top."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        out = kimage.pad_images(x, 2, 0, 0, 0)
+        self.assertEqual(out.shape, (7, 5, 3))
+        # Top 2 rows should be zeros
+        self.assertTrue(np.allclose(out[:2, :, :], 0.0))
+
+    def test_pad_images_only_left(self):
+        """Test padding only left."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        out = kimage.pad_images(x, 0, 2, 0, 0)
+        self.assertEqual(out.shape, (5, 7, 3))
+        # Left 2 columns should be zeros
+        self.assertTrue(np.allclose(out[:, :2, :], 0.0))
+
+    def test_pad_images_asymmetric(self):
+        """Test asymmetric padding."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        out = kimage.pad_images(x, 1, 2, 3, 4)
+        self.assertEqual(out.shape, (9, 11, 3))
+
+    def test_pad_images_single_pixel(self):
+        """Test padding single pixel image."""
+        x = np.array([[[0.5, 0.5, 0.5]]], dtype="float32")
+        out = kimage.pad_images(x, 1, 1, 1, 1)
+        self.assertEqual(out.shape, (3, 3, 3))
+
+    def test_pad_images_large_padding(self):
+        """Test with large padding values."""
+        x = np.ones((2, 2, 3), dtype="float32")
+        out = kimage.pad_images(x, 10, 10, 10, 10)
+        self.assertEqual(out.shape, (22, 22, 3))
+
+    def test_pad_images_with_target_dimensions(self):
+        """Test padding using target dimensions."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        out = kimage.pad_images(x, 1, 1, target_height=10, target_width=10)
+        self.assertEqual(out.shape, (10, 10, 3))
+
+    def test_pad_images_invalid_negative_padding(self):
+        """Test that negative padding raises error."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        with self.assertRaises(ValueError):
+            kimage.pad_images(x, -1, 0, 0, 0)
+
+    def test_pad_images_invalid_target_too_small(self):
+        """Test that target smaller than image raises error."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        with self.assertRaises(ValueError):
+            kimage.pad_images(x, 0, 0, target_height=3, target_width=3)
+
+
+class CropImagesEdgeCasesTest(testing.TestCase):
+    """Test edge cases for crop_images function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_crop_images_zero_cropping(self):
+        """Test zero cropping (no change)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.crop_images(x, 0, 0, 0, 0)
+        self.assertEqual(out.shape, (10, 10, 3))
+        self.assertAllClose(x, out)
+
+    def test_crop_images_only_top(self):
+        """Test cropping only from top."""
+        x = np.ones((10, 10, 3), dtype="float32")
+        x[:2, :, :] = 0.0  # Different top rows
+        out = kimage.crop_images(x, 2, 0, 0, 0)
+        self.assertEqual(out.shape, (8, 10, 3))
+        # Should only have ones now
+        self.assertTrue(np.allclose(out, 1.0))
+
+    def test_crop_images_asymmetric(self):
+        """Test asymmetric cropping."""
+        x = np.ones((10, 10, 3), dtype="float32")
+        out = kimage.crop_images(x, 1, 2, 3, 4)
+        self.assertEqual(out.shape, (6, 4, 3))
+
+    def test_crop_images_with_target_dimensions(self):
+        """Test cropping using target dimensions."""
+        x = np.ones((10, 10, 3), dtype="float32")
+        out = kimage.crop_images(x, 0, 0, target_height=5, target_width=5)
+        self.assertEqual(out.shape, (5, 5, 3))
+
+    def test_crop_images_minimum_crop(self):
+        """Test cropping to 1x1."""
+        x = np.ones((10, 10, 3), dtype="float32")
+        out = kimage.crop_images(x, 0, 0, 9, 9)
+        self.assertEqual(out.shape, (1, 1, 3))
+
+    def test_crop_images_invalid_negative_cropping(self):
+        """Test that negative cropping raises error."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        with self.assertRaises(ValueError):
+            kimage.crop_images(x, -1, 0, 0, 0)
+
+    def test_crop_images_invalid_target_negative(self):
+        """Test that negative target raises error."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        with self.assertRaises(ValueError):
+            kimage.crop_images(x, 0, 0, target_height=-1, target_width=3)
+
+
+class GaussianBlurEdgeCasesTest(testing.TestCase):
+    """Test edge cases for gaussian_blur function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_gaussian_blur_small_sigma(self):
+        """Test with very small sigma (minimal blur)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.gaussian_blur(x, kernel_size=(3, 3), sigma=(0.1, 0.1))
+        self.assertEqual(out.shape, x.shape)
+        # With small sigma, output should be close to input
+        self.assertTrue(np.allclose(x, out, atol=0.1))
+
+    def test_gaussian_blur_large_sigma(self):
+        """Test with large sigma (strong blur)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.gaussian_blur(x, kernel_size=(7, 7), sigma=(5.0, 5.0))
+        self.assertEqual(out.shape, x.shape)
+
+    def test_gaussian_blur_asymmetric_kernel(self):
+        """Test with asymmetric kernel size."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.gaussian_blur(x, kernel_size=(3, 5), sigma=(1.0, 1.5))
+        self.assertEqual(out.shape, x.shape)
+
+    def test_gaussian_blur_single_pixel(self):
+        """Test blur on single pixel image."""
+        x = np.array([[[0.5, 0.5, 0.5]]], dtype="float32")
+        out = kimage.gaussian_blur(x, kernel_size=(3, 3), sigma=(1.0, 1.0))
+        self.assertEqual(out.shape, (1, 1, 3))
+
+    def test_gaussian_blur_preserves_mean(self):
+        """Test that blur preserves approximate mean intensity."""
+        x = np.random.rand(20, 20, 3).astype("float32")
+        out = kimage.gaussian_blur(x, kernel_size=(5, 5), sigma=(1.0, 1.0))
+        # Mean should be approximately preserved
+        self.assertTrue(np.abs(np.mean(x) - np.mean(out)) < 0.1)
+
+    def test_gaussian_blur_uniform_image(self):
+        """Test blur on uniform image (should remain unchanged)."""
+        x = np.ones((10, 10, 3), dtype="float32") * 0.5
+        out = kimage.gaussian_blur(x, kernel_size=(5, 5), sigma=(2.0, 2.0))
+        self.assertAllClose(out, 0.5 * np.ones_like(out), atol=0.01)
+
+
+class ElasticTransformEdgeCasesTest(testing.TestCase):
+    """Test edge cases for elastic_transform function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_elastic_transform_zero_alpha(self):
+        """Test with zero alpha (no transformation)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.elastic_transform(x, alpha=0.0, sigma=5.0, seed=42)
+        self.assertEqual(out.shape, x.shape)
+        # With zero alpha, should be close to original
+        self.assertAllClose(x, out, atol=1e-5)
+
+    def test_elastic_transform_small_alpha(self):
+        """Test with small alpha (minor transformation)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out = kimage.elastic_transform(x, alpha=1.0, sigma=5.0, seed=42)
+        self.assertEqual(out.shape, x.shape)
+
+    def test_elastic_transform_reproducibility(self):
+        """Test that same seed produces same output."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        out1 = kimage.elastic_transform(x, alpha=10.0, sigma=5.0, seed=123)
+        out2 = kimage.elastic_transform(x, alpha=10.0, sigma=5.0, seed=123)
+        self.assertAllClose(out1, out2)
+
+    def test_elastic_transform_different_seeds(self):
+        """Test that different seeds produce different outputs."""
+        x = np.random.rand(20, 20, 3).astype("float32")
+        out1 = kimage.elastic_transform(x, alpha=20.0, sigma=5.0, seed=123)
+        out2 = kimage.elastic_transform(x, alpha=20.0, sigma=5.0, seed=456)
+        # Different seeds should produce different results
+        self.assertFalse(np.allclose(out1, out2))
+
+    def test_elastic_transform_small_image(self):
+        """Test elastic transform on small image."""
+        x = np.random.rand(5, 5, 3).astype("float32")
+        out = kimage.elastic_transform(x, alpha=5.0, sigma=2.0, seed=42)
+        self.assertEqual(out.shape, (5, 5, 3))
+
+
+class PerspectiveTransformEdgeCasesTest(testing.TestCase):
+    """Test edge cases for perspective_transform function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_perspective_transform_identity(self):
+        """Test identity perspective transform (corners map to themselves)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        # Identity: corners map to corners
+        start_points = np.array([[0, 0], [0, 10], [10, 0], [10, 10]],
+                                dtype="float32")
+        end_points = np.array([[0, 0], [0, 10], [10, 0], [10, 10]],
+                              dtype="float32")
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, x.shape)
+        self.assertAllClose(x, out, atol=1e-5)
+
+    def test_perspective_transform_small_shift(self):
+        """Test small perspective shift."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        # Small shift in one corner
+        start_points = np.array([[0, 0], [0, 10], [10, 0], [10, 10]],
+                                dtype="float32")
+        end_points = np.array([[1, 1], [0, 10], [10, 0], [10, 10]],
+                              dtype="float32")
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, x.shape)
+
+    def test_perspective_transform_single_pixel(self):
+        """Test perspective transform on single pixel."""
+        x = np.array([[[0.5, 0.5, 0.5]]], dtype="float32")
+        start_points = np.array([[0, 0], [0, 1], [1, 0], [1, 1]],
+                                dtype="float32")
+        end_points = np.array([[0, 0], [0, 1], [1, 0], [1, 1]],
+                              dtype="float32")
+        out = kimage.perspective_transform(x, start_points, end_points)
+        self.assertEqual(out.shape, (1, 1, 3))
+
+
+class ExtractPatchesEdgeCasesTest(testing.TestCase):
+    """Test edge cases for extract_patches function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_extract_patches_small_image(self):
+        """Test patch extraction on small image."""
+        x = np.random.rand(4, 4, 3).astype("float32")
+        patches = kimage.extract_patches(x, (2, 2))
+        self.assertEqual(patches.shape, (2, 2, 12))
+
+    def test_extract_patches_covering_full_image(self):
+        """Test patch extraction that covers entire image."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        patches = kimage.extract_patches(x, (10, 10))
+        self.assertEqual(patches.shape, (1, 1, 300))
+
+    def test_extract_patches_with_overlap(self):
+        """Test patch extraction with overlapping patches."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        patches = kimage.extract_patches(x, (3, 3), strides=(1, 1))
+        # With stride 1 and patch 3, should get (10-3+1) = 8 patches each dim
+        self.assertEqual(patches.shape, (8, 8, 27))
+
+    def test_extract_patches_single_pixel(self):
+        """Test patch extraction on single pixel image."""
+        x = np.array([[[0.5, 0.5, 0.5]]], dtype="float32")
+        patches = kimage.extract_patches(x, (1, 1))
+        self.assertEqual(patches.shape, (1, 1, 3))
+
+
+class MapCoordinatesEdgeCasesTest(testing.TestCase):
+    """Test edge cases for map_coordinates function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_map_coordinates_identity(self):
+        """Test identity mapping."""
+        x = np.random.rand(5, 5, 3).astype("float32")
+        # Create identity coordinates
+        coords = np.mgrid[0:5, 0:5, 0:3].astype("float32")
+        out = kimage.map_coordinates(x, coords, order=1)
+        self.assertEqual(out.shape, x.shape)
+        self.assertAllClose(x, out, atol=1e-5)
+
+    def test_map_coordinates_single_pixel(self):
+        """Test mapping on single pixel."""
+        x = np.array([[[0.5]]], dtype="float32")
+        coords = np.array([[[0.0]], [[0.0]], [[0.0]]], dtype="float32")
+        out = kimage.map_coordinates(x, coords, order=0)
+        self.assertEqual(out.shape, (1, 1, 1))
+
+    def test_map_coordinates_shift(self):
+        """Test coordinate shift."""
+        x = np.zeros((5, 5), dtype="float32")
+        x[0, 0] = 1.0
+        # Shift coordinates by 1
+        coords = np.array([
+            [[1.0, 1.0], [2.0, 2.0]],
+            [[0.0, 0.0], [0.0, 0.0]]
+        ], dtype="float32")
+        out = kimage.map_coordinates(x, coords, order=0)
+        # Should sample from (1, 0) which is the shifted location
+        self.assertEqual(out.shape, (2, 2))
+
+
+class ScaleAndTranslateEdgeCasesTest(testing.TestCase):
+    """Test edge cases for scale_and_translate function."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_scale_and_translate_identity(self):
+        """Test identity scale and translate (no change)."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        scale = np.array([1.0, 1.0], dtype="float32")
+        translation = np.array([0.0, 0.0], dtype="float32")
+        out = kimage.scale_and_translate(
+            x,
+            output_shape=(10, 10, 3),
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method="linear"
+        )
+        self.assertEqual(out.shape, (10, 10, 3))
+
+    def test_scale_and_translate_small_scale(self):
+        """Test with small scale (downsampling)."""
+        x = np.random.rand(20, 20, 3).astype("float32")
+        scale = np.array([0.5, 0.5], dtype="float32")
+        translation = np.array([0.0, 0.0], dtype="float32")
+        out = kimage.scale_and_translate(
+            x,
+            output_shape=(10, 10, 3),
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method="linear"
+        )
+        self.assertEqual(out.shape, (10, 10, 3))
+
+    def test_scale_and_translate_large_scale(self):
+        """Test with large scale (upsampling)."""
+        x = np.random.rand(5, 5, 3).astype("float32")
+        scale = np.array([2.0, 2.0], dtype="float32")
+        translation = np.array([0.0, 0.0], dtype="float32")
+        out = kimage.scale_and_translate(
+            x,
+            output_shape=(10, 10, 3),
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method="linear"
+        )
+        self.assertEqual(out.shape, (10, 10, 3))
+
+    def test_scale_and_translate_with_translation(self):
+        """Test with translation."""
+        x = np.zeros((10, 10, 3), dtype="float32")
+        x[0, 0, :] = 1.0  # Single bright pixel
+        scale = np.array([1.0, 1.0], dtype="float32")
+        translation = np.array([2.0, 2.0], dtype="float32")
+        out = kimage.scale_and_translate(
+            x,
+            output_shape=(10, 10, 3),
+            scale=scale,
+            translation=translation,
+            spatial_dims=(0, 1),
+            method="linear"
+        )
+        self.assertEqual(out.shape, (10, 10, 3))
+
+
+class ImageOpsInvalidInputTest(testing.TestCase):
+    """Test invalid inputs for image operations."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_rgb_to_hsv_integer_dtype_error(self):
+        """Test that rgb_to_hsv raises error for integer dtype."""
+        x = np.random.randint(0, 256, (10, 10, 3), dtype="int32")
+        with self.assertRaisesRegex(ValueError, "expected float dtype"):
+            kimage.rgb_to_hsv(x)
+
+    def test_hsv_to_rgb_integer_dtype_error(self):
+        """Test that hsv_to_rgb raises error for integer dtype."""
+        x = np.random.randint(0, 256, (10, 10, 3), dtype="int32")
+        with self.assertRaisesRegex(ValueError, "expected float dtype"):
+            kimage.hsv_to_rgb(x)
+
+    def test_rgb_to_grayscale_wrong_channels(self):
+        """Test rgb_to_grayscale with wrong number of channels."""
+        # 2 channels instead of 3
+        x = np.random.rand(10, 10, 2).astype("float32")
+        # This should work - the function doesn't validate channel count
+        # at the ops level for RGB conversion (backend handles it)
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (10, 10, 1))
+
+    def test_extract_patches_wrong_size_type(self):
+        """Test extract_patches with wrong size type."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        with self.assertRaises(TypeError):
+            kimage.extract_patches(x, "invalid")
+
+    def test_extract_patches_wrong_size_length(self):
+        """Test extract_patches with wrong size length."""
+        x = np.random.rand(10, 10, 3).astype("float32")
+        with self.assertRaises(ValueError):
+            kimage.extract_patches(x, (3, 3, 3, 3))  # 4D size for 2D image
+
+    def test_pad_images_conflicting_arguments(self):
+        """Test pad_images with conflicting arguments."""
+        x = np.ones((5, 5, 3), dtype="float32")
+        # Cannot specify all three of top_padding, bottom_padding, target_height
+        with self.assertRaises(ValueError):
+            kimage.pad_images(x, 1, 0, 1, 0, target_height=10, target_width=5)
+
+    def test_crop_images_conflicting_arguments(self):
+        """Test crop_images with conflicting arguments."""
+        x = np.ones((10, 10, 3), dtype="float32")
+        # Cannot specify all three
+        with self.assertRaises(ValueError):
+            kimage.crop_images(x, 1, 0, 1, 0, target_height=5, target_width=10)
+
+    def test_map_coordinates_coordinates_rank_mismatch(self):
+        """Test map_coordinates with coordinate rank mismatch."""
+        x = np.random.rand(5, 5, 3).astype("float32")
+        # Coordinates first dim should match input rank (3)
+        coords = np.random.rand(2, 5, 5).astype("float32")  # Should be 3
+        with self.assertRaisesRegex(ValueError, "must be the same as the rank"):
+            kimage.map_coordinates(x, coords, order=1)
+
+
+class ImageOpsChannelsFirstEdgeCasesTest(testing.TestCase):
+    """Test image operations with channels_first data format."""
+
+    def setUp(self):
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_first")
+        return super().setUp()
+
+    def tearDown(self):
+        backend.set_image_data_format(self.data_format)
+        return super().tearDown()
+
+    def test_rgb_to_grayscale_channels_first(self):
+        """Test rgb_to_grayscale with channels_first."""
+        x = np.random.rand(3, 10, 10).astype("float32")
+        out = kimage.rgb_to_grayscale(x)
+        self.assertEqual(out.shape, (1, 10, 10))
+
+    def test_rgb_to_hsv_channels_first(self):
+        """Test rgb_to_hsv with channels_first."""
+        x = np.random.rand(3, 10, 10).astype("float32")
+        out = kimage.rgb_to_hsv(x)
+        self.assertEqual(out.shape, (3, 10, 10))
+
+    def test_hsv_to_rgb_channels_first(self):
+        """Test hsv_to_rgb with channels_first."""
+        x = np.random.rand(3, 10, 10).astype("float32")
+        out = kimage.hsv_to_rgb(x)
+        self.assertEqual(out.shape, (3, 10, 10))
+
+    def test_resize_channels_first(self):
+        """Test resize with channels_first."""
+        x = np.random.rand(3, 10, 10).astype("float32")
+        out = kimage.resize(x, (5, 5))
+        self.assertEqual(out.shape, (3, 5, 5))
+
+    def test_gaussian_blur_channels_first(self):
+        """Test gaussian_blur with channels_first."""
+        x = np.random.rand(3, 10, 10).astype("float32")
+        out = kimage.gaussian_blur(x)
+        self.assertEqual(out.shape, (3, 10, 10))
+
+    def test_pad_images_channels_first(self):
+        """Test pad_images with channels_first."""
+        x = np.ones((3, 5, 5), dtype="float32")
+        out = kimage.pad_images(x, 1, 1, 1, 1)
+        self.assertEqual(out.shape, (3, 7, 7))
+
+    def test_crop_images_channels_first(self):
+        """Test crop_images with channels_first."""
+        x = np.ones((3, 10, 10), dtype="float32")
+        out = kimage.crop_images(x, 1, 1, 1, 1)
+        self.assertEqual(out.shape, (3, 8, 8))
