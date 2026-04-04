@@ -477,6 +477,7 @@ class TorchTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_train_function()
+        self.reset_metrics()
 
         logs = self.train_function([data])
         logs = pythonify_logs(logs)
@@ -498,6 +499,7 @@ class TorchTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_test_function()
+        self.reset_metrics()
 
         logs = self.test_function([data])
         logs = pythonify_logs(logs)
