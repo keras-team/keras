@@ -266,7 +266,7 @@ def resize(
         raise ValueError(
             "Invalid images rank: expected rank 3 (single image) "
             "or rank 4 (batch of images). Received input with shape: "
-            f"images.shape={images.shape}"
+            f"images.shape={images.get_partial_shape()}"
         )
 
     shape = images.get_partial_shape()
