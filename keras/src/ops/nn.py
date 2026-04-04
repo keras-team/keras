@@ -18,6 +18,29 @@ from keras.src.ops.operation_utils import reduce_shape
 from keras.src.utils.python_utils import is_continuous_axis
 
 
+def _normalize_log_softmax_axis(x, axis):
+    """Validate `axis` and canonicalize indices when input rank is known."""
+    ndim = operation_utils.get_static_tensor_ndim(x)
+    if isinstance(axis, int):
+        if ndim is not None:
+            return canonicalize_axis(axis, ndim)
+        return axis
+    if isinstance(axis, tuple):
+        for a in axis:
+            if not isinstance(a, int):
+                raise TypeError(
+                    "Argument `axis` must be an integer or tuple of "
+                    f"integers. Received: axis={axis}"
+                )
+        if ndim is not None:
+            return tuple(canonicalize_axis(a, ndim) for a in axis)
+        return axis
+    raise TypeError(
+        "Argument `axis` must be an integer or tuple of integers. "
+        f"Received: axis={axis}"
+    )
+
+
 class Relu(Operation):
     def call(self, x):
         return backend.nn.relu(x)
@@ -1015,74 +1038,13 @@ def log_softmax(x, axis=-1):
     array([-2.40760596, -1.40760596, -0.40760596], shape=(3,), dtype=float64)
 
     """
+    axis = _normalize_log_softmax_axis(x, axis)
     if any_symbolic_tensors((x,)):
-        shape = getattr(x, "shape", None)
-        if shape is None:
-            ndim = None
-        else:
-            ndim = getattr(shape, "rank", None)
-            if ndim is None:
-                ndim = len(shape)
-        if isinstance(axis, int):
-            if ndim is not None:
-                if axis < -ndim or axis >= ndim:
-                    raise ValueError(
-                        f"axis {axis} is out of bounds for array of dimension "
-                        f"{ndim}"
-                    )
-                axis = axis if axis >= 0 else axis + ndim
-        elif isinstance(axis, tuple):
-            canonical_axis = []
-            for a in axis:
-                if not isinstance(a, int):
-                    raise TypeError(
-                        "Argument `axis` must be an integer or tuple of "
-                        f"integers. Received: axis={axis}"
-                    )
-                if ndim is not None:
-                    if a < -ndim or a >= ndim:
-                        raise ValueError(
-                            f"axis {a} is out of bounds for array of dimension "
-                            f"{ndim}"
-                        )
-                    a = a if a >= 0 else a + ndim
-                canonical_axis.append(a)
-            axis = tuple(canonical_axis) if ndim is not None else axis
         return LogSoftmax(axis).symbolic_call(x)
     x = backend.convert_to_tensor(x)
-    shape = getattr(x, "shape", None)
-    if shape is None:
-        ndim = None
-    else:
-        ndim = getattr(shape, "rank", None)
-        if ndim is None:
-            ndim = len(shape)
-    if isinstance(axis, int):
-        if ndim is not None:
-            if axis < -ndim or axis >= ndim:
-                raise ValueError(
-                    f"axis {axis} is out of bounds for array of dimension "
-                    f"{ndim}"
-                )
-            axis = axis if axis >= 0 else axis + ndim
-    elif isinstance(axis, tuple):
-        canonical_axis = []
-        for a in axis:
-            if not isinstance(a, int):
-                raise TypeError(
-                    "Argument `axis` must be an integer or tuple of integers. "
-                    f"Received: axis={axis}"
-                )
-            if ndim is not None:
-                if a < -ndim or a >= ndim:
-                    raise ValueError(
-                        f"axis {a} is out of bounds for array of dimension "
-                        f"{ndim}"
-                    )
-                a = a if a >= 0 else a + ndim
-            canonical_axis.append(a)
-        axis = tuple(canonical_axis) if ndim is not None else axis
+    axis = _normalize_log_softmax_axis(x, axis)
     if isinstance(axis, tuple):
+        shape = getattr(x, "shape", None)
         if shape is None:
             raise ValueError(
                 "Argument `axis` as a tuple requires a known input rank. "
@@ -1145,44 +1107,19 @@ def sparsemax(x, axis=-1):
     array([0., 0., 1.], shape=(3,), dtype=float64)
 
     """
-    if any_symbolic_tensors((x,)):
-        shape = getattr(x, "shape", None)
-        if shape is None:
-            ndim = None
-        else:
-            ndim = getattr(shape, "rank", None)
-            if ndim is None:
-                ndim = len(shape)
-        if not isinstance(axis, int):
-            raise TypeError(
-                f"Argument `axis` must be an integer. Received: axis={axis}"
-            )
-        if ndim is not None:
-            if axis < -ndim or axis >= ndim:
-                raise ValueError(
-                    f"axis {axis} is out of bounds for array of dimension "
-                    f"{ndim}"
-                )
-            axis = axis if axis >= 0 else axis + ndim
-        return Sparsemax(axis).symbolic_call(x)
-    x = backend.convert_to_tensor(x)
-    shape = getattr(x, "shape", None)
-    if shape is None:
-        ndim = None
-    else:
-        ndim = getattr(shape, "rank", None)
-        if ndim is None:
-            ndim = len(shape)
     if not isinstance(axis, int):
         raise TypeError(
             f"Argument `axis` must be an integer. Received: axis={axis}"
         )
+    ndim = operation_utils.get_static_tensor_ndim(x)
     if ndim is not None:
-        if axis < -ndim or axis >= ndim:
-            raise ValueError(
-                f"axis {axis} is out of bounds for array of dimension {ndim}"
-            )
-        axis = axis if axis >= 0 else axis + ndim
+        axis = canonicalize_axis(axis, ndim)
+    if any_symbolic_tensors((x,)):
+        return Sparsemax(axis).symbolic_call(x)
+    x = backend.convert_to_tensor(x)
+    ndim = operation_utils.get_static_tensor_ndim(x)
+    if ndim is not None:
+        axis = canonicalize_axis(axis, ndim)
     return backend.nn.sparsemax(x, axis=axis)
 
 

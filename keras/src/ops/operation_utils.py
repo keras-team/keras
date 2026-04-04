@@ -394,6 +394,24 @@ def reduce_shape(shape, axis=None, keepdims=False):
 
 
 @keras_export("keras.utils.get_source_inputs")
+def get_static_tensor_ndim(x):
+    """Return the static rank of `x` when known, else `None`.
+
+    Works for `KerasTensor` and tensors with a concrete `shape` tuple.
+    Returns `None` when rank cannot be determined (e.g. missing shape).
+    """
+    shape = getattr(x, "shape", None)
+    if shape is None:
+        return None
+    rank = getattr(shape, "rank", None)
+    if rank is not None:
+        return rank
+    try:
+        return len(shape)
+    except TypeError:
+        return None
+
+
 def get_source_inputs(tensor):
     """Returns the list of input tensors necessary to compute `tensor`.
 

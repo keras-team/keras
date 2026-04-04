@@ -1047,6 +1047,12 @@ class PadImages(Operation):
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                f"Invalid shape for argument `images`: "
+                "it must have rank 3 or 4. "
+                f"Received: images.shape={images_shape}"
+            )
 
         if self.data_format == "channels_last":
             height_axis, width_axis = -3, -2
@@ -1277,6 +1283,12 @@ class CropImages(Operation):
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                f"Invalid shape for argument `images`: "
+                "it must have rank 3 or 4. "
+                f"Received: images.shape={images_shape}"
+            )
 
         if self.data_format == "channels_last":
             height_axis, width_axis = -3, -2

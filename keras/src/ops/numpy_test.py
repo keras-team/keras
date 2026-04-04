@@ -1646,6 +1646,21 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.flipud(x).shape, (None, 3))
 
+    def test_flip_invalid_axis_keras_input(self):
+        x = keras.Input(shape=(2, 3))
+        with self.assertRaises(ValueError):
+            knp.flip(x, axis=5)
+
+    def test_roll_invalid_axis_keras_input(self):
+        x = keras.Input(shape=(2, 3))
+        with self.assertRaises(ValueError):
+            knp.roll(x, 1, axis=3)
+
+    def test_trace_invalid_axis_keras_input(self):
+        x = keras.Input(shape=(2, 3, 4))
+        with self.assertRaises(ValueError):
+            knp.trace(x, axis1=0, axis2=5)
+
     def test_floor(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.floor(x).shape, (None, 3))

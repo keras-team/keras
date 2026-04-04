@@ -1,6 +1,7 @@
 import math
 
 import jax
+import keras
 import numpy as np
 import pytest
 import scipy.ndimage
@@ -192,6 +193,16 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor([3, None, None])
         out = kimage.crop_images(x, 2, 3, target_height=10, target_width=20)
         self.assertEqual(out.shape, (3, 10, 20))
+
+    def test_pad_images_invalid_rank_keras_input(self):
+        x = keras.Input(shape=(16, 16))
+        with self.assertRaises(ValueError):
+            kimage.pad_images(x, 0, 0, target_height=16, target_width=16)
+
+    def test_crop_images_invalid_rank_keras_input(self):
+        x = keras.Input(shape=(16, 16))
+        with self.assertRaises(ValueError):
+            kimage.crop_images(x, 0, 0, target_height=10, target_width=16)
 
     def test_perspective_transform(self):
         # Test channels_last
