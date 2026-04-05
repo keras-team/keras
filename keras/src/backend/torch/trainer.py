@@ -53,15 +53,23 @@ class TorchTrainer(base_trainer.Trainer):
 
         return self.jit_compile
 
-    def _distribute_inputs(self, dist, data):
+    def _distribute_inputs(self, dist, data, replicate=False):
         from keras.src.backend.torch import distribution_lib as torch_dist_lib
+        from keras.src.distribution import distribution_lib
 
         def _distribute_if_tensor(t):
             if (
                 backend.is_tensor(t) or isinstance(t, np.ndarray)
             ) and hasattr(t, "shape"):
+                layout = dist.get_data_layout(t.shape)
+                if replicate and isinstance(
+                    dist, distribution_lib.ModelParallel
+                ):
+                    from keras.src.distribution import TensorLayout
+
+                    layout = TensorLayout([None] * len(t.shape), dist.device_mesh)
                 return torch_dist_lib.distribute_data_input(
-                    t, dist.get_data_layout(t.shape), dist.batch_dim_name
+                    t, layout, dist.batch_dim_name
                 )
             return t
 
@@ -307,7 +315,9 @@ class TorchTrainer(base_trainer.Trainer):
 
         if dist is not None:
             if data_batch is not None:
-                data_batch = self._distribute_inputs(dist, data_batch)
+                data_batch = self._distribute_inputs(
+                    dist, data_batch, replicate=True
+                )
             super()._symbolic_build(data_batch=data_batch)
             return
 
