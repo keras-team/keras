@@ -6,6 +6,20 @@ import numpy as np
 from torch.distributed.device_mesh import init_device_mesh
 from torch.distributed.tensor import DTensor, Replicate, Shard
 
+# Manual registration of unbind strategy for DTensor
+# This is needed because some PyTorch versions do not have it registered.
+try:
+    from torch.distributed.tensor._ops.registration import register_op_strategy
+    from torch.distributed.tensor._ops._tensor_ops import gen_unbind_strategy
+    # Register for both .int and the generic one to be safe across versions.
+    for op in [torch.ops.aten.unbind.int, torch.ops.aten.unbind]:
+        try:
+            register_op_strategy(op, gen_unbind_strategy)
+        except:
+            pass
+except ImportError:
+    pass
+
 def list_devices(device_type=None):
     """Return all the available devices based on the device type."""
     device_type = device_type or "gpu"
@@ -48,14 +62,6 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         torch.distributed.init_process_group(
             backend="nccl" if torch.cuda.is_available() else "gloo"
         )
-    
-    # Manual registration of unbind strategy for DTensor
-    try:
-        from torch.distributed.tensor._ops.registration import register_op_strategy
-        from torch.distributed.tensor._ops._tensor_ops import gen_unbind_strategy
-        register_op_strategy(torch.ops.aten.unbind.int, gen_unbind_strategy)
-    except ImportError:
-        pass
 
 def num_processes():
     """Return the number of processes."""
