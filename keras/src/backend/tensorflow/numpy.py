@@ -3779,11 +3779,8 @@ def unique(
     if is_flatten:
         x = tf.reshape(x, [-1])
         dim = 0
-        if return_counts:
-            y, inverse, counts = tf.unique_with_counts(x)
-        else:
-            y, inverse = tf.unique(x)
-            counts = None
+        y, inverse, counts = tf.unique_with_counts(x)
+
     else:
         ndim = x.shape.rank
         dim = axis + ndim if axis < 0 else axis
@@ -3791,8 +3788,6 @@ def unique(
         y, inverse, counts = tf.raw_ops.UniqueWithCountsV2(
             x=x, axis=axis_to_use, out_idx=tf.int32
         )
-        if not return_counts:
-            counts = None
 
     if sorted:
         num_unique = tf.shape(y)[dim]
