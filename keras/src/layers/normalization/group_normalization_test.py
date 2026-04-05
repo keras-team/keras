@@ -197,7 +197,7 @@ class GroupNormalizationTest(testing.TestCase):
                 axis=-1,
                 scale=False,
                 center=False,
-                epsilon=1e-3,
+                epsilon=1e-2,
                 dtype="mixed_bfloat16",
             )
             self.assertFalse(any("epsilon" in str(x.message) for x in w))
