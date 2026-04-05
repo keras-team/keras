@@ -15,15 +15,20 @@ def _register_unbind_sharding_strategy():
     Register a sharding strategy for unbind operation.
     This tells PyTorch that unbind outputs should be replicated across devices.
     """
-    from torch.distributed.tensor._ops.registration import register_prop_rule
-    from torch.distributed.tensor._sharding_prop import OutputShardingProp
+    import sys
     
-    class UnbindShardingProp(OutputShardingProp):
-        """Specifies that unbind outputs are replicated (not sharded)."""
-        def propagate_op_sharding(self, op_info):
-            return [Replicate()]
-    
-    register_prop_rule(torch.ops.aten.unbind.int, UnbindShardingProp())
+    try:
+        from torch.distributed.tensor._ops.registration import register_prop_rule
+        from torch.distributed.tensor._sharding_prop import OutputShardingProp
+        
+        class UnbindShardingProp(OutputShardingProp):
+            """Specifies that unbind outputs are replicated (not sharded)."""
+            def propagate_op_sharding(self, op_info):
+                return [Replicate()]
+        
+        register_prop_rule(torch.ops.aten.unbind.int, UnbindShardingProp())
+    except ImportError:
+        print("Warning: unbind sharding strategy not available in this PyTorch version", file=sys.stderr)
 
 
 # Register unbind strategy on import
