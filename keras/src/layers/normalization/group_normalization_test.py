@@ -1,4 +1,7 @@
+import warnings
+
 import numpy as np
+import pytest
 
 from keras.src import constraints
 from keras.src import layers
@@ -175,3 +178,26 @@ class GroupNormalizationTest(testing.TestCase):
             ),
             atol=1e-3,
         )
+
+    def test_warns_when_epsilon_too_small_for_compute_dtype(self):
+        with pytest.warns(UserWarning, match="epsilon"):
+            layers.GroupNormalization(
+                groups=2,
+                axis=-1,
+                scale=False,
+                center=False,
+                epsilon=1e-4,
+                dtype="mixed_bfloat16",
+            )
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            layers.GroupNormalization(
+                groups=2,
+                axis=-1,
+                scale=False,
+                center=False,
+                epsilon=1e-2,
+                dtype="mixed_bfloat16",
+            )
+            self.assertFalse(any("epsilon" in str(x.message) for x in w))
