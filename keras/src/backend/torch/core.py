@@ -709,13 +709,10 @@ def slice(inputs, start_indices, shape):
 
     python_slice = __builtins__["slice"]
     slices = [
-        python_slice(int(start_index), int(start_index + length))
-        for start_index, length in zip(
-            convert_to_numpy(start_indices).tolist(),
-            convert_to_numpy(shape).tolist(),
-        )
+        python_slice(start_index, start_index + length)
+        for start_index, length in zip(start_indices, shape)
     ]
-    return inputs[tuple(slices)]
+    return inputs[slices]
 
 
 def slice_update(inputs, start_indices, updates):
@@ -726,14 +723,11 @@ def slice_update(inputs, start_indices, updates):
 
     python_slice = __builtins__["slice"]
     slices = [
-        python_slice(int(start_index), int(start_index + update_length))
-        for start_index, update_length in zip(
-            convert_to_numpy(start_indices).tolist(),
-            updates.shape,
-        )
+        python_slice(start_index, start_index + update_length)
+        for start_index, update_length in zip(start_indices, updates.shape)
     ]
     outputs = torch.clone(inputs)
-    outputs[tuple(slices)] = updates
+    outputs[slices] = updates
     return outputs
 
 
