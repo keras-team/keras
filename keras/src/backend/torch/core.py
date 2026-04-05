@@ -299,7 +299,6 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             )
             from keras.src.distribution import TensorLayout
 
-            # Replicate the tensor across the entire mesh
             layout = TensorLayout([None] * x.ndim, dist.device_mesh)
             x = torch_dist_lib.distribute_tensor(x, layout)
     return x
@@ -389,9 +388,6 @@ def compute_output_spec(fn, *args, **kwargs):
                 )
                 from keras.src.distribution import TensorLayout
 
-                # Replicate the tensor across the entire mesh during
-                # symbolic build to avoid issues with sharded dims
-                # (e.g. unbind/iterating over tensors).
                 layout = TensorLayout([None] * len(shape), dist.device_mesh)
                 t = torch_dist_lib.distribute_tensor(t, layout)
             return t

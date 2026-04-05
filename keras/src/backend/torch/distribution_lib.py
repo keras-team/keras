@@ -6,38 +6,15 @@ import numpy as np
 from torch.distributed.device_mesh import init_device_mesh
 from torch.distributed.tensor import DTensor, Replicate, Shard
 
-# Disable problematic torch.compile features
-os.environ.setdefault("TORCH_COMPILE_DEBUG", "0")
-
-
-def _patch_dtensor_unbind():
-    """
-    Patch DTensor.unbind to convert to local tensor first.
-    This avoids the NotImplementedError when unbind is called during distributed operations.
-    """
-    original_unbind = DTensor.unbind
-    
-    def unbind_via_local(self, dim=0):
-        """Unbind by converting to local, unbinding, then redistributing as replicated."""
-        local_tensor = self.to_local()
-        unbounded = local_tensor.unbind(dim)
-        return [
-            DTensor.from_local(
-                t, 
-                device_mesh=self.device_mesh,
-                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
-            )
-            for t in unbounded
-        ]
-    
-    DTensor.unbind = unbind_via_local
-
-
-# Patch on import
-_patch_dtensor_unbind()
-
 def list_devices(device_type=None):
-    """Return all the available devices based on the device type."""
+    """List available devices.
+
+    Args:
+        device_type: The type of devices to list (e.g., "gpu", "cpu").
+
+    Returns:
+        A list of device strings (e.g., ["gpu:0", "gpu:1"]).
+    """
     device_type = device_type or "gpu"
     if torch.distributed.is_initialized():
         count = torch.distributed.get_world_size()
@@ -47,11 +24,18 @@ def list_devices(device_type=None):
         if device_type.lower() == "gpu":
             count = torch.cuda.device_count() or 1
         else:
-            count = 1  # Default for CPU
+            count = 1
     return [f"{device_type.lower()}:{i}" for i in range(count)]
 
 def get_device_count(device_type=None):
-    """Returns the number of available devices."""
+    """Get the total number of available devices.
+
+    Args:
+        device_type: The type of devices to count.
+
+    Returns:
+        The total device count.
+    """
     if torch.distributed.is_initialized():
         return torch.distributed.get_world_size()
     elif "WORLD_SIZE" in os.environ:
@@ -63,13 +47,18 @@ def get_device_count(device_type=None):
              return 1
 
 def initialize(job_addresses=None, num_processes=None, process_id=None):
-    """Initializes the distribution system."""
+    """Initialize the distributed process group.
+
+    Args:
+        job_addresses: Optional list of job addresses.
+        num_processes: Optional number of processes.
+        process_id: Optional ID of the current process.
+    """
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     if torch.cuda.is_available():
         torch.cuda.set_device(local_rank)
     
     if not torch.distributed.is_initialized():
-        # MASTER_ADDR/PORT must be set in env for init_process_group
         if "MASTER_ADDR" not in os.environ:
             os.environ["MASTER_ADDR"] = "localhost"
         if "MASTER_PORT" not in os.environ:
@@ -80,26 +69,48 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         )
 
 def num_processes():
-    """Return the number of processes."""
+    """Get the number of processes in the distributed group.
+
+    Returns:
+        The number of processes.
+    """
     if torch.distributed.is_initialized():
         return torch.distributed.get_world_size()
     return 1
 
 def process_id():
-    """Return the current process ID."""
+    """Get the rank of the current process.
+
+    Returns:
+        The process rank (ID).
+    """
     if torch.distributed.is_initialized():
         return torch.distributed.get_rank()
     return 0
 
 def _to_backend_device(device_name):
-    """Convert Keras device name to Torch device."""
+    """Map a Keras device name to a Torch device.
+
+    Args:
+        device_name: The Keras device name string.
+
+    Returns:
+        A `torch.device` instance.
+    """
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     if torch.cuda.is_available():
         return torch.device(f"cuda:{local_rank}")
     return torch.device("cpu")
 
 def _to_backend_mesh(keras_mesh):
-    """Convert Keras DeviceMesh to Torch DeviceMesh."""
+    """Map a Keras `DeviceMesh` to a Torch `DeviceMesh`.
+
+    Args:
+        keras_mesh: The Keras `DeviceMesh` instance.
+
+    Returns:
+        A Torch `DeviceMesh` instance.
+    """
     return init_device_mesh(
         "cuda" if torch.cuda.is_available() else "cpu",
         mesh_shape=tuple(keras_mesh.shape),
@@ -107,7 +118,14 @@ def _to_backend_mesh(keras_mesh):
     )
 
 def _to_backend_layout(tensor_layout):
-    """Convert Keras TensorLayout to Torch DTensor placement spec."""
+    """Map a Keras `TensorLayout` to Torch distribution specs.
+
+    Args:
+        tensor_layout: The Keras `TensorLayout` instance.
+
+    Returns:
+        A tuple of (Torch `DeviceMesh`, placements).
+    """
     if tensor_layout is None:
         return None
     
@@ -130,7 +148,15 @@ def _to_backend_layout(tensor_layout):
     return torch_mesh, tuple(placements)
 
 def distribute_tensor(tensor, layout):
-    """Distribute a tensor across devices."""
+    """Distribute a Torch tensor according to a layout.
+
+    Args:
+        tensor: The `torch.Tensor` to distribute.
+        layout: The distribution layout (Keras `TensorLayout` or backend-specific).
+
+    Returns:
+        A distributed `DTensor` or the original tensor if distribution is not applicable.
+    """
     if layout is None:
         return tensor
     from keras.src.distribution import distribution_lib as dist_lib
@@ -155,7 +181,16 @@ def distribute_tensor(tensor, layout):
     )
 
 def distribute_variable(value, layout, trainable=True):
-    """Distribute a Keras variable."""
+    """Create a distributed Torch parameter.
+
+    Args:
+        value: The initial value of the variable.
+        layout: The distribution layout.
+        trainable: Whether the variable is trainable.
+
+    Returns:
+        A `torch.nn.Parameter` wrapping a distributed tensor.
+    """
     from keras.src.distribution import distribution_lib as dist_lib
     dist = dist_lib.distribution()
     if not isinstance(dist, dist_lib.ModelParallel):
@@ -165,9 +200,18 @@ def distribute_variable(value, layout, trainable=True):
     return torch.nn.Parameter(dtensor, requires_grad=trainable)
 
 def distribute_data_input(tensor, layout, batch_dim_name):
-    """Distribute a local data tensor according to a TensorLayout."""
+    """Map local data to a distributed `DTensor`.
+
+    Args:
+        tensor: The local batch `torch.Tensor`.
+        layout: The distribution layout.
+        batch_dim_name: Name of the batch dimension in the mesh.
+
+    Returns:
+        A distributed `DTensor` representing the global data.
+    """
     if layout is None:
-        return tensor  # DataParallel: no-op
+        return tensor 
     from keras.src.distribution import distribution_lib as dist_lib
     dist = dist_lib.distribution()
     if not isinstance(dist, dist_lib.ModelParallel):
@@ -186,3 +230,23 @@ def distribute_data_input(tensor, layout, batch_dim_name):
     return DTensor.from_local(
         tensor, device_mesh=torch_mesh, placements=placements
     )
+
+def _patch_dtensor_unbind():
+    """Patch `DTensor.unbind` to handle distributed unbinding."""
+
+    def unbind_via_local(self, dim=0):
+        """Unbind by converting to local, unbinding, then redistributing as replicated."""
+        local_tensor = self.to_local()
+        unbounded = local_tensor.unbind(dim)
+        return [
+            DTensor.from_local(
+                t, 
+                device_mesh=self.device_mesh,
+                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
+            )
+            for t in unbounded
+        ]
+    
+    DTensor.unbind = unbind_via_local
+
+_patch_dtensor_unbind()
