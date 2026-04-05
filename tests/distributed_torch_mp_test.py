@@ -40,13 +40,13 @@ def _test_fn(rank, world_size):
             shape=(world_size,), axis_names=("model",), devices=devices[:world_size]
         )
         
-        # ModelParallel strategy
+        # ModelParallel strategy with non-overlapping patterns
         layout_map = keras.distribution.LayoutMap(mesh)
         
-        # Keep embeddings replicated to avoid unbind issues on embedding operations
-        layout_map[".*embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
-        layout_map[".*token.*embedding.*"] = keras.distribution.TensorLayout((None, None), mesh) 
-        layout_map[".*position.*embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
+        # Keep embeddings replicated to avoid unbind issues
+        # Use specific non-overlapping paths
+        layout_map["embeddings/token_embedding/.*"] = keras.distribution.TensorLayout((None, None), mesh)
+        layout_map["embeddings/position_embedding/.*"] = keras.distribution.TensorLayout((None, None), mesh)
         
         # Shard attention query/key/value projections for model parallelism
         layout_map[".*attention.*query.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
