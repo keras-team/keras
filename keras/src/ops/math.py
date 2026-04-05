@@ -265,7 +265,7 @@ def logsumexp(x, axis=None, keepdims=False):
     return backend.math.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
-class Cdist(Operation):
+class CDist(Operation):
     def call(self, x, y):
         diff = backend.numpy.expand_dims(x, -2) - backend.numpy.expand_dims(
             y, -3
@@ -326,7 +326,7 @@ def cdist(x, y):
            [1.       , 1.4142135]], dtype=float32)
     """
     if any_symbolic_tensors((x, y)):
-        return Cdist().symbolic_call(x, y)
+        return CDist().symbolic_call(x, y)
     return backend.math.cdist(x, y)
 
 
