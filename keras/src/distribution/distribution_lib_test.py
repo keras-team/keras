@@ -478,57 +478,65 @@ class LayoutMapTest(testing.TestCase):
         self.assertEqual(values, [self.sharded_2d, self.sharded_1d])
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the proper backend distribution lib",
+)
+@pytest.mark.multi_device
 class DataShardingIntegrationTest(testing.TestCase):
     def test_distribute_dataset_sharding_behavior(self):
-        devices = [f"cpu:{i}" for i in range(4)]
+        num_devices = distribution_lib.get_device_count()
+        self.assertGreaterEqual(
+            num_devices, 4, "Number of devices must be at least 4"
+        )
+        self.assertEqual(
+            num_devices % 2, 0, "Number of devices must be even"
+        )
+
+        num_model_replicas = num_devices // 2
         device_mesh = distribution_lib.DeviceMesh(
-            (2, 2),
+            (num_model_replicas, 2),
             ["data", "model"],
-            devices,
         )
         layout_map = distribution_lib.LayoutMap(device_mesh)
-        global_dataset = tf.data.Dataset.range(8).batch(4)
+        global_dataset = tf.data.Dataset.range(4 * num_model_replicas).batch(
+            2 * num_model_replicas
+        )
 
         shards = []
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map,
+            batch_dim_name="data",
+            auto_shard_dataset=True,
+        )
 
-        # Mock internal distribution_lib so ModelParallel can read
-        # num_processes/process_id during construction.
-        for pid in range(4):
-            fake_backend = mock.Mock()
-            fake_backend.num_processes.return_value = 4
-            fake_backend.process_id.return_value = pid
+        # Simulate one process per local device to exercise process-group
+        # sharding semantics without backend mocking.
+        distribution._num_process = num_devices
+        distribution._is_multi_process = True
 
-            with mock.patch(
-                "keras.src.distribution.distribution_lib.distribution_lib",
-                new=fake_backend,
-            ):
-                distribution = distribution_lib.ModelParallel(
-                    layout_map=layout_map,
-                    batch_dim_name="data",
+        for process_id in range(num_devices):
+            distribution._process_id = process_id
+            ds = distribution.distribute_dataset(global_dataset)
+            shards.append(list(ds.unbatch().as_numpy_iterator()))
+
+        processes_per_replica = num_devices // num_model_replicas
+        for replica_id in range(num_model_replicas):
+            start = replica_id * processes_per_replica
+            for process_id in range(start + 1, start + processes_per_replica):
+                self.assertEqual(
+                    shards[start],
+                    shards[process_id],
+                    f"Processes {start} and {process_id} should have same "
+                    f"shard, got {shards}",
                 )
 
-                distribution._auto_shard_dataset = True
-                ds = distribution.distribute_dataset(global_dataset)
-
-                items = list(ds.unbatch().as_numpy_iterator())
-
-                shards.append(items)
-
-        self.assertEqual(
-            shards[0],
-            shards[1],
-            f"Process 0 and 1 should have same shard, got {shards}",
-        )
-        self.assertEqual(
-            shards[2],
-            shards[3],
-            f"Process 2 and 3 should have same shard, got {shards}",
-        )
-        self.assertNotEqual(
-            shards[0],
-            shards[2],
-            f"Replica groups should have different shards, got {shards}",
-        )
+        for replica_id in range(1, num_model_replicas):
+            self.assertNotEqual(
+                shards[0],
+                shards[replica_id * processes_per_replica],
+                f"Replica groups should have different shards, got {shards}",
+            )
 
 
 # @pytest.mark.skipif(
