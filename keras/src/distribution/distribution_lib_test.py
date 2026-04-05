@@ -489,9 +489,7 @@ class DataShardingIntegrationTest(testing.TestCase):
         self.assertGreaterEqual(
             num_devices, 4, "Number of devices must be at least 4"
         )
-        self.assertEqual(
-            num_devices % 2, 0, "Number of devices must be even"
-        )
+        self.assertEqual(num_devices % 2, 0, "Number of devices must be even")
 
         num_model_replicas = num_devices // 2
         device_mesh = distribution_lib.DeviceMesh(
