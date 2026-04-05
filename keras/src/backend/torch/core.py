@@ -382,10 +382,13 @@ def compute_output_spec(fn, *args, **kwargs):
                 from keras.src.backend.torch import (
                     distribution_lib as torch_dist_lib,
                 )
+                from keras.src.distribution import TensorLayout
 
-                t = torch_dist_lib.distribute_tensor(
-                    t, dist.get_data_layout(t.shape)
-                )
+                # Replicate the tensor across the entire mesh during
+                # symbolic build to avoid issues with sharded dims
+                # (e.g. unbind/iterating over tensors).
+                layout = TensorLayout([None] * len(shape), dist.device_mesh)
+                t = torch_dist_lib.distribute_tensor(t, layout)
             return t
         return x
 
