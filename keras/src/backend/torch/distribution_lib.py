@@ -13,99 +13,53 @@ os.environ.setdefault("TORCH_COMPILE_DEBUG", "0")
 
 def _patch_torch_dtensor_unbind():
     """
-    Patch torch's unbind at the DTensor level to use a safe implementation.
-    This must be done very early, before any distributed tensor operations.
+    Patch DTensor.__iter__ and DTensor.unbind to handle distributed tensors safely.
+    Converts to local tensor before unbind, then redistributes as replicated DTensor.
     """
-    try:
-        # Access DTensor's _op_dispatcher if available
-        if hasattr(DTensor, '_op_dispatcher'):
-            # Will register before dispatch happens
-            pass
+    def _safe_dtensor_iter(self):
+        """Iterate by converting to local, unbinding, then redistributing."""
+        local_tensor = self.to_local()
+        unbounded_tensors = local_tensor.unbind(0)
         
-        # Monkey-patch DTensor.__iter__ with a safe version
-        _original_iter = DTensor.__iter__ if hasattr(DTensor, '__iter__') else None
+        for unbounded_item in unbounded_tensors:
+            yield DTensor.from_local(
+                unbounded_item,
+                device_mesh=self.device_mesh,
+                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
+            )
+    
+    def _safe_dtensor_unbind(self, dim=0):
+        """Unbind by converting to local first."""
+        local_tensor = self.to_local()
+        unbounded_tensors = local_tensor.unbind(dim)
         
-        def _safe_dtensor_iter(self):
-            """
-            Safe iteration for DTensor that converts to local to avoid
-            the unbind NotImplementedError in distributed contexts.
-            """
-            try:
-                # Strategy: convert to local, unbind, distribute results
-                local_tensor = self.to_local()
-                unbounded_tensors = local_tensor.unbind(0)
-                
-                # Yield each as a replicated DTensor
-                for unbounded_item in unbounded_tensors:
-                    yield DTensor.from_local(
-                        unbounded_item,
-                        device_mesh=self.device_mesh,
-                        placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
-                    )
-            except Exception:
-                # Fallback - just use local iteration
-                local_tensor = self.to_local()
-                for item in local_tensor:
-                    yield item
-        
-        DTensor.__iter__ = _safe_dtensor_iter
-        
-        # Also patch unbind method
-        _original_unbind = DTensor.unbind if hasattr(DTensor, 'unbind') else None
-        
-        def _safe_dtensor_unbind(self, dim=0):
-            """Safe unbind that doesn't trigger distributed tensor dispatch."""
-            try:
-                local_tensor = self.to_local()
-                unbounded_tensors = local_tensor.unbind(dim)
-                # Return as replicated DTensors
-                return [
-                    DTensor.from_local(
-                        t,
-                        device_mesh=self.device_mesh,
-                        placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
-                    )
-                    for t in unbounded_tensors
-                ]
-            except Exception:
-                return self.to_local().unbind(dim)
-        
-        DTensor.unbind = _safe_dtensor_unbind
-        
-    except Exception as e:
-        print(f"Warning: Failed to patch DTensor iteration: {e}", file=sys.stderr)
+        return [
+            DTensor.from_local(
+                t,
+                device_mesh=self.device_mesh,
+                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
+            )
+            for t in unbounded_tensors
+        ]
+    
+    DTensor.__iter__ = _safe_dtensor_iter
+    DTensor.unbind = _safe_dtensor_unbind
 
 
 def _register_unbind_sharding_strategy():
     """
     Register a sharding strategy for unbind operation.
-    This is a backup for cases where the monkey-patch doesn't work.
+    This tells PyTorch that unbind outputs should be replicated across devices.
     """
-    try:
-        from torch.distributed.tensor._ops.registration import register_prop_rule
-        from torch.distributed.tensor._sharding_prop import OutputShardingProp
-        
-        class UnbindShardingProp(OutputShardingProp):
-            def propagate_op_sharding(self, op_info):
-                # Default: all outputs are replicated
-                try:
-                    num_outputs = 1  # Unbind can return multiple outputs
-                    return [Replicate()]
-                except Exception:
-                    return [Replicate()]
-        
-        try:
-            register_prop_rule(torch.ops.aten.unbind.int, UnbindShardingProp())
-        except Exception:
-            pass
-            
-    except Exception:
-        # Fallback: try alternative registration
-        try:
-            from torch.distributed.tensor._ops.registration import register_op_strategy
-            register_op_strategy(torch.ops.aten.unbind.int, lambda op_schema: ("replicate",))
-        except Exception:
-            pass
+    from torch.distributed.tensor._ops.registration import register_prop_rule
+    from torch.distributed.tensor._sharding_prop import OutputShardingProp
+    
+    class UnbindShardingProp(OutputShardingProp):
+        """Specifies that unbind outputs are replicated (not sharded)."""
+        def propagate_op_sharding(self, op_info):
+            return [Replicate()]
+    
+    register_prop_rule(torch.ops.aten.unbind.int, UnbindShardingProp())
 
 
 # Apply patches and registration immediately on import
