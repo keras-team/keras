@@ -227,14 +227,18 @@ def ones(shape, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
-    return torch.ones(size=shape, dtype=dtype, device=get_device())
+    return convert_to_tensor(
+        torch.ones(size=shape, dtype=dtype, device=get_device())
+    )
 
 
 def zeros(shape, dtype=None):
     dtype = to_torch_dtype(dtype or config.floatx())
     if isinstance(shape, int):
         shape = (shape,)
-    return torch.zeros(size=shape, dtype=dtype, device=get_device())
+    return convert_to_tensor(
+        torch.zeros(size=shape, dtype=dtype, device=get_device())
+    )
 
 
 def zeros_like(x, dtype=None):
@@ -328,8 +332,8 @@ def arange(start, stop=None, step=None, dtype=None):
         start, stop = 0, start
     if step is None:
         step = 1
-    return torch.arange(
-        start, stop, step=step, dtype=dtype, device=get_device()
+    return convert_to_tensor(
+        torch.arange(start, stop, step=step, dtype=dtype, device=get_device())
     )
 
 
@@ -867,9 +871,11 @@ def full(shape, fill_value, dtype=None):
         # `torch.full` only supports scala `fill_value`.
         expand_size = len(shape) - len(fill_value.shape)
         tile_shape = tuple(shape[:expand_size]) + (1,) * len(fill_value.shape)
-        return torch.tile(fill_value, tile_shape)
-    return torch.full(
-        size=shape, fill_value=fill_value, dtype=dtype, device=get_device()
+        return convert_to_tensor(torch.tile(fill_value, tile_shape))
+    return convert_to_tensor(
+        torch.full(
+            size=shape, fill_value=fill_value, dtype=dtype, device=get_device()
+        )
     )
 
 
@@ -2207,16 +2213,20 @@ def eye(N, M=None, k=0, dtype=None):
     if k == 0:
         # TODO: torch.eye doesn't support bfloat16 with cpu
         if get_device() == "cpu" and dtype == torch.bfloat16:
-            return cast(
-                torch.eye(
-                    N, M, dtype=to_torch_dtype("float32"), device=get_device()
-                ),
-                dtype,
+            return convert_to_tensor(
+                cast(
+                    torch.eye(
+                        N, M, dtype=to_torch_dtype("float32"), device=get_device()
+                    ),
+                    dtype,
+                )
             )
-        return torch.eye(N, M, dtype=dtype, device=get_device())
+        return convert_to_tensor(
+            torch.eye(N, M, dtype=dtype, device=get_device())
+        )
     diag_length = builtins.max(N, M)
     diag = torch.ones(diag_length, dtype=dtype, device=get_device())
-    return torch.diag(diag, diagonal=k)[:N, :M]
+    return convert_to_tensor(torch.diag(diag, diagonal=k)[:N, :M])
 
 
 def floor_divide(x1, x2):
