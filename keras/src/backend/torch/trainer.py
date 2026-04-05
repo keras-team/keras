@@ -104,9 +104,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._loss_tracker.update_state(
             loss,
             sample_weight=next(
-                i
-                for i in tree.flatten(x)
-                if i is not None and hasattr(i, "shape")
+                i for i in tree.flatten(x) if i is not None
             ).shape[0],
         )
         if self.optimizer is not None:
@@ -130,7 +128,11 @@ class TorchTrainer(base_trainer.Trainer):
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def test_step(self, data):
-        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        (
+            x,
+            y,
+            sample_weight,
+        ) = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         from keras.src.distribution import distribution_lib as dist_lib
         dist = dist_lib.distribution()
@@ -154,9 +156,7 @@ class TorchTrainer(base_trainer.Trainer):
         self._loss_tracker.update_state(
             loss,
             sample_weight=next(
-                i
-                for i in tree.flatten(x)
-                if i is not None and hasattr(i, "shape")
+                i for i in tree.flatten(x) if i is not None
             ).shape[0],
         )
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
