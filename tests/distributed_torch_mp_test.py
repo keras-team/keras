@@ -1,15 +1,23 @@
 import os
+import sys
+
+# Import and configure keras backend FIRST before any other imports
+os.environ["KERAS_BACKEND"] = "torch"
+
+# Force import of torch backend and distribution lib early to apply patches
+import keras
+import keras.src.backend.torch.distribution_lib  # noqa: trigger DTensor patches
+
 import torch
 import torch.distributed as dist
 import numpy as np
-import keras
 import keras_hub
-
-# Set backend to torch
-os.environ["KERAS_BACKEND"] = "torch"
 
 def _test_fn(rank, world_size):
     try:
+        # Ensure patches are applied in this process
+        import keras.src.backend.torch.distribution_lib  # noqa: trigger patches
+        
         os.environ["RANK"] = str(rank)
         os.environ["WORLD_SIZE"] = str(world_size)
         os.environ["LOCAL_RANK"] = str(rank)
@@ -34,14 +42,16 @@ def _test_fn(rank, world_size):
         
         # ModelParallel strategy
         layout_map = keras.distribution.LayoutMap(mesh)
-        # Keep embeddings replicated (don't shard) to avoid unbind operation issues
-        layout_map[".*embedding.*kernel"] = keras.distribution.TensorLayout((None, None), mesh)
-        layout_map[".*token_embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
-        layout_map[".*position_embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
-        # Shard query/key/value projections
-        layout_map[".*query.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
-        layout_map[".*key.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
-        layout_map[".*value.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
+        
+        # Keep embeddings replicated to avoid unbind issues on embedding operations
+        layout_map[".*embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
+        layout_map[".*token.*embedding.*"] = keras.distribution.TensorLayout((None, None), mesh) 
+        layout_map[".*position.*embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
+        
+        # Shard attention query/key/value projections for model parallelism
+        layout_map[".*attention.*query.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
+        layout_map[".*attention.*key.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
+        layout_map[".*attention.*value.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
         
         distribution = keras.distribution.ModelParallel(
             layout_map=layout_map, batch_dim_name="model", auto_shard_dataset=False
