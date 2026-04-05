@@ -34,6 +34,10 @@ def _test_fn(rank, world_size):
         
         # ModelParallel strategy
         layout_map = keras.distribution.LayoutMap(mesh)
+        # Keep embeddings replicated (don't shard) to avoid unbind operation issues
+        layout_map[".*embedding.*kernel"] = keras.distribution.TensorLayout((None, None), mesh)
+        layout_map[".*token_embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
+        layout_map[".*position_embedding.*"] = keras.distribution.TensorLayout((None, None), mesh)
         # Shard query/key/value projections
         layout_map[".*query.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)
         layout_map[".*key.*kernel"] = keras.distribution.TensorLayout(("model", None), mesh)

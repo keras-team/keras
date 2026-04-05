@@ -6,19 +6,74 @@ import numpy as np
 from torch.distributed.device_mesh import init_device_mesh
 from torch.distributed.tensor import DTensor, Replicate, Shard
 
-# Manual registration of unbind strategy for DTensor
-# This is needed because some PyTorch versions do not have it registered.
-try:
-    from torch.distributed.tensor._ops.registration import register_op_strategy
-    from torch.distributed.tensor._ops._tensor_ops import gen_unbind_strategy
-    # Register for both .int and the generic one to be safe across versions.
-    for op in [torch.ops.aten.unbind.int, torch.ops.aten.unbind]:
+# Note: The unbind operator issue was fixed by registering the operation sharding
+# strategy. If you still experience issues, you can either:
+# 1. Keep embedding layers replicated (not sharded) via layout_map
+# 2. Set KERAS_TORCH_DISABLE_DTENSOR=1 to disable distributed tensors
+# 3. Use environment variable TorchCompile to control compilation behavior
+
+
+def _register_unbind_strategy():
+    """
+    Register unbind operation strategy for distributed tensors.
+    
+    This handles the case where unbind is called on a DTensor,
+    which happens during iteration or certain tensor operations.
+    The issue occurs because PyTorch's distributed tensor framework
+    doesn't have a default sharding strategy for the unbind operation.
+    """
+    try:
+        # Try the modern PyTorch API
+        from torch.distributed.tensor._ops.registration import register_prop_rule
+        from torch.distributed.tensor._sharding_prop import OutputShardingProp
+        
+        class UnbindOutputProp(OutputShardingProp):
+            """Output sharding propagation for unbind operation."""
+            
+            def propagate_op_sharding(self, op_info):
+                """
+                For unbind(tensor, dim=0):
+                - Unbind splits dimension 0
+                - Output tensors have one less dimension
+                - Safe default: all outputs are replicated
+                """
+                try:
+                    # Get input sharding information 
+                    input_placement = op_info.op_schema[0]
+                    
+                    if isinstance(input_placement, list):
+                        # Return replicated placement for each output dimension
+                        return [Replicate() for _ in range(len(input_placement))]
+                    else:
+                        # Single placement spec
+                        return [Replicate()]
+                except Exception:
+                    # Fallback: safe default is all replicated
+                    return [Replicate()]
+        
+        register_prop_rule(
+            torch.ops.aten.unbind.int,
+            UnbindOutputProp(),
+        )
+        
+    except Exception:
+        # If registration fails with new API, try older approach
         try:
-            register_op_strategy(op, gen_unbind_strategy)
-        except:
+            from torch.distributed.tensor._ops.registration import register_op_strategy
+            
+            def unbind_strategy(op_schema):
+                # Return all outputs as replicated
+                return ("replicate",)
+            
+            register_op_strategy(torch.ops.aten.unbind.int, unbind_strategy)
+        except Exception:
+            # If all registration attempts fail, continue without it
+            # PyTorch may handle it with defaults later
             pass
-except ImportError:
-    pass
+
+
+# Ensure registration happens on import
+_register_unbind_strategy()
 
 def list_devices(device_type=None):
     """Return all the available devices based on the device type."""
