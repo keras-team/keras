@@ -21,6 +21,7 @@ EqualizationTest::test_input_dtypes_int32
 EqualizationTest::test_input_dtypes_int64
 EqualizationTest::test_output_range_0_1
 EqualizationTest::test_output_range_0_255
+ExtractSequencesOpTest::test_extract_sequences_call
 FeatureSpaceTest::test_adapt_with_dict
 FeatureSpaceTest::test_advanced_usage
 FeatureSpaceTest::test_basic_usage
@@ -65,6 +66,7 @@ ImageOpsDtypeTest::test_perspective_transform
 ImageOpsDtypeTest::test_resize
 ImageOpsDtypeTest::test_scale_and_translate
 IndexLookupLayerTest::test_oov_method_ignored_for_string_dtype
+InTopKTest::test_in_top_k_call
 IndexLookupLayerTest::test_salt_produces_different_output_than_farmhash
 LayerTest::test_call_context_args_with_func_seq_models_as_layers
 LayerTest::test_complex_dtype_support
@@ -79,6 +81,8 @@ LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc
 LinalgOpsCorrectnessTest::test_solve_triangular
 LinalgOpsCorrectnessTest::test_svd
+MathOpsCorrectnessTest::test_cdist_basic
+MathOpsCorrectnessTest::test_cdist_invalid_last_dim
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_logdet
