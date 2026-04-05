@@ -1,7 +1,6 @@
 """Utilities for distribution strategy with Torch backend."""
 
 import os
-import sys
 import torch
 import numpy as np
 from torch.distributed.device_mesh import init_device_mesh
@@ -9,41 +8,6 @@ from torch.distributed.tensor import DTensor, Replicate, Shard
 
 # Disable problematic torch.compile features
 os.environ.setdefault("TORCH_COMPILE_DEBUG", "0")
-
-
-def _patch_torch_dtensor_unbind():
-    """
-    Patch DTensor.__iter__ and DTensor.unbind to handle distributed tensors safely.
-    Converts to local tensor before unbind, then redistributes as replicated DTensor.
-    """
-    def _safe_dtensor_iter(self):
-        """Iterate by converting to local, unbinding, then redistributing."""
-        local_tensor = self.to_local()
-        unbounded_tensors = local_tensor.unbind(0)
-        
-        for unbounded_item in unbounded_tensors:
-            yield DTensor.from_local(
-                unbounded_item,
-                device_mesh=self.device_mesh,
-                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
-            )
-    
-    def _safe_dtensor_unbind(self, dim=0):
-        """Unbind by converting to local first."""
-        local_tensor = self.to_local()
-        unbounded_tensors = local_tensor.unbind(dim)
-        
-        return [
-            DTensor.from_local(
-                t,
-                device_mesh=self.device_mesh,
-                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
-            )
-            for t in unbounded_tensors
-        ]
-    
-    DTensor.__iter__ = _safe_dtensor_iter
-    DTensor.unbind = _safe_dtensor_unbind
 
 
 def _register_unbind_sharding_strategy():
@@ -62,8 +26,7 @@ def _register_unbind_sharding_strategy():
     register_prop_rule(torch.ops.aten.unbind.int, UnbindShardingProp())
 
 
-# Apply patches and registration immediately on import
-_patch_torch_dtensor_unbind()
+# Register unbind strategy on import
 _register_unbind_sharding_strategy()
 
 def list_devices(device_type=None):
