@@ -10,29 +10,31 @@ from torch.distributed.tensor import DTensor, Replicate, Shard
 os.environ.setdefault("TORCH_COMPILE_DEBUG", "0")
 
 
-def _register_unbind_sharding_strategy():
+def _patch_dtensor_unbind():
     """
-    Register a sharding strategy for unbind operation.
-    This tells PyTorch that unbind outputs should be replicated across devices.
+    Patch DTensor.unbind to convert to local tensor first.
+    This avoids the NotImplementedError when unbind is called during distributed operations.
     """
-    import sys
+    original_unbind = DTensor.unbind
     
-    try:
-        from torch.distributed.tensor._ops.registration import register_prop_rule
-        from torch.distributed.tensor._sharding_prop import OutputShardingProp
-        
-        class UnbindShardingProp(OutputShardingProp):
-            """Specifies that unbind outputs are replicated (not sharded)."""
-            def propagate_op_sharding(self, op_info):
-                return [Replicate()]
-        
-        register_prop_rule(torch.ops.aten.unbind.int, UnbindShardingProp())
-    except ImportError:
-        print("Warning: unbind sharding strategy not available in this PyTorch version", file=sys.stderr)
+    def unbind_via_local(self, dim=0):
+        """Unbind by converting to local, unbinding, then redistributing as replicated."""
+        local_tensor = self.to_local()
+        unbounded = local_tensor.unbind(dim)
+        return [
+            DTensor.from_local(
+                t, 
+                device_mesh=self.device_mesh,
+                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
+            )
+            for t in unbounded
+        ]
+    
+    DTensor.unbind = unbind_via_local
 
 
-# Register unbind strategy on import
-_register_unbind_sharding_strategy()
+# Patch on import
+_patch_dtensor_unbind()
 
 def list_devices(device_type=None):
     """Return all the available devices based on the device type."""
