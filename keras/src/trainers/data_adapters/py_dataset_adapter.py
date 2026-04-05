@@ -206,6 +206,7 @@ class PyDatasetAdapter(DataAdapter):
         distribution=None,
     ):
         from keras.src.distribution import distribution_lib
+
         self.py_dataset = x
         self.class_weight = class_weight
         self.enqueuer = None
@@ -611,7 +612,8 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
             # For infinite datasets, `self.indices` is created here once for all
             # so that subsequent runs resume from where they stopped.
             self.indices = (
-                i for i in itertools.count()
+                i
+                for i in itertools.count()
                 if i % self._num_processes == self._process_id
             )
 
@@ -652,7 +654,8 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
 
                 if self._num_processes > 1:
                     indices = [
-                        i for i in indices
+                        i
+                        for i in indices
                         if i % self._num_processes == self._process_id
                     ]
                 self.indices = iter(indices)

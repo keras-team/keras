@@ -1,10 +1,13 @@
 """Utilities for distribution strategy with Torch backend."""
 
 import os
+
 import torch
-import numpy as np
 from torch.distributed.device_mesh import init_device_mesh
-from torch.distributed.tensor import DTensor, Replicate, Shard
+from torch.distributed.tensor import DTensor
+from torch.distributed.tensor import Replicate
+from torch.distributed.tensor import Shard
+
 
 def list_devices(device_type=None):
     """List available devices.
@@ -27,6 +30,7 @@ def list_devices(device_type=None):
             count = 1
     return [f"{device_type.lower()}:{i}" for i in range(count)]
 
+
 def get_device_count(device_type=None):
     """Get the total number of available devices.
 
@@ -42,9 +46,10 @@ def get_device_count(device_type=None):
         return int(os.environ["WORLD_SIZE"])
     else:
         if device_type and device_type.lower() == "gpu":
-             return torch.cuda.device_count() or 1
+            return torch.cuda.device_count() or 1
         else:
-             return 1
+            return 1
+
 
 def initialize(job_addresses=None, num_processes=None, process_id=None):
     """Initialize the distributed process group.
@@ -57,16 +62,17 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
     if torch.cuda.is_available():
         torch.cuda.set_device(local_rank)
-    
+
     if not torch.distributed.is_initialized():
         if "MASTER_ADDR" not in os.environ:
             os.environ["MASTER_ADDR"] = "localhost"
         if "MASTER_PORT" not in os.environ:
             os.environ["MASTER_PORT"] = "29500"
-            
+
         torch.distributed.init_process_group(
             backend="nccl" if torch.cuda.is_available() else "gloo"
         )
+
 
 def num_processes():
     """Get the number of processes in the distributed group.
@@ -78,6 +84,7 @@ def num_processes():
         return torch.distributed.get_world_size()
     return 1
 
+
 def process_id():
     """Get the rank of the current process.
 
@@ -87,6 +94,7 @@ def process_id():
     if torch.distributed.is_initialized():
         return torch.distributed.get_rank()
     return 0
+
 
 def _to_backend_device(device_name):
     """Map a Keras device name to a Torch device.
@@ -101,6 +109,7 @@ def _to_backend_device(device_name):
     if torch.cuda.is_available():
         return torch.device(f"cuda:{local_rank}")
     return torch.device("cpu")
+
 
 def _to_backend_mesh(keras_mesh):
     """Map a Keras `DeviceMesh` to a Torch `DeviceMesh`.
@@ -117,6 +126,7 @@ def _to_backend_mesh(keras_mesh):
         mesh_dim_names=tuple(keras_mesh.axis_names),
     )
 
+
 def _to_backend_layout(tensor_layout):
     """Map a Keras `TensorLayout` to Torch distribution specs.
 
@@ -128,10 +138,10 @@ def _to_backend_layout(tensor_layout):
     """
     if tensor_layout is None:
         return None
-    
+
     keras_mesh = tensor_layout.device_mesh
     torch_mesh = _to_backend_mesh(keras_mesh)
-    
+
     placements = []
     for mesh_dim_name in keras_mesh.axis_names:
         shard_dim = None
@@ -144,27 +154,30 @@ def _to_backend_layout(tensor_layout):
             placements.append(Shard(shard_dim))
         else:
             placements.append(Replicate())
-    
+
     return torch_mesh, tuple(placements)
+
 
 def distribute_tensor(tensor, layout):
     """Distribute a Torch tensor according to a layout.
 
     Args:
         tensor: The `torch.Tensor` to distribute.
-        layout: The distribution layout (Keras `TensorLayout` or backend-specific).
+        layout: The distribution layout.
 
     Returns:
-        A distributed `DTensor` or the original tensor if distribution is not applicable.
+        A distributed `DTensor` if distribution is not applicable.
     """
     if layout is None:
         return tensor
     from keras.src.distribution import distribution_lib as dist_lib
+
     dist = dist_lib.distribution()
     if not isinstance(dist, dist_lib.ModelParallel):
         return tensor
 
     from keras.src.distribution import TensorLayout
+
     if isinstance(layout, TensorLayout):
         backend_layout = _to_backend_layout(layout)
         if backend_layout is None:
@@ -172,13 +185,16 @@ def distribute_tensor(tensor, layout):
         torch_mesh, placements = backend_layout
     else:
         torch_mesh, placements = layout
-    
+
     if isinstance(tensor, DTensor):
-        return tensor.redistribute(device_mesh=torch_mesh, placements=placements)
+        return tensor.redistribute(
+            device_mesh=torch_mesh, placements=placements
+        )
 
     return torch.distributed.tensor.distribute_tensor(
         tensor, device_mesh=torch_mesh, placements=placements
     )
+
 
 def distribute_variable(value, layout, trainable=True):
     """Create a distributed Torch parameter.
@@ -192,12 +208,14 @@ def distribute_variable(value, layout, trainable=True):
         A `torch.nn.Parameter` wrapping a distributed tensor.
     """
     from keras.src.distribution import distribution_lib as dist_lib
+
     dist = dist_lib.distribution()
     if not isinstance(dist, dist_lib.ModelParallel):
         return torch.nn.Parameter(value, requires_grad=trainable)
 
     dtensor = distribute_tensor(value, layout)
     return torch.nn.Parameter(dtensor, requires_grad=trainable)
+
 
 def distribute_data_input(tensor, layout, batch_dim_name):
     """Map local data to a distributed `DTensor`.
@@ -211,8 +229,9 @@ def distribute_data_input(tensor, layout, batch_dim_name):
         A distributed `DTensor` representing the global data.
     """
     if layout is None:
-        return tensor 
+        return tensor
     from keras.src.distribution import distribution_lib as dist_lib
+
     dist = dist_lib.distribution()
     if not isinstance(dist, dist_lib.ModelParallel):
         return tensor
@@ -220,6 +239,7 @@ def distribute_data_input(tensor, layout, batch_dim_name):
     if isinstance(tensor, DTensor):
         return tensor
     from keras.src.distribution import TensorLayout
+
     if isinstance(layout, TensorLayout):
         backend_layout = _to_backend_layout(layout)
         if backend_layout is None:
@@ -231,22 +251,26 @@ def distribute_data_input(tensor, layout, batch_dim_name):
         tensor, device_mesh=torch_mesh, placements=placements
     )
 
+
 def _patch_dtensor_unbind():
     """Patch `DTensor.unbind` to handle distributed unbinding."""
 
     def unbind_via_local(self, dim=0):
-        """Unbind by converting to local, unbinding, then redistributing as replicated."""
+        """Unbind by converting to local, then redistributing as replicated."""
         local_tensor = self.to_local()
         unbounded = local_tensor.unbind(dim)
         return [
             DTensor.from_local(
-                t, 
+                t,
                 device_mesh=self.device_mesh,
-                placements=[Replicate() for _ in range(len(self.device_mesh.mesh.shape))]
+                placements=[
+                    Replicate() for _ in range(len(self.device_mesh.mesh.shape))
+                ],
             )
             for t in unbounded
         ]
-    
+
     DTensor.unbind = unbind_via_local
+
 
 _patch_dtensor_unbind()

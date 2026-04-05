@@ -18,7 +18,6 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
-from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
@@ -124,8 +123,13 @@ class Variable(KerasVariable):
 
         if self._layout is not None:
             value = convert_to_tensor(value, dtype=self._dtype).detach()
-            from keras.src.backend.torch import distribution_lib as torch_dist_lib
-            self._value = torch_dist_lib.distribute_variable(value, self._layout, trainable=self.trainable)
+            from keras.src.backend.torch import (
+                distribution_lib as torch_dist_lib,
+            )
+
+            self._value = torch_dist_lib.distribute_variable(
+                value, self._layout, trainable=self.trainable
+            )
         else:
             if isinstance(value, torch.nn.Parameter):
                 # Reuse same parameter
@@ -139,7 +143,10 @@ class Variable(KerasVariable):
     def _direct_assign(self, value):
         if self._layout is not None:
             value = convert_to_tensor(value, dtype=self._dtype).detach()
-            from keras.src.backend.torch import distribution_lib as torch_dist_lib
+            from keras.src.backend.torch import (
+                distribution_lib as torch_dist_lib,
+            )
+
             value = torch_dist_lib.distribute_tensor(value, self._layout)
         with torch.no_grad():
             self.value.copy_(value)
@@ -269,7 +276,6 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                         # Torch backend does not support uint32.
                         x = x.astype(np.int64)
                     if standardize_dtype(x.dtype) == "bfloat16":
-                        # Torch backend does not support converting bfloat16 ndarray.
                         x = x.astype(np.float32)
                         dtype = "bfloat16"
                     dtype = dtype or x.dtype

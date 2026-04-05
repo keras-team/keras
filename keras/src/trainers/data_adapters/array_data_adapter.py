@@ -257,9 +257,9 @@ class ArrayDataAdapter(DataAdapter):
 
     def get_torch_dataloader(self):
         import torch
-        from keras.src.distribution import distribution_lib as dist_lib
 
         from keras.src.backend.torch.core import convert_to_tensor
+        from keras.src.distribution import distribution_lib as dist_lib
 
         class ArrayDataset(torch.utils.data.Dataset):
             def __init__(self, array):
@@ -278,6 +278,19 @@ class ArrayDataAdapter(DataAdapter):
 
             def __len__(self):
                 return len(tree.flatten(self.array)[0])
+
+        class RandomBatchSampler(torch.utils.data.Sampler):
+            def __init__(self, batch_sampler):
+                self.batch_sampler = batch_sampler
+
+            def __iter__(self):
+                batches = list(self.batch_sampler)
+                np.random.shuffle(batches)
+                for batch in batches:
+                    yield batch
+
+            def __len__(self):
+                return len(self.batch_sampler)
 
         dist = dist_lib.distribution()
         sampler = None
@@ -316,11 +329,11 @@ class ArrayDataAdapter(DataAdapter):
                 )
 
         if sampler is not None:
-             batch_sampler = torch.utils.data.BatchSampler(
-                 sampler,
-                 batch_size=self._batch_size,
-                 drop_last=False,
-             )
+            batch_sampler = torch.utils.data.BatchSampler(
+                sampler,
+                batch_size=self._batch_size,
+                drop_last=False,
+            )
         elif self._shuffle == "batch":
             batch_sampler = RandomBatchSampler(
                 torch.utils.data.BatchSampler(

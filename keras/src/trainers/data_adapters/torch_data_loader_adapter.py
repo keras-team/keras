@@ -12,6 +12,7 @@ class TorchDataLoaderAdapter(DataAdapter):
 
     def __init__(self, dataloader):
         import torch
+
         from keras.src.distribution import distribution_lib as dist_lib
 
         if not isinstance(dataloader, torch.utils.data.DataLoader):

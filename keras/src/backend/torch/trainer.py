@@ -58,16 +58,18 @@ class TorchTrainer(base_trainer.Trainer):
         from keras.src.distribution import distribution_lib
 
         def _distribute_if_tensor(t):
-            if (
-                backend.is_tensor(t) or isinstance(t, np.ndarray)
-            ) and hasattr(t, "shape"):
+            if (backend.is_tensor(t) or isinstance(t, np.ndarray)) and hasattr(
+                t, "shape"
+            ):
                 layout = dist.get_data_layout(t.shape)
                 if replicate and isinstance(
                     dist, distribution_lib.ModelParallel
                 ):
                     from keras.src.distribution import TensorLayout
 
-                    layout = TensorLayout([None] * len(t.shape), dist.device_mesh)
+                    layout = TensorLayout(
+                        [None] * len(t.shape), dist.device_mesh
+                    )
                 return torch_dist_lib.distribute_data_input(
                     t, layout, dist.batch_dim_name
                 )
@@ -79,6 +81,7 @@ class TorchTrainer(base_trainer.Trainer):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist = dist_lib.distribution()
 
         if dist is not None:
@@ -135,6 +138,7 @@ class TorchTrainer(base_trainer.Trainer):
         ) = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist = dist_lib.distribution()
 
         if dist is not None:
@@ -165,6 +169,7 @@ class TorchTrainer(base_trainer.Trainer):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
 
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist = dist_lib.distribution()
 
         if dist is not None:
@@ -181,17 +186,23 @@ class TorchTrainer(base_trainer.Trainer):
 
     def _sync_metrics(self):
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist_obj = dist_lib.distribution()
         if dist_obj is not None and torch.distributed.is_initialized():
             from torch.distributed.tensor import DTensor
+
             for metric in self.metrics:
                 for variable in metric.variables:
                     val = variable.value
                     if isinstance(val, DTensor):
                         local_val = val.to_local()
-                        torch.distributed.all_reduce(local_val, op=torch.distributed.ReduceOp.SUM)
+                        torch.distributed.all_reduce(
+                            local_val, op=torch.distributed.ReduceOp.SUM
+                        )
                     else:
-                        torch.distributed.all_reduce(val, op=torch.distributed.ReduceOp.SUM)
+                        torch.distributed.all_reduce(
+                            val, op=torch.distributed.ReduceOp.SUM
+                        )
                     variable.assign(val)
 
     def make_train_function(self, force=False):
@@ -205,6 +216,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist = dist_lib.distribution()
         if dist is not None and isinstance(dist, dist_lib.DataParallel):
             if not hasattr(self, "_ddp_model"):
@@ -240,6 +252,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist = dist_lib.distribution()
         if dist is not None and isinstance(dist, dist_lib.DataParallel):
             if not hasattr(self, "_ddp_model"):
@@ -276,6 +289,7 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist = dist_lib.distribution()
         if dist is not None and isinstance(dist, dist_lib.DataParallel):
             if not hasattr(self, "_ddp_model"):
@@ -303,6 +317,7 @@ class TorchTrainer(base_trainer.Trainer):
 
     def _symbolic_build(self, data_batch=None, iterator=None):
         from keras.src.distribution import distribution_lib as dist_lib
+
         dist = dist_lib.distribution()
 
         if data_batch is None and iterator is not None:
