@@ -48,6 +48,14 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
         torch.distributed.init_process_group(
             backend="nccl" if torch.cuda.is_available() else "gloo"
         )
+    
+    # Manual registration of unbind strategy for DTensor
+    try:
+        from torch.distributed.tensor._ops.registration import register_op_strategy
+        from torch.distributed.tensor._ops._tensor_ops import gen_unbind_strategy
+        register_op_strategy(torch.ops.aten.unbind.int, gen_unbind_strategy)
+    except ImportError:
+        pass
 
 def num_processes():
     """Return the number of processes."""
