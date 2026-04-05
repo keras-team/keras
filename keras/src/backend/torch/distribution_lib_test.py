@@ -1,5 +1,4 @@
 import os
-import socket
 import numpy as np
 import pytest
 import torch
@@ -11,55 +10,39 @@ from keras.src import backend
 from keras.src.backend.torch import distribution_lib as backend_dlib
 from keras.src.distribution import distribution_lib
 
-def find_free_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("", 0))
-        return s.getsockname()[1]
-
-# --- Main Test Classes ---
-
 @pytest.mark.skipif(backend.backend() != "torch", reason="Only for Torch backend")
 class TorchDistributedTestCase(testing.TestCase):
     def setUp(self):
         super().setUp()
         self.world_size = 2
-
     @staticmethod
-    def _worker_wrapper(rank, world_size, port, error_queue, test_fn):
+    def _worker_wrapper(rank, world_size, test_fn):
         import torch.distributed as dist
+
         os.environ["MASTER_ADDR"] = "localhost"
-        os.environ["MASTER_PORT"] = str(port)
+        os.environ.setdefault("MASTER_PORT", "29500")
         os.environ["RANK"] = str(rank)
         os.environ["WORLD_SIZE"] = str(world_size)
         os.environ["LOCAL_RANK"] = str(rank)
-        # Force GLOO and CPU for portability in tests
+        os.environ["KERAS_TORCH_DEVICE"] = "cpu"
+        os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
         backend_name = "gloo"
-        
-        try:
-            dist.init_process_group(backend=backend_name, rank=rank, world_size=world_size)
-            test_fn(rank, world_size)
-        except Exception as e:
-            import traceback
-            error_queue.put((rank, str(e), traceback.format_exc()))
-        finally:
-            if dist.is_initialized():
-                dist.destroy_process_group()
+
+        dist.init_process_group(
+            backend=backend_name, rank=rank, world_size=world_size
+        )
+        test_fn(rank, world_size)
+        if dist.is_initialized():
+            dist.destroy_process_group()
 
     def run_distributed(self, test_fn, world_size=None):
         world_size = world_size or self.world_size
-        port = find_free_port()
-        ctx = mp.get_context("spawn")
-        error_queue = ctx.Queue()
-        
         mp.spawn(
             TorchDistributedTestCase._worker_wrapper,
-            args=(world_size, port, error_queue, test_fn),
+            args=(world_size, test_fn),
             nprocs=world_size,
             join=True,
         )
-        if not error_queue.empty():
-            rank, err, tb = error_queue.get()
-            raise AssertionError(f"Rank {rank} failed with error: {err}\n{tb}")
 
 class TorchDeviceDiscoveryTest(TorchDistributedTestCase):
     @staticmethod
