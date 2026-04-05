@@ -18,6 +18,7 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
+from keras.src.backend.common.symbolic_scope import in_symbolic_scope
 from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
@@ -171,9 +172,14 @@ class Variable(KerasVariable):
         def maybe_use_symbolic_tensor(value):
             # Create and use a symbolic tensor stub in symbolic calls.
             if str(get_device()) == "meta":
-                from torch.distributed.tensor import DTensor
+                is_dtensor = False
+                try:
+                    from torch.distributed.tensor import DTensor
+                    is_dtensor = isinstance(value, DTensor)
+                except ImportError:
+                    pass
 
-                if isinstance(value, DTensor) or str(value.device) != "meta":
+                if is_dtensor or str(value.device) != "meta":
                     return torch.nn.Parameter(
                         torch.empty(
                             size=self._shape,
