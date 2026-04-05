@@ -172,13 +172,9 @@ class Variable(KerasVariable):
         def maybe_use_symbolic_tensor(value):
             # Create and use a symbolic tensor stub in symbolic calls.
             if str(get_device()) == "meta":
-                is_dtensor = False
-                try:
-                    from torch.distributed.tensor import DTensor
-                    is_dtensor = isinstance(value, DTensor)
-                except ImportError:
-                    pass
+                from torch.distributed.tensor import DTensor
 
+                is_dtensor = isinstance(value, DTensor)
                 if is_dtensor or str(value.device) != "meta":
                     return torch.nn.Parameter(
                         torch.empty(
