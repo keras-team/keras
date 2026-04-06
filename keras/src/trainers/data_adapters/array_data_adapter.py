@@ -259,6 +259,7 @@ class ArrayDataAdapter(DataAdapter):
         import torch
 
         from keras.src.backend.torch.core import convert_to_tensor
+        from keras.src.distribution import distribution_lib as dist_lib
 
         class ArrayDataset(torch.utils.data.Dataset):
             def __init__(self, array):
@@ -276,7 +277,7 @@ class ArrayDataAdapter(DataAdapter):
                 )
 
             def __len__(self):
-                return len(self.array[0])
+                return len(tree.flatten(self.array)[0])
 
         class RandomBatchSampler(torch.utils.data.Sampler):
             def __init__(self, sampler):
@@ -289,7 +290,49 @@ class ArrayDataAdapter(DataAdapter):
             def __len__(self):
                 return len(self.sampler)
 
-        if self._shuffle == "batch":
+        dist = dist_lib.distribution()
+        sampler = None
+        if dist is not None and dist.auto_shard_dataset:
+            num_replicas = None
+            rank = None
+            if isinstance(dist, dist_lib.DataParallel):
+                num_replicas = torch.distributed.get_world_size()
+                rank = torch.distributed.get_rank()
+            elif isinstance(dist, dist_lib.ModelParallel):
+                mesh_batch_dim_index = dist.device_mesh.axis_names.index(
+                    dist.batch_dim_name
+                )
+                num_model_replicas = dist.device_mesh.shape[
+                    mesh_batch_dim_index
+                ]
+                if num_model_replicas > 1:
+                    num_process = torch.distributed.get_world_size()
+                    process_id = torch.distributed.get_rank()
+                    if num_model_replicas >= num_process:
+                        num_replicas = num_process
+                        rank = process_id
+                    else:
+                        num_replicas = num_model_replicas
+                        processes_per_replica = (
+                            num_process // num_model_replicas
+                        )
+                        rank = process_id // processes_per_replica
+
+            if num_replicas is not None and rank is not None:
+                sampler = torch.utils.data.distributed.DistributedSampler(
+                    range(self._num_samples),
+                    num_replicas=num_replicas,
+                    rank=rank,
+                    shuffle=self._shuffle is True,
+                )
+
+        if sampler is not None:
+            batch_sampler = torch.utils.data.BatchSampler(
+                sampler,
+                batch_size=self._batch_size,
+                drop_last=False,
+            )
+        elif self._shuffle == "batch":
             batch_sampler = RandomBatchSampler(
                 torch.utils.data.BatchSampler(
                     range(self._num_samples),

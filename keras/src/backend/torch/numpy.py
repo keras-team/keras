@@ -328,8 +328,8 @@ def arange(start, stop=None, step=None, dtype=None):
         start, stop = 0, start
     if step is None:
         step = 1
-    return torch.arange(
-        start, stop, step=step, dtype=dtype, device=get_device()
+    return convert_to_tensor(
+        torch.arange(start, stop, step=step, dtype=dtype, device=get_device())
     )
 
 

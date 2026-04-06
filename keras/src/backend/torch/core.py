@@ -19,6 +19,7 @@ from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
+from keras.src.backend.torch import distribution_lib as torch_dist_lib
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
@@ -102,17 +103,44 @@ def to_torch_dtype(dtype):
 
 
 class Variable(KerasVariable):
+    def __init__(self, *args, layout=None, **kwargs):
+        self._layout = layout
+        super().__init__(*args, **kwargs)
+
+    def _initialize_layout(self):
+        distribution = global_state.get_global_attribute("distribution")
+        if self._layout is None and distribution is not None:
+            tensor_layout = distribution.get_variable_layout(self)
+            from keras.src.distribution import TensorLayout
+
+            if isinstance(tensor_layout, TensorLayout):
+                self._layout = tensor_layout.backend_layout
+            else:
+                self._layout = tensor_layout
+
     def _initialize(self, value):
-        if isinstance(value, torch.nn.Parameter):
-            # Reuse same parameter
-            self._value = value
+        self._shape = self._validate_shape(value.shape)
+        self._initialize_layout()
+
+        if self._layout is not None:
+            value = convert_to_tensor(value, dtype=self._dtype).detach()
+            self._value = torch_dist_lib.distribute_variable(
+                value, self._layout, trainable=self.trainable
+            )
         else:
-            self._value = torch.nn.Parameter(
-                convert_to_tensor(value, dtype=self._dtype),
-                requires_grad=self.trainable,
-            ).to(get_device())
+            if isinstance(value, torch.nn.Parameter):
+                # Reuse same parameter
+                self._value = value
+            else:
+                self._value = torch.nn.Parameter(
+                    convert_to_tensor(value, dtype=self._dtype),
+                    requires_grad=self.trainable,
+                ).to(get_device())
 
     def _direct_assign(self, value):
+        if self._layout is not None:
+            value = convert_to_tensor(value, dtype=self._dtype).detach()
+            value = torch_dist_lib.distribute_tensor(value, self._layout)
         with torch.no_grad():
             self.value.copy_(value)
 
@@ -143,15 +171,19 @@ class Variable(KerasVariable):
         # reason why is unclear.
         def maybe_use_symbolic_tensor(value):
             # Create and use a symbolic tensor stub in symbolic calls.
-            if str(get_device()) == "meta" and str(value.device) != "meta":
-                return torch.nn.Parameter(
-                    torch.empty(
-                        size=self._shape,
-                        dtype=to_torch_dtype(self._dtype),
-                        device="meta",
-                    ),
-                    requires_grad=self.trainable,
-                )
+            if str(get_device()) == "meta":
+                from torch.distributed.tensor import DTensor
+
+                is_dtensor = isinstance(value, DTensor)
+                if is_dtensor or str(value.device) != "meta":
+                    return torch.nn.Parameter(
+                        torch.empty(
+                            size=self._shape,
+                            dtype=to_torch_dtype(self._dtype),
+                            device="meta",
+                        ),
+                        requires_grad=self.trainable,
+                    )
             return value
 
         if in_stateless_scope():
@@ -205,47 +237,76 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
                 x = x.to(device)
         if dtype is not None:
             x = x.to(to_torch_dtype(dtype))
-        return x
-    if dtype is None:
-        if isinstance(x, bool):
-            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
-        elif isinstance(x, int):
-            if x < -(2**31) or x >= 2**31:
-                return torch.as_tensor(
-                    x, dtype=torch.int64, device=get_device()
+    else:
+        if dtype is None:
+            if isinstance(x, bool):
+                x = torch.as_tensor(x, dtype=torch.bool, device=get_device())
+            elif isinstance(x, int):
+                if x < -(2**31) or x >= 2**31:
+                    x = torch.as_tensor(
+                        x, dtype=torch.int64, device=get_device()
+                    )
+                else:
+                    x = torch.as_tensor(
+                        x, dtype=torch.int32, device=get_device()
+                    )
+            elif isinstance(x, float):
+                x = torch.as_tensor(
+                    x, dtype=to_torch_dtype(floatx()), device=get_device()
                 )
-            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
-        elif isinstance(x, float):
-            return torch.as_tensor(
-                x, dtype=to_torch_dtype(floatx()), device=get_device()
-            )
 
-    # Convert to np in case of any array-like that is not list or tuple.
-    if not isinstance(x, (list, tuple)):
-        x = np.array(x)
-    elif len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
-        # Handle list or tuple of torch tensors
-        return torch.stack([convert_to_tensor(x1) for x1 in x])
-    if isinstance(x, np.ndarray):
-        if x.dtype == np.uint32:
-            # Torch backend does not support uint32.
-            x = x.astype(np.int64)
-        if standardize_dtype(x.dtype) == "bfloat16":
-            # Torch backend does not support converting bfloat16 ndarray.
-            x = x.astype(np.float32)
-            dtype = "bfloat16"
-        dtype = dtype or x.dtype
-    if dtype is None:
-        dtype = result_type(
-            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
-        )
-    dtype = to_torch_dtype(dtype)
-    return torch.as_tensor(x, dtype=dtype, device=get_device())
+        if not is_tensor(x):
+            # Convert to np in case of any array-like that is not list or tuple.
+            if not isinstance(x, (list, tuple)):
+                x = np.array(x)
+            elif len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
+                # Handle list or tuple of torch tensors
+                x = torch.stack([convert_to_tensor(x1) for x1 in x])
+
+            if not is_tensor(x):
+                if isinstance(x, np.ndarray):
+                    if x.dtype == np.uint32:
+                        # Torch backend does not support uint32.
+                        x = x.astype(np.int64)
+                    if standardize_dtype(x.dtype) == "bfloat16":
+                        x = x.astype(np.float32)
+                        dtype = "bfloat16"
+                    dtype = dtype or x.dtype
+                if dtype is None:
+                    dtype = result_type(
+                        *[
+                            getattr(item, "dtype", type(item))
+                            for item in tree.flatten(x)
+                        ]
+                    )
+                dtype = to_torch_dtype(dtype)
+                x = torch.as_tensor(x, dtype=dtype, device=get_device())
+
+    from keras.src.distribution import distribution_lib as dist_lib
+
+    dist = dist_lib.distribution()
+    if (
+        dist is not None
+        and isinstance(dist, dist_lib.ModelParallel)
+        and is_tensor(x)
+    ):
+        from torch.distributed.tensor import DTensor
+
+        if not isinstance(x, DTensor):
+            from keras.src.distribution import TensorLayout
+
+            layout = TensorLayout([None] * x.ndim, dist.device_mesh)
+            x = torch_dist_lib.distribute_tensor(x, layout)
+    return x
 
 
 def convert_to_numpy(x):
     def transform(x):
         if is_tensor(x):
+            from torch.distributed.tensor import DTensor
+
+            if isinstance(x, DTensor):
+                x = x.full_tensor()
             if x.requires_grad:
                 x = x.detach()
             # Tensor has to be moved to CPU before converting to numpy.
@@ -309,11 +370,20 @@ def compute_output_spec(fn, *args, **kwargs):
                 for i, e in enumerate(shape):
                     if e is None:
                         shape[i] = fill_value
-            return torch.ones(
+            t = torch.ones(
                 size=shape,
                 dtype=TORCH_DTYPES[x.dtype],
                 device=get_device(),
             )
+            from keras.src.distribution import distribution_lib as dist_lib
+
+            dist = dist_lib.distribution()
+            if dist is not None and isinstance(dist, dist_lib.ModelParallel):
+                from keras.src.distribution import TensorLayout
+
+                layout = TensorLayout([None] * len(shape), dist.device_mesh)
+                t = torch_dist_lib.distribute_tensor(t, layout)
+            return t
         return x
 
     def convert_torch_to_keras_tensor(x):
