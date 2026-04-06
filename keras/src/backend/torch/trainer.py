@@ -199,11 +199,12 @@ class TorchTrainer(base_trainer.Trainer):
                         torch.distributed.all_reduce(
                             local_val, op=torch.distributed.ReduceOp.SUM
                         )
+                        variable.assign(local_val)
                     else:
                         torch.distributed.all_reduce(
                             val, op=torch.distributed.ReduceOp.SUM
                         )
-                    variable.assign(val)
+                        variable.assign(val)
 
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:

@@ -19,6 +19,7 @@ from keras.src.backend.common.stateless_scope import get_stateless_scope
 from keras.src.backend.common.stateless_scope import in_stateless_scope
 from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.backend.config import floatx
+from keras.src.backend.torch import distribution_lib as torch_dist_lib
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
@@ -123,10 +124,6 @@ class Variable(KerasVariable):
 
         if self._layout is not None:
             value = convert_to_tensor(value, dtype=self._dtype).detach()
-            from keras.src.backend.torch import (
-                distribution_lib as torch_dist_lib,
-            )
-
             self._value = torch_dist_lib.distribute_variable(
                 value, self._layout, trainable=self.trainable
             )
@@ -143,10 +140,6 @@ class Variable(KerasVariable):
     def _direct_assign(self, value):
         if self._layout is not None:
             value = convert_to_tensor(value, dtype=self._dtype).detach()
-            from keras.src.backend.torch import (
-                distribution_lib as torch_dist_lib,
-            )
-
             value = torch_dist_lib.distribute_tensor(value, self._layout)
         with torch.no_grad():
             self.value.copy_(value)
@@ -300,9 +293,6 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         from torch.distributed.tensor import DTensor
 
         if not isinstance(x, DTensor):
-            from keras.src.backend.torch import (
-                distribution_lib as torch_dist_lib,
-            )
             from keras.src.distribution import TensorLayout
 
             layout = TensorLayout([None] * x.ndim, dist.device_mesh)
@@ -389,9 +379,6 @@ def compute_output_spec(fn, *args, **kwargs):
 
             dist = dist_lib.distribution()
             if dist is not None and isinstance(dist, dist_lib.ModelParallel):
-                from keras.src.backend.torch import (
-                    distribution_lib as torch_dist_lib,
-                )
                 from keras.src.distribution import TensorLayout
 
                 layout = TensorLayout([None] * len(shape), dist.device_mesh)

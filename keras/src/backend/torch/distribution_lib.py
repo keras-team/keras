@@ -46,10 +46,10 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
             os.environ["MASTER_ADDR"] = "localhost"
         if "MASTER_PORT" not in os.environ:
             os.environ["MASTER_PORT"] = "29500"
-
-        torch.distributed.init_process_group(
-            backend="nccl" if torch.cuda.is_available() else "gloo"
+        backend = os.environ.get("TORCH_DISTRIBUTED_BACKEND") or (
+            "nccl" if torch.cuda.is_available() else "gloo"
         )
+        torch.distributed.init_process_group(backend=backend)
 
 
 def num_processes():
@@ -175,25 +175,34 @@ def distribute_data_input(tensor, layout, batch_dim_name):
     )
 
 
-def _patch_dtensor_unbind():
-    """Patch `DTensor.unbind` to handle distributed unbinding."""
+def unbind_dtensor(dtensor, dim=0):
+    """Unbind a distributed tensor by converting to local, then redistributing.
 
-    def unbind_via_local(self, dim=0):
-        """Unbind by converting to local, then redistributing as replicated."""
-        local_tensor = self.to_local()
-        unbounded = local_tensor.unbind(dim)
-        return [
-            DTensor.from_local(
-                t,
-                device_mesh=self.device_mesh,
-                placements=[
-                    Replicate() for _ in range(len(self.device_mesh.mesh.shape))
-                ],
-            )
-            for t in unbounded
-        ]
+    Args:
+        dtensor: A DTensor to unbind.
+        dim: The dimension along which to unbind.
 
-    DTensor.unbind = unbind_via_local
+    Returns:
+        A list of DTensors, each replicated across the mesh.
+    """
+    local_tensor = dtensor.to_local()
+    unbounded = local_tensor.unbind(dim)
+    return [
+        DTensor.from_local(
+            t,
+            device_mesh=dtensor.device_mesh,
+            placements=[
+                Replicate() for _ in range(len(dtensor.device_mesh.mesh.shape))
+            ],
+        )
+        for t in unbounded
+    ]
 
 
-_patch_dtensor_unbind()
+# Patch DTensor.unbind: PyTorch's DTensor lacks a registered sharding strategy
+# for unbind, which breaks tensor iteration in embedding layers.
+def _dtensor_unbind_patched(self, dim=0):
+    return unbind_dtensor(self, dim=dim)
+
+
+DTensor.unbind = _dtensor_unbind_patched
