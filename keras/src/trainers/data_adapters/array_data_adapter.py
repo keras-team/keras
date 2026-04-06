@@ -284,7 +284,7 @@ class ArrayDataAdapter(DataAdapter):
                 self.sampler = sampler
 
             def __iter__(self):
-                for batch in self.sampler:                                                                                                                                     
+                for batch in self.sampler:
                     yield [batch[i] for i in torch.randperm(len(batch))]
 
             def __len__(self):
