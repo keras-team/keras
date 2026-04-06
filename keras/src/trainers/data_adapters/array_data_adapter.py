@@ -280,17 +280,15 @@ class ArrayDataAdapter(DataAdapter):
                 return len(tree.flatten(self.array)[0])
 
         class RandomBatchSampler(torch.utils.data.Sampler):
-            def __init__(self, batch_sampler):
-                self.batch_sampler = batch_sampler
+            def __init__(self, sampler):
+                self.sampler = sampler
 
             def __iter__(self):
-                batches = list(self.batch_sampler)
-                np.random.shuffle(batches)
-                for batch in batches:
-                    yield batch
+                for batch in self.sampler:                                                                                                                                     
+                    yield [batch[i] for i in torch.randperm(len(batch))]
 
             def __len__(self):
-                return len(self.batch_sampler)
+                return len(self.sampler)
 
         dist = dist_lib.distribution()
         sampler = None
