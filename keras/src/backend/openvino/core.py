@@ -866,7 +866,11 @@ def convert_to_numpy(x):
     try:
         ov_result = x.output
         ov_model = Model(results=[ov_result], parameters=[])
-        ov_compiled_model = compile_model(ov_model, get_device())
+        ov_compiled_model = compile_model(
+            ov_model,
+            get_device(),
+            config={"INFERENCE_PRECISION_HINT": "f32"},
+        )
         result = ov_compiled_model({})[0]
     except Exception as inner_exception:
         raise RuntimeError(
