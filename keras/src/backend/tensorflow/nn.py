@@ -867,7 +867,7 @@ def depthwise_conv(
         # dilations on CPU. Transpose to `channels_last`, compute, and
         # transpose back to avoid the limitation.
         if data_format == "channels_first":
-            inputs = tf.transpose(inputs, perm=[0, 2, 1])
+            inputs = _transpose_spatial_inputs(inputs)
         strides = (1,) + strides * 2 + (1,)
         spatial_start_dim = 1
         inputs = tf.expand_dims(inputs, spatial_start_dim)
@@ -885,7 +885,7 @@ def depthwise_conv(
         )
         outputs = tf.squeeze(outputs, [spatial_start_dim])
         if data_format == "channels_first":
-            outputs = tf.transpose(outputs, perm=[0, 2, 1])
+            outputs = _transpose_spatial_outputs(outputs)
         return outputs
 
     if data_format == "channels_last":
