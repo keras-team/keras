@@ -46,7 +46,6 @@ ImageOpsBehaviorTests::test_elastic_transform
 ImageOpsBehaviorTests::test_gaussian_blur
 ImageOpsBehaviorTests::test_map_coordinates
 ImageOpsBehaviorTests::test_perspective_transform
-ImageOpsBehaviorTests::test_resize
 ImageOpsCorrectnessTest::test_affine_transform
 ImageOpsCorrectnessTest::test_crop_images
 ImageOpsCorrectnessTest::test_elastic_transform
@@ -55,14 +54,12 @@ ImageOpsCorrectnessTest::test_gaussian_blur
 ImageOpsCorrectnessTest::test_map_coordinates
 ImageOpsCorrectnessTest::test_pad_images
 ImageOpsCorrectnessTest::test_perspective_transform
-ImageOpsCorrectnessTest::test_resize
 ImageOpsCorrectnessTest::test_scale_and_translate
 ImageOpsDtypeTest::test_affine_transform
 ImageOpsDtypeTest::test_elastic_transform
 ImageOpsDtypeTest::test_gaussian_blur
 ImageOpsDtypeTest::test_map_coordinates
 ImageOpsDtypeTest::test_perspective_transform
-ImageOpsDtypeTest::test_resize
 ImageOpsDtypeTest::test_scale_and_translate
 IndexLookupLayerTest::test_oov_method_ignored_for_string_dtype
 IndexLookupLayerTest::test_salt_produces_different_output_than_farmhash
@@ -160,68 +157,6 @@ RandomZoomTest::test_random_zoom_random_zoom_out_2_by_3
 RandomZoomTest::test_random_zoom_random_zoom_out_4_by_6
 RandomZoomTest::test_random_zoom_random_zoom_out_tuple_factor
 ReshapeTest::test_reshape_with_dynamic_batch_size_and_minus_one
-ResizingTest::test_crop_to_aspect_ratio0
-ResizingTest::test_crop_to_aspect_ratio1
-ResizingTest::test_data_stretch0
-ResizingTest::test_data_stretch1
-ResizingTest::test_down_sampling_numeric0
-ResizingTest::test_down_sampling_numeric1
-ResizingTest::test_grain_compatibility
-ResizingTest::test_resize_bounding_boxes_boxes_stretch
-ResizingTest::test_resize_bounding_boxes_with_crop_to_aspect_ratio
-ResizingTest::test_resize_bounding_boxes_with_pad_to_aspect_ratio
-ResizingTest::test_resizing_basics_bicubic_(false, false)_false_channels_first
-ResizingTest::test_resizing_basics_bicubic_(false, false)_false_channels_last
-ResizingTest::test_resizing_basics_bicubic_(false, false)_true_channels_first
-ResizingTest::test_resizing_basics_bicubic_(false, false)_true_channels_last
-ResizingTest::test_resizing_basics_bicubic_(false, true)_false_channels_first
-ResizingTest::test_resizing_basics_bicubic_(false, true)_false_channels_last
-ResizingTest::test_resizing_basics_bicubic_(false, true)_true_channels_first
-ResizingTest::test_resizing_basics_bicubic_(false, true)_true_channels_last
-ResizingTest::test_resizing_basics_bicubic_(true, false)_false_channels_first
-ResizingTest::test_resizing_basics_bicubic_(true, false)_false_channels_last
-ResizingTest::test_resizing_basics_bicubic_(true, false)_true_channels_first
-ResizingTest::test_resizing_basics_bicubic_(true, false)_true_channels_last
-ResizingTest::test_resizing_basics_bilinear_(false, false)_false_channels_first
-ResizingTest::test_resizing_basics_bilinear_(false, false)_false_channels_last
-ResizingTest::test_resizing_basics_bilinear_(false, false)_true_channels_first
-ResizingTest::test_resizing_basics_bilinear_(false, false)_true_channels_last
-ResizingTest::test_resizing_basics_bilinear_(false, true)_false_channels_first
-ResizingTest::test_resizing_basics_bilinear_(false, true)_false_channels_last
-ResizingTest::test_resizing_basics_bilinear_(false, true)_true_channels_first
-ResizingTest::test_resizing_basics_bilinear_(false, true)_true_channels_last
-ResizingTest::test_resizing_basics_bilinear_(true, false)_false_channels_first
-ResizingTest::test_resizing_basics_bilinear_(true, false)_false_channels_last
-ResizingTest::test_resizing_basics_bilinear_(true, false)_true_channels_first
-ResizingTest::test_resizing_basics_bilinear_(true, false)_true_channels_last
-ResizingTest::test_resizing_basics_lanczos5_(false, false)_false_channels_first
-ResizingTest::test_resizing_basics_lanczos5_(false, false)_false_channels_last
-ResizingTest::test_resizing_basics_lanczos5_(false, false)_true_channels_first
-ResizingTest::test_resizing_basics_lanczos5_(false, false)_true_channels_last
-ResizingTest::test_resizing_basics_lanczos5_(false, true)_false_channels_first
-ResizingTest::test_resizing_basics_lanczos5_(false, true)_false_channels_last
-ResizingTest::test_resizing_basics_lanczos5_(false, true)_true_channels_first
-ResizingTest::test_resizing_basics_lanczos5_(false, true)_true_channels_last
-ResizingTest::test_resizing_basics_lanczos5_(true, false)_false_channels_first
-ResizingTest::test_resizing_basics_lanczos5_(true, false)_false_channels_last
-ResizingTest::test_resizing_basics_lanczos5_(true, false)_true_channels_first
-ResizingTest::test_resizing_basics_lanczos5_(true, false)_true_channels_last
-ResizingTest::test_resizing_basics_nearest_(false, false)_false_channels_first
-ResizingTest::test_resizing_basics_nearest_(false, false)_false_channels_last
-ResizingTest::test_resizing_basics_nearest_(false, false)_true_channels_first
-ResizingTest::test_resizing_basics_nearest_(false, false)_true_channels_last
-ResizingTest::test_resizing_basics_nearest_(false, true)_false_channels_first
-ResizingTest::test_resizing_basics_nearest_(false, true)_false_channels_last
-ResizingTest::test_resizing_basics_nearest_(false, true)_true_channels_first
-ResizingTest::test_resizing_basics_nearest_(false, true)_true_channels_last
-ResizingTest::test_resizing_basics_nearest_(true, false)_false_channels_first
-ResizingTest::test_resizing_basics_nearest_(true, false)_false_channels_last
-ResizingTest::test_resizing_basics_nearest_(true, false)_true_channels_first
-ResizingTest::test_resizing_basics_nearest_(true, false)_true_channels_last
-ResizingTest::test_unbatched_image0
-ResizingTest::test_unbatched_image1
-ResizingTest::test_up_sampling_numeric0
-ResizingTest::test_up_sampling_numeric1
 SavingBattleTest::test_bidirectional_lstm_saving
 SavingTest::test_load_weights_only_with_unbuilt_model
 SimpleRNNTest::test_output_shape
