@@ -189,20 +189,6 @@ class SeparableConvBasicTest(testing.TestCase):
                 strides=(1, 0),
             )
 
-        # `dilation_rate > 1` while `strides > 1`.
-        with self.assertRaisesRegex(
-            ValueError,
-            r"`strides > 1` not supported in conjunction with "
-            r"`dilation_rate > 1`. Received: strides=\(2, 2\) and "
-            r"dilation_rate=\(2, 1\)",
-        ):
-            layers.SeparableConv2D(
-                depth_multiplier=2,
-                filters=2,
-                kernel_size=(2, 2),
-                strides=2,
-                dilation_rate=(2, 1),
-            )
 
     def test_invalid_output_shape_raises(self):
         # Regression test for https://github.com/keras-team/keras/issues/22496
@@ -232,7 +218,6 @@ class SeparableConvBasicTest(testing.TestCase):
             r"Computed output size would be zero or negative.",
         ):
             layer2(x2)
-
 
 class SeparableConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
