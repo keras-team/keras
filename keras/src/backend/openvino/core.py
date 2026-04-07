@@ -866,19 +866,7 @@ def convert_to_numpy(x):
     try:
         ov_result = x.output
         ov_model = Model(results=[ov_result], parameters=[])
-        # Apply f32 hint to prevent silent f16 downgrade on GPU/NPU,
-        # but skip it for f64 outputs so OV honours explicit Convert→f64
-        # nodes (e.g. fft2) instead of overriding them.
-        config = (
-            {}
-            if ov_result.get_element_type() == Type.f64
-            else {"INFERENCE_PRECISION_HINT": "f32"}
-        )
-        ov_compiled_model = compile_model(
-            ov_model,
-            get_device(),
-            config=config,
-        )
+        ov_compiled_model = compile_model(ov_model, get_device())
         result = ov_compiled_model({})[0]
     except Exception as inner_exception:
         raise RuntimeError(
