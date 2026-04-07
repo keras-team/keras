@@ -148,8 +148,6 @@ class BaseDepthwiseConv(Layer):
                 f"strides={self.strides}"
             )
 
-
-
     def build(self, input_shape):
         if self.data_format == "channels_last":
             channel_axis = -1

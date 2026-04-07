@@ -319,7 +319,6 @@ class DepthwiseConvBasicTest(testing.TestCase):
             )
 
 
-
 class DepthwiseConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
         {
