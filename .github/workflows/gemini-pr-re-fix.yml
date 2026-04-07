@@ -12,12 +12,10 @@ on:
 permissions: {}
 
 jobs:
-  # ── Job 1: Generate a fix PR when the "type:auto-fix" label is added to an issue ──
+  # ── Job 1: Generate a fix PR when the "type:auto-fix" label is added ──
   fix_issue:
     name: 'Generate Fix PR from Issue'
     permissions:
-      contents: write
-      pull-requests: write
       issues: write
       actions: read
     runs-on: ubuntu-latest
@@ -25,7 +23,7 @@ jobs:
       github.event_name == 'issues' &&
       github.event.label.name == 'type:auto-fix'
     steps:
-      - name: 'Checkout'
+      - name: 'Checkout (read-only, main repo)'
         uses: actions/checkout@v6
 
       - name: 'Set up Python'
@@ -120,18 +118,33 @@ jobs:
         run: |
           SKIP=api-gen pre-commit run --all-files || true
 
-      - name: 'Validate and Create PR'
+      - name: 'Validate and Create PR via Fork'
         env:
           ISSUE_NUMBER: '${{ steps.issue_details.outputs.issue_number }}'
           ISSUE_TITLE: '${{ steps.issue_details.outputs.issue_title }}'
+          BOT_PAT: '${{ secrets.BOT_PAT }}'
+          BOT_FORK_OWNER: '${{ vars.BOT_FORK_OWNER }}'
         uses: 'actions/github-script@v8'
         with:
-          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          github-token: '${{ secrets.BOT_PAT }}'
           script: |
             const { execSync } = require('child_process');
+            const { execFileSync } = require('child_process');
 
             const issueNumber = process.env.ISSUE_NUMBER;
             const issueTitle = process.env.ISSUE_TITLE;
+            const forkOwner = process.env.BOT_FORK_OWNER;
+            const repoName = context.repo.repo;
+
+            // Validate inputs
+            if (!/^\d+$/.test(issueNumber)) {
+              core.setFailed(`Invalid issue number: ${issueNumber}`);
+              return;
+            }
+            if (!forkOwner || !/^[a-zA-Z0-9_.-]+$/.test(forkOwner)) {
+              core.setFailed(`Invalid or missing BOT_FORK_OWNER: ${forkOwner}`);
+              return;
+            }
 
             // Check what Gemini actually changed (ignore .gemini artifacts)
             execSync('git checkout -- .gemini/ || true');
@@ -153,7 +166,7 @@ jobs:
             const changedFiles = execSync('git diff --name-only', { encoding: 'utf-8' }).trim().split('\n').filter(Boolean);
             core.info(`Changed files: ${changedFiles.join(', ')}`);
 
-            // Safety: reject changes outside allowed paths (prevent prompt injection escalation)
+            // Safety: reject changes outside allowed paths
             const forbiddenPaths = ['.github/', '.ci/', 'scripts/', '.gitmodules'];
             const forbidden = changedFiles.filter(f => forbiddenPaths.some(p => f.startsWith(p)));
             if (forbidden.length > 0) {
@@ -161,7 +174,6 @@ jobs:
               return;
             }
 
-            // Safety: reject if too many files changed or too many lines
             if (changedFiles.length > 5) {
               core.setFailed(`Too many files changed (${changedFiles.length}). Aborting — fix should be surgical.`);
               return;
@@ -171,17 +183,16 @@ jobs:
             const fullDiff = execSync('git diff', { encoding: 'utf-8' }).trim();
             const diffPreview = fullDiff.split('\n').slice(0, 100).join('\n');
 
-            // Create branch, commit, push
-            // Validate issue number is strictly numeric to prevent injection
-            if (!/^\d+$/.test(issueNumber)) {
-              core.setFailed(`Invalid issue number: ${issueNumber}`);
-              return;
-            }
-            const branchName = `auto-fix-${issueNumber}`;
+            // Configure git for the bot account
             execSync('git config user.name "github-actions[bot]"');
             execSync('git config user.email "github-actions[bot]@users.noreply.github.com"');
-            // Use spawn-style array args to avoid shell injection
-            const { execFileSync } = require('child_process');
+
+            // Add the fork as a remote (uses BOT_PAT for push auth)
+            const forkUrl = `https://x-access-token:${process.env.BOT_PAT}@github.com/${forkOwner}/${repoName}.git`;
+            execFileSync('git', ['remote', 'add', 'fork', forkUrl]);
+
+            // Create branch, commit, push to FORK (not origin)
+            const branchName = `auto-fix-${issueNumber}`;
             execFileSync('git', ['checkout', '-b', branchName]);
 
             for (const f of changedFiles) {
@@ -195,9 +206,9 @@ jobs:
               return;
             }
 
-            execFileSync('git', ['push', 'origin', branchName, '--force']);
+            execFileSync('git', ['push', 'fork', branchName, '--force']);
 
-            // Create PR
+            // Create cross-repo PR: fork:branch → main:master
             const prBody = [
               `## Auto-generated fix for #${issueNumber}`,
               '',
@@ -209,14 +220,14 @@ jobs:
               '---',
               `Fixes #${issueNumber}`,
               '',
-              '*This PR was automatically generated by Gemini. Please review carefully before merging.*'
+              '*This PR was automatically generated by Gemini from a sandboxed fork. Please review carefully before merging.*'
             ].join('\n');
 
             const { data: pr } = await github.rest.pulls.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `Fix #${issueNumber}: ${issueTitle}`,
-              head: branchName,
+              head: `${forkOwner}:${branchName}`,
               base: 'master',
               body: prBody,
               draft: true
@@ -224,19 +235,21 @@ jobs:
 
             core.info(`Created PR #${pr.number}: ${pr.html_url}`);
 
-            // Comment on the issue linking to the PR
-            await github.rest.issues.createComment({
+            // Comment on the issue linking to the PR (uses GITHUB_TOKEN via
+            // a separate octokit instance so the bot PAT isn't over-privileged)
+            const { Octokit } = require('@octokit/rest');
+            const mainOctokit = new Octokit({ auth: '${{ secrets.GITHUB_TOKEN }}' });
+            await mainOctokit.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: parseInt(issueNumber),
               body: `🤖 An automated fix has been generated: #${pr.number}\n\n**Changed files:** ${changedFiles.join(', ')}\n**Scope:** ${diffLines}\n\nPlease review the draft PR and run tests before merging.`
             });
 
-  # ── Job 2: Re-fix when tests fail on auto-fix branches ──
+  # ── Job 2: Re-fix when tests fail on auto-fix branches from the fork ──
   re_fix:
     name: 'Re-Fix Failing PR'
     permissions:
-      contents: write
       actions: read
     runs-on: ubuntu-latest
     if: |-
@@ -244,21 +257,35 @@ jobs:
       github.event.workflow_run.conclusion == 'failure' &&
       startsWith(github.event.workflow_run.head_branch, 'auto-fix-')
     steps:
-      - name: Checkout merge base
+      - name: 'Verify source is the expected fork'
+        env:
+          HEAD_REPO_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
+          BOT_FORK_OWNER: ${{ vars.BOT_FORK_OWNER }}
+        run: |
+          if [[ "$HEAD_REPO_OWNER" != "$BOT_FORK_OWNER" ]]; then
+            echo "::error::workflow_run came from unexpected repo owner '$HEAD_REPO_OWNER' (expected '$BOT_FORK_OWNER'). Refusing to proceed."
+            exit 1
+          fi
+
+      - name: 'Checkout main repo (read-only base)'
         uses: actions/checkout@v6
 
-      - name: Checkout auto-fix branch by SHA
+      - name: 'Fetch and checkout fork branch by SHA'
         env:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          BOT_FORK_OWNER: ${{ vars.BOT_FORK_OWNER }}
+          BOT_PAT: ${{ secrets.BOT_PAT }}
         run: |
-          # Validate branch name contains only safe characters
+          # Validate branch name
           if [[ ! "$HEAD_BRANCH" =~ ^auto-fix-[a-zA-Z0-9_.-]+$ ]]; then
             echo "::error::Unexpected branch name: $HEAD_BRANCH"
             exit 1
           fi
-          # Fetch and checkout by immutable SHA, not by branch name
-          git fetch origin "$HEAD_SHA"
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          FORK_URL="https://x-access-token:${BOT_PAT}@github.com/${BOT_FORK_OWNER}/${REPO_NAME}.git"
+          git remote add fork "$FORK_URL"
+          git fetch fork "$HEAD_SHA"
           git checkout "$HEAD_SHA"
 
       - name: 'Set up Python'
@@ -358,7 +385,7 @@ jobs:
         run: |
           SKIP=api-gen pre-commit run --all-files || true
 
-      - name: 'Validate and Push Fix'
+      - name: 'Validate and Push Fix to Fork'
         env:
           BRANCH_NAME: '${{ github.event.workflow_run.head_branch }}'
         uses: 'actions/github-script@v8'
@@ -366,11 +393,10 @@ jobs:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
             const { execSync } = require('child_process');
-
             const { execFileSync } = require('child_process');
             const branchName = process.env.BRANCH_NAME;
 
-            // Re-validate branch name to prevent injection
+            // Re-validate branch name
             if (!/^auto-fix-[a-zA-Z0-9_.-]+$/.test(branchName)) {
               core.setFailed(`Unexpected branch name: ${branchName}`);
               return;
@@ -413,8 +439,9 @@ jobs:
 
             try {
               execFileSync('git', ['commit', '-m', 'Automated re-fix by Gemini after test failure']);
-              execFileSync('git', ['push', 'origin', branchName]);
-              core.info(`Pushed re-fix to ${branchName}`);
+              // Push to fork, not origin
+              execFileSync('git', ['push', 'fork', `HEAD:${branchName}`]);
+              core.info(`Pushed re-fix to fork branch ${branchName}`);
             } catch (e) {
               core.info(`No changes to commit or push failed: ${e.message}`);
             }
