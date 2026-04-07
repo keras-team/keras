@@ -23,6 +23,20 @@ jobs:
       github.event_name == 'issues' &&
       github.event.label.name == 'type:auto-fix'
     steps:
+      - name: 'Validate required secrets and variables'
+        env:
+          BOT_PAT: '${{ secrets.BOT_PAT }}'
+          BOT_FORK_OWNER: '${{ vars.BOT_FORK_OWNER }}'
+        run: |
+          if [[ -z "$BOT_PAT" ]]; then
+            echo "::error::Secret BOT_PAT is not configured. See setup instructions at the top of this workflow."
+            exit 1
+          fi
+          if [[ -z "$BOT_FORK_OWNER" ]]; then
+            echo "::error::Variable BOT_FORK_OWNER is not configured. See setup instructions at the top of this workflow."
+            exit 1
+          fi
+
       - name: 'Checkout (read-only, main repo)'
         uses: actions/checkout@v6
 
@@ -58,7 +72,9 @@ jobs:
             core.setOutput('issue_comments', commentText || 'No comments on this issue.');
 
       - name: 'Pre-create .gemini directory'
-        run: mkdir -p ~/.gemini
+        run: |
+          mkdir -p ~/.gemini
+          echo '{}' > ~/.gemini/projects.json
 
       - name: 'Ask Gemini to Fix the Issue'
         uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
@@ -257,6 +273,20 @@ jobs:
       github.event.workflow_run.conclusion == 'failure' &&
       startsWith(github.event.workflow_run.head_branch, 'auto-fix-')
     steps:
+      - name: 'Validate required secrets and variables'
+        env:
+          BOT_PAT: '${{ secrets.BOT_PAT }}'
+          BOT_FORK_OWNER: '${{ vars.BOT_FORK_OWNER }}'
+        run: |
+          if [[ -z "$BOT_PAT" ]]; then
+            echo "::error::Secret BOT_PAT is not configured. See setup instructions at the top of this workflow."
+            exit 1
+          fi
+          if [[ -z "$BOT_FORK_OWNER" ]]; then
+            echo "::error::Variable BOT_FORK_OWNER is not configured. See setup instructions at the top of this workflow."
+            exit 1
+          fi
+
       - name: 'Verify source is the expected fork'
         env:
           HEAD_REPO_OWNER: ${{ github.event.workflow_run.head_repository.owner.login }}
@@ -329,7 +359,9 @@ jobs:
             }
 
       - name: 'Pre-create .gemini directory'
-        run: mkdir -p ~/.gemini
+        run: |
+          mkdir -p ~/.gemini
+          echo '{}' > ~/.gemini/projects.json
 
       - name: 'Ask Gemini to Fix Failed Tests'
         uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
