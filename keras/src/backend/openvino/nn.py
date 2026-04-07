@@ -163,6 +163,16 @@ def gelu(x, approximate=True):
     return OpenVINOKerasTensor(ov_opset.gelu(x, approximate_mode).output(0))
 
 
+def glu(x, axis=-1):
+    x = get_ov_output(x)
+    half_splits = onp.split(x, 2, axis=axis)
+    x1 = get_ov_output(half_splits[0])
+    x2 = get_ov_output(half_splits[1])
+    sig_x2 = ov_opset.sigmoid(x2).output(0)
+    result = ov_opset.multiply(x1, sig_x2)
+    return OpenVINOKerasTensor(result.output(0))
+
+
 def softmax(x, axis=-1):
     x = get_ov_output(x)
     if axis is None:
@@ -209,6 +219,66 @@ def log_softmax(x, axis=-1):
     if restore_shape is not None:
         result = ov_opset.reshape(result, restore_shape, False).output(0)
     return OpenVINOKerasTensor(result)
+
+
+def sparsemax(x, axis=-1):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+    rank = x.get_partial_shape().rank.get_length()
+    if axis < 0:
+        axis = rank + axis
+
+    neg_x = ov_opset.negative(x).output(0)
+    logits_sorted = ov_opset.negative(
+        get_ov_output(onp.sort(neg_x, axis=axis))
+    ).output(0)
+
+    axis_scalar = ov_opset.constant(axis, Type.i32).output(0)
+    logits_cumsum = ov_opset.cumsum(logits_sorted, axis_scalar).output(0)
+
+    dim_size = x.get_partial_shape()[axis].get_length()
+    r = ov_opset.convert(
+        ov_opset.range(
+            ov_opset.constant(1, Type.i32).output(0),
+            ov_opset.constant(dim_size + 1, Type.i32).output(0),
+            ov_opset.constant(1, Type.i32).output(0),
+            output_type=Type.i32,
+        ).output(0),
+        et,
+    ).output(0)
+    r_shape = [1] * rank
+    r_shape[axis] = -1
+    r = ov_opset.reshape(
+        r, ov_opset.constant(r_shape, Type.i32).output(0), False
+    ).output(0)
+
+    one = get_ov_output(1.0, et)
+    zero_fp = get_ov_output(0.0, et)
+    support = ov_opset.greater(
+        ov_opset.subtract(
+            logits_sorted,
+            ov_opset.divide(
+                ov_opset.subtract(logits_cumsum, one).output(0), r
+            ).output(0),
+        ).output(0),
+        zero_fp,
+    ).output(0)
+
+    axis_1d = ov_opset.constant([axis], Type.i32).output(0)
+    k = ov_opset.reduce_sum(
+        ov_opset.convert(support, et).output(0), axis_1d, True
+    ).output(0)
+    sum_safe = ov_opset.reduce_sum(
+        ov_opset.select(support, logits_cumsum, zero_fp).output(0),
+        axis_1d,
+        True,
+    ).output(0)
+    tau = ov_opset.divide(ov_opset.subtract(sum_safe, one).output(0), k).output(
+        0
+    )
+    return OpenVINOKerasTensor(
+        ov_opset.maximum(ov_opset.subtract(x, tau).output(0), zero_fp).output(0)
+    )
 
 
 def squareplus(x, b=4):

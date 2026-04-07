@@ -1,5 +1,3 @@
-ActivationsTest::test_glu
-ActivationsTest::test_sparsemax
 CenterCropTest::test_center_crop_bounding_boxes_with_stretch
 CenterCropTest::test_dynamic_spatial_dims
 CenterCropTest::test_image_stretch0
@@ -79,11 +77,8 @@ MergingLayersTest::test_average_with_mask
 MetricWrapperTest::test_weighted_dynamic_shape
 NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsCorrectnessTest::test_ctc_decode
-NNOpsCorrectnessTest::test_glu
 NNOpsCorrectnessTest::test_polar_corectness
-NNOpsCorrectnessTest::test_sparsemax
 NNOpsDtypeTest::test_ctc_decode
-NNOpsDtypeTest::test_glu_
 NNOpsDtypeTest::test_polar_
 NormalizationTest::test_broadcast_multiple_axes
 NormalizationTest::test_broadcast_non_scalar_middle_axis
