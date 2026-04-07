@@ -4021,14 +4021,14 @@ def reshape(x, newshape):
                 break
         if has_dyn:
             # Build a shape tensor from mixed static/dynamic dims
+            axis = ov_opset.constant(0, Type.i32).output(0)
             dim_tensors = []
             for d in newshape:
                 if isinstance(d, OpenVINOKerasTensor):
                     d_ov = get_ov_output(d)
-                    if d_ov.get_partial_shape().rank.get_length() == 0:
-                        d_ov = ov_opset.unsqueeze(
-                            d_ov, ov_opset.constant(0, Type.i32).output(0)
-                        ).output(0)
+                    rank = d_ov.get_partial_shape().rank
+                    if rank.is_static and rank.get_length() == 0:
+                        d_ov = ov_opset.unsqueeze(d_ov, axis).output(0)
                     dim_tensors.append(d_ov)
                 else:
                     val = -1 if d is None else d

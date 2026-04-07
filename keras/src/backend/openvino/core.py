@@ -900,18 +900,13 @@ def shape(x):
         return static_shape
 
     # For dynamic dims, return OpenVINOKerasTensor scalars obtained at runtime
-    # via shape_of, mirroring how TF returns tf.Tensor values for unknown dims.
     shape_node = ov_opset.shape_of(x.output, Type.i32).output(0)
+    axis = ov_opset.constant(0, Type.i32).output(0)
     result = []
     for i, dim in enumerate(static_shape):
         if dim is None:
-            idx = ov_opset.constant([i], Type.i32).output(0)
-            dim_1d = ov_opset.gather(
-                shape_node, idx, ov_opset.constant(0, Type.i32).output(0)
-            ).output(0)
-            dim_scalar = ov_opset.squeeze(
-                dim_1d, ov_opset.constant([0], Type.i32).output(0)
-            ).output(0)
+            idx = ov_opset.constant(i, Type.i32).output(0)
+            dim_scalar = ov_opset.gather(shape_node, idx, axis).output(0)
             result.append(OpenVINOKerasTensor(dim_scalar))
         else:
             result.append(dim)
