@@ -30,14 +30,26 @@ class OpenVINOTrainer(base_trainer.Trainer):
             return x[0]
         return x
 
+    def _unpack_inference_outputs(self, all_outputs):
+        """Split raw inference outputs into main outputs and apply masks."""
+        main_outputs = all_outputs[: self._n_main_outputs]
+        y_pred = self._unpack_singleton(
+            tree.pack_sequence_as(self.struct_outputs, main_outputs)
+        )
+        if self._output_mask_indices:
+            flat_y_pred = tree.flatten(y_pred)
+            for out_idx, mask_idx in self._output_mask_indices.items():
+                backend.set_keras_mask(
+                    flat_y_pred[out_idx], all_outputs[mask_idx]
+                )
+        return y_pred
+
     def test_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
         ov_compiled_model = self._get_compiled_model(x)
         flatten_x = tree.flatten(x)
-        y_pred = ov_compiled_model(flatten_x)
-        y_pred = self._unpack_singleton(
-            tree.pack_sequence_as(self.struct_outputs, y_pred.to_tuple())
-        )
+        ov_result = ov_compiled_model(flatten_x)
+        y_pred = self._unpack_inference_outputs(ov_result.to_tuple())
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
@@ -51,12 +63,8 @@ class OpenVINOTrainer(base_trainer.Trainer):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
         ov_compiled_model = self._get_compiled_model(x)
         flatten_x = tree.flatten(x)
-        y_pred = ov_compiled_model(flatten_x)
-        # recover structure of the model output
-        y_pred = self._unpack_singleton(
-            tree.pack_sequence_as(self.struct_outputs, y_pred.to_tuple())
-        )
-        return y_pred
+        ov_result = ov_compiled_model(flatten_x)
+        return self._unpack_inference_outputs(ov_result.to_tuple())
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
@@ -136,8 +144,20 @@ class OpenVINOTrainer(base_trainer.Trainer):
         for p in tree.flatten(self.struct_params):
             parameters.append(p.output.get_node())
         results = []
-        for r in tree.flatten(self.struct_outputs):
+        flat_struct_outputs = tree.flatten(self.struct_outputs)
+        for r in flat_struct_outputs:
             results.append(ov_opset.result(r.output))
+
+        self._n_main_outputs = len(results)
+
+        # Include mask tensors as extra outputs so they are evaluated
+        # during inference and can be propagated to y_pred.
+        self._output_mask_indices = {}
+        for i, out in enumerate(flat_struct_outputs):
+            mask = backend.get_keras_mask(out)
+            if mask is not None and isinstance(mask, OpenVINOKerasTensor):
+                self._output_mask_indices[i] = len(results)
+                results.append(ov_opset.result(mask.output))
 
         # prepare compiled model from scratch
         ov_model = ov.Model(results=results, parameters=parameters)

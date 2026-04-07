@@ -56,10 +56,7 @@ ImageOpsDtypeTest::test_gaussian_blur
 ImageOpsDtypeTest::test_perspective_transform
 IndexLookupLayerTest::test_oov_method_ignored_for_string_dtype
 IndexLookupLayerTest::test_salt_produces_different_output_than_farmhash
-LayerTest::test_call_context_args_with_func_seq_models_as_layers
 LayerTest::test_complex_dtype_support
-LayerTest::test_end_to_end_masking
-LayerTest::test_stateless_call
 LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq

@@ -69,8 +69,12 @@ def _random_uniform(shape, minval, maxval, dtype, seed1, seed2):
 
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
-    seed = draw_seed(seed)
-    rng = _rng_from_seed_data(seed.data)
+    seed_val = draw_seed(seed)
+    if isinstance(seed_val, OpenVINOKerasTensor):
+        seed_data = convert_to_numpy(seed_val)
+    else:
+        seed_data = seed_val.data
+    rng = _rng_from_seed_data(seed_data)
     normal_const = rng.normal(size=shape, loc=mean, scale=stddev).astype(dtype)
     return OpenVINOKerasTensor(_np_to_ov_const(normal_const))
 
