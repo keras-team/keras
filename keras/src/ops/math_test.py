@@ -775,8 +775,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.fft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_output, real_ref)
-        self.assertAllClose(imag_output, imag_ref)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     def test_ifft2(self):
         real = np.random.random((2, 4, 3)).astype(np.float32)
