@@ -42,7 +42,6 @@ class OpenVINOTrainer(base_trainer.Trainer):
                 backend.set_keras_mask(
                     flat_y_pred[out_idx], all_outputs[mask_idx]
                 )
-            y_pred = flat_y_pred[0] if len(flat_y_pred) == 1 else flat_y_pred
         return y_pred
 
     def test_step(self, data):
