@@ -239,6 +239,31 @@ class GroupedQueryAttentionTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, r"must be equal"):
             layer.compute_output_shape(query_shape, value_shape, key_shape)
 
+    def test_symbolic_shape_with_return_attention_scores(self):
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=4,
+            num_key_value_heads=2,
+            head_dim=8,
+        )
+        query = layers.Input(shape=(10, 32))
+        value = layers.Input(shape=(15, 32))
+
+        output, scores = layer(query, value, return_attention_scores=True)
+        self.assertEqual(output.shape, (None, 10, 32))
+        self.assertEqual(scores.shape, (None, 4, 10, 15))
+
+    def test_symbolic_shape_without_return_attention_scores(self):
+        layer = layers.GroupedQueryAttention(
+            num_query_heads=4,
+            num_key_value_heads=2,
+            head_dim=8,
+        )
+        query = layers.Input(shape=(10, 32))
+        value = layers.Input(shape=(15, 32))
+
+        output = layer(query, value)
+        self.assertEqual(output.shape, (None, 10, 32))
+
     def test_initializer(self):
         # Test with a specified initializer.
         layer = layers.GroupedQueryAttention(

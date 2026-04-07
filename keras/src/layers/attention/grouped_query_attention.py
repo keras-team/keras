@@ -1,5 +1,6 @@
 import math
 
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -495,6 +496,41 @@ class GroupedQueryAttention(Layer):
             )
 
         return query_shape
+
+    def compute_output_spec(
+        self,
+        query,
+        value,
+        key=None,
+        query_mask=None,
+        value_mask=None,
+        key_mask=None,
+        attention_mask=None,
+        return_attention_scores=False,
+        training=None,
+        use_causal_mask=False,
+    ):
+        output_shape = self.compute_output_shape(
+            query.shape,
+            value.shape,
+            key.shape if key is not None else None,
+        )
+        output_spec = backend.KerasTensor(
+            output_shape, dtype=self.compute_dtype
+        )
+        if return_attention_scores:
+            query_len = query.shape[1]
+            kv_len = value.shape[1] if key is None else key.shape[1]
+            scores_shape = (
+                query.shape[0],
+                self.num_query_heads,
+                query_len,
+                kv_len,
+            )
+            return output_spec, backend.KerasTensor(
+                scores_shape, dtype=self.compute_dtype
+            )
+        return output_spec
 
     def get_config(self):
         config = {
