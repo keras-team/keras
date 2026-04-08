@@ -668,10 +668,11 @@ class ModelParallel(Distribution):
         num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
         if (
             self._is_multi_process
-            and num_model_replicas > self._num_process
+            and self._num_process > num_model_replicas
             and self._num_process % num_model_replicas != 0
         ):
             raise ValueError(
+                "If `num_process` is greater than `num_model_replicas`, "
                 "`num_process` must be divisible by `num_model_replicas`. "
                 f"Got num_process={self._num_process}, "
                 f"num_model_replicas={num_model_replicas}."
