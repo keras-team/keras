@@ -46,6 +46,7 @@ jobs:
           apt-get -y install curl
           apt-get -y install git
           apt-get -y install gnupg
+          git config --global --add safe.directory '*'
 
       - name: Checkout ${{ github.ref }}
         uses: actions/checkout@v6
