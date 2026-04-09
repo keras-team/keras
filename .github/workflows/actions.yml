@@ -39,6 +39,14 @@ jobs:
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
 
     steps:
+      - name: Install binary dependencies
+        run: |
+          apt-get update
+          apt-get -y install build-essential
+          apt-get -y install curl
+          apt-get -y install git
+          apt-get -y install gnupg
+
       - name: Checkout ${{ github.ref }}
         uses: actions/checkout@v6
 
@@ -50,13 +58,8 @@ jobs:
             applications:
               - 'keras/src/applications/**'
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
-          apt-get update
-          apt-get -y install build-essential
-          apt-get -y install curl
-          apt-get -y install git
-          apt-get -y install gnupg
           pip install -r requirements.txt
           pip install --no-deps tf_keras
 
