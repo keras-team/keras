@@ -422,9 +422,17 @@ class OpenVINOKerasTensor:
                 axes.append(dim)
                 gather_indices_nodes.append(idx_value.output(0))
             elif isinstance(index, builtins.slice):
-                if index == builtins.slice(None):
+                if (
+                    index.start is None
+                    and index.stop is None
+                    and index.step is None
+                ):
                     continue
-                if index.step is not None and index.step < 0:
+                if (
+                    index.step is not None
+                    and not isinstance(index.step, OpenVINOKerasTensor)
+                    and index.step < 0
+                ):
                     raise ValueError("OpenVINO doesn't support negative steps")
                 slice_axes.append(dim)
                 slice_starts.append(0 if index.start is None else index.start)
@@ -469,9 +477,29 @@ class OpenVINOKerasTensor:
                 )
 
         if slice_axes:
-            step = ov_opset.constant(slice_steps, Type.i32).output(0)
-            start = ov_opset.constant(slice_starts, Type.i32).output(0)
-            stop = ov_opset.constant(slice_ends, Type.i32).output(0)
+
+            def _to_slice_bound(values, dtype=Type.i32):
+                nodes = []
+                for v in values:
+                    if isinstance(v, OpenVINOKerasTensor):
+                        node = v.output
+                    else:
+                        node = ov_opset.constant([v], dtype).output(0)
+                    if node.get_element_type() != dtype:
+                        node = ov_opset.convert(node, dtype).output(0)
+                    ps = node.get_partial_shape()
+                    if len(ps) == 0:
+                        node = ov_opset.unsqueeze(
+                            node, ov_opset.constant(0, Type.i32)
+                        ).output(0)
+                    nodes.append(node)
+                if len(nodes) == 1:
+                    return nodes[0]
+                return ov_opset.concat(nodes, axis=0).output(0)
+
+            step = _to_slice_bound(slice_steps)
+            start = _to_slice_bound(slice_starts)
+            stop = _to_slice_bound(slice_ends)
             adjusted_slice_axes = [
                 ax - sum(1 for unsq in unsqueeze_axes if unsq <= ax)
                 for ax in slice_axes

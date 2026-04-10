@@ -24,7 +24,6 @@ ImageOpsBehaviorTests::test_elastic_transform
 ImageOpsBehaviorTests::test_gaussian_blur
 ImageOpsBehaviorTests::test_perspective_transform
 ImageOpsCorrectnessTest::test_affine_transform
-ImageOpsCorrectnessTest::test_crop_images
 ImageOpsCorrectnessTest::test_elastic_transform
 ImageOpsCorrectnessTest::test_extract_patches
 ImageOpsCorrectnessTest::test_gaussian_blur
@@ -68,8 +67,6 @@ QuantizersTest::test_grouped_quantize_with_padding
 RandAugmentTest::test_layer
 RandAugmentTest::test_rand_augment_basic
 RandAugmentTest::test_random_augment_randomness
-RandomCropTest::test_dict_input
-RandomCropTest::test_random_crop
 RandomElasticTransformTest::test_layer
 RandomElasticTransformTest::test_random_elastic_transform_basic
 RandomGaussianBlurTest::test_layer
