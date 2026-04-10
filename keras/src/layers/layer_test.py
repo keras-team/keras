@@ -839,9 +839,9 @@ class LayerTest(testing.TestCase):
         backend.set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
         self.assertAllEqual(
-            mask,
             backend.get_keras_mask(y),
-            "Masking is not propagated by Autocast",
+            mask,
+            msg="Masking is not propagated by Autocast",
         )
 
     @pytest.mark.skipif(
@@ -1733,7 +1733,7 @@ class LayerTest(testing.TestCase):
         inputs = ops.zeros([10, 5], dtype="complex64")
         layer = MyDenseLayer(10)
         output = layer(inputs)
-        self.assertAllEqual(output.shape, (10, 10))
+        self.assertEqual(output.shape, (10, 10))
 
     def test_call_context_args_with_custom_layers(self):
         class Inner(layers.Layer):

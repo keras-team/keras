@@ -315,7 +315,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         # test output sequence length, taking first batch.
         self.assertEqual(len(output[0]), 8)
 
-        self.assertAllEqual(output, [[2, 3, 4, 5, 1, 1, 6, 7]])
+        self.assertAllClose(output, [[2, 3, 4, 5, 1, 1, 6, 7]])
 
     def test_lower_standardization(self):
         layer = layers.TextVectorization(
@@ -345,7 +345,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         7: 'nice',
         8: 'test'}
         """
-        self.assertAllEqual(output, [[2, 1, 5, 6, 1, 1, 7, 1]])
+        self.assertAllClose(output, [[2, 1, 5, 6, 1, 1, 7, 1]])
 
     def test_char_splitting(self):
         layer = layers.TextVectorization(
@@ -354,7 +354,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         output = layer(["abcf"])
         self.assertTrue(backend.is_tensor(output))
         self.assertEqual(len(output[0]), 4)
-        self.assertAllEqual(output, [[2, 3, 4, 1]])
+        self.assertAllClose(output, [[2, 3, 4, 1]])
 
     def test_custom_splitting(self):
         def custom_split(text):
@@ -370,7 +370,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
 
         # after custom split, the outputted index should be the last
         # token in the vocab.
-        self.assertAllEqual(output, [[4]])
+        self.assertAllClose(output, [[4]])
 
     def test_strip_punctuation_standardization(self):
         layer = layers.TextVectorization(
@@ -380,7 +380,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         output = layer(["Hello, World! Test."])
         self.assertTrue(backend.is_tensor(output))
         # Case is preserved, punctuation stripped
-        self.assertAllEqual(output, [[2, 3, 4]])
+        self.assertAllClose(output, [[2, 3, 4]])
 
     def test_no_standardization(self):
         layer = layers.TextVectorization(
@@ -390,7 +390,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         # "Hello" matches, "hello" does not (case-sensitive)
         output = layer(["Hello hello"])
         self.assertTrue(backend.is_tensor(output))
-        self.assertAllEqual(output, [[2, 1]])
+        self.assertAllClose(output, [[2, 1]])
 
     def test_custom_standardize_callable(self):
         def custom_standardize(text):
@@ -403,7 +403,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         )
         output = layer(["foo-bar"])
         self.assertTrue(backend.is_tensor(output))
-        self.assertAllEqual(output, [[2, 3]])
+        self.assertAllClose(output, [[2, 3]])
 
     def test_no_split(self):
         layer = layers.TextVectorization(
@@ -414,7 +414,7 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         # Each element is looked up as a whole string (no splitting)
         output = layer([["foo"], ["bar"], ["unknown"]])
         self.assertTrue(backend.is_tensor(output))
-        self.assertAllEqual(output, [[2], [3], [1]])
+        self.assertAllClose(output, [[2], [3], [1]])
 
     def test_ngrams_integer(self):
         layer = layers.TextVectorization(

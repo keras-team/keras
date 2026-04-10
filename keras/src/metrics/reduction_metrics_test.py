@@ -96,7 +96,7 @@ class MeanTest(testing.TestCase):
         result = backend.compute_output_spec(
             mean_obj, KerasTensor((None, 2)), KerasTensor((None, 2))
         )
-        self.assertAllEqual(result.shape, ())
+        self.assertEqual(result.shape, ())
 
 
 # How users would register a custom function or class to use with
@@ -176,7 +176,7 @@ class MetricWrapperTest(testing.TestCase):
             KerasTensor((None, 5)),
             KerasTensor((None, 5)),
         )
-        self.assertAllEqual(result.shape, ())
+        self.assertEqual(result.shape, ())
 
     def test_binary_accuracy_with_boolean_inputs(self):
         inp = layers.Input(shape=(1,))

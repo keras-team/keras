@@ -386,8 +386,8 @@ class AttentionTest(testing.TestCase):
         key = np.random.random((2, 3, 4))
         layer = layers.Attention()
         output = layer([query, value, key])
-        self.assertAllEqual(output.shape, value.shape)
-        self.assertAllEqual(
+        self.assertEqual(output.shape, value.shape)
+        self.assertEqual(
             layer.compute_output_shape(
                 input_shape=[query.shape, value.shape, key.shape]
             ),

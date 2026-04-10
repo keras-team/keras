@@ -45,8 +45,8 @@ class MaxNumBoundingBoxesTest(testing.TestCase):
 
         input_data = {"images": input_image, "bounding_boxes": bounding_boxes}
         output = layer(input_data)
-        self.assertAllEqual(output["bounding_boxes"]["boxes"].shape, (40, 4))
-        self.assertAllEqual(output["bounding_boxes"]["labels"].shape, (40,))
+        self.assertEqual(output["bounding_boxes"]["boxes"].shape, (40, 4))
+        self.assertEqual(output["bounding_boxes"]["labels"].shape, (40,))
 
     def test_output_shapes_with_tf_data(self):
         if backend.config.image_data_format() == "channels_last":
@@ -73,5 +73,5 @@ class MaxNumBoundingBoxesTest(testing.TestCase):
         ds = ds.map(layer)
         ds = ds.batch(1)
         output = next(iter(ds))
-        self.assertAllEqual(output["bounding_boxes"]["boxes"].shape, (1, 40, 4))
-        self.assertAllEqual(output["bounding_boxes"]["labels"].shape, (1, 40))
+        self.assertEqual(output["bounding_boxes"]["boxes"].shape, (1, 40, 4))
+        self.assertEqual(output["bounding_boxes"]["labels"].shape, (1, 40))
