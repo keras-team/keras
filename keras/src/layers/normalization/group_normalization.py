@@ -167,12 +167,18 @@ class GroupNormalization(Layer):
         super().build(input_shape)
 
     def call(self, inputs):
+        input_dtype = self.compute_dtype
+        # GN is prone to overflow with float16/bfloat16 inputs, so we
+        # upcast to float32 for the subsequent computations.
+        compute_dtype = backend.result_type(inputs.dtype, "float32")
+        inputs = ops.cast(inputs, compute_dtype)
+
         reshaped_inputs = self._reshape_into_groups(inputs)
         normalized_inputs = self._apply_normalization(
             reshaped_inputs, inputs.shape
         )
         outputs = ops.reshape(normalized_inputs, ops.shape(inputs))
-        return ops.cast(outputs, self.compute_dtype)
+        return ops.cast(outputs, input_dtype)
 
     def _reshape_into_groups(self, inputs):
         input_shape = ops.shape(inputs)

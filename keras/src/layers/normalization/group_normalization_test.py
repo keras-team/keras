@@ -201,3 +201,22 @@ class GroupNormalizationTest(testing.TestCase):
                 dtype="mixed_bfloat16",
             )
             self.assertFalse(any("epsilon" in str(x.message) for x in w))
+
+    def test_mixed_float16_no_nan(self):
+        """GroupNormalization should not produce NaN with mixed_float16.
+
+        Regression test for https://github.com/keras-team/keras/issues/22586.
+        With mixed_float16 policy, values near the float16 max (65504) would
+        overflow to inf before internal float32 upcasting, causing NaN output.
+        """
+        layer = layers.GroupNormalization(
+            groups=8, epsilon=1e-12, dtype="mixed_float16"
+        )
+        # Use values near float16 max to trigger potential overflow
+        x = np.random.uniform(
+            low=60000, high=65000, size=(2, 16, 16, 64)
+        ).astype("float32")
+        layer.build(x.shape)
+        output = layer(x)
+        output = np.array(output)
+        self.assertFalse(np.any(np.isnan(output)))
