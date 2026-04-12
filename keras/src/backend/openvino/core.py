@@ -570,6 +570,16 @@ class OpenVINOKerasTensor:
             yield self[i]
 
     def __bool__(self):
+        if self.dtype == "bool" and self.ndim == 0:
+            try:
+                expanded = ov_opset.unsqueeze(
+                    self.output,
+                    ov_opset.constant([0], Type.i32).output(0),
+                ).output(0)
+                value = convert_to_numpy(OpenVINOKerasTensor(expanded))[0]
+                return bool(value)
+            except Exception:
+                pass
         return bool(self.numpy())
 
     def __mod__(self, other):
@@ -893,6 +903,10 @@ def convert_to_numpy(x):
         pass
     try:
         ov_result = x.output
+        casted_from_bool = False
+        if ov_result.get_element_type() == Type.boolean:
+            ov_result = ov_opset.convert(ov_result, Type.i32).output(0)
+            casted_from_bool = True
         ov_model = Model(results=[ov_result], parameters=[])
         ov_compiled_model = compile_model(
             ov_model,
@@ -900,6 +914,8 @@ def convert_to_numpy(x):
             config={"INFERENCE_PRECISION_HINT": "f32"},
         )
         result = ov_compiled_model({})[0]
+        if casted_from_bool:
+            result = result.astype(bool)
     except Exception as inner_exception:
         raise RuntimeError(
             "`convert_to_numpy` failed to convert the tensor."
