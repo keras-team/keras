@@ -570,16 +570,6 @@ class OpenVINOKerasTensor:
             yield self[i]
 
     def __bool__(self):
-        if self.dtype == "bool" and self.ndim == 0:
-            try:
-                expanded = ov_opset.unsqueeze(
-                    self.output,
-                    ov_opset.constant([0], Type.i32).output(0),
-                ).output(0)
-                value = convert_to_numpy(OpenVINOKerasTensor(expanded))[0]
-                return bool(value)
-            except Exception:
-                pass
         return bool(self.numpy())
 
     def __mod__(self, other):

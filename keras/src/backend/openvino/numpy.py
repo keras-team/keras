@@ -5691,8 +5691,8 @@ def unique(
                     ov_opset.constant([1], Type.i32).output(0),
                 ).output(0)
 
-                nan_mask_u = ov_opset.greater(
-                    uniq_nan_tag, ov_opset.constant(0.5, x_type).output(0)
+                nan_mask_u = ov_opset.convert(
+                    uniq_nan_tag, Type.boolean
                 ).output(0)
                 nan_const = ov_opset.constant(np.nan, x_type).output(0)
                 values = ov_opset.select(
@@ -5767,8 +5767,10 @@ def unique(
             ov_opset.constant(0, Type.i32).output(0),
         ).output(0)
 
-        values_shape_after_trunc = ov_opset.shape_of(values, Type.i32).output(0)
         if dim == 0:
+            values_shape_after_trunc = ov_opset.shape_of(
+                values, Type.i32
+            ).output(0)
             tail_shape = ov_opset.slice(
                 values_shape_after_trunc,
                 ov_opset.constant([1], Type.i32).output(0),
