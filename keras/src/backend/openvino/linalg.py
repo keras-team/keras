@@ -562,11 +562,11 @@ def lu_factor(a):
         ov_opset.concat([ov_opset.unsqueeze(B_body, zero_const).output(0), ov_opset.unsqueeze(M_body, zero_const).output(0), ov_opset.unsqueeze(N_body, zero_const).output(0)], 0).output(0)
     ).output(0)
     
-    N_squared = ov_opset.multiply(M_body, N_body).output(0)
+    slice_stride = ov_opset.multiply(M_body, N_body).output(0)
     
     flat_indices = ov_opset.add(
         ov_opset.add(
-            ov_opset.multiply(b_coords, N_squared).output(0),
+            ov_opset.multiply(b_coords, slice_stride).output(0),
             ov_opset.multiply(r_coords, N_body).output(0)
         ).output(0),
         c_coords
