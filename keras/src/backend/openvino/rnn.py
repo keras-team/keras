@@ -1,3 +1,5 @@
+import logging
+
 import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Model
@@ -18,7 +20,8 @@ def _try_eval_constant(ov_output):
     """
     try:
         return convert_to_numpy(OpenVINOKerasTensor(ov_output))
-    except Exception:
+    except Exception as e:
+        logging.debug("_try_eval_constant: could not evaluate subgraph: %s", e)
         return None
 
 
