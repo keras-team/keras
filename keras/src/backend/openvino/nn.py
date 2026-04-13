@@ -10,6 +10,7 @@ from keras.src.backend.common.backend_utils import (
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import ov_to_keras_type
 
 
 def relu(x):
@@ -1082,11 +1083,97 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = get_ov_output(output)
     target_length = get_ov_output(target_length)
     output_length = get_ov_output(output_length)
+    # OpenVINO CTCLoss expects integer labels.
+    target = ov_opset.convert(target, Type.i32).output(0)
     ctc_loss_ = ov_opset.ctc_loss(
         output, output_length, target, target_length, blank_index=mask_index
     )
     ctc_loss_ = ov_opset.convert(ctc_loss_, OPENVINO_DTYPES[backend.floatx()])
     return OpenVINOKerasTensor(ctc_loss_.output(0))
+
+
+def _ctc_greedy_decode(
+    inputs,
+    sequence_lengths,
+    merge_repeated=True,
+    mask_index=0,
+):
+    inputs = get_ov_output(inputs)
+    sequence_lengths = ov_opset.convert(
+        get_ov_output(sequence_lengths), Type.i32
+    ).output(0)
+
+    dtype = backend.result_type(
+        ov_to_keras_type(inputs.get_element_type()), "float32"
+    )
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    inputs = ov_opset.convert(inputs, ov_dtype).output(0)
+
+    blank_index = ov_opset.convert(get_ov_output(mask_index), Type.i32).output(
+        0
+    )
+    decoded = ov_opset.ctc_greedy_decoder_seq_len(
+        inputs,
+        sequence_lengths,
+        blank_index,
+        merge_repeated=merge_repeated,
+    )
+    decoded_dense = decoded.output(0)
+    decoded_dense = ov_opset.unsqueeze(
+        decoded_dense, ov_opset.constant([0], Type.i32).output(0)
+    ).output(0)
+
+    class_axis = ov_opset.constant([2], Type.i32).output(0)
+    timestep_max = ov_opset.reduce_max(inputs, class_axis, False).output(0)
+    shape = ov_opset.shape_of(inputs).output(0)
+    time_dim = ov_opset.gather(
+        shape,
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant(0, Type.i32).output(0),
+    ).output(0)
+    time_dim = ov_opset.squeeze(
+        time_dim, ov_opset.constant([0], Type.i32).output(0)
+    ).output(0)
+    time_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32).output(0),
+        time_dim,
+        ov_opset.constant(1, Type.i32).output(0),
+        output_type=Type.i32,
+    ).output(0)
+    time_range = ov_opset.unsqueeze(
+        time_range, ov_opset.constant([0], Type.i32).output(0)
+    ).output(0)
+    seq_len = ov_opset.unsqueeze(
+        sequence_lengths, ov_opset.constant([1], Type.i32).output(0)
+    ).output(0)
+    valid_mask = ov_opset.less(time_range, seq_len).output(0)
+    zeros = ov_opset.constant(0.0, ov_dtype).output(0)
+    timestep_max = ov_opset.select(valid_mask, timestep_max, zeros).output(0)
+    score = ov_opset.reduce_sum(
+        timestep_max,
+        ov_opset.constant([1], Type.i32).output(0),
+        False,
+    ).output(0)
+    score = ov_opset.negative(score).output(0)
+    score = ov_opset.unsqueeze(
+        score, ov_opset.constant([1], Type.i32).output(0)
+    ).output(0)
+
+    return OpenVINOKerasTensor(decoded_dense), OpenVINOKerasTensor(score)
+
+
+def _ctc_beam_search_decode(
+    inputs,
+    sequence_lengths,
+    beam_width=100,
+    top_paths=1,
+    mask_index=0,
+):
+    raise NotImplementedError(
+        "OpenVINO CTC beam-search decode is not yet supported. "
+        "The current Keras beam-search algorithm requires path dedup/merge "
+        "via `unique`, and OpenVINO backend `unique` is not implemented yet."
+    )
 
 
 def ctc_decode(
@@ -1098,8 +1185,24 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=0,
 ):
-    raise NotImplementedError(
-        "`ctc_decode` is not supported with openvino backend"
+    if strategy not in ("greedy", "beam_search"):
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
+        )
+    if strategy == "greedy":
+        return _ctc_greedy_decode(
+            inputs,
+            sequence_lengths,
+            merge_repeated=merge_repeated,
+            mask_index=mask_index,
+        )
+    return _ctc_beam_search_decode(
+        inputs,
+        sequence_lengths,
+        beam_width=beam_width,
+        top_paths=top_paths,
+        mask_index=mask_index,
     )
 
 

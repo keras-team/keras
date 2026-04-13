@@ -183,6 +183,10 @@ class BaseSeparableConv(Layer):
             self.filters,
         )
 
+        # compute_output_shape contains some validation logic for the input
+        # shape, and makes sure the output shape has all positive dimensions.
+        self.compute_output_shape(input_shape)
+
         self.depthwise_kernel = self.add_weight(
             name="depthwise_kernel",
             shape=depthwise_kernel_shape,
