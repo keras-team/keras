@@ -26,6 +26,8 @@ jobs:
 
     name: ${{ format('Run tests on {0}TPU', matrix.multi_device && 'multi-' || '') }}
     runs-on: ${{ matrix.multi_device && 'linux-x86-ct5lp-112-4tpu' || 'linux-x86-ct6e-44-1tpu' }}
+    timeout-minutes: 120
+
     # Only run on pushes to master, releases or "kokoro:force-run" unlabel
     if: |
       github.event_name == 'push' ||

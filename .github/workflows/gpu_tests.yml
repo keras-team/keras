@@ -20,6 +20,8 @@ jobs:
   test-in-container:
     name: Run tests on GPU
     runs-on: linux-x86-g2-16-l4-1gpu
+    timeout-minutes: 120
+
     # Only run on pushes to master, releases or "kokoro:force-run" unlabel
     if: |
       github.event_name == 'push' ||
