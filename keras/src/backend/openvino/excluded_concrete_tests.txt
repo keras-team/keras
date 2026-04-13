@@ -1,7 +1,3 @@
-ConvLSTM1DTest::test_correctness
-ConvLSTM2DTest::test_correctness
-ConvLSTM3DTest::test_correctness
-ConvLSTMTest::test_correctness
 CTCTest::test_correctness
 CTCTest::test_dtype_arg
 EqualizationTest::test_constant_regions
