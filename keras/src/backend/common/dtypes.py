@@ -51,7 +51,6 @@ PYTHON_DTYPES_MAP = {
     str: "string",
     # special case for string value
     "int": "int64" if config.backend() == "tensorflow" else "int32",
-    "bfloat16": "float32",
     complex: "complex128" if config.backend() == "tensorflow" else "complex64",
 }
 
