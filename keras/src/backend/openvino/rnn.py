@@ -20,7 +20,7 @@ def _try_eval_constant(ov_output):
     """
     try:
         return convert_to_numpy(OpenVINOKerasTensor(ov_output))
-    except Exception as e:
+    except (RuntimeError, ValueError, TypeError) as e:
         logging.debug("_try_eval_constant: could not evaluate subgraph: %s", e)
         return None
 
@@ -192,33 +192,34 @@ def _rnn_unrolled(
     constants = constants or []
     flattened_constants = tree.flatten(constants)
 
-    def _slice_at(x, t):
+    axis_0 = ov_opset.constant(0, dtype=Type.i32).output(0)
+
+    def _slice_at(x, t_const):
         x_ov = get_ov_output(x)
         return OpenVINOKerasTensor(
-            ov_opset.gather(
-                x_ov,
-                ov_opset.constant(t, dtype=Type.i32).output(0),
-                ov_opset.constant(0, dtype=Type.i32).output(0),
-            ).output(0)
+            ov_opset.gather(x_ov, t_const, axis_0).output(0)
         )
+
+    # Build constant wrappers for invariant inputs once, outside the time loop.
+    constants_ov = [
+        OpenVINOKerasTensor(get_ov_output(c)) for c in flattened_constants
+    ]
 
     states = list(initial_states)
     successive_outputs = []
     last_output = None
 
     for t in range(num_time_steps):
-        inp_t = tree.map_structure(lambda x, t=t: _slice_at(x, t), inputs)
-        constants_t = [
-            OpenVINOKerasTensor(get_ov_output(c)) for c in flattened_constants
-        ]
+        t_const = ov_opset.constant(t, dtype=Type.i32).output(0)
+        inp_t = tree.map_structure(lambda x: _slice_at(x, t_const), inputs)
         output_t, new_states = step_function(
-            inp_t, tuple(states) + tuple(constants_t)
+            inp_t, tuple(states) + tuple(constants_ov)
         )
         if not tree.is_nested(new_states):
             new_states = [new_states]
 
         if mask is not None:
-            mask_t_ov = get_ov_output(_slice_at(mask, t))
+            mask_t_ov = get_ov_output(_slice_at(mask, t_const))
             flat_new = tree.flatten(new_states)
             flat_old = tree.flatten(states)
             masked_states = []
