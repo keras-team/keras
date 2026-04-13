@@ -2,8 +2,6 @@ ConvLSTM1DTest::test_correctness
 ConvLSTM2DTest::test_correctness
 ConvLSTM3DTest::test_correctness
 ConvLSTMTest::test_correctness
-CTCTest::test_correctness
-CTCTest::test_dtype_arg
 EqualizationTest::test_constant_regions
 EqualizationTest::test_different_bin_sizes
 EqualizationTest::test_equalizes_to_all_bins
@@ -51,7 +49,6 @@ MathOpsCorrectnessTest::test_logdet
 MeanTest::test_weighted_dynamic_shapes
 MergingLayersTest::test_average_with_mask
 MetricWrapperTest::test_weighted_dynamic_shape
-NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_polar_corectness
 NNOpsDtypeTest::test_ctc_decode
