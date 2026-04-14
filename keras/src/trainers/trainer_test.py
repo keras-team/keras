@@ -224,7 +224,7 @@ def create_dataset(dataset_type, dataset_kwargs):
             return generate_infinite(), None
         else:
             return generate_finite(), None
-    elif dataset_type == "grain_datast":
+    elif dataset_type == "grain_dataset":
         import grain
 
         class TestIterableDataset(grain.sources.RandomAccessDataSource):
@@ -642,18 +642,18 @@ class TestTrainer(testing.TestCase):
                 "fit_kwargs": {"steps_per_epoch": 20},
             },
             {
-                "testcase_name": "grain_datast",
-                "dataset_type": "grain_datast",
+                "testcase_name": "grain_dataset",
+                "dataset_type": "grain_dataset",
                 "dataset_kwargs": {"has_len": False},
             },
             {
-                "testcase_name": "grain_datast_with_len",
-                "dataset_type": "grain_datast",
+                "testcase_name": "grain_dataset_with_len",
+                "dataset_type": "grain_dataset",
                 "dataset_kwargs": {"has_len": True},
             },
             {
                 "testcase_name": "grain_dataloader",
-                "dataset_type": "grain_datast",
+                "dataset_type": "grain_dataset",
                 "dataset_kwargs": {"use_dataloader": True},
             },
         ]
@@ -666,9 +666,9 @@ class TestTrainer(testing.TestCase):
         if dataset_kwargs.get("use_multiprocessing", False):
             if backend.backend() == "jax":
                 pytest.skip("Multiprocessing not supported with JAX backend")
-            elif testing.tensorflow_uses_gpu():
-                pytest.skip("Multiprocessing crashes on Tensorflow with GPU")
-        if dataset_type == "grain_datast" and backend.backend() == "torch":
+            elif backend.backend() == "tensorflow":
+                pytest.skip("Multiprocessing hangs on Tensorflow")
+        if dataset_type == "grain_dataset" and backend.backend() == "torch":
             # Grain datasets are not supported with torch + jit_compile.
             jit_compile = False
 
