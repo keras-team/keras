@@ -220,11 +220,6 @@ class DepthwiseConvBasicTest(testing.TestCase):
         input_shape,
         output_shape,
     ):
-        if data_format == "channels_first" and backend.backend() == "openvino":
-            self.skipTest(
-                "OpenVINO backend does not support channels_first for "
-                "depthwise_conv."
-            )
         self.run_layer_test(
             layers.DepthwiseConv1D,
             init_kwargs={
@@ -393,11 +388,6 @@ class DepthwiseConvCorrectnessTest(testing.TestCase):
         data_format,
         dilation_rate,
     ):
-        if data_format == "channels_first" and backend.backend() == "openvino":
-            self.skipTest(
-                "OpenVINO backend does not support channels_first for "
-                "depthwise_conv."
-            )
         layer = layers.DepthwiseConv1D(
             depth_multiplier=depth_multiplier,
             kernel_size=kernel_size,

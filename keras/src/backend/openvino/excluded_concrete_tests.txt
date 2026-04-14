@@ -1,3 +1,5 @@
+DepthwiseConvBasicTest::test_depthwise_conv1d_basic3
+DepthwiseConvCorrectnessTest::test_depthwise_conv1d3
 EqualizationTest::test_constant_regions
 EqualizationTest::test_different_bin_sizes
 EqualizationTest::test_equalizes_to_all_bins

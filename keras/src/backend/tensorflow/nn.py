@@ -866,25 +866,37 @@ def depthwise_conv(
         # `tf.nn.depthwise_conv2d` does not support `channels_first` with
         # dilations on CPU. Transpose to `channels_last`, compute, and
         # transpose back to avoid the limitation.
-        if data_format == "channels_first":
+        need_transpose = data_format == "channels_first" and all(
+            d.device_type == "CPU"
+            for d in tf.config.list_logical_devices()
+        )
+        if need_transpose:
             inputs = _transpose_spatial_inputs(inputs)
-        strides = (1,) + strides * 2 + (1,)
-        spatial_start_dim = 1
+        if need_transpose or data_format == "channels_last":
+            strides = (1,) + strides * 2 + (1,)
+            spatial_start_dim = 1
+        else:
+            strides = (1, 1) + strides * 2
+            spatial_start_dim = 2
         inputs = tf.expand_dims(inputs, spatial_start_dim)
         kernel = tf.expand_dims(kernel, axis=0)
 
         dilation_rate = None if dilation_rate is None else (1,) + dilation_rate
 
+        if need_transpose or data_format == "channels_last":
+            conv_data_format = _convert_data_format("channels_last", 4)
+        else:
+            conv_data_format = _convert_data_format("channels_first", 4)
         outputs = tf.nn.depthwise_conv2d(
             inputs,
             kernel,
             strides,
             padding,
-            data_format=_convert_data_format("channels_last", 4),
+            data_format=conv_data_format,
             dilations=dilation_rate,
         )
         outputs = tf.squeeze(outputs, [spatial_start_dim])
-        if data_format == "channels_first":
+        if need_transpose:
             outputs = _transpose_spatial_outputs(outputs)
         return outputs
 
