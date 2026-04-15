@@ -5978,10 +5978,10 @@ class Nanpercentile(Operation):
         if hasattr(q, "shape"):
             if len(q.shape) > 0:
                 output_shape = (q.shape[0],) + output_shape
-        elif isinstance(q, (list, tuple)) and len(q) > 1:
+        elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if backend.standardize_dtype(x.dtype) == "int64":
+        if backend.is_int_dtype(x.dtype):
             dtype = backend.floatx()
         else:
             dtype = dtypes.result_type(x.dtype, float)

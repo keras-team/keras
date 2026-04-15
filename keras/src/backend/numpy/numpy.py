@@ -1095,6 +1095,7 @@ def nanmin(x, axis=None, keepdims=False):
 
 def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
     ori_dtype = standardize_dtype(x.dtype)
     if ori_dtype == "bool":
         x = x.astype(config.floatx())
