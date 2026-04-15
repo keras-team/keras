@@ -434,8 +434,417 @@ def inv(a):
 
 
 def lu_factor(a):
-    raise NotImplementedError(
-        "`lu_factor` is not supported with openvino backend"
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    a_ov_type = a_ov.get_element_type()
+
+    if not a_ov_type.is_real():
+        a_ov = ov_opset.convert(a_ov, Type.f32).output(0)
+        out_ov_type = Type.f32
+    else:
+        out_ov_type = a_ov_type
+
+    original_type = out_ov_type
+    if original_type == Type.f64:
+        a_ov = ov_opset.convert(a_ov, Type.f32).output(0)
+        out_ov_type = Type.f32
+
+    zero_const = ov_opset.constant(0, Type.i32).output(0)
+    one_const = ov_opset.constant(1, Type.i32).output(0)
+    minus_one_const = ov_opset.constant(-1, Type.i32).output(0)
+    minus_2 = ov_opset.constant(-2, Type.i32).output(0)
+    a_shape = ov_opset.shape_of(a_ov, Type.i32).output(0)
+    rank = a_ov.get_partial_shape().rank.get_length()
+
+    M_node = ov_opset.gather(a_shape, minus_2, zero_const).output(0)
+    N_node = ov_opset.gather(a_shape, minus_one_const, zero_const).output(0)
+    K_node = ov_opset.minimum(M_node, N_node).output(0)
+
+    if rank == 2:
+        B_node = ov_opset.constant(1, Type.i32).output(0)
+        batch_shape = ov_opset.constant([], Type.i32).output(0)
+    else:
+        batch_shape = ov_opset.slice(
+            a_shape,
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant([-2], Type.i32).output(0),
+            ov_opset.constant([1], Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+        ).output(0)
+        B_node = ov_opset.reduce_prod(batch_shape, zero_const, False).output(0)
+
+    flat_shape = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(B_node, zero_const).output(0),
+            ov_opset.unsqueeze(M_node, zero_const).output(0),
+            ov_opset.unsqueeze(N_node, zero_const).output(0),
+        ],
+        0,
+    ).output(0)
+    A_flat = ov_opset.reshape(a_ov, flat_shape, False).output(0)
+
+    range_M = ov_opset.range(
+        zero_const, M_node, one_const, output_type=Type.i32
+    ).output(0)
+    P_init = ov_opset.broadcast(
+        ov_opset.unsqueeze(range_M, zero_const).output(0),
+        ov_opset.concat(
+            [
+                ov_opset.unsqueeze(B_node, zero_const).output(0),
+                ov_opset.unsqueeze(M_node, zero_const).output(0),
+            ],
+            axis=0,
+        ).output(0),
+    ).output(0)
+
+    loop = ov_opset.loop(
+        K_node, ov_opset.constant(True, Type.boolean).output(0)
+    )
+
+    A_body_param = ov_opset.parameter(
+        A_flat.get_partial_shape(), out_ov_type, name="A_curr"
+    )
+    P_body_param = ov_opset.parameter(
+        P_init.get_partial_shape(), Type.i32, name="P_curr"
+    )
+    k_param = ov_opset.parameter([], Type.i32, name="k")
+    B_body_param = ov_opset.parameter([], Type.i32, name="B_node_body")
+    M_body_param = ov_opset.parameter([], Type.i32, name="M_node_body")
+    N_body_param = ov_opset.parameter([], Type.i32, name="N_node_body")
+
+    A_curr = A_body_param.output(0)
+    P_curr = P_body_param.output(0)
+    k = k_param.output(0)
+    k_plus_1 = ov_opset.add(k, one_const).output(0)
+    B_body = B_body_param.output(0)
+    M_body = M_body_param.output(0)
+    N_body = N_body_param.output(0)
+
+    A_k_col_slice1 = ov_opset.slice(
+        A_curr,
+        ov_opset.unsqueeze(k, zero_const).output(0),
+        ov_opset.unsqueeze(M_body, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+    ).output(0)
+
+    A_k_col_elem = ov_opset.slice(
+        A_k_col_slice1,
+        ov_opset.unsqueeze(k, zero_const).output(0),
+        ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([2], Type.i32).output(0),
+    ).output(0)
+
+    A_k_col_abs = ov_opset.abs(A_k_col_elem).output(0)
+
+    topk = ov_opset.topk(
+        A_k_col_abs, ov_opset.constant(1, Type.i32), 1, "max", "value"
+    )
+    p_rel = topk.output(1)
+    p_rel_sq = ov_opset.squeeze(
+        p_rel, ov_opset.constant([1, 2], Type.i32).output(0)
+    ).output(0)
+    p = ov_opset.add(p_rel_sq, k).output(0)
+
+    indices = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            ov_opset.range(
+                zero_const, M_body, one_const, output_type=Type.i32
+            ).output(0),
+            zero_const,
+        ).output(0),
+        ov_opset.concat(
+            [
+                ov_opset.unsqueeze(B_body, zero_const).output(0),
+                ov_opset.unsqueeze(M_body, zero_const).output(0),
+            ],
+            axis=0,
+        ).output(0),
+    ).output(0)
+
+    B_range = ov_opset.range(
+        zero_const, B_body, one_const, output_type=Type.i32
+    ).output(0)
+    b_unsqueezed = ov_opset.unsqueeze(B_range, one_const).output(0)
+    k_b = ov_opset.broadcast(
+        ov_opset.unsqueeze(k, zero_const).output(0),
+        ov_opset.unsqueeze(B_body, zero_const).output(0),
+    ).output(0)
+    k_b_unsqueezed = ov_opset.unsqueeze(k_b, one_const).output(0)
+    p_unsqueezed = ov_opset.unsqueeze(p, one_const).output(0)
+
+    upd_k_indices = ov_opset.concat([b_unsqueezed, k_b_unsqueezed], 1).output(0)
+    upd_p_indices = ov_opset.concat([b_unsqueezed, p_unsqueezed], 1).output(0)
+
+    indices = ov_opset.scatter_nd_update(indices, upd_k_indices, p).output(0)
+    indices = ov_opset.scatter_nd_update(indices, upd_p_indices, k_b).output(0)
+
+    A_curr_flat = ov_opset.reshape(
+        A_curr, ov_opset.constant([-1], Type.i32).output(0), False
+    ).output(0)
+
+    b_coords = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(B_range, one_const).output(0),
+            ov_opset.constant(2, Type.i32).output(0),
+        ).output(0),
+        ov_opset.concat(
+            [
+                ov_opset.unsqueeze(B_body, zero_const).output(0),
+                ov_opset.unsqueeze(M_body, zero_const).output(0),
+                ov_opset.unsqueeze(N_body, zero_const).output(0),
+            ],
+            0,
+        ).output(0),
+    ).output(0)
+
+    r_coords = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            indices, ov_opset.constant(2, Type.i32).output(0)
+        ).output(0),
+        ov_opset.concat(
+            [
+                ov_opset.unsqueeze(B_body, zero_const).output(0),
+                ov_opset.unsqueeze(M_body, zero_const).output(0),
+                ov_opset.unsqueeze(N_body, zero_const).output(0),
+            ],
+            0,
+        ).output(0),
+    ).output(0)
+
+    c_coords = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(
+                ov_opset.range(
+                    zero_const, N_body, one_const, output_type=Type.i32
+                ).output(0),
+                zero_const,
+            ).output(0),
+            zero_const,
+        ).output(0),
+        ov_opset.concat(
+            [
+                ov_opset.unsqueeze(B_body, zero_const).output(0),
+                ov_opset.unsqueeze(M_body, zero_const).output(0),
+                ov_opset.unsqueeze(N_body, zero_const).output(0),
+            ],
+            0,
+        ).output(0),
+    ).output(0)
+
+    slice_stride = ov_opset.multiply(M_body, N_body).output(0)
+
+    flat_indices = ov_opset.add(
+        ov_opset.add(
+            ov_opset.multiply(b_coords, slice_stride).output(0),
+            ov_opset.multiply(r_coords, N_body).output(0),
+        ).output(0),
+        c_coords,
+    ).output(0)
+
+    flat_indices_1d = ov_opset.reshape(
+        flat_indices, ov_opset.constant([-1], Type.i32).output(0), False
+    ).output(0)
+
+    A_swapped_flat = ov_opset.gather(
+        A_curr_flat, flat_indices_1d, zero_const
+    ).output(0)
+    A_swapped = ov_opset.reshape(
+        A_swapped_flat,
+        ov_opset.concat(
+            [
+                ov_opset.unsqueeze(B_body, zero_const).output(0),
+                ov_opset.unsqueeze(M_body, zero_const).output(0),
+                ov_opset.unsqueeze(N_body, zero_const).output(0),
+            ],
+            0,
+        ).output(0),
+        False,
+    ).output(0)
+
+    A_k_k = ov_opset.slice(
+        A_swapped,
+        ov_opset.unsqueeze(k, zero_const).output(0),
+        ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+    ).output(0)
+    A_k_k = ov_opset.slice(
+        A_k_k,
+        ov_opset.unsqueeze(k, zero_const).output(0),
+        ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([2], Type.i32).output(0),
+    ).output(0)
+
+    A_k1_end_k = ov_opset.slice(
+        A_swapped,
+        ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+        ov_opset.unsqueeze(M_body, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+    ).output(0)
+    A_k1_end_k = ov_opset.slice(
+        A_k1_end_k,
+        ov_opset.unsqueeze(k, zero_const).output(0),
+        ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([2], Type.i32).output(0),
+    ).output(0)
+
+    zero_f32 = ov_opset.constant(0.0, out_ov_type).output(0)
+    is_zero = ov_opset.equal(A_k_k, zero_f32).output(0)
+    A_k_k_safe = ov_opset.select(
+        is_zero, ov_opset.constant(1e-10, out_ov_type).output(0), A_k_k
+    ).output(0)
+
+    L_col = ov_opset.divide(A_k1_end_k, A_k_k_safe).output(0)
+
+    pads_begin = ov_opset.concat(
+        [
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+            ov_opset.unsqueeze(k, zero_const).output(0),
+        ],
+        0,
+    ).output(0)
+    pads_end = ov_opset.concat(
+        [
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.unsqueeze(
+                ov_opset.subtract(N_body, k_plus_1).output(0), zero_const
+            ).output(0),
+        ],
+        0,
+    ).output(0)
+
+    L_col_padded = ov_opset.pad(L_col, pads_begin, pads_end, "constant").output(
+        0
+    )
+
+    row_range_body = ov_opset.range(
+        zero_const, M_body, one_const, output_type=Type.i32
+    ).output(0)
+    col_range_body = ov_opset.range(
+        zero_const, N_body, one_const, output_type=Type.i32
+    ).output(0)
+    row_mask = ov_opset.greater(row_range_body, k).output(0)
+    col_mask = ov_opset.equal(col_range_body, k).output(0)
+
+    row_mask_3d = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(row_mask, zero_const).output(0),
+            ov_opset.constant(2, Type.i32).output(0),
+        ).output(0),
+        ov_opset.shape_of(A_curr, Type.i32).output(0),
+    ).output(0)
+    col_mask_3d = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(col_mask, zero_const).output(0),
+            ov_opset.constant(1, Type.i32).output(0),
+        ).output(0),
+        ov_opset.shape_of(A_curr, Type.i32).output(0),
+    ).output(0)
+    update_mask = ov_opset.logical_and(row_mask_3d, col_mask_3d).output(0)
+
+    A_masked = ov_opset.select(update_mask, L_col_padded, A_swapped).output(0)
+
+    A_k_k1_end = ov_opset.slice(
+        A_swapped,
+        ov_opset.unsqueeze(k, zero_const).output(0),
+        ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+    ).output(0)
+    A_k_k1_end = ov_opset.slice(
+        A_k_k1_end,
+        ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+        ov_opset.unsqueeze(N_body, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([2], Type.i32).output(0),
+    ).output(0)
+
+    outer_prod = ov_opset.matmul(L_col, A_k_k1_end, False, False).output(0)
+
+    outer_prod_padded = ov_opset.pad(
+        outer_prod,
+        ov_opset.concat(
+            [
+                ov_opset.constant([0], Type.i32).output(0),
+                ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+                ov_opset.unsqueeze(k_plus_1, zero_const).output(0),
+            ],
+            0,
+        ).output(0),
+        ov_opset.constant([0, 0, 0], Type.i32).output(0),
+        "constant",
+    ).output(0)
+
+    A_next = ov_opset.subtract(A_masked, outer_prod_padded).output(0)
+
+    P_next = ov_opset.scatter_nd_update(P_curr, upd_k_indices, p).output(0)
+
+    k_next = ov_opset.add(k, one_const).output(0)
+    cond = ov_opset.constant(True, Type.boolean).output(0)
+
+    body = Model(
+        [A_next, P_next, k_next, cond],
+        [
+            A_body_param,
+            P_body_param,
+            k_param,
+            B_body_param,
+            M_body_param,
+            N_body_param,
+        ],
+    )
+    loop.set_function(body)
+    loop.set_special_body_ports([-1, 3])
+
+    loop.set_merged_input(A_body_param, A_flat, A_next)
+    loop.set_merged_input(P_body_param, P_init, P_next)
+    loop.set_merged_input(k_param, zero_const, k_next)
+    loop.set_invariant_input(B_body_param, B_node)
+    loop.set_invariant_input(M_body_param, M_node)
+    loop.set_invariant_input(N_body_param, N_node)
+
+    A_out = loop.get_iter_value(A_next, -1)
+    P_out = loop.get_iter_value(P_next, -1)
+
+    P_out = ov_opset.slice(
+        P_out,
+        ov_opset.constant([0], Type.i32).output(0),
+        ov_opset.unsqueeze(K_node, zero_const).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+    ).output(0)
+
+    if rank == 2:
+        A_out_final = ov_opset.squeeze(A_out, zero_const).output(0)
+        P_out_final = ov_opset.squeeze(P_out, zero_const).output(0)
+    else:
+        A_out_shape = ov_opset.concat(
+            [
+                batch_shape,
+                ov_opset.unsqueeze(M_node, zero_const).output(0),
+                ov_opset.unsqueeze(N_node, zero_const).output(0),
+            ],
+            0,
+        ).output(0)
+        P_out_shape = ov_opset.concat(
+            [batch_shape, ov_opset.unsqueeze(K_node, zero_const).output(0)], 0
+        ).output(0)
+        A_out_final = ov_opset.reshape(A_out, A_out_shape, False).output(0)
+        P_out_final = ov_opset.reshape(P_out, P_out_shape, False).output(0)
+
+    if original_type == Type.f64:
+        A_out_final = ov_opset.convert(A_out_final, Type.f64).output(0)
+
+    return (
+        OpenVINOKerasTensor(A_out_final),
+        OpenVINOKerasTensor(P_out_final),
     )
 
 
