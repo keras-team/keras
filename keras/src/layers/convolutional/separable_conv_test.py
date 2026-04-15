@@ -189,7 +189,6 @@ class SeparableConvBasicTest(testing.TestCase):
                 strides=(1, 0),
             )
 
-
     def test_invalid_output_shape_raises(self):
         # Regression test for https://github.com/keras-team/keras/issues/22496
         # SeparableConv1D used to silently produce a wrong-shaped output (and
@@ -218,6 +217,7 @@ class SeparableConvBasicTest(testing.TestCase):
             r"Computed output size would be zero or negative.",
         ):
             layer2(x2)
+
 
 class SeparableConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
