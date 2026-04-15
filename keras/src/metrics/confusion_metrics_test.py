@@ -402,7 +402,7 @@ class PrecisionTest(testing.TestCase):
         y_pred = np.array([1, 0, 1, 0])
         y_true = np.array([0, 1, 1, 0])
         result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(0.5, result)
+        self.assertAlmostEqual(result, 0.5)
 
     def test_unweighted_all_incorrect(self):
         p_obj = metrics.Precision(thresholds=[0.5])
@@ -410,7 +410,7 @@ class PrecisionTest(testing.TestCase):
         y_pred = np.array(inputs)
         y_true = np.array(1 - inputs)
         result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(0, result)
+        self.assertAlmostEqual(result, 0)
 
     def test_weighted(self):
         p_obj = metrics.Precision()
@@ -424,7 +424,7 @@ class PrecisionTest(testing.TestCase):
         weighted_tp = 3.0 + 4.0
         weighted_positives = (1.0 + 3.0) + (4.0 + 2.0)
         expected_precision = weighted_tp / weighted_positives
-        self.assertAlmostEqual(expected_precision, result)
+        self.assertAlmostEqual(result, expected_precision)
 
     def test_div_by_zero(self):
         p_obj = metrics.Precision()
@@ -438,7 +438,7 @@ class PrecisionTest(testing.TestCase):
         y_pred = np.array([1, 0, 0.6, 0])
         y_true = np.array([0, 1, 1, 0])
         result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual([0.5, 0.0], result, 0)
+        self.assertAlmostEqual(result, [0.5, 0.0], 0)
 
     def test_weighted_with_threshold(self):
         p_obj = metrics.Precision(thresholds=[0.5, 1.0])
@@ -449,7 +449,7 @@ class PrecisionTest(testing.TestCase):
         weighted_tp = 0 + 3.0
         weighted_positives = (0 + 3.0) + (4.0 + 0.0)
         expected_precision = weighted_tp / weighted_positives
-        self.assertAlmostEqual([expected_precision, 0], result, 1e-3)
+        self.assertAlmostEqual(result, [expected_precision, 0])
 
     def test_multiple_updates(self):
         p_obj = metrics.Precision(thresholds=[0.5, 1.0])
@@ -464,14 +464,14 @@ class PrecisionTest(testing.TestCase):
             (0 + 3.0) + (4.0 + 0.0)
         )
         expected_precision = weighted_tp / weighted_positives
-        self.assertAlmostEqual([expected_precision, 0], p_obj.result(), 1e-3)
+        self.assertAlmostEqual(p_obj.result(), [expected_precision, 0])
 
     def test_unweighted_top_k(self):
         p_obj = metrics.Precision(top_k=3)
         y_pred = np.array([0.2, 0.1, 0.5, 0, 0.2])
         y_true = np.array([0, 1, 1, 0, 0])
         result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(1.0 / 3, result)
+        self.assertAlmostEqual(result, 1.0 / 3)
 
     def test_weighted_top_k(self):
         p_obj = metrics.Precision(top_k=3)
@@ -486,7 +486,7 @@ class PrecisionTest(testing.TestCase):
         tp = (2 + 5) + (3 + 3)
         predicted_positives = (1 + 2 + 5) + (3 + 3 + 3)
         expected_precision = tp / predicted_positives
-        self.assertAlmostEqual(expected_precision, result)
+        self.assertAlmostEqual(result, expected_precision)
 
     def test_unweighted_class_id_should_throw_error_1d(self):
         p_obj = metrics.Precision(class_id=2)
@@ -525,9 +525,9 @@ class PrecisionTest(testing.TestCase):
         )
 
         result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(1.0, result)
-        self.assertAlmostEqual(1.0, p_obj.true_positives)
-        self.assertAlmostEqual(0.0, p_obj.false_positives)
+        self.assertAlmostEqual(result, 1.0)
+        self.assertAlmostEqual(p_obj.true_positives, 1.0)
+        self.assertAlmostEqual(p_obj.false_positives, 0.0)
 
     def test_unweighted_top_k_and_threshold(self):
         p_obj = metrics.Precision(thresholds=0.7, top_k=2)
@@ -535,9 +535,9 @@ class PrecisionTest(testing.TestCase):
         y_pred = np.array([0.2, 0.8, 0.6, 0, 0.2])
         y_true = np.array([0, 1, 1, 0, 1])
         result = p_obj(y_true, y_pred)
-        self.assertAlmostEqual(1, result)
-        self.assertAlmostEqual(1, p_obj.true_positives)
-        self.assertAlmostEqual(0, p_obj.false_positives)
+        self.assertAlmostEqual(result, 1)
+        self.assertAlmostEqual(p_obj.true_positives, 1)
+        self.assertAlmostEqual(p_obj.false_positives, 0)
 
 
 class RecallTest(testing.TestCase):
@@ -567,14 +567,14 @@ class RecallTest(testing.TestCase):
         r_obj = metrics.Recall()
         y_pred = np.array([1, 0, 1, 0])
         y_true = np.array([0, 1, 1, 0])
-        self.assertAlmostEqual(0.5, r_obj(y_true, y_pred))
+        self.assertAlmostEqual(r_obj(y_true, y_pred), 0.5)
 
     def test_unweighted_all_incorrect(self):
         r_obj = metrics.Recall(thresholds=[0.5])
         inputs = np.random.randint(0, 2, size=(100, 1))
         y_pred = np.array(inputs)
         y_true = np.array(1 - inputs)
-        self.assertAlmostEqual(0, r_obj(y_true, y_pred))
+        self.assertAlmostEqual(r_obj(y_true, y_pred), 0)
 
     def test_weighted(self):
         r_obj = metrics.Recall()
@@ -588,7 +588,7 @@ class RecallTest(testing.TestCase):
         weighted_tp = 3.0 + 1.0
         weighted_t = (2.0 + 3.0) + (4.0 + 1.0)
         expected_recall = weighted_tp / weighted_t
-        self.assertAlmostEqual(expected_recall, result)
+        self.assertAlmostEqual(result, expected_recall)
 
     def test_div_by_zero(self):
         r_obj = metrics.Recall()
@@ -632,7 +632,7 @@ class RecallTest(testing.TestCase):
         r_obj = metrics.Recall(top_k=3)
         y_pred = np.array([0.2, 0.1, 0.5, 0, 0.2])
         y_true = np.array([0, 1, 1, 0, 0])
-        self.assertAlmostEqual(0.5, r_obj(y_true, y_pred))
+        self.assertAlmostEqual(r_obj(y_true, y_pred), 0.5)
 
     def test_weighted_top_k(self):
         r_obj = metrics.Recall(top_k=3)
@@ -647,7 +647,7 @@ class RecallTest(testing.TestCase):
         tp = (2 + 5) + (3 + 3)
         positives = (4 + 2 + 5) + (3 + 3 + 3 + 3)
         expected_recall = tp / positives
-        self.assertAlmostEqual(expected_recall, result)
+        self.assertAlmostEqual(result, expected_recall)
 
     def test_unweighted_class_id_should_throw_error_1d(self):
         r_obj = metrics.Recall(class_id=2)
@@ -686,18 +686,18 @@ class RecallTest(testing.TestCase):
         )
 
         result = r_obj(y_true, y_pred)
-        self.assertAlmostEqual(1.0, result)
-        self.assertAlmostEqual(1.0, r_obj.true_positives)
-        self.assertAlmostEqual(0.0, r_obj.false_negatives)
+        self.assertAlmostEqual(result, 1.0)
+        self.assertAlmostEqual(r_obj.true_positives, 1.0)
+        self.assertAlmostEqual(r_obj.false_negatives, 0.0)
 
     def test_unweighted_top_k_and_threshold(self):
         r_obj = metrics.Recall(thresholds=0.7, top_k=2)
 
         y_pred = np.array([0.2, 0.8, 0.6, 0, 0.2])
         y_true = np.array([1, 1, 1, 0, 1])
-        self.assertAlmostEqual(0.25, r_obj(y_true, y_pred))
-        self.assertAlmostEqual(1, r_obj.true_positives)
-        self.assertAlmostEqual(3, r_obj.false_negatives)
+        self.assertAlmostEqual(r_obj(y_true, y_pred), 0.25)
+        self.assertAlmostEqual(r_obj.true_positives, 1)
+        self.assertAlmostEqual(r_obj.false_negatives, 3)
 
 
 class SensitivityAtSpecificityTest(testing.TestCase):
@@ -729,7 +729,7 @@ class SensitivityAtSpecificityTest(testing.TestCase):
         inputs = np.random.randint(0, 2, size=(100, 1))
         y_pred = np.array(inputs, dtype="float32")
         y_true = np.array(inputs)
-        self.assertAlmostEqual(1, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 1)
 
     def test_unweighted_high_specificity(self):
         s_obj = metrics.SensitivityAtSpecificity(0.8)
@@ -739,7 +739,7 @@ class SensitivityAtSpecificityTest(testing.TestCase):
         y_pred = np.array(pred_values, dtype="float32")
         y_true = np.array(label_values)
 
-        self.assertAlmostEqual(0.8, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.8)
 
     def test_unweighted_low_specificity(self):
         s_obj = metrics.SensitivityAtSpecificity(0.4)
@@ -749,7 +749,7 @@ class SensitivityAtSpecificityTest(testing.TestCase):
         y_pred = np.array(pred_values, dtype="float32")
         y_true = np.array(label_values)
 
-        self.assertAlmostEqual(0.6, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.6)
 
     def test_unweighted_class_id(self):
         s_obj = metrics.SpecificityAtSensitivity(0.4, class_id=2)
@@ -759,7 +759,7 @@ class SensitivityAtSpecificityTest(testing.TestCase):
         y_pred = ops.transpose(np.array([pred_values] * 3))
         y_true = ops.one_hot(np.array(label_values), num_classes=3)
 
-        self.assertAlmostEqual(0.6, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.6)
 
     @parameterized.parameters(["bool", "int32", "float32"])
     def test_weighted(self, label_dtype):
@@ -773,7 +773,7 @@ class SensitivityAtSpecificityTest(testing.TestCase):
         weights = np.array(weight_values)
 
         result = s_obj(y_true, y_pred, sample_weight=weights)
-        self.assertAlmostEqual(0.675, result)
+        self.assertAlmostEqual(result, 0.675)
 
     def test_invalid_specificity(self):
         with self.assertRaisesRegex(
@@ -832,7 +832,7 @@ class SpecificityAtSensitivityTest(testing.TestCase):
         y_pred = np.array(inputs, dtype="float32")
         y_true = np.array(inputs)
 
-        self.assertAlmostEqual(1, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 1)
 
     def test_unweighted_high_sensitivity(self):
         s_obj = metrics.SpecificityAtSensitivity(1.0)
@@ -842,7 +842,7 @@ class SpecificityAtSensitivityTest(testing.TestCase):
         y_pred = np.array(pred_values, dtype="float32")
         y_true = np.array(label_values)
 
-        self.assertAlmostEqual(0.2, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.2)
 
     def test_unweighted_low_sensitivity(self):
         s_obj = metrics.SpecificityAtSensitivity(0.4)
@@ -852,7 +852,7 @@ class SpecificityAtSensitivityTest(testing.TestCase):
         y_pred = np.array(pred_values, dtype="float32")
         y_true = np.array(label_values)
 
-        self.assertAlmostEqual(0.6, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.6)
 
     def test_unweighted_class_id(self):
         s_obj = metrics.SpecificityAtSensitivity(0.4, class_id=2)
@@ -862,7 +862,7 @@ class SpecificityAtSensitivityTest(testing.TestCase):
         y_pred = ops.transpose(np.array([pred_values] * 3))
         y_true = ops.one_hot(np.array(label_values), num_classes=3)
 
-        self.assertAlmostEqual(0.6, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.6)
 
     @parameterized.parameters(["bool", "int32", "float32"])
     def test_weighted(self, label_dtype):
@@ -876,7 +876,7 @@ class SpecificityAtSensitivityTest(testing.TestCase):
         weights = np.array(weight_values)
 
         result = s_obj(y_true, y_pred, sample_weight=weights)
-        self.assertAlmostEqual(0.4, result)
+        self.assertAlmostEqual(result, 0.4)
 
     def test_invalid_sensitivity(self):
         with self.assertRaisesRegex(
@@ -916,7 +916,7 @@ class PrecisionAtRecallTest(testing.TestCase):
         y_pred = np.array(inputs, dtype="float32")
         y_true = np.array(inputs)
 
-        self.assertAlmostEqual(1, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 1)
 
     def test_unweighted_high_recall(self):
         s_obj = metrics.PrecisionAtRecall(0.8)
@@ -927,7 +927,7 @@ class PrecisionAtRecallTest(testing.TestCase):
         y_true = np.array(label_values)
 
         # For 0.5 < decision threshold < 0.6.
-        self.assertAlmostEqual(2.0 / 3, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 2.0 / 3)
 
     def test_unweighted_low_recall(self):
         s_obj = metrics.PrecisionAtRecall(0.6)
@@ -938,7 +938,7 @@ class PrecisionAtRecallTest(testing.TestCase):
         y_true = np.array(label_values)
 
         # For 0.2 < decision threshold < 0.5.
-        self.assertAlmostEqual(0.75, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.75)
 
     def test_unweighted_class_id(self):
         s_obj = metrics.PrecisionAtRecall(0.6, class_id=2)
@@ -949,7 +949,7 @@ class PrecisionAtRecallTest(testing.TestCase):
         y_true = ops.one_hot(np.array(label_values), num_classes=3)
 
         # For 0.2 < decision threshold < 0.5.
-        self.assertAlmostEqual(0.75, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.75)
 
     @parameterized.parameters(["bool", "int32", "float32"])
     def test_weighted(self, label_dtype):
@@ -964,7 +964,7 @@ class PrecisionAtRecallTest(testing.TestCase):
 
         result = s_obj(y_true, y_pred, sample_weight=weights)
         # For 0.0 < decision threshold < 0.2.
-        self.assertAlmostEqual(0.7, result)
+        self.assertAlmostEqual(result, 0.7)
 
     def test_invalid_sensitivity(self):
         with self.assertRaisesRegex(
@@ -1004,7 +1004,7 @@ class RecallAtPrecisionTest(testing.TestCase):
         y_pred = np.array(inputs, dtype="float32")
         y_true = np.array(inputs)
 
-        self.assertAlmostEqual(1, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 1)
 
     def test_unweighted_high_precision(self):
         s_obj = metrics.RecallAtPrecision(0.75)
@@ -1031,7 +1031,7 @@ class RecallAtPrecisionTest(testing.TestCase):
         y_true = np.array(label_values)
 
         # The precision 0.75 can be reached at thresholds 0.4<=t<0.45.
-        self.assertAlmostEqual(0.5, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0.5)
 
     def test_unweighted_low_precision(self):
         s_obj = metrics.RecallAtPrecision(2.0 / 3)
@@ -1058,7 +1058,7 @@ class RecallAtPrecisionTest(testing.TestCase):
         y_true = np.array(label_values)
 
         # The precision 5/7 can be reached at thresholds 00.3<=t<0.35.
-        self.assertAlmostEqual(5.0 / 6, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 5.0 / 6)
 
     def test_unweighted_class_id(self):
         s_obj = metrics.RecallAtPrecision(2.0 / 3, class_id=2)
@@ -1085,7 +1085,7 @@ class RecallAtPrecisionTest(testing.TestCase):
         y_true = ops.one_hot(np.array(label_values), num_classes=3)
 
         # The precision 5/7 can be reached at thresholds 00.3<=t<0.35.
-        self.assertAlmostEqual(5.0 / 6, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 5.0 / 6)
 
     @parameterized.parameters(["bool", "int32", "float32"])
     def test_weighted(self, label_dtype):
@@ -1098,7 +1098,7 @@ class RecallAtPrecisionTest(testing.TestCase):
         weights = np.array(weight_values)
 
         result = s_obj(y_true, y_pred, sample_weight=weights)
-        self.assertAlmostEqual(0.6, result)
+        self.assertAlmostEqual(result, 0.6)
 
     def test_unachievable_precision(self):
         s_obj = metrics.RecallAtPrecision(2.0 / 3)
@@ -1109,7 +1109,7 @@ class RecallAtPrecisionTest(testing.TestCase):
 
         # The highest possible precision is 1/2 which is below the required
         # value, expect 0 recall.
-        self.assertAlmostEqual(0, s_obj(y_true, y_pred))
+        self.assertAlmostEqual(s_obj(y_true, y_pred), 0)
 
     def test_invalid_sensitivity(self):
         with self.assertRaisesRegex(

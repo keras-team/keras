@@ -1148,7 +1148,7 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
         self.assertEqual(knp.where(condition, x, y).shape, (2, 3))
-        self.assertAllEqual(knp.where(condition).shape, (2, 3))
+        self.assertEqual(knp.where(condition).shape, (2, 3))
 
     def test_floor_divide(self):
         x = KerasTensor((2, 3))

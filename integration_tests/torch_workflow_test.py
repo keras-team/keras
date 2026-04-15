@@ -21,7 +21,7 @@ class TorchWorkflowTest(testing.TestCase):
 
         # Test using Keras layer in a nn.Module.
         # Test forward pass
-        self.assertAllEqual(list(net(torch.empty(100, 10)).shape), [100, 1])
+        self.assertEqual(net(torch.empty(100, 10)).shape, (100, 1))
         # Test KerasVariables are added as nn.Parameter.
         self.assertLen(list(net.parameters()), 2)
 

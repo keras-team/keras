@@ -180,7 +180,7 @@ class QuantizationConfigTest(testing.TestCase):
         Test custom quantizer serialization for model save and load.
         """
         # Setup
-        weight_range = (-100, 100)
+        weight_range = [-100, 100]
         custom_quantizer = AbsMaxQuantizer(axis=0, value_range=weight_range)
         config = Int8QuantizationConfig(
             weight_quantizer=custom_quantizer,

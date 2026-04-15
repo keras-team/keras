@@ -126,7 +126,8 @@ class ConvertersTest(testing.TestCase):
             boxes, bounding_box_format="rel_xyxy"
         )
 
-        self.assertAllEqual(clipped_boxes, expected_clipped)
+        for key in expected_clipped:
+            self.assertAllClose(clipped_boxes[key], expected_clipped[key])
 
     def test_affine_identity(self):
         # Test identity transform (no change)

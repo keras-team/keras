@@ -139,12 +139,12 @@ class DtypesTest(test_case.TestCase):
         )
 
     def test_respect_weak_type_for_complex64(self):
-        self.assertAllEqual(
+        self.assertEqual(
             dtypes._respect_weak_type("complex64", True), "complex"
         )
 
     def test_respect_weak_type_for_complex128(self):
-        self.assertAllEqual(
+        self.assertEqual(
             dtypes._respect_weak_type("complex128", True), "complex"
         )
 

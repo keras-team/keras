@@ -75,7 +75,7 @@ class HashingTest(testing.TestCase):
 
         layer = layers.Hashing(num_bins=3)
         output_data = layer(input_data)
-        self.assertAllEqual(output_data, expected_output)
+        self.assertAllClose(output_data, expected_output)
 
     def test_hash_single_bin(self):
         layer = layers.Hashing(num_bins=1)
@@ -259,12 +259,12 @@ class HashingTest(testing.TestCase):
             [1.0, 0.0, 0.0],
             [0.0, 0.0, 1.0],
         ]
-        expected_output_shape = [None, 3]
+        expected_output_shape = (None, 3)
 
         inputs = layers.Input(shape=(1,), dtype="int32")
         layer = layers.Hashing(num_bins=3, output_mode="one_hot")
         outputs = layer(inputs)
-        self.assertAllEqual(expected_output_shape, outputs.shape)
+        self.assertEqual(outputs.shape, expected_output_shape)
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
@@ -274,12 +274,12 @@ class HashingTest(testing.TestCase):
         input_array = np.array([[0, 1, 2, 3, 4]])
 
         expected_output = [[1.0, 1.0, 1.0]]
-        expected_output_shape = [None, 3]
+        expected_output_shape = (None, 3)
 
         inputs = layers.Input(shape=(None,), dtype="int32")
         layer = layers.Hashing(num_bins=3, output_mode="multi_hot")
         outputs = layer(inputs)
-        self.assertAllEqual(expected_output_shape, outputs.shape)
+        self.assertEqual(outputs.shape, expected_output_shape)
 
         model = models.Model(inputs, outputs)
         output_data = model(input_array)
@@ -290,16 +290,18 @@ class HashingTest(testing.TestCase):
             "1d_input",
             [0, 1, 2, 3, 4],
             [2.0, 2.0, 1.0],
-            [3],
+            (3,),
         ),
         (
             "2d_input",
             [[0, 1, 2, 3, 4]],
             [[2.0, 2.0, 1.0]],
-            [None, 3],
+            (None, 3),
         ),
     )
-    def test_count_output(self, input_value, expected_output, output_shape):
+    def test_count_output(
+        self, input_value, expected_output, expected_output_shape
+    ):
         input_array = np.array(input_value)
         if input_array.ndim == 1:
             symbolic_sample_shape = ()
@@ -310,9 +312,9 @@ class HashingTest(testing.TestCase):
         inputs = layers.Input(shape=symbolic_sample_shape, dtype="int32")
         layer = layers.Hashing(num_bins=3, output_mode="count")
         outputs = layer(inputs)
-        self.assertAllEqual(output_shape, outputs.shape)
+        self.assertEqual(outputs.shape, expected_output_shape)
         output_data = layer(input_array)
-        self.assertAllEqual(expected_output, output_data)
+        self.assertAllClose(output_data, expected_output)
 
     @parameterized.named_parameters(
         ("int32", "int32"),
@@ -390,9 +392,7 @@ class HashingTest(testing.TestCase):
     def test_hash_list_input(self, input_data, expected):
         layer = layers.Hashing(num_bins=2)
         out_data = layer(input_data)
-        self.assertAllEqual(
-            expected, backend.convert_to_numpy(out_data).tolist()
-        )
+        self.assertAllClose(out_data, expected)
 
     def test_hashing_invalid_num_bins(self):
         # Test with `num_bins` set to None
@@ -445,7 +445,7 @@ class HashingTest(testing.TestCase):
 #     out_data = layer(inp_data)
 #     # Same hashed output as test_hash_sparse_input_farmhash
 #     expected_output = [[0, 0, 1, 0], [1, 0, 0]]
-#     self.assertAllEqual(expected_output, out_data)
+#     self.assertAllClose(expected_output, out_data)
 
 #     inp_t = layers.Input(shape=(None,), ragged=True, dtype="string")
 #     out_t = layer(inp_t)
@@ -482,8 +482,8 @@ class HashingTest(testing.TestCase):
 #     out_data = layer(inp_data)
 #     # Same hashed output as test_hash_sparse_input_farmhash
 #     expected_output = [[1, 0, 0, 2], [1, 0, 1]]
-#     self.assertAllEqual(expected_output[0], out_data[0])
-#     self.assertAllEqual(expected_output[1], out_data[1])
+#     self.assertAllClose(expected_output[0], out_data[0])
+#     self.assertAllClose(expected_output[1], out_data[1])
 #     inp_t = layers.Input(shape=(None,), ragged=True, dtype="int64")
 #     out_t = layer(inp_t)
 #     model = models.Model(inputs=inp_t, outputs=out_t)
@@ -502,7 +502,7 @@ class HashingTest(testing.TestCase):
 #     out_data = layer(inp_data)
 #     # Same hashed output as test_hash_dense_input_siphash
 #     expected_output = [[0, 1, 0, 1], [0, 0, 1]]
-#     self.assertAllEqual(expected_output, out_data)
+#     self.assertAllClose(expected_output, out_data)
 
 #     inp_t = layers.Input(shape=(None,), ragged=True, dtype="string")
 #     out_t = layer(inp_t)
@@ -512,7 +512,7 @@ class HashingTest(testing.TestCase):
 #     layer_2 = layers.Hashing(num_bins=2, salt=[211, 137])
 #     out_data = layer_2(inp_data)
 #     expected_output = [[1, 0, 1, 0], [1, 1, 0]]
-#     self.assertAllEqual(expected_output, out_data)
+#     self.assertAllClose(expected_output, out_data)
 
 #     out_t = layer_2(inp_t)
 #     model = models.Model(inputs=inp_t, outputs=out_t)
@@ -525,7 +525,7 @@ class HashingTest(testing.TestCase):
 #     out_data = layer(inp_data)
 #     # Same hashed output as test_hash_sparse_input_farmhash
 #     expected_output = [[1, 1, 0, 1], [2, 1, 1]]
-#     self.assertAllEqual(expected_output, out_data)
+#     self.assertAllClose(expected_output, out_data)
 
 #     inp_t = layers.Input(shape=(None,), ragged=True, dtype="int64")
 #     out_t = layer(inp_t)
