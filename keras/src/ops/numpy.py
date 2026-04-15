@@ -5999,11 +5999,37 @@ def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
         q: Percentile or sequence of percentiles to compute.
             Values must be between 0 and 100 inclusive.
         axis: Axis or axes along which the percentiles are computed.
-        method: Same as `nanquantile`.
+        method: A string specifies the method to use for estimating the
+            quantile. Available methods are `"linear"`, `"lower"`, `"higher"`,
+            `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
+            If the desired quantile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
         keepdims: If True, reduced axes are kept with size 1.
 
     Returns:
         The percentile(s) ignoring NaNs.
+
+    Examples:
+    >>> import keras
+    >>> from keras import ops
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanpercentile(x, 50)
+    2.5
+    >>> x = keras.ops.array([1., 2., float("nan"), 4.])
+    >>> keras.ops.nanpercentile(x, 50)
+    2.0
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanpercentile(x, [25, 75])
+    array([1.75, 3.25])
+    >>> x = keras.ops.array([[1., 2., float("nan")],
+    ...                      [4., 5., 6.]])
+    >>> keras.ops.nanpercentile(x, 50, axis=1)
+    array([1.5, 5.0])
     """
     if any_symbolic_tensors((x, q)):
         return Nanpercentile(
