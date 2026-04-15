@@ -102,6 +102,8 @@ class OpenVINOTrainer(base_trainer.Trainer):
         elif isinstance(data, np.ndarray) or np.isscalar(data):
             ov_type = OPENVINO_DTYPES[str(data.dtype)]
             ov_shape = list(data.shape)
+            if len(ov_shape) > 0:
+                ov_shape[0] = -1
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
             parametrize_data = OpenVINOKerasTensor(param.output(0))
         elif isinstance(data, int):
@@ -118,7 +120,8 @@ class OpenVINOTrainer(base_trainer.Trainer):
         shapes = []
         for x in tree.flatten(data):
             if isinstance(x, np.ndarray):
-                shapes.append(x.shape)
+                shape = (-1,) + x.shape[1:] if x.ndim > 0 else x.shape
+                shapes.append(shape)
             else:
                 shapes.append(None)
         return shapes
