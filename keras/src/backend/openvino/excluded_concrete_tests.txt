@@ -50,10 +50,12 @@ NNOpsCorrectnessTest::test_polar_corectness
 NNOpsDtypeTest::test_ctc_decode
 NNOpsDtypeTest::test_polar_
 NumpyDtypeTest::test_nanmedian
+NumpyDtypeTest::nanpercentile
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanmedian
+NumpyOneInputOpsCorrectnessTest::nanpercentile
 NumpyOneInputOpsCorrectnessTest::test_real
 QuantizersTest::test_grouped_quantize_with_padding
 RandAugmentTest::test_layer
