@@ -169,10 +169,6 @@ def logsumexp(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(log_sum_exp)
 
 
-def qr(x, mode="reduced"):
-    raise NotImplementedError("`qr` is not supported with openvino backend")
-
-
 def extract_sequences(x, sequence_length, sequence_stride):
     x = get_ov_output(x)
     x_shape = x.partial_shape
