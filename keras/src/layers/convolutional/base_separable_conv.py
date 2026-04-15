@@ -33,7 +33,6 @@ class BaseSeparableConv(Layer):
         strides: int or tuple/list of `rank` integers, specifying the stride
             length of the depthwise convolution. If only one int is specified,
             the same stride size will be used for all dimensions.
-
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input. When `padding="same"` and
