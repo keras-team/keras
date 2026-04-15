@@ -1049,7 +1049,6 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
 
     def test_nanpercentile(self):
         x = KerasTensor((3, 3))
-
         q = KerasTensor(())
         self.assertEqual(knp.nanpercentile(x, q).shape, ())
 
