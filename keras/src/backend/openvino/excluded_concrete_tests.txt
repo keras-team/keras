@@ -54,8 +54,8 @@ NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanmedian
-NumpyOneInputOpsCorrectnessTest::test_nanpercentile
 NumpyOneInputOpsCorrectnessTest::test_real
+NumpyTwoInputOpsCorrectnessTest::test_nanpercentile
 QuantizersTest::test_grouped_quantize_with_padding
 RandAugmentTest::test_layer
 RandAugmentTest::test_rand_augment_basic
