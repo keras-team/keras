@@ -1,3 +1,4 @@
+import inspect
 import math
 
 import jax
@@ -26,24 +27,12 @@ IS_THREAD_SAFE = True
 
 
 class JaxVariable(KerasVariable):
-    def __init__(self, *args, layout=None, **kwargs):
-        # Intercept layout parameter so that it is available
-        # during initialization.
-        self._layout = layout
-        super().__init__(*args, **kwargs)
-
     def _initialize_layout(self):
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
         if self._layout is None and distribution is not None:
-            tensor_layout = distribution.get_variable_layout(self)
-            from keras.src.distribution import TensorLayout
-
-            if isinstance(tensor_layout, TensorLayout):
-                self._layout = tensor_layout.backend_layout
-            else:
-                self._layout = tensor_layout
+            self._layout = distribution.get_variable_layout(self)
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
@@ -52,13 +41,36 @@ class JaxVariable(KerasVariable):
         self._direct_assign(value)
 
     def _initialize_with_initializer(self, initializer):
+        from keras.src.distribution.distribution_lib import TensorLayout
+
         self._initialize_layout()
-        layout = self._layout
-        shape = self._shape
-        if should_shard_at_init(layout, shape):
+        jax_layout = (
+            self._layout.backend_layout
+            if isinstance(self._layout, TensorLayout)
+            else self._layout
+        )
+
+        if self._layout is None:
+            super()._initialize_with_initializer(initializer)
+        elif "layout" in inspect.signature(initializer).parameters:
+            with jax.set_mesh(jax_layout.mesh):
+                # Force explicit axes in this context, otherwise `out_sharding`
+                # in ops ends up being ignored.
+
+                @jax.sharding.explicit_axes
+                def explicit_initializer():
+                    explicit_layout = jax.sharding.NamedSharding(
+                        jax.sharding.get_abstract_mesh(), jax_layout.spec
+                    )
+                    return initializer(
+                        self._shape, dtype=self._dtype, layout=explicit_layout
+                    )
+
+                self._value = explicit_initializer(in_sharding=None)
+        elif should_shard_at_init(jax_layout, self._shape):
             jitted_initializer = jax.jit(
                 initializer.__call__,
-                out_shardings=layout,
+                out_shardings=jax_layout,
                 static_argnames=["shape", "dtype"],
             )
             value = jitted_initializer(shape=self._shape, dtype=self._dtype)
@@ -112,9 +124,6 @@ if config.is_nnx_enabled():
             # Initialize nnx.Variable first
             nnx.Variable.__init__(self, value=dummy_value, **nnx_metadata)
 
-            # Now we can safely set layout
-            self._layout = layout
-
             # Initialize JaxVariable (which will call KerasVariable.__init__
             # and set up the real value).
             JaxVariable.__init__(
@@ -127,6 +136,7 @@ if config.is_nnx_enabled():
                 aggregation=aggregation,
                 synchronization=synchronization,
                 name=name,
+                layout=layout,
             )
 
             # The real value is now set in self._value, sync it to raw_value
@@ -313,9 +323,6 @@ if config.is_nnx_enabled():
 
 
 def should_shard_at_init(init_layout, shape):
-    if not isinstance(init_layout, jax.sharding.NamedSharding):
-        return False
-
     size_threshold = 250 * 1024 * 1024
     # We multiply by the mesh size here to take into account the worst case
     # scenario of the array being first duplicated in the memory of one device
