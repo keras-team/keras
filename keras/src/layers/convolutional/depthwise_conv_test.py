@@ -2,7 +2,6 @@ import numpy as np
 from absl.testing import parameterized
 from numpy.lib.stride_tricks import as_strided
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 

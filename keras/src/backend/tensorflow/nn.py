@@ -867,8 +867,7 @@ def depthwise_conv(
         # dilations on CPU. Transpose to `channels_last`, compute, and
         # transpose back to avoid the limitation.
         need_transpose = data_format == "channels_first" and all(
-            d.device_type == "CPU"
-            for d in tf.config.list_logical_devices()
+            d.device_type == "CPU" for d in tf.config.list_logical_devices()
         )
         if need_transpose:
             inputs = _transpose_spatial_inputs(inputs)
