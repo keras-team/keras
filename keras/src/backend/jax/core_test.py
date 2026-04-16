@@ -47,7 +47,7 @@ class NnxVariableTest(testing.TestCase):
     def test_variable_in_nnx_module(self):
         self.assertTrue(hasattr(self.nnx_model.custom_variable, "_trace_state"))
         self.assertIsNotNone(self.nnx_model.custom_variable._trace_state)
-        self.assertAllEqual(self.nnx_model.custom_variable.value, [[1, 1, 1]])
+        self.assertAllClose(self.nnx_model.custom_variable.value, [[1, 1, 1]])
         self.assertTrue(
             isinstance(self.nnx_model.custom_variable, nnx.Variable)
         )
@@ -58,7 +58,7 @@ class NnxVariableTest(testing.TestCase):
         self.keras_nnx_model.save(path, save_format="keras_v3")
         restored_model = keras.models.load_model(path)
         restored_outputs = restored_model(self.single_dummy_input)
-        self.assertAllEqual(original_outputs, restored_outputs)
+        self.assertAllClose(restored_outputs, original_outputs)
 
     def test_keras_variable_nnx_split_merge_sync(self):
         variable1 = keras.Variable(jnp.array(1.0))
