@@ -726,14 +726,17 @@ def map_coordinates(
 def gaussian_blur(
     images, kernel_size=(3, 3), sigma=(1.0, 1.0), data_format=None
 ):
-    def _create_gaussian_kernel(kernel_size, sigma, ov_type):
+    def _create_gaussian_kernel(kernel_size, sigma):
+        # Always build the kernel in f32 for numerical stability and
+        # compatibility (bfloat16 / f16 are not fully supported by all ops).
         def _get_gaussian_kernel1d(size, sigma):
             x = (
-                ov_opset.range(0, size, 1, output_type=ov_type).output(0)
+                ov_opset.range(0, size, 1, output_type=Type.f32).output(0)
                 - (size - 1) / 2.0
             )
 
-            exponent = ov_opset.divide(x, sigma).output(0)
+            sigma_const = ov_opset.constant(float(sigma), Type.f32).output(0)
+            exponent = ov_opset.divide(x, sigma_const).output(0)
             exponent = ov_opset.multiply(exponent, exponent).output(0)
             exponent = ov_opset.multiply(
                 exponent, ov_opset.constant(-0.5, Type.f32).output(0)
@@ -762,25 +765,32 @@ def gaussian_blur(
             ).output(0)
             return ov_opset.multiply(kernel1d_y, kernel1d_x).output(0)
 
-        kernel = _get_gaussian_kernel2d(kernel_size, sigma)
-        kernel = ov_opset.convert(kernel, ov_type).output(0)
-        return kernel
+        return _get_gaussian_kernel2d(kernel_size, sigma)
 
     images = convert_to_tensor(images)
-    ov_type = Type(images.dtype)
+    input_shape = images.shape
+    ov_type = get_ov_output(images).get_element_type()
+
+    if len(input_shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={input_shape}"
+        )
+
+    # bfloat16 is not supported by all OV ops used here; promote to f32.
+    # f16 constants in range() would mismatch with the f32 arithmetic
+    # constants in the kernel builder, so promote f16 to f32 as well.
+    compute_type = Type.f32 if ov_type in (Type.bf16, Type.f16) else ov_type
+    images = get_ov_output(images)
+    if compute_type != ov_type:
+        images = ov_opset.convert(images, compute_type).output(0)
 
     kernel_size = convert_to_tensor(kernel_size)
     sigma = convert_to_tensor(sigma)
 
-    if len(images.shape) not in (3, 4):
-        raise ValueError(
-            "Invalid images rank: expected rank 3 (single image) "
-            "or rank 4 (batch of images). Received input with shape: "
-            f"images.shape={images.shape}"
-        )
-
     need_squeeze = False
-    if len(images.shape) == 3:
+    if len(input_shape) == 3:
         images = ov_opset.unsqueeze(images, axes=[0]).output(0)
         need_squeeze = True
 
@@ -795,7 +805,9 @@ def gaussian_blur(
         ov_opset.constant([1], Type.i32).output(0),
         ov_opset.constant(0, Type.i32).output(0),
     ).output(0)
-    kernel = _create_gaussian_kernel(kernel_size, sigma, ov_type)
+    # Kernel is always built in f32; convert to compute_type before conv.
+    kernel = _create_gaussian_kernel(kernel_size, sigma)
+    kernel = ov_opset.convert(kernel, compute_type).output(0)
 
     kernel = ov_opset.reshape(
         kernel,
@@ -828,6 +840,10 @@ def gaussian_blur(
         ],
         [1, 1],
     ).output(0)
+
+    # Cast back to the original dtype if we promoted for computation.
+    if compute_type != ov_type:
+        blurred_images = ov_opset.convert(blurred_images, ov_type).output(0)
 
     if data_format == "channels_last":
         blurred_images = ov_opset.transpose(
