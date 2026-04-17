@@ -730,10 +730,10 @@ def gaussian_blur(
         # Always build the kernel in f32 for numerical stability and
         # compatibility (bfloat16 / f16 are not fully supported by all ops).
         def _get_gaussian_kernel1d(size, sigma):
-            x = (
-                ov_opset.range(0, size, 1, output_type=Type.f32).output(0)
-                - (size - 1) / 2.0
-            )
+            x = ov_opset.subtract(
+                ov_opset.range(0, size, 1, output_type=Type.f32).output(0),
+                ov_opset.constant((size - 1) / 2.0, Type.f32).output(0),
+            ).output(0)
 
             sigma_const = ov_opset.constant(float(sigma), Type.f32).output(0)
             exponent = ov_opset.divide(x, sigma_const).output(0)
@@ -752,21 +752,24 @@ def gaussian_blur(
             kernel1d_x = _get_gaussian_kernel1d(size[0], sigma[0])
             kernel1d_y = _get_gaussian_kernel1d(size[1], sigma[1])
 
+            # kernel1d_x has kH elements -> row vector [1, kH]
             kernel1d_x = ov_opset.reshape(
                 kernel1d_x,
-                ov_opset.constant([1, int(size[1])], Type.i32).output(0),
+                ov_opset.constant([1, int(size[0])], Type.i32).output(0),
                 False,
             ).output(0)
 
+            # kernel1d_y has kW elements -> column vector [kW, 1]
             kernel1d_y = ov_opset.reshape(
                 kernel1d_y,
-                ov_opset.constant([int(size[0]), 1], Type.i32).output(0),
+                ov_opset.constant([int(size[1]), 1], Type.i32).output(0),
                 False,
             ).output(0)
             return ov_opset.multiply(kernel1d_y, kernel1d_x).output(0)
 
         return _get_gaussian_kernel2d(kernel_size, sigma)
 
+    data_format = backend.standardize_data_format(data_format)
     images = convert_to_tensor(images)
     input_shape = images.shape
     ov_type = get_ov_output(images).get_element_type()
@@ -785,9 +788,6 @@ def gaussian_blur(
     images = get_ov_output(images)
     if compute_type != ov_type:
         images = ov_opset.convert(images, compute_type).output(0)
-
-    kernel_size = convert_to_tensor(kernel_size)
-    sigma = convert_to_tensor(sigma)
 
     need_squeeze = False
     if len(input_shape) == 3:
