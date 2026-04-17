@@ -46,7 +46,6 @@ class BaseDepthwiseConv(Layer):
         strides: int or tuple/list of `rank` integers, specifying the stride
             length of the depthwise convolution. If only one int is specified,
             the same stride size will be used for all dimensions.
-            `strides > 1` is incompatible with `dilation_rate > 1`.
         padding: string, either `"valid"` or `"same"` (case-insensitive).
             `"valid"` means no padding. `"same"` results in padding evenly to
             the left/right or up/down of the input. When `padding="same"` and
@@ -146,13 +145,6 @@ class BaseDepthwiseConv(Layer):
             raise ValueError(
                 "The argument `strides` cannot contains 0. Received "
                 f"strides={self.strides}"
-            )
-
-        if max(self.strides) > 1 and max(self.dilation_rate) > 1:
-            raise ValueError(
-                "`strides > 1` not supported in conjunction with "
-                f"`dilation_rate > 1`. Received: strides={self.strides} and "
-                f"dilation_rate={self.dilation_rate}"
             )
 
     def build(self, input_shape):

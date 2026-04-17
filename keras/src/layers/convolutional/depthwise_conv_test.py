@@ -318,20 +318,6 @@ class DepthwiseConvBasicTest(testing.TestCase):
                 depth_multiplier=2, kernel_size=(2, 2), strides=(1, 0)
             )
 
-        # `dilation_rate > 1` while `strides > 1`.
-        with self.assertRaisesRegex(
-            ValueError,
-            r"`strides > 1` not supported in conjunction with "
-            r"`dilation_rate > 1`. Received: strides=\(2, 2\) and "
-            r"dilation_rate=\(2, 1\)",
-        ):
-            layers.DepthwiseConv2D(
-                depth_multiplier=2,
-                kernel_size=(2, 2),
-                strides=2,
-                dilation_rate=(2, 1),
-            )
-
 
 class DepthwiseConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
