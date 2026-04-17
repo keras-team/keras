@@ -4719,12 +4719,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
         self.assertAllClose(
-            knp.transpose(x, axes = (-4, -5, -2, -3, -1)),
-            np.transpose(x, axes = (-4, -5, -2, -3, -1)),
+            knp.transpose(x, axes=(-4, -5, -2, -3, -1)),
+            np.transpose(x, axes=(-4, -5, -2, -3, -1)),
         )
         self.assertAllClose(
-            knp.Transpose(axes = (-4, -5, -2, -3, -1))(x),
-            np.transpose(x, axes = (-4, -5, -2, -3, -1)),
+            knp.Transpose(axes=(-4, -5, -2, -3, -1))(x),
+            np.transpose(x, axes=(-4, -5, -2, -3, -1)),
         )
 
     def test_arccos(self):
