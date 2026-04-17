@@ -2390,7 +2390,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_transpose(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.transpose(x).shape, (3, 2))
-        self.assertEqual(knp.transpose(x, (-2, -1)).shape, (3, 2))
+        self.assertEqual(knp.transpose(x, (-1, -2)).shape, (3, 2))
 
     def test_arccos(self):
         x = KerasTensor((2, 3))
