@@ -8671,6 +8671,7 @@ def transpose(x, axes=None):
     Returns:
         `x` with its axes permuted.
     """
+    axes = tuple(canonicalize_axis(axis, len(x.shape)) for axis in axes)
     if any_symbolic_tensors((x,)):
         return Transpose(axes=axes).symbolic_call(x)
     return backend.numpy.transpose(x, axes=axes)
