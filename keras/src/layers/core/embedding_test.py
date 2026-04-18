@@ -870,3 +870,20 @@ class EmbeddingTest(test_case.TestCase):
             layers.Embedding(input_dim=3, output_dim=2.0)
         # Valid ints should not raise
         layers.Embedding(input_dim=3, output_dim=2)
+
+    def test_from_config_rejects_float_input_dim(self):
+        with self.assertRaisesRegex(ValueError, "input_dim"):
+            layers.Embedding.from_config({"input_dim": 3.7, "output_dim": 2})
+        with self.assertRaisesRegex(ValueError, "input_dim"):
+            layers.Embedding.from_config({"input_dim": 3.0, "output_dim": 2})
+
+    def test_from_config_rejects_float_output_dim(self):
+        with self.assertRaisesRegex(ValueError, "output_dim"):
+            layers.Embedding.from_config({"input_dim": 3, "output_dim": 2.5})
+        with self.assertRaisesRegex(ValueError, "output_dim"):
+            layers.Embedding.from_config({"input_dim": 3, "output_dim": 2.0})
+
+    def test_from_config_accepts_valid_int_dims(self):
+        layer = layers.Embedding.from_config({"input_dim": 4, "output_dim": 3})
+        self.assertEqual(layer.input_dim, 4)
+        self.assertEqual(layer.output_dim, 3)
