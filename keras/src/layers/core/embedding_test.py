@@ -61,6 +61,36 @@ class EmbeddingTest(test_case.TestCase):
         y = layer(x)
         self.assertEqual(y.shape, (2, 3, 6))
 
+    def test_embedding_invalid_input_dim_type(self):
+        with self.assertRaisesRegex(ValueError, "must be an integer"):
+            layers.Embedding(input_dim="ten", output_dim=3)
+        with self.assertRaisesRegex(ValueError, "must be an integer"):
+            layers.Embedding(input_dim=True, output_dim=3)
+        with self.assertRaisesRegex(ValueError, "must be an integer"):
+            layers.Embedding(input_dim=4.7, output_dim=3)
+
+    def test_embedding_invalid_output_dim_type(self):
+        with self.assertRaisesRegex(ValueError, "must be an integer"):
+            layers.Embedding(input_dim=4, output_dim="three")
+        with self.assertRaisesRegex(ValueError, "must be an integer"):
+            layers.Embedding(input_dim=4, output_dim=False)
+
+    def test_embedding_non_positive_dims(self):
+        with self.assertRaisesRegex(ValueError, "must be a positive integer"):
+            layers.Embedding(input_dim=0, output_dim=3)
+        with self.assertRaisesRegex(ValueError, "must be a positive integer"):
+            layers.Embedding(input_dim=-1, output_dim=3)
+        with self.assertRaisesRegex(ValueError, "must be a positive integer"):
+            layers.Embedding(input_dim=4, output_dim=0)
+        with self.assertRaisesRegex(ValueError, "must be a positive integer"):
+            layers.Embedding(input_dim=4, output_dim=-5)
+
+    def test_embedding_float_whole_number_dims(self):
+        # Whole-number floats should be silently converted to int
+        layer = layers.Embedding(input_dim=4.0, output_dim=3.0)
+        self.assertEqual(layer.input_dim, 4)
+        self.assertEqual(layer.output_dim, 3)
+
     def test_embedding_basics(self):
         self.run_layer_test(
             layers.Embedding,
