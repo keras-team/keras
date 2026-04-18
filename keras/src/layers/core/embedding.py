@@ -103,6 +103,16 @@ class Embedding(Layer):
             warnings.warn(
                 "Argument `input_length` is deprecated. Just remove it."
             )
+        if not isinstance(input_dim, int):
+            raise ValueError(
+                "`input_dim` must be a Python int. "
+                f"Received: input_dim={input_dim!r} (of type {type(input_dim)})"
+            )
+        if not isinstance(output_dim, int):
+            raise ValueError(
+                "`output_dim` must be a Python int. "
+                f"Received: output_dim={output_dim!r} (of type {type(output_dim)})"
+            )
         super().__init__(**kwargs)
         self.input_dim = input_dim
         self.output_dim = output_dim

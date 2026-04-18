@@ -862,3 +862,11 @@ class EmbeddingTest(test_case.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    def test_input_dim_output_dim_must_be_int(self):
+        with self.assertRaisesRegex(ValueError, "input_dim"):
+            layers.Embedding(input_dim=3.7, output_dim=2)
+        with self.assertRaisesRegex(ValueError, "output_dim"):
+            layers.Embedding(input_dim=3, output_dim=2.0)
+        # Valid ints should not raise
+        layers.Embedding(input_dim=3, output_dim=2)
