@@ -7,6 +7,7 @@ import jax
 import numpy as np
 import pytest
 from jax.experimental import layout as jax_layout
+from jax.sharding import PartitionSpec as P
 
 from keras.src import layers
 from keras.src import models
@@ -92,9 +93,7 @@ class JaxDistributionLibTest(testing.TestCase):
         inputs = jax.numpy.array(
             np.random.normal(size=(self.mesh_shape[0] * 4, 8))
         )
-        target_layout = jax.sharding.NamedSharding(
-            jax_mesh, jax.sharding.PartitionSpec("batch", None)
-        )
+        target_layout = jax.sharding.NamedSharding(jax_mesh, P("batch", None))
 
         @functools.partial(jax.jit, static_argnames="target_layout")
         def test_function(inputs, target_layout):
@@ -119,9 +118,7 @@ class JaxDistributionLibTest(testing.TestCase):
             np.random.normal(size=(self.mesh_shape[0] * 4, 8))
         )
         target_layout = self._create_jax_layout(
-            sharding=jax.sharding.NamedSharding(
-                jax_mesh, jax.sharding.PartitionSpec("batch", None)
-            )
+            sharding=jax.sharding.NamedSharding(jax_mesh, P("batch", None))
         )
 
         @functools.partial(jax.jit, static_argnames="target_layout")
@@ -164,9 +161,7 @@ class JaxDistributionLibTest(testing.TestCase):
         jax_mesh = backend_dlib._to_backend_mesh(mesh)
         self.assertEqual(
             jax_sharding,
-            jax.sharding.NamedSharding(
-                jax_mesh, jax.sharding.PartitionSpec("data", None)
-            ),
+            jax.sharding.NamedSharding(jax_mesh, P("data", None)),
         )
 
     def test_validation_for_device_mesh(self):
@@ -198,9 +193,9 @@ class JaxDistributionLibTest(testing.TestCase):
             dense_layer.build((16, 16))
 
         self.assertEqual(
-            dense_layer.kernel._value.sharding.spec, (None, "model")
+            dense_layer.kernel._value.sharding.spec, P(None, "model")
         )
-        self.assertEqual(dense_layer.bias._value.sharding.spec, ("model",))
+        self.assertEqual(dense_layer.bias._value.sharding.spec, P("model"))
 
         # Assign a numpy value to dense layer to mimic the model weight loading
         new_kernel = np.random.normal(size=(16, 8))
@@ -211,9 +206,9 @@ class JaxDistributionLibTest(testing.TestCase):
         # Make sure the loaded value still use the layout when it is
         # initialized, even outside of the distribution scope.
         self.assertEqual(
-            dense_layer.kernel._value.sharding.spec, (None, "model")
+            dense_layer.kernel._value.sharding.spec, P(None, "model")
         )
-        self.assertEqual(dense_layer.bias._value.sharding.spec, ("model",))
+        self.assertEqual(dense_layer.bias._value.sharding.spec, P("model"))
 
     def test_e2e_data_parallel_model(self):
         distribution = distribution_lib.DataParallel()
@@ -262,9 +257,9 @@ class JaxDistributionLibTest(testing.TestCase):
 
         for weight in model.weights:
             if "kernel" in weight.name:
-                self.assertEqual(weight._value.sharding.spec, (None, "model"))
+                self.assertEqual(weight._value.sharding.spec, P(None, "model"))
             elif "bias" in weight.name:
-                self.assertEqual(weight._value.sharding.spec, ("model",))
+                self.assertEqual(weight._value.sharding.spec, P("model"))
             else:
                 self.assertTrue(weight._value.sharding.is_fully_replicated)
 
@@ -305,9 +300,9 @@ class JaxDistributionLibTest(testing.TestCase):
 
         for weight in model.weights:
             if "kernel" in weight.name:
-                self.assertEqual(weight._value.sharding.spec, (None, "model"))
+                self.assertEqual(weight._value.sharding.spec, P(None, "model"))
             elif "bias" in weight.name:
-                self.assertEqual(weight._value.sharding.spec, ("model",))
+                self.assertEqual(weight._value.sharding.spec, P("model"))
             else:
                 self.assertTrue(weight._value.sharding.is_fully_replicated)
 
@@ -322,7 +317,7 @@ class JaxDistributionLibTest(testing.TestCase):
         # actual training, and not at the model building time.
         intermediate_tensor_layout = jax.sharding.NamedSharding(
             backend_dlib._to_backend_mesh(distribution.device_mesh),
-            jax.sharding.PartitionSpec("batch", None),
+            P("batch", None),
         )
         self.assertTrue(
             sharding_capture.captured_input_sharding.is_equivalent_to(
@@ -338,9 +333,7 @@ class JaxDistributionLibTest(testing.TestCase):
             np.array(jax.devices()).reshape(self.mesh_shape),
             axis_names=["batch", "model"],
         )
-        layout = jax.sharding.NamedSharding(
-            mesh, jax.sharding.PartitionSpec("batch", None)
-        )
+        layout = jax.sharding.NamedSharding(mesh, P("batch", None))
 
         result = backend_dlib.distribute_data_input(
             per_process_batch, layout, "batch"
