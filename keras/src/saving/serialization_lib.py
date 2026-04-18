@@ -610,6 +610,19 @@ def deserialize_keras_object(
         raise TypeError(f"Could not parse config: {config}")
 
     if "class_name" not in config or "config" not in config:
+        # Check if this looks like an incomplete Keras object config
+        # (has module but missing class_name, or missing config)
+        if "module" in config or "registered_name" in config:
+            missing = []
+            if "class_name" not in config:
+                missing.append("'class_name'")
+            if "config" not in config:
+                missing.append("'config'")
+            raise ValueError(
+                f"Incomplete config: missing {', '.join(missing)} in "
+                f"object config. Received: {config}"
+            )
+        # Otherwise, recursively deserialize as a nested dict
         return {
             key: deserialize_keras_object(
                 value, custom_objects=custom_objects, safe_mode=safe_mode
