@@ -104,6 +104,24 @@ class Embedding(Layer):
                 "Argument `input_length` is deprecated. Just remove it."
             )
         super().__init__(**kwargs)
+        if not isinstance(input_dim, int):
+            if isinstance(input_dim, float) and input_dim.is_integer():
+                input_dim = int(input_dim)
+            else:
+                raise ValueError(
+                    "Argument `input_dim` must be an integer. "
+                    f"Received: input_dim={input_dim} "
+                    f"(of type {type(input_dim).__name__})"
+                )
+        if not isinstance(output_dim, int):
+            if isinstance(output_dim, float) and output_dim.is_integer():
+                output_dim = int(output_dim)
+            else:
+                raise ValueError(
+                    "Argument `output_dim` must be an integer. "
+                    f"Received: output_dim={output_dim} "
+                    f"(of type {type(output_dim).__name__})"
+                )
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.embeddings_initializer = initializers.get(embeddings_initializer)
