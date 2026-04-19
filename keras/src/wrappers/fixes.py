@@ -47,10 +47,23 @@ def _routing_enabled():
         enabled : bool
             Whether metadata routing is enabled. If the config is not set, it
             defaults to False.
-
-    TODO: remove when the config key is no longer available in scikit-learn
     """
-    return sklearn.get_config().get("enable_metadata_routing", False)
+    if sklearn is None:
+        return False
+
+    config = sklearn.get_config()
+    if "enable_metadata_routing" in config:
+        return config.get("enable_metadata_routing", False)
+
+    try:
+        from packaging.version import parse as parse_version
+
+        if parse_version(sklearn.__version__) >= parse_version("1.3"):
+            return True
+    except ImportError:
+        pass
+
+    return False
 
 
 def _raise_for_params(params, owner, method):
