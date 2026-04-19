@@ -385,7 +385,8 @@ class Sequential(Model):
                 )
             if "class_name" not in layer_config:
                 raise ValueError(
-                    f"Layer at index {i} is missing 'class_name'. Received: {layer_config}"
+                    f"Layer at index {i} is missing 'class_name'. "
+                    f"Received: {layer_config}"
                 )
         for layer_config in layer_configs:
             if "module" not in layer_config:
