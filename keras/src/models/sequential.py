@@ -375,6 +375,16 @@ class Sequential(Model):
             build_input_shape = config.get("build_input_shape")
             layer_configs = config["layers"]
         else:
+            if isinstance(config, dict):
+                raise ValueError(
+                    "Either `name` should be specified or `config` should "
+                    "be a list of layers."
+                )
+            if not isinstance(config, list):
+                raise ValueError(
+                    "Sequential model config with no specified `name` should "
+                    "be a list of layers. Received: {config}"
+                )
             name = None
             layer_configs = config
         model = cls(name=name)

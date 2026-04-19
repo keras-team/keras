@@ -54,6 +54,10 @@ def model_from_config(config, custom_objects=None):
         MODULE_OBJECTS.ALL_OBJECTS["Model"] = models.Model
         MODULE_OBJECTS.ALL_OBJECTS["Sequential"] = models.Sequential
 
+    if "config" not in config:
+        raise ValueError(
+            f"Missing `config` in model config. Received: config={config}."
+        )
     batch_input_shape = config["config"].pop("batch_input_shape", None)
     if batch_input_shape is not None:
         if config["class_name"] == "InputLayer":
