@@ -490,6 +490,93 @@ class SerializationLibTest(testing.TestCase):
         ):
             deserialize_keras_object(serialized)
 
+    def test_registered_name_for_keras_builtin_raises(self):
+        for bad_name in (
+            "builtins.eval",
+            "subprocess.Popen",
+            "not.a.real.name",
+            "my_pkg>MyDense",
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "resolved to a Keras built-in"
+            ):
+                serialization_lib.deserialize_keras_object(
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "registered_name": bad_name,
+                        "config": {"units": 1},
+                    }
+                )
+
+    def test_registered_name_matching_class_name_passes_through(self):
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "registered_name": "Dense",
+                "config": {"units": 1},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.Dense)
+
+    def test_none_or_missing_registered_name_passes_through(self):
+        for config in (
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "registered_name": None,
+                "config": {"units": 1},
+            },
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "config": {"units": 1},
+            },
+        ):
+            obj = serialization_lib.deserialize_keras_object(config)
+            self.assertIsInstance(obj, keras.layers.Dense)
+
+    def test_empty_string_registered_name_passes_through(self):
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "registered_name": "",
+                "config": {"units": 1},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.Dense)
+
+    def test_registered_name_for_keras_builtin_function_raises(self):
+        with self.assertRaisesRegex(ValueError, "resolved to a Keras built-in"):
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "function",
+                    "module": "builtins",
+                    "registered_name": "some_other_name",
+                    "config": "relu",
+                }
+            )
+
+    def test_registered_name_matching_function_name_passes_through(self):
+        for registered_name in ("function", "kl_divergence"):
+            obj = serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "function",
+                    "module": "builtins",
+                    "registered_name": registered_name,
+                    "config": "kl_divergence",
+                }
+            )
+            self.assertIs(obj, keras.metrics.kl_divergence)
+
+    def test_registered_custom_object_still_resolves(self):
+        layer = MyDense(units=4)
+        config = serialization_lib.serialize_keras_object(layer)
+        restored = serialization_lib.deserialize_keras_object(config)
+        self.assertIsInstance(restored, MyDense)
+
 
 @keras.saving.register_keras_serializable()
 class MyDense(keras.layers.Layer):
