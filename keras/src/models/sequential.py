@@ -378,6 +378,15 @@ class Sequential(Model):
             name = None
             layer_configs = config
         model = cls(name=name)
+        for i,layer_config in enumerate(layer_configs):
+            if not isinstance(layer_config, dict):
+                raise ValueError(
+                    f"Layer at index {i} must be a dict. Received: {type(layer_config)}"
+                )
+            if "class_name" not in layer_config:
+                raise ValueError(
+                    f"Layer at index {i} is missing 'class_name'. Received: {layer_config}"
+                )
         for layer_config in layer_configs:
             if "module" not in layer_config:
                 # Legacy format deserialization (no "module" key)
