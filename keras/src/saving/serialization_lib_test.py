@@ -8,6 +8,7 @@ import pytest
 import keras
 from keras.src import ops
 from keras.src import testing
+from keras.src.saving import deserialize_keras_object
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
 
@@ -419,6 +420,75 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(
             restored_dense_relu_string.activation, keras.activations.relu
         )
+
+    def test_missing_name_for_sequential_model(self):
+        """Tests serialization when sequential model has no name."""
+        serialized = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": {
+                "layers": [
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "config": {"units": 4},
+                    }
+                ],
+            },
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "A Sequential model configuration "
+            "must be either a list of layers or a "
+            "dictionary containing the 'name' and 'layers' keys",
+        ):
+            deserialize_keras_object(serialized)
+
+    def test_config_as_list_of_layers(self):
+        """Tests serialization when sequential model config is list of
+        layers."""
+        serialized = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": [
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 4},
+                },
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 2},
+                },
+            ],
+        }
+        model = deserialize_keras_object(serialized)
+        self.assertIsInstance(model, keras.Sequential)
+        self.assertLen(model.layers, 2)
+        self.assertEqual(model.layers[0].units, 4)
+        self.assertEqual(model.layers[1].units, 2)
+
+    def test_malformed_layer_for_sequential_model(self):
+        serialized = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": {
+                "name": "sequential_model",
+                "layers": [
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "config": {"units": 4},
+                    },
+                    {},
+                ],
+            },
+        }
+        with self.assertRaisesRegex(
+            ValueError, "Expected a dictionary containing a 'config' key."
+        ):
+            deserialize_keras_object(serialized)
 
 
 @keras.saving.register_keras_serializable()
