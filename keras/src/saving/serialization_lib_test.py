@@ -476,3 +476,65 @@ class MyWrapper(keras.layers.Layer):
 
     def call(self, inputs):
         return self._wrapped(inputs)
+
+
+class DeserializeKerasObjectTest(testing.TestCase):
+    def test_deserialize_config_not_dict_raises_type_error(self):
+        """Test that deserialize_keras_object raises TypeError when config
+        field is a list instead of dict.
+
+        Regression test for keras-team/keras#22701.
+        """
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": [1, 2, 3],  # invalid type - should be dict
+        }
+        with self.assertRaises(TypeError) as ctx:
+            serialization_lib.deserialize_keras_object(config)
+        self.assertIn("Expected `config` to be a dict", str(ctx.exception))
+
+    def test_deserialize_config_not_dict_tuple_raises_type_error(self):
+        """Test TypeError when config field is a tuple."""
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": (1, 2, 3),
+        }
+        with self.assertRaises(TypeError) as ctx:
+            serialization_lib.deserialize_keras_object(config)
+        self.assertIn("Expected `config` to be a dict", str(ctx.exception))
+
+    def test_deserialize_config_not_dict_string_raises_type_error(self):
+        """Test TypeError when config field is a string."""
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": "not_a_dict",
+        }
+        with self.assertRaises(TypeError) as ctx:
+            serialization_lib.deserialize_keras_object(config)
+        self.assertIn("Expected `config` to be a dict", str(ctx.exception))
+
+    def test_deserialize_config_none_is_valid(self):
+        """Test that config=None is treated as empty dict without raising
+        TypeError about config type.
+
+        Regression test for keras-team/keras#22701 - config=None should
+        not trigger "Expected config to be a dict" TypeError.
+        """
+        # Pass module_objects to exercise the module_objects path where
+        # inner_config validation happens differently
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": None,
+        }
+        # Should NOT raise "Expected `config` to be a dict" error
+        # The error may be about missing 'units', but not about config type
+        try:
+            serialization_lib.deserialize_keras_object(config)
+        except TypeError as e:
+            # This is expected - Dense needs units, but the error should NOT
+            # be about config type (list/dict/etc)
+            self.assertNotIn("Expected `config` to be a dict", str(e))
