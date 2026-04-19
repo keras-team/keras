@@ -548,6 +548,15 @@ def deserialize_keras_object(
         if isinstance(config, dict):
             if "config" in config:
                 inner_config = config["config"]
+                if (
+                    inner_config is not None
+                    and not isinstance(inner_config, dict)
+                ):
+                    raise TypeError(
+                        f"Expected `config` to be a dict, "
+                        f"received {type(inner_config).__name__} instead. "
+                        f"Config: {config}"
+                    )
             if "class_name" not in config:
                 raise ValueError(
                     f"Unknown `config` as a `dict`, config={config}"
@@ -631,7 +640,15 @@ def deserialize_keras_object(
         }
 
     class_name = config["class_name"]
-    inner_config = config["config"] or {}
+    inner_config = config["config"]
+    if inner_config is not None and not isinstance(inner_config, dict):
+        raise TypeError(
+            f"Expected `config` to be a dict, received "
+            f"{type(inner_config).__name__} instead. "
+            f"Full config: {config}"
+        )
+    if inner_config is None:
+        inner_config = {}
     custom_objects = custom_objects or {}
 
     # Special cases:
