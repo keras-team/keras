@@ -381,7 +381,8 @@ class Sequential(Model):
         for i,layer_config in enumerate(layer_configs):
             if not isinstance(layer_config, dict):
                 raise ValueError(
-                    f"Layer at index {i} must be a dict. Received: {type(layer_config)}"
+                    f"Layer at index {i} must be a dict. Received: "
+                    f"Received: {type(layer_config)}"
                 )
             if "class_name" not in layer_config:
                 raise ValueError(
