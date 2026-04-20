@@ -157,6 +157,7 @@ class BaseDepthwiseConv(Layer):
         self.input_spec = InputSpec(
             min_ndim=self.rank + 2, axes={channel_axis: input_channel}
         )
+        self.compute_output_shape(input_shape)
         depthwise_shape = self.kernel_size + (
             input_channel,
             self.depth_multiplier,
