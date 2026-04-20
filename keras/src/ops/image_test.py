@@ -2358,6 +2358,22 @@ class ImageOpsBehaviorTests(testing.TestCase):
         ):
             kimage.rgb_to_hsv(invalid_image)
 
+    def test_rgb_to_grayscale_invalid_channels(self):
+        error_msg = (
+            r"Invalid channel size: expected 3 \(RGB\) or 1 \(Grayscale\)\."
+        )
+        invalid_image = np.random.uniform(size=(4, 4, 4)).astype("float32")
+        with self.assertRaisesRegex(ValueError, error_msg):
+            kimage.rgb_to_grayscale(invalid_image)
+
+        invalid_image = KerasTensor(shape=(None, 4, 20, 20), dtype="float32")
+        with self.assertRaisesRegex(ValueError, error_msg):
+            kimage.rgb_to_grayscale(invalid_image, data_format="channels_first")
+        with self.assertRaisesRegex(ValueError, error_msg):
+            kimage.RGBToGrayscale(data_format="channels_first").symbolic_call(
+                invalid_image
+            )
+
     def test_rgb_to_hsv_invalid_dtype(self):
         invalid_image = np.random.uniform(size=(10, 10, 3)).astype("int32")
         with self.assertRaisesRegex(
