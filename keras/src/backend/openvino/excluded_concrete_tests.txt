@@ -14,7 +14,6 @@ FeatureSpaceTest::test_advanced_usage
 FeatureSpaceTest::test_basic_usage
 FeatureSpaceTest::test_basic_usage_no_strings
 FeatureSpaceTest::test_saving
-GroupedQuantizationParametersTest::test_grouped_weight_shapes_non_divisible
 ImageOpsCorrectnessTest::test_extract_patches
 ImageOpsCorrectnessTest::test_pad_images
 IndexLookupLayerTest::test_oov_method_ignored_for_string_dtype
@@ -31,9 +30,7 @@ LinalgOpsCorrectnessTest::test_svd
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 MathOpsCorrectnessTest::test_logdet
-MeanTest::test_weighted_dynamic_shapes
 MergingLayersTest::test_average_with_mask
-MetricWrapperTest::test_weighted_dynamic_shape
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_polar_corectness
 NNOpsDtypeTest::test_ctc_decode
@@ -44,7 +41,6 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanmedian
 NumpyOneInputOpsCorrectnessTest::test_real
-QuantizersTest::test_grouped_quantize_with_padding
 RandAugmentTest::test_random_augment_randomness
 RandomPerspectiveTest::test_random_perspective_bounding_boxes_with_large_scale
 RandomPerspectiveTest::test_random_perspective_bounding_boxes_with_small_scale
