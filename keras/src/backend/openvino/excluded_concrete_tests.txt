@@ -14,7 +14,6 @@ FeatureSpaceTest::test_advanced_usage
 FeatureSpaceTest::test_basic_usage
 FeatureSpaceTest::test_basic_usage_no_strings
 FeatureSpaceTest::test_saving
-GroupedQuantizationParametersTest::test_grouped_weight_shapes_non_divisible
 ImageOpsBehaviorTests::test_affine_transform
 ImageOpsBehaviorTests::test_elastic_transform
 ImageOpsBehaviorTests::test_perspective_transform
@@ -53,7 +52,6 @@ NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_nanmedian
 NumpyOneInputOpsCorrectnessTest::test_real
-QuantizersTest::test_grouped_quantize_with_padding
 RandAugmentTest::test_layer
 RandAugmentTest::test_rand_augment_basic
 RandAugmentTest::test_random_augment_randomness

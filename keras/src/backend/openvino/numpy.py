@@ -3749,7 +3749,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 "provided when `mode == 'constant'`. "
                 f"Received: mode={mode}"
             )
-        if not isinstance(constant_values, int):
+        if not isinstance(
+            constant_values, (int, float, np.integer, np.floating)
+        ):
             raise ValueError(
                 "`pad` operation supports only scalar pad value "
                 "in constant mode with the openvino backend. "
