@@ -18,6 +18,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import shape_to_ov_output
 from keras.src.backend.openvino.core import while_loop
 
 
@@ -1180,7 +1181,7 @@ def broadcast_to(x, shape):
             f"`broadcast_to` is supported only for tuple and list `shape`. "
             f"Received: shape={shape} (type {type(shape)})"
         )
-    target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
+    target_shape = shape_to_ov_output(list(shape))
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
 
