@@ -110,6 +110,7 @@ class Conv1D(BaseConv):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        return_receptive_field=False,
         **kwargs,
     ):
         super().__init__(
@@ -132,6 +133,15 @@ class Conv1D(BaseConv):
             bias_constraint=bias_constraint,
             **kwargs,
         )
+        self.return_receptive_field = return_receptive_field
+        if self.return_receptive_field:
+            self.current_receptive_field = self._compute_receptive_field()
+
+    def _compute_receptive_field(self):
+        kernel_size = self.kernel_size[0]
+        dilation_rate = self.dilation_rate[0]
+        receptive_field = 1 + (kernel_size - 1) * dilation_rate
+        return receptive_field
 
     def _compute_causal_padding(self):
         left_pad = self.dilation_rate[0] * (self.kernel_size[0] - 1)
@@ -168,3 +178,12 @@ class Conv1D(BaseConv):
         if self.activation is not None:
             return self.activation(outputs)
         return outputs
+
+    def get_config(self):
+        config = super().get_config()
+        config.update(
+            {
+                "return_receptive_field": self.return_receptive_field,
+            }
+        )
+        return config
