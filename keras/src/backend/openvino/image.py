@@ -9,8 +9,20 @@ from keras.src.backend.openvino.core import DTYPES_MAX
 from keras.src.backend.openvino.core import DTYPES_MIN
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
+from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.random import _random_normal
+from keras.src.random.seed_generator import draw_seed
+
+AFFINE_TRANSFORM_INTERPOLATIONS = {"nearest": 0, "bilinear": 1}
+AFFINE_TRANSFORM_FILL_MODES = {
+    "constant",
+    "nearest",
+    "wrap",
+    "mirror",
+    "reflect",
+}
 
 SCALE_AND_TRANSLATE_METHODS = {
     "linear",
@@ -489,6 +501,227 @@ def resize(
     return OpenVINOKerasTensor(resized)
 
 
+def _ov_build_affine_coords(images_ov, transform_ov):
+    """Build transformed coordinates for affine_transform using OV opsets.
+
+    images_ov: [B, H, W, C] f32
+    transform_ov: [B, 8] f32 (TF-convention flat transform)
+    Returns coords: [4, B, H, W, C] f32 — (batch, row, col, chan) per pixel.
+    """
+    shape_node = ov_opset.shape_of(images_ov, output_type=Type.i32).output(0)
+    axis0 = ov_opset.constant(0, Type.i32).output(0)
+
+    def dim(i):
+        return ov_opset.gather(
+            shape_node, ov_opset.constant(i, Type.i32).output(0), axis0
+        ).output(0)
+
+    B = dim(0)
+    H = dim(1)
+    W = dim(2)
+    C = dim(3)
+
+    H_f = ov_opset.convert(H, Type.f32).output(0)
+    W_f = ov_opset.convert(W, Type.f32).output(0)
+    C_f = ov_opset.convert(C, Type.f32).output(0)
+    zero_f = ov_opset.constant(0.0, Type.f32).output(0)
+    one_f = ov_opset.constant(1.0, Type.f32).output(0)
+    r_h = ov_opset.range(zero_f, H_f, one_f, output_type=Type.f32).output(0)
+    r_w = ov_opset.range(zero_f, W_f, one_f, output_type=Type.f32).output(0)
+    r_c = ov_opset.range(zero_f, C_f, one_f, output_type=Type.f32).output(0)
+
+    def s1d(scalar):
+        return ov_opset.reshape(
+            scalar, ov_opset.constant([1], Type.i32).output(0), False
+        ).output(0)
+
+    hwc_shape = ov_opset.concat([s1d(H), s1d(W), s1d(C)], axis=0).output(0)
+    grid_h = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_h,
+            ov_opset.concat(
+                [s1d(H), ov_opset.constant([1, 1], Type.i32).output(0)], axis=0
+            ).output(0),
+            False,
+        ).output(0),
+        hwc_shape,
+    ).output(0)
+    grid_w = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_w,
+            ov_opset.concat(
+                [
+                    ov_opset.constant([1], Type.i32).output(0),
+                    s1d(W),
+                    ov_opset.constant([1], Type.i32).output(0),
+                ],
+                axis=0,
+            ).output(0),
+            False,
+        ).output(0),
+        hwc_shape,
+    ).output(0)
+    grid_c = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_c,
+            ov_opset.concat(
+                [ov_opset.constant([1, 1], Type.i32).output(0), s1d(C)], axis=0
+            ).output(0),
+            False,
+        ).output(0),
+        hwc_shape,
+    ).output(0)
+
+    neg1 = ov_opset.constant([-1], Type.i32).output(0)
+    flat_h = ov_opset.reshape(grid_h, neg1, False).output(0)
+    flat_w = ov_opset.reshape(grid_w, neg1, False).output(0)
+    one_vec = ov_opset.broadcast(
+        ov_opset.constant(1.0, Type.f32).output(0),
+        ov_opset.shape_of(flat_h, output_type=Type.i32).output(0),
+    ).output(0)
+    pts = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(flat_h, axes=[1]).output(0),
+            ov_opset.unsqueeze(flat_w, axes=[1]).output(0),
+            ov_opset.unsqueeze(one_vec, axes=[1]).output(0),
+        ],
+        axis=1,
+    ).output(0)
+
+    def t_col(i):
+        return ov_opset.gather(
+            transform_ov,
+            ov_opset.constant(i, Type.i32).output(0),
+            ov_opset.constant(1, Type.i32).output(0),
+        ).output(0)  # [B]
+
+    a0, a1, a2 = t_col(0), t_col(1), t_col(2)
+    b0, b1, b2 = t_col(3), t_col(4), t_col(5)
+    ones_b = ov_opset.broadcast(
+        ov_opset.constant(1.0, Type.f32).output(0),
+        ov_opset.shape_of(a0, output_type=Type.i32).output(0),
+    ).output(0)
+    zeros_b = ov_opset.broadcast(
+        ov_opset.constant(0.0, Type.f32).output(0),
+        ov_opset.shape_of(a0, output_type=Type.i32).output(0),
+    ).output(0)
+
+    # Numpy reference matrix (after swap + zero-out offset col):
+    #   T = [[b1, a1, 0], [b0, a0, 0], [0, 0, 1]]   shape [3,3]
+    # offset = [b2, a2, 0]
+    # coords = pts @ T + offset  (right-multiply)
+    def make_col(c0, c1, c2):
+        col = ov_opset.concat(
+            [
+                ov_opset.unsqueeze(c0, axes=[1]).output(0),
+                ov_opset.unsqueeze(c1, axes=[1]).output(0),
+                ov_opset.unsqueeze(c2, axes=[1]).output(0),
+            ],
+            axis=1,
+        ).output(0)  # [B, 3]
+        return ov_opset.unsqueeze(col, axes=[2]).output(0)  # [B, 3, 1]
+
+    # T as columns: col0=[b1,b0,0], col1=[a1,a0,0], col2=[0,0,1]
+    col0 = make_col(b1, b0, zeros_b)  # [B, 3, 1]
+    col1 = make_col(a1, a0, zeros_b)  # [B, 3, 1]
+    col2 = make_col(zeros_b, zeros_b, ones_b)  # [B, 3, 1]
+    mat = ov_opset.concat([col0, col1, col2], axis=2).output(0)  # [B, 3, 3]
+
+    offset_row = ov_opset.unsqueeze(b2, axes=[1]).output(0)  # [B, 1]
+    offset_col = ov_opset.unsqueeze(a2, axes=[1]).output(0)  # [B, 1]
+    offset_chan = ov_opset.broadcast(
+        ov_opset.constant(0.0, Type.f32).output(0),
+        ov_opset.reshape(
+            B, ov_opset.constant([1], Type.i32).output(0), False
+        ).output(0),
+    ).output(0)
+    offset_chan = ov_opset.unsqueeze(offset_chan, axes=[1]).output(0)  # [B, 1]
+    offset_3 = ov_opset.concat(
+        [offset_row, offset_col, offset_chan], axis=1
+    ).output(0)  # [B, 3]
+
+    pts_b = ov_opset.unsqueeze(pts, axes=[0]).output(0)  # [1, N, 3]
+    pts_shape = ov_opset.shape_of(pts, output_type=Type.i32).output(0)  # [2]
+    B_N_3 = ov_opset.concat([s1d(B), pts_shape], axis=0).output(0)  # [B, N, 3]
+    pts_b = ov_opset.broadcast(pts_b, B_N_3).output(0)  # [B, N, 3]
+
+    transformed = ov_opset.matmul(pts_b, mat, False, False).output(
+        0
+    )  # [B, N, 3]
+
+    offset_b = ov_opset.unsqueeze(offset_3, axes=[1]).output(0)  # [B, 1, 3]
+    transformed = ov_opset.add(transformed, offset_b).output(0)  # [B, N, 3]
+
+    transformed_t = ov_opset.transpose(
+        transformed, ov_opset.constant([0, 2, 1], Type.i32).output(0)
+    ).output(0)  # [B, 3, N]
+    coord_row = ov_opset.squeeze(
+        ov_opset.gather(
+            transformed_t,
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant(1, Type.i32).output(0),
+        ).output(0),  # [B, 1, N]
+        axes=[1],
+    ).output(0)  # [B, N]
+    coord_col = ov_opset.squeeze(
+        ov_opset.gather(
+            transformed_t,
+            ov_opset.constant([1], Type.i32).output(0),
+            ov_opset.constant(1, Type.i32).output(0),
+        ).output(0),  # [B, 1, N]
+        axes=[1],
+    ).output(0)  # [B, N]
+    bhwc_shape = ov_opset.concat(
+        [s1d(B), s1d(H), s1d(W), s1d(C)], axis=0
+    ).output(0)
+    coord_row = ov_opset.reshape(coord_row, bhwc_shape, False).output(0)
+    coord_col = ov_opset.reshape(coord_col, bhwc_shape, False).output(0)
+    # chan coords are the same for all batch items
+    chan_bhwc = ov_opset.broadcast(
+        ov_opset.reshape(
+            ov_opset.reshape(grid_c, neg1, False).output(0),
+            ov_opset.concat(
+                [
+                    ov_opset.constant([1], Type.i32).output(0),
+                    s1d(H),
+                    s1d(W),
+                    s1d(C),
+                ],
+                axis=0,
+            ).output(0),
+            False,
+        ).output(0),
+        bhwc_shape,
+    ).output(0)
+    zero_f = ov_opset.constant(0.0, Type.f32).output(0)
+    one_f = ov_opset.constant(1.0, Type.f32).output(0)
+    B_f = ov_opset.convert(B, Type.f32).output(0)
+    r_b = ov_opset.range(zero_f, B_f, one_f, output_type=Type.f32).output(0)
+    batch_bhwc = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_b,
+            ov_opset.concat(
+                [s1d(B), ov_opset.constant([1, 1, 1], Type.i32).output(0)],
+                axis=0,
+            ).output(0),
+            False,
+        ).output(0),
+        bhwc_shape,
+    ).output(0)
+
+    # Stack to [4, B, H, W, C] — (batch, row, col, chan)
+    coords = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(batch_bhwc, axes=[0]).output(0),
+            ov_opset.unsqueeze(coord_row, axes=[0]).output(0),
+            ov_opset.unsqueeze(coord_col, axes=[0]).output(0),
+            ov_opset.unsqueeze(chan_bhwc, axes=[0]).output(0),
+        ],
+        axis=0,
+    ).output(0)
+    return coords
+
+
 def affine_transform(
     images,
     transform,
@@ -497,9 +730,199 @@ def affine_transform(
     fill_value=0,
     data_format=None,
 ):
-    raise NotImplementedError(
-        "`affine_transform` is not supported with openvino backend"
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Expected of one "
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
+        )
+
+    images = convert_to_tensor(images)
+    transform = convert_to_tensor(transform)
+    images_ov = get_ov_output(images)
+    transform_ov = get_ov_output(transform)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if len(transform.shape) not in (1, 2):
+        raise ValueError(
+            "Invalid transform rank: expected rank 1 (single transform) "
+            "or rank 2 (batch of transforms). Received input with shape: "
+            f"transform.shape={transform.shape}"
+        )
+
+    ov_type = images_ov.get_element_type()
+    compute_type = Type.f32
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images_ov = ov_opset.unsqueeze(images_ov, axes=[0]).output(0)
+        need_squeeze = True
+    if len(transform.shape) == 1:
+        transform_ov = ov_opset.unsqueeze(transform_ov, axes=[0]).output(0)
+
+    if data_format == "channels_first":
+        images_ov = ov_opset.transpose(
+            images_ov,
+            ov_opset.constant([0, 2, 3, 1], Type.i32).output(0),
+        ).output(0)
+
+    images_ov = ov_opset.convert(images_ov, compute_type).output(0)
+    transform_ov = ov_opset.convert(transform_ov, compute_type).output(0)
+
+    coords = _ov_build_affine_coords(images_ov, transform_ov)
+    affined = map_coordinates(
+        OpenVINOKerasTensor(images_ov),
+        OpenVINOKerasTensor(coords),
+        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+        fill_mode=fill_mode,
+        fill_value=fill_value,
     )
+    affined = get_ov_output(affined)
+
+    if ov_type.is_integral():
+        affined = ov_opset.round(affined, mode="half_to_even").output(0)
+    affined = ov_opset.convert(affined, ov_type).output(0)
+
+    if data_format == "channels_first":
+        affined = ov_opset.transpose(
+            affined,
+            ov_opset.constant([0, 3, 1, 2], Type.i32).output(0),
+        ).output(0)
+    if need_squeeze:
+        affined = ov_opset.squeeze(affined, axes=[0]).output(0)
+
+    return OpenVINOKerasTensor(affined)
+
+
+def _ov_compute_homography(start_points_ov, end_points_ov):
+    """Compute homography matrix from 4-point correspondences using OV opsets.
+
+    start_points_ov: [B, 4, 2] f32
+    end_points_ov:   [B, 4, 2] f32
+    Returns: [B, 8] f32
+    """
+    axis0 = ov_opset.constant(0, Type.i32).output(0)
+    axis1 = ov_opset.constant(1, Type.i32).output(0)
+
+    def _split_points(pts_ov):
+        # pts_ov: [B, 4, 2] -> list of 4 pairs (x [B], y [B])
+        # Split along axis1 (corners) then axis2 (x/y) in one pass each.
+        corners = [
+            ov_opset.squeeze(
+                ov_opset.gather(
+                    pts_ov,
+                    ov_opset.constant([c], Type.i32).output(0),
+                    axis1,
+                ).output(0),  # [B, 1, 2]
+                axes=[1],
+            ).output(0)  # [B, 2]
+            for c in range(4)
+        ]
+        result = []
+        for pt in corners:
+            x = ov_opset.squeeze(
+                ov_opset.gather(
+                    pt, ov_opset.constant([0], Type.i32).output(0), axis1
+                ).output(0),
+                axes=[1],
+            ).output(0)  # [B]
+            y = ov_opset.squeeze(
+                ov_opset.gather(
+                    pt, ov_opset.constant([1], Type.i32).output(0), axis1
+                ).output(0),
+                axes=[1],
+            ).output(0)  # [B]
+            result.append((x, y))
+        return result
+
+    end_pts = _split_points(end_points_ov)
+    start_pts = _split_points(start_points_ov)
+
+    B_shape = ov_opset.shape_of(start_points_ov, output_type=Type.i32).output(0)
+    B = ov_opset.gather(
+        B_shape, ov_opset.constant(0, Type.i32).output(0), axis0
+    ).output(0)
+
+    def ones():
+        return ov_opset.broadcast(
+            ov_opset.constant(1.0, Type.f32).output(0),
+            ov_opset.reshape(
+                B, ov_opset.constant([1], Type.i32).output(0), False
+            ).output(0),
+        ).output(0)
+
+    def zeros():
+        return ov_opset.broadcast(
+            ov_opset.constant(0.0, Type.f32).output(0),
+            ov_opset.reshape(
+                B, ov_opset.constant([1], Type.i32).output(0), False
+            ).output(0),
+        ).output(0)
+
+    def neg(x):
+        return ov_opset.multiply(
+            x, ov_opset.constant(-1.0, Type.f32).output(0)
+        ).output(0)
+
+    def mul(a, b):
+        return ov_opset.multiply(a, b).output(0)
+
+    # Build 8x8 coefficient matrix rows and RHS for each of 4 corners
+    # Per numpy ref: for corner i with end=(ex,ey), start=(sx,sy):
+    #   row1: [ex, ey, 1, 0,  0,  0, -sx*ex, -sx*ey]
+    #   row2: [0,  0,  0, ex, ey, 1, -sy*ex, -sy*ey]
+    def make_two_rows(ex, ey, sx, sy):
+        o = ones()
+        z = zeros()
+
+        def row_from_elems(elems):
+            return ov_opset.concat(
+                [ov_opset.unsqueeze(e, axes=[1]).output(0) for e in elems],
+                axis=1,
+            ).output(0)  # [B, 8]
+
+        row1 = row_from_elems(
+            [ex, ey, o, z, z, z, neg(mul(sx, ex)), neg(mul(sx, ey))]
+        )
+        row2 = row_from_elems(
+            [z, z, z, ex, ey, o, neg(mul(sy, ex)), neg(mul(sy, ey))]
+        )
+        return row1, row2
+
+    rows = []
+    rhs_cols = []
+    for corner in range(4):
+        ex, ey = end_pts[corner]
+        sx, sy = start_pts[corner]
+        r1, r2 = make_two_rows(ex, ey, sx, sy)
+        rows.extend([r1, r2])
+        rhs_cols.extend([sx, sy])
+
+    coeff_mat = ov_opset.concat(
+        [ov_opset.unsqueeze(r, axes=[1]).output(0) for r in rows], axis=1
+    ).output(0)  # [B, 8, 8]
+    # rhs: [B, 8, 1]
+    rhs_2d = ov_opset.concat(
+        [ov_opset.unsqueeze(c, axes=[1]).output(0) for c in rhs_cols], axis=1
+    ).output(0)  # [B, 8]
+    rhs = ov_opset.unsqueeze(rhs_2d, axes=[2]).output(0)  # [B, 8, 1]
+
+    # Solve: coeff_mat @ h = rhs  =>  h = inv(coeff_mat) @ rhs
+    coeff_inv = ov_opset.inverse(coeff_mat, adjoint=False).output(0)
+    h = ov_opset.matmul(coeff_inv, rhs, False, False).output(0)  # [B, 8, 1]
+    h = ov_opset.squeeze(h, axes=[2]).output(0)  # [B, 8]
+    return h
 
 
 def perspective_transform(
@@ -510,9 +933,274 @@ def perspective_transform(
     fill_value=0,
     data_format=None,
 ):
-    raise NotImplementedError(
-        "`perspective_transform` is not supported with openvino backend"
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+
+    images = convert_to_tensor(images)
+    start_points = convert_to_tensor(start_points)
+    end_points = convert_to_tensor(end_points)
+    images_ov = get_ov_output(images)
+    sp_ov = get_ov_output(start_points)
+    ep_ov = get_ov_output(end_points)
+
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+    if len(start_points.shape) not in (2, 3) or tuple(start_points.shape)[
+        -2:
+    ] != (4, 2):
+        raise ValueError(
+            "Invalid start_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {start_points.shape}"
+        )
+    if len(end_points.shape) not in (2, 3) or tuple(end_points.shape)[-2:] != (
+        4,
+        2,
+    ):
+        raise ValueError(
+            "Invalid end_points shape: expected (4,2) for a single image"
+            f" or (N,4,2) for a batch. Received shape: {end_points.shape}"
+        )
+
+    ov_type = images_ov.get_element_type()
+    compute_type = Type.f32
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images_ov = ov_opset.unsqueeze(images_ov, axes=[0]).output(0)
+        need_squeeze = True
+    if len(start_points.shape) == 2:
+        sp_ov = ov_opset.unsqueeze(sp_ov, axes=[0]).output(0)
+    if len(end_points.shape) == 2:
+        ep_ov = ov_opset.unsqueeze(ep_ov, axes=[0]).output(0)
+
+    if data_format == "channels_first":
+        images_ov = ov_opset.transpose(
+            images_ov,
+            ov_opset.constant([0, 2, 3, 1], Type.i32).output(0),
+        ).output(0)
+
+    images_ov = ov_opset.convert(images_ov, compute_type).output(0)
+    sp_ov = ov_opset.convert(sp_ov, compute_type).output(0)
+    ep_ov = ov_opset.convert(ep_ov, compute_type).output(0)
+
+    transforms = _ov_compute_homography(sp_ov, ep_ov)
+
+    shape_node = ov_opset.shape_of(images_ov, output_type=Type.i32).output(0)
+    axis0 = ov_opset.constant(0, Type.i32).output(0)
+
+    def dim(i):
+        return ov_opset.gather(
+            shape_node, ov_opset.constant(i, Type.i32).output(0), axis0
+        ).output(0)
+
+    B = dim(0)
+    H = dim(1)
+    W = dim(2)
+    C = dim(3)
+
+    H_f = ov_opset.convert(H, Type.f32).output(0)
+    W_f = ov_opset.convert(W, Type.f32).output(0)
+    zero_f = ov_opset.constant(0.0, Type.f32).output(0)
+    one_f = ov_opset.constant(1.0, Type.f32).output(0)
+    r_h = ov_opset.range(zero_f, H_f, one_f, output_type=Type.f32).output(
+        0
+    )  # [H]
+    r_w = ov_opset.range(zero_f, W_f, one_f, output_type=Type.f32).output(
+        0
+    )  # [W]
+
+    def p1d(scalar):
+        return ov_opset.reshape(
+            scalar, ov_opset.constant([1], Type.i32).output(0), False
+        ).output(0)
+
+    hw_shape = ov_opset.concat([p1d(H), p1d(W)], axis=0).output(0)
+    # y: rows  [H, W]
+    y = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_h,
+            ov_opset.concat(
+                [p1d(H), ov_opset.constant([1], Type.i32).output(0)], axis=0
+            ).output(0),
+            False,
+        ).output(0),
+        hw_shape,
+    ).output(0)
+    # x: cols  [H, W]
+    x = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_w,
+            ov_opset.concat(
+                [ov_opset.constant([1], Type.i32).output(0), p1d(W)], axis=0
+            ).output(0),
+            False,
+        ).output(0),
+        hw_shape,
+    ).output(0)
+
+    neg1 = ov_opset.constant([-1], Type.i32).output(0)
+    x_flat = ov_opset.reshape(x, neg1, False).output(0)  # [N]
+    y_flat = ov_opset.reshape(y, neg1, False).output(0)  # [N]
+
+    axis1 = ov_opset.constant(1, Type.i32).output(0)
+
+    def h_col(i):
+        return ov_opset.squeeze(
+            ov_opset.gather(
+                transforms, ov_opset.constant([i], Type.i32).output(0), axis1
+            ).output(0),  # [B, 1]
+            axes=[1],
+        ).output(0)  # [B]
+
+    a0, a1, a2 = h_col(0), h_col(1), h_col(2)
+    a3, a4, a5 = h_col(3), h_col(4), h_col(5)
+    a6, a7 = h_col(6), h_col(7)
+
+    N_shape = ov_opset.shape_of(x_flat, output_type=Type.i32).output(0)
+    BN_shape = ov_opset.concat(
+        [
+            ov_opset.reshape(
+                B, ov_opset.constant([1], Type.i32).output(0), False
+            ).output(0),
+            N_shape,
+        ],
+        axis=0,
+    ).output(0)
+
+    def bcast(v):
+        return ov_opset.broadcast(
+            ov_opset.unsqueeze(v, axes=[1]).output(0), BN_shape
+        ).output(0)
+
+    x_bn = ov_opset.broadcast(
+        ov_opset.unsqueeze(x_flat, axes=[0]).output(0), BN_shape
+    ).output(0)
+    y_bn = ov_opset.broadcast(
+        ov_opset.unsqueeze(y_flat, axes=[0]).output(0), BN_shape
+    ).output(0)
+
+    # denom = a6*x + a7*y + 1
+    one_bn = ov_opset.broadcast(
+        ov_opset.constant(1.0, Type.f32).output(0), BN_shape
+    ).output(0)
+    denom = ov_opset.add(
+        ov_opset.add(
+            ov_opset.multiply(bcast(a6), x_bn).output(0),
+            ov_opset.multiply(bcast(a7), y_bn).output(0),
+        ).output(0),
+        one_bn,
+    ).output(0)
+
+    # x_in = (a0*x + a1*y + a2) / denom
+    x_in = ov_opset.divide(
+        ov_opset.add(
+            ov_opset.add(
+                ov_opset.multiply(bcast(a0), x_bn).output(0),
+                ov_opset.multiply(bcast(a1), y_bn).output(0),
+            ).output(0),
+            bcast(a2),
+        ).output(0),
+        denom,
+    ).output(0)
+
+    # y_in = (a3*x + a4*y + a5) / denom
+    y_in = ov_opset.divide(
+        ov_opset.add(
+            ov_opset.add(
+                ov_opset.multiply(bcast(a3), x_bn).output(0),
+                ov_opset.multiply(bcast(a4), y_bn).output(0),
+            ).output(0),
+            bcast(a5),
+        ).output(0),
+        denom,
+    ).output(0)
+
+    bhw_shape = ov_opset.concat([p1d(B), p1d(H), p1d(W)], axis=0).output(0)
+    y_in = ov_opset.reshape(y_in, bhw_shape, False).output(0)
+    x_in = ov_opset.reshape(x_in, bhw_shape, False).output(0)
+
+    C_f = ov_opset.convert(C, Type.f32).output(0)
+    r_c = ov_opset.range(zero_f, C_f, one_f, output_type=Type.f32).output(
+        0
+    )  # [C]
+
+    bhwc_shape = ov_opset.concat(
+        [p1d(B), p1d(H), p1d(W), p1d(C)], axis=0
+    ).output(0)
+
+    y_in_bhwc = ov_opset.broadcast(
+        ov_opset.unsqueeze(y_in, axes=[3]).output(0), bhwc_shape
+    ).output(0)
+    x_in_bhwc = ov_opset.broadcast(
+        ov_opset.unsqueeze(x_in, axes=[3]).output(0), bhwc_shape
+    ).output(0)
+    chan_bhwc = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_c,
+            ov_opset.concat(
+                [ov_opset.constant([1, 1, 1], Type.i32).output(0), p1d(C)],
+                axis=0,
+            ).output(0),
+            False,
+        ).output(0),
+        bhwc_shape,
+    ).output(0)
+    B_f = ov_opset.convert(B, Type.f32).output(0)
+    r_b = ov_opset.range(zero_f, B_f, one_f, output_type=Type.f32).output(0)
+    batch_bhwc = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_b,
+            ov_opset.concat(
+                [p1d(B), ov_opset.constant([1, 1, 1], Type.i32).output(0)],
+                axis=0,
+            ).output(0),
+            False,
+        ).output(0),
+        bhwc_shape,
+    ).output(0)
+
+    # coords: [4, B, H, W, C] — (batch, row=y, col=x, chan)
+    coords = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(batch_bhwc, axes=[0]).output(0),
+            ov_opset.unsqueeze(y_in_bhwc, axes=[0]).output(0),
+            ov_opset.unsqueeze(x_in_bhwc, axes=[0]).output(0),
+            ov_opset.unsqueeze(chan_bhwc, axes=[0]).output(0),
+        ],
+        axis=0,
+    ).output(0)
+
+    result = map_coordinates(
+        OpenVINOKerasTensor(images_ov),
+        OpenVINOKerasTensor(coords),
+        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+        fill_mode="constant",
+        fill_value=fill_value,
     )
+    result = get_ov_output(result)
+
+    if ov_type.is_integral():
+        result = ov_opset.round(result, mode="half_to_even").output(0)
+    result = ov_opset.convert(result, ov_type).output(0)
+
+    if data_format == "channels_first":
+        result = ov_opset.transpose(
+            result,
+            ov_opset.constant([0, 3, 1, 2], Type.i32).output(0),
+        ).output(0)
+    if need_squeeze:
+        result = ov_opset.squeeze(result, axes=[0]).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def _mirror_index_fixer(index, size_node):
@@ -867,9 +1555,241 @@ def elastic_transform(
     seed=None,
     data_format=None,
 ):
-    raise NotImplementedError(
-        "`elastic_transform` is not supported with openvino backend"
+    data_format = backend.standardize_data_format(data_format)
+    if interpolation not in AFFINE_TRANSFORM_INTERPOLATIONS:
+        raise ValueError(
+            "Invalid value for argument `interpolation`. Expected of one "
+            f"{set(AFFINE_TRANSFORM_INTERPOLATIONS.keys())}. Received: "
+            f"interpolation={interpolation}"
+        )
+    if fill_mode not in AFFINE_TRANSFORM_FILL_MODES:
+        raise ValueError(
+            "Invalid value for argument `fill_mode`. Expected of one "
+            f"{AFFINE_TRANSFORM_FILL_MODES}. Received: fill_mode={fill_mode}"
+        )
+    if len(images.shape) not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). Received input with shape: "
+            f"images.shape={images.shape}"
+        )
+
+    images = convert_to_tensor(images)
+    images_ov = get_ov_output(images)
+    ov_type = images_ov.get_element_type()
+    compute_type = Type.f32
+
+    need_squeeze = False
+    if len(images.shape) == 3:
+        images_ov = ov_opset.unsqueeze(images_ov, axes=[0]).output(0)
+        need_squeeze = True
+
+    if data_format == "channels_last":
+        images_ov_cf = ov_opset.transpose(
+            images_ov,
+            ov_opset.constant([0, 3, 1, 2], Type.i32).output(0),
+        ).output(0)
+    else:
+        images_ov_cf = images_ov
+
+    images_ov_cf = ov_opset.convert(images_ov_cf, compute_type).output(0)
+
+    shape_node = ov_opset.shape_of(images_ov_cf, output_type=Type.i32).output(0)
+    axis0 = ov_opset.constant(0, Type.i32).output(0)
+
+    def dim(i):
+        return ov_opset.gather(
+            shape_node, ov_opset.constant(i, Type.i32).output(0), axis0
+        ).output(0)
+
+    B = dim(0)
+    C = dim(1)
+    H = dim(2)
+    W = dim(3)
+
+    sigma_val = float(sigma)
+    alpha_val = float(alpha)
+    kernel_size_1d = int(6 * sigma_val) | 1
+
+    # OV random ops require static seed attributes, so symbolic seeds must be
+    # materialized via convert_to_numpy. This is an unavoidable sync point given
+    # the OV backend's stateless random design.
+    seed_val = draw_seed(seed)
+    if isinstance(seed_val, OpenVINOKerasTensor):
+        s = convert_to_numpy(seed_val)
+    else:
+        s = seed_val.data
+    seed1 = max(1, int(s[0]) & 0x7FFFFFFF)
+    seed2 = max(1, int(s[1]) & 0x7FFFFFFF) if len(s) > 1 else 1
+
+    def to_1d(scalar):
+        return ov_opset.reshape(
+            scalar, ov_opset.constant([1], Type.i32).output(0), False
+        ).output(0)
+
+    bhw_shape = ov_opset.concat(
+        [to_1d(B), to_1d(H), to_1d(W)],
+        axis=0,
+    ).output(0)
+
+    dx = _random_normal(bhw_shape, Type.f32, seed1, seed2)  # [B, H, W]
+    dy = _random_normal(bhw_shape, Type.f32, seed1 + 1, seed2)  # [B, H, W]
+
+    # Scale by sigma before gaussian blur
+    sigma_const = ov_opset.constant(sigma_val, Type.f32).output(0)
+    dx = ov_opset.multiply(dx, sigma_const).output(0)
+    dy = ov_opset.multiply(dy, sigma_const).output(0)
+
+    # Apply gaussian blur to smooth the displacement fields
+    # Add channel dim: [B, 1, H, W] for channels_first gaussian_blur
+    dx_4d = ov_opset.unsqueeze(dx, axes=[1]).output(0)
+    dy_4d = ov_opset.unsqueeze(dy, axes=[1]).output(0)
+
+    dx_blurred = gaussian_blur(
+        OpenVINOKerasTensor(dx_4d),
+        kernel_size=(kernel_size_1d, kernel_size_1d),
+        sigma=(sigma_val, sigma_val),
+        data_format="channels_first",
     )
+    dy_blurred = gaussian_blur(
+        OpenVINOKerasTensor(dy_4d),
+        kernel_size=(kernel_size_1d, kernel_size_1d),
+        sigma=(sigma_val, sigma_val),
+        data_format="channels_first",
+    )
+    dx_blurred = ov_opset.squeeze(get_ov_output(dx_blurred), axes=[1]).output(
+        0
+    )  # [B, H, W]
+    dy_blurred = ov_opset.squeeze(get_ov_output(dy_blurred), axes=[1]).output(
+        0
+    )  # [B, H, W]
+
+    H_f = ov_opset.convert(H, Type.f32).output(0)
+    W_f = ov_opset.convert(W, Type.f32).output(0)
+    zero_f = ov_opset.constant(0.0, Type.f32).output(0)
+    one_f = ov_opset.constant(1.0, Type.f32).output(0)
+    r_h = ov_opset.range(zero_f, H_f, one_f, output_type=Type.f32).output(0)
+    r_w = ov_opset.range(zero_f, W_f, one_f, output_type=Type.f32).output(0)
+    hw_shape = ov_opset.concat([to_1d(H), to_1d(W)], axis=0).output(0)
+
+    y_base = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_h,
+            ov_opset.concat(
+                [to_1d(H), ov_opset.constant([1], Type.i32).output(0)], axis=0
+            ).output(0),
+            False,
+        ).output(0),
+        hw_shape,
+    ).output(0)  # [H, W]
+    x_base = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_w,
+            ov_opset.concat(
+                [ov_opset.constant([1], Type.i32).output(0), to_1d(W)], axis=0
+            ).output(0),
+            False,
+        ).output(0),
+        hw_shape,
+    ).output(0)  # [H, W]
+
+    bhw_bcast = ov_opset.concat([to_1d(B), to_1d(H), to_1d(W)], axis=0).output(
+        0
+    )
+    y_base_b = ov_opset.broadcast(
+        ov_opset.unsqueeze(y_base, axes=[0]).output(0), bhw_bcast
+    ).output(0)
+    x_base_b = ov_opset.broadcast(
+        ov_opset.unsqueeze(x_base, axes=[0]).output(0), bhw_bcast
+    ).output(0)
+
+    alpha_const = ov_opset.constant(alpha_val, Type.f32).output(0)
+    distorted_x = ov_opset.add(
+        x_base_b, ov_opset.multiply(alpha_const, dx_blurred).output(0)
+    ).output(0)
+    distorted_y = ov_opset.add(
+        y_base_b, ov_opset.multiply(alpha_const, dy_blurred).output(0)
+    ).output(0)
+
+    # Build coords [3, B, H, W, C] — (row=y, col=x, chan) per output pixel
+    C_f = ov_opset.convert(C, Type.f32).output(0)
+    r_c = ov_opset.range(zero_f, C_f, one_f, output_type=Type.f32).output(0)
+
+    bhwc_shape = ov_opset.concat(
+        [to_1d(B), to_1d(H), to_1d(W), to_1d(C)], axis=0
+    ).output(0)
+
+    y_bhwc = ov_opset.broadcast(
+        ov_opset.unsqueeze(distorted_y, axes=[3]).output(0), bhwc_shape
+    ).output(0)
+    x_bhwc = ov_opset.broadcast(
+        ov_opset.unsqueeze(distorted_x, axes=[3]).output(0), bhwc_shape
+    ).output(0)
+    chan_bhwc = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_c,
+            ov_opset.concat(
+                [ov_opset.constant([1, 1, 1], Type.i32).output(0), to_1d(C)],
+                axis=0,
+            ).output(0),
+            False,
+        ).output(0),
+        bhwc_shape,
+    ).output(0)
+
+    B_f = ov_opset.convert(B, Type.f32).output(0)
+    r_b = ov_opset.range(zero_f, B_f, one_f, output_type=Type.f32).output(0)
+    batch_bhwc = ov_opset.broadcast(
+        ov_opset.reshape(
+            r_b,
+            ov_opset.concat(
+                [to_1d(B), ov_opset.constant([1, 1, 1], Type.i32).output(0)],
+                axis=0,
+            ).output(0),
+            False,
+        ).output(0),
+        bhwc_shape,
+    ).output(0)
+
+    # coords: [4, B, H, W, C] — (batch, row=y, col=x, chan)
+    coords = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(batch_bhwc, axes=[0]).output(0),
+            ov_opset.unsqueeze(y_bhwc, axes=[0]).output(0),
+            ov_opset.unsqueeze(x_bhwc, axes=[0]).output(0),
+            ov_opset.unsqueeze(chan_bhwc, axes=[0]).output(0),
+        ],
+        axis=0,
+    ).output(0)  # [4, B, H, W, C]
+
+    # images_ov_cf is [B, C, H, W] but map_coordinates needs [B, H, W, C]
+    images_bhwc = ov_opset.transpose(
+        images_ov_cf,
+        ov_opset.constant([0, 2, 3, 1], Type.i32).output(0),
+    ).output(0)
+
+    result = map_coordinates(
+        OpenVINOKerasTensor(images_bhwc),
+        OpenVINOKerasTensor(coords),
+        order=AFFINE_TRANSFORM_INTERPOLATIONS[interpolation],
+        fill_mode=fill_mode,
+        fill_value=fill_value,
+    )
+    result = get_ov_output(result)
+
+    if ov_type.is_integral():
+        result = ov_opset.round(result, mode="half_to_even").output(0)
+    result = ov_opset.convert(result, ov_type).output(0)
+
+    if data_format == "channels_first":
+        result = ov_opset.transpose(
+            result,
+            ov_opset.constant([0, 3, 1, 2], Type.i32).output(0),
+        ).output(0)
+    if need_squeeze:
+        result = ov_opset.squeeze(result, axes=[0]).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def _ov_fill_triangle_kernel(x):
