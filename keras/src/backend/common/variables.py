@@ -390,13 +390,11 @@ class Variable:
 
     @constraint.setter
     def constraint(self, value):
-        from keras.src.constraints import Constraint
-
-        if value is not None and not isinstance(value, Constraint):
+        if value is not None and not callable(value):
             raise ValueError(
-                "Invalid value for attribute `constraint`. Expected an "
-                "instance of `keras.constraints.Constraint`, or `None`. "
-                f"Received: constraint={value}"
+                "Invalid value for attribute `constraint`. Expected a "
+                "callable (such as a `keras.constraints.Constraint` instance) "
+                f"or `None`. Received: constraint={value}"
             )
         self._constraint = value
 
