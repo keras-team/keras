@@ -181,6 +181,28 @@ class EmbeddingTest(test_case.TestCase):
         layer.build((None, 2))
         self.assertIsInstance(layer.embeddings.constraint, constraints.NonNeg)
 
+    def test_invalid_input_dim(self):
+        for bad_value in (3.7, 4.0, "3", None, True, False, -1, 0):
+            with self.assertRaisesRegex(
+                ValueError, "`input_dim` must be a positive integer"
+            ):
+                layers.Embedding(input_dim=bad_value, output_dim=8)
+        with self.assertRaisesRegex(
+            TypeError, "`input_dim` must be a positive integer"
+        ):
+            layers.Embedding.from_config({"input_dim": 3.7, "output_dim": 8})
+
+    def test_invalid_output_dim(self):
+        for bad_value in (3.7, 4.0, "3", None, True, False, -1, 0):
+            with self.assertRaisesRegex(
+                ValueError, "`output_dim` must be a positive integer"
+            ):
+                layers.Embedding(input_dim=10, output_dim=bad_value)
+        with self.assertRaisesRegex(
+            TypeError, "`output_dim` must be a positive integer"
+        ):
+            layers.Embedding.from_config({"input_dim": 10, "output_dim": 3.7})
+
     def test_weights_constructor_arg(self):
         layer = layers.Embedding(3, 4, weights=np.ones((3, 4)))
         self.assertAllClose(layer.embeddings.numpy(), np.ones((3, 4)))
