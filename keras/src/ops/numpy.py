@@ -8738,6 +8738,7 @@ class Transpose(Operation):
             axes = tuple(canonicalize_axis(axis, len(x.shape)) for axis in self.axes)
         else:
             axes = None
+
         return backend.numpy.transpose(x, axes=axes)
 
     def compute_output_spec(self, x):
@@ -8745,6 +8746,7 @@ class Transpose(Operation):
             axes = tuple(canonicalize_axis(axis, len(x.shape)) for axis in self.axes)
         else:
             axes = None
+
         output_shape = operation_utils.compute_transpose_output_shape(
             x.shape, axes
         )
