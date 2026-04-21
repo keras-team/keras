@@ -1378,6 +1378,18 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w.dtype, "int8")
         self.assertEqual(layer.w.trainable, False)
 
+    def test_trainable_init_arg_validation(self):
+        # Issue #22699: non-boolean `trainable` values (e.g. from a malformed
+        # config passed to `deserialize_keras_object`) were silently accepted,
+        # leaving `layer.trainable` as a non-bool and breaking downstream
+        # strict-boolean checks.
+        with self.assertRaisesRegex(TypeError, "to be a boolean"):
+            layers.Dense(2, trainable="yes")
+        with self.assertRaisesRegex(TypeError, "to be a boolean"):
+            layers.Dense(2, trainable=1)
+        with self.assertRaisesRegex(TypeError, "to be a boolean"):
+            layers.Dense(2, trainable=None)
+
     def test_trainable_init_arg(self):
         inputs = layers.Input(shape=(1,))
         layer = layers.Dense(2, trainable=False)
