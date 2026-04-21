@@ -1320,7 +1320,8 @@ class ShardedH5IOStore(H5IOStore):
 
         if filename is not None and filename != self.current_shard_path.name:
             self.close()
-            self.h5_file = self._get_h5_file(self.path.with_name(filename))
+            self.current_shard_path = self.path.with_name(filename)
+            self.h5_file = self._get_h5_file(self.current_shard_path)
         return super().get(path)
 
     def close(self):
