@@ -53,6 +53,13 @@ def rgb_to_grayscale(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
+    if images.shape[channels_axis] not in (1, 3):
+        raise ValueError(
+            "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+            f"Received input with shape: images.shape={images.shape}"
+        )
+    if images.shape[channels_axis] == 1:
+        return images.copy()
     # Convert to floats
     original_dtype = images.dtype
     compute_dtype = backend.result_type(images.dtype, float)
