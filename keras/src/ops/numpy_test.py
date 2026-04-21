@@ -3274,6 +3274,18 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         elif backend.backend() == "jax":
             import jax.experimental.sparse as jax_sparse
 
+            if (
+                x_sparse
+                and y_sparse
+                and len(x_shape) == 4
+                and dtype in ("float32", "float64", "int32")
+                and testing.jax_uses_tpu()
+            ):
+                pytest.skip(
+                    "Sparse sparse matmul crashes for rank 4 and float32 with "
+                    "JAX on some TPUs"
+                )
+
             dense_to_sparse = functools.partial(
                 jax_sparse.BCOO.fromdense, n_batch=len(x_shape) - 2
             )
