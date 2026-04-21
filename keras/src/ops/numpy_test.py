@@ -343,6 +343,20 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.fmod(x, y).shape, (2, 3))
 
+    def test_nanpercentile(self):
+        x = KerasTensor((None, 3))
+
+        q = KerasTensor(())
+        self.assertEqual(knp.nanpercentile(x, q).shape, ())
+
+        q = KerasTensor((2,))
+        self.assertEqual(knp.nanpercentile(x, q).shape, (2,))
+        self.assertEqual(knp.nanpercentile(x, q, axis=1).shape, (2, None))
+        self.assertEqual(
+            knp.nanpercentile(x, q, axis=1, keepdims=True).shape,
+            (2, None, 1),
+        )
+
     def test_nanquantile(self):
         x = KerasTensor((None, 3))
 
@@ -1032,6 +1046,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.fmod(x, y)
+
+    def test_nanpercentile(self):
+        x = KerasTensor((3, 3))
+        q = KerasTensor(())
+        self.assertEqual(knp.nanpercentile(x, q).shape, ())
+
+        q = KerasTensor((2,))
+        self.assertEqual(knp.nanpercentile(x, q).shape, (2,))
+        self.assertEqual(knp.nanpercentile(x, q, axis=1).shape, (2, 3))
+        self.assertEqual(
+            knp.nanpercentile(x, q, axis=1, keepdims=True).shape,
+            (2, 3, 1),
+        )
 
     def test_nanquantile(self):
         x = KerasTensor((3, 3))
@@ -4011,6 +4038,122 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Fmod()(x, y), np.fmod(x, y))
         self.assertAllClose(knp.Fmod()(x, 2), np.fmod(x, 2))
         self.assertAllClose(knp.Fmod()(1, x), np.fmod(1, x))
+
+    def test_nanpercentile(self):
+        x = np.array(
+            [
+                [[np.nan, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]],
+                [[12, 13, 14, 15], [16, 17, 18, 19], [20, 21, 22, np.nan]],
+            ],
+            dtype="float32",
+        )
+
+        q = np.array(50.0, dtype="float32")
+        self.assertAllClose(knp.nanpercentile(x, q), np.nanpercentile(x, q))
+        self.assertAllClose(
+            knp.nanpercentile(x, q, keepdims=True),
+            np.nanpercentile(x, q, keepdims=True),
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=1),
+            np.nanpercentile(x, q, axis=1),
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=1, keepdims=True),
+            np.nanpercentile(x, q, axis=1, keepdims=True),
+        )
+
+        q = np.array([25.0, 50.0, 100.0], dtype="float32")
+        self.assertAllClose(knp.nanpercentile(x, q), np.nanpercentile(x, q))
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=1),
+            np.nanpercentile(x, q, axis=1),
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=1, keepdims=True),
+            np.nanpercentile(x, q, axis=1, keepdims=True),
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=(1, 2)),
+            np.nanpercentile(x, q, axis=(1, 2)),
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=(1, 2), keepdims=True),
+            np.nanpercentile(x, q, axis=(1, 2), keepdims=True),
+        )
+
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=-1),
+            np.nanpercentile(x, q, axis=-1),
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=(-1, -2)),
+            np.nanpercentile(x, q, axis=(-1, -2)),
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x, q, axis=(2, 1)),
+            np.nanpercentile(x, q, axis=(2, 1)),
+        )
+
+        q = np.array([50.1, 100.0], dtype="float32")
+        for method in ["linear", "lower", "higher", "midpoint", "nearest"]:
+            self.assertAllClose(
+                knp.nanpercentile(x, q, method=method),
+                np.nanpercentile(x, q, method=method),
+            )
+            self.assertAllClose(
+                knp.nanpercentile(x, q, axis=1, method=method),
+                np.nanpercentile(x, q, axis=1, method=method),
+            )
+
+        q = np.array([25.0, 50.0, 75.0], dtype="float32")
+        self.assertAllClose(
+            knp.nanpercentile(x, q),
+            np.nanpercentile(x, q),
+        )
+
+        x_all_nan = np.array(
+            [
+                [[np.nan, np.nan], [np.nan, np.nan]],
+                [[np.nan, np.nan], [np.nan, np.nan]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x_all_nan, 50.0),
+            np.nanpercentile(x_all_nan, 50.0),
+        )
+
+        x_mixed = np.array(
+            [
+                [np.nan, np.nan, np.nan],
+                [1.0, 2.0, 3.0],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x_mixed, 50.0, axis=1),
+            np.nanpercentile(x_mixed, 50.0, axis=1),
+        )
+
+        x_small = np.array(
+            [
+                [[1.0]],
+                [[np.nan]],
+            ],
+            dtype="float32",
+        )
+        self.assertAllClose(
+            knp.nanpercentile(x_small, 50.0, axis=1),
+            np.nanpercentile(x_small, 50.0, axis=1),
+        )
+
+        x4 = np.random.randn(3, 4, 5, 6).astype("float32")
+        x4[0, 0, 0, 0] = np.nan
+        self.assertAllClose(
+            knp.nanpercentile(x4, 50.0, axis=(1, 2)),
+            np.nanpercentile(x4, 50.0, axis=(1, 2)),
+        )
 
     def test_nanquantile(self):
         x = np.array(
@@ -10323,6 +10466,26 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(knp.nanmin(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(knp.Nanmin().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_nanpercentile(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3,), dtype=dtype)
+        x_jax = jnp.ones((3,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.nanpercentile(x_jax, 50).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(
+            standardize_dtype(knp.nanpercentile(x, 50).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Nanpercentile().symbolic_call(x, 50).dtype),
             expected_dtype,
         )
 
