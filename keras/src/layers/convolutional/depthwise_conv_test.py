@@ -197,6 +197,16 @@ class DepthwiseConvBasicTest(testing.TestCase):
             "input_shape": (3, 5, 4),
             "output_shape": (3, 2, 24),
         },
+        {
+            "depth_multiplier": 6,
+            "kernel_size": 2,
+            "strides": 1,
+            "padding": "same",
+            "data_format": "channels_first",
+            "dilation_rate": (2,),
+            "input_shape": (3, 4, 10),
+            "output_shape": (3, 24, 10),
+        },
     )
     def test_depthwise_conv1d_basic(
         self,
@@ -318,20 +328,6 @@ class DepthwiseConvBasicTest(testing.TestCase):
                 depth_multiplier=2, kernel_size=(2, 2), strides=(1, 0)
             )
 
-        # `dilation_rate > 1` while `strides > 1`.
-        with self.assertRaisesRegex(
-            ValueError,
-            r"`strides > 1` not supported in conjunction with "
-            r"`dilation_rate > 1`. Received: strides=\(2, 2\) and "
-            r"dilation_rate=\(2, 1\)",
-        ):
-            layers.DepthwiseConv2D(
-                depth_multiplier=2,
-                kernel_size=(2, 2),
-                strides=2,
-                dilation_rate=(2, 1),
-            )
-
 
 class DepthwiseConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
@@ -359,6 +355,14 @@ class DepthwiseConvCorrectnessTest(testing.TestCase):
             "data_format": "channels_last",
             "dilation_rate": 1,
         },
+        {
+            "depth_multiplier": 6,
+            "kernel_size": 2,
+            "strides": 1,
+            "padding": "same",
+            "data_format": "channels_first",
+            "dilation_rate": (2,),
+        },
     )
     def test_depthwise_conv1d(
         self,
@@ -378,7 +382,10 @@ class DepthwiseConvCorrectnessTest(testing.TestCase):
             dilation_rate=dilation_rate,
         )
 
-        inputs = np.random.normal(size=[2, 8, 4])
+        if data_format == "channels_last":
+            inputs = np.random.normal(size=[2, 8, 4])
+        else:
+            inputs = np.random.normal(size=[2, 4, 8])
         layer.build(input_shape=inputs.shape)
 
         kernel_shape = layer.kernel.shape

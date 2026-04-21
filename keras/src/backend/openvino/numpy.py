@@ -18,6 +18,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import shape_to_ov_output
 from keras.src.backend.openvino.core import while_loop
 
 
@@ -1180,7 +1181,7 @@ def broadcast_to(x, shape):
             f"`broadcast_to` is supported only for tuple and list `shape`. "
             f"Received: shape={shape} (type {type(shape)})"
         )
-    target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
+    target_shape = shape_to_ov_output(list(shape))
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
 
@@ -3316,6 +3317,12 @@ def nanmin(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(result)
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    raise NotImplementedError(
+        "`nanpercentile` is not supported with openvino backend"
+    )
+
+
 def nanprod(x, axis=None, keepdims=False):
     if isinstance(x, np.ndarray) and x.dtype == np.float64:
         # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
@@ -3749,7 +3756,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 "provided when `mode == 'constant'`. "
                 f"Received: mode={mode}"
             )
-        if not isinstance(constant_values, int):
+        if not isinstance(
+            constant_values, (int, float, np.integer, np.floating)
+        ):
             raise ValueError(
                 "`pad` operation supports only scalar pad value "
                 "in constant mode with the openvino backend. "

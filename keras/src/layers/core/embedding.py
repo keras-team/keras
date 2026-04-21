@@ -98,6 +98,26 @@ class Embedding(Layer):
         quantization_config=None,
         **kwargs,
     ):
+        if (
+            not isinstance(input_dim, int)
+            or isinstance(input_dim, bool)
+            or input_dim <= 0
+        ):
+            raise ValueError(
+                "`input_dim` must be a positive integer. "
+                f"Received: input_dim={input_dim} "
+                f"(of type {type(input_dim).__name__})."
+            )
+        if (
+            not isinstance(output_dim, int)
+            or isinstance(output_dim, bool)
+            or output_dim <= 0
+        ):
+            raise ValueError(
+                "`output_dim` must be a positive integer. "
+                f"Received: output_dim={output_dim} "
+                f"(of type {type(output_dim).__name__})."
+            )
         input_length = kwargs.pop("input_length", None)
         if input_length is not None:
             warnings.warn(

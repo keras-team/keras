@@ -25,10 +25,14 @@ class RGBToGrayscale(Operation):
                 "or rank 4 (batch of images). "
                 f"Received: images.shape={images_shape}"
             )
-        if self.data_format == "channels_last":
-            images_shape[-1] = 1
-        else:
-            images_shape[-3] = 1
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = images_shape[channels_axis]
+        if channels is not None and channels not in (1, 3):
+            raise ValueError(
+                "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+                f"Received input with shape: images.shape={tuple(images_shape)}"
+            )
+        images_shape[channels_axis] = 1
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 

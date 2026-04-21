@@ -1115,6 +1115,12 @@ def nanmin(x, axis=None, keepdims=False):
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.nanpercentile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanprod(x, axis=axis, keepdims=keepdims)

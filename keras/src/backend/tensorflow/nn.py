@@ -863,7 +863,15 @@ def depthwise_conv(
         dilation_rate = (dilation_rate,) * num_spatial_dims
     if num_spatial_dims == 1:
         # 1D depthwise conv.
-        if data_format == "channels_last":
+        # `tf.nn.depthwise_conv2d` does not support `channels_first` with
+        # dilations on CPU. Transpose to `channels_last`, compute, and
+        # transpose back to avoid the limitation.
+        need_transpose = data_format == "channels_first" and all(
+            d.device_type == "CPU" for d in tf.config.list_logical_devices()
+        )
+        if need_transpose:
+            inputs = _transpose_spatial_inputs(inputs)
+        if need_transpose or data_format == "channels_last":
             strides = (1,) + strides * 2 + (1,)
             spatial_start_dim = 1
         else:
@@ -874,15 +882,22 @@ def depthwise_conv(
 
         dilation_rate = None if dilation_rate is None else (1,) + dilation_rate
 
+        if need_transpose or data_format == "channels_last":
+            conv_data_format = _convert_data_format("channels_last", 4)
+        else:
+            conv_data_format = _convert_data_format("channels_first", 4)
         outputs = tf.nn.depthwise_conv2d(
             inputs,
             kernel,
             strides,
             padding,
-            data_format=tf_data_format,
+            data_format=conv_data_format,
             dilations=dilation_rate,
         )
-        return tf.squeeze(outputs, [spatial_start_dim])
+        outputs = tf.squeeze(outputs, [spatial_start_dim])
+        if need_transpose:
+            outputs = _transpose_spatial_outputs(outputs)
+        return outputs
 
     if data_format == "channels_last":
         strides = (1,) + strides + (1,)
