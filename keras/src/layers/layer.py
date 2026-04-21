@@ -305,9 +305,9 @@ class Layer(BackendLayer, Operation):
         self.supports_jit = True
 
         if not isinstance(trainable, bool):
-            raise TypeError(
+            raise ValueError(
                 "Expected `trainable` to be a boolean. "
-                f"Received: trainable={trainable} (of type "
+                f"Received: trainable={trainable!r} (of type "
                 f"{type(trainable).__name__})"
             )
         self._trainable = trainable

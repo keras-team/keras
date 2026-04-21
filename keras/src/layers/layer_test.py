@@ -1383,11 +1383,11 @@ class LayerTest(testing.TestCase):
         # config passed to `deserialize_keras_object`) were silently accepted,
         # leaving `layer.trainable` as a non-bool and breaking downstream
         # strict-boolean checks.
-        with self.assertRaisesRegex(TypeError, "to be a boolean"):
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
             layers.Dense(2, trainable="yes")
-        with self.assertRaisesRegex(TypeError, "to be a boolean"):
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
             layers.Dense(2, trainable=1)
-        with self.assertRaisesRegex(TypeError, "to be a boolean"):
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
             layers.Dense(2, trainable=None)
 
     def test_trainable_init_arg(self):
