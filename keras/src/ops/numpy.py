@@ -8735,7 +8735,9 @@ class Transpose(Operation):
 
     def call(self, x):
         if self.axes:
-            axes = tuple(canonicalize_axis(axis, len(x.shape)) for axis in self.axes)
+            axes = tuple(
+                canonicalize_axis(axis, len(x.shape)) for axis in self.axes
+            )
         else:
             axes = None
 
@@ -8743,7 +8745,9 @@ class Transpose(Operation):
 
     def compute_output_spec(self, x):
         if self.axes:
-            axes = tuple(canonicalize_axis(axis, len(x.shape)) for axis in self.axes)
+            axes = tuple(
+                canonicalize_axis(axis, len(x.shape)) for axis in self.axes
+            )
         else:
             axes = None
 
