@@ -1319,6 +1319,32 @@ class SavingH5IOStoreTest(testing.TestCase):
         for key in ["a", "b"]:
             self.assertIn(key, vars_store.keys())
 
+    def test_sharded_h5_io_store_cross_shard_read(self):
+        name = "cross_shard_read"
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), f"{name}.json"))
+        a = np.random.random((1000, 1000)).astype("float32")
+        b = np.random.random((1000, 1000)).astype("float32")
+
+        store = saving_lib.ShardedH5IOStore(
+            temp_filepath, max_shard_size=0.005, mode="w"
+        )
+        vars_store = store.make("layer_a")
+        vars_store["0"] = a
+        vars_store = store.make("layer_b")
+        vars_store["0"] = b
+        store.close()
+
+        self.assertTrue(
+            os.path.exists(temp_filepath.with_name(f"{name}_00001.weights.h5"))
+        )
+
+        store = saving_lib.ShardedH5IOStore(temp_filepath, mode="r")
+        store.get("layer_b")
+        vars_store = store.get("layer_a")
+        self.assertLen(vars_store.keys(), 1)
+        self.assertAllClose(vars_store["0"], a)
+        store.close()
+
     def test_sharded_h5_io_store_exception_raised(self):
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))
 
