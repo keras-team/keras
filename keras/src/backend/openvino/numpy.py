@@ -3781,6 +3781,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     )
 
 
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    raise NotImplementedError(
+        "`percentile` is not supported with openvino backend"
+    )
+
+
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = get_ov_output(x)
 
