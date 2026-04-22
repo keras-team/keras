@@ -823,3 +823,9 @@ def erfinv(x):
     ).output(0)
 
     return OpenVINOKerasTensor(y1)
+
+
+def logdet(x):
+    from keras.src.backend.openvino.numpy import slogdet
+
+    return slogdet(x)[1]
