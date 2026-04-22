@@ -723,12 +723,6 @@ def depthwise_conv(
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
 
-    if data_format != "channels_last":
-        raise ValueError(
-            "OpenVINO depthwise_conv only supports 'channels_last' "
-            f"data format. Received: data_format={data_format}"
-        )
-
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
