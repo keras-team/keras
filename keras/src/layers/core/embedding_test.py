@@ -218,6 +218,9 @@ class EmbeddingTest(test_case.TestCase):
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
             self.assertLen(layer.torch_params, 3)
+        self.assertDType(layer.lora_embeddings_a, "float32")
+        self.assertDType(layer.lora_embeddings_b, "float32")
+
         # Try eager call
         x = np.random.randint(0, 9, size=(64, 3))
         y = np.random.random((64, 3, 16))

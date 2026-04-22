@@ -178,8 +178,15 @@ class Embedding(Layer):
                 embeddings, self._orig_output_dim, axis=-1
             )
         if self.lora_enabled:
-            return embeddings + (self.lora_alpha / self.lora_rank) * ops.matmul(
-                self.lora_embeddings_a, self.lora_embeddings_b
+            embeddings = ops.cast(
+                ops.add(
+                    embeddings,
+                    (self.lora_alpha / self.lora_rank)
+                    * ops.matmul(
+                        self.lora_embeddings_a, self.lora_embeddings_b
+                    ),
+                ),
+                dtype=self.compute_dtype,
             )
         return embeddings
 
@@ -226,16 +233,23 @@ class Embedding(Layer):
                 "lora is already enabled. This can only be done once per layer."
             )
         self._tracker.unlock()
+
+        # LoRA weights should be float32 to avoid the risk of underflow or
+        # overflow during fine-tuning.
+        # When deploying the model, these weights should be merged with the
+        # original embedding while maintaining the original embedding's dtype.
         self.lora_embeddings_a = self.add_weight(
             name="lora_embeddings_a",
             shape=(self.input_dim, rank),
             initializer=initializers.get(a_initializer),
+            dtype="float32",
             regularizer=self.embeddings_regularizer,
         )
         self.lora_embeddings_b = self.add_weight(
             name="lora_embeddings_b",
             shape=(rank, self.output_dim),
             initializer=initializers.get(b_initializer),
+            dtype="float32",
             regularizer=self.embeddings_regularizer,
         )
         self.embeddings.trainable = False
@@ -498,6 +512,7 @@ class Embedding(Layer):
             outputs = ops.add(
                 outputs, (self.lora_alpha / self.lora_rank) * lora_outputs
             )
+            outputs = ops.cast(outputs, dtype=self.compute_dtype)
         return outputs
 
     def _int4_call(self, inputs, training=None):
@@ -539,6 +554,7 @@ class Embedding(Layer):
             outputs = ops.add(
                 outputs, (self.lora_alpha / self.lora_rank) * lora_outputs
             )
+            outputs = ops.cast(outputs, dtype=self.compute_dtype)
         return outputs
 
     def quantize(self, mode=None, type_check=True, config=None):
