@@ -6719,10 +6719,10 @@ class Percentile(Operation):
         elif isinstance(q, (list, tuple)):
             output_shape = (len(q),) + output_shape
 
-        if backend.is_int_dtype(x.dtype):
+        if not backend.is_float_dtype(x.dtype):
             dtype = backend.floatx()
         else:
-            dtype = dtypes.result_type(x.dtype, float)
+            dtype = x.dtype
         return KerasTensor(output_shape, dtype=dtype)
 
 
