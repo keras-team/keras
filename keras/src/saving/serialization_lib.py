@@ -733,6 +733,13 @@ def deserialize_keras_object(
     custom_obj_scope = object_registration.CustomObjectScope(custom_objects)
     safe_mode_scope = SafeModeScope(safe_mode)
     with custom_obj_scope, safe_mode_scope:
+        if "trainable" in inner_config and not isinstance(
+            inner_config["trainable"], bool
+        ):
+            raise TypeError(
+                "Invalid type for `trainable` field. "
+                f"Expected bool. Received: {inner_config['trainable']} of type {type(inner_config['trainable'])}."
+            )
         try:
             instance = cls.from_config(inner_config)
         except TypeError as e:
