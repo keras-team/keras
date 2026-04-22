@@ -6767,6 +6767,7 @@ def percentile(x, q, axis=None, method="linear", keepdims=False):
     >>> keras.ops.percentile(x, 50, axis=1)
     array([2., 5.])
     """
+
     if any_symbolic_tensors((x, q)):
         return Percentile(
             axis=axis, method=method, keepdims=keepdims
