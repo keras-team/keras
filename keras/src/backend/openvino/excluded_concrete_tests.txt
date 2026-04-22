@@ -10,10 +10,6 @@ EqualizationTest::test_input_dtypes_int64
 EqualizationTest::test_output_range_0_1
 EqualizationTest::test_output_range_0_255
 FeatureSpaceTest::test_saving
-ImageOpsCorrectnessTest::test_extract_patches
-ImageOpsCorrectnessTest::test_pad_images
-IndexLookupLayerTest::test_oov_method_ignored_for_string_dtype
-IndexLookupLayerTest::test_salt_produces_different_output_than_farmhash
 LayerTest::test_complex_dtype_support
 LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_eig
