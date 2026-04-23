@@ -378,7 +378,18 @@ class Sequential(Model):
             name = None
             layer_configs = config
         model = cls(name=name)
-        for layer_config in layer_configs:
+        for idx, layer_config in enumerate(layer_configs):
+            if (
+                not isinstance(layer_config, dict)
+                or "class_name" not in layer_config
+                or "config" not in layer_config
+            ):
+                raise ValueError(
+                    f"Cannot deserialize Sequential model: entry at index "
+                    f"{idx} of `layers` is not a valid layer config. Expected "
+                    f"a dict with `class_name` and `config` keys, got: "
+                    f"{layer_config} (type {type(layer_config)})."
+                )
             if "module" not in layer_config:
                 # Legacy format deserialization (no "module" key)
                 # used for H5 and SavedModel formats

@@ -317,6 +317,58 @@ class SequentialTest(testing.TestCase):
         )
         self.assertLen(revived.layers, 1)
 
+    def test_from_config_rejects_malformed_layer_entry(self):
+        cfg = {
+            "name": "seq",
+            "layers": [
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 4},
+                },
+                {},
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 2},
+                },
+            ],
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            r"entry at index 1 of `layers` is not a valid layer config",
+        ):
+            Sequential.from_config(cfg)
+
+        cfg_non_dict = {
+            "name": "seq",
+            "layers": [
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 4},
+                },
+                "not-a-layer",
+            ],
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            r"entry at index 1 of `layers` is not a valid layer config",
+        ):
+            Sequential.from_config(cfg_non_dict)
+
+        cfg_missing_config = {
+            "name": "seq",
+            "layers": [
+                {"class_name": "Dense", "module": "keras.layers"},
+            ],
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            r"entry at index 0 of `layers` is not a valid layer config",
+        ):
+            Sequential.from_config(cfg_missing_config)
+
     def test_serialization_with_lambda_layer(self):
         # https://github.com/keras-team/keras/issues/20074
         inputs = np.random.random(size=(1, 10, 4)).astype("float32")
