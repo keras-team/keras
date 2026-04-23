@@ -1,6 +1,7 @@
 """Tests for serialization_lib."""
 
 import json
+import warnings
 
 import numpy as np
 import pytest
@@ -403,6 +404,60 @@ class SerializationLibTest(testing.TestCase):
         # Verify configuration of the activation layer is preserved
         self.assertEqual(restored_conv_leaky.activation.negative_slope, 0.15)
         self.assertEqual(restored_conv_leaky.activation.name, "my_leaky")
+
+    def test_registered_name_validation(self):
+        with self.assertRaisesRegex(ValueError, "must be None or a string"):
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "registered_name": 123,
+                    "config": {"units": 1},
+                }
+            )
+
+        with pytest.warns(UserWarning, match="Ignoring `registered_name"):
+            obj = serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "registered_name": "builtins.eval",
+                    "config": {"units": 1},
+                }
+            )
+            self.assertIsInstance(obj, keras.layers.Dense)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            obj_empty = serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "registered_name": "",
+                    "config": {"units": 1},
+                }
+            )
+            obj_none = serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "registered_name": None,
+                    "config": {"units": 1},
+                }
+            )
+            self.assertIsInstance(obj_empty, keras.layers.Dense)
+            self.assertIsInstance(obj_none, keras.layers.Dense)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "registered_name": "Dense",
+                    "config": {"units": 1},
+                }
+            )
 
     def test_layer_string_as_activation(self):
         """Tests serialization when activation is a string."""

@@ -690,7 +690,9 @@ def deserialize_keras_object(
 
     # Below: classes and functions.
     module = config.get("module", None)
-    registered_name = config.get("registered_name", class_name)
+    registered_name = _get_validated_registered_name(
+        config, class_name, custom_objects
+    )
 
     if class_name == "function":
         fn_name = inner_config
@@ -758,6 +760,38 @@ def deserialize_keras_object(
             instance, config["shared_object_id"]
         )
     return instance
+
+
+def _get_validated_registered_name(config, class_name, custom_objects):
+    """Return the `registered_name` field after type/value validation."""
+    if "registered_name" not in config:
+        return class_name
+    registered_name = config["registered_name"]
+    if registered_name is not None and not isinstance(registered_name, str):
+        raise ValueError(
+            "`registered_name` must be None or a string, got "
+            f"{type(registered_name)} "
+            f"(value: {registered_name}). Full config: {config}"
+        )
+    if registered_name == "":
+        registered_name = None
+    if (
+        registered_name is not None
+        and registered_name != class_name
+        and object_registration.get_registered_object(
+            registered_name, custom_objects=custom_objects
+        )
+        is None
+    ):
+        warnings.warn(
+            f"Ignoring `registered_name={registered_name}`: it is not "
+            "registered via `keras.saving.register_keras_serializable` and "
+            "was not found in `custom_objects`. The object will be "
+            "resolved from `class_name` and `module` instead. Valid "
+            "registered names have the format 'package>name'.",
+            stacklevel=3,
+        )
+    return registered_name
 
 
 def _retrieve_class_or_fn(
