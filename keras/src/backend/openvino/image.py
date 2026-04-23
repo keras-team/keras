@@ -925,6 +925,14 @@ def _ov_compute_homography(start_points_ov, end_points_ov):
     return h
 
 
+def compute_homography_matrix(start_points, end_points):
+    start_points = convert_to_tensor(start_points, dtype="float32")
+    end_points = convert_to_tensor(end_points, dtype="float32")
+    sp_ov = get_ov_output(start_points)
+    ep_ov = get_ov_output(end_points)
+    return _ov_compute_homography(sp_ov, ep_ov)
+
+
 def perspective_transform(
     images,
     start_points,
