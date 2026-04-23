@@ -1378,6 +1378,14 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w.dtype, "int8")
         self.assertEqual(layer.w.trainable, False)
 
+    def test_trainable_init_arg_validation(self):
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable="yes")
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable=1)
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable=None)
+
     def test_trainable_init_arg(self):
         inputs = layers.Input(shape=(1,))
         layer = layers.Dense(2, trainable=False)
