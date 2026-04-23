@@ -199,13 +199,13 @@ def cholesky(a, upper=False):
     cond = ov_opset.constant(True, Type.boolean).output(0)
 
     body = Model(
-        [A_body, L_next, k_next, cond],
+        [L_next, k_next, cond],
         [A_param, L_param, k_param, B_param, N_param],
     )
     loop.set_function(body)
-    loop.set_special_body_ports([-1, 3])
+    loop.set_special_body_ports([-1, 2])
 
-    loop.set_merged_input(A_param, A_flat, A_body)
+    loop.set_invariant_input(A_param, A_flat)
     loop.set_merged_input(L_param, L_init, L_next)
     loop.set_merged_input(k_param, zero_s, k_next)
     loop.set_invariant_input(B_param, B_node)
