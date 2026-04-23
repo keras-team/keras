@@ -344,7 +344,7 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
         if backend.backend() != "openvino":
             # OpenVINO builds a lazy graph and cannot raise on non-PSD inputs
-            # at graph-construction time; sqrt of a negative simply produces
+            # at graph-construction time; sqrt of a negative produces
             # NaN silently at inference. There is no check_numerics equivalent
             # in opset15 that can interrupt execution and surface a Python
             # exception.

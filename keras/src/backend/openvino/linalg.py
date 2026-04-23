@@ -1,3 +1,5 @@
+import warnings
+
 import openvino as ov
 import openvino.opset15 as ov_opset
 from openvino import Model
@@ -13,6 +15,10 @@ from keras.src.backend.openvino.core import get_ov_output
 
 
 def cholesky(a, upper=False):
+    warnings.warn(
+        "OpenVINO backend does not check for positive definiteness. "
+        "Non-positive-definite inputs will silently produce NaN outputs."
+    )
     a = convert_to_tensor(a)
     a_ov = get_ov_output(a)
     original_type = a_ov.get_element_type()
