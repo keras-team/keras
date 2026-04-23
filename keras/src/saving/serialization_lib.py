@@ -610,6 +610,18 @@ def deserialize_keras_object(
         raise TypeError(f"Could not parse config: {config}")
 
     if "class_name" not in config or "config" not in config:
+        # If the dict looks like an object config (has any of these markers)
+        # but is missing a required field, treat it as malformed rather than
+        # a plain user dict.
+        _object_config_markers = ("class_name", "module", "registered_name")
+        if any(key in config for key in _object_config_markers):
+            missing = [k for k in ("class_name", "config") if k not in config]
+            missing_str = ", ".join(f"`{k}`" for k in missing)
+            raise ValueError(
+                "Malformed object config: expected a dict with both "
+                f"`class_name` and `config` keys, but missing {missing_str}. "
+                f"Full config: {config}"
+            )
         return {
             key: deserialize_keras_object(
                 value, custom_objects=custom_objects, safe_mode=safe_mode

@@ -404,6 +404,20 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(restored_conv_leaky.activation.negative_slope, 0.15)
         self.assertEqual(restored_conv_leaky.activation.name, "my_leaky")
 
+    def test_incomplete_top_level_object_config(self):
+        with self.assertRaisesRegex(ValueError, r"Malformed object config"):
+            serialization_lib.deserialize_keras_object(
+                {"module": "keras.layers", "config": {"units": 32}}
+            )
+        with self.assertRaisesRegex(ValueError, r"Malformed object config"):
+            serialization_lib.deserialize_keras_object(
+                {"class_name": "Dense", "module": "keras.layers"}
+            )
+        self.assertEqual(
+            serialization_lib.deserialize_keras_object({"a": 1, "b": "hello"}),
+            {"a": 1, "b": "hello"},
+        )
+
     def test_layer_string_as_activation(self):
         """Tests serialization when activation is a string."""
 
