@@ -385,6 +385,22 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.outer(x, y).shape, (None, None))
 
+    def test_percentile(self):
+        x = KerasTensor((None, 3))
+
+        # q as scalar
+        q = KerasTensor(())
+        self.assertEqual(knp.percentile(x, q).shape, ())
+
+        # q as 1D tensor
+        q = KerasTensor((2,))
+        self.assertEqual(knp.percentile(x, q).shape, (2,))
+        self.assertEqual(knp.percentile(x, q, axis=1).shape, (2, None))
+        self.assertEqual(
+            knp.percentile(x, q, axis=1, keepdims=True).shape,
+            (2, None, 1),
+        )
+
     def test_quantile(self):
         x = KerasTensor((None, 3))
 
@@ -1106,6 +1122,22 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
 
         x = KerasTensor((2, 3))
         self.assertEqual(knp.outer(x, 2).shape, (6, 1))
+
+    def test_percentile(self):
+        x = KerasTensor((3, 3))
+
+        # q as scalar
+        q = KerasTensor(())
+        self.assertEqual(knp.percentile(x, q).shape, ())
+
+        # q as 1D tensor
+        q = KerasTensor((2,))
+        self.assertEqual(knp.percentile(x, q).shape, (2,))
+        self.assertEqual(knp.percentile(x, q, axis=1).shape, (2, 3))
+        self.assertEqual(
+            knp.percentile(x, q, axis=1, keepdims=True).shape,
+            (2, 3, 1),
+        )
 
     def test_quantile(self):
         x = KerasTensor((3, 3))
@@ -4305,6 +4337,76 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.ones([2, 3, 4, 5, 6])
         self.assertAllClose(knp.outer(x, y), np.outer(x, y))
         self.assertAllClose(knp.Outer()(x, y), np.outer(x, y))
+
+    def test_percentile(self):
+        x = np.arange(24).reshape([2, 3, 4]).astype("float32")
+
+        # q as scalar
+        q = np.array(50.0, dtype="float32")
+        self.assertAllClose(knp.percentile(x, q), np.percentile(x, q))
+        self.assertAllClose(
+            knp.percentile(x, q, keepdims=True),
+            np.percentile(x, q, keepdims=True),
+        )
+
+        # q as 1D tensor
+        q = np.array([50.0, 100.0], dtype="float32")
+        self.assertAllClose(knp.percentile(x, q), np.percentile(x, q))
+        self.assertAllClose(
+            knp.percentile(x, q, keepdims=True),
+            np.percentile(x, q, keepdims=True),
+        )
+        self.assertAllClose(
+            knp.percentile(x, q, axis=1),
+            np.percentile(x, q, axis=1),
+        )
+        self.assertAllClose(
+            knp.percentile(x, q, axis=1, keepdims=True),
+            np.percentile(x, q, axis=1, keepdims=True),
+        )
+
+        # multiple axes
+        self.assertAllClose(
+            knp.percentile(x, q, axis=(1, 2)),
+            np.percentile(x, q, axis=(1, 2)),
+        )
+
+        # test all supported methods
+        q = np.array([50.1, 99.9], dtype="float32")
+        for method in ["linear", "lower", "higher", "midpoint", "nearest"]:
+            self.assertAllClose(
+                knp.percentile(x, q, method=method),
+                np.percentile(x, q, method=method),
+            )
+            self.assertAllClose(
+                knp.percentile(x, q, axis=1, method=method),
+                np.percentile(x, q, axis=1, method=method),
+            )
+
+        # boundary case: must match exact max
+        q = np.array([100.0], dtype="float32")
+        self.assertAllClose(
+            knp.percentile(x, q),
+            np.percentile(x, q),
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test tensorflow backend",
+    )
+    def test_percentile_in_tf_function(self):
+        import tensorflow as tf
+
+        x = knp.array([[1, 2, 3], [4, 5, 6]])
+        q = [50.0]
+        expected_output = np.array([[2, 5]])
+
+        @tf.function
+        def run_percentile(x, q, axis):
+            return knp.percentile(x, q, axis=axis)
+
+        result = run_percentile(x, q, axis=1)
+        self.assertAllClose(result, expected_output)
 
     def test_quantile(self):
         x = np.arange(24).reshape([2, 3, 4]).astype("float32")
@@ -10717,6 +10819,26 @@ class NumpyDtypeTest(testing.TestCase):
                 ),
                 expected_dtype,
             )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_percentile(self, dtype):
+        import jax.numpy as jnp
+
+        x = knp.ones((3,), dtype=dtype)
+        x_jax = jnp.ones((3,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(jnp.percentile(x_jax, 50).dtype)
+        if dtype == "int64":
+            expected_dtype = backend.floatx()
+
+        self.assertEqual(
+            standardize_dtype(knp.percentile(x, 50).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Percentile().symbolic_call(x, 50).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))

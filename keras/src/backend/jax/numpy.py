@@ -1192,6 +1192,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     return jnp.pad(x, pad_width, mode=mode, **kwargs)
 
 
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.percentile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     return jnp.prod(x, axis=axis, keepdims=keepdims, dtype=dtype)

@@ -1651,6 +1651,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     return x
 
 
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx()) / 100.0
+    return quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is None:
