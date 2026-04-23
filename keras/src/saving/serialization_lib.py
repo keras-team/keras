@@ -728,6 +728,16 @@ def deserialize_keras_object(
             f"Full object config: {config}"
         )
 
+    # Check the raw value: `inner_config = config["config"] or {}` would
+    # hide falsy non-dicts (e.g. `[]`) by coercing them to `{}`.
+    raw_inner_config = config["config"]
+    if raw_inner_config is not None and not isinstance(raw_inner_config, dict):
+        raise ValueError(
+            f"Cannot deserialize '{class_name}': expected the `config` field "
+            f"to be a dict, got {type(raw_inner_config)} "
+            f"(value: {raw_inner_config}). Full object config: {config}"
+        )
+
     # Instantiate the class from its config inside a custom object scope
     # so that we can catch any custom objects that the config refers to.
     custom_obj_scope = object_registration.CustomObjectScope(custom_objects)

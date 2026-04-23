@@ -404,6 +404,18 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(restored_conv_leaky.activation.negative_slope, 0.15)
         self.assertEqual(restored_conv_leaky.activation.name, "my_leaky")
 
+    def test_invalid_inner_config_type(self):
+        for invalid_config_value in ([1, 2, 3], [], "oops", 0):
+            bad_config = {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "config": invalid_config_value,
+            }
+            with self.assertRaisesRegex(
+                ValueError, r"expected the `config` field to be a dict"
+            ):
+                serialization_lib.deserialize_keras_object(bad_config)
+
     def test_layer_string_as_activation(self):
         """Tests serialization when activation is a string."""
 
