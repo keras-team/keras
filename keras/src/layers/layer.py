@@ -307,8 +307,8 @@ class Layer(BackendLayer, Operation):
         if not isinstance(trainable, bool):
             raise ValueError(
                 "Expected `trainable` to be a boolean. "
-                f"Received: trainable={trainable!r} (of type "
-                f"{type(trainable).__name__})"
+                f"Received: trainable={trainable} (of type "
+                f"{type(trainable)})"
             )
         self._trainable = trainable
         self._losses = []
