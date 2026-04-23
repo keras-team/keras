@@ -980,8 +980,6 @@ def perspective_transform(
         ).output(0)
 
     images_ov = ov_opset.convert(images_ov, compute_type).output(0)
-    sp_ov = ov_opset.convert(sp_ov, compute_type).output(0)
-    ep_ov = ov_opset.convert(ep_ov, compute_type).output(0)
 
     transforms = get_ov_output(
         compute_homography_matrix(start_points, end_points)
