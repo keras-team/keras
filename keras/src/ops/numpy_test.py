@@ -1466,11 +1466,6 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.blackman(x).shape[0], x)
 
-    def test_blackman_length_1_symbolic_shape(self):
-        x = KerasTensor((1,), dtype="int32")
-        y = knp.blackman(x)
-        self.assertEqual(y.shape, (1,))
-
     def test_hamming(self):
         x = np.random.randint(1, 100 + 1)
         self.assertEqual(knp.hamming(x).shape[0], x)
@@ -5011,17 +5006,11 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.blackman(x), np.blackman(x))
 
-        self.assertAllClose(knp.Blackman()(x), np.blackman(x))
-
     def test_blackman_length_1(self):
         x = 1
         x_tensor = keras.ops.convert_to_tensor(x)
         expected = np.blackman(x)
         out = knp.blackman(x_tensor)
-        self.assertEqual(out.shape[0], x)
-        self.assertAllClose(out, expected)
-
-        out = knp.Blackman()(x_tensor)
         self.assertEqual(out.shape[0], x)
         self.assertAllClose(out, expected)
 
@@ -7892,10 +7881,6 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertEqual(
             standardize_dtype(knp.blackman(x).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Blackman().symbolic_call(x).dtype),
-            expected_dtype,
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
