@@ -8734,25 +8734,11 @@ class Transpose(Operation):
         self.axes = axes
 
     def call(self, x):
-        if self.axes:
-            axes = tuple(
-                canonicalize_axis(axis, len(x.shape)) for axis in self.axes
-            )
-        else:
-            axes = None
-
-        return backend.numpy.transpose(x, axes=axes)
+        return backend.numpy.transpose(x, axes=self.axes)
 
     def compute_output_spec(self, x):
-        if self.axes:
-            axes = tuple(
-                canonicalize_axis(axis, len(x.shape)) for axis in self.axes
-            )
-        else:
-            axes = None
-
         output_shape = operation_utils.compute_transpose_output_shape(
-            x.shape, axes
+            x.shape, self.axes
         )
         sparse = getattr(x, "sparse", False)
         return KerasTensor(output_shape, dtype=x.dtype, sparse=sparse)
