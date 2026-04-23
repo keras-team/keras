@@ -328,6 +328,34 @@ class DepthwiseConvBasicTest(testing.TestCase):
                 depth_multiplier=2, kernel_size=(2, 2), strides=(1, 0)
             )
 
+    def test_invalid_output_shape_raises(self):
+        # DepthwiseConv1D/2D used to silently produce a wrong-shaped output
+        # on eager inputs when the kernel/stride combination would yield a
+        # non-positive spatial dimension. It must raise the same `ValueError`
+        # that the symbolic path raises. Pin `data_format` so the spatial dim
+        # under test is the same regardless of the backend's default
+        # `image_data_format`.
+        x = np.random.rand(4, 10, 3).astype("float32")
+        layer = layers.DepthwiseConv1D(
+            11, strides=5, padding="valid", data_format="channels_last"
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Computed output size would be zero or negative.",
+        ):
+            layer(x)
+
+        # Same for 2D.
+        x2 = np.random.rand(2, 4, 4, 3).astype("float32")
+        layer2 = layers.DepthwiseConv2D(
+            5, strides=2, padding="valid", data_format="channels_last"
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Computed output size would be zero or negative.",
+        ):
+            layer2(x2)
+
 
 class DepthwiseConvCorrectnessTest(testing.TestCase):
     @parameterized.parameters(
