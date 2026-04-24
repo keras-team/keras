@@ -279,6 +279,7 @@ from keras.src.ops.numpy import ones as ones
 from keras.src.ops.numpy import ones_like as ones_like
 from keras.src.ops.numpy import outer as outer
 from keras.src.ops.numpy import pad as pad
+from keras.src.ops.numpy import percentile as percentile
 from keras.src.ops.numpy import power as power
 from keras.src.ops.numpy import prod as prod
 from keras.src.ops.numpy import ptp as ptp

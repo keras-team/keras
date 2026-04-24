@@ -143,7 +143,10 @@ class OpenVINOTrainer(base_trainer.Trainer):
             data, dynamic_batch_size=True
         )
         # construct OpenVINO graph during calling Keras Model
-        self.struct_outputs = self(self.struct_params)
+        if self._call_has_training_arg:
+            self.struct_outputs = self(self.struct_params, training=False)
+        else:
+            self.struct_outputs = self(self.struct_params)
 
         parameters = []
         for p in tree.flatten(self.struct_params):
