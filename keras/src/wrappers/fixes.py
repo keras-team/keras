@@ -1,3 +1,4 @@
+from packaging.version import parse as parse_version
 try:
     import sklearn
 except ImportError:
@@ -55,16 +56,10 @@ def _routing_enabled():
     if "enable_metadata_routing" in config:
         return config.get("enable_metadata_routing", False)
 
-    try:
-        from packaging.version import parse as parse_version
-
-        if parse_version(sklearn.__version__) >= parse_version("1.3"):
-            return True
-    except ImportError:
-        pass
+    if parse_version(sklearn.__version__) >= parse_version("1.3"):
+        return True
 
     return False
-
 
 def _raise_for_params(params, owner, method):
     """Raise an error if metadata routing is not enabled and params are passed.
