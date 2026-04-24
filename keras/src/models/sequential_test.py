@@ -414,7 +414,7 @@ class SequentialTest(testing.TestCase):
         }
 
         with self.assertRaisesRegex(
-            TypeError,
+            ValueError,
             r"Invalid layer config in Sequential\.from_config\(\)",
         ):
             saving.deserialize_keras_object(payload)
