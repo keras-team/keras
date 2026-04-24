@@ -24,15 +24,11 @@ NNOpsCorrectnessTest::test_polar_corectness
 NNOpsDtypeTest::test_ctc_decode
 NumpyDtypeTest::test_percentile
 NNOpsDtypeTest::test_polar_
-NumpyDtypeTest::test_nanmedian
-NumpyDtypeTest::test_nanpercentile
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
-NumpyOneInputOpsCorrectnessTest::test_nanmedian
 NumpyTwoInputOpsCorrectnessTest::test_percentile
 NumpyOneInputOpsCorrectnessTest::test_real
-NumpyTwoInputOpsCorrectnessTest::test_nanpercentile
 RandAugmentTest::test_random_augment_randomness
 RandomSaturationTest::test_random_saturation_full_saturation
 RandomZoomTest::test_connect_with_flatten

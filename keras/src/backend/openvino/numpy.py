@@ -3277,9 +3277,7 @@ def nanmean(x, axis=None, keepdims=False):
 
 
 def nanmedian(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanmedian` is not supported with openvino backend"
-    )
+    return nanquantile(x, 0.5, axis=axis, method="midpoint", keepdims=keepdims)
 
 
 def nanmin(x, axis=None, keepdims=False):
@@ -3318,8 +3316,8 @@ def nanmin(x, axis=None, keepdims=False):
 
 
 def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
-    raise NotImplementedError(
-        "`nanpercentile` is not supported with openvino backend"
+    return nanquantile(
+        x, q / 100.0, axis=axis, method=method, keepdims=keepdims
     )
 
 
