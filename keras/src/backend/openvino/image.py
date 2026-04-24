@@ -805,28 +805,25 @@ def affine_transform(
     return OpenVINOKerasTensor(affined)
 
 
-def _ov_compute_homography(start_points_ov, end_points_ov):
-    """Compute homography matrix from 4-point correspondences using OV opsets.
+def compute_homography_matrix(start_points, end_points):
+    start_points = convert_to_tensor(start_points, dtype="float32")
+    end_points = convert_to_tensor(end_points, dtype="float32")
+    sp_ov = get_ov_output(start_points)
+    ep_ov = get_ov_output(end_points)
 
-    start_points_ov: [B, 4, 2] f32
-    end_points_ov:   [B, 4, 2] f32
-    Returns: [B, 8] f32
-    """
     axis0 = ov_opset.constant(0, Type.i32).output(0)
     axis1 = ov_opset.constant(1, Type.i32).output(0)
 
     def _split_points(pts_ov):
-        # pts_ov: [B, 4, 2] -> list of 4 pairs (x [B], y [B])
-        # Split along axis1 (corners) then axis2 (x/y) in one pass each.
         corners = [
             ov_opset.squeeze(
                 ov_opset.gather(
                     pts_ov,
                     ov_opset.constant([c], Type.i32).output(0),
                     axis1,
-                ).output(0),  # [B, 1, 2]
+                ).output(0),
                 axes=[1],
-            ).output(0)  # [B, 2]
+            ).output(0)
             for c in range(4)
         ]
         result = []
@@ -836,20 +833,20 @@ def _ov_compute_homography(start_points_ov, end_points_ov):
                     pt, ov_opset.constant([0], Type.i32).output(0), axis1
                 ).output(0),
                 axes=[1],
-            ).output(0)  # [B]
+            ).output(0)
             y = ov_opset.squeeze(
                 ov_opset.gather(
                     pt, ov_opset.constant([1], Type.i32).output(0), axis1
                 ).output(0),
                 axes=[1],
-            ).output(0)  # [B]
+            ).output(0)
             result.append((x, y))
         return result
 
-    end_pts = _split_points(end_points_ov)
-    start_pts = _split_points(start_points_ov)
+    end_pts = _split_points(ep_ov)
+    start_pts = _split_points(sp_ov)
 
-    B_shape = ov_opset.shape_of(start_points_ov, output_type=Type.i32).output(0)
+    B_shape = ov_opset.shape_of(sp_ov, output_type=Type.i32).output(0)
     B = ov_opset.gather(
         B_shape, ov_opset.constant(0, Type.i32).output(0), axis0
     ).output(0)
@@ -878,10 +875,6 @@ def _ov_compute_homography(start_points_ov, end_points_ov):
     def mul(a, b):
         return ov_opset.multiply(a, b).output(0)
 
-    # Build 8x8 coefficient matrix rows and RHS for each of 4 corners
-    # Per numpy ref: for corner i with end=(ex,ey), start=(sx,sy):
-    #   row1: [ex, ey, 1, 0,  0,  0, -sx*ex, -sx*ey]
-    #   row2: [0,  0,  0, ex, ey, 1, -sy*ex, -sy*ey]
     def make_two_rows(ex, ey, sx, sy):
         o = ones()
         z = zeros()
@@ -890,7 +883,7 @@ def _ov_compute_homography(start_points_ov, end_points_ov):
             return ov_opset.concat(
                 [ov_opset.unsqueeze(e, axes=[1]).output(0) for e in elems],
                 axis=1,
-            ).output(0)  # [B, 8]
+            ).output(0)
 
         row1 = row_from_elems(
             [ex, ey, o, z, z, z, neg(mul(sx, ex)), neg(mul(sx, ey))]
@@ -912,13 +905,11 @@ def _ov_compute_homography(start_points_ov, end_points_ov):
     coeff_mat = ov_opset.concat(
         [ov_opset.unsqueeze(r, axes=[1]).output(0) for r in rows], axis=1
     ).output(0)  # [B, 8, 8]
-    # rhs: [B, 8, 1]
     rhs_2d = ov_opset.concat(
         [ov_opset.unsqueeze(c, axes=[1]).output(0) for c in rhs_cols], axis=1
     ).output(0)  # [B, 8]
     rhs = ov_opset.unsqueeze(rhs_2d, axes=[2]).output(0)  # [B, 8, 1]
 
-    # Solve: coeff_mat @ h = rhs  =>  h = inv(coeff_mat) @ rhs
     coeff_inv = ov_opset.inverse(coeff_mat, adjoint=False).output(0)
     h = ov_opset.matmul(coeff_inv, rhs, False, False).output(0)  # [B, 8, 1]
     h = ov_opset.squeeze(h, axes=[2]).output(0)  # [B, 8]
@@ -989,10 +980,10 @@ def perspective_transform(
         ).output(0)
 
     images_ov = ov_opset.convert(images_ov, compute_type).output(0)
-    sp_ov = ov_opset.convert(sp_ov, compute_type).output(0)
-    ep_ov = ov_opset.convert(ep_ov, compute_type).output(0)
 
-    transforms = _ov_compute_homography(sp_ov, ep_ov)
+    transforms = get_ov_output(
+        compute_homography_matrix(start_points, end_points)
+    )
 
     shape_node = ov_opset.shape_of(images_ov, output_type=Type.i32).output(0)
     axis0 = ov_opset.constant(0, Type.i32).output(0)
