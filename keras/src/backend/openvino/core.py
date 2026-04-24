@@ -270,17 +270,23 @@ class OpenVINOKerasTensor:
     def __truediv__(self, other):
         first = self.output
         other = get_ov_output(other, context_dtype=self.dtype)
-        first, other = align_operand_types(
-            first, other, "OpenVINOKerasTensor::__truediv__"
-        )
+        x1_type = ov_to_keras_type(first.get_element_type())
+        x2_type = ov_to_keras_type(other.get_element_type())
+        result_type = dtypes.result_type(x1_type, x2_type, float)
+        result_type = OPENVINO_DTYPES[result_type]
+        first = ov_opset.convert(first, result_type).output(0)
+        other = ov_opset.convert(other, result_type).output(0)
         return OpenVINOKerasTensor(ov_opset.divide(first, other).output(0))
 
     def __rtruediv__(self, other):
         first = self.output
         other = get_ov_output(other, context_dtype=self.dtype)
-        first, other = align_operand_types(
-            first, other, "OpenVINOKerasTensor::__rtruediv__"
-        )
+        x1_type = ov_to_keras_type(first.get_element_type())
+        x2_type = ov_to_keras_type(other.get_element_type())
+        result_type = dtypes.result_type(x1_type, x2_type, float)
+        result_type = OPENVINO_DTYPES[result_type]
+        first = ov_opset.convert(first, result_type).output(0)
+        other = ov_opset.convert(other, result_type).output(0)
         return OpenVINOKerasTensor(ov_opset.divide(other, first).output(0))
 
     def __floordiv__(self, other):
