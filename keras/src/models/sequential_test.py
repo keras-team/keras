@@ -391,3 +391,30 @@ class SequentialTest(testing.TestCase):
             AttributeError, r"Use `add\(\)` and `pop\(\)`"
         ):
             model.layers = [layers.Dense(4)]
+
+    def test_deserialization_with_invalid_layer_config(self):
+        payload = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": {
+                "layers": [
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "config": {"units": 4},
+                    },
+                    {},
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "config": {"units": 2},
+                    },
+                ]
+            },
+        }
+
+        with self.assertRaisesRegex(
+            TypeError,
+            r"Invalid layer config in Sequential\.from_config\(\)",
+        ):
+            saving.deserialize_keras_object(payload)

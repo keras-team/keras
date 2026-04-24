@@ -370,18 +370,31 @@ class Sequential(Model):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        if "name" in config:
-            name = config["name"]
+        if isinstance(config, dict) and "layers" in config:
+            name = config.get("name")
             build_input_shape = config.get("build_input_shape")
             layer_configs = config["layers"]
         else:
             name = None
+            build_input_shape = None
             layer_configs = config
+
         model = cls(name=name)
         for layer_config in layer_configs:
+            if not isinstance(layer_config, dict) or not layer_config:
+                raise TypeError(
+                    "Invalid layer config in Sequential.from_config(). "
+                    "Expected a non-empty dict. "
+                    f"Received: {layer_config!r}"
+                )
+            if "class_name" not in layer_config or "config" not in layer_config:
+                raise TypeError(
+                    "Invalid layer config in Sequential.from_config(). "
+                    "Expected keys 'class_name' and 'config'. "
+                    f"Received: {layer_config!r}"
+                )
+
             if "module" not in layer_config:
-                # Legacy format deserialization (no "module" key)
-                # used for H5 and SavedModel formats
                 layer = saving_utils.model_from_config(
                     layer_config,
                     custom_objects=custom_objects,
@@ -392,9 +405,9 @@ class Sequential(Model):
                     custom_objects=custom_objects,
                 )
             model.add(layer)
+
         if (
             not model._functional
-            and "build_input_shape" in locals()
             and build_input_shape
             and isinstance(build_input_shape, (tuple, list))
         ):
