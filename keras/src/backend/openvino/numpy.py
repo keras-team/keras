@@ -199,11 +199,9 @@ def ones(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_one = ov_opset.constant(1, ov_type).output(0)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    output_shape = shape_to_ov_output(list(shape))
     ones = ov_opset.broadcast(const_one, output_shape)
     return OpenVINOKerasTensor(ones.output(0))
 
@@ -212,11 +210,9 @@ def zeros(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    output_shape = shape_to_ov_output(list(shape))
     zeros = ov_opset.broadcast(const_zero, output_shape)
     return OpenVINOKerasTensor(zeros.output(0))
 
@@ -1840,11 +1836,9 @@ def dstack(xs):
 def empty(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    shape_node = ov_opset.constant(shape, Type.i32).output(0)
+    shape_node = shape_to_ov_output(list(shape))
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
     empty_tensor = ov_opset.broadcast(const_zero, shape_node).output(0)
     return OpenVINOKerasTensor(empty_tensor)
@@ -2017,9 +2011,9 @@ def full(shape, fill_value, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     fill_value = get_ov_output(fill_value, ov_type)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    target_shape = ov_opset.constant(shape, Type.i32)
+    if isinstance(shape, int):
+        shape = [shape]
+    target_shape = shape_to_ov_output(list(shape))
     return OpenVINOKerasTensor(
         ov_opset.broadcast(fill_value, target_shape).output(0)
     )

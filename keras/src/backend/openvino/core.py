@@ -159,9 +159,15 @@ def shape_to_ov_output(shape):
 
     Unlike get_ov_output, handles mixed shapes where some dims are
     OpenVINOKerasTensor scalars (from ops.shape() on dynamic tensors).
+    None dims (from tensor.shape) are not supported — use ops.shape(x) instead.
     """
     if not isinstance(shape, (list, tuple)):
         raise ValueError(f"shape must be a list or tuple, got {type(shape)}")
+    if any(e is None for e in shape):
+        raise ValueError(
+            "Shape contains None (dynamic) dimensions. Use ops.shape(x) "
+            "instead of x.shape to get a runtime-resolved shape."
+        )
     if not any(isinstance(e, (OpenVINOKerasTensor, ov.Output)) for e in shape):
         return ov_opset.constant(list(shape), Type.i32).output(0)
     parts = []
