@@ -307,6 +307,32 @@ def standardize_axis_for_numpy(axis):
     return tuple(axis) if isinstance(axis, list) else axis
 
 
+def check_depthwise_conv_input_channels(inputs, kernel, data_format):
+    """Validate a depthwise/separable conv input against its kernel shape.
+
+    Called from backend `depthwise_conv` / `separable_conv` after `inputs` has
+    been converted to a concrete tensor. Produces a clear error message before
+    the backend op raises its own implementation-specific one.
+    """
+    input_channels = (
+        inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
+    )
+    kernel_input_channels = kernel.shape[-2]
+    # Only validate when both dimensions are concrete Python ints. Dynamic
+    # dimensions can come in forms other than `None` during tracing.
+    if (
+        isinstance(input_channels, int)
+        and isinstance(kernel_input_channels, int)
+        and input_channels != kernel_input_channels
+    ):
+        raise ValueError(
+            "The number of input channels must match the kernel's input "
+            f"channels. Received: input channels={input_channels}, kernel "
+            f"input channels={kernel_input_channels}, "
+            f"data_format='{data_format}'."
+        )
+
+
 def to_tuple_or_list(value):
     """Convert the non-`None` value to either a tuple or a list."""
     if value is None:

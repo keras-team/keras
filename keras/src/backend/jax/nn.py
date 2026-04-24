@@ -17,6 +17,9 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    check_depthwise_conv_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.common.backend_utils import (
@@ -783,6 +786,9 @@ def depthwise_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    check_depthwise_conv_input_channels(inputs, kernel, data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -804,8 +810,6 @@ def depthwise_conv(
     feature_group_count = (
         inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
     )
-    kernel = convert_to_tensor(kernel)
-    inputs = convert_to_tensor(inputs)
     kernel = jnp.reshape(
         kernel,
         kernel.shape[:-2] + (1, feature_group_count * kernel.shape[-1]),
@@ -831,6 +835,10 @@ def separable_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    depthwise_kernel = convert_to_tensor(depthwise_kernel)
+    pointwise_kernel = convert_to_tensor(pointwise_kernel)
+    check_depthwise_conv_input_channels(inputs, depthwise_kernel, data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
