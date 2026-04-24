@@ -405,6 +405,36 @@ class TextVectorizationTest(testing.TestCase, parameterized.TestCase):
         self.assertTrue(backend.is_tensor(output))
         self.assertAllClose(output, [[2, 3]])
 
+    def test_python_standardize_callable_non_tf_backend(self):
+        # Regression test for https://github.com/keras-team/keras/issues/22626
+        # On non-TF backends, a callable `standardize` should receive a NumPy
+        # array of unicode strings (so users can compose `np.char` / numpy
+        # string ops) rather than a `tf.EagerTensor`.
+        if backend.backend() == "tensorflow":
+            self.skipTest("Test is for non-TensorFlow backends only.")
+
+        seen_types = []
+        seen_dtypes = []
+
+        def np_standardize(text):
+            seen_types.append(type(text).__name__)
+            seen_dtypes.append(text.dtype.kind)
+            lowered = np.char.lower(text)
+            return np.char.replace(lowered, ",", "")
+
+        layer = layers.TextVectorization(standardize=np_standardize)
+        layer.adapt(["Hello, world."])
+        self.assertTrue(len(seen_types) > 0)
+        for t in seen_types:
+            self.assertEqual(t, "ndarray")
+        for k in seen_dtypes:
+            self.assertEqual(k, "U")
+        vocab = layer.get_vocabulary()
+        self.assertIn("hello", vocab)
+        self.assertIn("world.", vocab)
+        output = layer(["Hello, world."])
+        self.assertTrue(backend.is_tensor(output))
+
     def test_no_split(self):
         layer = layers.TextVectorization(
             split=None,
