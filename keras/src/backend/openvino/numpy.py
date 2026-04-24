@@ -3780,8 +3780,16 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 
 
 def percentile(x, q, axis=None, method="linear", keepdims=False):
-    raise NotImplementedError(
-        "`percentile` is not supported with openvino backend"
+    q = get_ov_output(q)
+    q_f32 = ov_opset.convert(q, Type.f32).output(0)
+    hundred = ov_opset.constant(np.float32(100.0)).output(0)
+    q_normalized = ov_opset.divide(q_f32, hundred).output(0)
+    return quantile(
+        x,
+        OpenVINOKerasTensor(q_normalized),
+        axis=axis,
+        method=method,
+        keepdims=keepdims,
     )
 
 

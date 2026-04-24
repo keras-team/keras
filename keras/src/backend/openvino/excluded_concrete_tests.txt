@@ -27,7 +27,6 @@ NNOpsDtypeTest::test_polar_
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
-NumpyTwoInputOpsCorrectnessTest::test_percentile
 NumpyOneInputOpsCorrectnessTest::test_real
 RandAugmentTest::test_random_augment_randomness
 RandomSaturationTest::test_random_saturation_full_saturation
