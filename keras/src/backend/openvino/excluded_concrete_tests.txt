@@ -37,5 +37,4 @@ RandAugmentTest::test_random_augment_randomness
 RandomSaturationTest::test_random_saturation_full_saturation
 RandomZoomTest::test_connect_with_flatten
 RandomZoomTest::test_dynamic_shape
-TestTrainer::test_predict_dropout
 UpSampling2dTest::test_upsampling_2d_lanczos_interpolation_methods
