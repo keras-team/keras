@@ -22,12 +22,10 @@ MergingLayersTest::test_average_with_mask
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_polar_corectness
 NNOpsDtypeTest::test_ctc_decode
-NumpyDtypeTest::test_percentile
 NNOpsDtypeTest::test_polar_
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
-NumpyTwoInputOpsCorrectnessTest::test_percentile
 NumpyOneInputOpsCorrectnessTest::test_real
 RandAugmentTest::test_random_augment_randomness
 RandomSaturationTest::test_random_saturation_full_saturation
