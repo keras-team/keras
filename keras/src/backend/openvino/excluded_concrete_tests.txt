@@ -22,7 +22,6 @@ MergingLayersTest::test_average_with_mask
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsCorrectnessTest::test_polar_corectness
 NNOpsDtypeTest::test_ctc_decode
-NumpyDtypeTest::test_percentile
 NNOpsDtypeTest::test_polar_
 NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
