@@ -610,6 +610,12 @@ def deserialize_keras_object(
         raise TypeError(f"Could not parse config: {config}")
 
     if "class_name" not in config or "config" not in config:
+        if not config:
+            raise TypeError(
+                f"Invalid config dict: expected a dict with 'class_name' and "
+                f"'config' keys, but got an empty dict. "
+                f"Received: {config}"
+            )
         return {
             key: deserialize_keras_object(
                 value, custom_objects=custom_objects, safe_mode=safe_mode
