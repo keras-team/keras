@@ -1,4 +1,5 @@
 from packaging.version import parse as parse_version
+
 try:
     import sklearn
 except ImportError:
@@ -60,6 +61,7 @@ def _routing_enabled():
         return True
 
     return False
+
 
 def _raise_for_params(params, owner, method):
     """Raise an error if metadata routing is not enabled and params are passed.
