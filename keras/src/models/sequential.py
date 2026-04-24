@@ -382,7 +382,7 @@ class Sequential(Model):
         model = cls(name=name)
         for layer_config in layer_configs:
             if not isinstance(layer_config, dict) or not layer_config:
-                raise TypeError(
+                raise ValueError(
                     "Invalid layer config in Sequential.from_config(). "
                     "Expected a non-empty dict. "
                     f"Received: {layer_config!r}"
