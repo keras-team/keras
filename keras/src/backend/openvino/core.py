@@ -76,7 +76,7 @@ DTYPES_MIN = {
 }
 
 
-def align_operand_types(x1, x2, op_name):
+def align_operand_types(x1, x2, op_name, force_float=False):
     x1_type = x1.element_type
     x2_type = x2.element_type
     if x1_type.is_dynamic() or x2_type.is_dynamic():
@@ -86,7 +86,10 @@ def align_operand_types(x1, x2, op_name):
         )
     x1_type = ov_to_keras_type(x1_type)
     x2_type = ov_to_keras_type(x2_type)
-    result_type = dtypes.result_type(x1_type, x2_type)
+    if force_float:
+        result_type = dtypes.result_type(x1_type, x2_type, float)
+    else:
+        result_type = dtypes.result_type(x1_type, x2_type)
     result_type = OPENVINO_DTYPES[result_type]
     if x1_type != result_type:
         x1 = ov_opset.convert(x1, result_type).output(0)
@@ -271,7 +274,7 @@ class OpenVINOKerasTensor:
         first = self.output
         other = get_ov_output(other, context_dtype=self.dtype)
         first, other = align_operand_types(
-            first, other, "OpenVINOKerasTensor::__truediv__"
+            first, other, "OpenVINOKerasTensor::__truediv__", force_float=True
         )
         return OpenVINOKerasTensor(ov_opset.divide(first, other).output(0))
 
@@ -279,7 +282,7 @@ class OpenVINOKerasTensor:
         first = self.output
         other = get_ov_output(other, context_dtype=self.dtype)
         first, other = align_operand_types(
-            first, other, "OpenVINOKerasTensor::__rtruediv__"
+            first, other, "OpenVINOKerasTensor::__rtruediv__", force_float=True
         )
         return OpenVINOKerasTensor(ov_opset.divide(other, first).output(0))
 
