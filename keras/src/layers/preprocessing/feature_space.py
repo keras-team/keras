@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.src import backend
 from keras.src import layers
 from keras.src import tree
@@ -753,7 +755,7 @@ class FeatureSpace(Layer):
                     backend.backend() != "tensorflow"
                     and not backend_utils.in_tf_graph()
                 ):
-                    merged_data = backend.convert_to_numpy(merged_data)
+                    merged_data = np.array(merged_data)
                 merged_data = tf.squeeze(merged_data, axis=0)
             else:
                 for name, x in merged_data.items():
