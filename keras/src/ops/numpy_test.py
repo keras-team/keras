@@ -1380,6 +1380,7 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
 
         x = KerasTensor((None, 3, 3))
         self.assertEqual(knp.transpose(x, (2, 0, 1)).shape, (3, None, 3))
+        self.assertEqual(knp.transpose(x, (-1, -3, -2)).shape, (3, None, 3))
 
     def test_arccos(self):
         x = KerasTensor((None, 3))
@@ -2443,6 +2444,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_transpose(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.transpose(x).shape, (3, 2))
+        self.assertEqual(knp.transpose(x, (-1, -2)).shape, (3, 2))
 
     def test_arccos(self):
         x = KerasTensor((2, 3))
@@ -4966,6 +4968,15 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.Transpose(axes=(1, 0, 3, 2, 4))(x),
             np.transpose(x, axes=(1, 0, 3, 2, 4)),
+        )
+
+        self.assertAllClose(
+            knp.transpose(x, axes=(-4, -5, -2, -3, -1)),
+            np.transpose(x, axes=(-4, -5, -2, -3, -1)),
+        )
+        self.assertAllClose(
+            knp.Transpose(axes=(-4, -5, -2, -3, -1))(x),
+            np.transpose(x, axes=(-4, -5, -2, -3, -1)),
         )
 
     def test_arccos(self):

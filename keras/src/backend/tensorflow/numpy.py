@@ -3490,6 +3490,8 @@ def transpose(x, axes=None):
         output = tf.sparse.transpose(x, perm=axes)
         output.set_shape(compute_transpose_output_shape(x.shape, axes))
         return output
+    if axes:
+        axes = tuple(canonicalize_axis(axis, len(x.shape)) for axis in axes)
     return tf.transpose(x, perm=axes)
 
 

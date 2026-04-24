@@ -4919,8 +4919,8 @@ def transpose(x, axes=None):
             rank_minus_one, const_minus_one, const_minus_one, "i64"
         ).output(0)
     else:
-        if isinstance(axes, tuple):
-            axes = list(axes)
+        rank = x.get_partial_shape().rank.get_length()
+        axes = [canonicalize_axis(a, rank) for a in axes]
         axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 
