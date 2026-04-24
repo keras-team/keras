@@ -388,7 +388,7 @@ class Sequential(Model):
                     f"Received: {layer_config!r}"
                 )
             if "class_name" not in layer_config or "config" not in layer_config:
-                raise TypeError(
+                raise ValueError(
                     "Invalid layer config in Sequential.from_config(). "
                     "Expected keys 'class_name' and 'config'. "
                     f"Received: {layer_config!r}"
