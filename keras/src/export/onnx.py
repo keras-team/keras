@@ -114,10 +114,19 @@ def export_onnx(
     elif backend.backend() == "torch":
         import torch
 
-        """Generate dynamic_axes format for ONNX export."""
-        dynamic_axes = {}
+        # Flatten `input_signature` so nested structures (e.g. dict, list,
+        # or tuple inputs) are exported as a flat tuple of tensors. When
+        # the structure is nested, `model` is wrapped so its forward
+        # receives the flat positional args and repacks them into the
+        # original structure before calling the underlying model.
+        flat_specs = tree.flatten(input_signature)
+        input_names = [
+            getattr(spec, "name", None) or f"input_{i}"
+            for i, spec in enumerate(flat_specs)
+        ]
 
-        for input_idx, spec in enumerate(specs_for_names):
+        dynamic_axes = {}
+        for input_idx, spec in enumerate(flat_specs):
             if not hasattr(spec, "shape"):
                 continue
 
@@ -133,28 +142,36 @@ def export_onnx(
                     dynamic_dims[dim_idx] = dim_name
 
             if dynamic_dims:
-                input_name = (
-                    input_names[input_idx]
-                    if input_idx < len(input_names)
-                    else f"input_{input_idx}"
-                )
-                dynamic_axes[input_name] = dynamic_dims
+                dynamic_axes[input_names[input_idx]] = dynamic_dims
 
         sample_inputs = tree.map_structure(
             lambda x: convert_spec_to_tensor(x, replace_none_number=1),
             input_signature,
         )
 
-        sample_inputs = tuple(sample_inputs)
-        # TODO: Make dict model exportable.
-        if any(isinstance(x, dict) for x in sample_inputs):
-            raise ValueError(
-                "Currently, `export_onnx` in the torch backend doesn't support "
-                "dictionaries as inputs."
-            )
+        needs_wrapper = any(tree.is_nested(x) for x in sample_inputs)
+        if needs_wrapper:
 
-        if hasattr(model, "eval"):
-            model.eval()
+            class _FlatInputWrapper(torch.nn.Module):
+                def __init__(self, wrapped, structure):
+                    super().__init__()
+                    self._wrapped = wrapped
+                    self._structure = structure
+
+                def forward(self, *flat_args):
+                    inputs = tree.pack_sequence_as(self._structure, flat_args)
+                    if len(inputs) == 1:
+                        return self._wrapped(inputs[0])
+                    return self._wrapped(*inputs)
+
+            export_model = _FlatInputWrapper(model, input_signature)
+            sample_inputs = tuple(tree.flatten(sample_inputs))
+        else:
+            export_model = model
+            sample_inputs = tuple(sample_inputs)
+
+        if hasattr(export_model, "eval"):
+            export_model.eval()
         with warnings.catch_warnings():
             # Suppress some unuseful warnings.
             warnings.filterwarnings(
@@ -218,7 +235,7 @@ def export_onnx(
                 }
 
                 onnx_program = torch.onnx.export(
-                    model, sample_inputs, **export_kwargs
+                    export_model, sample_inputs, **export_kwargs
                 )
                 if hasattr(onnx_program, "optimize"):
                     onnx_program.optimize()  # Only supported by torch>=2.6.0.
@@ -249,7 +266,9 @@ def export_onnx(
         if dynamic_axes:
             export_kwargs["dynamic_axes"] = dynamic_axes
 
-        torch.onnx.export(model, sample_inputs, filepath, **export_kwargs)
+        torch.onnx.export(
+            export_model, sample_inputs, filepath, **export_kwargs
+        )
     else:
         raise NotImplementedError(
             "`export_onnx` is only compatible with TensorFlow, JAX and "
