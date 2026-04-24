@@ -1,3 +1,5 @@
+import warnings
+
 import openvino as ov
 import openvino.opset15 as ov_opset
 from openvino import Model
@@ -13,9 +15,227 @@ from keras.src.backend.openvino.core import get_ov_output
 
 
 def cholesky(a, upper=False):
-    raise NotImplementedError(
-        "`cholesky` is not supported with openvino backend."
+    warnings.warn(
+        "OpenVINO backend does not check for positive definiteness. "
+        "Non-positive-definite inputs will silently produce NaN outputs."
     )
+    a = convert_to_tensor(a)
+    a_ov = get_ov_output(a)
+    original_type = a_ov.get_element_type()
+
+    # avoid OV CPU constant-folding bug for f64 inside Loop
+    if original_type == Type.f64:
+        a_ov = ov_opset.convert(a_ov, Type.f32).output(0)
+    work_type = a_ov.get_element_type()
+
+    rank = a_ov.get_partial_shape().rank.get_length()
+    a_shape = ov_opset.shape_of(a_ov, output_type="i32").output(0)
+
+    zero_s = ov_opset.constant(0, Type.i32).output(0)
+    one_s = ov_opset.constant(1, Type.i32).output(0)
+
+    N_node = ov_opset.squeeze(
+        ov_opset.gather(
+            a_shape,
+            ov_opset.constant([-1], Type.i32).output(0),
+            zero_s,
+        ).output(0),
+        ov_opset.constant([0], Type.i32).output(0),
+    ).output(0)
+
+    if rank == 2:
+        B_node = ov_opset.constant(1, Type.i32).output(0)
+        batch_shape = ov_opset.constant([], Type.i32).output(0)
+    else:
+        batch_shape = ov_opset.slice(
+            a_shape,
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant([-2], Type.i32).output(0),
+            ov_opset.constant([1], Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+        ).output(0)
+        B_node = ov_opset.reduce_prod(batch_shape, zero_s, False).output(0)
+
+    flat_shape = ov_opset.concat(
+        [
+            ov_opset.unsqueeze(B_node, zero_s).output(0),
+            ov_opset.unsqueeze(N_node, zero_s).output(0),
+            ov_opset.unsqueeze(N_node, zero_s).output(0),
+        ],
+        0,
+    ).output(0)
+    A_flat = ov_opset.reshape(a_ov, flat_shape, False).output(0)
+
+    L_init = ov_opset.broadcast(
+        ov_opset.constant(0.0, work_type).output(0), flat_shape
+    ).output(0)
+
+    loop = ov_opset.loop(
+        N_node, ov_opset.constant(True, Type.boolean).output(0)
+    )
+
+    A_param = ov_opset.parameter(
+        A_flat.get_partial_shape(), work_type, name="A"
+    )
+    L_param = ov_opset.parameter(
+        L_init.get_partial_shape(), work_type, name="L"
+    )
+    k_param = ov_opset.parameter([], Type.i32, name="k")
+    B_param = ov_opset.parameter([], Type.i32, name="B")
+    N_param = ov_opset.parameter([], Type.i32, name="N")
+
+    A_body = A_param.output(0)
+    L_body = L_param.output(0)
+    k = k_param.output(0)
+    N_body = N_param.output(0)
+    k_p1 = ov_opset.add(k, one_s).output(0)
+
+    # Cholesky-Banachiewicz: at step k, compute full column k of L in one pass.
+    # prev = L[:, :, :k]  already-computed columns, shape [B, N, k]
+    prev = ov_opset.slice(
+        L_body,
+        ov_opset.constant([0], Type.i32).output(0),
+        ov_opset.unsqueeze(k, zero_s).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([2], Type.i32).output(0),
+    ).output(0)
+
+    a_col = ov_opset.slice(
+        A_body,
+        ov_opset.unsqueeze(k, zero_s).output(0),
+        ov_opset.unsqueeze(k_p1, zero_s).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([2], Type.i32).output(0),
+    ).output(0)
+
+    row_k_prev = ov_opset.slice(
+        prev,
+        ov_opset.unsqueeze(k, zero_s).output(0),
+        ov_opset.unsqueeze(k_p1, zero_s).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+    ).output(0)
+
+    # acc[b,i] = sum_j L[b,i,j]*L[b,k,j]  via matmul([B,N,k], [B,k,1])
+    acc = ov_opset.matmul(prev, row_k_prev, False, True).output(0)
+
+    raw_col = ov_opset.subtract(a_col, acc).output(0)
+
+    diag_val = ov_opset.slice(
+        raw_col,
+        ov_opset.unsqueeze(k, zero_s).output(0),
+        ov_opset.unsqueeze(k_p1, zero_s).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([1], Type.i32).output(0),
+    ).output(0)
+
+    L_kk = ov_opset.sqrt(diag_val).output(0)
+    new_col = ov_opset.divide(raw_col, L_kk).output(0)
+
+    # Zero out rows above the diagonal (rows 0..k-1)
+    row_range = ov_opset.range(
+        zero_s, N_body, one_s, output_type=Type.i32
+    ).output(0)
+    row_mask_1d = ov_opset.greater_equal(row_range, k).output(0)
+    row_mask_3d = ov_opset.unsqueeze(
+        ov_opset.unsqueeze(row_mask_1d, zero_s).output(0),
+        ov_opset.constant(2, Type.i32).output(0),
+    ).output(0)
+    zero_col = ov_opset.broadcast(
+        ov_opset.constant(0.0, work_type).output(0),
+        ov_opset.shape_of(new_col, output_type="i32").output(0),
+    ).output(0)
+    new_col_masked = ov_opset.select(row_mask_3d, new_col, zero_col).output(0)
+
+    # Pad [B,N,1] -> [B,N,N], placing the column at index k
+    pads_begin = ov_opset.concat(
+        [
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.unsqueeze(k, zero_s).output(0),
+        ],
+        0,
+    ).output(0)
+    pads_end = ov_opset.concat(
+        [
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+            ov_opset.unsqueeze(
+                ov_opset.subtract(
+                    ov_opset.subtract(N_body, k).output(0), one_s
+                ).output(0),
+                zero_s,
+            ).output(0),
+        ],
+        0,
+    ).output(0)
+    col_padded = ov_opset.pad(
+        new_col_masked, pads_begin, pads_end, "constant"
+    ).output(0)
+
+    col_range = ov_opset.range(
+        zero_s, N_body, one_s, output_type=Type.i32
+    ).output(0)
+    col_mask_1d = ov_opset.equal(col_range, k).output(0)
+    L_shape = ov_opset.shape_of(L_body, output_type="i32").output(0)
+    col_mask_3d = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(col_mask_1d, zero_s).output(0),
+            ov_opset.constant(1, Type.i32).output(0),
+        ).output(0),
+        L_shape,
+    ).output(0)
+    row_mask_full = ov_opset.broadcast(
+        ov_opset.unsqueeze(
+            ov_opset.unsqueeze(row_mask_1d, zero_s).output(0),
+            ov_opset.constant(2, Type.i32).output(0),
+        ).output(0),
+        L_shape,
+    ).output(0)
+    update_mask = ov_opset.logical_and(col_mask_3d, row_mask_full).output(0)
+
+    L_next = ov_opset.select(update_mask, col_padded, L_body).output(0)
+    k_next = ov_opset.add(k, one_s).output(0)
+    cond = ov_opset.constant(True, Type.boolean).output(0)
+
+    body = Model(
+        [L_next, k_next, cond],
+        [A_param, L_param, k_param, B_param, N_param],
+    )
+    loop.set_function(body)
+    loop.set_special_body_ports([-1, 2])
+
+    loop.set_invariant_input(A_param, A_flat)
+    loop.set_merged_input(L_param, L_init, L_next)
+    loop.set_merged_input(k_param, zero_s, k_next)
+    loop.set_invariant_input(B_param, B_node)
+    loop.set_invariant_input(N_param, N_node)
+
+    L_out = loop.get_iter_value(L_next, -1)
+
+    if rank == 2:
+        L_final = ov_opset.squeeze(L_out, zero_s).output(0)
+    else:
+        out_shape = ov_opset.concat(
+            [
+                batch_shape,
+                ov_opset.unsqueeze(N_node, zero_s).output(0),
+                ov_opset.unsqueeze(N_node, zero_s).output(0),
+            ],
+            0,
+        ).output(0)
+        L_final = ov_opset.reshape(L_out, out_shape, False).output(0)
+
+    if upper:
+        order = list(range(rank))
+        order[-2], order[-1] = order[-1], order[-2]
+        perm = ov_opset.constant(order, Type.i32).output(0)
+        L_final = ov_opset.transpose(L_final, perm).output(0)
+
+    if original_type == Type.f64:
+        L_final = ov_opset.convert(L_final, Type.f64).output(0)
+
+    return OpenVINOKerasTensor(L_final)
 
 
 def cholesky_inverse(a, upper=False):

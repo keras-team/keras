@@ -9,7 +9,6 @@ EqualizationTest::test_output_range_0_1
 EqualizationTest::test_output_range_0_255
 FeatureSpaceTest::test_saving
 LayerTest::test_complex_dtype_support
-LinalgOpsCorrectnessTest::test_cholesky
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_norm_2_-2
