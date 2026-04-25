@@ -18,38 +18,46 @@ concurrency:
 jobs:
 
   test-in-container:
-    strategy:
-      fail-fast: false
-      matrix:
-        multi_device: [false, true]
-        backend: [jax]
-
-    name: ${{ format('Run tests on {0}TPU', matrix.multi_device && 'multi-' || '') }}
-    runs-on: ${{ matrix.multi_device && 'linux-x86-ct5lp-112-4tpu' || 'linux-x86-ct6e-44-1tpu' }}
-    timeout-minutes: 120
-
     # Only run on pushes to master, releases or "kokoro:force-run" unlabel
     if: |
       github.event_name == 'push' ||
       github.event_name == 'release' ||
       (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
 
+    strategy:
+      fail-fast: false
+      matrix:
+        multi_device: [false, true]
+        backend: [jax]
+
     container:
       image: python:3.11-slim
       options: --privileged --network host
+
+    name: ${{ format('Run tests on {0}TPU', matrix.multi_device && 'multi-' || '') }}
+    runs-on: ${{ matrix.multi_device && 'linux-x86-ct5lp-112-4tpu' || 'linux-x86-ct6e-44-1tpu' }}
+    timeout-minutes: 120
+
+    env:
+      KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
 
     steps:
       - name: Checkout ${{ github.ref }}
         uses: actions/checkout@v6
       
-      - name: Install Dependencies
+      - name: Install binary dependencies
+        # curl, git, gpg are for codecov/codecov-action
+        run: |
+          apt-get update
+          apt-get -y install curl
+          apt-get -y install git
+          apt-get -y install gnupg
+
+      - name: Install Python dependencies
         run: pip install --no-cache-dir -r requirements-${{ matrix.backend }}-tpu.txt
       
-      - name: Set Keras Backend
-        run: echo "KERAS_BACKEND=jax" >> $GITHUB_ENV
-
       - name: Verify JAX Installation
-        run: python3 -c "import jax; print('JAX devices:', jax.devices()); assert jax.default_backend() == 'tpu'"
+        run: python3 -c "import jax; print('JAX devices:', jax.devices(), jax.devices()[0].device_kind); assert jax.default_backend() == 'tpu'"
 
       - name: Run Tests
         if: ${{ !matrix.multi_device }}
@@ -57,4 +65,16 @@ jobs:
 
       - name: Run Multi-device Tests
         if: ${{ matrix.multi_device }}
-        run: pytest keras -m multi_device --cov=keras --cov-config=pyproject.toml
+        run: pytest keras -m multi_device --cov=keras --cov-config=pyproject.toml --cov-append
+
+      - name: Convert Coverage
+        run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
+        with:
+          env_vars: KERAS_HOME
+          flags: keras,keras-tpu,keras-${{ matrix.backend }}${{ matrix.multi_device == 'true' && '-multi' || '' }}
+          files: core-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
