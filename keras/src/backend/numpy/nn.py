@@ -1207,11 +1207,9 @@ def _ctc_beam_search_decode(
     def _merge_scores(unique_inverse, scores):
         scores_max = np.max(scores)
         scores_exp = np.exp(scores - scores_max)
-        scores = np.zeros_like(scores)
-        for i, u in enumerate(unique_inverse):
-            scores[u] += scores_exp[i]
-        scores = np.log(scores) + scores_max
-        return scores
+        new_scores = np.zeros_like(scores)
+        np.add.at(new_scores, unique_inverse, scores_exp)
+        return np.log(new_scores) + scores_max
 
     def _prune_paths(paths, scores, masked):
         paths, unique_inverse = np.unique(paths, return_inverse=True, axis=0)
