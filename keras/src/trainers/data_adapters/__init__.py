@@ -77,7 +77,7 @@ def get_data_adapter(
         return TFDatasetAdapter(
             x, class_weight=class_weight, distribution=distribution
         )
-        
+
     elif isinstance(x, py_dataset_adapter.PyDataset):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "PyDataset")
@@ -93,7 +93,7 @@ def get_data_adapter(
                 stacklevel=2,
             )
         return PyDatasetAdapter(x, class_weight=class_weight, shuffle=shuffle)
-        
+
     elif is_torch_dataloader(x):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "torch DataLoader")
@@ -119,7 +119,7 @@ def get_data_adapter(
                 stacklevel=2,
             )
         return TorchDataLoaderAdapter(x)
-        
+
     elif is_grain_dataset(x):
         if y is not None:
             raise_unsupported_arg(
@@ -147,7 +147,7 @@ def get_data_adapter(
                 stacklevel=2,
             )
         return GrainDatasetAdapter(x)
-        
+
     elif isinstance(x, types.GeneratorType):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "PyDataset")
