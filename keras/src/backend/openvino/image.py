@@ -2069,3 +2069,9 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    raise NotImplementedError(
+        "`sobel_edges` is not supported with openvino backend"
+    )
