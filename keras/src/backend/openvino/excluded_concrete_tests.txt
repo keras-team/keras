@@ -4,7 +4,6 @@ EqualizationTest::test_input_dtypes_int32
 EqualizationTest::test_input_dtypes_int64
 EqualizationTest::test_output_range_0_1
 EqualizationTest::test_output_range_0_255
-FeatureSpaceTest::test_saving
 LayerTest::test_complex_dtype_support
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq
