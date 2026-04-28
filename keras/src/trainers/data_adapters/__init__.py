@@ -1,4 +1,5 @@
 import types
+import warnings
 
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import array_data_adapter
@@ -65,16 +66,18 @@ def get_data_adapter(
             raise_unsupported_arg(
                 "sample_weights", "the sample weights", "tf.data.Dataset"
             )
+        if shuffle:
+            warnings.warn(
+                "`shuffle=True` was passed, but will be ignored since the "
+                "data `x` was provided as a tf.data.Dataset. The Dataset is "
+                "expected to already be shuffled "
+                "(via `.shuffle(buffer_size)`).",
+                stacklevel=2,
+            )
         return TFDatasetAdapter(
             x, class_weight=class_weight, distribution=distribution
         )
-        # TODO: should we warn or not?
-        # warnings.warn(
-        #     "`shuffle=True` was passed, but will be ignored since the "
-        #     "data `x` was provided as a tf.data.Dataset. The Dataset is "
-        #     "expected to already be shuffled "
-        #     "(via `.shuffle(tf.data.AUTOTUNE)`)"
-        # )
+
     elif isinstance(x, py_dataset_adapter.PyDataset):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "PyDataset")
@@ -82,14 +85,15 @@ def get_data_adapter(
             raise_unsupported_arg(
                 "sample_weights", "the sample weights", "PyDataset"
             )
+        if getattr(x, "num_batches", None) is None and shuffle:
+            warnings.warn(
+                "`shuffle=True` was passed, but will be ignored since the "
+                "data `x` was provided as an infinite PyDataset. The "
+                "PyDataset is expected to already be shuffled.",
+                stacklevel=2,
+            )
         return PyDatasetAdapter(x, class_weight=class_weight, shuffle=shuffle)
-        # TODO: should we warn or not?
-        # if x.num_batches is None and shuffle:
-        #     warnings.warn(
-        #         "`shuffle=True` was passed, but will be ignored since the "
-        #         "data `x` was provided as a infinite PyDataset. The "
-        #         "PyDataset is expected to already be shuffled."
-        # )
+
     elif is_torch_dataloader(x):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "torch DataLoader")
@@ -107,13 +111,15 @@ def get_data_adapter(
                 "#supporting-sampleweight-amp-classweight for more details. "
                 f"Received: class_weight={class_weight}"
             )
+        if shuffle:
+            warnings.warn(
+                "`shuffle=True` was passed, but will be ignored since the "
+                "data `x` was provided as a torch DataLoader. The DataLoader "
+                "is expected to already be shuffled.",
+                stacklevel=2,
+            )
         return TorchDataLoaderAdapter(x)
-        # TODO: should we warn or not?
-        # warnings.warn(
-        #     "`shuffle=True` was passed, but will be ignored since the "
-        #     "data `x` was provided as a torch DataLoader. The DataLoader "
-        #     "is expected to already be shuffled."
-        # )
+
     elif is_grain_dataset(x):
         if y is not None:
             raise_unsupported_arg(
@@ -133,13 +139,15 @@ def get_data_adapter(
                 "class_weight. "
                 f"Received: class_weight={class_weight}"
             )
+        if shuffle:
+            warnings.warn(
+                "`shuffle=True` was passed, but will be ignored since the "
+                "data `x` was provided as a grain dataset. The grain dataset "
+                "is expected to already be shuffled.",
+                stacklevel=2,
+            )
         return GrainDatasetAdapter(x)
-        # TODO: should we warn or not?
-        # warnings.warn(
-        #     "`shuffle=True` was passed, but will be ignored since the "
-        #     "data `x` was provided as a grain dataset. The grain dataset "
-        #     "is expected to already be shuffled."
-        # )
+
     elif isinstance(x, types.GeneratorType):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "PyDataset")
@@ -152,13 +160,14 @@ def get_data_adapter(
                 "Argument `class_weight` is not supported for Python "
                 f"generator inputs. Received: class_weight={class_weight}"
             )
+        if shuffle:
+            warnings.warn(
+                "`shuffle=True` was passed, but will be ignored since the "
+                "data `x` was provided as a generator. The generator "
+                "is expected to yield already-shuffled data.",
+                stacklevel=2,
+            )
         return GeneratorDataAdapter(x)
-        # TODO: should we warn or not?
-        # warnings.warn(
-        #     "`shuffle=True` was passed, but will be ignored since the "
-        #     "data `x` was provided as a generator. The generator "
-        #     "is expected to yield already-shuffled data."
-        # )
     else:
         raise ValueError(f"Unrecognized data type: x={x} (of type {type(x)})")
 
