@@ -1261,8 +1261,14 @@ def dot_product_attention(
             bias = ov_opset.convert(bias, query.get_element_type()).output(0)
         if mask is not None:
             if mask.get_element_type() == Type.boolean:
+                query_dtype = ov_to_keras_type(query.get_element_type())
+                min_val = (
+                    np.finfo(np.float16).min
+                    if query_dtype == "float16"
+                    else np.finfo(np.float32).min
+                )
                 large_neg = ov_opset.constant(
-                    np.finfo(np.float32).min, query.get_element_type()
+                    min_val, query.get_element_type()
                 ).output(0)
                 zero = ov_opset.constant(0.0, query.get_element_type()).output(
                     0
