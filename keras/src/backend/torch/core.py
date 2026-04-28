@@ -22,6 +22,7 @@ from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = True
 IS_THREAD_SAFE = True
 
 # Some operators such as 'aten::_foreach_mul_.Scalar'

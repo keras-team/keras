@@ -1579,6 +1579,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             )
             self.assertAllClose(normalized_sum_by_axis, 1.0)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_polar_corectness(self):
         abs_ = np.array([1, 2], dtype="float32")
         angle = np.array([2, 3], dtype="float32")
@@ -3069,6 +3073,10 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_polar(self, dtype):
         import jax.nn as jnn

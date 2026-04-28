@@ -23,6 +23,7 @@ from keras.src.backend.jax import distribution_lib
 
 SUPPORTS_SPARSE_TENSORS = True
 SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = True
 IS_THREAD_SAFE = True
 
 

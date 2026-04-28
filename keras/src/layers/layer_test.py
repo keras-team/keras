@@ -1723,6 +1723,10 @@ class LayerTest(testing.TestCase):
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):
             def __init__(self, num_outputs):
