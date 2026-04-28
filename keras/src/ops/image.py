@@ -2165,6 +2165,7 @@ def sobel_edges(images, data_format=None):
         return SobelEdges(data_format=data_format).symbolic_call(images)
     return backend.image.sobel_edges(
         images, data_format=backend.standardize_data_format(data_format)
+    )
 
 
 class SSIM(Operation):
