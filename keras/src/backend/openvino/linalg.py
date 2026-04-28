@@ -1096,15 +1096,11 @@ def norm(x, ord=None, axis=None, keepdims=False):
     # Ref: jax.numpy.linalg.norm
     if num_axes == 1:
         if ord is None or ord == 2:
-            # L2 norm: sqrt(sum(x * conj(x)))
-            x_conj = x_ov
-            x_sq = ov_opset.multiply(x_conj, x_conj).output(0)
             axis_for_const = list(axis) if isinstance(axis, tuple) else axis
             axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
-            norm_result = ov_opset.reduce_sum(
-                x_sq, axis_const, keepdims
-            ).output(0)
-            norm_result = ov_opset.sqrt(norm_result).output(0)
+            norm_result = ov_opset.reduce_l2(x_ov, axis_const, keepdims).output(
+                0
+            )
         elif ord == float("inf"):
             axis_for_const = list(axis) if isinstance(axis, tuple) else axis
             axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
@@ -1130,13 +1126,11 @@ def norm(x, ord=None, axis=None, keepdims=False):
                 not_equal_float, axis_const, keepdims
             ).output(0)
         elif ord == 1:
-            # L1 norm: sum(|x|)
             axis_for_const = list(axis) if isinstance(axis, tuple) else axis
             axis_const = ov_opset.constant(axis_for_const, Type.i32).output(0)
-            x_abs = ov_opset.abs(x_ov).output(0)
-            norm_result = ov_opset.reduce_sum(
-                x_abs, axis_const, keepdims
-            ).output(0)
+            norm_result = ov_opset.reduce_l1(x_ov, axis_const, keepdims).output(
+                0
+            )
         elif isinstance(ord, str):
             raise ValueError(
                 f"Invalid `ord` argument for vector norm. Received: ord={ord}"
