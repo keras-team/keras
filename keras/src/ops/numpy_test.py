@@ -5376,6 +5376,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertSparse(knp.concatenate([x, y], axis=axis))
         self.assertSparse(knp.Concatenate(axis=axis)([x, y]))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_conjugate(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
         self.assertAllClose(knp.conjugate(x), np.conjugate(x))
