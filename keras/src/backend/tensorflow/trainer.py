@@ -337,7 +337,45 @@ class TensorFlowTrainer(base_trainer.Trainer):
         if max_epochs and max_epochs < epochs:
             warnings.warn("Limiting epochs to %d" % max_epochs)
             epochs = max_epochs
-        # TODO: respect compiled trainable state
+        
+        with self._respect_compiled_trainable_state():
+            return self._fit_internal(
+                x=x,
+                y=y,
+                batch_size=batch_size,
+                epochs=epochs,
+                verbose=verbose,
+                callbacks=callbacks,
+                validation_split=validation_split,
+                validation_data=validation_data,
+                shuffle=shuffle,
+                class_weight=class_weight,
+                sample_weight=sample_weight,
+                initial_epoch=initial_epoch,
+                steps_per_epoch=steps_per_epoch,
+                validation_steps=validation_steps,
+                validation_batch_size=validation_batch_size,
+                validation_freq=validation_freq,
+            )
+    def _fit_internal(
+        self,
+        x=None,
+        y=None,
+        batch_size=None,
+        epochs=1,
+        verbose="auto",
+        callbacks=None,
+        validation_split=0.0,
+        validation_data=None,
+        shuffle=True,
+        class_weight=None,
+        sample_weight=None,
+        initial_epoch=0,
+        steps_per_epoch=None,
+        validation_steps=None,
+        validation_batch_size=None,
+        validation_freq=1,
+    ):
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
@@ -466,7 +504,31 @@ class TensorFlowTrainer(base_trainer.Trainer):
         **kwargs,
     ):
         self._assert_compile_called("evaluate")
-        # TODO: respect compiled trainable state
+        with self._respect_compiled_trainable_state():
+            return self._evaluate_internal(
+                x=x,
+                y=y,
+                batch_size=batch_size,
+                verbose=verbose,
+                sample_weight=sample_weight,
+                steps=steps,
+                callbacks=callbacks,
+                return_dict=return_dict,
+                **kwargs,
+            )
+
+    def _evaluate_internal(
+        self,
+        x=None,
+        y=None,
+        batch_size=None,
+        verbose="auto",
+        sample_weight=None,
+        steps=None,
+        callbacks=None,
+        return_dict=False,
+        **kwargs,
+    ):
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
             raise ValueError(f"Arguments not recognized: {kwargs}")

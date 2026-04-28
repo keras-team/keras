@@ -1,3 +1,4 @@
+import contextlib
 import inspect
 import platform
 import warnings
@@ -202,6 +203,9 @@ class Trainer:
         self.jit_compile = jit_compile
         self.run_eagerly = run_eagerly
         self.stop_training = False
+        self._compiled_trainable_state = {
+            layer: layer.trainable for layer in self._flatten_layers()
+        }
         self.compiled = True
         self._loss_tracker = metrics_module.Mean(name="loss")
         self.steps_per_execution = steps_per_execution
@@ -1069,6 +1073,24 @@ class Trainer:
         if len(results) == 1:
             return results[0]
         return results
+
+    @contextlib.contextmanager
+    def _respect_compiled_trainable_state(self):
+        """Context manager to restore the trainable state at compile time."""
+        if not self.compiled:
+            yield
+            return
+
+        current_trainable_state = {
+            layer: layer.trainable for layer in self._flatten_layers()
+        }
+        try:
+            for layer, trainable in self._compiled_trainable_state.items():
+                layer.trainable = trainable
+            yield
+        finally:
+            for layer, trainable in current_trainable_state.items():
+                layer.trainable = trainable
 
     def _assert_compile_called(self, method_name=None):
         if not self.compiled:
