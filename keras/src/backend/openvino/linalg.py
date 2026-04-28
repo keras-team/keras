@@ -1590,5 +1590,11 @@ def lstsq(a, b, rcond=None):
     raise NotImplementedError("`lstsq` is not supported with openvino backend")
 
 
+def matrix_rank(x, tol=None):
+    raise NotImplementedError(
+        "`matrix_rank` is not supported with openvino backend"
+    )
+
+
 def jvp(fun, primals, tangents, has_aux=False):
     raise NotImplementedError("`jvp` is not supported with openvino backend")

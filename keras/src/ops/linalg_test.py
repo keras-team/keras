@@ -86,6 +86,18 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(lu.shape, (None, 2, 3))
         self.assertEqual(p.shape, (None, 2))
 
+    def test_matrix_rank(self):
+        x = KerasTensor([None, 4, 5])
+        out = linalg.matrix_rank(x)
+        self.assertEqual(out.shape, (None,))
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(linalg.matrix_rank(x).shape, (None,))
+
+        x = KerasTensor([None])
+        with self.assertRaises(ValueError):
+            linalg.matrix_rank(x)
+
     def test_norm(self):
         x = KerasTensor((None, 3))
         self.assertEqual(linalg.norm(x).shape, ())
@@ -261,6 +273,15 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         lu, p = linalg.lu_factor(x)
         self.assertEqual(lu.shape, (10, 2, 3))
         self.assertEqual(p.shape, (10, 2))
+
+    def test_matrix_rank(self):
+        x = KerasTensor([4, 3, 5])
+        out = linalg.matrix_rank(x)
+        self.assertEqual(out.shape, (4,))
+
+        x = KerasTensor([10])
+        with self.assertRaises(ValueError):
+            linalg.matrix_rank(x)
 
     def test_norm(self):
         x = KerasTensor((10, 3))
@@ -615,6 +636,40 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
         out_symb = linalg.lstsq(a_symb, b_symb)
         self.assertEqual(out_symb.shape, out.shape)
+
+    def test_matrix_rank(self):
+        # Full-rank tall matrix: rank equals number of columns.
+        rng = np.random.default_rng(42)
+        a_full = rng.standard_normal((6, 3)).astype("float32")
+        self.assertEqual(
+            int(ops.convert_to_numpy(linalg.matrix_rank(a_full))), 3
+        )
+
+        # Rank-1 matrix (outer product).
+        u = rng.standard_normal((5,)).astype("float32")
+        v = rng.standard_normal((4,)).astype("float32")
+        a_rank1 = np.outer(u, v)
+        self.assertEqual(
+            int(ops.convert_to_numpy(linalg.matrix_rank(a_rank1))), 1
+        )
+
+        # Batched rank: two stacked full-rank 3x3 matrices.
+        batched = rng.standard_normal((2, 3, 3)).astype("float32")
+        out = linalg.matrix_rank(batched)
+        self.assertAllClose(ops.convert_to_numpy(out), [3, 3])
+
+        # tol argument collapses singular values below the threshold.
+        a_near_singular = np.array(
+            [[1.0, 2.0], [2.0, 4.000001]], dtype="float32"
+        )
+        rank_loose = int(
+            ops.convert_to_numpy(linalg.matrix_rank(a_near_singular, tol=1e-2))
+        )
+        self.assertEqual(rank_loose, 1)
+
+        # Symbolic shape propagation.
+        a_symb = backend.KerasTensor((4, 3, 5), dtype="float32")
+        self.assertEqual(linalg.matrix_rank(a_symb).shape, (4,))
 
 
 class QrOpTest(testing.TestCase):

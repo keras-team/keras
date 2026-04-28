@@ -11,6 +11,7 @@ FeatureSpaceTest::test_saving
 LayerTest::test_complex_dtype_support
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq
+LinalgOpsCorrectnessTest::test_matrix_rank
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc

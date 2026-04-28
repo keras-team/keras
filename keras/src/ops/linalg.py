@@ -691,6 +691,47 @@ def lstsq(a, b, rcond=None):
     return backend.linalg.lstsq(a, b, rcond=rcond)
 
 
+class MatrixRank(Operation):
+    def __init__(self, tol=None, *, name=None):
+        super().__init__(name=name)
+        self.tol = tol
+
+    def call(self, x):
+        return backend.linalg.matrix_rank(x, tol=self.tol)
+
+    def compute_output_spec(self, x):
+        _assert_2d(x)
+        return KerasTensor(x.shape[:-2], dtype="int32")
+
+
+@keras_export(["keras.ops.matrix_rank", "keras.ops.linalg.matrix_rank"])
+def matrix_rank(x, tol=None):
+    """Return the matrix rank of one or more matrices using SVD.
+
+    The rank is the number of singular values that exceed `tol`. If `tol`
+    is `None`, each backend uses its own default threshold derived from
+    the largest singular value and the matrix dimensions.
+
+    Args:
+        x: Input tensor of shape `(..., M, N)`.
+        tol: Absolute threshold below which singular values are treated
+            as zero. If `None` (default), the backend's default is used.
+
+    Returns:
+        An integer tensor of shape `(...,)` with the rank of each matrix
+        in the batch.
+
+    Example:
+
+    >>> a = keras.ops.convert_to_tensor([[1., 2.], [2., 4.]])
+    >>> keras.ops.matrix_rank(a)
+    1
+    """
+    if any_symbolic_tensors((x,)):
+        return MatrixRank(tol=tol).symbolic_call(x)
+    return backend.linalg.matrix_rank(x, tol=tol)
+
+
 def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
