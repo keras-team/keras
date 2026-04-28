@@ -24,4 +24,3 @@ NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_real
-UpSampling2dTest::test_upsampling_2d_lanczos_interpolation_methods

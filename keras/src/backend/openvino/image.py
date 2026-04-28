@@ -39,9 +39,14 @@ RESIZE_INTERPOLATIONS = {
     "nearest": "nearest",
     "bicubic": "cubic",
 }
-UNSUPPORTED_INTERPOLATIONS = (
-    "lanczos3",
-    "lanczos5",
+# Lanczos methods are handled via _ov_scale_and_translate
+# instead of ov_opset.interpolate, which does not support them natively.
+LANCZOS_INTERPOLATIONS = {
+    "lanczos3": "lanczos3",
+    "lanczos5": "lanczos5",
+}
+ALL_RESIZE_INTERPOLATIONS = tuple(RESIZE_INTERPOLATIONS) + tuple(
+    LANCZOS_INTERPOLATIONS
 )
 
 
@@ -260,16 +265,10 @@ def resize(
     data_format="channels_last",
 ):
     data_format = backend.standardize_data_format(data_format)
-    if interpolation in UNSUPPORTED_INTERPOLATIONS:
-        raise ValueError(
-            "Resizing with Lanczos interpolation is "
-            "not supported by the OpenVINO backend. "
-            f"Received: interpolation={interpolation}."
-        )
-    if interpolation not in RESIZE_INTERPOLATIONS:
+    if interpolation not in ALL_RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
-            f"{tuple(RESIZE_INTERPOLATIONS.keys())}. Received: "
+            f"{ALL_RESIZE_INTERPOLATIONS}. Received: "
             f"interpolation={interpolation}"
         )
     if fill_mode != "constant":
@@ -428,6 +427,42 @@ def resize(
             "constant",
             fill_value,
         ).output(0)
+
+    if interpolation in LANCZOS_INTERPOLATIONS:
+        # routed through the weight-matrix resampler used by
+        # scale_and_translate, which has lanczos kernel support.
+        post_crop_shape = ov_opset.shape_of(images, Type.i32).output(0)
+        src_h = ov_opset.convert(
+            _gather_dim(post_crop_shape, height_axis_index), Type.f32
+        ).output(0)
+        src_w = ov_opset.convert(
+            _gather_dim(post_crop_shape, width_axis_index), Type.f32
+        ).output(0)
+        scale_h = ov_opset.divide(
+            ov_opset.constant(float(target_height), Type.f32).output(0),
+            src_h,
+        ).output(0)
+        scale_w = ov_opset.divide(
+            ov_opset.constant(float(target_width), Type.f32).output(0),
+            src_w,
+        ).output(0)
+        scale_ov = ov_opset.concat([scale_h, scale_w], axis=0).output(0)
+        translation_ov = ov_opset.constant([0.0, 0.0], dtype=Type.f32).output(0)
+        output_shape_map = {
+            height_axis_index: target_height,
+            width_axis_index: target_width,
+        }
+        spatial_dims = [height_axis_index, width_axis_index]
+        kernel = _ov_kernels[LANCZOS_INTERPOLATIONS[interpolation]]
+        return _ov_scale_and_translate(
+            images,
+            output_shape_map,
+            spatial_dims,
+            scale_ov,
+            translation_ov,
+            kernel,
+            antialias,
+        )
 
     axes = [height_axis % rank, width_axis % rank]
     size = ov_opset.constant([target_height, target_width], Type.i32).output(0)
