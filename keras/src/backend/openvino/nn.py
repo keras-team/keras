@@ -196,27 +196,26 @@ def log_softmax(x, axis=-1):
     x = get_ov_output(x)
     if isinstance(axis, (tuple, list)) and not axis:
         return OpenVINOKerasTensor(x)
-    restore_shape = None
     if axis is None:
         restore_shape = ov_opset.shape_of(x)
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axes = [0]
-    elif isinstance(axis, (tuple, list)):
-        axes = sorted(axis)
-    else:
-        axes = [axis]
-    axes_const = ov_opset.constant(axes, Type.i32).output(0)
-    x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
-    x_shifted = ov_opset.subtract(x, x_max).output(0)
-    sum_exp = ov_opset.reduce_sum(
-        ov_opset.exp(x_shifted).output(0), axes_const, True
-    ).output(0)
-    log_sum_exp = ov_opset.log(sum_exp).output(0)
-    result = ov_opset.subtract(x_shifted, log_sum_exp).output(0)
-    if restore_shape is not None:
+        result = ov_opset.log_softmax(x, 0).output(0)
         result = ov_opset.reshape(result, restore_shape, False).output(0)
-    return OpenVINOKerasTensor(result)
+        return OpenVINOKerasTensor(result)
+    if isinstance(axis, (tuple, list)):
+        axes = sorted(axis)
+        axes_const = ov_opset.constant(axes, Type.i32).output(0)
+        x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
+        x_shifted = ov_opset.subtract(x, x_max).output(0)
+        sum_exp = ov_opset.reduce_sum(
+            ov_opset.exp(x_shifted).output(0), axes_const, True
+        ).output(0)
+        result = ov_opset.subtract(
+            x_shifted, ov_opset.log(sum_exp).output(0)
+        ).output(0)
+        return OpenVINOKerasTensor(result)
+    return OpenVINOKerasTensor(ov_opset.log_softmax(x, axis).output(0))
 
 
 def sparsemax(x, axis=-1):
