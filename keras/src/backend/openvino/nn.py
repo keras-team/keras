@@ -135,11 +135,8 @@ def hard_sigmoid(x):
 
 
 def hard_silu(x):
-    hard_sigmoid_output = get_ov_output(hard_sigmoid(x))
     x = get_ov_output(x)
-    return OpenVINOKerasTensor(
-        ov_opset.multiply(x, hard_sigmoid_output).output(0)
-    )
+    return OpenVINOKerasTensor(ov_opset.hswish(x).output(0))
 
 
 def elu(x, alpha=1.0):
