@@ -85,8 +85,6 @@ class Attention(Layer):
                 f"Received: score_mode={score_mode}"
             )
 
-        self._return_attention_scores = False
-
     def build(self, input_shape):
         self._validate_inputs(input_shape)
         self.scale = None
@@ -221,7 +219,6 @@ class Attention(Layer):
         use_causal_mask=False,
     ):
         self._validate_inputs(inputs=inputs, mask=mask)
-        self._return_attention_scores = return_attention_scores
         q = inputs[0]
         v = inputs[1]
         k = inputs[2] if len(inputs) > 2 else v
@@ -250,15 +247,9 @@ class Attention(Layer):
         return ops.convert_to_tensor(mask[0])
 
     def compute_output_shape(self, input_shape):
-        query_shape, value_shape, key_shape = input_shape
-        if key_shape is None:
-            key_shape = value_shape
-
-        output_shape = (*query_shape[:-1], value_shape[-1])
-        if self._return_attention_scores:
-            scores_shape = (query_shape[0], query_shape[1], key_shape[1])
-            return output_shape, scores_shape
-        return output_shape
+        query_shape = input_shape[0]
+        value_shape = input_shape[1]
+        return (*query_shape[:-1], value_shape[-1])
 
     def compute_output_spec(
         self,
@@ -268,29 +259,25 @@ class Attention(Layer):
         training=None,
         use_causal_mask=False,
     ):
-        # Validate and unpack inputs
         self._validate_inputs(inputs, mask)
         query = inputs[0]
         value = inputs[1]
         key = inputs[2] if len(inputs) > 2 else value
 
-        # Compute primary output shape
         output_shape = self.compute_output_shape(
             [query.shape, value.shape, key.shape]
         )
         output_spec = KerasTensor(output_shape, dtype=self.compute_dtype)
 
-        # Handle attention scores if requested
-        if self._return_attention_scores or return_attention_scores:
+        if return_attention_scores:
             scores_shape = (
                 query.shape[0],
                 query.shape[1],
                 key.shape[1],
             )  # (batch_size, Tq, Tv)
-            attention_scores_spec = KerasTensor(
+            return output_spec, KerasTensor(
                 scores_shape, dtype=self.compute_dtype
             )
-            return (output_spec, attention_scores_spec)
 
         return output_spec
 
