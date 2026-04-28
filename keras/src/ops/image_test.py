@@ -3231,7 +3231,7 @@ class SobelEdgesTest(testing.TestCase):
 
     def test_sobel_edges_shape_channels_last(self):
         image = np.random.random((2, 16, 16, 3)).astype("float32")
-        edges = kimage.sobel_edges(image)
+        edges = kimage.sobel_edges(image, data_format="channels_last")
         self.assertEqual(edges.shape, (2, 16, 16, 3, 2))
 
     def test_sobel_edges_shape_channels_first(self):
@@ -3241,14 +3241,14 @@ class SobelEdgesTest(testing.TestCase):
 
     def test_sobel_edges_single_channel(self):
         image = np.random.random((1, 16, 16, 1)).astype("float32")
-        edges = kimage.sobel_edges(image)
+        edges = kimage.sobel_edges(image, data_format="channels_last")
         self.assertEqual(edges.shape, (1, 16, 16, 1, 2))
 
     def test_sobel_edges_detects_vertical_edge(self):
         # Create image with vertical edge in the middle
         image = np.zeros((1, 8, 8, 1), dtype="float32")
         image[0, :, 4:, 0] = 1.0
-        edges = kimage.sobel_edges(image)
+        edges = kimage.sobel_edges(image, data_format="channels_last")
 
         # Horizontal gradient (dx) should be non-zero at the edge
         dx = backend.convert_to_numpy(edges[0, :, :, 0, 1])
@@ -3259,7 +3259,7 @@ class SobelEdgesTest(testing.TestCase):
         # Create image with horizontal edge in the middle
         image = np.zeros((1, 8, 8, 1), dtype="float32")
         image[0, 4:, :, 0] = 1.0
-        edges = kimage.sobel_edges(image)
+        edges = kimage.sobel_edges(image, data_format="channels_last")
 
         # Vertical gradient (dy) should be non-zero at the edge
         dy = backend.convert_to_numpy(edges[0, :, :, 0, 0])
@@ -3269,7 +3269,7 @@ class SobelEdgesTest(testing.TestCase):
     def test_sobel_edges_uniform_image(self):
         # Uniform image should have near-zero gradients (except at borders)
         image = np.ones((1, 16, 16, 1), dtype="float32") * 0.5
-        edges = kimage.sobel_edges(image)
+        edges = kimage.sobel_edges(image, data_format="channels_last")
 
         # Interior gradients should be zero
         edges_np = backend.convert_to_numpy(edges)
@@ -3279,5 +3279,5 @@ class SobelEdgesTest(testing.TestCase):
     def test_sobel_edges_multi_channel(self):
         # Test with RGB image
         image = np.random.random((1, 16, 16, 3)).astype("float32")
-        edges = kimage.sobel_edges(image)
+        edges = kimage.sobel_edges(image, data_format="channels_last")
         self.assertEqual(edges.shape, (1, 16, 16, 3, 2))
