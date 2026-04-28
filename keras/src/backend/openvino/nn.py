@@ -1317,63 +1317,17 @@ def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     sH, sW = _pair(stride)
 
     x = get_ov_output(x)
-
-    # Derive CKK and C dynamically from the input shape to support dynamic dims.
-    shape_x = ov_opset.shape_of(x).output(0)
-    one_i64 = ov_opset.constant([1], Type.i64).output(0)
-    two_i64 = ov_opset.constant([2], Type.i64).output(0)
-    step_i64 = ov_opset.constant([1], Type.i64).output(0)
-    CKK_1d = ov_opset.slice(shape_x, one_i64, two_i64, step_i64).output(0)
-    KK_node = ov_opset.constant([kH * kW], Type.i64).output(0)
-    C_1d = ov_opset.divide(CKK_1d, KK_node).output(0)
-    CKK_scalar = ov_opset.squeeze(CKK_1d, [0]).output(0)
-
-    nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
-    nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
-
-    # Reshape: (N, CKK, L) -> (N, CKK, nH, nW); 0 copies the dim from input.
-    new_shape = ov_opset.constant([0, 0, nH, nW], Type.i64).output(0)
-    x = ov_opset.reshape(x, new_shape, True).output(0)
-
-    # Build identity kernel dynamically: shape (CKK, CKK) via one_hot,
-    # then reshape to (CKK, C, kH, kW).
-    indices = ov_opset.range(
-        ov_opset.constant(0, Type.i64),
-        CKK_scalar,
-        ov_opset.constant(1, Type.i64),
-        Type.i64,
-    ).output(0)
-    on_val = ov_opset.constant(1, Type.f32).output(0)
-    off_val = ov_opset.constant(0, Type.f32).output(0)
-    eye = ov_opset.one_hot(
-        indices, depth=CKK_scalar, on_value=on_val, off_value=off_val, axis=-1
-    ).output(0)
-    kernel_shape = ov_opset.concat(
-        [CKK_1d, C_1d, ov_opset.constant([kH, kW], Type.i64).output(0)], axis=0
-    ).output(0)
-    kernel = ov_opset.reshape(eye, kernel_shape, False).output(0)
-    kernel = ov_opset.convert(kernel, x.get_element_type()).output(0)
-
-    oH_pad = oH + 2 * pH
-    oW_pad = oW + 2 * pW
-
-    output_shape_node = ov_opset.constant([oH_pad, oW_pad], Type.i64).output(0)
-    result = ov_opset.convolution_backprop_data(
+    output_size_node = ov_opset.constant([oH, oW], Type.i64).output(0)
+    kernel_size_node = ov_opset.constant([kH, kW], Type.i64).output(0)
+    result = ov_opset.col2im(
         x,
-        kernel,
+        output_size_node,
+        kernel_size_node,
         strides=[sH, sW],
-        output_shape=output_shape_node,
         dilations=[dH, dW],
-        auto_pad="VALID",
+        pads_begin=[pH, pW],
+        pads_end=[pH, pW],
     ).output(0)
-
-    if pH > 0 or pW > 0:
-        axes = ov_opset.constant([2, 3], Type.i32).output(0)
-        start = ov_opset.constant([pH, pW], Type.i32).output(0)
-        stop = ov_opset.constant([oH_pad - pH, oW_pad - pW], Type.i32).output(0)
-        step = ov_opset.constant([1, 1], Type.i32).output(0)
-        result = ov_opset.slice(result, start, stop, step, axes).output(0)
-
     return OpenVINOKerasTensor(result)
 
 
