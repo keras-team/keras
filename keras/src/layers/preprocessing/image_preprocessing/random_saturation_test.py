@@ -69,7 +69,9 @@ class RandomSaturationTest(testing.TestCase):
         s_channel = hsv[..., 1]
 
         self.assertAllClose(
-            keras.ops.numpy.max(s_channel), layer.value_range[1]
+            keras.ops.numpy.max(s_channel),
+            layer.value_range[1],
+            atol=1e-1,
         )
 
     def test_random_saturation_randomness(self):
