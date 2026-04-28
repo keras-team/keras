@@ -45,6 +45,9 @@ LANCZOS_INTERPOLATIONS = {
     "lanczos3": "lanczos3",
     "lanczos5": "lanczos5",
 }
+ALL_RESIZE_INTERPOLATIONS = tuple(RESIZE_INTERPOLATIONS) + tuple(
+    LANCZOS_INTERPOLATIONS
+)
 
 
 def rgb_to_grayscale(images, data_format=None):
@@ -262,13 +265,10 @@ def resize(
     data_format="channels_last",
 ):
     data_format = backend.standardize_data_format(data_format)
-    valid_interpolations = tuple(RESIZE_INTERPOLATIONS.keys()) + tuple(
-        LANCZOS_INTERPOLATIONS.keys()
-    )
-    if interpolation not in valid_interpolations:
+    if interpolation not in ALL_RESIZE_INTERPOLATIONS:
         raise ValueError(
             "Invalid value for argument `interpolation`. Expected of one "
-            f"{valid_interpolations}. Received: "
+            f"{ALL_RESIZE_INTERPOLATIONS}. Received: "
             f"interpolation={interpolation}"
         )
     if fill_mode != "constant":
