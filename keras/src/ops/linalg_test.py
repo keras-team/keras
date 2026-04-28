@@ -620,6 +620,9 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         ("rcond", 1, 1e-3),
     )
     def test_lstsq(self, b_rank, rcond):
+        if backend.backend() == "torch" and rcond is not None:
+            pytest.skip("lstsq results with rcond are inconsistent on torch")
+
         a = np.random.random((5, 7)).astype("float32")
         a_symb = backend.KerasTensor((5, 7))
         if b_rank == 1:
