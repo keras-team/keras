@@ -1221,12 +1221,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
                     f"antialias={antialias}."
                 )
         elif backend.backend() == "openvino":
-            if "lanczos" in interpolation:
-                self.skipTest(
-                    "Resizing with Lanczos interpolation is "
-                    "not supported by the OpenVINO backend. "
-                    f"Received: interpolation={interpolation}."
-                )
             if interpolation == "bicubic":
                 self.skipTest(
                     "Resizing with Bicubic interpolation does not match "
