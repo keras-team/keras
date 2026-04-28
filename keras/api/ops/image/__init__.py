@@ -19,3 +19,4 @@ from keras.src.ops.image import rgb_to_grayscale as rgb_to_grayscale
 from keras.src.ops.image import rgb_to_hsv as rgb_to_hsv
 from keras.src.ops.image import scale_and_translate as scale_and_translate
 from keras.src.ops.image import sobel_edges as sobel_edges
+from keras.src.ops.image import ssim as ssim
