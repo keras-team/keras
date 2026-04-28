@@ -4379,29 +4379,19 @@ def take_along_axis(x, indices, axis=None):
     ).output(0)
     indices = ov_opset.convert(indices, Type.i32).output(0)
 
-    x_target_parts, indices_target_parts = [], []
-
-    for i in range(x_rank):
-        dim_idx = ov_opset.constant([i], dtype=Type.i32).output(0)
-        x_dim = ov_opset.gather(x_shape, dim_idx, zero_const).output(0)
-        indices_dim = ov_opset.gather(
-            indices_shape, dim_idx, zero_const
-        ).output(0)
-
-        if i == axis:
-            # For axis dimension: keep original dimensions
-            x_target_parts.append(x_dim)
-            indices_target_parts.append(indices_dim)
-        else:
-            # For other dimensions: use maximum for broadcasting
-            max_dim = ov_opset.maximum(x_dim, indices_dim).output(0)
-            x_target_parts.append(max_dim)
-            indices_target_parts.append(max_dim)
-
-    x_target_shape = ov_opset.concat(x_target_parts, axis=0).output(0)
-    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(
-        0
-    )
+    # Compute broadcast targets: non-axis dims use element-wise max of both
+    # shapes; axis dim is kept separately for x and indices.
+    max_shape = ov_opset.maximum(x_shape, indices_shape).output(0)
+    x_axis_dim = ov_opset.gather(x_shape, axis_index, zero_const).output(0)
+    indices_axis_dim = ov_opset.gather(
+        indices_shape, axis_index, zero_const
+    ).output(0)
+    x_target_shape = ov_opset.scatter_elements_update(
+        max_shape, axis_index, x_axis_dim, zero_const
+    ).output(0)
+    indices_target_shape = ov_opset.scatter_elements_update(
+        max_shape, axis_index, indices_axis_dim, zero_const
+    ).output(0)
 
     # Broadcast to target shapes and gather elements
     x_broadcasted = ov_opset.broadcast(x, x_target_shape).output(0)
