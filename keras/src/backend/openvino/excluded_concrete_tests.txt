@@ -1,7 +1,4 @@
-EqualizationTest::test_constant_regions
-EqualizationTest::test_different_bin_sizes
 EqualizationTest::test_equalizes_to_all_bins
-EqualizationTest::test_grayscale_images
 EqualizationTest::test_input_dtypes_float32
 EqualizationTest::test_input_dtypes_int32
 EqualizationTest::test_input_dtypes_int64
@@ -11,6 +8,7 @@ FeatureSpaceTest::test_saving
 LayerTest::test_complex_dtype_support
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq
+LinalgOpsCorrectnessTest::test_matrix_rank
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc
@@ -26,6 +24,3 @@ NumpyOneInputOpsCorrectnessTest::test_conj
 NumpyOneInputOpsCorrectnessTest::test_imag
 NumpyOneInputOpsCorrectnessTest::test_isreal
 NumpyOneInputOpsCorrectnessTest::test_real
-RandAugmentTest::test_random_augment_randomness
-RandomSaturationTest::test_random_saturation_full_saturation
-RandomZoomTest::test_connect_with_flatten

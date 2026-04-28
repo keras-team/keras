@@ -135,6 +135,14 @@ def flatten(structure):
     Returns:
         A list, the flattened version of the input `structure`.
     """
+    if not tree_impl.is_nested(structure):
+        return [structure]
+    if (
+        isinstance(structure, (list, tuple))
+        and len(structure) == 1
+        and not tree_impl.is_nested(structure[0])
+    ):
+        return [structure[0]]
     return tree_impl.flatten(structure)
 
 
@@ -197,6 +205,10 @@ def map_structure(func, *structures, none_is_leaf=True):
             the nested structures don't match according to the rules of
             `assert_same_structure`.
     """
+    if len(structures) == 1 and not tree_impl.is_nested(structures[0]):
+        if structures[0] is None and not none_is_leaf:
+            return None
+        return func(structures[0])
     return tree_impl.map_structure(func, *structures, none_is_leaf=none_is_leaf)
 
 

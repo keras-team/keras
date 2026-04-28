@@ -135,11 +135,8 @@ def hard_sigmoid(x):
 
 
 def hard_silu(x):
-    hard_sigmoid_output = get_ov_output(hard_sigmoid(x))
     x = get_ov_output(x)
-    return OpenVINOKerasTensor(
-        ov_opset.multiply(x, hard_sigmoid_output).output(0)
-    )
+    return OpenVINOKerasTensor(ov_opset.hswish(x).output(0))
 
 
 def elu(x, alpha=1.0):
@@ -199,27 +196,26 @@ def log_softmax(x, axis=-1):
     x = get_ov_output(x)
     if isinstance(axis, (tuple, list)) and not axis:
         return OpenVINOKerasTensor(x)
-    restore_shape = None
     if axis is None:
         restore_shape = ov_opset.shape_of(x)
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        axes = [0]
-    elif isinstance(axis, (tuple, list)):
-        axes = sorted(axis)
-    else:
-        axes = [axis]
-    axes_const = ov_opset.constant(axes, Type.i32).output(0)
-    x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
-    x_shifted = ov_opset.subtract(x, x_max).output(0)
-    sum_exp = ov_opset.reduce_sum(
-        ov_opset.exp(x_shifted).output(0), axes_const, True
-    ).output(0)
-    log_sum_exp = ov_opset.log(sum_exp).output(0)
-    result = ov_opset.subtract(x_shifted, log_sum_exp).output(0)
-    if restore_shape is not None:
+        result = ov_opset.log_softmax(x, 0).output(0)
         result = ov_opset.reshape(result, restore_shape, False).output(0)
-    return OpenVINOKerasTensor(result)
+        return OpenVINOKerasTensor(result)
+    if isinstance(axis, (tuple, list)):
+        axes = sorted(axis)
+        axes_const = ov_opset.constant(axes, Type.i32).output(0)
+        x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
+        x_shifted = ov_opset.subtract(x, x_max).output(0)
+        sum_exp = ov_opset.reduce_sum(
+            ov_opset.exp(x_shifted).output(0), axes_const, True
+        ).output(0)
+        result = ov_opset.subtract(
+            x_shifted, ov_opset.log(sum_exp).output(0)
+        ).output(0)
+        return OpenVINOKerasTensor(result)
+    return OpenVINOKerasTensor(ov_opset.log_softmax(x, axis).output(0))
 
 
 def sparsemax(x, axis=-1):
@@ -1235,16 +1231,6 @@ def dot_product_attention(
     flash_attention=None,
     attn_logits_soft_cap=None,
 ):
-    if bias is not None:
-        raise NotImplementedError(
-            "`dot_product_attention` with `bias` is not supported "
-            "with openvino backend"
-        )
-    if flash_attention:
-        raise NotImplementedError(
-            "`dot_product_attention` with `flash_attention` is not supported "
-            "with openvino backend"
-        )
     if attn_logits_soft_cap is not None:
         raise NotImplementedError(
             "`dot_product_attention` with `attn_logits_soft_cap` is not "
@@ -1265,6 +1251,28 @@ def dot_product_attention(
     key = ov_opset.transpose(key, axes_const)
     value = ov_opset.transpose(value, axes_const)
     mask = get_ov_output(mask) if mask is not None else None
+    if bias is not None:
+        bias = get_ov_output(bias)
+        if bias.get_element_type() != query.get_element_type():
+            bias = ov_opset.convert(bias, query.get_element_type()).output(0)
+        if mask is not None:
+            if mask.get_element_type() == Type.boolean:
+                query_dtype = ov_to_keras_type(query.get_element_type())
+                min_val = (
+                    np.finfo(np.float16).min
+                    if query_dtype == "float16"
+                    else np.finfo(np.float32).min
+                )
+                large_neg = ov_opset.constant(
+                    min_val, query.get_element_type()
+                ).output(0)
+                zero = ov_opset.constant(0.0, query.get_element_type()).output(
+                    0
+                )
+                mask = ov_opset.select(mask, zero, large_neg).output(0)
+            mask = ov_opset.add(mask, bias).output(0)
+        else:
+            mask = bias
     scale = (
         get_ov_output(scale, query.get_element_type())
         if scale is not None
@@ -1320,63 +1328,17 @@ def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     sH, sW = _pair(stride)
 
     x = get_ov_output(x)
-
-    # Derive CKK and C dynamically from the input shape to support dynamic dims.
-    shape_x = ov_opset.shape_of(x).output(0)
-    one_i64 = ov_opset.constant([1], Type.i64).output(0)
-    two_i64 = ov_opset.constant([2], Type.i64).output(0)
-    step_i64 = ov_opset.constant([1], Type.i64).output(0)
-    CKK_1d = ov_opset.slice(shape_x, one_i64, two_i64, step_i64).output(0)
-    KK_node = ov_opset.constant([kH * kW], Type.i64).output(0)
-    C_1d = ov_opset.divide(CKK_1d, KK_node).output(0)
-    CKK_scalar = ov_opset.squeeze(CKK_1d, [0]).output(0)
-
-    nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
-    nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
-
-    # Reshape: (N, CKK, L) -> (N, CKK, nH, nW); 0 copies the dim from input.
-    new_shape = ov_opset.constant([0, 0, nH, nW], Type.i64).output(0)
-    x = ov_opset.reshape(x, new_shape, True).output(0)
-
-    # Build identity kernel dynamically: shape (CKK, CKK) via one_hot,
-    # then reshape to (CKK, C, kH, kW).
-    indices = ov_opset.range(
-        ov_opset.constant(0, Type.i64),
-        CKK_scalar,
-        ov_opset.constant(1, Type.i64),
-        Type.i64,
-    ).output(0)
-    on_val = ov_opset.constant(1, Type.f32).output(0)
-    off_val = ov_opset.constant(0, Type.f32).output(0)
-    eye = ov_opset.one_hot(
-        indices, depth=CKK_scalar, on_value=on_val, off_value=off_val, axis=-1
-    ).output(0)
-    kernel_shape = ov_opset.concat(
-        [CKK_1d, C_1d, ov_opset.constant([kH, kW], Type.i64).output(0)], axis=0
-    ).output(0)
-    kernel = ov_opset.reshape(eye, kernel_shape, False).output(0)
-    kernel = ov_opset.convert(kernel, x.get_element_type()).output(0)
-
-    oH_pad = oH + 2 * pH
-    oW_pad = oW + 2 * pW
-
-    output_shape_node = ov_opset.constant([oH_pad, oW_pad], Type.i64).output(0)
-    result = ov_opset.convolution_backprop_data(
+    output_size_node = ov_opset.constant([oH, oW], Type.i64).output(0)
+    kernel_size_node = ov_opset.constant([kH, kW], Type.i64).output(0)
+    result = ov_opset.col2im(
         x,
-        kernel,
+        output_size_node,
+        kernel_size_node,
         strides=[sH, sW],
-        output_shape=output_shape_node,
         dilations=[dH, dW],
-        auto_pad="VALID",
+        pads_begin=[pH, pW],
+        pads_end=[pH, pW],
     ).output(0)
-
-    if pH > 0 or pW > 0:
-        axes = ov_opset.constant([2, 3], Type.i32).output(0)
-        start = ov_opset.constant([pH, pW], Type.i32).output(0)
-        stop = ov_opset.constant([oH_pad - pH, oW_pad - pW], Type.i32).output(0)
-        step = ov_opset.constant([1, 1], Type.i32).output(0)
-        result = ov_opset.slice(result, start, stop, step, axes).output(0)
-
     return OpenVINOKerasTensor(result)
 
 
