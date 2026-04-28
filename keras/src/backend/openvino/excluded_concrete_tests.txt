@@ -11,7 +11,6 @@ LinalgOpsCorrectnessTest::test_matrix_rank
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc
-LinalgOpsCorrectnessTest::test_solve_triangular
 LinalgOpsCorrectnessTest::test_svd
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype

@@ -1571,9 +1571,64 @@ def solve(a, b):
 
 
 def solve_triangular(a, b, lower=False):
-    raise NotImplementedError(
-        "`solve_triangular` is not supported with openvino backend"
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    a_ov = get_ov_output(a)
+    b_ov = get_ov_output(b)
+
+    orig_type = a_ov.get_element_type()
+    if orig_type == Type.f64:
+        a_ov = ov_opset.convert(a_ov, Type.f32).output(0)
+        b_ov = ov_opset.convert(b_ov, Type.f32).output(0)
+    work_type = a_ov.get_element_type()
+
+    squeeze = (
+        b_ov.get_partial_shape().rank.get_length()
+        == a_ov.get_partial_shape().rank.get_length() - 1
     )
+    if squeeze:
+        b_ov = ov_opset.unsqueeze(
+            b_ov, ov_opset.constant([-1], Type.i32).output(0)
+        ).output(0)
+
+    zero_s = ov_opset.constant(0, Type.i32).output(0)
+    one_s = ov_opset.constant(1, Type.i32).output(0)
+    a_shape = ov_opset.shape_of(a_ov, output_type="i32").output(0)
+    n_s = ov_opset.squeeze(
+        ov_opset.gather(
+            a_shape, ov_opset.constant([-1], Type.i32), zero_s
+        ).output(0),
+        zero_s,
+    ).output(0)
+
+    range_n = ov_opset.range(zero_s, n_s, one_s, output_type=Type.i32).output(0)
+    row_idx = ov_opset.unsqueeze(
+        range_n, ov_opset.constant(1, Type.i32)
+    ).output(0)
+    col_idx = ov_opset.unsqueeze(
+        range_n, ov_opset.constant(0, Type.i32)
+    ).output(0)
+
+    if lower:
+        mask = ov_opset.greater_equal(row_idx, col_idx).output(0)
+    else:
+        mask = ov_opset.less_equal(row_idx, col_idx).output(0)
+
+    mask_f = ov_opset.convert(mask, work_type).output(0)
+    a_ov = ov_opset.multiply(a_ov, mask_f).output(0)
+
+    a_inv = ov_opset.inverse(a_ov, adjoint=False).output(0)
+    result = ov_opset.matmul(a_inv, b_ov, False, False).output(0)
+
+    if squeeze:
+        result = ov_opset.squeeze(
+            result, ov_opset.constant([-1], Type.i32).output(0)
+        ).output(0)
+
+    if orig_type == Type.f64:
+        result = ov_opset.convert(result, Type.f64).output(0)
+
+    return OpenVINOKerasTensor(result)
 
 
 def svd(x, full_matrices=True, compute_uv=True):
