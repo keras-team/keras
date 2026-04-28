@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import testing
 from keras.src.layers.activations import elu
@@ -10,7 +9,6 @@ class ELUTest(testing.TestCase):
         elu_layer = elu.ELU()
         self.run_class_serialization_test(elu_layer)
 
-    @pytest.mark.requires_trainable_backend
     def test_elu(self):
         self.run_layer_test(
             elu.ELU,

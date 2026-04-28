@@ -210,6 +210,10 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if isinstance(x, bool):
             return torch.as_tensor(x, dtype=torch.bool, device=get_device())
         elif isinstance(x, int):
+            if x < -(2**31) or x >= 2**31:
+                return torch.as_tensor(
+                    x, dtype=torch.int64, device=get_device()
+                )
             return torch.as_tensor(x, dtype=torch.int32, device=get_device())
         elif isinstance(x, float):
             return torch.as_tensor(
@@ -468,9 +472,14 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _interleave(a, b, axis):
         """Given two Tensors of static shape, interleave them along axis."""
-        assert (
+        if not (
             a.shape[axis] == b.shape[axis] or a.shape[axis] == b.shape[axis] + 1
-        )
+        ):
+            raise ValueError(
+                "Shapes are incompatible for associative_scan interleaving. "
+                f"a.shape[{axis}]={a.shape[axis]}, "
+                f"b.shape[{axis}]={b.shape[axis]}"
+            )
 
         # we want to get a: [a1, a2], b: [b1, b2]
         # to a: [a1, 0, a2, 0], b: [0, b1, 0, b2]
@@ -572,14 +581,38 @@ def scatter(indices, values, shape):
     return zeros
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices, dtype="int64")
     updates = convert_to_tensor(updates, dtype=inputs.dtype)
     indices = torch.transpose(indices, 0, 1)
+    idx = tuple(indices)
 
     outputs = torch.clone(inputs)
-    outputs[tuple(indices)] = updates
+    if reduction is None:
+        outputs[idx] = updates
+    elif reduction == "add":
+        # Use index_put_ with accumulate=True for proper accumulation
+        outputs.index_put_(idx, updates, accumulate=True)
+    elif reduction == "max":
+        # Loop-based approach handles both scalar and slice updates.
+        # Associative, so sequential application handles duplicates.
+        indices_t = indices.T
+        for i in range(indices_t.shape[0]):
+            idx = tuple(indices_t[i])
+            outputs[idx] = torch.maximum(outputs[idx], updates[i])
+    elif reduction == "min":
+        indices_t = indices.T
+        for i in range(indices_t.shape[0]):
+            idx = tuple(indices_t[i])
+            outputs[idx] = torch.minimum(outputs[idx], updates[i])
+    elif reduction == "mul":
+        indices_t = indices.T
+        for i in range(indices_t.shape[0]):
+            idx = tuple(indices_t[i])
+            outputs[idx] = outputs[idx] * updates[i]
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
     return outputs
 
 
@@ -626,8 +659,8 @@ def while_loop(
     maximum_iterations=None,
 ):
     current_iter = 0
-    iteration_check = (
-        lambda iter: maximum_iterations is None or iter < maximum_iterations
+    iteration_check = lambda iter: (
+        maximum_iterations is None or iter < maximum_iterations
     )
     is_tuple = isinstance(loop_vars, (tuple, list))
     loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
@@ -661,7 +694,9 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    # uint32 doesn't exist in torch, use int32 instead.
+    # uint32 doesn't exist in torch. Seeds are conceptually uint32 values;
+    # int32 is used and the bit pattern is reinterpreted as uint32 at each
+    # call site (torch_seed_generator / torch.manual_seed) via & 0xFFFFFFFF.
     return "int32"
 
 

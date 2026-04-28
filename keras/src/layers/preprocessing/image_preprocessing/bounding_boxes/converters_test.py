@@ -18,6 +18,8 @@ from keras.src.layers.preprocessing.image_preprocessing.bounding_boxes.converter
 
 class ConvertersTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         xyxy_box = np.array(
             [[[10, 20, 110, 120], [20, 30, 120, 130]]], dtype="float32"
         )
@@ -124,7 +126,8 @@ class ConvertersTest(testing.TestCase):
             boxes, bounding_box_format="rel_xyxy"
         )
 
-        self.assertAllEqual(clipped_boxes, expected_clipped)
+        for key in expected_clipped:
+            self.assertAllClose(clipped_boxes[key], expected_clipped[key])
 
     def test_affine_identity(self):
         # Test identity transform (no change)

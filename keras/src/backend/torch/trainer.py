@@ -14,6 +14,7 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from keras.src.utils.python_utils import pythonify_logs
 
 
 class TorchTrainer(base_trainer.Trainer):
@@ -386,7 +387,7 @@ class TorchTrainer(base_trainer.Trainer):
             callbacks.on_test_batch_end(end_step, logs)
             if self.stop_evaluating:
                 break
-        logs = self._get_metrics_result_or_logs(logs)
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
 
         if return_dict:
@@ -476,9 +477,10 @@ class TorchTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_train_function()
+        self.reset_metrics()
 
         logs = self.train_function([data])
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -497,9 +499,10 @@ class TorchTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=data)
         self.make_test_function()
+        self.reset_metrics()
 
         logs = self.test_function([data])
-        logs = tree.map_structure(lambda x: np.array(x), logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)

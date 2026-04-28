@@ -316,9 +316,11 @@ class FunctionalTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_training_arg(self):
+        test_obj = self
+
         class Canary(layers.Layer):
             def call(self, x, training=False):
-                assert training
+                test_obj.assertTrue(training)
                 return x
 
             def compute_output_spec(self, x, training=False):
@@ -442,6 +444,23 @@ class FunctionalTest(testing.TestCase):
         x = layers.Dense(5)(x)
         outputs = layers.Dense(4)(x)
         model = Functional({"a": input_a, "b": input_b}, outputs)
+        self.run_class_serialization_test(model)
+
+        # Test model with unmodified input as output
+        input_a = Input(shape=(3,), batch_size=2, name="a")
+        input_b = Input(shape=(3,), batch_size=2, name="b")
+        output_a = input_a * 2
+        output_b = input_b
+        model = Functional(
+            {"a": input_a, "b": input_b}, {"a": output_a, "b": output_b}
+        )
+        self.run_class_serialization_test(model)
+
+        # Test model with unused input
+        input_a = Input(shape=(3,), batch_size=2, name="a")
+        input_b = Input(shape=(3,), batch_size=2, name="b")
+        output_a = input_a * 2
+        model = Functional({"a": input_a, "b": input_b}, output_a)
         self.run_class_serialization_test(model)
 
     @pytest.mark.requires_trainable_backend
@@ -621,6 +640,110 @@ class FunctionalTest(testing.TestCase):
         out = model({"input1": np.ones((2, 2)), "input2": None})
         self.assertAllClose(out, np.ones((2, 2)))
         # Note: it's not intended to work in symbolic mode (yet).
+
+    def test_unmodified_inputs(self):
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2")
+        o1 = i1 * 2
+        o2 = i2
+        model = Model(
+            {"input1": i1, "input2": i2}, {"output1": o1, "output2": o2}
+        )
+
+        # Eager call
+        out = model({"input1": np.ones((2, 2)), "input2": np.zeros((2, 2))})
+        self.assertAllClose(out["output1"], np.ones((2, 2)) * 2)
+        self.assertAllClose(out["output2"], np.zeros((2, 2)))
+
+        # Symbolic call
+        i1_symbolic = Input((2,))
+        i2_symbolic = Input((2,))
+        out_symbolic = model({"input1": i1_symbolic, "input2": i2_symbolic})
+        self.assertIsInstance(out_symbolic, dict)
+        self.assertEqual(out_symbolic["output1"].shape, (None, 2))
+        self.assertEqual(out_symbolic["output2"].shape, (None, 2))
+
+    def test_unused_inputs(self):
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2")
+        o1 = i1 * 2
+        model = Model({"input1": i1, "input2": i2}, o1)
+
+        # Eager call
+        out = model({"input1": np.ones((2, 2)), "input2": np.zeros((2, 2))})
+        self.assertAllClose(out, np.ones((2, 2)) * 2)
+
+        # Symbolic call
+        i1_symbolic = Input((2,))
+        i2_symbolic = Input((2,))
+        out_symbolic = model({"input1": i1_symbolic, "input2": i2_symbolic})
+        self.assertEqual(out_symbolic.shape, (None, 2))
+
+    def test_disconnected_output(self):
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2")
+        o1 = i1 * 2
+        o2 = i2 * 3
+        with self.assertRaisesRegex(
+            ValueError, "Output with path `output2` is not connected"
+        ):
+            Model(i1, {"output1": o1, "output2": o2})
+
+    def test_required_input_none_raises(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2", optional=False)
+        outputs = OptionalInputLayer()(i1, i2)
+        model = Model({"input1": i1, "input2": i2}, outputs)
+
+        # Passing None for a required input must raise
+        with self.assertRaisesRegex(ValueError, "not optional"):
+            model({"input1": np.ones((2, 2)), "input2": None})
+
+    def test_optional_and_required_mixed_structures(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2", optional=True)
+        outputs = OptionalInputLayer()(i1, i2)
+        model = Model({"input1": i1, "input2": i2}, outputs)
+
+        # List structure
+        out_list = model([np.ones((2, 2)), None])
+        self.assertAllClose(out_list, np.ones((2, 2)))
+
+        # Dict structure
+        out_dict = model({"input1": np.ones((2, 2)), "input2": None})
+        self.assertAllClose(out_dict, np.ones((2, 2)))
+
+    @pytest.mark.requires_trainable_backend
+    def test_required_none_raises_in_fit(self):
+        # Small trainable model where input is required. fit should error
+        x = layers.Input((3,), name="x")
+        y = layers.Dense(1)(x)
+        model = Model(x, y)
+        model.compile(optimizer="sgd", loss="mse")
+
+        y_data = np.ones((4, 1))
+
+        # Passing None for required input should raise during fit
+        with self.assertRaisesRegex(ValueError, "not optional"):
+            model.fit([None], y_data, epochs=1)
 
     def test_warning_for_mismatched_inputs_structure(self):
         def is_input_warning(w):

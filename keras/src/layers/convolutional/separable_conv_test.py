@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras.src import layers
@@ -50,7 +49,6 @@ class SeparableConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_separable_conv1d_basic(
         self,
         depth_multiplier,
@@ -117,7 +115,6 @@ class SeparableConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_separable_conv2d_basic(
         self,
         depth_multiplier,
@@ -192,20 +189,34 @@ class SeparableConvBasicTest(testing.TestCase):
                 strides=(1, 0),
             )
 
-        # `dilation_rate > 1` while `strides > 1`.
+    def test_invalid_output_shape_raises(self):
+        # Regression test for https://github.com/keras-team/keras/issues/22496
+        # SeparableConv1D used to silently produce a wrong-shaped output (and
+        # garbage values) on eager inputs when the kernel/stride combination
+        # would yield a non-positive spatial dimension. It must raise the same
+        # `ValueError` that the symbolic path raises. Pin `data_format` so the
+        # spatial dim under test is the same regardless of the backend's
+        # default `image_data_format`.
+        x = np.random.rand(4, 10, 12).astype("float32")
+        layer = layers.SeparableConv1D(
+            64, 11, strides=5, padding="valid", data_format="channels_last"
+        )
         with self.assertRaisesRegex(
             ValueError,
-            r"`strides > 1` not supported in conjunction with "
-            r"`dilation_rate > 1`. Received: strides=\(2, 2\) and "
-            r"dilation_rate=\(2, 1\)",
+            r"Computed output size would be zero or negative.",
         ):
-            layers.SeparableConv2D(
-                depth_multiplier=2,
-                filters=2,
-                kernel_size=(2, 2),
-                strides=2,
-                dilation_rate=(2, 1),
-            )
+            layer(x)
+
+        # Same for 2D.
+        x2 = np.random.rand(2, 4, 4, 3).astype("float32")
+        layer2 = layers.SeparableConv2D(
+            8, 5, strides=2, padding="valid", data_format="channels_last"
+        )
+        with self.assertRaisesRegex(
+            ValueError,
+            r"Computed output size would be zero or negative.",
+        ):
+            layer2(x2)
 
 
 class SeparableConvCorrectnessTest(testing.TestCase):

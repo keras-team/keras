@@ -1,0 +1,351 @@
+name: '🏷️ Gemini Automated Issue Triage'
+
+on:
+  issues:
+    types:
+      - 'opened'
+      - 'reopened'
+  issue_comment:
+    types:
+      - 'created'
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'issue number to triage'
+        required: true
+        type: 'number'
+  workflow_call:
+    inputs:
+      issue_number:
+        description: 'issue number to triage'
+        required: false
+        type: 'string'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.event.issue.number || github.event.inputs.issue_number || inputs.issue_number }}'
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: 'bash'
+
+permissions:
+  contents: 'read'
+  id-token: 'write'
+  issues: 'write'
+  statuses: 'write'
+  packages: 'read'
+  actions: 'write' # Required for cancelling a workflow run
+
+jobs:
+  triage-issue:
+    if: |-
+      github.repository == 'keras-team/keras' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          (github.event_name == 'issues' || github.event_name == 'issue_comment') &&
+          (github.event_name != 'issue_comment' || (
+            (contains(github.event.comment.body, '@keras-team/triage') || contains(github.event.comment.body, '@keras-team /triage')) &&
+            (github.event.comment.author_association == 'OWNER' || github.event.comment.author_association == 'MEMBER' || github.event.comment.author_association == 'COLLABORATOR')
+          ))
+        )
+      )
+    timeout-minutes: 5
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Get issue data for manual trigger'
+        id: 'get_issue_data'
+        if: |-
+          github.event_name == 'workflow_dispatch'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const issueNumber = ${{ github.event.inputs.issue_number || inputs.issue_number }};
+            const { data: issue } = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+            });
+            core.setOutput('title', issue.title);
+            core.setOutput('body', issue.body);
+            core.setOutput('labels', issue.labels.map(label => label.name).join(','));
+            return issue;
+
+      - name: 'Checkout'
+        uses: 'actions/checkout@v6'
+
+      - name: 'Get Repository Labels'
+        id: 'get_labels'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |-
+            const { data: labels } = await github.rest.issues.listLabelsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const allowedLabels = [
+              'backend:jax',
+              'backend:tensorflow',
+              'backend:torch',
+              'backend:OpenVino',
+              'Gemma',
+              'layers',
+              'python',
+              'dependencies',
+              'Duplicate',
+              'stale',
+              'stat:awaiting response from contributor',
+              'stat:awaiting keras-eng',
+              'Good first issue',
+              'keras-team-review-pending',
+              'stat:contributions welcome',
+              'wont-fix',
+              'user error',
+              'to investigate'
+            ];
+            const labelNames = labels.map(label => label.name).filter(name => allowedLabels.includes(name));
+            core.setOutput('available_labels', labelNames.join(','));
+            return labelNames;
+
+      - name: 'Search Codebase for Context'
+        id: 'search_codebase'
+        env:
+          ISSUE_TITLE: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.title || github.event.issue.title }}
+          ISSUE_BODY: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |-
+            const fs = require('fs');
+            const path = require('path');
+            const { execSync } = require('child_process');
+
+            const title = process.env.ISSUE_TITLE || '';
+            const body = process.env.ISSUE_BODY || '';
+            const searchTerms = (title + ' ' + body).split(/\W+/).filter(word => word.length > 3).slice(0, 5); // Take first 5 long words
+
+            core.info(`Searching for terms: ${searchTerms.join(', ')}`);
+
+            let searchContext = '### Relevant Code Snippets\n\n';
+            let filesFound = new Set();
+
+            if (searchTerms.length > 0) {
+              const query = searchTerms.join(' ');
+              try {
+                // Use git grep to find matches in tracked files
+                const gitGrepOutput = execSync(`git grep -l "${searchTerms[0]}" -- keras/ || true`, { encoding: 'utf-8' });
+                const files = gitGrepOutput.split('\n').filter(Boolean).slice(0, 3); // Top 3 files
+                
+                for (const file of files) {
+                  filesFound.add(file);
+                  const content = fs.readFileSync(file, 'utf8');
+                  searchContext += `#### File: [${file}](file:///${file})\n\`\`\`python\n${content.split('\n').slice(0, 50).join('\n')}\n\`\`\`\n\n`; // First 50 lines
+                }
+              } catch (e) {
+                core.warning(`Error running git grep: ${e.message}`);
+              }
+            }
+
+            if (filesFound.size === 0) {
+              searchContext += 'No specific code snippets found for these terms.\n';
+            }
+
+            core.setOutput('search_context', searchContext);
+            core.info(`Found context files: ${Array.from(filesFound).join(', ')}`);
+
+      - name: 'Pre-create .gemini directory'
+        run: mkdir -p ~/.gemini
+
+      - name: 'Run Gemini Issue Analysis & Response'
+        uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
+        id: 'gemini_issue_analysis'
+        env:
+          GITHUB_TOKEN: '' # Do not pass any auth token here
+          ISSUE_TITLE: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.title || github.event.issue.title }}
+          ISSUE_BODY: >-
+            ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
+          AVAILABLE_LABELS: '${{ steps.get_labels.outputs.available_labels }}'
+          SEARCH_CONTEXT: '${{ steps.search_codebase.outputs.search_context }}'
+        with:
+          gemini_api_key: '${{ secrets.GEMINI_API }}'
+          gemini_model: 'gemini-2.5-pro'
+          settings: |-
+            {
+              "maxSessionTurns": 5,
+              "telemetry": {
+                "enabled": false
+              }
+            }
+          prompt: |-
+            ## Role
+
+            You are an issue triage and response assistant for Keras. Your role is twofold:
+            1. Analyze the issue and determine all applicable labels based on the definitions provided.
+            2. Draft an automated response to the issue using the provided codebase search context.
+
+            ## Context
+            - Issue Title: ${{ env.ISSUE_TITLE }}
+            - Issue Body: ${{ env.ISSUE_BODY }}
+            - Available Labels: ${{ env.AVAILABLE_LABELS }}
+            - Codebase Search Context: ${{ env.SEARCH_CONTEXT }}
+
+            ## Steps
+            1. Select all labels that best match the issue from the Available Labels list.
+            2. Draft a helpful automated response. Answer if there's a clear fix or explanation based on the code context. If not, ask clarifying questions.
+            3. Output your response in the JSON format specified below.
+
+            ## Output Format
+            Your output must be a valid JSON object with the following schema:
+            {
+              "labels_to_set": ["label-name"],
+              "response_body": "Your response text here. Use markdown.",
+              "auto_close": true or false
+            }
+
+            ## Guidelines
+            - Output only the JSON object. Do not include any explanation or additional text before/after the JSON.
+            - Provide a helpful markdown response in `response_body`. Use the code context if applicable.
+            - Set `auto_close` to `true` if the issue is a user error, a usage question with a clear answer, or if a workaround is suggested and no code changes are needed in the Keras repository. Set it to `false` if the issue requires investigation, a bug fix, or any code change in Keras.
+
+            Reference 1: Label Definitions
+            - backend:jax: Issues related to running Keras with JAX backend.
+            - backend:tensorflow: Issues related to running Keras with TensorFlow backend.
+            - backend:torch: Issues related to running Keras with PyTorch backend.
+            - backend:OpenVino: Issues related to running Keras with OpenVino backend.
+            - Gemma: Gemma model specific issues.
+            - layers: Issues related to Keras layers.
+            - python: General python code issues.
+            - dependencies: Problems with dependencies installation or versions.
+            - Duplicate: Duplicate of another issue.
+            - stale: No activity.
+            - stat:awaiting response from contributor: Awaiting response from contributor.
+            - stat:awaiting keras-eng: Awaiting response from Keras engineer.
+            - Good first issue: Easy tasks for contributors.
+            - keras-team-review-pending: Pending team review.
+            - stat:contributions welcome: Issue is open for external contributions.
+            - wont-fix: Issue will not be fixed.
+            - user error: Issue caused by incorrect usage, not a bug.
+            - to investigate: Issue needs further investigation.
+
+      - name: 'Apply Labels and Post Response'
+        if: |-
+          ${{ steps.gemini_issue_analysis.outputs.summary != '' }}
+        env:
+          ISSUE_NUMBER: '${{ github.event.issue.number || github.event.inputs.issue_number }}'
+          LABELS_OUTPUT: '${{ steps.gemini_issue_analysis.outputs.summary }}'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const rawOutput = process.env.LABELS_OUTPUT;
+            core.info(`Raw output from model: ${rawOutput}`);
+            let labelsToAdd = [];
+            let responseBody = '';
+            let autoClose = false;
+
+            try {
+              const parsed = JSON.parse(rawOutput);
+              labelsToAdd = parsed.labels_to_set || [];
+              responseBody = parsed.response_body || '';
+              autoClose = parsed.auto_close || false;
+            } catch (jsonError) {
+              core.info('Standard JSON parse failed, trying fallbacks...');
+              
+              let jsonText = rawOutput;
+              const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
+              if (jsonMatch && jsonMatch[1]) {
+                jsonText = jsonMatch[1].trim();
+              } else {
+                const jsonObjectMatch = rawOutput.match(/(\{[\s\S]*"labels_to_set"[\s\S]*\})/);
+                if (jsonObjectMatch) {
+                   jsonText = jsonObjectMatch[0];
+                }
+              }
+
+              try {
+                const parsed = JSON.parse(jsonText);
+                labelsToAdd = parsed.labels_to_set || [];
+                responseBody = parsed.response_body || '';
+                autoClose = parsed.auto_close || false;
+              } catch (innerError) {
+                core.info('Extract JSON block parse failed, trying regex fallback...');
+                
+                const labelsMatch = rawOutput.match(/"labels_to_set":\s*\[(.*?)\]/s);
+                if (labelsMatch) {
+                  try {
+                    labelsToAdd = JSON.parse(`[${labelsMatch[1]}]`);
+                  } catch (_) {
+                    labelsToAdd = labelsMatch[1].split(',').map(l => l.replace(/"/g, '').trim()).filter(Boolean);
+                  }
+                }
+
+                const responseMatch = rawOutput.match(/"response_body":\s*"([\s\S]*?)"\s*(?:,|\}|$)/s);
+                if (responseMatch) {
+                  responseBody = responseMatch[1];
+                  responseBody = responseBody.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                }
+
+                if (labelsToAdd.length === 0 && !responseBody) {
+                  core.setFailed(`Failed to parse model output.\nRaw output: ${rawOutput}`);
+                  return;
+                }
+              }
+            }
+
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+
+            // Add Labels
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: labelsToAdd
+              });
+              core.info(`Successfully added labels for #${issueNumber}: ${labelsToAdd.join(', ')}`);
+            }
+
+            // Post Automated Response
+            if (responseBody) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: responseBody
+              });
+              core.info(`Successfully posted automated response for #${issueNumber}`);
+            } else {
+              core.warning("No response_body found in model output.");
+            }
+
+            // Auto-close if the issue is a user error or has a workaround with no code changes needed
+            if (autoClose) {
+              const issueData = context.payload.issue || (await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+              })).data;
+              const issueAuthor = issueData.user.login;
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `@${issueAuthor} This issue appears to be a user error or has a suggested workaround that does not require code changes in the Keras repository. As there is no actionable item for the team, this issue will be automatically closed.\n\nIf you believe this was done in error, please reopen the issue with additional details.`
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                state: 'closed',
+                state_reason: 'not_planned'
+              });
+              core.info(`Auto-closed issue #${issueNumber} (no actionable item for the team).`);
+            }

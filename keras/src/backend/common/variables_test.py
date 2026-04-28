@@ -1,4 +1,5 @@
 import itertools
+from unittest.mock import create_autospec
 
 import numpy as np
 import pytest
@@ -176,6 +177,43 @@ class VariablePropertiesTest(test_case.TestCase):
             v.trainable = False
             self.assertFalse(v._value.requires_grad)
 
+    def test_constraint_setter_accepts_plain_callable(self):
+        from keras.src.constraints import NonNeg
+
+        v = backend.Variable(initializer="ones", shape=(2,))
+
+        def clip_fn(w):
+            return w * 0.5
+
+        v.constraint = clip_fn
+        self.assertIs(v.constraint, clip_fn)
+
+        v.constraint = NonNeg()
+        self.assertIsInstance(v.constraint, NonNeg)
+
+        v.constraint = None
+        self.assertIsNone(v.constraint)
+
+        with self.assertRaisesRegex(
+            ValueError, "Invalid value for attribute `constraint`"
+        ):
+            v.constraint = "not callable"
+
+    def test_registered_callable_constraint_survives_serialization(self):
+        from keras.src.layers import Dense
+        from keras.src.saving import register_keras_serializable
+
+        @register_keras_serializable(package="test_22221")
+        def half_constraint(w):
+            return w * 0.5
+
+        layer = Dense(4, kernel_constraint=half_constraint)
+        layer.build((None, 3))
+        config = layer.get_config()
+        restored = Dense.from_config(config)
+        restored.build((None, 3))
+        self.assertIs(restored.kernel_constraint, half_constraint)
+
     def test_autocasting_float(self):
         # Tests autocasting of float variables
         v = backend.Variable(
@@ -248,12 +286,10 @@ class VariablePropertiesTest(test_case.TestCase):
             )
         self.assertEqual(backend.standardize_dtype(v.value.dtype), "float32")
 
-    @parameterized.parameters(
-        *(
-            (
-                dtype
-                for dtype in dtypes.ALLOWED_DTYPES
-                if dtype not in ["string", "complex64", "complex28"]
+    @parameterized.named_parameters(
+        named_product(
+            dtype=(
+                dtype for dtype in dtypes.ALLOWED_DTYPES if dtype != "string"
             )
         )
     )
@@ -373,6 +409,16 @@ class VariablePropertiesTest(test_case.TestCase):
             "Cannot convert .* to a shape. Negative dimensions",
         ):
             standardize_shape((3, 4, -5))
+
+    @parameterized.named_parameters(
+        ("all_dynamic", (None, None, None, 64), (None, None, None, 64)),
+        ("mixed", (None, 224, 224, 3), (None, 224, 224, 3)),
+        ("all_static", (1, 224, 224, 3), (1, 224, 224, 3)),
+    )
+    def test_standardize_shape_preserves_none(self, input_shape, expected):
+        """Test that None dimensions are preserved correctly."""
+        result = standardize_shape(input_shape)
+        self.assertEqual(result, expected)
 
     def test_shape_equal_length_mismatch(self):
         """Test mismatch in lengths of shapes."""
@@ -1182,6 +1228,28 @@ class TestStandardizeShapeWithTorch(test_case.TestCase):
         self.assertIs(type(standardized_shape), tuple)
         for d in standardized_shape:
             self.assertIsInstance(d, int)
+
+    def test_standardize_shape_with_torch_symint(self):
+        """Test that torch.SymInt dimensions are converted to None.
+
+        This validates the fix for GitHub issue #22102 where torch.SymInt
+        objects from torch.export were causing "Constraints violated" errors.
+        """
+        import torch
+
+        # Create a mock SymInt object
+        sym_int = create_autospec(torch.SymInt, instance=True)
+        shape_with_sym_int = (sym_int, 224, 224, 64)
+
+        # SymInt should be converted to None
+        result = standardize_shape(shape_with_sym_int)
+        self.assertEqual(result, (None, 224, 224, 64))
+
+        # Test with multiple SymInts
+        sym_int2 = create_autospec(torch.SymInt, instance=True)
+        shape_with_multiple_sym_ints = (sym_int, sym_int2, 64)
+        result = standardize_shape(shape_with_multiple_sym_ints)
+        self.assertEqual(result, (None, None, 64))
 
 
 @pytest.mark.skipif(

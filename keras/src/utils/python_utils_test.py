@@ -99,3 +99,17 @@ class PythonUtilsTest(testing.TestCase):
         bad_encoded_code = "This isn't valid base64!"
         with self.assertRaises(AttributeError):
             python_utils.func_load(bad_encoded_code)
+
+    def test_is_continuous_axis(self):
+        # Single axis
+        self.assertTrue(python_utils.is_continuous_axis(1))
+        self.assertTrue(python_utils.is_continuous_axis([1]))
+        # Forward-ordered continuous
+        self.assertTrue(python_utils.is_continuous_axis([1, 2, 3]))
+        self.assertTrue(python_utils.is_continuous_axis([-2, -1]))
+        # Reverse-ordered continuous
+        self.assertTrue(python_utils.is_continuous_axis([3, 2, 1]))
+        self.assertTrue(python_utils.is_continuous_axis([-1, -2]))
+        # Non-continuous
+        self.assertFalse(python_utils.is_continuous_axis([1, 3]))
+        self.assertFalse(python_utils.is_continuous_axis([-1, -3]))

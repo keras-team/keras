@@ -16,7 +16,11 @@ def _convert_conv_transpose_padding_args_from_keras_to_jax(
     be given a default value.
     """
 
-    assert padding.lower() in {"valid", "same"}
+    if padding.lower() not in {"valid", "same"}:
+        raise ValueError(
+            f"The `padding` argument must be one of 'valid', 'same'. "
+            f"Received: padding={padding}"
+        )
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
     if padding.lower() == "valid":
@@ -58,7 +62,11 @@ def _convert_conv_transpose_padding_args_from_keras_to_torch(
     the case when both the Torch padding and output_padding values are
     strictly positive.
     """
-    assert padding.lower() in {"valid", "same"}
+    if padding.lower() not in {"valid", "same"}:
+        raise ValueError(
+            f"The `padding` argument must be one of 'valid', 'same'. "
+            f"Received: padding={padding}"
+        )
     original_kernel_size = kernel_size
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
@@ -210,7 +218,11 @@ def _get_output_shape_given_tf_padding(
     if input_size is None:
         return None
 
-    assert padding.lower() in {"valid", "same"}
+    if padding.lower() not in {"valid", "same"}:
+        raise ValueError(
+            f"The `padding` argument must be one of 'valid', 'same'. "
+            f"Received: padding={padding}"
+        )
 
     kernel_size = (kernel_size - 1) * dilation_rate + 1
 
@@ -293,6 +305,32 @@ def canonicalize_axis(axis, num_dims):
 def standardize_axis_for_numpy(axis):
     """Standardize an axis to a tuple if it is a list in the numpy backend."""
     return tuple(axis) if isinstance(axis, list) else axis
+
+
+def check_depthwise_conv_input_channels(inputs, kernel, data_format):
+    """Validate a depthwise/separable conv input against its kernel shape.
+
+    Called from backend `depthwise_conv` / `separable_conv` after `inputs` has
+    been converted to a concrete tensor. Produces a clear error message before
+    the backend op raises its own implementation-specific one.
+    """
+    input_channels = (
+        inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
+    )
+    kernel_input_channels = kernel.shape[-2]
+    # Only validate when both dimensions are concrete Python ints. Dynamic
+    # dimensions can come in forms other than `None` during tracing.
+    if (
+        isinstance(input_channels, int)
+        and isinstance(kernel_input_channels, int)
+        and input_channels != kernel_input_channels
+    ):
+        raise ValueError(
+            "The number of input channels must match the kernel's input "
+            f"channels. Received: input channels={input_channels}, kernel "
+            f"input channels={kernel_input_channels}, "
+            f"data_format='{data_format}'."
+        )
 
 
 def to_tuple_or_list(value):

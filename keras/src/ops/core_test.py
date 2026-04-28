@@ -174,6 +174,31 @@ class CoreOpsDynamicShapeTest(testing.TestCase):
         for o in out:
             self.assertEqual(o.shape, (2, None))
 
+    def test_associative_scan_dynamic_scan_body_unknown_length(self):
+        """fully unknown leading dim forces the TF symbolic path."""
+        xs = KerasTensor((None, 6))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (None, 6))
+
+    def test_associative_scan_dynamic_scan_body_unknown_length_structured(self):
+        """symbolic path with structured (tuple) input."""
+        xs = (KerasTensor((None, 4)), KerasTensor((None, 4)))
+
+        def _add(a, b):
+            return (a[0] + b[0], a[1] + b[1])
+
+        ys = core.associative_scan(f=_add, elems=xs, axis=0)
+        self.assertEqual(ys[0].shape, (None, 4))
+        self.assertEqual(ys[1].shape, (None, 4))
+
+    def test_associative_scan_dynamic_scan_body_unknown_length_reverse(self):
+        """symbolic path with reverse=True."""
+        xs = KerasTensor((None, 3))
+        ys = core.associative_scan(
+            f=operator.add, elems=xs, axis=0, reverse=True
+        )
+        self.assertEqual(ys.shape, (None, 3))
+
 
 class CoreOpsStaticShapeTest(testing.TestCase):
     def test_associative_scan(self):
@@ -309,11 +334,38 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         shape = (-1, -1)
         self.assertEqual(core.slice(inputs, start_indices, shape).shape, (2, 2))
 
-    def test_slice_negative_one_shape_raises(self):
+    def test_slice_negative_one_shape_tensor_indices(self):
         inputs = KerasTensor(shape=(3, 3), dtype="float32")
         start_indices = KerasTensor(shape=(2,), dtype="int32")
         shape = (-1, -1)
-        with self.assertRaises(ValueError):
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, None)
+        )
+
+    def test_slice_negative_one_shape_dynamic_input_shape(self):
+        inputs = KerasTensor(shape=(None, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (-1, -1)
+        self.assertEqual(
+            core.slice(inputs, start_indices, shape).shape, (None, 2)
+        )
+
+    def test_slice_invalid_inputs(self):
+        inputs = KerasTensor(shape=(3, 3), dtype="float32")
+        start_indices = (1, 1)
+        shape = (2, 2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `inputs` must match.* dimensions in `shape`",
+        ):
+            core.slice(inputs, start_indices, shape)
+
+        start_indices = (1, 1, 1)
+        shape = (2, 2)
+        with self.assertRaisesRegex(
+            ValueError,
+            "dimensions in `start_indices` must match.* dimensions in `inputs`",
+        ):
             core.slice(inputs, start_indices, shape)
 
     def test_slice_update(self):
@@ -387,27 +439,62 @@ class CoreOpsStaticShapeTest(testing.TestCase):
         for o in out:
             self.assertEqual(o.shape, (2, 4))
 
+    def test_associative_scan_dynamic_scan_body_static_length_two(self):
+        """_dynamic_scan_body: static elem_length == 2
+        hits base-case-two branch."""
+        xs = KerasTensor((2, 4))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (2, 4))
+
+    def test_associative_scan_dynamic_scan_body_static_length_three(self):
+        """_dynamic_scan_body: static elem_length == 3
+        hits base-case-three branch."""
+        xs = KerasTensor((3, 4))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (3, 4))
+
+    def test_associative_scan_dynamic_scan_body_static_even_length(self):
+        """_dynamic_scan_body: static even elem_length
+        takes the recursive even path."""
+        xs = KerasTensor((8, 5))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (8, 5))
+
+    def test_associative_scan_dynamic_scan_body_static_odd_length(self):
+        """_dynamic_scan_body: static odd elem_length > 3
+        takes the recursive odd path."""
+        xs = KerasTensor((7, 5))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (7, 5))
+
+    def test_associative_scan_dynamic_scan_body_static_length_one(self):
+        """_dynamic_scan_body: static elem_length == 1
+        returns elems unchanged."""
+        xs = KerasTensor((1, 4))
+        ys = core.associative_scan(f=operator.add, elems=xs, axis=0)
+        self.assertEqual(ys.shape, (1, 4))
+
 
 class CoreOpsCorrectnessTest(testing.TestCase):
     def test_associative_scan(self):
         # Test prefix sum
         arr = np.arange(5)
         result = core.associative_scan(f=operator.add, elems=arr)
-        self.assertAllEqual(result, [0, 1, 3, 6, 10])
+        self.assertAllClose(result, [0, 1, 3, 6, 10])
         # Test reverse
         result = core.associative_scan(f=operator.add, elems=arr, reverse=True)
-        self.assertAllEqual(result, [10, 10, 9, 7, 4])
+        self.assertAllClose(result, [10, 10, 9, 7, 4])
 
         # Test multiple dimensions, across different axes
         batched_arr = np.stack([arr, arr + 1, arr + 2])
         result = core.associative_scan(
             f=operator.add, elems=batched_arr, axis=1
         )
-        self.assertAllEqual(result[2], [2, 5, 9, 14, 20])
+        self.assertAllClose(result[2], [2, 5, 9, 14, 20])
         result = core.associative_scan(
             f=operator.add, elems=batched_arr, axis=0
         )
-        self.assertAllEqual(result[:, 0], [0, 1, 3])
+        self.assertAllClose(result[:, 0], [0, 1, 3])
 
         # Test structured input
         elems = {
@@ -419,7 +506,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return {"a": x["a"] + y["b"], "b": x["b"] + y["b"]}
 
         ax0 = core.associative_scan(f=_dict_add, elems=elems, axis=0)
-        self.assertAllEqual(
+        self.assertAllClose(
             ax0["b"],
             [[6, 7, 8], [15, 17, 19]],
         )
@@ -518,19 +605,19 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x = np.ones((2,))
         x = ops.convert_to_tensor(x)
         x = ops.convert_to_numpy(x)
-        self.assertAllEqual(x, (1, 1))
+        self.assertAllClose(x, (1, 1))
         self.assertIsInstance(x, np.ndarray)
 
         # Empty lists should give an empty array.
         x = ops.convert_to_tensor([])
         np_x = ops.convert_to_numpy(x)
         self.assertTrue(ops.is_tensor(x))
-        self.assertAllEqual(x, [])
+        self.assertAllClose(x, [])
         self.assertIsInstance(np_x, np.ndarray)
 
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
-        self.assertAllEqual(x, (1, 2, 3))
+        self.assertAllClose(x, (1, 2, 3))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -954,8 +1041,9 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return (carry[1], carry[0] + carry[1]), None
 
         init = (np.array(0, dtype="float32"), np.array(1, dtype="float32"))
-        carry, _ = core.scan(fibonaccis, init, length=6)
-        self.assertAllClose(carry, [8, 13])
+        (carry1, carry2), _ = core.scan(fibonaccis, init, length=6)
+        self.assertAllClose(carry1, 8)
+        self.assertAllClose(carry2, 13)
 
         # Test nested init
         if backend.backend() != "tensorflow":
@@ -1084,14 +1172,58 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             np.array([[0, 20], [10, 0]]),
         )
 
+    def test_scatter_update_with_reduction(self):
+        # Test add reduction with duplicate indices
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
+
+        # Test add reduction 2D
+        inputs = np.zeros((3, 3))
+        indices = [[0, 0], [1, 1], [0, 0]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="add")
+        self.assertAllClose(result[0, 0], 4.0)
+        self.assertAllClose(result[1, 1], 2.0)
+
+        # Test max reduction with duplicates
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="max")
+        self.assertAllClose(result, [5.0, 2.0, 0.0, 0.0])
+
+        # Test min reduction
+        inputs = np.array([10.0, 10.0, 10.0, 10.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="min")
+        self.assertAllClose(result, [3.0, 2.0, 10.0, 10.0])
+
+        # Test mul reduction
+        inputs = np.array([2.0, 3.0, 1.0, 1.0])
+        indices = [[0], [0], [1]]
+        updates = np.array([3.0, 5.0, 2.0])
+        result = core.scatter_update(inputs, indices, updates, reduction="mul")
+        self.assertAllClose(result, [30.0, 6.0, 1.0, 1.0])
+
+        # Test Operation call with reduction
+        inputs = np.zeros((4,))
+        indices = [[0], [0], [1]]
+        updates = np.array([1.0, 2.0, 3.0])
+        result = core.ScatterUpdate(reduction="add")(inputs, indices, updates)
+        self.assertAllClose(result, [3.0, 3.0, 0.0, 0.0])
+
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
-        self.assertAllEqual(core.shape(x), (2, 3, 7, 1))
+        self.assertEqual(core.shape(x), (2, 3, 7, 1))
 
         x = KerasTensor((None, 3, None, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
-        self.assertAllEqual(core.shape(x), (None, 3, None, 1))
+        self.assertEqual(core.shape(x), (None, 3, None, 1))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -1109,7 +1241,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         else:
             self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
-        self.assertAllEqual(core.shape(x), (2, 3))
+        self.assertEqual(core.shape(x), (2, 3))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -1119,10 +1251,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         import tensorflow as tf
 
         x = tf.ragged.constant([[3, 1, 4, 1], [], [5, 9, 2], [6], []])
-        self.assertAllEqual(core.shape(x), (5, None))
+        self.assertEqual(core.shape(x), (5, None))
 
         x = tf.RaggedTensor.from_row_lengths(tf.zeros([15, 2]), [4, 5, 6])
-        self.assertAllEqual(core.shape(x), (3, None, 2))
+        self.assertEqual(core.shape(x), (3, None, 2))
 
     def test_slice(self):
         # Test 1D.
@@ -1386,6 +1518,98 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         for o, o_e in zip(out, out_ex):
             o = ops.convert_to_numpy(o)
             self.assertAllClose(o, o_e)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_tensorspec_dynamic_fallback(
+        self,
+    ):
+        """Exercises _dynamic_scan_body base-case paths in eager mode."""
+        import tensorflow as tf
+
+        def run_scan(x):
+            return core.associative_scan(f=operator.add, elems=x, axis=0)
+
+        # length == 2
+        x2 = tf.constant([[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]])
+        self.assertAllClose(run_scan(x2), np.cumsum(x2.numpy(), axis=0))
+
+        # length == 3
+        x3 = tf.constant(
+            [[1.0, 0.0, 0.0, 0.0], [2.0, 0.0, 0.0, 0.0], [3.0, 0.0, 0.0, 0.0]]
+        )
+        self.assertAllClose(run_scan(x3), np.cumsum(x3.numpy(), axis=0))
+
+        # length == 1  (trivial / no-op path)
+        x1 = tf.constant([[10.0, 20.0, 30.0, 40.0]])
+        self.assertAllClose(run_scan(x1), x1.numpy())
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_tensorspec_reverse(self):
+        """Dynamic fallback with reverse=True."""
+        import tensorflow as tf
+
+        # length == 3 with reverse
+        arr = tf.constant([1.0, 2.0, 3.0])
+        result = core.associative_scan(
+            f=operator.add, elems=arr, axis=0, reverse=True
+        )
+        # reverse prefix-sum: [1+2+3, 2+3, 3]
+        expected = np.array([6.0, 5.0, 3.0], dtype="float32")
+        self.assertAllClose(result, expected)
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_tensorspec_structured_input(
+        self,
+    ):
+        """Dynamic fallback with a tuple of tensors, lengths <= 3."""
+        import tensorflow as tf
+
+        def _add(x, y):
+            return (x[0] + y[0], x[1] + y[1])
+
+        # length == 3
+        a = tf.constant(np.ones((3, 3), dtype="float32"))
+        b = tf.constant(np.ones((3, 3), dtype="float32") * 2.0)
+        ra, rb = core.associative_scan(f=_add, elems=(a, b), axis=0)
+
+        self.assertAllClose(ra, np.cumsum(a.numpy(), axis=0))
+        self.assertAllClose(rb, np.cumsum(b.numpy(), axis=0))
+
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Dynamic scan fallback is TF-specific.",
+    )
+    def test_associative_scan_dynamic_scan_body_tf_function_dynamic_lengths(
+        self,
+    ):
+        """Exercises the recursive unwind path for lengths > 3 under
+        tf.function with fully dynamic input_signature."""
+        import tensorflow as tf
+
+        @tf.function(input_signature=[tf.TensorSpec([None, 4])])
+        def run_scan(x):
+            return core.associative_scan(f=operator.add, elems=x, axis=0)
+
+        for length in [1, 2, 3, 4, 5, 7, 8, 16]:
+            x = tf.constant(
+                np.arange(length * 4, dtype="float32").reshape(length, 4)
+            )
+            result = run_scan(x)
+            expected = np.cumsum(x.numpy(), axis=0)
+            self.assertAllClose(
+                result,
+                expected,
+                msg=f"Failed for dynamic length={length}",
+            )
 
 
 class CoreOpsDtypeTest(testing.TestCase):

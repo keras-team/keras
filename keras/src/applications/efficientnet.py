@@ -358,7 +358,11 @@ def EfficientNet(
     b = 0
     blocks = float(sum(round_repeats(args["repeats"]) for args in blocks_args))
     for i, args in enumerate(blocks_args):
-        assert args["repeats"] > 0
+        if args["repeats"] <= 0:
+            raise ValueError(
+                f"The number of repeats in `EfficientNet` must be > 0. "
+                f"Received: repeats={args['repeats']}"
+            )
         # Update block input and output filters based on depth multiplier.
         args["filters_in"] = round_filters(args["filters_in"])
         args["filters_out"] = round_filters(args["filters_out"])

@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -214,9 +215,11 @@ class IntegerLookupTest(testing.TestCase):
         with self.assertRaises(ValueError):
             layers.IntegerLookup(num_oov_indices=-1)
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="sparse=True only supported on TensorFlow",
+    )
     def test_sparse_output(self):
-        if backend.backend() != "tensorflow":
-            self.skipTest("sparse=True only supported on TensorFlow")
         layer = layers.IntegerLookup(
             vocabulary=[1, 2, 3],
             output_mode="multi_hot",
@@ -256,3 +259,67 @@ class IntegerLookupTest(testing.TestCase):
         )
         output = layer([10, 20, 30, 999])
         self.assertAllClose(output, np.array([1, 2, 3, 0]))
+
+    def test_oov_method_farmhash(self):
+        vocab = [12, 36, 1138, 42]
+        layer = layers.IntegerLookup(
+            vocabulary=vocab, num_oov_indices=2, oov_method="farmhash"
+        )
+        data = np.array([12, 36, 1138, 42, 100, 200])
+        output = layer(data)
+        # In-vocab tokens should map correctly (offset by num_oov_indices=2)
+        self.assertAllClose(output[:4], np.array([2, 3, 4, 5]))
+        # OOV tokens should land in [0, num_oov_indices)
+        oov_output = backend.convert_to_numpy(output[4:])
+        self.assertTrue(all(o in [0, 1] for o in oov_output))
+
+    def test_oov_method_invalid_value(self):
+        with self.assertRaises(ValueError):
+            layers.IntegerLookup(
+                vocabulary=[1, 2, 3],
+                num_oov_indices=2,
+                oov_method="invalid_method",
+            )
+
+    def test_oov_method_ignored_when_single_oov_index(self):
+        # oov_method has no effect when num_oov_indices=1
+        layer_floormod = layers.IntegerLookup(
+            vocabulary=[1, 2, 3], num_oov_indices=1, oov_method="floormod"
+        )
+        layer_farmhash = layers.IntegerLookup(
+            vocabulary=[1, 2, 3], num_oov_indices=1, oov_method="farmhash"
+        )
+        oov_values = [99, 100, 101]
+        out_floormod = backend.convert_to_numpy(layer_floormod(oov_values))
+        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_values))
+        self.assertAllClose(out_floormod, out_farmhash)
+
+    def test_oov_method_farmhash_output_is_correct(self):
+        # Expected values computed once via:
+        # tf.strings.to_hash_bucket_fast(
+        #     tf.strings.as_string([100, 200, 300, 400]), num_buckets=4
+        # )
+        # FarmHash64 is deterministic
+        layer = layers.IntegerLookup(
+            vocabulary=[10, 20, 30],
+            num_oov_indices=4,
+            oov_method="farmhash",
+        )
+        output = backend.convert_to_numpy(layer([100, 200, 300, 400]))
+        self.assertAllClose(output, [3, 1, 3, 1])
+
+    def test_salt_siphash(self):
+        vocab = [10, 20, 30]
+        layer_farmhash = layers.IntegerLookup(
+            vocabulary=vocab, num_oov_indices=4, oov_method="farmhash"
+        )
+        layer_siphash = layers.IntegerLookup(
+            vocabulary=vocab,
+            num_oov_indices=4,
+            oov_method="farmhash",
+            salt=[137, 42],
+        )
+        oov_values = np.array([100, 300, 700, 1100, 1700, 2000])
+        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_values))
+        out_siphash = backend.convert_to_numpy(layer_siphash(oov_values))
+        self.assertFalse(np.array_equal(out_farmhash, out_siphash))

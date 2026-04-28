@@ -280,6 +280,68 @@ class IndexLookupLayerTest(testing.TestCase):
         output = layer(batch_input_data)
         self.assertAllClose(output, [[0.2, 0.1, 0.4, 0.0]])
 
+    def test_one_hot_symbolic_output_shape_with_higher_rank_input(self):
+        """Symbolic output shape for one_hot must preserve input dims + depth.
+
+        Regression test for gh-22336: StringLookup/IntegerLookup with
+        output_mode='one_hot' produced (None, depth) instead of
+        (None, d1, ..., dN, depth) for nested inputs.
+        """
+        # IntegerLookup with one_hot and 3D input (batch, 2, 2)
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            output_mode="one_hot",
+        )
+        symbolic_input = layers.Input(shape=(2, 2), dtype="int32")
+        symbolic_output = layer(symbolic_input)
+        # Expected: (None, 2, 2, vocab_size) where vocab_size = 4 (3 + OOV)
+        self.assertEqual(
+            tuple(symbolic_output.shape),
+            (None, 2, 2, 4),
+            msg="one_hot symbolic output shape must be input_shape + (depth,)",
+        )
+        # Eager execution: same input shape -> same output shape
+        eager_input = np.array([[[1, 2], [3, 0]], [[1, 2], [3, 0]]])
+        eager_output = layer(eager_input)
+        self.assertEqual(eager_output.shape, (2, 2, 2, 4))
+        self.assertEqual(
+            tuple(symbolic_output.shape)[1:],
+            eager_output.shape[1:],
+            msg="Symbolic and eager output shapes must match (except batch)",
+        )
+
+    def test_one_hot_compute_output_shape_multi_hot_consistency(self):
+        """multi_hot/count/tf_idf last dim is sample in output shape."""
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 1,
+            "mask_token": None,
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+            "vocabulary": ["a", "b", "c"],
+        }
+        # depth = vocab size (3) + OOV (1) = 4 when pad_to_max_tokens is False
+        depth = 4
+        # multi_hot: (batch, sample_len) -> (batch, depth)
+        layer_multi = layers.IndexLookup(**kwargs, output_mode="multi_hot")
+        shape_multi = layer_multi.compute_output_shape((None, 5))
+        self.assertEqual(shape_multi, (None, depth))
+        # one_hot: (batch, d1, d2) -> (batch, d1, d2, depth)
+        layer_one = layers.IndexLookup(**kwargs, output_mode="one_hot")
+        shape_one = layer_one.compute_output_shape((None, 2, 2))
+        self.assertEqual(shape_one, (None, 2, 2, depth))
+
+    def test_one_hot_compute_output_spec_preserves_input_dims(self):
+        """compute_output_spec for one_hot must preserve all input dims."""
+        layer = layers.IntegerLookup(
+            vocabulary=[1, 2, 3],
+            output_mode="one_hot",
+        )
+        symbolic_input = layers.Input(shape=(3, 4), dtype="int32")
+        output_spec = layer.compute_output_spec(symbolic_input)
+        self.assertEqual(output_spec.shape, (None, 3, 4, 4))
+        self.assertEqual(output_spec.dtype, backend.floatx())
+
     def test_sparse_outputs(self):
         # TODO
         pass
@@ -616,3 +678,185 @@ class IndexLookupLayerTest(testing.TestCase):
         ):
             input_data = ["sample", "data"]
             layer(input_data)
+
+    def test_save_and_load_assets_string_vocab(self):
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 1,
+            "mask_token": "<mask>",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        vocabulary = ["apple", "banana", "cherry"]
+        layer.set_vocabulary(vocabulary)
+
+        vocab_before = layer.get_vocabulary(include_special_tokens=True)
+        vocab_before_no_special = layer.get_vocabulary(
+            include_special_tokens=False
+        )
+
+        sample_input = ["apple", "banana", "unknown"]
+        output_before = layer(sample_input).numpy()
+
+        tmpdir = self.get_temp_dir()
+
+        layer.save_assets(tmpdir)
+
+        layer2 = layers.IndexLookup(**kwargs)
+        layer2.load_assets(tmpdir)
+
+        vocab_after = layer2.get_vocabulary(include_special_tokens=True)
+        vocab_after_no_special = layer2.get_vocabulary(
+            include_special_tokens=False
+        )
+
+        self.assertEqual(vocab_before, vocab_after)
+        self.assertEqual(vocab_before_no_special, vocab_after_no_special)
+
+        output_after = layer2(sample_input).numpy()
+        np.testing.assert_array_equal(output_before, output_after)
+
+    def test_save_and_load_assets_with_multiple_oov_indices(self):
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 2,
+            "mask_token": "<mask>",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        vocabulary = ["apple", "banana"]
+        layer.set_vocabulary(vocabulary)
+
+        vocab_before = layer.get_vocabulary(include_special_tokens=True)
+
+        self.assertEqual(len(vocab_before), 5)
+        self.assertEqual(vocab_before[0], "<mask>")
+        self.assertEqual(vocab_before[1], "[OOV]")
+        self.assertEqual(vocab_before[2], "[OOV]")
+
+        tmpdir = self.get_temp_dir()
+
+        layer.save_assets(tmpdir)
+
+        layer2 = layers.IndexLookup(**kwargs)
+        layer2.load_assets(tmpdir)
+
+        vocab_after = layer2.get_vocabulary(include_special_tokens=True)
+        self.assertEqual(vocab_before, vocab_after)
+
+    def test_load_assets_handles_trailing_newlines(self):
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 1,
+            "mask_token": "<mask>",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+        }
+        layer = layers.IndexLookup(**kwargs)
+
+        vocabulary = ["apple", "banana", "cherry"]
+        layer.set_vocabulary(vocabulary)
+        vocab_expected = layer.get_vocabulary(include_special_tokens=True)
+
+        tmpdir = self.get_temp_dir()
+
+        vocab_file = os.path.join(tmpdir, "vocabulary.txt")
+        with open(vocab_file, "w") as f:
+            f.write("<mask>\n[OOV]\napple\nbanana\ncherry\n")
+
+        layer2 = layers.IndexLookup(**kwargs)
+        layer2.load_assets(tmpdir)
+
+        vocab_loaded = layer2.get_vocabulary(include_special_tokens=True)
+        self.assertEqual(vocab_expected, vocab_loaded)
+
+    def test_oov_method_ignored_for_string_dtype(self):
+        vocabulary = ["cat", "dog", "fish"]
+        oov_data = ["aaa", "bbb", "ccc", "ddd", "eee", "fff"]
+        kwargs = {
+            "max_tokens": 10,
+            "num_oov_indices": 4,
+            "mask_token": "",
+            "oov_token": "[OOV]",
+            "vocabulary_dtype": "string",
+            "vocabulary": vocabulary,
+        }
+        layer_floormod = layers.IndexLookup(oov_method="floormod", **kwargs)
+        layer_farmhash = layers.IndexLookup(oov_method="farmhash", **kwargs)
+        out_floormod = np.array(layer_floormod(oov_data))
+        out_farmhash = np.array(layer_farmhash(oov_data))
+        self.assertAllClose(out_floormod, out_farmhash)
+
+    def test_salt_config_serialization(self):
+        layer = layers.IndexLookup(
+            max_tokens=10,
+            num_oov_indices=2,
+            mask_token=None,
+            oov_token=-1,
+            vocabulary_dtype="int64",
+            vocabulary=[1, 2, 3],
+            oov_method="farmhash",
+            salt=[137, 42],
+        )
+        if backend.backend() != "torch":
+            self.run_class_serialization_test(layer)
+
+    def test_salt_valid_and_invalid_formats(self):
+        base_kwargs = dict(
+            max_tokens=10,
+            num_oov_indices=2,
+            mask_token=None,
+            oov_token=-1,
+            vocabulary_dtype="int64",
+            oov_method="farmhash",
+        )
+        # valid formats
+        layer = layers.IndexLookup(salt=[137, 42], **base_kwargs)
+        self.assertEqual(layer.salt, [137, 42])
+        layer = layers.IndexLookup(salt=99, **base_kwargs)
+        self.assertEqual(layer.salt, [99, 99])
+        # invalid formats
+        with self.assertRaises(ValueError):
+            layers.IndexLookup(salt="bad", **base_kwargs)
+        with self.assertRaises(ValueError):
+            layers.IndexLookup(salt=[1, 2, 3], **base_kwargs)
+
+    def test_salt_requires_farmhash(self):
+        with self.assertRaises(ValueError):
+            layers.IndexLookup(
+                max_tokens=10,
+                num_oov_indices=2,
+                mask_token=None,
+                oov_token=-1,
+                vocabulary_dtype="int64",
+                oov_method="floormod",
+                salt=[137, 42],
+            )
+
+    def test_salt_produces_different_output_than_farmhash(self):
+        oov_integers = [100, 200, 300, 400, 500, 600]
+        for dtype, vocab, oov_data in [
+            ("int64", [1, 2, 3], oov_integers),
+            ("string", ["a", "b", "c"], ["x", "y", "z", "w", "v", "u"]),
+        ]:
+            base_kwargs = dict(
+                max_tokens=10,
+                num_oov_indices=4,
+                mask_token=None,
+                oov_token=-1 if dtype == "int64" else "[OOV]",
+                vocabulary_dtype=dtype,
+                vocabulary=vocab,
+                oov_method="farmhash",
+            )
+            layer_farmhash = layers.IndexLookup(**base_kwargs)
+            layer_siphash = layers.IndexLookup(salt=[137, 42], **base_kwargs)
+            out_farmhash = np.array(layer_farmhash(oov_data))
+            out_siphash = np.array(layer_siphash(oov_data))
+            self.assertFalse(
+                np.array_equal(out_farmhash, out_siphash),
+                msg=f"Expected different outputs for dtype={dtype}",
+            )

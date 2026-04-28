@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -11,10 +12,6 @@ from keras.src.layers import activations
 
 
 class TestRematScope(testing.TestCase):
-    def setUp(self):
-        """Reset global state before each test."""
-        global_state.clear_session()
-
     def test_remat_scope_activation(self):
         self.assertIsNone(
             get_current_remat_mode()
@@ -81,12 +78,12 @@ class TestRematScope(testing.TestCase):
             RematScope(mode="invalid")  # Invalid mode should raise ValueError
 
 
+@pytest.mark.skipif(
+    backend.backend() in ("openvino", "numpy"),
+    reason="remat not supported on OpenVino and Numpy",
+)
 class RematTest(testing.TestCase):
     def test_remat_basic_call(self):
-        if backend.backend() in ("openvino", "numpy"):
-            self.skipTest(
-                "remat is not supported in openvino and numpy backends."
-            )
         # Generate dummy data
         data_size = 10**5
         x_train = np.random.normal(size=(data_size, 4))
@@ -118,11 +115,6 @@ class RematTest(testing.TestCase):
         )
 
     def test_remat_with_kwargs(self):
-        if backend.backend() in ("openvino", "numpy"):
-            self.skipTest(
-                "remat is not supported in openvino and numpy backends."
-            )
-
         # Define a function that uses keyword arguments
         def fn_with_kwargs(x, scale=1.0, offset=0.0):
             return x * scale + offset

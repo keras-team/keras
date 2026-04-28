@@ -1,0 +1,56 @@
+name: 'PR Contributor Agreement'
+
+on:
+  pull_request:
+    types:
+      - 'opened'
+      - 'edited'
+      - 'reopened'
+      - 'synchronize'
+
+permissions:
+  contents: 'read'
+  pull-requests: 'read'
+
+jobs:
+  verify:
+    if: github.repository == 'keras-team/keras'
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: 'Verify contributor agreement'
+        uses: 'actions/github-script@v8'
+        with:
+          github-token: '${{ secrets.GITHUB_TOKEN }}'
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+            });
+
+            const body = pr.body || '';
+
+            const requiredTerms = [
+              'I am a human, and not a bot.',
+              'I will be responsible for responding to review comments in a timely manner.',
+              'I will work with the maintainers to push this PR forward until submission.'
+            ];
+
+            const unchecked = [];
+            for (const term of requiredTerms) {
+              // Check that the checkbox is checked: [x] or [X]
+              const checkedPattern = new RegExp(`-\\s*\\[\\s*[xX]\\s*\\]\\s*${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+              if (!checkedPattern.test(body)) {
+                unchecked.push(term);
+              }
+            }
+
+            if (unchecked.length > 0) {
+              core.setFailed(
+                `The following contributor agreement terms have not been accepted:\n` +
+                unchecked.map(t => `  - ${t}`).join('\n') +
+                `\n\nPlease check all boxes in the Contributor Agreement section of the PR description.`
+              );
+            } else {
+              core.info('All contributor agreement terms accepted.');
+            }

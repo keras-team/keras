@@ -144,12 +144,36 @@ class BaseConvTranspose(Layer):
                 f"strides={self.strides}."
             )
 
+        if self.output_padding is not None:
+            for i, (op, s) in enumerate(zip(self.output_padding, self.strides)):
+                if op >= s:
+                    raise ValueError(
+                        "`output_padding` must be strictly less than "
+                        f"`strides` for all dimensions. At dimension {i}, "
+                        f"`output_padding` is {op} but `strides` is {s}. "
+                        f"Received: output_padding={self.output_padding}, "
+                        f"strides={self.strides}"
+                    )
+
         if max(self.strides) > 1 and max(self.dilation_rate) > 1:
             raise ValueError(
                 "`strides > 1` not supported in conjunction with "
                 f"`dilation_rate > 1`. Received: strides={self.strides} and "
                 f"dilation_rate={self.dilation_rate}"
             )
+
+        if self.output_padding is not None:
+            for i, (op, s) in enumerate(zip(self.output_padding, self.strides)):
+                if op >= s:
+                    raise ValueError(
+                        "Invalid `output_padding` argument. "
+                        "Each value in `output_padding` must be strictly "
+                        "less than the corresponding `strides` value.\n"
+                        f"At index {i}, `output_padding` is {op} and `strides` "
+                        f"is {s}.\n"
+                        f"Received: output_padding={self.output_padding}, "
+                        f"strides={self.strides}."
+                    )
 
     def build(self, input_shape):
         if self.data_format == "channels_last":

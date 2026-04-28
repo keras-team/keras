@@ -313,7 +313,6 @@ class EinsumDenseTest(testing.TestCase):
             "expected_output_shape": (2, 3, 4, 2),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_einsum_dense_basics(
         self,
         equation,
@@ -374,6 +373,9 @@ class EinsumDenseTest(testing.TestCase):
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
             self.assertLen(layer.torch_params, 3)
+        self.assertDType(layer.lora_kernel_a, "float32")
+        self.assertDType(layer.lora_kernel_b, "float32")
+
         # Try eager call
         x = np.random.random((64, 3))
         y = np.random.random((64, 8, 32))
@@ -435,7 +437,6 @@ class EinsumDenseTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-    @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
         # Use a simple equation that mimics a `Dense` layer behavior.
         equation = "ab,bc->ac"
@@ -480,7 +481,6 @@ class EinsumDenseTest(testing.TestCase):
             actual_kernel, expected_kernel, tpu_atol=1e-3, tpu_rtol=1e-3
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.EinsumDense,
@@ -764,7 +764,6 @@ class EinsumDenseTest(testing.TestCase):
         ("float8", "float8_from_mixed_bfloat16", 8, 0),
         ("int4", "int4_from_mixed_bfloat16", 1, 2),
     )
-    @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):
@@ -1398,11 +1397,11 @@ class EinsumDenseTest(testing.TestCase):
         ("per_channel_none", None),
         ("per_channel_neg1", -1),
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_quantization_block_size(self, block_size):
         """Test int4 quantization with different block_size configurations."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         # Use simple 2D equation: ab,bc->ac (like Dense)
         layer = layers.EinsumDense(
             equation="ab,bc->ac",
@@ -1446,11 +1445,11 @@ class EinsumDenseTest(testing.TestCase):
         ("grouped_block_128", 128),
         ("per_channel_none", None),
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_block_size_serialization(self, block_size):
         """Test that block_size is preserved through serialization."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.EinsumDense(
             equation="ab,bc->ac",
             output_shape=(32,),
@@ -1490,11 +1489,11 @@ class EinsumDenseTest(testing.TestCase):
         ("grouped_block_64", 64),
         ("per_channel", None),
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_block_size_with_lora(self, block_size):
         """Test int4 quantization with LoRA and different block_size."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.EinsumDense(
             equation="ab,bc->ac",
             output_shape=(64,),
@@ -1512,11 +1511,11 @@ class EinsumDenseTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(y.shape, (2, 64))
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_grouped_vs_perchannel_scale_shapes(self):
         """Test that grouped and per-channel have different scale shapes."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         input_dim, output_dim = 256, 64
         block_size = 64
 
@@ -1552,13 +1551,13 @@ class EinsumDenseTest(testing.TestCase):
         ("ab_bcd_acd_grouped", "ab,bcd->acd", (8, 32), (None, 64), 32),
         ("ab_bcd_acd_pc", "ab,bcd->acd", (8, 32), (None, 64), None),
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_block_size_various_equations(
         self, equation, output_shape, input_shape, block_size
     ):
         """Test int4 quantization with different equations and block_size."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.EinsumDense(
             equation=equation,
             output_shape=output_shape,
@@ -1589,13 +1588,13 @@ class EinsumDenseTest(testing.TestCase):
         ("mha_value_grouped", "ab,bcd->acd", (8, 32), (None, 64), 32),
         ("mha_value_pc", "ab,bcd->acd", (8, 32), (None, 64), None),
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_grouped_multi_reduced_axes(
         self, equation, output_shape, input_shape, block_size
     ):
         """Test int4 grouped quantization with multiple reduced axes."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.EinsumDense(
             equation=equation,
             output_shape=output_shape,
@@ -1617,11 +1616,11 @@ class EinsumDenseTest(testing.TestCase):
         mse = ops.mean(ops.square(y_float - y_quantized))
         self.assertLess(mse, 0.1)
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_multi_reduced_axes_scale_shape(self):
         """Test that scale shape is correct for multi-reduced-axis equations."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         # Equation: bnh,nhd->bd (two reduced axes: n, h)
         # Kernel shape: (n=4, h=32, d=64)
         # Reduced axes: n, h (total reduced dim = 4 * 32 = 128)
@@ -1644,11 +1643,11 @@ class EinsumDenseTest(testing.TestCase):
         # (n_groups, columns) where n_groups is at index 0
         self.assertEqual(kernel_scale.shape[0], 2)
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_multi_reduced_axes_serialization(self):
         """Test serialization with multi-reduced-axis equations."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         # Equation: bnh,nhd->bd (two reduced axes: n, h)
         layer = layers.EinsumDense(
             equation="bnh,nhd->bd",
@@ -1672,11 +1671,11 @@ class EinsumDenseTest(testing.TestCase):
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after, atol=1e-5)
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_multi_reduced_vs_single_reduced(self):
         """Compare grouped quantization: single vs multi-reduced axes."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         block_size = 64
 
         # Single reduced axis: bd,df->bf (reduced: d)
@@ -1717,11 +1716,11 @@ class EinsumDenseTest(testing.TestCase):
         ("grouped_block_64", 64),
         ("grouped_block_128", 128),
     )
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_subchannel_g_idx_created(self, block_size):
         """Test that g_idx is created for sub-channel int4 quantization."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.EinsumDense(
             equation="ab,bc->ac",
             output_shape=(32,),
@@ -1742,11 +1741,11 @@ class EinsumDenseTest(testing.TestCase):
         expected_g_idx = np.arange(128) // block_size
         self.assertAllClose(layer.g_idx, expected_g_idx)
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_perchannel_no_g_idx(self):
         """Test that per-channel int4 does NOT create g_idx."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.EinsumDense(
             equation="ab,bc->ac",
             output_shape=(32,),
@@ -1760,11 +1759,11 @@ class EinsumDenseTest(testing.TestCase):
         # Verify g_idx is NOT created for per-channel
         self.assertFalse(hasattr(layer, "g_idx"))
 
+    @pytest.mark.skipif(
+        testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
+    )
     def test_int4_subchannel_g_idx_serialization(self):
         """Test that g_idx is properly serialized and deserialized."""
-        if testing.tensorflow_uses_gpu():
-            self.skipTest("Segfault on TF GPU")
-
         layer = layers.EinsumDense(
             equation="ab,bc->ac",
             output_shape=(32,),

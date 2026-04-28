@@ -23,7 +23,6 @@ class UpSampling2dTest(testing.TestCase):
         length_row=[2],
         length_col=[2, 3],
     )
-    @pytest.mark.requires_trainable_backend
     def test_upsampling_2d(self, data_format, length_row, length_col):
         num_samples = 2
         stack_size = 2
@@ -53,11 +52,11 @@ class UpSampling2dTest(testing.TestCase):
         layer.build(inputs.shape)
         np_output = layer(inputs=backend.Variable(inputs))
         if data_format == "channels_first":
-            assert np_output.shape[2] == length_row * input_num_row
-            assert np_output.shape[3] == length_col * input_num_col
+            self.assertEqual(np_output.shape[2], length_row * input_num_row)
+            self.assertEqual(np_output.shape[3], length_col * input_num_col)
         else:
-            assert np_output.shape[1] == length_row * input_num_row
-            assert np_output.shape[2] == length_col * input_num_col
+            self.assertEqual(np_output.shape[1], length_row * input_num_row)
+            self.assertEqual(np_output.shape[2], length_col * input_num_col)
 
         # compare with numpy
         if data_format == "channels_first":
@@ -75,7 +74,6 @@ class UpSampling2dTest(testing.TestCase):
         length_row=[2],
         length_col=[2, 3],
     )
-    @pytest.mark.requires_trainable_backend
     def test_upsampling_2d_bilinear(
         self, data_format, use_set_image_data_format, length_row, length_col
     ):

@@ -123,7 +123,7 @@ class RandomZoomTest(testing.TestCase):
             ]
         ).reshape(input_shape)
         output = next(iter(ds)).numpy()
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_dynamic_shape(self):
         inputs = layers.Input((None, None, 3))
@@ -137,8 +137,8 @@ class RandomZoomTest(testing.TestCase):
         model.predict(np.random.random((1, 6, 6, 3)))
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="The NumPy backend does not implement fit.",
+        backend.backend() in ("numpy", "openvino"),
+        reason="The NumPy and OpenVINO backends do not implement fit.",
     )
     def test_connect_with_flatten(self):
         model = models.Sequential(

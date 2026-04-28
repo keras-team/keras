@@ -53,6 +53,13 @@ def rgb_to_grayscale(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
+    if images.shape[channels_axis] not in (1, 3):
+        raise ValueError(
+            "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+            f"Received input with shape: images.shape={images.shape}"
+        )
+    if images.shape[channels_axis] == 1:
+        return images.copy()
     # Convert to floats
     original_dtype = images.dtype
     compute_dtype = backend.result_type(images.dtype, float)
@@ -1018,8 +1025,11 @@ def gaussian_blur(
         kernel_size, sigma, num_channels, input_dtype
     )
 
-    pad_h = kernel_size[0] // 2
-    pad_w = kernel_size[1] // 2
+    kernel_h, kernel_w = kernel.shape[0], kernel.shape[1]
+    pad_h = (kernel_h - 1) // 2
+    pad_h_after = kernel_h - 1 - pad_h
+    pad_w = (kernel_w - 1) // 2
+    pad_w_after = kernel_w - 1 - pad_w
 
     blurred_images = np.empty_like(images)
 
@@ -1027,7 +1037,7 @@ def gaussian_blur(
         for ch in range(num_channels):
             padded = np.pad(
                 images[b, :, :, ch],
-                ((pad_h, pad_h), (pad_w, pad_w)),
+                ((pad_h, pad_h_after), (pad_w, pad_w_after)),
                 mode="constant",
             )
             blurred_images[b, :, :, ch] = scipy.signal.convolve2d(
@@ -1200,3 +1210,27 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    from scipy import ndimage
+
+    images = convert_to_tensor(images)
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch, height, width, channels = images.shape
+
+    # Output shape: (batch, height, width, channels, 2)
+    edges = np.zeros((batch, height, width, channels, 2), dtype=images.dtype)
+
+    for b in range(batch):
+        for c in range(channels):
+            # axis=0 is vertical (y), axis=1 is horizontal (x)
+            edges[b, :, :, c, 0] = ndimage.sobel(images[b, :, :, c], axis=0)
+            edges[b, :, :, c, 1] = ndimage.sobel(images[b, :, :, c], axis=1)
+
+    if data_format == "channels_first":
+        edges = np.transpose(edges, (0, 3, 1, 2, 4))
+
+    return edges

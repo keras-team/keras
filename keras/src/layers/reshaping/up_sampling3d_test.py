@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -14,7 +13,6 @@ class UpSampling3dTest(testing.TestCase):
         length_dim2=[2],
         length_dim3=[3],
     )
-    @pytest.mark.requires_trainable_backend
     def test_upsampling_3d(
         self, data_format, length_dim1, length_dim2, length_dim3
     ):
@@ -67,13 +65,13 @@ class UpSampling3dTest(testing.TestCase):
         layer.build(inputs.shape)
         np_output = layer(inputs=backend.Variable(inputs))
         if data_format == "channels_first":
-            assert np_output.shape[2] == length_dim1 * input_len_dim1
-            assert np_output.shape[3] == length_dim2 * input_len_dim2
-            assert np_output.shape[4] == length_dim3 * input_len_dim3
+            self.assertEqual(np_output.shape[2], length_dim1 * input_len_dim1)
+            self.assertEqual(np_output.shape[3], length_dim2 * input_len_dim2)
+            self.assertEqual(np_output.shape[4], length_dim3 * input_len_dim3)
         else:  # tf
-            assert np_output.shape[1] == length_dim1 * input_len_dim1
-            assert np_output.shape[2] == length_dim2 * input_len_dim2
-            assert np_output.shape[3] == length_dim3 * input_len_dim3
+            self.assertEqual(np_output.shape[1], length_dim1 * input_len_dim1)
+            self.assertEqual(np_output.shape[2], length_dim2 * input_len_dim2)
+            self.assertEqual(np_output.shape[3], length_dim3 * input_len_dim3)
 
         # compare with numpy
         if data_format == "channels_first":

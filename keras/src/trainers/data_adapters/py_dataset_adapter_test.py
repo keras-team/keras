@@ -201,7 +201,7 @@ class PyDatasetAdapterTest(testing.TestCase):
             self.assertEqual(bx.shape, (16, 4))
             self.assertEqual(by.shape, (16, 2))
             for i in range(by.shape[0]):
-                sample_order.append(by[i, 0])
+                sample_order.append(backend.convert_to_numpy(by[i, 0]))
             if infinite:
                 if len(sample_order) == 64:
                     adapter.on_epoch_end()
@@ -247,9 +247,9 @@ class PyDatasetAdapterTest(testing.TestCase):
             # of the batch (2 elements in each batch)
             for sub_elem in range(2):
                 self.assertAllEqual(batch[0][sub_elem], x[index * 2 + sub_elem])
-                self.assertEqual(batch[1][sub_elem], y[index * 2 + sub_elem])
+                self.assertAllEqual(batch[1][sub_elem], y[index * 2 + sub_elem])
                 class_key = np.int32(batch[1][sub_elem])
-                self.assertEqual(batch[2][sub_elem], class_w[class_key])
+                self.assertAllEqual(batch[2][sub_elem], class_w[class_key])
 
         self.assertEqual(index, 1)  # 2 batches
 

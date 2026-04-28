@@ -25,10 +25,14 @@ class RGBToGrayscale(Operation):
                 "or rank 4 (batch of images). "
                 f"Received: images.shape={images_shape}"
             )
-        if self.data_format == "channels_last":
-            images_shape[-1] = 1
-        else:
-            images_shape[-3] = 1
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = images_shape[channels_axis]
+        if channels is not None and channels not in (1, 3):
+            raise ValueError(
+                "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+                f"Received input with shape: images.shape={tuple(images_shape)}"
+            )
+        images_shape[channels_axis] = 1
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
 
@@ -97,6 +101,13 @@ class RGBToHSV(Operation):
             raise ValueError(
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
+            )
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = images_shape[channels_axis]
+        if channels is not None and channels != 3:
+            raise ValueError(
+                "Input images must have 3 channels, but received images with "
+                f"{channels} channels."
             )
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
@@ -169,6 +180,13 @@ class HSVToRGB(Operation):
             raise ValueError(
                 "Invalid images dtype: expected float dtype. "
                 f"Received: images.dtype={dtype}"
+            )
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = images_shape[channels_axis]
+        if channels is not None and channels != 3:
+            raise ValueError(
+                "Input images must have 3 channels, but received images with "
+                f"{channels} channels."
             )
         return KerasTensor(shape=images_shape, dtype=images.dtype)
 
@@ -997,6 +1015,77 @@ def map_coordinates(
     )
 
 
+def _validate_non_negative(value, name):
+    if value is not None and value < 0:
+        raise ValueError(f"{name} must be >= 0. Received: {name}={value}")
+
+
+def _validate_pad_images_args(
+    top_padding,
+    left_padding,
+    bottom_padding,
+    right_padding,
+    target_height,
+    target_width,
+):
+    if [top_padding, bottom_padding, target_height].count(None) != 1:
+        raise ValueError(
+            "Must specify exactly two of "
+            "top_padding, bottom_padding, target_height. "
+            f"Received: top_padding={top_padding}, "
+            f"bottom_padding={bottom_padding}, "
+            f"target_height={target_height}"
+        )
+    if [left_padding, right_padding, target_width].count(None) != 1:
+        raise ValueError(
+            "Must specify exactly two of "
+            "left_padding, right_padding, target_width. "
+            f"Received: left_padding={left_padding}, "
+            f"right_padding={right_padding}, "
+            f"target_width={target_width}"
+        )
+
+    _validate_non_negative(top_padding, "top_padding")
+    _validate_non_negative(bottom_padding, "bottom_padding")
+    _validate_non_negative(target_height, "target_height")
+    _validate_non_negative(left_padding, "left_padding")
+    _validate_non_negative(right_padding, "right_padding")
+    _validate_non_negative(target_width, "target_width")
+
+
+def _validate_crop_images_args(
+    top_cropping,
+    left_cropping,
+    bottom_cropping,
+    right_cropping,
+    target_height,
+    target_width,
+):
+    if [top_cropping, bottom_cropping, target_height].count(None) != 1:
+        raise ValueError(
+            "Must specify exactly two of "
+            "top_cropping, bottom_cropping, target_height. "
+            f"Received: top_cropping={top_cropping}, "
+            f"bottom_cropping={bottom_cropping}, "
+            f"target_height={target_height}"
+        )
+    if [left_cropping, right_cropping, target_width].count(None) != 1:
+        raise ValueError(
+            "Must specify exactly two of "
+            "left_cropping, right_cropping, target_width. "
+            f"Received: left_cropping={left_cropping}, "
+            f"right_cropping={right_cropping}, "
+            f"target_width={target_width}"
+        )
+
+    _validate_non_negative(top_cropping, "top_cropping")
+    _validate_non_negative(bottom_cropping, "bottom_cropping")
+    _validate_non_negative(target_height, "target_height")
+    _validate_non_negative(left_cropping, "left_cropping")
+    _validate_non_negative(right_cropping, "right_cropping")
+    _validate_non_negative(target_width, "target_width")
+
+
 class PadImages(Operation):
     def __init__(
         self,
@@ -1033,6 +1122,20 @@ class PadImages(Operation):
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        _validate_pad_images_args(
+            self.top_padding,
+            self.left_padding,
+            self.bottom_padding,
+            self.right_padding,
+            self.target_height,
+            self.target_width,
+        )
 
         if self.data_format == "channels_last":
             height_axis, width_axis = -3, -2
@@ -1047,6 +1150,52 @@ class PadImages(Operation):
         target_width = self.target_width
         if target_width is None and width is not None:
             target_width = self.left_padding + width + self.right_padding
+
+        if height is not None:
+            top_padding = self.top_padding
+            bottom_padding = self.bottom_padding
+            if top_padding is None:
+                top_padding = target_height - height - bottom_padding
+            if bottom_padding is None:
+                bottom_padding = target_height - height - top_padding
+            if top_padding < 0:
+                raise ValueError(
+                    "top_padding must be >= 0. "
+                    f"Received: top_padding={top_padding}"
+                )
+            if bottom_padding < 0:
+                raise ValueError(
+                    "bottom_padding must be >= 0. "
+                    f"Received: bottom_padding={bottom_padding}"
+                )
+            if target_height < 0:
+                raise ValueError(
+                    "target_height must be >= 0. "
+                    f"Received: target_height={target_height}"
+                )
+
+        if width is not None:
+            left_padding = self.left_padding
+            right_padding = self.right_padding
+            if left_padding is None:
+                left_padding = target_width - width - right_padding
+            if right_padding is None:
+                right_padding = target_width - width - left_padding
+            if left_padding < 0:
+                raise ValueError(
+                    "left_padding must be >= 0. "
+                    f"Received: left_padding={left_padding}"
+                )
+            if right_padding < 0:
+                raise ValueError(
+                    "right_padding must be >= 0. "
+                    f"Received: right_padding={right_padding}"
+                )
+            if target_width < 0:
+                raise ValueError(
+                    "target_width must be >= 0. "
+                    f"Received: target_width={target_width}"
+                )
 
         images_shape[height_axis] = target_height
         images_shape[width_axis] = target_width
@@ -1141,26 +1290,18 @@ def _pad_images(
     # Check
     if len(images_shape) not in (3, 4):
         raise ValueError(
-            f"Invalid shape for argument `images`: "
-            "it must have rank 3 or 4. "
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). "
             f"Received: images.shape={images_shape}"
         )
-    if [top_padding, bottom_padding, target_height].count(None) != 1:
-        raise ValueError(
-            "Must specify exactly two of "
-            "top_padding, bottom_padding, target_height. "
-            f"Received: top_padding={top_padding}, "
-            f"bottom_padding={bottom_padding}, "
-            f"target_height={target_height}"
-        )
-    if [left_padding, right_padding, target_width].count(None) != 1:
-        raise ValueError(
-            "Must specify exactly two of "
-            "left_padding, right_padding, target_width. "
-            f"Received: left_padding={left_padding}, "
-            f"right_padding={right_padding}, "
-            f"target_width={target_width}"
-        )
+    _validate_pad_images_args(
+        top_padding,
+        left_padding,
+        bottom_padding,
+        right_padding,
+        target_height,
+        target_width,
+    )
 
     is_batch = False if len(images_shape) == 3 else True
     if data_format == "channels_last":
@@ -1246,6 +1387,20 @@ class CropImages(Operation):
 
     def compute_output_spec(self, images):
         images_shape = list(images.shape)
+        if len(images_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        _validate_crop_images_args(
+            self.top_cropping,
+            self.left_cropping,
+            self.bottom_cropping,
+            self.right_cropping,
+            self.target_height,
+            self.target_width,
+        )
 
         if self.data_format == "channels_last":
             height_axis, width_axis = -3, -2
@@ -1274,6 +1429,52 @@ class CropImages(Operation):
         target_width = self.target_width
         if target_width is None:
             target_width = width - self.left_cropping - self.right_cropping
+
+        if height is not None:
+            top_cropping = self.top_cropping
+            bottom_cropping = self.bottom_cropping
+            if top_cropping is None:
+                top_cropping = height - target_height - bottom_cropping
+            if bottom_cropping is None:
+                bottom_cropping = height - target_height - top_cropping
+            if top_cropping < 0:
+                raise ValueError(
+                    "top_cropping must be >= 0. "
+                    f"Received: top_cropping={top_cropping}"
+                )
+            if bottom_cropping < 0:
+                raise ValueError(
+                    "bottom_cropping must be >= 0. "
+                    f"Received: bottom_cropping={bottom_cropping}"
+                )
+            if target_height < 0:
+                raise ValueError(
+                    "target_height must be >= 0. "
+                    f"Received: target_height={target_height}"
+                )
+
+        if width is not None:
+            left_cropping = self.left_cropping
+            right_cropping = self.right_cropping
+            if left_cropping is None:
+                left_cropping = width - target_width - right_cropping
+            if right_cropping is None:
+                right_cropping = width - target_width - left_cropping
+            if left_cropping < 0:
+                raise ValueError(
+                    "left_cropping must be >= 0. "
+                    f"Received: left_cropping={left_cropping}"
+                )
+            if right_cropping < 0:
+                raise ValueError(
+                    "right_cropping must be >= 0. "
+                    f"Received: right_cropping={right_cropping}"
+                )
+            if target_width < 0:
+                raise ValueError(
+                    "target_width must be >= 0. "
+                    f"Received: target_width={target_width}"
+                )
 
         images_shape[height_axis] = target_height
         images_shape[width_axis] = target_width
@@ -1364,26 +1565,18 @@ def _crop_images(
     # Check
     if len(images_shape) not in (3, 4):
         raise ValueError(
-            f"Invalid shape for argument `images`: "
-            "it must have rank 3 or 4. "
+            "Invalid images rank: expected rank 3 (single image) "
+            "or rank 4 (batch of images). "
             f"Received: images.shape={images_shape}"
         )
-    if [top_cropping, bottom_cropping, target_height].count(None) != 1:
-        raise ValueError(
-            "Must specify exactly two of "
-            "top_cropping, bottom_cropping, target_height. "
-            f"Received: top_cropping={top_cropping}, "
-            f"bottom_cropping={bottom_cropping}, "
-            f"target_height={target_height}"
-        )
-    if [left_cropping, right_cropping, target_width].count(None) != 1:
-        raise ValueError(
-            "Must specify exactly two of "
-            "left_cropping, right_cropping, target_width. "
-            f"Received: left_cropping={left_cropping}, "
-            f"right_cropping={right_cropping}, "
-            f"target_width={target_width}"
-        )
+    _validate_crop_images_args(
+        top_cropping,
+        left_cropping,
+        bottom_cropping,
+        right_cropping,
+        target_height,
+        target_width,
+    )
 
     is_batch = False if len(images_shape) == 3 else True
     if data_format == "channels_last":
@@ -1910,6 +2103,68 @@ def scale_and_translate(
         method,
         antialias,
     )
+
+
+class SobelEdges(Operation):
+    def __init__(self, data_format=None, *, name=None):
+        super().__init__(name=name)
+        self.data_format = backend.standardize_data_format(data_format)
+
+    def call(self, images):
+        return backend.image.sobel_edges(images, data_format=self.data_format)
+
+    def compute_output_spec(self, images):
+        images_shape = list(images.shape)
+        if len(images_shape) != 4:
+            raise ValueError(
+                "Invalid images rank: expected rank 4 (batch of images). "
+                f"Received: images.shape={images_shape}"
+            )
+        # Output adds an extra dimension of size 2 for [dy, dx]
+        output_shape = images_shape + [2]
+        return KerasTensor(shape=output_shape, dtype=images.dtype)
+
+
+@keras_export("keras.ops.image.sobel_edges")
+def sobel_edges(images, data_format=None):
+    """Computes Sobel edge detection on images.
+
+    The Sobel operator computes the gradient of the image intensity at each
+    pixel, giving the direction of the largest increase from light to dark
+    and the rate of change in that direction.
+
+    Args:
+        images: Input tensor of shape `(batch, height, width, channels)` if
+            `data_format="channels_last"`, or
+            `(batch, channels, height, width)` if
+            `data_format="channels_first"`.
+        data_format: A string specifying the data format of the input tensor.
+            It can be either `"channels_last"` or `"channels_first"`.
+            If not specified, the value will default to
+            `keras.config.image_data_format`.
+
+    Returns:
+        A tensor containing the Sobel edges. For `data_format="channels_last"`,
+        the output shape is `(batch, height, width, channels, 2)` where the
+        last dimension contains `[dy, dx]` representing the vertical and
+        horizontal gradients. For `data_format="channels_first"`, the output
+        shape is `(batch, channels, height, width, 2)`.
+
+    Example:
+
+    >>> import numpy as np
+    >>> from keras import ops
+    >>> # Create image with vertical edge
+    >>> image = np.zeros((1, 8, 8, 1), dtype="float32")
+    >>> image[0, :, 4:, 0] = 1.0
+    >>> edges = ops.image.sobel_edges(image)
+    >>> edges.shape
+    (1, 8, 8, 1, 2)
+    """
+    if any_symbolic_tensors((images,)):
+        return SobelEdges(data_format=data_format).symbolic_call(images)
+    return backend.image.sobel_edges(
+        images, data_format=backend.standardize_data_format(data_format)
 
 
 class SSIM(Operation):

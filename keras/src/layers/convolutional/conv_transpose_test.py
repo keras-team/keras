@@ -286,6 +286,7 @@ def np_conv3d_transpose(
     return output
 
 
+@pytest.mark.skipif(testing.jax_uses_tpu(), reason="Crashes with JAX on TPU")
 class ConvTransposeBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
@@ -322,7 +323,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (2, 16, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv1d_transpose_basic(
         self,
         filters,
@@ -400,7 +400,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (1, 224, 224, 2),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv2d_transpose_basic(
         self,
         filters,
@@ -473,7 +472,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (2, 16, 9, 17, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv3d_transpose_basic(
         self,
         filters,
@@ -534,6 +532,37 @@ class ConvTransposeBasicTest(testing.TestCase):
                 filters=2, kernel_size=(2, 2), strides=(1, 0)
             )
 
+        # `output_padding` >= `strides`.
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv1DTranspose(
+                filters=2, kernel_size=3, strides=2, output_padding=2
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=2,
+                kernel_size=3,
+                strides=2,
+                output_padding=3,
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            r"`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=2,
+                kernel_size=3,
+                strides=(2, 3),
+                output_padding=(1, 3),
+            )
+
         # `dilation_rate > 1` while `strides > 1`.
         with self.assertRaisesRegex(
             ValueError,
@@ -543,6 +572,30 @@ class ConvTransposeBasicTest(testing.TestCase):
         ):
             layers.Conv2DTranspose(
                 filters=2, kernel_size=(2, 2), strides=2, dilation_rate=(2, 1)
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv1DTranspose(
+                filters=2, kernel_size=2, strides=2, output_padding=2
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=16, kernel_size=3, strides=[1, 1], output_padding=1
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv3DTranspose(
+                filters=8, kernel_size=3, strides=1, output_padding=1
             )
 
 
@@ -850,7 +903,7 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
                 )
                 with pytest.warns(UserWarning):
                     kc_res = kc_layer(input)
-                self.assertAllClose(expected_res, kc_res, atol=1e-5)
+                self.assertAllClose(kc_res, expected_res, atol=1e-5)
                 return
 
             # torch_padding > 0 and torch_output_padding > 0 case
@@ -868,12 +921,12 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
             if torch_padding > 0 and torch_output_padding > 0:
                 with pytest.raises(AssertionError):
                     kc_res = kc_layer(input)
-                    self.assertAllClose(expected_res, kc_res, atol=1e-5)
+                    self.assertAllClose(kc_res, expected_res, atol=1e-5)
                 return
 
         # Compare results
         kc_res = kc_layer(input)
-        self.assertAllClose(expected_res, kc_res, atol=1e-5)
+        self.assertAllClose(kc_res, expected_res, atol=1e-5)
 
     @parameterized.product(
         kernel_size=list(range(1, 5)),
@@ -884,6 +937,10 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
     def test_shape_inference_static_unknown_shape(
         self, kernel_size, strides, padding, output_padding
     ):
+        # output_padding cannot be greater than or equal to strides
+        if output_padding is not None and output_padding >= strides:
+            pytest.skip("`output_padding` must be less than `strides`")
+
         if backend.config.image_data_format() == "channels_last":
             input_shape = (None, None, 3)
             output_tensor_shape = (None, None, None, 2)

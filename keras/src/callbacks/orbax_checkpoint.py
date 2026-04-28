@@ -135,8 +135,7 @@ class OrbaxCheckpoint(MonitorCallback):
         self.save_on_background = save_on_background
         self.save_weights_only = save_weights_only
         self._batches_seen_since_last_saving = 0
-        self._last_batch_seen = 0
-        self._current_epoch = 0  # Keep track of epoch
+        self._last_batch_seen = None
         self._total_batches_seen = 0  # Global batch counter for step tracking
         self._async_futures = []  # Track async save futures
 
@@ -180,6 +179,12 @@ class OrbaxCheckpoint(MonitorCallback):
                 1
             ),
         )
+
+    def set_model(self, model):
+        super().set_model(model)
+        if hasattr(model, "optimizer") and model.optimizer is not None:
+            # Recover the number of batches seen for a reloaded model
+            self._total_batches_seen = int(model.optimizer.iterations)
 
     def _is_multihost_initialized(self):
         """Check if multi-host environment is initialized."""
@@ -227,14 +232,15 @@ class OrbaxCheckpoint(MonitorCallback):
         if not self._multihost_initialized:
             return True  # Single host is always primary
         multihost = ocp.multihost
-        return multihost.is_primary_host()
+        return multihost.is_primary_host(primary_host=0)
 
     def _should_save_on_batch(self, batch):
         """Check if we should save on this batch."""
         if self.save_freq == "epoch":
             return False
 
-        if batch <= self._last_batch_seen:  # New epoch.
+        if self._last_batch_seen is None or batch <= self._last_batch_seen:
+            # New epoch.
             add_batches = batch + 1
         else:
             add_batches = batch - self._last_batch_seen
@@ -264,10 +270,18 @@ class OrbaxCheckpoint(MonitorCallback):
             }
         else:
             composite_state = state_tree
-            # Include model configuration for full model restoration
-            # Use saving_lib helper to properly handle shared objects
+
+        # Build payload with pytree (pure arrays) and optional
+        # model_config / assets as separate checkpointables.
+        payload = {"pytree": composite_state}
+
+        if not self.save_weights_only:
             config_json, _ = saving_lib._serialize_model_as_json(self.model)
-            composite_state["model_config"] = config_json
+            payload["model_config"] = {"config": config_json}
+
+            assets_dict = saving_lib._save_assets_to_dict(self.model)
+            if assets_dict is not None:
+                payload["assets"] = assets_dict
 
         # Use a single with statement. If context_options is empty,
         # Context() uses defaults.
@@ -275,13 +289,12 @@ class OrbaxCheckpoint(MonitorCallback):
             # Determine sync vs async based on save_on_background setting
             use_sync = not self.save_on_background
 
+            # Execute save based on sync/async mode
             if use_sync:
-                # Synchronous save
-                self.checkpointer.save_pytree(step, composite_state)
+                self.checkpointer.save_checkpointables(step, payload)
             else:
-                # Async save
-                future = self.checkpointer.save_pytree_async(
-                    step, composite_state
+                future = self.checkpointer.save_checkpointables_async(
+                    step, payload
                 )
                 self._async_futures.append(future)
 
@@ -310,7 +323,6 @@ class OrbaxCheckpoint(MonitorCallback):
                 self._save_checkpoint(step=step, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):
-        self._current_epoch = epoch
         if self.monitor_op is None:
             self._set_monitor_op()  # From MonitorCallback
 

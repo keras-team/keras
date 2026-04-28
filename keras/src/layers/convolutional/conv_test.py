@@ -324,7 +324,6 @@ class ConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv1d_basic(
         self,
         filters,
@@ -391,7 +390,6 @@ class ConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 4, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv2d_basic(
         self,
         filters,
@@ -458,7 +456,6 @@ class ConvBasicTest(testing.TestCase):
             "output_shape": (3, 2, 4, 2, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv3d_basic(
         self,
         filters,
@@ -655,6 +652,9 @@ class ConvBasicTest(testing.TestCase):
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
             self.assertLen(layer.torch_params, 4)
+        self.assertDType(layer.lora_kernel_a, "float32")
+        self.assertDType(layer.lora_kernel_b, "float32")
+
         # Try eager call
         x = np.random.random((64,) + input_shape[1:])
         y = np.random.random((64,) + output_shape[1:])
@@ -716,7 +716,6 @@ class ConvBasicTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_weight_name(self):
         class MyModel(models.Model):
             def __init__(self):
@@ -736,7 +735,6 @@ class ConvBasicTest(testing.TestCase):
             model.conv2d.lora_kernel_a.path, "mymodel/conv2d/lora_kernel_a"
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
         # Create a `Conv2D` layer with a small kernel for simplicity.
         layer = layers.Conv2D(filters=3, kernel_size=(2, 2), padding="valid")
@@ -786,7 +784,6 @@ class ConvBasicTest(testing.TestCase):
             tpu_rtol=1e-3,
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Conv2D,
@@ -806,6 +803,24 @@ class ConvBasicTest(testing.TestCase):
             expected_num_losses=2,  # we have 2 regularizers.
             supports_masking=False,
         )
+
+    @parameterized.parameters(
+        (layers.Conv1D, (10, 3), 2, 10),
+        (layers.Conv2D, (10, 10, 3), (2, 2), (10, 10)),
+        (layers.Conv3D, (10, 10, 10, 3), (2, 2, 2), (10, 10, 10)),
+    )
+    def test_conv_symbolic_invalid_configuration(
+        self, layer_cls, input_shape, kernel_size, dilation_rate
+    ):
+        inputs = layers.Input(shape=input_shape)
+        layer = layer_cls(
+            filters=1,
+            kernel_size=kernel_size,
+            dilation_rate=dilation_rate,
+        )
+
+        with self.assertRaises(ValueError):
+            layer(inputs)
 
 
 class ConvCorrectnessTest(testing.TestCase):

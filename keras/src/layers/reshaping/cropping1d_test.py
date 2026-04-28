@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import layers
 from keras.src import ops
@@ -7,7 +6,6 @@ from keras.src import testing
 
 
 class Cropping1DTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_cropping_1d(self):
         inputs = np.random.rand(3, 5, 7)
 
@@ -47,7 +45,6 @@ class Cropping1DTest(testing.TestCase):
             expected_output=ops.convert_to_tensor(inputs[:, 1:5, :]),
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_cropping_1d_with_dynamic_spatial_dim(self):
         input_layer = layers.Input(batch_shape=(1, None, 7))
         cropped = layers.Cropping1D((1, 2))(input_layer)

@@ -58,8 +58,16 @@ class BaseImagePreprocessingLayer(DataLayer):
     def get_random_transformation(self, data, training=True, seed=None):
         return None
 
-    def transform_images(self, images, transformation, training=True):
+    def _transform_images(self, images, transformation, interpolation):
         raise NotImplementedError()
+
+    def transform_images(self, images, transformation, training=True):
+        images = self.backend.cast(images, self.compute_dtype)
+        if training:
+            images = self._transform_images(
+                images, transformation, self.interpolation
+            )
+        return images
 
     def transform_labels(self, labels, transformation, training=True):
         raise NotImplementedError()
@@ -75,7 +83,11 @@ class BaseImagePreprocessingLayer(DataLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        raise NotImplementedError()
+        if training:
+            segmentation_masks = self._transform_images(
+                segmentation_masks, transformation, "nearest"
+            )
+        return segmentation_masks
 
     def transform_single_image(self, image, transformation, training=True):
         images = self.backend.numpy.expand_dims(image, axis=0)

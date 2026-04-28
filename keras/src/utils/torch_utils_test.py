@@ -160,9 +160,9 @@ class TorchUtilsTest(testing.TestCase):
         new_model.compile(optimizer="sgd", loss="mse")
         new_model.load_weights(temp_filepath)
         for ref_w, new_w in zip(model.get_weights(), new_model.get_weights()):
-            self.assertAllClose(ref_w, new_w, atol=1e-5)
+            self.assertAllClose(new_w, ref_w, atol=1e-5)
         loss = new_model.evaluate(x_test, y_test)
-        self.assertAllClose(ref_loss, loss, atol=1e-5)
+        self.assertAllClose(loss, ref_loss, atol=1e-5)
 
     def test_serialize_model_autowrapping(self):
         # Test loading saved model
@@ -177,9 +177,9 @@ class TorchUtilsTest(testing.TestCase):
 
         new_model = saving.load_model(temp_filepath)
         for ref_w, new_w in zip(model.get_weights(), new_model.get_weights()):
-            self.assertAllClose(ref_w, new_w, atol=1e-5)
+            self.assertAllClose(new_w, ref_w, atol=1e-5)
         loss = new_model.evaluate(x_test, y_test)
-        self.assertAllClose(ref_loss, loss, atol=1e-5)
+        self.assertAllClose(loss, ref_loss, atol=1e-5)
 
     @parameterized.parameters(
         {"use_batch_norm": False, "num_torch_layers": 1},
@@ -203,9 +203,9 @@ class TorchUtilsTest(testing.TestCase):
         new_model.compile(optimizer="sgd", loss="mse")
         new_model.load_weights(temp_filepath)
         for ref_w, new_w in zip(model.get_weights(), new_model.get_weights()):
-            self.assertAllClose(ref_w, new_w, atol=1e-5)
+            self.assertAllClose(new_w, ref_w, atol=1e-5)
         loss = new_model.evaluate(x_test, y_test)
-        self.assertAllClose(ref_loss, loss, atol=1e-5)
+        self.assertAllClose(loss, ref_loss, atol=1e-5)
 
     @parameterized.parameters(
         {"use_batch_norm": False, "num_torch_layers": 1},
@@ -226,9 +226,9 @@ class TorchUtilsTest(testing.TestCase):
 
         new_model = saving.load_model(temp_filepath)
         for ref_w, new_w in zip(model.get_weights(), new_model.get_weights()):
-            self.assertAllClose(ref_w, new_w, atol=1e-5)
+            self.assertAllClose(new_w, ref_w, atol=1e-5)
         loss = new_model.evaluate(x_test, y_test)
-        self.assertAllClose(ref_loss, loss, atol=1e-5)
+        self.assertAllClose(loss, ref_loss, atol=1e-5)
 
     def test_from_config(self):
         module = torch.nn.Sequential(torch.nn.Linear(2, 4))
@@ -236,7 +236,7 @@ class TorchUtilsTest(testing.TestCase):
         config = mw.get_config()
         new_mw = TorchModuleWrapper.from_config(config)
         for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
-            self.assertAllClose(ref_w, new_w, atol=1e-5)
+            self.assertAllClose(new_w, ref_w, atol=1e-5)
 
     def test_build_model(self):
         x = keras.Input([4])

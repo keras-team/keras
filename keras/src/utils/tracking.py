@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from functools import wraps
 
 from keras.src import tree
@@ -93,8 +94,9 @@ class Tracker:
             return attr.__class__(wrapped_attr)
         elif isinstance(attr, list):
             return TrackedList(attr, self)
+        elif isinstance(attr, OrderedDict):
+            return TrackedOrderedDict(attr, self)
         elif isinstance(attr, dict):
-            # TODO: OrderedDict?
             return TrackedDict(attr, self)
         elif isinstance(attr, set):
             return TrackedSet(attr, self)
@@ -220,8 +222,15 @@ class TrackedDict(dict):
     def __init__(self, values=None, tracker=None):
         self.tracker = tracker
         if tracker and values:
-            values = {k: tracker.track(v) for k, v in values.items()}
-        super().__init__(values or [])
+            # Accept either a mapping (with .items()) or an iterable of
+            # (key, value) pairs (e.g. a zip object). Normalize to an
+            # items iterator before tracking elements.
+            if hasattr(values, "items"):
+                items_iter = values.items()
+            else:
+                items_iter = values
+            values = {k: tracker.track(v) for k, v in items_iter}
+        super().__init__(values or {})
 
     def __setitem__(self, key, value):
         if self.tracker:
@@ -233,14 +242,23 @@ class TrackedDict(dict):
             mapping = {k: self.tracker.track(v) for k, v in mapping.items()}
         super().update(mapping)
 
-    def pop(self, key, default=None):
-        if self.tracker:
-            value = super().pop(key, default)
-            if value is not default:
-                self.tracker.untrack(value)
+    def pop(self, key, *args):
+        if len(args) > 1:
+            raise TypeError(
+                f"pop expected at most 2 arguments, got {1 + len(args)}"
+            )
+
+        if not self.tracker:
+            return super().pop(key, *args)
+
+        try:
+            value = super().pop(key)
+            self.tracker.untrack(value)
             return value
-        else:
-            return super().pop(key, default)
+        except KeyError:
+            if args:
+                return args[0]
+            raise
 
     def popitem(self):
         key, value = super().popitem()
@@ -281,6 +299,85 @@ class TrackedDict(dict):
     def torchtree_flatten_with_keys(self):
         # For torchtree
         # Returns (children, metadata)
+        from torch.utils import _pytree as torch_tree
+
+        values, context = self.torchtree_flatten()
+        return [
+            (torch_tree.MappingKey(k), v) for k, v in zip(context, values)
+        ], context
+
+
+@tree.register_tree_node_class
+class TrackedOrderedDict(OrderedDict):
+    def __init__(self, values=None, tracker=None):
+        self.tracker = tracker
+        if tracker and values:
+            if hasattr(values, "items"):
+                items_iter = values.items()
+            else:
+                items_iter = dict(values).items()
+            values = OrderedDict((k, tracker.track(v)) for k, v in items_iter)
+        super().__init__(values or OrderedDict())
+
+    def __setitem__(self, key, value):
+        if self.tracker:
+            self.tracker.track(value)
+        super().__setitem__(key, value)
+
+    def update(self, mapping):
+        if self.tracker:
+            mapping = OrderedDict(
+                (k, self.tracker.track(v)) for k, v in mapping.items()
+            )
+        super().update(mapping)
+
+    def pop(self, key, *args):
+        if len(args) > 1:
+            raise TypeError(
+                f"pop expected at most 2 arguments, got {1 + len(args)}"
+            )
+        if not self.tracker:
+            return super().pop(key, *args)
+        try:
+            value = super().pop(key)
+            self.tracker.untrack(value)
+            return value
+        except KeyError:
+            if args:
+                return args[0]
+            raise
+
+    def popitem(self, last=True):
+        key, value = super().popitem(last=last)
+        if self.tracker:
+            self.tracker.untrack(value)
+        return key, value
+
+    def clear(self):
+        if self.tracker:
+            for value in self.values():
+                self.tracker.untrack(value)
+        super().clear()
+
+    def tree_flatten(self):
+        keys = list(self.keys())
+        values = [self[k] for k in keys]
+        return values, keys, keys
+
+    @classmethod
+    def tree_unflatten(cls, keys, values):
+        return cls(zip(keys, values))
+
+    def torchtree_flatten(self):
+        keys = list(self.keys())
+        values = [self[k] for k in keys]
+        return values, keys
+
+    @classmethod
+    def torchtree_unflatten(cls, values, keys):
+        return cls(zip(keys, values))
+
+    def torchtree_flatten_with_keys(self):
         from torch.utils import _pytree as torch_tree
 
         values, context = self.torchtree_flatten()

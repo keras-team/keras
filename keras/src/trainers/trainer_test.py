@@ -117,7 +117,8 @@ class ListInputModel(Trainer, layers.Layer):
         )
 
     def call(self, x):
-        assert isinstance(x, (list, tuple))
+        if not isinstance(x, (list, tuple)):
+            raise ValueError("x must be a list or tuple")
         return self.dense_1(x[0]) + self.dense_2(x[1])
 
 
@@ -223,7 +224,7 @@ def create_dataset(dataset_type, dataset_kwargs):
             return generate_infinite(), None
         else:
             return generate_finite(), None
-    elif dataset_type == "grain_datast":
+    elif dataset_type == "grain_dataset":
         import grain
 
         class TestIterableDataset(grain.sources.RandomAccessDataSource):
@@ -336,12 +337,14 @@ class StepCount(Callback):
         self.epoch_end_count += 1
 
     def on_batch_begin(self, batch, logs=None):
-        assert batch == self.begin_count * self.steps_per_execution
+        if batch != self.begin_count * self.steps_per_execution:
+            raise ValueError("Batch index is not correct")
         self.begin_count += 1
 
     def on_batch_end(self, batch, logs=None):
         self.end_count += 1
-        assert batch == self.end_count * self.steps_per_execution - 1
+        if batch != self.end_count * self.steps_per_execution - 1:
+            raise ValueError("Batch index is not correct")
 
 
 class TestTrainer(testing.TestCase):
@@ -499,18 +502,6 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     def test_fit_flow(self, run_eagerly, jit_compile, use_steps_per_epoch):
-        if not run_eagerly and not jit_compile and use_steps_per_epoch:
-            if False and backend.backend() == "tensorflow":
-                self.skipTest(
-                    "TODO: Graph mode without XLA in TF backend leads to "
-                    "unexpected logs, need further checks."
-                )
-        if jit_compile and backend.backend() == "torch":
-            self.skipTest(
-                "TODO: compilation with torch backend leads to "
-                "unexpected logs, need further checks."
-            )
-
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -651,18 +642,18 @@ class TestTrainer(testing.TestCase):
                 "fit_kwargs": {"steps_per_epoch": 20},
             },
             {
-                "testcase_name": "grain_datast",
-                "dataset_type": "grain_datast",
+                "testcase_name": "grain_dataset",
+                "dataset_type": "grain_dataset",
                 "dataset_kwargs": {"has_len": False},
             },
             {
-                "testcase_name": "grain_datast_with_len",
-                "dataset_type": "grain_datast",
+                "testcase_name": "grain_dataset_with_len",
+                "dataset_type": "grain_dataset",
                 "dataset_kwargs": {"has_len": True},
             },
             {
                 "testcase_name": "grain_dataloader",
-                "dataset_type": "grain_datast",
+                "dataset_type": "grain_dataset",
                 "dataset_kwargs": {"use_dataloader": True},
             },
         ]
@@ -672,12 +663,12 @@ class TestTrainer(testing.TestCase):
         self, dataset_type, dataset_kwargs={}, fit_kwargs={}
     ):
         jit_compile = True
-        if (
-            dataset_kwargs.get("use_multiprocessing", False)
-            and backend.backend() == "jax"
-        ):
-            pytest.skip("Multiprocessing not supported with JAX backend")
-        if dataset_type == "grain_datast" and backend.backend() == "torch":
+        if dataset_kwargs.get("use_multiprocessing", False):
+            if backend.backend() == "jax":
+                pytest.skip("Multiprocessing not supported with JAX backend")
+            elif backend.backend() == "tensorflow":
+                pytest.skip("Multiprocessing hangs on Tensorflow")
+        if dataset_type == "grain_dataset" and backend.backend() == "torch":
             # Grain datasets are not supported with torch + jit_compile.
             jit_compile = False
 
@@ -706,13 +697,6 @@ class TestTrainer(testing.TestCase):
     def test_fit_with_val_split(
         self, run_eagerly, jit_compile, use_steps_per_epoch
     ):
-        if not run_eagerly and not jit_compile and use_steps_per_epoch:
-            if backend.backend() == "tensorflow":
-                self.skipTest(
-                    "TODO: Graph mode without XLA in TF backend leads to "
-                    "unexpected logs, need further checks."
-                )
-
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -961,6 +945,8 @@ class TestTrainer(testing.TestCase):
         reason="Memory optimization is only implemented in JAX",
     )
     def test_fit_eval_flow_for_jax_model_weights(self):
+        test_obj = self
+
         model = ExampleModel(units=3)
         epochs = 3
         batch_size = 20
@@ -977,19 +963,19 @@ class TestTrainer(testing.TestCase):
             # will trigger a sync of the jax training state back to the model.
             def on_train_batch_end(self, batch, logs=None):
                 for v in self._model.trainable_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.non_trainable_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.optimizer.variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.metrics_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
 
             def on_test_batch_end(self, batch, logs=None):
                 for v in self._model.non_trainable_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
                 for v in self._model.metrics_variables:
-                    assert v._value is None
+                    test_obj.assertIsNone(v._value)
 
         model.compile(
             optimizer=optimizers.SGD(),
@@ -1731,6 +1717,8 @@ class TestTrainer(testing.TestCase):
         reason="`steps_per_execution` not implemented for torch yet",
     )
     def test_steps_per_execution_steps_count_without_training(self):
+        test_obj = self
+
         class StepCount(Callback):
             def __init__(self):
                 super().__init__()
@@ -1739,11 +1727,11 @@ class TestTrainer(testing.TestCase):
                 self.batches = [0, 3, 6]
 
             def on_test_batch_begin(self, batch, logs=None):
-                assert batch == self.batches[self.test_count]
+                test_obj.assertEqual(batch, self.batches[self.test_count])
                 self.test_count += 1
 
             def on_predict_batch_begin(self, batch, logs=None):
-                assert batch == self.batches[self.predict_count]
+                test_obj.assertEqual(batch, self.batches[self.predict_count])
                 self.predict_count += 1
 
         x = np.ones((100, 4))
@@ -1894,17 +1882,17 @@ class TestTrainer(testing.TestCase):
         logs = model.train_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 15.579, tpu_decimal=1)
+        self.assertAlmostEqual(logs["loss"], 15.158, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y)
         self.assertIsInstance(logs, list)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs[0], 15.173, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 14.360, tpu_decimal=1)
 
         logs = model.test_on_batch(x, y, return_dict=True)
         self.assertIsInstance(logs, dict)
         self.assertEqual(len(logs), 2)
-        self.assertAlmostEqual(logs["loss"], 14.97, tpu_decimal=1)
+        self.assertAlmostEqual(logs["loss"], 14.360, tpu_decimal=1)
 
         output = model.predict_on_batch(x)
         self.assertIsInstance(output, np.ndarray)
@@ -1917,9 +1905,9 @@ class TestTrainer(testing.TestCase):
 
         # With sample weights
         logs = model.train_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.819, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 14.217, tpu_decimal=1)
         logs = model.test_on_batch(x, y, sw)
-        self.assertAlmostEqual(logs[0], 14.595, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 13.476, tpu_decimal=1)
         output = model.predict_on_batch(x)
         self.assertAllClose(
             output[0],
@@ -1930,7 +1918,7 @@ class TestTrainer(testing.TestCase):
 
         # With class weights
         logs = model.train_on_batch(x, y, class_weight={1: 0.3, 0: 0.2})
-        self.assertAlmostEqual(logs[0], 12.899, tpu_decimal=1)
+        self.assertAlmostEqual(logs[0], 2.722, tpu_decimal=1)
 
     @parameterized.named_parameters(
         [
@@ -2007,7 +1995,7 @@ class TestTrainer(testing.TestCase):
             batch_size=4,
             validation_data=(x_test, y_test),
         )
-        assert getattr(model, "_eval_epoch_iterator", None) is None
+        self.assertIsNone(getattr(model, "_eval_epoch_iterator", None))
 
         # Try model.fit with reshaped validation_data
         # This will throw an exception which is intended
@@ -2032,76 +2020,84 @@ class TestTrainer(testing.TestCase):
             batch_size=4,
             validation_data=(x_test, y_test),
         )
-        assert getattr(model, "_eval_epoch_iterator", None) is None
+        self.assertIsNone(getattr(model, "_eval_epoch_iterator", None))
 
     @pytest.mark.requires_trainable_backend
     def test_callback_methods_keys(self):
+        test_obj = self
+
         class CustomCallback(Callback):
             def on_train_begin(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_train_end(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == [
-                    "loss",
-                    "mean_absolute_error",
-                    "val_loss",
-                    "val_mean_absolute_error",
-                ]
+                test_obj.assertEqual(
+                    keys,
+                    [
+                        "loss",
+                        "mean_absolute_error",
+                        "val_loss",
+                        "val_mean_absolute_error",
+                    ],
+                )
 
             def on_epoch_begin(self, epoch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_epoch_end(self, epoch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == [
-                    "loss",
-                    "mean_absolute_error",
-                    "val_loss",
-                    "val_mean_absolute_error",
-                ]
+                test_obj.assertEqual(
+                    keys,
+                    [
+                        "loss",
+                        "mean_absolute_error",
+                        "val_loss",
+                        "val_mean_absolute_error",
+                    ],
+                )
 
             def on_test_begin(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_test_end(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["loss", "mean_absolute_error"]
+                test_obj.assertEqual(keys, ["loss", "mean_absolute_error"])
 
             def on_predict_begin(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_predict_end(self, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_train_batch_begin(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_train_batch_end(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["loss", "mean_absolute_error"]
+                test_obj.assertEqual(keys, ["loss", "mean_absolute_error"])
 
             def on_test_batch_begin(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_test_batch_end(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["loss", "mean_absolute_error"]
+                test_obj.assertEqual(keys, ["loss", "mean_absolute_error"])
 
             def on_predict_batch_begin(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == []
+                test_obj.assertEqual(keys, [])
 
             def on_predict_batch_end(self, batch, logs=None):
                 keys = sorted(list(logs.keys()))
-                assert keys == ["outputs"]
+                test_obj.assertEqual(keys, ["outputs"])
 
         model = ExampleModel(units=3)
         model.compile(
@@ -2294,7 +2290,7 @@ class TestTrainer(testing.TestCase):
         train_out = model.train_on_batch(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
-        self.assertAllClose(train_out[0], 15.2200, tpu_atol=1e-1, tpu_rtol=1e-1)
+        self.assertAllClose(train_out[0], 14.44, tpu_atol=1e-1, tpu_rtol=1e-1)
         eval_out = model.evaluate(
             [np.ones((3, 2)), np.ones((3, 3))], np.ones((3, 2))
         )
@@ -2893,9 +2889,8 @@ class JAXTrainerCorrectnessTest(test_case.TestCase, parameterized.TestCase):
         ("single_device", False),
         ("distributed", True),
     )
+    @pytest.mark.skipif(backend.backend() != "jax", reason="JAX only")
     def test_jit_fit_with_out_shardings_logic(self, distributed):
-        if keras.backend.backend() != "jax":
-            self.skipTest("This test requires the JAX backend.")
         x = np.random.rand(64, 8).astype("float32")
         y = np.random.rand(64, 1).astype("float32")
 

@@ -106,8 +106,8 @@ class ReversibleEmbedding(layers.Embedding):
         self.reverse_dtype = reverse_dtype
         self.logit_soft_cap = logit_soft_cap
 
-    def build(self, inputs_shape=None):
-        super().build(inputs_shape)
+    def build(self, input_shape=None):
+        super().build(input_shape)
         if not self.tie_weights and self.quantization_mode not in (
             "int8",
             "int4",

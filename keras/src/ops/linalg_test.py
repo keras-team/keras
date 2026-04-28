@@ -86,6 +86,18 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(lu.shape, (None, 2, 3))
         self.assertEqual(p.shape, (None, 2))
 
+    def test_matrix_rank(self):
+        x = KerasTensor([None, 4, 5])
+        out = linalg.matrix_rank(x)
+        self.assertEqual(out.shape, (None,))
+
+        x = KerasTensor([None, 3, 3])
+        self.assertEqual(linalg.matrix_rank(x).shape, (None,))
+
+        x = KerasTensor([None])
+        with self.assertRaises(ValueError):
+            linalg.matrix_rank(x)
+
     def test_norm(self):
         x = KerasTensor((None, 3))
         self.assertEqual(linalg.norm(x).shape, ())
@@ -262,6 +274,15 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(lu.shape, (10, 2, 3))
         self.assertEqual(p.shape, (10, 2))
 
+    def test_matrix_rank(self):
+        x = KerasTensor([4, 3, 5])
+        out = linalg.matrix_rank(x)
+        self.assertEqual(out.shape, (4,))
+
+        x = KerasTensor([10])
+        with self.assertRaises(ValueError):
+            linalg.matrix_rank(x)
+
     def test_norm(self):
         x = KerasTensor((10, 3))
         self.assertEqual(linalg.norm(x).shape, ())
@@ -342,9 +363,15 @@ class LinalgOpsStaticShapeTest(testing.TestCase):
 
 class LinalgOpsCorrectnessTest(testing.TestCase):
     def test_cholesky(self):
-        x_non_psd = np.random.rand(4, 3, 3).astype("float32")
-        with self.assertRaises(ValueError):
-            linalg.cholesky(x_non_psd)
+        if backend.backend() != "openvino":
+            # OpenVINO builds a lazy graph and cannot raise on non-PSD inputs
+            # at graph-construction time; sqrt of a negative produces
+            # NaN silently at inference. There is no check_numerics equivalent
+            # in opset15 that can interrupt execution and surface a Python
+            # exception.
+            x_non_psd = np.random.rand(4, 3, 3).astype("float32")
+            with self.assertRaises(ValueError):
+                linalg.cholesky(x_non_psd)
 
         x = np.random.rand(4, 3, 3).astype("float32")
         x_psd = np.matmul(x, x.transpose((0, 2, 1))) + 1e-5 * np.eye(
@@ -404,9 +431,10 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
             x = np.random.rand(4, 3, 4)
             linalg.det(x)
 
+    @pytest.mark.skipif(
+        testing.jax_uses_tpu(), reason="Unsupported on JAX with TPU"
+    )
     def test_eig(self):
-        if testing.uses_tpu():
-            self.skipTest("Skipping test with JAX + TPU as it's not supported")
         x = np.random.rand(2, 3, 3)
         x = x @ x.transpose((0, 2, 1))
         w, v = map(ops.convert_to_numpy, linalg.eig(x))
@@ -535,13 +563,13 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         x = np.random.random((4, 5))
         q, r = linalg.qr(x, mode="reduced")
         qref, rref = np.linalg.qr(x, mode="reduced")
-        self.assertAllClose(qref, q)
-        self.assertAllClose(rref, r)
+        self.assertAllClose(q, qref)
+        self.assertAllClose(r, rref)
 
         q, r = linalg.qr(x, mode="complete")
         qref, rref = np.linalg.qr(x, mode="complete")
-        self.assertAllClose(qref, q)
-        self.assertAllClose(rref, r)
+        self.assertAllClose(q, qref)
+        self.assertAllClose(r, rref)
 
     def test_solve(self):
         x1 = np.array([[1, 2], [4, 5]], dtype="float32")
@@ -608,6 +636,40 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
 
         out_symb = linalg.lstsq(a_symb, b_symb)
         self.assertEqual(out_symb.shape, out.shape)
+
+    def test_matrix_rank(self):
+        # Full-rank tall matrix: rank equals number of columns.
+        rng = np.random.default_rng(42)
+        a_full = rng.standard_normal((6, 3)).astype("float32")
+        self.assertEqual(
+            int(ops.convert_to_numpy(linalg.matrix_rank(a_full))), 3
+        )
+
+        # Rank-1 matrix (outer product).
+        u = rng.standard_normal((5,)).astype("float32")
+        v = rng.standard_normal((4,)).astype("float32")
+        a_rank1 = np.outer(u, v)
+        self.assertEqual(
+            int(ops.convert_to_numpy(linalg.matrix_rank(a_rank1))), 1
+        )
+
+        # Batched rank: two stacked full-rank 3x3 matrices.
+        batched = rng.standard_normal((2, 3, 3)).astype("float32")
+        out = linalg.matrix_rank(batched)
+        self.assertAllClose(ops.convert_to_numpy(out), [3, 3])
+
+        # tol argument collapses singular values below the threshold.
+        a_near_singular = np.array(
+            [[1.0, 2.0], [2.0, 4.000001]], dtype="float32"
+        )
+        rank_loose = int(
+            ops.convert_to_numpy(linalg.matrix_rank(a_near_singular, tol=1e-2))
+        )
+        self.assertEqual(rank_loose, 1)
+
+        # Symbolic shape propagation.
+        a_symb = backend.KerasTensor((4, 3, 5), dtype="float32")
+        self.assertEqual(linalg.matrix_rank(a_symb).shape, (4,))
 
 
 class QrOpTest(testing.TestCase):

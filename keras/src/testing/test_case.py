@@ -1,14 +1,12 @@
 import json
 import shutil
 import tempfile
-import unittest
 from pathlib import Path
 
 import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
-from keras.src import distribution
 from keras.src import ops
 from keras.src import tree
 from keras.src import utils
@@ -21,7 +19,7 @@ from keras.src.models import Model
 from keras.src.utils import traceback_utils
 
 
-class TestCase(parameterized.TestCase, unittest.TestCase):
+class TestCase(parameterized.TestCase):
     maxDiff = None
 
     def __init__(self, *args, **kwargs):
@@ -40,29 +38,41 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(temp_dir))
         return temp_dir
 
+    def convert_to_numpy(self, x):
+        if isinstance(x, np.ndarray):
+            return x
+        elif backend.is_tensor(x) or isinstance(x, backend.Variable):
+            return backend.convert_to_numpy(x)
+        return np.array(x)
+
     def assertAllClose(
         self,
-        x1,
-        x2,
+        actual,
+        desired,
         atol=1e-6,
         rtol=1e-6,
         tpu_atol=None,
         tpu_rtol=None,
         msg=None,
     ):
+        """Assert that two arrays are equal up to given tolerances.
+
+        Given two array-like objects, check that their shapes and all elements
+        are equal up to given tolerances.
+        """
         if tpu_atol is not None and uses_tpu():
             atol = tpu_atol
         if tpu_rtol is not None and uses_tpu():
             rtol = tpu_rtol
-        if not isinstance(x1, np.ndarray):
-            x1 = backend.convert_to_numpy(x1)
-        if not isinstance(x2, np.ndarray):
-            x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_allclose(x1, x2, atol=atol, rtol=rtol, err_msg=msg)
+        actual = self.convert_to_numpy(actual)
+        desired = self.convert_to_numpy(desired)
+        np.testing.assert_allclose(
+            actual, desired, atol=atol, rtol=rtol, err_msg=msg or ""
+        )
 
     def assertNotAllClose(self, x1, x2, atol=1e-6, rtol=1e-6, msg=None):
         try:
-            self.assertAllClose(x1, x2, atol=atol, rtol=rtol, msg=msg)
+            self.assertAllClose(x1, x2, atol=atol, rtol=rtol)
         except AssertionError:
             return
         msg = msg or ""
@@ -70,25 +80,32 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
             f"The two values are close at all elements. \n{msg}.\nValues: {x1}"
         )
 
-    def assertAlmostEqual(self, x1, x2, decimal=3, tpu_decimal=None, msg=None):
+    def assertAlmostEqual(
+        self, actual, desired, decimal=3, tpu_decimal=None, msg=None
+    ):
+        """Assert that two arrays are equal up to given decimal places.
+
+        Given two array-like objects, check that their shapes and all elements
+        are equal up to given decimal places.
+        """
         if tpu_decimal is not None and uses_tpu():
             decimal = tpu_decimal
         msg = msg or ""
-        if not isinstance(x1, np.ndarray):
-            x1 = backend.convert_to_numpy(x1)
-        if not isinstance(x2, np.ndarray):
-            x2 = backend.convert_to_numpy(x2)
-        np.testing.assert_almost_equal(x1, x2, decimal=decimal, err_msg=msg)
+        actual = self.convert_to_numpy(actual)
+        desired = self.convert_to_numpy(desired)
+        np.testing.assert_almost_equal(
+            actual, desired, decimal=decimal, err_msg=msg or ""
+        )
 
-    def assertAllEqual(self, x1, x2, msg=None):
-        self.assertEqual(len(x1), len(x2), msg=msg)
-        for e1, e2 in zip(x1, x2):
-            if isinstance(e1, (list, tuple)) or isinstance(e2, (list, tuple)):
-                self.assertAllEqual(e1, e2, msg=msg)
-            else:
-                e1 = backend.convert_to_numpy(e1)
-                e2 = backend.convert_to_numpy(e2)
-                self.assertEqual(e1, e2, msg=msg)
+    def assertAllEqual(self, actual, desired, msg=None):
+        """Assert that two arrays are equal.
+
+        Given two array-like objects, check that their shapes and all elements
+        are equal.
+        """
+        actual = self.convert_to_numpy(actual)
+        desired = self.convert_to_numpy(desired)
+        np.testing.assert_array_equal(actual, desired, err_msg=msg or "")
 
     def assertLen(self, iterable, expected_len, msg=None):
         self.assertEqual(len(iterable), expected_len, msg=msg)
@@ -582,7 +599,10 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                 tpu_rtol=tpu_rtol,
             )
 
-            if run_training_check:
+            if run_training_check and backend.backend() not in (
+                "numpy",
+                "openvino",
+            ):
                 run_training_step(layer, input_data, output_data)
 
             # Never test mixed precision on torch CPU. Torch lacks support.
@@ -626,43 +646,68 @@ class TestCase(parameterized.TestCase, unittest.TestCase):
                         self.assertEqual(dtype, "float32")
 
 
-def tensorflow_uses_gpu():
-    return backend.backend() == "tensorflow" and uses_gpu()
+def _jax_uses(device_type):
+    import jax
+
+    return jax.default_backend() == device_type
+
+
+def _tensorflow_uses(device_type):
+    import tensorflow as tf
+
+    return len(tf.config.list_physical_devices(device_type.upper())) > 0
+
+
+def _torch_uses(device_type):
+    if device_type == "gpu":
+        from keras.src.backend.torch.core import get_device
+
+        return get_device() == "cuda"
+    return device_type == "cpu"
+
+
+def uses_gpu():
+    if not hasattr(uses_gpu, "_value"):
+        if backend.backend() == "tensorflow":
+            uses_gpu._value = _tensorflow_uses("gpu")
+        elif backend.backend() == "jax":
+            uses_gpu._value = _jax_uses("gpu")
+        elif backend.backend() == "torch":
+            uses_gpu._value = _torch_uses("gpu")
+        else:
+            uses_gpu._value = False
+    return uses_gpu._value
+
+
+def uses_tpu():
+    if not hasattr(uses_tpu, "_value"):
+        if backend.backend() == "tensorflow":
+            uses_tpu._value = _tensorflow_uses("tpu")
+        elif backend.backend() == "jax":
+            uses_tpu._value = _jax_uses("tpu")
+        else:
+            uses_tpu._value = False
+    return uses_tpu._value
 
 
 def jax_uses_gpu():
     return backend.backend() == "jax" and uses_gpu()
 
 
-def torch_uses_gpu():
-    if backend.backend() != "torch":
-        return False
-    from keras.src.backend.torch.core import get_device
-
-    return get_device() == "cuda"
-
-
-def uses_gpu():
-    # Condition used to skip tests when using the GPU
-    devices = distribution.list_devices()
-    if any(d.startswith("gpu") for d in devices):
-        return True
-    return False
-
-
 def jax_uses_tpu():
     return backend.backend() == "jax" and uses_tpu()
 
 
-def uses_tpu():
-    # Condition used to skip tests when using the TPU
-    try:
-        devices = distribution.list_devices()
-        if any(d.startswith("tpu") for d in devices):
-            return True
-    except AttributeError:
-        return False
-    return False
+def tensorflow_uses_gpu():
+    return backend.backend() == "tensorflow" and uses_gpu()
+
+
+def tensorflow_uses_tpu():
+    return backend.backend() == "tensorflow" and uses_tpu()
+
+
+def torch_uses_gpu():
+    return backend.backend() == "torch" and uses_gpu()
 
 
 def create_keras_tensors(input_shape, dtype, sparse, ragged):

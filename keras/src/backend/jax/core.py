@@ -1,3 +1,6 @@
+import inspect
+import math
+
 import jax
 import jax.experimental.sparse as jax_sparse
 import jax.numpy as jnp
@@ -24,24 +27,12 @@ IS_THREAD_SAFE = True
 
 
 class JaxVariable(KerasVariable):
-    def __init__(self, *args, layout=None, **kwargs):
-        # Intercept layout parameter so that it is available
-        # during initialization.
-        self._layout = layout
-        super().__init__(*args, **kwargs)
-
     def _initialize_layout(self):
         # We can't import the keras/distribution/distribution_lib
         # due to circular dependency.
         distribution = global_state.get_global_attribute("distribution")
         if self._layout is None and distribution is not None:
-            tensor_layout = distribution.get_variable_layout(self)
-            from keras.src.distribution import TensorLayout
-
-            if isinstance(tensor_layout, TensorLayout):
-                self._layout = tensor_layout.backend_layout
-            else:
-                self._layout = tensor_layout
+            self._layout = distribution.get_variable_layout(self)
 
     def _initialize(self, value):
         # Note that variable.shape is needed by distribution_lib
@@ -50,13 +41,36 @@ class JaxVariable(KerasVariable):
         self._direct_assign(value)
 
     def _initialize_with_initializer(self, initializer):
+        from keras.src.distribution.distribution_lib import TensorLayout
+
         self._initialize_layout()
-        layout = self._layout
-        shape = self._shape
-        if should_shard_at_init(layout, shape):
+        jax_layout = (
+            self._layout.backend_layout
+            if isinstance(self._layout, TensorLayout)
+            else self._layout
+        )
+
+        if self._layout is None:
+            super()._initialize_with_initializer(initializer)
+        elif "layout" in inspect.signature(initializer).parameters:
+            with jax.set_mesh(jax_layout.mesh):
+                # Force explicit axes in this context, otherwise `out_sharding`
+                # in ops ends up being ignored.
+
+                @jax.sharding.explicit_axes
+                def explicit_initializer():
+                    explicit_layout = jax.sharding.NamedSharding(
+                        jax.sharding.get_abstract_mesh(), jax_layout.spec
+                    )
+                    return initializer(
+                        self._shape, dtype=self._dtype, layout=explicit_layout
+                    )
+
+                self._value = explicit_initializer(in_sharding=None)
+        elif should_shard_at_init(jax_layout, self._shape):
             jitted_initializer = jax.jit(
                 initializer.__call__,
-                out_shardings=layout,
+                out_shardings=jax_layout,
                 static_argnames=["shape", "dtype"],
             )
             value = jitted_initializer(shape=self._shape, dtype=self._dtype)
@@ -66,7 +80,7 @@ class JaxVariable(KerasVariable):
 
     def _direct_assign(self, value):
         if self._layout is not None:
-            value = distribution_lib.distribute_variable(value, self._layout)
+            value = distribution_lib.distribute_tensor(value, self._layout)
         self._value = value
 
     def _convert_to_tensor(self, value, dtype=None):
@@ -110,9 +124,6 @@ if config.is_nnx_enabled():
             # Initialize nnx.Variable first
             nnx.Variable.__init__(self, value=dummy_value, **nnx_metadata)
 
-            # Now we can safely set layout
-            self._layout = layout
-
             # Initialize JaxVariable (which will call KerasVariable.__init__
             # and set up the real value).
             JaxVariable.__init__(
@@ -125,6 +136,7 @@ if config.is_nnx_enabled():
                 aggregation=aggregation,
                 synchronization=synchronization,
                 name=name,
+                layout=layout,
             )
 
             # The real value is now set in self._value, sync it to raw_value
@@ -214,9 +226,7 @@ if config.is_nnx_enabled():
         def _direct_assign(self, value):
             # Apply JAX-specific distribution if layout is present
             if self._layout is not None:
-                value = distribution_lib.distribute_variable(
-                    value, self._layout
-                )
+                value = distribution_lib.distribute_tensor(value, self._layout)
 
             # Apply on_set_value hook if it exists
             if (
@@ -313,15 +323,12 @@ if config.is_nnx_enabled():
 
 
 def should_shard_at_init(init_layout, shape):
-    if not isinstance(init_layout, jax.sharding.NamedSharding):
-        return False
-
-    if all(dim is None for dim in init_layout.spec):
-        return False
-
     size_threshold = 250 * 1024 * 1024
-    array_size = np.prod(shape) * 4
-    return array_size >= size_threshold
+    # We multiply by the mesh size here to take into account the worst case
+    # scenario of the array being first duplicated in the memory of one device
+    # before being transferred to the other devices.
+    size = math.prod(shape) * 4 * init_layout.mesh.devices.size
+    return size >= size_threshold
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
@@ -518,12 +525,23 @@ def scatter(indices, values, shape):
     return zeros.at[key].add(values)
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = jnp.array(indices)
     indices = jnp.transpose(indices)
-    inputs = inputs.at[tuple(indices)].set(updates)
-    return inputs
+    idx = tuple(indices)
+    if reduction is None:
+        return inputs.at[idx].set(updates)
+    elif reduction == "add":
+        return inputs.at[idx].add(updates)
+    elif reduction == "max":
+        return inputs.at[idx].max(updates)
+    elif reduction == "min":
+        return inputs.at[idx].min(updates)
+    elif reduction == "mul":
+        return inputs.at[idx].multiply(updates)
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
 
 
 def slice(inputs, start_indices, shape):

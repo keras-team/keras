@@ -34,10 +34,21 @@ class ModelCheckpoint(MonitorCallback):
     Example:
 
     ```python
-    model.compile(loss=..., optimizer=...,
-                  metrics=['accuracy'])
+    # Define a learning rate schedule
+    initial_learning_rate = 0.1
+    lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate,
+        decay_steps=100000,
+        decay_rate=0.96,
+        staircase=True,
+    )
 
-    EPOCHS = 10
+    model.compile(
+        optimizer=keras.optimizers.RMSprop(learning_rate=lr_schedule),
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+
     checkpoint_filepath = '/tmp/ckpt/checkpoint.model.keras'
     model_checkpoint_callback = keras.callbacks.ModelCheckpoint(
         filepath=checkpoint_filepath,
@@ -46,7 +57,9 @@ class ModelCheckpoint(MonitorCallback):
         save_best_only=True)
 
     # Model is saved at the end of every epoch, if it's the best seen so far.
-    model.fit(epochs=EPOCHS, callbacks=[model_checkpoint_callback])
+    model.fit(
+        x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback]
+    )
 
     # The model (that are considered the best) can be loaded as -
     keras.models.load_model(checkpoint_filepath)
@@ -62,10 +75,49 @@ class ModelCheckpoint(MonitorCallback):
 
     # Model weights are saved at the end of every epoch, if it's the best seen
     # so far.
-    model.fit(epochs=EPOCHS, callbacks=[model_checkpoint_callback])
+    model.fit(
+        x_train, y_train, epochs=10, callbacks=[model_checkpoint_callback]
+    )
 
     # The model weights (that are considered the best) can be loaded as -
     model.load_weights(checkpoint_filepath)
+    ```
+
+    Resuming training from weight-only checkpoints:
+
+    When using `save_weights_only=True`, the weights file includes the state
+    of the optimizer (including iteration count and learning rate state)
+    if the model is compiled at the time of saving.
+
+    To correctly resume training and restore the optimizer state (e.g., to
+    continue a learning rate schedule without resetting it), you must
+    **compile the model before loading the weights**.
+
+    ```python
+    # Define a learning rate schedule
+    initial_learning_rate = 0.1
+    lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+        initial_learning_rate,
+        decay_steps=100000,
+        decay_rate=0.96,
+        staircase=True,
+    )
+
+    # 1. Create a fresh model instance
+    model = get_model()
+
+    # 2. Compile the model *before* loading weights
+    model.compile(
+        optimizer=keras.optimizers.RMSprop(learning_rate=lr_schedule),
+        loss="sparse_categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+
+    # 3. Load weights (optimizer state is restored automatically)
+    model.load_weights(checkpoint_filepath)
+
+    # 4. Continue training
+    model.fit(x_train, y_train, epochs=10)
     ```
 
     Args:
@@ -142,7 +194,7 @@ class ModelCheckpoint(MonitorCallback):
         self.save_weights_only = save_weights_only
         self.save_freq = save_freq
         self._batches_seen_since_last_saving = 0
-        self._last_batch_seen = 0
+        self._last_batch_seen = None
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -187,7 +239,8 @@ class ModelCheckpoint(MonitorCallback):
         """Handles batch-level saving logic, supports steps_per_execution."""
         if self.save_freq == "epoch":
             return False
-        if batch <= self._last_batch_seen:  # New epoch.
+        if self._last_batch_seen is None or batch <= self._last_batch_seen:
+            # New epoch.
             add_batches = batch + 1  # batches are zero-indexed.
         else:
             add_batches = batch - self._last_batch_seen

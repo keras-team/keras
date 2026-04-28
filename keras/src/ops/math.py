@@ -778,6 +778,11 @@ def stft(
        [0.0, 0.64951905],
        [0.0, -0.64951905]]))
     """
+    if not isinstance(sequence_stride, int) or sequence_stride <= 0:
+        raise ValueError(
+            "`sequence_stride` must be a positive integer. "
+            f"Received: sequence_stride={sequence_stride}"
+        )
     if any_symbolic_tensors((x,)):
         return STFT(
             sequence_length=sequence_length,
@@ -846,6 +851,8 @@ class ISTFT(Operation):
                 output_size = output_size - (self.fft_length // 2) * 2
         else:
             output_size = None
+            if self.length is not None:
+                output_size = self.length
         new_shape = real.shape[:-2] + (output_size,)
         return KerasTensor(shape=new_shape, dtype=real.dtype)
 
@@ -904,11 +911,17 @@ def istft(
     >>> istft(stft(x, 1, 1, 1), 1, 1, 1)
     array([0.0, 1.0, 2.0, 3.0, 4.0])
     """
+    if not isinstance(sequence_stride, int) or sequence_stride <= 0:
+        raise ValueError(
+            "`sequence_stride` must be a positive integer. "
+            f"Received: sequence_stride={sequence_stride}"
+        )
     if any_symbolic_tensors(x):
         return ISTFT(
             sequence_length=sequence_length,
             sequence_stride=sequence_stride,
             fft_length=fft_length,
+            length=length,
             window=window,
             center=center,
         ).symbolic_call(x)

@@ -1,3 +1,5 @@
+import collections
+
 import tensorflow as tf
 
 from keras.src import tree
@@ -74,9 +76,11 @@ class TFLayer(KerasAutoTrackable):
             tracked_item = getattr(self, tracked_attr)
             if isinstance(tracked_item, tracking.TrackedList):
                 children[tracked_attr] = list(tracked_item)
-            if isinstance(tracked_item, tracking.TrackedDict):
+            elif isinstance(tracked_item, tracking.TrackedOrderedDict):
+                children[tracked_attr] = collections.OrderedDict(tracked_item)
+            elif isinstance(tracked_item, tracking.TrackedDict):
                 children[tracked_attr] = dict(tracked_item)
-            if isinstance(tracked_item, tracking.TrackedSet):
+            elif isinstance(tracked_item, tracking.TrackedSet):
                 children[tracked_attr] = list(tracked_item)
 
     def _get_save_spec(self, dynamic_batch=True):

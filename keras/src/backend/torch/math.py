@@ -2,10 +2,7 @@ import math
 
 import torch
 
-from keras.src.backend import config
 from keras.src.backend import standardize_dtype
-from keras.src.backend.common import dtypes
-from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.numpy import pad
@@ -83,18 +80,6 @@ def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     axis = tuple(range(x.dim())) if axis is None else axis
     return torch.logsumexp(x, dim=axis, keepdim=keepdims)
-
-
-def qr(x, mode="reduced"):
-    x = convert_to_tensor(x)
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    x = convert_to_tensor(x)
-    return torch.linalg.qr(x, mode=mode)
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
@@ -396,22 +381,6 @@ def erf(x):
 def erfinv(x):
     x = convert_to_tensor(x)
     return torch.erfinv(x)
-
-
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return torch.linalg.solve(a, b)
-
-
-def norm(x, ord=None, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    if standardize_dtype(x.dtype) == "int64":
-        dtype = config.floatx()
-    else:
-        dtype = dtypes.result_type(x.dtype, float)
-    x = cast(x, dtype)
-    return torch.linalg.norm(x, ord=ord, dim=axis, keepdim=keepdims)
 
 
 def logdet(x):

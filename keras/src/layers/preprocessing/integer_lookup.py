@@ -58,8 +58,8 @@ class IntegerLookup(IndexLookup):
             the vocabulary. Note that this size includes the OOV
             and mask tokens. Defaults to `None`.
         num_oov_indices: The number of out-of-vocabulary tokens to use.
-            If this value is more than 1, OOV inputs are modulated to
-            determine their OOV value.
+            If this value is more than 1, OOV inputs are hashed or modulated
+            to determine their OOV value (see `oov_method`).
             If this value is 0, OOV inputs will cause an error when calling
             the layer. Defaults to `1`.
         mask_token: An integer token that represents masked inputs. When
@@ -127,6 +127,23 @@ class IntegerLookup(IndexLookup):
             `"tf_idf"` output modes. Only supported with TensorFlow
             backend. If `True`, returns a `SparseTensor`
             instead of a dense `Tensor`. Defaults to `False`.
+        oov_method: Only relevant when `num_oov_indices > 1`. Controls how OOV
+            tokens are assigned to OOV buckets.
+            - `"floormod"` (default): uses `token % num_oov_indices`.
+              Preserves backwards compatibility but can produce severe bucket
+              imbalance when input IDs share a common factor with
+              `num_oov_indices` (e.g. all-even IDs with an even bucket count).
+            - `"farmhash"`: applies FarmHash64. Distributes OOV tokens
+            uniformly regardless of the arithmetic structure of the input IDs.
+            This parameter is ignored for string inputs, which always use
+            FarmHash64.
+        salt: Only valid when `oov_method="farmhash"`. If passed, the hash
+            function used for OOV bucket assignment will be SipHash64,
+            with these values used as an additional input (known as a
+            "salt" in cryptography).
+            Can be a tuple or list of 2 integers, or a single integer
+            (which is used for both key components). If `None` (default),
+            FarmHash64 is used. Defaults to `None`.
 
     Examples:
 
@@ -167,8 +184,9 @@ class IntegerLookup(IndexLookup):
 
     This example demonstrates how to use a lookup layer with multiple OOV
     indices.  When a layer is created with more than one OOV index, any OOV
-    tokens are hashed into the number of OOV buckets, distributing OOV tokens in
-    a deterministic fashion across the set.
+    tokens are hashed or modulated into the number of OOV buckets, distributing
+    OOV tokens in a deterministic fashion across the set. Use `oov_method` to
+    control whether `floormod` or FarmHash64 is used.
 
     >>> vocab = [12, 36, 1138, 42]
     >>> data = np.array([[12, 1138, 42], [37, 1000, 36]])
@@ -181,6 +199,22 @@ class IntegerLookup(IndexLookup):
     1000 is 0. The in-vocab terms have their output index increased by 1 from
     earlier examples (12 maps to 2, etc) in order to make space for the extra
     OOV token.
+
+    **Uniform OOV distribution with FarmHash**
+
+    This example shows how `oov_method="farmhash"` avoids the bucket imbalance
+    that `"floormod"` produces for arithmetically structured input IDs.
+
+    >>> vocab = [10, 20, 30]
+    >>> layer_floormod = IntegerLookup(
+    ...     vocabulary=vocab, num_oov_indices=4, oov_method="floormod")
+    >>> layer_farmhash = IntegerLookup(
+    ...     vocabulary=vocab, num_oov_indices=4, oov_method="farmhash")
+    >>> oov_values = np.array([100, 300, 700, 1100, 1700, 2000])
+    >>> layer_floormod(oov_values)
+    tf.Tensor([0 0 0 0 0 0], shape=(6,), dtype=int64) # All map to index 0
+    >>> layer_farmhash(oov_values)
+    tf.Tensor([3 3 2 2 0 1], shape=(6,), dtype=int64) # Spread across indices
 
     **One-hot output**
 
@@ -311,6 +345,8 @@ class IntegerLookup(IndexLookup):
         output_mode="int",
         sparse=False,
         pad_to_max_tokens=False,
+        oov_method="floormod",
+        salt=None,
         name=None,
         **kwargs,
     ):
@@ -352,6 +388,8 @@ class IntegerLookup(IndexLookup):
             output_mode=output_mode,
             sparse=sparse,
             pad_to_max_tokens=pad_to_max_tokens,
+            oov_method=oov_method,
+            salt=salt,
             name=name,
             **kwargs,
         )

@@ -13,78 +13,87 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  run_cpu_tests:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.11']
         backend: [tensorflow, jax, torch, numpy, openvino]
         nnx_enabled: [false]
         include:
-          - python-version: '3.11'
-            backend: jax
+          - backend: jax
             nnx_enabled: true
-    name: ${{ matrix.backend == 'jax' && format('Run tests ({0}, {1}, nnx_enabled = {2})', matrix.python-version, matrix.backend, matrix.nnx_enabled) || format('Run tests ({0}, {1})', matrix.python-version, matrix.backend) }}
-    runs-on: ubuntu-latest
+
+    container:
+      image: python:3.11-slim
+      options: --privileged --network host
+
+    name: ${{ format('Run tests on CPU ({0}{1})', matrix.backend, matrix.nnx_enabled && ', NNX' || '') }}
+    runs-on: linux-x86-n2-16
+    timeout-minutes: 120
+
     env:
-      PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Install binary dependencies
+        # build-essential is the C++ compiler for Torch Dynamo
+        # curl, git, gpg are for codecov/codecov-action
+        run: |
+          apt-get update
+          apt-get -y install build-essential
+          apt-get -y install curl
+          apt-get -y install git
+          apt-get -y install gnupg
+          git config --global --add safe.directory '*'
+
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6
+
       - name: Check for changes in keras/src/applications
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
           filters: |
             applications:
               - 'keras/src/applications/**'
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Get pip cache dir
-        id: pip-cache
+
+      - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip setuptools
-          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-      - name: pip cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ steps.pip-cache.outputs.dir }}
-          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt --progress-bar off --upgrade
-          if [ "${{ matrix.nnx_enabled }}" == "true" ]; then
-            pip install --upgrade flax>=0.11.1
-          fi
-          pip install --no-deps tf_keras==2.20.0
-          pip uninstall -y keras keras-nightly
-          pip install -e "." --progress-bar off --upgrade
+          pip install -r requirements.txt
+          pip install --no-deps tf_keras
+
       - name: Test applications with pytest
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
         run: |
           pytest keras/src/applications --cov=keras/src/applications --cov-config=pyproject.toml
           coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
+
       - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
           files: apps-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy' && matrix.nnx_enabled == false }}
         run: |
           python integration_tests/import_test.py
           python integration_tests/numerical_test.py
+
       - name: Test JAX-specific integrations
         if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled == false }}
         run: |
           python integration_tests/jax_custom_fit_test.py
+
       - name: Test basic flow with NNX
         if: ${{ matrix.nnx_enabled == true }}
         env:
@@ -92,33 +101,37 @@ jobs:
         run: |
           python integration_tests/import_test.py
           python integration_tests/basic_full_flow.py
+
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |
           python integration_tests/tf_distribute_training_test.py
           python integration_tests/tf_custom_fit_test.py
+
       - name: Test Torch-specific integrations
         if: ${{ matrix.backend == 'torch'}}
         run: |
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
-      - name: Test with pytest
+
+      - name: Run Tests
         if: ${{ matrix.nnx_enabled == false }}
-        run: |
-          if [ "${{ matrix.backend }}" == "openvino" ]; then
-            IGNORE_FILE="keras/src/backend/openvino/excluded_tests.txt"
-            IGNORE_ARGS=$(awk '{print "--ignore=" $0}' "$IGNORE_FILE")
-          else
-            IGNORE_ARGS=""
-          fi
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $IGNORE_ARGS
-          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
-      - name: Codecov keras
+        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+
+      - name: Run Multi-Device Tests
+        if: ${{ matrix.backend == 'jax' }}
+        run: JAX_NUM_CPU_DEVICES=4 pytest keras -m multi_device --cov=keras --cov-config=pyproject.toml --cov-append
+
+      - name: Convert Coverage
         if: ${{ matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@v5
+        run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+
+      - name: Upload Coverage
+        if: ${{ matrix.nnx_enabled == false }}
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
         with:
           env_vars: PYTHON,KERAS_HOME,KERAS_NNX_ENABLED
-          flags: keras,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
+          flags: keras,keras-cpu,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
           files: core-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
@@ -126,26 +139,30 @@ jobs:
   format:
     name: Check the code format
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v6.0.2
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+
       - name: Get pip cache dir
         id: pip-cache
         run: |
           python -m pip install --upgrade pip setuptools
           echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+
       - name: pip cache
         uses: actions/cache@v5
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
+
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt --progress-bar off --upgrade
-          pip uninstall -y keras keras-nightly
-          pip install -e "." --progress-bar off --upgrade
+        run: pip install -r requirements.txt --upgrade
+
       - name: Run pre-commit
         run: pre-commit run --all-files --hook-stage manual

@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
@@ -136,6 +137,10 @@ def abs(x):
 def all(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     return np.all(x, axis=axis, keepdims=keepdims)
+
+
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    return np.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
 def angle(x):
@@ -576,6 +581,19 @@ def deg2rad(x):
     return np.deg2rad(x).astype(dtype)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+
+    if x.dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif x.dtype in ["bfloat16", "float16"]:
+        dtype = x.dtype
+    else:
+        dtype = config.floatx()
+
+    return np.rad2deg(x).astype(dtype)
+
+
 def diag(x, k=0):
     return np.diag(x, k=k)
 
@@ -605,6 +623,16 @@ def dot(x1, x2):
     x1 = x1.astype(dtype)
     x2 = x2.astype(dtype)
     return np.dot(x1, x2)
+
+
+def dstack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
+    return np.dstack(xs)
 
 
 def empty(shape, dtype=None):
@@ -654,6 +682,14 @@ def flip(x, axis=None):
     return np.flip(x, axis=axis)
 
 
+def fliplr(x):
+    return np.fliplr(x)
+
+
+def flipud(x):
+    return np.flipud(x)
+
+
 def floor(x):
     x = convert_to_tensor(x)
     dtype = (
@@ -682,6 +718,13 @@ def gcd(x1, x2):
     return np.gcd(x1, x2).astype(dtype)
 
 
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    dtype = dtype or config.floatx()
+    return np.geomspace(
+        start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
+    )
+
+
 def greater(x1, x2):
     return np.greater(x1, x2)
 
@@ -698,6 +741,11 @@ def hstack(xs):
             lambda x: convert_to_tensor(x).astype(dtype), xs
         )
     return np.hstack(xs)
+
+
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return np.hsplit(x, indices_or_sections)
 
 
 def hypot(x1, x2):
@@ -720,6 +768,17 @@ def identity(n, dtype=None):
 
 def imag(x):
     return np.imag(x)
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = (
+        "float64"
+        if standardize_dtype(x.dtype) in ["int64", "float64"]
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(dtype)
+    return np.i0(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -956,8 +1015,65 @@ def mod(x1, x2):
     return np.mod(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    x1 = x1.astype(dtype)
+    x2 = x2.astype(dtype)
+    return np.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     return np.moveaxis(x, source=source, destination=destination)
+
+
+def nanargmax(x, axis=None, keepdims=False):
+    if not np.issubdtype(x.dtype, np.floating):
+        return argmax(x, axis=axis, keepdims=keepdims)
+
+    nan_mask = np.isnan(x)
+
+    return np.where(
+        np.all(nan_mask, axis=axis, keepdims=keepdims),
+        -1,
+        np.nanargmax(
+            np.where(nan_mask, -np.inf, x), axis=axis, keepdims=keepdims
+        ).astype("int32"),
+    )
+
+
+def nanargmin(x, axis=None, keepdims=False):
+    if not np.issubdtype(x.dtype, np.floating):
+        return argmin(x, axis=axis, keepdims=keepdims)
+
+    nan_mask = np.isnan(x)
+
+    return np.where(
+        np.all(nan_mask, axis=axis, keepdims=keepdims),
+        -1,
+        np.nanargmin(
+            np.where(nan_mask, np.inf, x), axis=axis, keepdims=keepdims
+        ).astype("int32"),
+    )
+
+
+def nancumsum(x, axis=None, dtype=None):
+    axis = standardize_axis_for_numpy(axis)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.nancumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    axis = standardize_axis_for_numpy(axis)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return np.nancumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -969,8 +1085,30 @@ def nanmean(x, axis=None, keepdims=False):
     return np.nanmean(x, axis=axis, keepdims=keepdims).astype(dtype)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    return np.nanmedian(x, axis=axis, keepdims=keepdims).astype(dtype)
+
+
 def nanmin(x, axis=None, keepdims=False):
     return np.nanmin(x, axis=axis, keepdims=keepdims)
+
+
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype(config.floatx())
+    if not backend.is_float_dtype(x.dtype):
+        dtype = config.floatx()
+    else:
+        dtype = x.dtype
+    return np.nanpercentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def nanprod(x, axis=None, keepdims=False):
@@ -986,6 +1124,27 @@ def nanprod(x, axis=None, keepdims=False):
     return np.nanprod(x, axis=axis, keepdims=keepdims, dtype=dtype)
 
 
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.nanquantile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
+
+
+def nanstd(x, axis=None, keepdims=False):
+    axis = standardize_axis_for_numpy(axis)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return np.nanstd(
+        x, axis=axis, keepdims=keepdims, dtype=compute_dtype
+    ).astype(result_dtype)
+
+
 def nansum(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     dtype = standardize_dtype(x.dtype)
@@ -995,6 +1154,16 @@ def nansum(x, axis=None, keepdims=False):
     elif dtype in ("uint8", "uint16"):
         dtype = "uint32"
     return np.nansum(x, axis=axis, keepdims=keepdims).astype(dtype)
+
+
+def nanvar(x, axis=None, keepdims=False):
+    axis = standardize_axis_for_numpy(axis)
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    return np.nanvar(
+        x, axis=axis, keepdims=keepdims, dtype=compute_dtype
+    ).astype(result_dtype)
 
 
 def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
@@ -1041,6 +1210,18 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["constant_values"] = constant_values
     return np.pad(x, pad_width, mode=mode, **kwargs)
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.percentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -1139,6 +1320,16 @@ def sin(x):
         dtype = dtypes.result_type(x.dtype, float)
     x = x.astype(dtype)
     return np.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(dtype)
+    return np.sinc(x).astype(dtype)
 
 
 def sinh(x):
@@ -1299,6 +1490,11 @@ def vstack(xs):
             lambda x: convert_to_tensor(x).astype(dtype), xs
         )
     return np.vstack(xs)
+
+
+def vsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return np.vsplit(x, indices_or_sections)
 
 
 def vectorize(pyfunc, *, excluded=None, signature=None):
@@ -1514,3 +1710,55 @@ def argpartition(x, kth, axis=-1):
 
 def histogram(x, bins=10, range=None):
     return np.histogram(x, bins=bins, range=range)
+
+
+def unique(
+    x,
+    sorted=True,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    # Note: np.unique always sorts the output in versions < 2.3.0.
+    # We accept the 'sorted' argument for API consistency across backends
+    # but do not pass it to np.unique to avoid TypeError in older versions.
+    output = np.unique(
+        x,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        equal_nan=False,
+    )
+
+    if not (return_inverse or return_counts):
+        output = [output]
+    else:
+        output = list(output)
+
+    values = output[0]
+
+    if size is not None:
+        dim = axis if axis is not None else 0
+        values_count = values.shape[dim]
+
+        if values_count > size:
+            # Truncate
+            indices = [slice(None)] * values.ndim
+            indices[dim] = slice(0, size)
+            values = values[tuple(indices)]
+            if return_counts:
+                output[-1] = output[-1][tuple(indices)]
+
+        elif values_count < size:
+            # Pad
+            pad_width = [(0, 0)] * values.ndim
+            pad_width[dim] = (0, size - values_count)
+            fill = 0 if fill_value is None else fill_value
+            values = np.pad(values, pad_width, constant_values=fill)
+            if return_counts:
+                output[-1] = np.pad(output[-1], pad_width, constant_values=0)
+
+    output[0] = values
+    return output[0] if len(output) == 1 else tuple(output)

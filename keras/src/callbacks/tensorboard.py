@@ -560,7 +560,7 @@ class TensorBoard(Callback):
         with self._train_writer.as_default():
             for layer in self.model.layers:
                 for weight in layer.weights:
-                    weight_name = weight.name.replace(":", "_")
+                    weight_name = weight.path.replace(":", "_")
                     # Add a suffix to prevent summary tag name collision.
                     histogram_weight_name = f"{weight_name}/histogram"
                     self.summary.histogram(
