@@ -9,6 +9,7 @@ from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_device
 from keras.src.trainers import trainer as base_trainer
+from keras.src.trainers import trainer as trainer_module
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
@@ -46,10 +47,16 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     def test_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
-        ov_compiled_model = self._get_compiled_model(x)
-        flatten_x = tree.flatten(x)
-        ov_result = ov_compiled_model(flatten_x)
-        y_pred = self._unpack_inference_outputs(ov_result.to_tuple())
+        if not trainer_module.model_supports_jit(self):
+            if self._call_has_training_arg:
+                y_pred = self(x, training=False)
+            else:
+                y_pred = self(x)
+        else:
+            ov_compiled_model = self._get_compiled_model(x)
+            flatten_x = tree.flatten(x)
+            ov_result = ov_compiled_model(flatten_x)
+            y_pred = self._unpack_inference_outputs(ov_result.to_tuple())
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
@@ -61,6 +68,10 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if not trainer_module.model_supports_jit(self):
+            if self._call_has_training_arg:
+                return self(x, training=False)
+            return self(x)
         ov_compiled_model = self._get_compiled_model(x)
         flatten_x = tree.flatten(x)
         ov_result = ov_compiled_model(flatten_x)
