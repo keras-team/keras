@@ -610,6 +610,7 @@ def functional_from_config(cls, config, custom_objects=None):
     # does not yet exist) are re-enqueued, and the process
     # is repeated until all nodes are processed.
     while unprocessed_nodes:
+        some_nodes_processed = False
         for layer_data in functional_config["layers"]:
             layer = created_layers[layer_data["name"]]
 
@@ -631,12 +632,22 @@ def functional_from_config(cls, config, custom_objects=None):
 
                     node_index += 1
 
-                # If not all nodes processed then store unprocessed nodes
-                if node_index < len(node_data_list):
-                    unprocessed_nodes[layer] = node_data_list[node_index:]
                 # If all nodes processed remove the layer
-                else:
+                if node_index >= len(node_data_list):
+                    some_nodes_processed = True
                     del unprocessed_nodes[layer]
+                # If not all nodes processed then store unprocessed nodes
+                elif node_index > 0:
+                    some_nodes_processed = True
+                    unprocessed_nodes[layer] = node_data_list[node_index:]
+
+        if not some_nodes_processed:
+            raise ValueError(
+                "Invalid Functional model configuration. The graph of the "
+                "Functional model either has loops or disconnected nodes. "
+                "The following nodes failed to be resolved: "
+                f"{unprocessed_nodes}"
+            )
 
     # Create list of input and output tensors and return new class
     name = functional_config["name"]
@@ -764,6 +775,12 @@ def deserialize_node(node_data, created_layers):
             else:
                 raise ValueError(
                     "Cannot deserialize the model (invalid config data?)"
+                )
+
+            if inbound_layer_name not in created_layers:
+                raise ValueError(
+                    "Invalid Functional model configuration. Missing node: "
+                    f"{inbound_layer_name}"
                 )
             inbound_layer = created_layers[inbound_layer_name]
 
