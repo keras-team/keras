@@ -22,6 +22,7 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = False
 IS_THREAD_SAFE = True
 
 OPENVINO_DTYPES = {

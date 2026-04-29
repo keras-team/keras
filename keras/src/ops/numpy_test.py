@@ -5401,11 +5401,19 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertSparse(knp.concatenate([x, y], axis=axis))
         self.assertSparse(knp.Concatenate(axis=axis)([x, y]))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_conjugate(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
         self.assertAllClose(knp.conjugate(x), np.conjugate(x))
         self.assertAllClose(knp.Conjugate()(x), np.conjugate(x))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_conj(self):
         x = np.array([[1 + 2j, 2 + 3j], [3 + 4j, 4 + 5j]])
         self.assertAllClose(knp.conj(x), np.conj(x))
@@ -5701,6 +5709,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.array([-1.0, -2.0, 0.5])
         self.assertAllClose(knp.i0(x), np.i0(x))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_imag(self):
         x = np.array([[1 + 1j, 2 + 2j, 3 + 3j], [3 + 3j, 2 + 2j, 1 + 1j]])
         self.assertAllClose(knp.imag(x), np.imag(x))
@@ -5735,6 +5747,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.isposinf(x), np.isposinf(x))
         self.assertAllClose(knp.Isposinf()(x), np.isposinf(x))
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_isreal(self):
         x = np.array([1 + 1j, 1 + 0j, 4.5, 3, 2, 2j], dtype=complex)
         self.assertAllClose(knp.isreal(x), np.isreal(x))
@@ -6094,6 +6110,10 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         ):
             self.assertAllClose(ind_knp, ind_np)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_real(self):
         x = np.array([[1, 2, 3 - 3j], [3, 2, 1 + 5j]])
         self.assertAllClose(knp.real(x), np.real(x))

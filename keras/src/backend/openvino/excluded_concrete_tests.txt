@@ -4,7 +4,6 @@ EqualizationTest::test_input_dtypes_int32
 EqualizationTest::test_input_dtypes_int64
 EqualizationTest::test_output_range_0_1
 EqualizationTest::test_output_range_0_255
-LayerTest::test_complex_dtype_support
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_matrix_rank
@@ -15,10 +14,4 @@ LinalgOpsCorrectnessTest::test_svd
 MathOpsCorrectnessTest::test_erfinv_operation_basic
 MathOpsCorrectnessTest::test_erfinv_operation_dtype
 NNOpsCorrectnessTest::test_ctc_decode
-NNOpsCorrectnessTest::test_polar_corectness
 NNOpsDtypeTest::test_ctc_decode
-NNOpsDtypeTest::test_polar_
-NumpyOneInputOpsCorrectnessTest::test_conj
-NumpyOneInputOpsCorrectnessTest::test_imag
-NumpyOneInputOpsCorrectnessTest::test_isreal
-NumpyOneInputOpsCorrectnessTest::test_real
