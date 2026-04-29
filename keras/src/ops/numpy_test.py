@@ -5113,7 +5113,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.bartlett(x), np.bartlett(x))
 
-        self.assertAllClose(knp.Bartlett()(x), np.bartlett(x))
+    def test_bartlett_length_1(self):
+        x = 1
+        x_tensor = keras.ops.convert_to_tensor(x)
+        expected = np.bartlett(x)
+        out = knp.bartlett(x_tensor)
+        self.assertEqual(out.shape[0], x)
+        self.assertAllClose(out, expected)
 
     def test_blackman(self):
         x = np.random.randint(1, 100 + 1)
@@ -5131,20 +5137,39 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.hamming(x), np.hamming(x))
 
-        self.assertAllClose(knp.Hamming()(x), np.hamming(x))
+    def test_hamming_length_1(self):
+        x = 1
+        x_tensor = keras.ops.convert_to_tensor(x)
+        expected = np.hamming(x)
+        out = knp.hamming(x_tensor)
+        self.assertEqual(out.shape[0], x)
+        self.assertAllClose(out, expected)
 
     def test_hanning(self):
         x = np.random.randint(1, 100 + 1)
         self.assertAllClose(knp.hanning(x), np.hanning(x))
 
-        self.assertAllClose(knp.Hanning()(x), np.hanning(x))
+    def test_hanning_length_1(self):
+        x = 1
+        x_tensor = keras.ops.convert_to_tensor(x)
+        expected = np.hanning(x)
+        out = knp.hanning(x_tensor)
+        self.assertEqual(out.shape[0], x)
+        self.assertAllClose(out, expected)
 
     def test_kaiser(self):
         x = np.random.randint(1, 100 + 1)
         beta = float(np.random.randint(10, 20 + 1))
         self.assertAllClose(knp.kaiser(x, beta), np.kaiser(x, beta))
 
-        self.assertAllClose(knp.Kaiser(beta)(x), np.kaiser(x, beta))
+    def test_kaiser_length_1(self):
+        x = 1
+        x_tensor = keras.ops.convert_to_tensor(x)
+        beta = float(np.random.randint(10, 20 + 1))
+        expected = np.kaiser(x, beta)
+        out = knp.kaiser(x_tensor, beta)
+        self.assertEqual(out.shape[0], x)
+        self.assertAllClose(out, expected)
 
     @parameterized.named_parameters(
         named_product(sparse_input=(False, True), sparse_arg=(False, True))
@@ -7982,10 +8007,6 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(
             standardize_dtype(knp.bartlett(x).dtype), expected_dtype
         )
-        self.assertEqual(
-            standardize_dtype(knp.Bartlett().symbolic_call(x).dtype),
-            expected_dtype,
-        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_blackman(self, dtype):
@@ -8004,10 +8025,6 @@ class NumpyDtypeTest(testing.TestCase):
         self.assertEqual(
             standardize_dtype(knp.hamming(x).dtype), expected_dtype
         )
-        self.assertEqual(
-            standardize_dtype(knp.Hamming().symbolic_call(x).dtype),
-            expected_dtype,
-        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_hanning(self, dtype):
@@ -8016,10 +8033,6 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertEqual(
             standardize_dtype(knp.hanning(x).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Hanning().symbolic_call(x).dtype),
-            expected_dtype,
         )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
@@ -8030,10 +8043,6 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertEqual(
             standardize_dtype(knp.kaiser(x, beta).dtype), expected_dtype
-        )
-        self.assertEqual(
-            standardize_dtype(knp.Kaiser(beta).symbolic_call(x).dtype),
-            expected_dtype,
         )
 
     @parameterized.named_parameters(named_product(dtype=INT_DTYPES))

@@ -1341,14 +1341,6 @@ def average(x, axis=None, weights=None):
     return backend.numpy.average(x, axis=axis, weights=weights)
 
 
-class Bartlett(Operation):
-    def call(self, x):
-        return backend.numpy.bartlett(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
-
-
 @keras_export(["keras.ops.bartlett", "keras.ops.numpy.bartlett"])
 def bartlett(x):
     """Bartlett window function.
@@ -1366,16 +1358,11 @@ def bartlett(x):
     array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Bartlett().symbolic_call(x)
+        raise TypeError(
+            f"Bartlett operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.bartlett(x)
-
-
-class Hamming(Operation):
-    def call(self, x):
-        return backend.numpy.hamming(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
 
 
 @keras_export(["keras.ops.hamming", "keras.ops.numpy.hamming"])
@@ -1397,16 +1384,11 @@ def hamming(x):
     array([0.08, 0.54, 1.  , 0.54, 0.08], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Hamming().symbolic_call(x)
+        raise TypeError(
+            f"Hamming operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.hamming(x)
-
-
-class Hanning(Operation):
-    def call(self, x):
-        return backend.numpy.hanning(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
 
 
 @keras_export(["keras.ops.hanning", "keras.ops.numpy.hanning"])
@@ -1428,7 +1410,10 @@ def hanning(x):
     array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Hanning().symbolic_call(x)
+        raise TypeError(
+            f"Hanning operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.hanning(x)
 
 
@@ -1470,18 +1455,6 @@ def heaviside(x1, x2):
     return backend.numpy.heaviside(x1, x2)
 
 
-class Kaiser(Operation):
-    def __init__(self, beta, *, name=None):
-        super().__init__(name=name)
-        self.beta = beta
-
-    def call(self, x):
-        return backend.numpy.kaiser(x, self.beta)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
-
-
 @keras_export(["keras.ops.kaiser", "keras.ops.numpy.kaiser"])
 def kaiser(x, beta):
     """Kaiser window function.
@@ -1504,7 +1477,10 @@ def kaiser(x, beta):
        7.7268669e-06], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Kaiser(beta).symbolic_call(x)
+        raise TypeError(
+            f"Kaiser operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.kaiser(x, beta)
 
 
