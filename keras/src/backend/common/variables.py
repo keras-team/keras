@@ -374,13 +374,11 @@ class Variable:
 
     @regularizer.setter
     def regularizer(self, value):
-        from keras.src.regularizers import Regularizer
-
-        if value is not None and not isinstance(value, Regularizer):
+        if value is not None and not callable(value):
             raise ValueError(
-                "Invalid value for attribute `regularizer`. Expected an "
-                "instance of `keras.regularizers.Regularizer`, or `None`. "
-                f"Received: regularizer={value}"
+                "Invalid value for attribute `regularizer`. Expected a "
+                "callable (such as a `keras.regularizers.Regularizer` "
+                f"instance) or `None`. Received: regularizer={value}"
             )
         self._regularizer = value
 

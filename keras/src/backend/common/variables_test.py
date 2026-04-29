@@ -214,6 +214,43 @@ class VariablePropertiesTest(test_case.TestCase):
         restored.build((None, 3))
         self.assertIs(restored.kernel_constraint, half_constraint)
 
+    def test_regularizer_setter_accepts_plain_callable(self):
+        from keras.src.regularizers import L1
+
+        v = backend.Variable(initializer="ones", shape=(2,))
+
+        def reg_fn(w):
+            return w * w
+
+        v.regularizer = reg_fn
+        self.assertIs(v.regularizer, reg_fn)
+
+        v.regularizer = L1()
+        self.assertIsInstance(v.regularizer, L1)
+
+        v.regularizer = None
+        self.assertIsNone(v.regularizer)
+
+        with self.assertRaisesRegex(
+            ValueError, "Invalid value for attribute `regularizer`"
+        ):
+            v.regularizer = "not callable"
+
+    def test_registered_callable_regularizer_survives_serialization(self):
+        from keras.src.layers import Dense
+        from keras.src.saving import register_keras_serializable
+
+        @register_keras_serializable(package="test")
+        def reg_fn(w):
+            return w * w
+
+        layer = Dense(4, kernel_regularizer=reg_fn)
+        layer.build((None, 3))
+        config = layer.get_config()
+        restored = Dense.from_config(config)
+        restored.build((None, 3))
+        self.assertIs(restored.kernel_regularizer, reg_fn)
+
     def test_autocasting_float(self):
         # Tests autocasting of float variables
         v = backend.Variable(
