@@ -142,6 +142,34 @@ def register_keras_serializable(package="Custom", name=None):
         class_name = name if name is not None else arg.__name__
         registered_name = f"{package}>{class_name}"
 
+        # NEW: Check if this name conflicts with built-in Keras components
+        # This prevents namespace hijacking attacks
+        from keras.src import api_export
+        
+        # Check common Keras modules for conflicts
+        builtin_modules = [
+            "keras.layers", "keras.optimizers", "keras.losses", 
+            "keras.metrics", "keras.activations", "keras.initializers",
+            "keras.regularizers", "keras.constraints", "keras.callbacks"
+        ]
+        
+        for module in builtin_modules:
+            api_name = f"{module}.{class_name}"
+            if api_export.get_symbol_from_name(api_name) is not None:
+                raise ValueError(
+                    f"Cannot register '{registered_name}' because '{class_name}' "
+                    f"conflicts with built-in Keras component '{api_name}'. "
+                    f"Choose a different name for your custom object."
+                )
+        
+        # Also check if the exact registered_name already exists
+        if registered_name in GLOBAL_CUSTOM_OBJECTS:
+            existing = GLOBAL_CUSTOM_OBJECTS[registered_name]
+            raise ValueError(
+                f"Name '{registered_name}' is already registered to {existing}. "
+                f"Choose a different package/name combination."
+            )
+
         if inspect.isclass(arg) and not hasattr(arg, "get_config"):
             raise ValueError(
                 "Cannot register a class that does not have a "

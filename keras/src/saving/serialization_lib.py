@@ -764,21 +764,95 @@ def _assert_no_registered_name_for_builtin(full_config, name, resolved_name):
     explicit = full_config.get("registered_name")
     if not explicit:
         return
-    if explicit in (name, full_config.get("class_name")):
-        return
+    
+    # NEW STRICTER CHECK: Only allow registered_name if it's exactly the class_name
+    # (not "package>class_name" format). This prevents namespace hijacking.
+    class_name = full_config.get("class_name")
+    if explicit == class_name:
+        return  # This is the simple case: registered_name matches class_name
+    
+    # Check if registered_name is trying to use custom object for built-in
+    if ">" in explicit:
+        # This is a package>name format - REJECT for built-ins
+        raise ValueError(
+            f"`registered_name={explicit!r}` cannot be used with built-in "
+            f"'{resolved_name}'. Built-in Keras components cannot be "
+            f"overridden by custom registered objects. Remove the "
+            f"`registered_name` field or use a different `class_name`."
+        )
+    
+    # If we get here and registered_name doesn't match class_name, reject
     raise ValueError(
-        f"`registered_name={explicit!r}` was provided in the config, but "
-        f"'{resolved_name}' resolved to a Keras built-in and does not use "
-        "registered names. Remove the `registered_name` field from the "
-        f"config. Full object config: {full_config}"
+        f"`registered_name={explicit!r}` was provided for built-in "
+        f"'{resolved_name}', but doesn't match `class_name={class_name!r}`. "
+        f"Remove the `registered_name` field from the config."
     )
 
 
 def _retrieve_class_or_fn(
     name, registered_name, module, obj_type, full_config, custom_objects=None
 ):
-    # If there is a custom object registered via
-    # `register_keras_serializable()`, that takes precedence.
+    # FIRST: Check if this is trying to resolve a built-in Keras object
+    # This prevents namespace hijacking by ensuring built-ins are resolved
+    # before checking custom object registrations
+    
+    # Check common Keras modules even if module is not specified
+    # This handles cases where config doesn't include module but name matches built-in
+    builtin_modules_to_check = []
+    if module:
+        if module == "keras" or module.startswith("keras."):
+            builtin_modules_to_check.append(module)
+    else:
+        # If module is not specified, check common Keras modules
+        # to prevent hijacking of built-in names
+        builtin_modules_to_check = [
+            "keras.layers", "keras.optimizers", "keras.losses",
+            "keras.metrics", "keras.activations", "keras.initializers",
+            "keras.regularizers", "keras.constraints", "keras.callbacks"
+        ]
+    
+    for module_to_check in builtin_modules_to_check:
+        api_name = f"{module_to_check}.{name}"
+        
+        if api_name in LOADING_APIS:
+            raise ValueError(
+                f"Cannot deserialize `{api_name}`, loading functions are "
+                "not allowed during deserialization"
+            )
+
+        obj = api_export.get_symbol_from_name(api_name)
+        if obj is not None:
+            # This is a built-in! Apply security check
+            _assert_no_registered_name_for_builtin(
+                full_config, name, api_name
+            )
+            return obj
+
+    # Configs of Keras built-in functions do not contain identifying
+    # information other than their name (e.g. 'acc' or 'tanh'). This special
+    # case searches the Keras modules that contain built-ins to retrieve
+    # the corresponding function from the identifying string.
+    if obj_type == "function" and module == "builtins":
+        for mod in BUILTIN_MODULES:
+            obj = api_export.get_symbol_from_name(f"keras.{mod}.{name}")
+            if obj is not None:
+                _assert_no_registered_name_for_builtin(
+                    full_config, name, f"keras.{mod}.{name}"
+                )
+                return obj
+
+        # Workaround for serialization bug in Keras <= 3.6 whereby custom
+        # functions would only be saved by name instead of registered name,
+        # i.e. "name" instead of "package>name". This allows recent versions
+        # of Keras to reload models saved with 3.6 and lower.
+        if ">" not in name:
+            separated_name = f">{name}"
+            for custom_name, custom_object in custom_objects.items():
+                if custom_name.endswith(separated_name):
+                    return custom_object
+
+    # SECOND: Only after checking for built-ins, check for custom objects
+    # This prevents custom objects from hijacking built-in names
     if obj_type == "function":
         custom_obj = object_registration.get_registered_object(
             name, custom_objects=custom_objects
@@ -791,49 +865,6 @@ def _retrieve_class_or_fn(
         return custom_obj
 
     if module:
-        # If it's a Keras built-in object,
-        # we cannot always use direct import, because the exported
-        # module name might not match the package structure
-        # (e.g. experimental symbols).
-        if module == "keras" or module.startswith("keras."):
-            api_name = f"{module}.{name}"
-
-            if api_name in LOADING_APIS:
-                raise ValueError(
-                    f"Cannot deserialize `{api_name}`, loading functions are "
-                    "not allowed during deserialization"
-                )
-
-            obj = api_export.get_symbol_from_name(api_name)
-            if obj is not None:
-                _assert_no_registered_name_for_builtin(
-                    full_config, name, api_name
-                )
-                return obj
-
-        # Configs of Keras built-in functions do not contain identifying
-        # information other than their name (e.g. 'acc' or 'tanh'). This special
-        # case searches the Keras modules that contain built-ins to retrieve
-        # the corresponding function from the identifying string.
-        if obj_type == "function" and module == "builtins":
-            for mod in BUILTIN_MODULES:
-                obj = api_export.get_symbol_from_name(f"keras.{mod}.{name}")
-                if obj is not None:
-                    _assert_no_registered_name_for_builtin(
-                        full_config, name, f"keras.{mod}.{name}"
-                    )
-                    return obj
-
-            # Workaround for serialization bug in Keras <= 3.6 whereby custom
-            # functions would only be saved by name instead of registered name,
-            # i.e. "name" instead of "package>name". This allows recent versions
-            # of Keras to reload models saved with 3.6 and lower.
-            if ">" not in name:
-                separated_name = f">{name}"
-                for custom_name, custom_object in custom_objects.items():
-                    if custom_name.endswith(separated_name):
-                        return custom_object
-
         # Otherwise, attempt to retrieve the class object given the `module`
         # and `class_name`. Import the module, find the class.
         package = module.split(".", maxsplit=1)[0]
