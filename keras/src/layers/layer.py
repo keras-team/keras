@@ -304,6 +304,12 @@ class Layer(BackendLayer, Operation):
         self._called = False
         self.supports_jit = True
 
+        if not isinstance(trainable, bool):
+            raise ValueError(
+                "Expected `trainable` to be a boolean. "
+                f"Received: trainable={trainable} (of type "
+                f"{type(trainable)})"
+            )
         self._trainable = trainable
         self._losses = []
         self._loss_ids = set()

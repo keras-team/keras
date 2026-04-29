@@ -177,6 +177,43 @@ class VariablePropertiesTest(test_case.TestCase):
             v.trainable = False
             self.assertFalse(v._value.requires_grad)
 
+    def test_constraint_setter_accepts_plain_callable(self):
+        from keras.src.constraints import NonNeg
+
+        v = backend.Variable(initializer="ones", shape=(2,))
+
+        def clip_fn(w):
+            return w * 0.5
+
+        v.constraint = clip_fn
+        self.assertIs(v.constraint, clip_fn)
+
+        v.constraint = NonNeg()
+        self.assertIsInstance(v.constraint, NonNeg)
+
+        v.constraint = None
+        self.assertIsNone(v.constraint)
+
+        with self.assertRaisesRegex(
+            ValueError, "Invalid value for attribute `constraint`"
+        ):
+            v.constraint = "not callable"
+
+    def test_registered_callable_constraint_survives_serialization(self):
+        from keras.src.layers import Dense
+        from keras.src.saving import register_keras_serializable
+
+        @register_keras_serializable(package="test_22221")
+        def half_constraint(w):
+            return w * 0.5
+
+        layer = Dense(4, kernel_constraint=half_constraint)
+        layer.build((None, 3))
+        config = layer.get_config()
+        restored = Dense.from_config(config)
+        restored.build((None, 3))
+        self.assertIs(restored.kernel_constraint, half_constraint)
+
     def test_autocasting_float(self):
         # Tests autocasting of float variables
         v = backend.Variable(

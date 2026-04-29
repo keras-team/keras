@@ -3,6 +3,9 @@ import torch.nn.functional as tnn
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    check_depthwise_conv_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_torch,
 )
 from keras.src.backend.torch.core import cast
@@ -656,7 +659,10 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
+    data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
+    check_depthwise_conv_input_channels(inputs, kernel, data_format)
     kernel = torch.reshape(
         kernel, kernel.shape[:-2] + (1, kernel.shape[-2] * kernel.shape[-1])
     )
@@ -672,6 +678,11 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
+    data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    depthwise_kernel = convert_to_tensor(depthwise_kernel)
+    pointwise_kernel = convert_to_tensor(pointwise_kernel)
+    check_depthwise_conv_input_channels(inputs, depthwise_kernel, data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,

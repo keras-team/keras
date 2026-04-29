@@ -18,6 +18,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import shape_to_ov_output
 from keras.src.backend.openvino.core import while_loop
 
 
@@ -198,11 +199,9 @@ def ones(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_one = ov_opset.constant(1, ov_type).output(0)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    output_shape = shape_to_ov_output(list(shape))
     ones = ov_opset.broadcast(const_one, output_shape)
     return OpenVINOKerasTensor(ones.output(0))
 
@@ -211,11 +210,9 @@ def zeros(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    output_shape = shape_to_ov_output(list(shape))
     zeros = ov_opset.broadcast(const_zero, output_shape)
     return OpenVINOKerasTensor(zeros.output(0))
 
@@ -1180,7 +1177,7 @@ def broadcast_to(x, shape):
             f"`broadcast_to` is supported only for tuple and list `shape`. "
             f"Received: shape={shape} (type {type(shape)})"
         )
-    target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
+    target_shape = shape_to_ov_output(list(shape))
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
 
@@ -1839,11 +1836,9 @@ def dstack(xs):
 def empty(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    shape_node = ov_opset.constant(shape, Type.i32).output(0)
+    shape_node = shape_to_ov_output(list(shape))
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
     empty_tensor = ov_opset.broadcast(const_zero, shape_node).output(0)
     return OpenVINOKerasTensor(empty_tensor)
@@ -2016,9 +2011,9 @@ def full(shape, fill_value, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     fill_value = get_ov_output(fill_value, ov_type)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    target_shape = ov_opset.constant(shape, Type.i32)
+    if isinstance(shape, int):
+        shape = [shape]
+    target_shape = shape_to_ov_output(list(shape))
     return OpenVINOKerasTensor(
         ov_opset.broadcast(fill_value, target_shape).output(0)
     )
@@ -3276,9 +3271,7 @@ def nanmean(x, axis=None, keepdims=False):
 
 
 def nanmedian(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanmedian` is not supported with openvino backend"
-    )
+    return nanquantile(x, 0.5, axis=axis, method="midpoint", keepdims=keepdims)
 
 
 def nanmin(x, axis=None, keepdims=False):
@@ -3314,6 +3307,12 @@ def nanmin(x, axis=None, keepdims=False):
     result = ov_opset.select(all_nan, nan_value, result).output(0)
 
     return OpenVINOKerasTensor(result)
+
+
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    return nanquantile(
+        x, q / 100.0, axis=axis, method=method, keepdims=keepdims
+    )
 
 
 def nanprod(x, axis=None, keepdims=False):
@@ -3749,7 +3748,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 "provided when `mode == 'constant'`. "
                 f"Received: mode={mode}"
             )
-        if not isinstance(constant_values, int):
+        if not isinstance(
+            constant_values, (int, float, np.integer, np.floating)
+        ):
             raise ValueError(
                 "`pad` operation supports only scalar pad value "
                 "in constant mode with the openvino backend. "
@@ -3769,6 +3770,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     pads_end = ov_opset.constant(pads_end, Type.i32).output(0)
     return OpenVINOKerasTensor(
         ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0)
+    )
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    return quantile(
+        x, divide(q, 100.0), axis=axis, method=method, keepdims=keepdims
     )
 
 
@@ -4372,29 +4379,19 @@ def take_along_axis(x, indices, axis=None):
     ).output(0)
     indices = ov_opset.convert(indices, Type.i32).output(0)
 
-    x_target_parts, indices_target_parts = [], []
-
-    for i in range(x_rank):
-        dim_idx = ov_opset.constant([i], dtype=Type.i32).output(0)
-        x_dim = ov_opset.gather(x_shape, dim_idx, zero_const).output(0)
-        indices_dim = ov_opset.gather(
-            indices_shape, dim_idx, zero_const
-        ).output(0)
-
-        if i == axis:
-            # For axis dimension: keep original dimensions
-            x_target_parts.append(x_dim)
-            indices_target_parts.append(indices_dim)
-        else:
-            # For other dimensions: use maximum for broadcasting
-            max_dim = ov_opset.maximum(x_dim, indices_dim).output(0)
-            x_target_parts.append(max_dim)
-            indices_target_parts.append(max_dim)
-
-    x_target_shape = ov_opset.concat(x_target_parts, axis=0).output(0)
-    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(
-        0
-    )
+    # Compute broadcast targets: non-axis dims use element-wise max of both
+    # shapes; axis dim is kept separately for x and indices.
+    max_shape = ov_opset.maximum(x_shape, indices_shape).output(0)
+    x_axis_dim = ov_opset.gather(x_shape, axis_index, zero_const).output(0)
+    indices_axis_dim = ov_opset.gather(
+        indices_shape, axis_index, zero_const
+    ).output(0)
+    x_target_shape = ov_opset.scatter_elements_update(
+        max_shape, axis_index, x_axis_dim, zero_const
+    ).output(0)
+    indices_target_shape = ov_opset.scatter_elements_update(
+        max_shape, axis_index, indices_axis_dim, zero_const
+    ).output(0)
 
     # Broadcast to target shapes and gather elements
     x_broadcasted = ov_opset.broadcast(x, x_target_shape).output(0)
@@ -4906,8 +4903,8 @@ def transpose(x, axes=None):
             rank_minus_one, const_minus_one, const_minus_one, "i64"
         ).output(0)
     else:
-        if isinstance(axes, tuple):
-            axes = list(axes)
+        rank = x.get_partial_shape().rank.get_length()
+        axes = [canonicalize_axis(a, rank) for a in axes]
         axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 

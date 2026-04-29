@@ -41,6 +41,8 @@ jobs:
 
     steps:
       - name: Install binary dependencies
+        # build-essential is the C++ compiler for Torch Dynamo
+        # curl, git, gpg are for codecov/codecov-action
         run: |
           apt-get update
           apt-get -y install build-essential
@@ -114,20 +116,22 @@ jobs:
 
       - name: Run Tests
         if: ${{ matrix.nnx_enabled == false }}
-        run: |
-          pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml $PYTEST_ARGS
-          coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
 
       - name: Run Multi-Device Tests
         if: ${{ matrix.backend == 'jax' }}
-        run: JAX_NUM_CPU_DEVICES=4 pytest keras -m multi_device
+        run: JAX_NUM_CPU_DEVICES=4 pytest keras -m multi_device --cov=keras --cov-config=pyproject.toml --cov-append
 
-      - name: Codecov keras
+      - name: Convert Coverage
+        if: ${{ matrix.nnx_enabled == false }}
+        run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+
+      - name: Upload Coverage
         if: ${{ matrix.nnx_enabled == false }}
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
         with:
           env_vars: PYTHON,KERAS_HOME,KERAS_NNX_ENABLED
-          flags: keras,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
+          flags: keras,keras-cpu,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
           files: core-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false

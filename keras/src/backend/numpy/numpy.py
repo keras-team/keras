@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
@@ -1093,6 +1094,23 @@ def nanmin(x, axis=None, keepdims=False):
     return np.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype(config.floatx())
+    if not backend.is_float_dtype(x.dtype):
+        dtype = config.floatx()
+    else:
+        dtype = x.dtype
+    return np.nanpercentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
+
+
 def nanprod(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
 
@@ -1192,6 +1210,18 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["constant_values"] = constant_values
     return np.pad(x, pad_width, mode=mode, **kwargs)
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.percentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):

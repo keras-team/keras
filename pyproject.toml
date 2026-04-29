@@ -101,6 +101,7 @@ exclude_lines = [
 ]
 omit = [
     "*/*_test.py",
+    "keras/api/*",
     "keras/src/legacy/*",
 ]
 
@@ -108,6 +109,6 @@ omit = [
 branch = true
 omit = [
     "*/*_test.py",
+    "keras/api/*",
     "keras/src/legacy/*",
 ]
-

@@ -139,6 +139,19 @@ class RandomColorDegeneration(BaseImagePreprocessingLayer):
         return config
 
     def compute_output_shape(self, input_shape):
+        if len(input_shape) not in (3, 4):
+            raise ValueError(
+                "Invalid images rank: expected rank 3 (single image) "
+                "or rank 4 (batch of images). "
+                f"Received: input_shape={input_shape}"
+            )
+        channels_axis = -1 if self.data_format == "channels_last" else -3
+        channels = input_shape[channels_axis]
+        if channels is not None and channels != 3:
+            raise ValueError(
+                "Input images must have 3 channels, but received images with "
+                f"{channels} channels."
+            )
         return input_shape
 
 

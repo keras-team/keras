@@ -1463,6 +1463,12 @@ def nanmin(x, axis=None, keepdims=False):
     )
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx()) / 100.0
+    return nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
@@ -1643,6 +1649,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     if need_squeeze:
         x = torch.squeeze(x, dim=tuple(range(3 - ori_ndim)))
     return x
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx()) / 100.0
+    return quantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):

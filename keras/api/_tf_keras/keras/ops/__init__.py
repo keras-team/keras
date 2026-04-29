@@ -40,6 +40,7 @@ from keras.src.ops.linalg import inv as inv
 from keras.src.ops.linalg import jvp as jvp
 from keras.src.ops.linalg import lstsq as lstsq
 from keras.src.ops.linalg import lu_factor as lu_factor
+from keras.src.ops.linalg import matrix_rank as matrix_rank
 from keras.src.ops.linalg import norm as norm
 from keras.src.ops.linalg import qr as qr
 from keras.src.ops.linalg import solve as solve
@@ -264,6 +265,7 @@ from keras.src.ops.numpy import nanmax as nanmax
 from keras.src.ops.numpy import nanmean as nanmean
 from keras.src.ops.numpy import nanmedian as nanmedian
 from keras.src.ops.numpy import nanmin as nanmin
+from keras.src.ops.numpy import nanpercentile as nanpercentile
 from keras.src.ops.numpy import nanprod as nanprod
 from keras.src.ops.numpy import nanquantile as nanquantile
 from keras.src.ops.numpy import nanstd as nanstd
@@ -278,6 +280,7 @@ from keras.src.ops.numpy import ones as ones
 from keras.src.ops.numpy import ones_like as ones_like
 from keras.src.ops.numpy import outer as outer
 from keras.src.ops.numpy import pad as pad
+from keras.src.ops.numpy import percentile as percentile
 from keras.src.ops.numpy import power as power
 from keras.src.ops.numpy import prod as prod
 from keras.src.ops.numpy import ptp as ptp
