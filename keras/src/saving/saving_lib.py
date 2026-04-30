@@ -25,14 +25,11 @@ from keras.src.utils import io_utils
 from keras.src.utils import naming
 from keras.src.utils import plot_model
 from keras.src.utils.model_visualization import check_pydot
+from keras.src.utils.module_utils import h5py
 from keras.src.utils.summary_utils import readable_memory_size
 from keras.src.utils.summary_utils import weight_memory_size
 from keras.src.version import __version__ as keras_version
 
-try:
-    import h5py
-except ImportError:
-    h5py = None
 try:
     import psutil
 except ImportError:
@@ -990,6 +987,64 @@ class DiskIOStore:
             file_utils.rmtree(self.tmp_dir)
 
 
+def safe_get_h5_group(parent, name):
+    """Retrieve a Group within a given File or Group.
+
+    Args:
+        parent: the parent h5py.File or h5py.Group.
+        name: the name of the Group to retrieve.
+
+    Returns:
+        The child h5py.Group.
+    """
+    # Also handles the case when the group is an empty dict initially.
+    if name not in parent:
+        raise KeyError(name)
+
+    group_type = parent.get(name, default=None, getclass=True, getlink=True)
+    if group_type in (h5py.ExternalLink, h5py.SoftLink):
+        raise ValueError(f"Not allowed: H5 file with {group_type.__name__}")
+
+    group = parent[name]
+    if not isinstance(group, h5py.Group):
+        raise ValueError(
+            f"Invalid H5 file, expected Group but received {type(group)}"
+        )
+    return group
+
+
+def safe_get_h5_dataset(group, name):
+    """Retrieve a Dataset within a given Group.
+
+    Args:
+        group: the parent h5py.Group.
+        name: the name of the Dataset to retrieve.
+
+    Returns:
+        The child h5py.Dataset.
+    """
+    # Also handles the case when the group is an empty dict initially.
+    if name not in group:
+        raise KeyError(name)
+
+    dataset_type = group.get(name, default=None, getclass=True, getlink=True)
+    if dataset_type in (h5py.ExternalLink, h5py.SoftLink):
+        raise ValueError(f"Not allowed: H5 file with {dataset_type.__name__}")
+
+    dataset = group[name]
+    if not isinstance(dataset, h5py.Dataset):
+        raise ValueError(
+            f"Invalid H5 file, expected Dataset, received {type(dataset)}"
+        )
+    if dataset.external:
+        raise ValueError(
+            f"Not allowed: H5 file with external Dataset: {dataset.external}"
+        )
+    if dataset.is_virtual:
+        raise ValueError("Not allowed: H5 file with virtual Dataset")
+    return dataset
+
+
 class H5IOStore:
     """Numerical variable store backed by HDF5.
 
@@ -1040,25 +1095,6 @@ class H5IOStore:
         # Delegate `__bool__` to the underlying `h5_file`. Otherwise, Python
         # will mistakenly using `__len__` to determine the value.
         return self.h5_file.__bool__()
-
-    def _verify_group(self, group):
-        if not isinstance(group, h5py.Group):
-            raise ValueError(
-                f"Invalid H5 file, expected Group but received {type(group)}"
-            )
-        return group
-
-    def _verify_dataset(self, dataset):
-        if not isinstance(dataset, h5py.Dataset):
-            raise ValueError(
-                f"Invalid H5 file, expected Dataset, received {type(dataset)}"
-            )
-        if dataset.external:
-            raise ValueError(
-                "Not allowed: H5 file Dataset with external links: "
-                f"{dataset.external}"
-            )
-        return dataset
 
     def _get_h5_file(self, path_or_io, mode=None):
         mode = mode or self.mode
@@ -1117,22 +1153,27 @@ class H5IOStore:
 
         self._h5_entry_path = path
         self._h5_entry_group = {}  # Defaults to an empty dict if not found.
+        self._h5_entry_initialized = True
+
         if not path:
             if "vars" in self.h5_file:
-                self._h5_entry_group = self._verify_group(self.h5_file["vars"])
-        elif path in self.h5_file and "vars" in self.h5_file[path]:
-            self._h5_entry_group = self._verify_group(
-                self._verify_group(self.h5_file[path])["vars"]
-            )
-        else:
-            # No hit. Fix for 2.13 compatibility.
-            if "_layer_checkpoint_dependencies" in self.h5_file:
-                path = path.replace("layers", "_layer_checkpoint_dependencies")
-                if path in self.h5_file and "vars" in self.h5_file[path]:
-                    self._h5_entry_group = self._verify_group(
-                        self._verify_group(self.h5_file[path])["vars"]
-                    )
-        self._h5_entry_initialized = True
+                self._h5_entry_group = safe_get_h5_group(self.h5_file, "vars")
+            return self
+
+        if path in self.h5_file:
+            path_group = safe_get_h5_group(self.h5_file, path)
+            if "vars" in path_group:
+                self._h5_entry_group = safe_get_h5_group(path_group, "vars")
+                return self
+
+        # No hit. Fix for 2.13 compatibility.
+        if "_layer_checkpoint_dependencies" in self.h5_file:
+            path = path.replace("layers", "_layer_checkpoint_dependencies")
+            if path in self.h5_file:
+                path_group = safe_get_h5_group(self.h5_file, path)
+                if "vars" in path_group:
+                    self._h5_entry_group = safe_get_h5_group(path_group, "vars")
+
         return self
 
     def close(self):
@@ -1164,7 +1205,7 @@ class H5IOStore:
         return self._h5_entry_group.keys()
 
     def __getitem__(self, key):
-        value = self._verify_dataset(self._h5_entry_group[key])
+        value = safe_get_h5_dataset(self._h5_entry_group, key)
         if (
             hasattr(value, "attrs")
             and "dtype" in value.attrs
@@ -1389,10 +1430,10 @@ class ShardedH5IOStore(H5IOStore):
         """Get the H5 entry group. If it doesn't exist, return an empty dict."""
         try:
             if not path:
-                self._h5_entry_group = self._verify_group(self.h5_file["vars"])
+                self._h5_entry_group = safe_get_h5_group(self.h5_file, "vars")
             else:
-                self._h5_entry_group = self._verify_group(
-                    self._verify_group(self.h5_file[path])["vars"]
+                self._h5_entry_group = safe_get_h5_group(
+                    safe_get_h5_group(self.h5_file, path), "vars"
                 )
             self._h5_entry_initialized = True
         except KeyError:

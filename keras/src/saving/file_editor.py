@@ -4,7 +4,6 @@ import os.path
 import pprint
 import zipfile
 
-import h5py
 import numpy as np
 import rich.console
 
@@ -14,6 +13,7 @@ from keras.src.saving import saving_lib
 from keras.src.saving.saving_lib import H5IOStore
 from keras.src.utils import naming
 from keras.src.utils import summary_utils
+from keras.src.utils.module_utils import h5py
 
 try:
     import IPython as ipython
