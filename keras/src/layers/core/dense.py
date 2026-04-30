@@ -228,7 +228,7 @@ class Dense(Layer):
             import torch
             import torch.nn.functional as F
 
-            if isinstance(inputs, torch.Tensor):
+            if isinstance(inputs, torch.Tensor) and inputs.is_floating_point():
                 kernel = self._kernel.value
                 if inputs.device == kernel.device:
                     bias = self.bias.value if self.bias is not None else None

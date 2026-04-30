@@ -67,6 +67,13 @@ else:
         f"Backend '{backend.backend()}' must implement a layer mixin class."
     )
 
+if backend.backend() == "torch":
+    import torch.compiler
+
+    _is_torch_compiling = torch.compiler.is_compiling
+else:
+    _is_torch_compiling = lambda: False
+
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
 class Layer(BackendLayer, Operation):
@@ -873,6 +880,9 @@ class Layer(BackendLayer, Operation):
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        # Ultra-fast path for torch.compile: bypass all Keras overhead
+        if self.built and _is_torch_compiling():
+            return self.call(*args, **kwargs)
         # Fast path for top-level inference calls on built layers.
         # Bypasses CallSpec, mask handling, autocast scope, call context.
         # Only safe when no outer layer has set a call context.

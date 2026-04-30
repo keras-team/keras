@@ -18,14 +18,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  run_cpu_tests:
+  build:
     strategy:
       fail-fast: false
       matrix:
+        python-version: ['3.11']
         backend: [tensorflow, jax, torch, numpy, openvino]
         nnx_enabled: [false]
+        multi_device: [false]
         include:
-          - backend: jax
+          - python-version: '3.11'
+            backend: jax
             nnx_enabled: true
 
     container:
@@ -37,8 +40,9 @@ jobs:
     timeout-minutes: 120
 
     env:
+      PYTHON: ${{ matrix.python-version }}
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
-
+      JAX_NUM_CPU_DEVICES: ${{ matrix.multi_device && 4 || 1 }}
     steps:
       - name: Install binary dependencies
         # build-essential is the C++ compiler for Torch Dynamo
@@ -61,18 +65,34 @@ jobs:
           filters: |
             applications:
               - 'keras/src/applications/**'
-
-      - name: Install Python dependencies
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get pip cache dir
+        id: pip-cache
         run: |
-          pip install -r requirements.txt
-          pip install --no-deps tf_keras
-
+          python -m pip install --upgrade pip setuptools
+          echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
+      - name: pip cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pip-cache.outputs.dir }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          if [ "${{ matrix.nnx_enabled }}" == "true" ]; then
+            pip install --upgrade flax>=0.11.1
+          fi
+          pip install --no-deps tf_keras==2.20.0
+          pip uninstall -y keras keras-nightly
+          pip install -e "." --progress-bar off --upgrade
       - name: Test applications with pytest
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
         run: |
           pytest keras/src/applications --cov=keras/src/applications --cov-config=pyproject.toml
           coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
-
       - name: Codecov keras.applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
@@ -82,18 +102,15 @@ jobs:
           files: apps-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
-
       - name: Test integrations
         if: ${{ matrix.backend != 'numpy' && matrix.nnx_enabled == false }}
         run: |
           python integration_tests/import_test.py
           python integration_tests/numerical_test.py
-
       - name: Test JAX-specific integrations
         if: ${{ matrix.backend == 'jax' && matrix.nnx_enabled == false }}
         run: |
           python integration_tests/jax_custom_fit_test.py
-
       - name: Test basic flow with NNX
         if: ${{ matrix.nnx_enabled == true }}
         env:
@@ -101,20 +118,17 @@ jobs:
         run: |
           python integration_tests/import_test.py
           python integration_tests/basic_full_flow.py
-
       - name: Test TF-specific integrations
         if: ${{ matrix.backend == 'tensorflow'}}
         run: |
           python integration_tests/tf_distribute_training_test.py
           python integration_tests/tf_custom_fit_test.py
-
       - name: Test Torch-specific integrations
         if: ${{ matrix.backend == 'torch'}}
         run: |
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
-
-      - name: Run Tests
+      - name: Test with pytest
         if: ${{ matrix.nnx_enabled == false }}
         run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
 
@@ -139,30 +153,27 @@ jobs:
   format:
     name: Check the code format
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout ${{ github.ref }}
         uses: actions/checkout@v6
-
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
       - name: Get pip cache dir
         id: pip-cache
         run: |
           python -m pip install --upgrade pip setuptools
           echo "dir=$(pip cache dir)" >> $GITHUB_OUTPUT
-
       - name: pip cache
         uses: actions/cache@v5
         with:
           path: ${{ steps.pip-cache.outputs.dir }}
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
-
       - name: Install dependencies
-        run: pip install -r requirements.txt --upgrade
-
+        run: |
+          pip install -r requirements.txt --progress-bar off --upgrade
+          pip uninstall -y keras keras-nightly
+          pip install -e "." --progress-bar off --upgrade
       - name: Run pre-commit
         run: pre-commit run --all-files --hook-stage manual

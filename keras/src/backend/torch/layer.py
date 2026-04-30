@@ -1,4 +1,5 @@
 import torch
+import torch._dynamo as dynamo
 
 from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.backend.common.stateless_scope import in_stateless_scope
@@ -6,17 +7,16 @@ from keras.src.layers.input_spec import assert_input_compatibility
 from keras.src.ops.operation import Operation
 
 
-def _has_symbolic_arg(args):
+@dynamo.disable()
+def _has_symbolic_arg(args, kwargs=None):
     """Quick check if the first arg (or its contents) is symbolic."""
-    if not args:
-        return False
-    a = args[0]
-    if is_keras_tensor(a):
-        return True
-    if isinstance(a, (dict, list, tuple)):
-        for v in a.values() if isinstance(a, dict) else a:
-            if is_keras_tensor(v):
-                return True
+    for a in list(args) + list((kwargs or {}).values()):
+        if is_keras_tensor(a):
+            return True
+        if isinstance(a, (dict, list, tuple)):
+            for v in a.values() if isinstance(a, dict) else a:
+                if is_keras_tensor(v):
+                    return True
     return False
 
 
@@ -60,13 +60,14 @@ class TorchLayer(torch.nn.Module):
             and self.quantization_mode is None
             and getattr(self, "_remat_mode", None) is None
             and not in_stateless_scope()
-            and not _has_symbolic_arg(args)
+            and not _has_symbolic_arg(args, kwargs)
         ):
-            if self.input_spec is not None:
+            if self.input_spec is not None and args:
                 assert_input_compatibility(self.input_spec, args[0], self.name)
             return self.call(*args, **kwargs)
         return Operation.__call__(self, *args, **kwargs)
 
+    @dynamo.disable()
     def _setattr_hook(self, name, value):
         from keras.src.layers import Layer
 
@@ -81,11 +82,13 @@ class TorchLayer(torch.nn.Module):
                 value = TorchModuleWrapper(value)
         return name, value
 
+    @dynamo.disable()
     def _post_track_variable(self, variable):
         if hasattr(self, "_torch_params"):
             if variable.path not in self.torch_params:
                 self.torch_params[variable.path] = variable.value
 
+    @dynamo.disable()
     def _post_untrack_variable(self, variable):
         if hasattr(self, "_torch_params"):
             if variable.path in self.torch_params:
