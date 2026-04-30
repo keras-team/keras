@@ -16,6 +16,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.layers.core.einsum_dense import _analyze_einsum_string
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
@@ -359,6 +360,37 @@ class EinsumDenseTest(testing.TestCase):
         )
         layer.build((2, 1, 2))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
+
+    def test_analyze_einsum_string_axes(self):
+        # Test case 1: Standard dense
+        equation = "ab,bc->ac"
+        input_shape = (None, 32)
+        output_shape = (64,)
+        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
+            _analyze_einsum_string(
+                equation,
+                bias_axes=None,
+                input_shape=input_shape,
+                output_shape=output_shape,
+            )
+        )
+        self.assertEqual(input_axes, [0])
+        self.assertEqual(output_axes, [1])
+
+        # Test case 2: Attention QKV projection
+        equation = "abc,cde->abde"
+        input_shape = (None, 10, 32)
+        output_shape = (10, 3, 4)
+        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
+            _analyze_einsum_string(
+                equation,
+                bias_axes=None,
+                input_shape=input_shape,
+                output_shape=output_shape,
+            )
+        )
+        self.assertEqual(input_axes, [0])
+        self.assertEqual(output_axes, [1, 2])
 
     @pytest.mark.requires_trainable_backend
     def test_enable_lora(self):

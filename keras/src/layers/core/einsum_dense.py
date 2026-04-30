@@ -14,6 +14,7 @@ from keras.src import ops
 from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
+from keras.src.initializers.random_initializers import VarianceScaling
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
@@ -161,6 +162,15 @@ class EinsumDense(Layer):
         self.gptq_unpacked_column_size = gptq_unpacked_column_size
         self.quantization_config = quantization_config
 
+    def _update_kernel_initializer(self, input_axes, output_axes):
+        """
+        Updates the kernel initializer with the correct input and output axes.
+        """
+        config = self.kernel_initializer.get_config()
+        config["input_axes"] = input_axes
+        config["output_axes"] = output_axes
+        return self.kernel_initializer.__class__.from_config(config)
+
     def build(self, input_shape):
         shape_data = _analyze_einsum_string(
             self.equation,
@@ -168,9 +178,21 @@ class EinsumDense(Layer):
             input_shape,
             self.partial_output_shape,
         )
-        kernel_shape, bias_shape, full_output_shape = shape_data
+        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
+            shape_data
+        )
         self.full_output_shape = tuple(full_output_shape)
         self.input_spec = InputSpec(ndim=len(input_shape))
+
+        kernel_initializer = self.kernel_initializer
+        if isinstance(self.kernel_initializer, VarianceScaling) and (
+            self.kernel_initializer.input_axes is None
+            or self.kernel_initializer.output_axes is None
+        ):
+            kernel_initializer = self._update_kernel_initializer(
+                input_axes, output_axes
+            )
+
         if self.quantization_mode is not None:
             self.quantized_build(
                 kernel_shape,
@@ -187,7 +209,7 @@ class EinsumDense(Layer):
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=tuple(kernel_shape),
-                initializer=self.kernel_initializer,
+                initializer=kernel_initializer,
                 regularizer=self.kernel_regularizer,
                 constraint=self.kernel_constraint,
                 dtype=self.dtype,
@@ -1597,10 +1619,14 @@ def _analyze_einsum_string(equation, bias_axes, input_shape, output_shape):
             partial).
 
     Returns:
-        A tuple `(kernel_shape, bias_shape, full_output_shape)` where:
+        A tuple `(
+            kernel_shape, bias_shape, full_output_shape, input_axes, output_axes
+        )` where:
             `kernel_shape`: The calculated shape of the einsum kernel.
             `bias_shape`: The calculated shape of the bias, or `None`.
             `full_output_shape`: The fully-resolved shape of the output tensor.
+            `input_axes`: The axes representing input units.
+            `output_axes`: The axes representing output units.
 
     Raises:
         ValueError: If the einsum `equation` is not in a supported format.
@@ -1729,11 +1755,14 @@ def _analyze_split_string(
             )
 
     weight_shape = []
-    for dim in weight_spec:
-        if dim in input_dim_map:
-            weight_shape.append(input_shape[input_dim_map[dim]])
-        elif dim in output_dim_map:
+    input_axes, output_axes = [], []
+    for i, dim in enumerate(weight_spec):
+        if dim in output_dim_map:
             weight_shape.append(output_shape[output_dim_map[dim]])
+            output_axes.append(i)
+        elif dim in input_dim_map:
+            weight_shape.append(input_shape[input_dim_map[dim]])
+            input_axes.append(i)
         else:
             raise ValueError(
                 f"Weight dimension '{dim}' did not have a match in either "
@@ -1772,7 +1801,7 @@ def _analyze_split_string(
     else:
         bias_shape = None
 
-    return weight_shape, bias_shape, output_shape
+    return weight_shape, bias_shape, output_shape, input_axes, output_axes
 
 
 def _analyze_quantization_info(equation, input_shape):
