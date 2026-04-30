@@ -1727,7 +1727,6 @@ class LayerTest(testing.TestCase):
         not backend.SUPPORTS_COMPLEX_DTYPES,
         reason=f"{backend.backend()} backend doesn't support complex dtypes.",
     )
-
     @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
     def test_torch_compile_no_recompile_after_warmup(self):
         import torch
@@ -1774,6 +1773,7 @@ class LayerTest(testing.TestCase):
 
         self.assertEqual(dict(counters["stats"]), stats_after_warmup)
         self.assertEqual(dict(counters["frames"]), frames_after_warmup)
+
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):
             def __init__(self, num_outputs):
