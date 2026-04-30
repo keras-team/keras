@@ -2376,9 +2376,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(decoded, repeated_labels)
         self.assertAllClose(scores, score_labels)
 
-        if backend.backend() == "torch":
-            self.skipTest("torch doesn't support 'beam_search' strategy")
-
         labels = np.array(
             [
                 [[1, 2, -1], [2, -1, -1], [3, -1, -1]],
@@ -3141,9 +3138,6 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(standardize_dtype(decoded.dtype), "int32")
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
-
-        if backend.backend() == "torch":
-            self.skipTest("torch doesn't support 'beam_search' strategy")
 
         # Test strategy="beam_search"
         decoded, scores = knn.ctc_decode(
