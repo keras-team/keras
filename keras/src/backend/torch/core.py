@@ -618,32 +618,77 @@ def scatter_update(inputs, indices, updates, reduction=None):
 
 
 def slice(inputs, start_indices, shape):
-    shape_dtype = to_torch_dtype("int64")
     inputs = convert_to_tensor(inputs)
+
+    # Fast path: when both start_indices and shape are Python int sequences,
+    # build the slice objects directly. This avoids creating tensors from
+    # the indices, which would introduce data-dependent expressions that
+    # torch.export cannot trace.
+    if isinstance(start_indices, (list, tuple)) and isinstance(
+        shape, (list, tuple)
+    ):
+        if all(isinstance(s, int) for s in start_indices) and all(
+            isinstance(s, int) for s in shape
+        ):
+            slices = [
+                builtins.slice(start_index, start_index + length)
+                for start_index, length in zip(start_indices, shape)
+            ]
+            return inputs[tuple(slices)]
+
+    # Slow path: tensor-based slicing via torch.narrow for truly dynamic
+    # indices. torch.narrow is a proper ATen op that torch.export can
+    # trace, unlike Python-level iteration over tensor elements.
+    shape_dtype = to_torch_dtype("int64")
     start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     shape = convert_to_tensor(shape).to(shape_dtype)
-
-    python_slice = __builtins__["slice"]
-    slices = [
-        python_slice(start_index, start_index + length)
-        for start_index, length in zip(start_indices, shape)
-    ]
-    return inputs[slices]
+    result = inputs
+    for dim in range(start_indices.shape[0]):
+        result = torch.narrow(result, dim, start_indices[dim], shape[dim])
+    return result
 
 
 def slice_update(inputs, start_indices, updates):
-    shape_dtype = to_torch_dtype("int64")
     inputs = convert_to_tensor(inputs)
-    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     updates = convert_to_tensor(updates)
 
-    python_slice = __builtins__["slice"]
-    slices = [
-        python_slice(start_index, start_index + update_length)
-        for start_index, update_length in zip(start_indices, updates.shape)
-    ]
-    outputs = torch.clone(inputs)
-    outputs[slices] = updates
+    # Fast path: when start_indices is a Python int sequence, use it
+    # directly. This avoids creating tensors from the indices, which would
+    # introduce data-dependent expressions that torch.export cannot trace.
+    if isinstance(start_indices, (list, tuple)) and all(
+        isinstance(s, int) for s in start_indices
+    ):
+        slices = [
+            builtins.slice(start_index, start_index + update_length)
+            for start_index, update_length in zip(start_indices, updates.shape)
+        ]
+        outputs = torch.clone(inputs)
+        outputs[tuple(slices)] = updates
+        return outputs
+
+    # Slow path: tensor-based start_indices.
+    # We cannot use Python slice objects because they require scalar int
+    # bounds, and extracting scalars from traced tensors creates unbacked
+    # symbols that torch.export cannot resolve.
+    # Instead, we build a flat index list via meshgrid and use
+    # index_put_, which is fully traceable.
+    start_indices = convert_to_tensor(start_indices, dtype="int64")
+    outputs = inputs.clone()
+    update_shape = list(updates.shape)
+    dims = len(update_shape)
+    indices_list = []
+    for dim in range(dims):
+        dim_indices = torch.arange(
+            update_shape[dim],
+            dtype=start_indices.dtype,
+            device=start_indices.device,
+        )
+        dim_indices = dim_indices + start_indices[dim]
+        indices_list.append(dim_indices)
+
+    grids = torch.meshgrid(*indices_list, indexing="ij")
+    flat_indices = [g.flatten() for g in grids]
+    outputs.index_put_(tuple(flat_indices), updates.flatten())
     return outputs
 
 
