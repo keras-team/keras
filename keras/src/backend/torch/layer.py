@@ -62,7 +62,11 @@ class TorchLayer(torch.nn.Module):
             and not in_stateless_scope()
             and not _has_symbolic_arg(args, kwargs)
         ):
-            if self.input_spec is not None and args:
+            if (
+                self.input_spec is not None
+                and args
+                and not torch.jit.is_tracing()
+            ):
                 assert_input_compatibility(self.input_spec, args[0], self.name)
             return self.call(*args, **kwargs)
         return Operation.__call__(self, *args, **kwargs)

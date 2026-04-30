@@ -887,6 +887,13 @@ class Layer(BackendLayer, Operation):
         # skip all Python-level guards that cause recompilations.
         # The top-level TorchLayer.forward already validated inputs.
         if self.built and _is_torch_compiling():
+            if kwargs:
+                kwargs = {
+                    key: value
+                    for key, value in kwargs.items()
+                    if key not in self._call_context_args
+                    or self._call_has_context_arg.get(key, False)
+                }
             return self.call(*args, **kwargs)
 
         original_args = args
