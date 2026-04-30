@@ -251,6 +251,11 @@ def matrix_rank(x, tol=None):
     return tf.linalg.matrix_rank(x, tol=tol)
 
 
+def pinv(x, rcond=None):
+    x = convert_to_tensor(x)
+    return tf.linalg.pinv(x, rcond=rcond)
+
+
 def jvp(fun, primals, tangents, has_aux=False):
     primal_flat = tf.nest.flatten(primals)
     tangent_flat = tf.nest.flatten(tangents)

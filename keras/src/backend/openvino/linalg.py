@@ -1645,5 +1645,9 @@ def matrix_rank(x, tol=None):
     )
 
 
+def pinv(x, rcond=None):
+    raise NotImplementedError("`pinv` is not supported with openvino backend")
+
+
 def jvp(fun, primals, tangents, has_aux=False):
     raise NotImplementedError("`jvp` is not supported with openvino backend")

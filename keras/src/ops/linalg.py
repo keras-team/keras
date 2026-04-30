@@ -732,6 +732,52 @@ def matrix_rank(x, tol=None):
     return backend.linalg.matrix_rank(x, tol=tol)
 
 
+class Pinv(Operation):
+    def __init__(self, rcond=None, *, name=None):
+        super().__init__(name=name)
+        self.rcond = rcond
+
+    def call(self, x):
+        return backend.linalg.pinv(x, rcond=self.rcond)
+
+    def compute_output_spec(self, x):
+        _assert_2d(x)
+        batch_shape = x.shape[:-2]
+        m, n = x.shape[-2:]
+        return KerasTensor(batch_shape + (n, m), x.dtype)
+
+
+@keras_export(["keras.ops.pinv", "keras.ops.linalg.pinv"])
+def pinv(x, rcond=None):
+    """Compute the (Moore-Penrose) pseudoinverse of a matrix.
+
+    The pseudoinverse is computed via the singular value decomposition
+    (SVD). Singular values smaller than `rcond` times the largest
+    singular value (per matrix, in the batched case) are treated as zero.
+
+    Args:
+        x: Input tensor of shape `(..., M, N)`.
+        rcond: Cutoff ratio for small singular values. Singular values
+            less than or equal to `rcond * largest_singular_value` are
+            set to zero. If `None` (default), the backend's own default
+            is used.
+
+    Returns:
+        A tensor of shape `(..., N, M)` containing the pseudoinverse
+        of each matrix in `x`.
+
+    Example:
+
+    >>> a = keras.ops.convert_to_tensor([[1., 2.], [3., 4.], [5., 6.]])
+    >>> keras.ops.pinv(a) @ a
+    array([[1., 0.],
+           [0., 1.]], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Pinv(rcond=rcond).symbolic_call(x)
+    return backend.linalg.pinv(x, rcond=rcond)
+
+
 def _assert_1d(*arrays):
     for a in arrays:
         if a.ndim < 1:
