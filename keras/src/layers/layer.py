@@ -1644,22 +1644,22 @@ class Layer(BackendLayer, Operation):
         return self.__repr__()
 
     def __setattr__(self, name, value):
+        # Bypass for `_called` and `built` attributes:
+        # - NNX tracing cannot call nnx.Module.__setattr__
+        # - Torch dynamo cannot trace through _setattr_hook
+        if (name == "_called" or name == "built") and (
+            (backend.backend() == "jax" and is_nnx_enabled())
+            or (backend.backend() == "torch" and _is_torch_compiling())
+        ):
+            object.__setattr__(self, name, value)
+            return
+
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
         if name != "_tracker":
             if not hasattr(self, "_tracker"):
                 self._initialize_tracker()
             value = self._tracker.track(value)
-
-        # NNX-specific bypass for `_called` and `built` attributes
-        # bypass nnx.Module.__setattr__ which cannot be called while tracing
-        if (
-            backend.backend() == "jax"
-            and is_nnx_enabled()
-            and (name == "_called" or name == "built")
-        ):
-            object.__setattr__(self, name, value)
-            return
 
         super().__setattr__(name, value)
 

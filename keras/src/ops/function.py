@@ -183,7 +183,9 @@ class Function(Operation):
         the argument dispatch pattern so that `_execute_forward_plan`
         can replay the graph without hash-map lookups or tree operations.
         """
+        from keras.src.backend.common.masking import get_keras_mask
         from keras.src.layers.layer import Layer
+        from keras.src.layers.merging.base_merge import Merge
 
         # Assign an integer slot to every symbolic tensor.
         slot_map = {}
@@ -213,9 +215,25 @@ class Function(Operation):
                         or getattr(operation, "quantization_mode", None)
                         is not None
                         or operation.compute_dtype != operation.variable_dtype
-                        or not is_default(operation.compute_mask)
                     ):
                         can_fast = False
+                    elif not is_default(operation.compute_mask):
+                        # Some layers override compute_mask but are safe
+                        # to fast-path when mask-related features are off.
+                        if isinstance(operation, Merge):
+                            # Merge.compute_mask returns None when any
+                            # input mask is None.
+                            can_fast = not any(
+                                get_keras_mask(kt) is not None
+                                for kt in node.input_tensors
+                            )
+                        elif (
+                            operation.__class__.__name__ == "Embedding"
+                            and not getattr(operation, "mask_zero", False)
+                        ):
+                            can_fast = True
+                        else:
+                            can_fast = False
                     else:
                         needs_training = operation._call_has_training_arg
                 else:

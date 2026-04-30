@@ -239,6 +239,16 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             x, dtype=to_torch_dtype(dtype), device=get_device()
         )
 
+    return _convert_numpy_or_arraylike_to_tensor(x, dtype)
+
+
+@torch.compiler.disable()
+def _convert_numpy_or_arraylike_to_tensor(x, dtype):
+    """Convert numpy arrays or array-like objects to torch tensors.
+
+    Wrapped with torch.compiler.disable because torch dynamo cannot trace
+    through numpy ndarray attribute access (e.g. x.dtype).
+    """
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
         x = np.array(x)

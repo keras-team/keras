@@ -1,5 +1,12 @@
 import numpy as np
 
+try:
+    import torch.compiler
+
+    _disable_torch_compile = torch.compiler.disable
+except ImportError:
+    _disable_torch_compile = lambda fn: fn
+
 from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import config
@@ -581,25 +588,37 @@ def standardize_dtype(dtype):
         # Fall through for mapped strings or invalid
     if dtype is None:
         return config.floatx()
-    # Fast path: cache dtype object conversions (immutable objects)
-    cached = _DTYPE_CACHE.get(dtype)
-    if cached is not None:
-        return cached
-    original_dtype = dtype
-    dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
-    if hasattr(dtype, "name"):
-        dtype = dtype.name
-    elif hasattr(dtype, "__name__"):
-        dtype = dtype.__name__
-    elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype) or "jax.numpy" in str(dtype)
-    ):
-        dtype = str(dtype).split(".")[-1]
+    # Fast path: numpy dtype -> string name (dynamo-friendly)
+    if isinstance(dtype, np.dtype):
+        name = dtype.name
+        if name in dtypes.ALLOWED_DTYPES:
+            return name
+        # Remap uint32 since torch doesn't support it natively
+        if name == "uint32":
+            return "int64"
+        # Fall through for validation
+        dtype = name
+    else:
+        # Fast path: cache dtype object conversions (immutable objects)
+        cached = _DTYPE_CACHE.get(dtype)
+        if cached is not None:
+            return cached
+        original_dtype = dtype
+        dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
+        if hasattr(dtype, "name"):
+            dtype = dtype.name
+        elif hasattr(dtype, "__name__"):
+            dtype = dtype.__name__
+        elif hasattr(dtype, "__str__") and (
+            "torch" in str(dtype) or "jax.numpy" in str(dtype)
+        ):
+            dtype = str(dtype).split(".")[-1]
 
     if dtype not in dtypes.ALLOWED_DTYPES:
         raise ValueError(f"Invalid dtype: {dtype}")
-    # Cache the result for non-string, non-None dtypes
-    _DTYPE_CACHE[original_dtype] = dtype
+    # Cache the result for non-string, non-None, non-numpy dtypes
+    if "original_dtype" in locals():
+        _DTYPE_CACHE[original_dtype] = dtype
     return dtype
 
 
