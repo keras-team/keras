@@ -171,6 +171,17 @@ class Functional(Function, Model):
         )
 
     def call(self, inputs, training=None, mask=None, **kwargs):
+        # Fast path: bypass operation_fn wrapper and _run_through_graph
+        # for pure inference (no mask, no extra kwargs, not training).
+        if (
+            mask is None
+            and not kwargs
+            and (training is None or training is False)
+            and hasattr(self, "_forward_plan")
+        ):
+            inputs = self._standardize_inputs(inputs)
+            return unpack_singleton(self._execute_forward_plan(inputs))
+
         # Add support for training, masking
         inputs = self._standardize_inputs(inputs)
         if mask is None:

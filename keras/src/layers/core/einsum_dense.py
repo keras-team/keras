@@ -228,6 +228,9 @@ class EinsumDense(Layer):
         else:
             self.bias = None
         self.built = True
+        self._use_torch_fast_path = (
+            backend.backend() == "torch" and self.quantization_mode is None
+        )
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
 
@@ -301,6 +304,19 @@ class EinsumDense(Layer):
         return self.full_output_shape
 
     def call(self, inputs, training=None):
+        # Torch fast path: use torch.einsum directly, skip ops dispatch
+        if self._use_torch_fast_path and not self.lora_enabled:
+            import torch
+
+            if isinstance(inputs, torch.Tensor):
+                kernel = self._kernel.value
+                if inputs.device == kernel.device:
+                    x = torch.einsum(self.equation, inputs, kernel)
+                    if self.bias is not None:
+                        x = x + self.bias.value
+                    if self.activation is not None:
+                        x = self.activation(x)
+                    return x
         x = ops.einsum(self.equation, inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)

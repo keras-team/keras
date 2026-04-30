@@ -1,7 +1,23 @@
 import torch
 
+from keras.src.backend.common.keras_tensor import is_keras_tensor
 from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.layers.input_spec import assert_input_compatibility
 from keras.src.ops.operation import Operation
+
+
+def _has_symbolic_arg(args):
+    """Quick check if the first arg (or its contents) is symbolic."""
+    if not args:
+        return False
+    a = args[0]
+    if is_keras_tensor(a):
+        return True
+    if isinstance(a, (dict, list, tuple)):
+        for v in a.values() if isinstance(a, dict) else a:
+            if is_keras_tensor(v):
+                return True
+    return False
 
 
 class TorchLayer(torch.nn.Module):
@@ -38,6 +54,17 @@ class TorchLayer(torch.nn.Module):
         )
 
     def forward(self, *args, **kwargs):
+        # Fast path: built layer, real tensors, no special features
+        if (
+            self.built
+            and self.quantization_mode is None
+            and getattr(self, "_remat_mode", None) is None
+            and not in_stateless_scope()
+            and not _has_symbolic_arg(args)
+        ):
+            if self.input_spec is not None:
+                assert_input_compatibility(self.input_spec, args[0], self.name)
+            return self.call(*args, **kwargs)
         return Operation.__call__(self, *args, **kwargs)
 
     def _setattr_hook(self, name, value):

@@ -3,9 +3,11 @@ import collections
 from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
+from keras.src.backend.common.masking import get_keras_mask
 from keras.src.backend.config import backend
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.operation import Operation
+from keras.src.utils.python_utils import is_default
 
 
 @keras_export("keras.Function")
@@ -95,6 +97,9 @@ class Function(Operation):
         if is_nnx_enabled():
             self._setup_nnx_op_mapping()
 
+        # Pre-compile an index-based execution plan for fast inference.
+        self._compile_forward_plan()
+
     @property
     def operations(self):
         return self._operations[:]
@@ -169,6 +174,169 @@ class Function(Operation):
         """Computes output tensors for new inputs."""
         self._assert_input_compatibility(inputs)
         return self._run_through_graph(inputs)
+
+    def _compile_forward_plan(self):
+        """Pre-compile an index-based execution plan for fast inference.
+
+        Maps each symbolic tensor to an integer slot and records, for
+        every graph node, the callable, input/output slot indices, and
+        the argument dispatch pattern so that `_execute_forward_plan`
+        can replay the graph without hash-map lookups or tree operations.
+        """
+        from keras.src.layers.layer import Layer
+
+        # Assign an integer slot to every symbolic tensor.
+        slot_map = {}
+        for i, inp in enumerate(self._inputs):
+            slot_map[id(inp)] = i
+        next_slot = len(self._inputs)
+
+        plan = []
+        depth_keys = sorted(self._nodes_by_depth.keys(), reverse=True)
+        for depth in depth_keys:
+            for node in self._nodes_by_depth[depth]:
+                if not node.operation or node.is_input:
+                    continue
+                if any(id(x) not in slot_map for x in node.input_tensors):
+                    continue
+
+                operation = self._get_operation_for_node(node)
+
+                # Decide whether we can bypass __call__ overhead.
+                can_fast = True
+                needs_training = False
+                if isinstance(operation, Layer):
+                    if (
+                        not operation.built
+                        or operation.activity_regularizer is not None
+                        or getattr(operation, "_remat_mode", None) is not None
+                        or getattr(operation, "quantization_mode", None)
+                        is not None
+                        or operation.compute_dtype != operation.variable_dtype
+                        or not is_default(operation.compute_mask)
+                    ):
+                        can_fast = False
+                    else:
+                        needs_training = operation._call_has_training_arg
+                else:
+                    if getattr(
+                        operation, "_remat_mode", None
+                    ) is not None or getattr(
+                        operation, "quantization_mode", None
+                    ):
+                        can_fast = False
+
+                # Determine argument pattern and input slots.
+                sa = node.arguments
+                if sa._single_positional_tensor is not None:
+                    pattern = 1
+                    in_slots = (slot_map[id(sa._single_positional_tensor)],)
+                elif sa._dual_positional_tensors is not None:
+                    pattern = 2
+                    t0, t1 = sa._dual_positional_tensors
+                    in_slots = (slot_map[id(t0)], slot_map[id(t1)])
+                elif sa._dual_tensors_static_kwargs is not None:
+                    pattern = 3
+                    t0, t1, _ = sa._dual_tensors_static_kwargs
+                    in_slots = (slot_map[id(t0)], slot_map[id(t1)])
+                else:
+                    pattern = 0
+                    in_slots = tuple(
+                        slot_map[id(kt)] for kt in sa.keras_tensors
+                    )
+
+                # Map outputs to slots.
+                out_slots = []
+                for out in tree.flatten(node.outputs):
+                    oid = id(out)
+                    if oid not in slot_map:
+                        slot_map[oid] = next_slot
+                        next_slot += 1
+                    out_slots.append(slot_map[oid])
+
+                static_kw = (
+                    sa._dual_tensors_static_kwargs[2] if pattern == 3 else None
+                )
+                plan.append(
+                    (
+                        operation,
+                        in_slots,
+                        tuple(out_slots),
+                        pattern,
+                        static_kw,
+                        can_fast,
+                        needs_training,
+                        len(out_slots) > 1,
+                        sa if pattern == 0 else None,
+                    )
+                )
+
+        out_slots = tuple(slot_map[id(o)] for o in self._outputs)
+
+        # Use object.__setattr__ to bypass tracker lock.
+        object.__setattr__(self, "_forward_plan", tuple(plan))
+        object.__setattr__(self, "_forward_plan_output_slots", out_slots)
+        object.__setattr__(self, "_forward_plan_num_slots", next_slot)
+
+    def _execute_forward_plan(self, flat_inputs):
+        """Execute the pre-compiled forward plan using integer slot
+        indexing."""
+        plan = self._forward_plan
+        num_slots = self._forward_plan_num_slots
+        out_slots = self._forward_plan_output_slots
+
+        slots = [None] * num_slots
+        for i, val in enumerate(flat_inputs):
+            slots[i] = val
+
+        for (
+            op,
+            in_slots,
+            o_slots,
+            pattern,
+            static_kw,
+            can_fast,
+            needs_training,
+            multi_out,
+            sym_args,
+        ) in plan:
+            # Runtime check: quantization/remat may have been applied
+            # after plan compilation, and mask propagation requires
+            # going through __call__.
+            use_fast = can_fast and not getattr(op, "quantization_mode", None)
+            if use_fast and get_keras_mask(slots[in_slots[0]]) is not None:
+                use_fast = False
+            call_fn = op.call if use_fast else op
+
+            if pattern == 1:
+                if needs_training and use_fast:
+                    out = call_fn(slots[in_slots[0]], training=False)
+                else:
+                    out = call_fn(slots[in_slots[0]])
+            elif pattern == 2:
+                out = call_fn(slots[in_slots[0]], slots[in_slots[1]])
+            elif pattern == 3:
+                out = call_fn(
+                    slots[in_slots[0]], slots[in_slots[1]], **static_kw
+                )
+            else:
+                tensor_dict = {}
+                for kt, slot_idx in zip(sym_args.keras_tensors, in_slots):
+                    tensor_dict[id(kt)] = slots[slot_idx]
+                args, kwargs = sym_args.fill_in(tensor_dict)
+                if needs_training and use_fast:
+                    kwargs["training"] = False
+                out = call_fn(*args, **kwargs)
+
+            if multi_out:
+                for slot_idx, val in zip(o_slots, tree.flatten(out)):
+                    slots[slot_idx] = val
+            else:
+                slots[o_slots[0]] = out
+
+        return tree.pack_sequence_as(
+            self._outputs_struct, [slots[s] for s in out_slots]
+        )
 
     def _run_through_graph(
         self, inputs, operation_fn=lambda op: op, call_fn=None

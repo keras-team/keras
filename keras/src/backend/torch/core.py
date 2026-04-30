@@ -72,7 +72,9 @@ def device_scope(device_name):
 
 
 def get_device():
-    device = global_state.get_global_attribute("torch_device", None)
+    # Fast path: directly access the global state tracker attribute
+    # instead of calling get_global_attribute (avoids function call overhead)
+    device = getattr(global_state.GLOBAL_STATE_TRACKER, "torch_device", None)
     if device is None:
         return DEFAULT_DEVICE
     return device
@@ -191,6 +193,15 @@ class Variable(KerasVariable):
 
 
 def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+    # Ultra-fast path: torch.Tensor with no dtype conversion needed.
+    # Covers torch.Tensor and torch.nn.Parameter (common for weights).
+    if isinstance(x, torch.Tensor) and dtype is None:
+        device = get_device()
+        if x.device.type == device or str(x.device) == device:
+            return x
+        if x.is_meta:
+            return torch.empty_like(x, device=device)
+        return x.to(device)
     if sparse:
         raise ValueError("`sparse=True` is not supported with torch backend")
     if ragged:
@@ -198,8 +209,16 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     if isinstance(x, Variable) or is_tensor(x):
         if isinstance(x, Variable):
             x = x.value
+        # Fast path: no dtype and already on correct device.
+        if dtype is None:
+            device = get_device()
+            if x.device.type == device or str(x.device) == device:
+                return x
+            if x.is_meta:
+                return torch.empty_like(x, device=device)
+            return x.to(device)
         device = get_device()
-        if x.device != device:
+        if not (str(x.device) == device or x.device.type == device):
             if x.is_meta:
                 x = torch.empty_like(x, device=device)
             else:
@@ -207,19 +226,18 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype is not None:
             x = x.to(to_torch_dtype(dtype))
         return x
-    if dtype is None:
-        if isinstance(x, bool):
-            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
-        elif isinstance(x, int):
-            if x < -(2**31) or x >= 2**31:
-                return torch.as_tensor(
-                    x, dtype=torch.int64, device=get_device()
-                )
-            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
-        elif isinstance(x, float):
-            return torch.as_tensor(
-                x, dtype=to_torch_dtype(floatx()), device=get_device()
-            )
+    # Fast path for python primitives
+    if isinstance(x, (bool, int, float)):
+        if dtype is None:
+            if isinstance(x, bool):
+                dtype = "bool"
+            elif isinstance(x, int):
+                dtype = "int64" if x < -(2**31) or x >= 2**31 else "int32"
+            else:
+                dtype = floatx()
+        return torch.as_tensor(
+            x, dtype=to_torch_dtype(dtype), device=get_device()
+        )
 
     # Convert to np in case of any array-like that is not list or tuple.
     if not isinstance(x, (list, tuple)):
@@ -284,8 +302,16 @@ def shape(x):
 
 def cast(x, dtype):
     dtype = to_torch_dtype(dtype)
+    # Fast path: torch.Tensor (including Parameter) already has the right dtype
+    if isinstance(x, torch.Tensor):
+        if x.dtype == dtype:
+            return x
+        return x.to(dtype)
     if isinstance(x, Variable):
         x = x.value
+        if x.dtype == dtype:
+            return x
+        return x.to(dtype)
     if is_tensor(x):
         if x.dtype == dtype:
             return x
@@ -620,76 +646,57 @@ def scatter_update(inputs, indices, updates, reduction=None):
 def slice(inputs, start_indices, shape):
     inputs = convert_to_tensor(inputs)
 
-    # Fast path: when both start_indices and shape are Python int sequences,
-    # build the slice objects directly. This avoids creating tensors from
-    # the indices, which would introduce data-dependent expressions that
-    # torch.export cannot trace.
+    python_slice = __builtins__["slice"]
+    # Fast path for list/tuple indices (avoids convert_to_tensor overhead)
     if isinstance(start_indices, (list, tuple)) and isinstance(
         shape, (list, tuple)
     ):
-        if all(isinstance(s, int) for s in start_indices) and all(
-            isinstance(s, int) for s in shape
-        ):
-            slices = [
-                builtins.slice(start_index, start_index + length)
-                for start_index, length in zip(start_indices, shape)
-            ]
-            return inputs[tuple(slices)]
-
-    # Slow path: tensor-based slicing via torch.narrow for truly dynamic
-    # indices. torch.narrow is a proper ATen op that torch.export can
-    # trace, unlike Python-level iteration over tensor elements.
-    shape_dtype = to_torch_dtype("int64")
-    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
-    shape = convert_to_tensor(shape).to(shape_dtype)
-    result = inputs
-    for dim in range(start_indices.shape[0]):
-        result = torch.narrow(result, dim, start_indices[dim], shape[dim])
-    return result
+        slices = tuple(
+            python_slice(int(start_index), int(start_index) + int(length))
+            for start_index, length in zip(start_indices, shape)
+        )
+    else:
+        shape_dtype = to_torch_dtype("int64")
+        start_indices = convert_to_tensor(start_indices).to(shape_dtype)
+        shape = convert_to_tensor(shape).to(shape_dtype)
+        slices = tuple(
+            python_slice(start_index, start_index + length)
+            for start_index, length in zip(start_indices, shape)
+        )
+    return inputs[slices]
 
 
 def slice_update(inputs, start_indices, updates):
-    inputs = convert_to_tensor(inputs)
-    updates = convert_to_tensor(updates)
+    if not isinstance(inputs, torch.Tensor):
+        inputs = convert_to_tensor(inputs)
+    if not isinstance(updates, torch.Tensor):
+        updates = convert_to_tensor(updates)
 
-    # Fast path: when start_indices is a Python int sequence, use it
-    # directly. This avoids creating tensors from the indices, which would
-    # introduce data-dependent expressions that torch.export cannot trace.
-    if isinstance(start_indices, (list, tuple)) and all(
-        isinstance(s, int) for s in start_indices
-    ):
-        slices = [
-            builtins.slice(start_index, start_index + update_length)
-            for start_index, update_length in zip(start_indices, updates.shape)
-        ]
-        outputs = torch.clone(inputs)
-        outputs[tuple(slices)] = updates
-        return outputs
-
-    # Slow path: tensor-based start_indices.
-    # We cannot use Python slice objects because they require scalar int
-    # bounds, and extracting scalars from traced tensors creates unbacked
-    # symbols that torch.export cannot resolve.
-    # Instead, we build a flat index list via meshgrid and use
-    # index_put_, which is fully traceable.
-    start_indices = convert_to_tensor(start_indices, dtype="int64")
-    outputs = inputs.clone()
-    update_shape = list(updates.shape)
-    dims = len(update_shape)
-    indices_list = []
-    for dim in range(dims):
-        dim_indices = torch.arange(
-            update_shape[dim],
-            dtype=start_indices.dtype,
-            device=start_indices.device,
+    python_slice = __builtins__["slice"]
+    if isinstance(start_indices, (list, tuple)):
+        slices = tuple(
+            python_slice(int(idx), int(idx) + length)
+            for idx, length in zip(start_indices, updates.shape)
         )
-        dim_indices = dim_indices + start_indices[dim]
-        indices_list.append(dim_indices)
-
-    grids = torch.meshgrid(*indices_list, indexing="ij")
-    flat_indices = [g.flatten() for g in grids]
-    outputs.index_put_(tuple(flat_indices), updates.flatten())
-    return outputs
+    else:
+        shape_dtype = to_torch_dtype("int64")
+        start_indices = convert_to_tensor(start_indices).to(shape_dtype)
+        slices = tuple(
+            python_slice(start_index, start_index + update_length)
+            for start_index, update_length in zip(start_indices, updates.shape)
+        )
+    # Try in-place update to avoid cloning the entire tensor.
+    # torch.clone + assign was the #1 performance bottleneck during
+    # autoregressive generation (KV cache updates).
+    # Fall back to clone if in-place fails (e.g. leaf variable with
+    # requires_grad=True, or read-only tensors).
+    try:
+        inputs[slices] = updates
+        return inputs
+    except RuntimeError:
+        outputs = torch.clone(inputs)
+        outputs[slices] = updates
+        return outputs
 
 
 def switch(index, branches, *operands):
@@ -704,19 +711,39 @@ def while_loop(
     loop_vars,
     maximum_iterations=None,
 ):
-    current_iter = 0
-    iteration_check = lambda iter: (
-        maximum_iterations is None or iter < maximum_iterations
-    )
     is_tuple = isinstance(loop_vars, (tuple, list))
     loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
-    loop_vars = tree.map_structure(convert_to_tensor, loop_vars)
-    while cond(*loop_vars) and iteration_check(current_iter):
-        loop_vars = body(*loop_vars)
-        if not isinstance(loop_vars, (list, tuple)):
-            loop_vars = (loop_vars,)
-        loop_vars = tuple(loop_vars)
-        current_iter += 1
+    # Only convert non-scalar types to tensors. Python int/float/bool
+    # should stay as-is to avoid torch.Tensor overhead.
+    loop_vars = tree.map_structure(
+        lambda x: (
+            x if isinstance(x, (int, float, bool)) else convert_to_tensor(x)
+        ),
+        loop_vars,
+    )
+
+    # Optimization: Use for loop when maximum_iterations is known
+    if maximum_iterations is not None:
+        if hasattr(maximum_iterations, "item"):
+            maximum_iterations = maximum_iterations.item()
+        elif not isinstance(maximum_iterations, int):
+            maximum_iterations = int(maximum_iterations)
+        for i in range(maximum_iterations):
+            if not cond(*loop_vars):
+                break
+            loop_vars = body(*loop_vars)
+            if not isinstance(loop_vars, (list, tuple)):
+                loop_vars = (loop_vars,)
+            loop_vars = tuple(loop_vars)
+    else:
+        current_iter = 0
+        while cond(*loop_vars):
+            loop_vars = body(*loop_vars)
+            if not isinstance(loop_vars, (list, tuple)):
+                loop_vars = (loop_vars,)
+            loop_vars = tuple(loop_vars)
+            current_iter += 1
+
     return loop_vars if is_tuple else loop_vars[0]
 
 

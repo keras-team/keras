@@ -54,12 +54,14 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True
         )
-        self._loss_tracker.update_state(
-            loss,
-            sample_weight=next(
+        # Fast batch size extraction: avoid tree.flatten for simple tensors
+        if hasattr(x, "shape"):
+            batch_size = x.shape[0]
+        else:
+            batch_size = next(
                 i for i in tree.flatten(x) if i is not None
-            ).shape[0],
-        )
+            ).shape[0]
+        self._loss_tracker.update_state(loss, sample_weight=batch_size)
         if self.optimizer is not None:
             loss = self.optimizer.scale_loss(loss)
 
@@ -70,7 +72,8 @@ class TorchTrainer(base_trainer.Trainer):
             loss.backward()
 
             trainable_weights = self.trainable_weights[:]
-            gradients = [v.value.grad for v in trainable_weights]
+            # Use _value directly to skip stateless_scope/autocast checks
+            gradients = [v._value.grad for v in trainable_weights]
 
             # Update weights
             with torch.no_grad():
@@ -93,12 +96,13 @@ class TorchTrainer(base_trainer.Trainer):
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
-        self._loss_tracker.update_state(
-            loss,
-            sample_weight=next(
+        if hasattr(x, "shape"):
+            batch_size = x.shape[0]
+        else:
+            batch_size = next(
                 i for i in tree.flatten(x) if i is not None
-            ).shape[0],
-        )
+            ).shape[0]
+        self._loss_tracker.update_state(loss, sample_weight=batch_size)
         return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):

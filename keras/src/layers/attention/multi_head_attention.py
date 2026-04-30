@@ -167,6 +167,10 @@ class MultiHeadAttention(Layer):
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
 
+        # Cache for causal masks keyed by (q_seq_len, v_seq_len) to avoid
+        # recomputing them on every forward pass during inference.
+        self._causal_mask_cache = {}
+
         # Check for flash attention constraints
         if self._flash_attention and self._dropout > 0.0:
             raise ValueError(
@@ -447,6 +451,7 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         training=None,
         return_attention_scores=False,
+        _use_is_causal=False,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -485,6 +490,40 @@ class MultiHeadAttention(Layer):
         )
 
         if use_dot_product_attention:
+            if _use_is_causal:
+                # Ultra-fast path: call torch SDPA directly with is_causal,
+                # skipping the entire ops dispatch chain.
+                if (
+                    backend.backend() == "torch"
+                    and backend.is_tensor(query)
+                    and backend.is_tensor(key)
+                    and backend.is_tensor(value)
+                ):
+                    import torch
+
+                    # SDPA expects (B, N, T, H), inputs are (B, T, N, H)
+                    attention_output = (
+                        torch.nn.functional.scaled_dot_product_attention(
+                            query.transpose(1, 2).contiguous(),
+                            key.transpose(1, 2).contiguous(),
+                            value.transpose(1, 2).contiguous(),
+                            is_causal=True,
+                            scale=self._inverse_sqrt_key_dim,
+                        ).transpose(1, 2)
+                    )
+                else:
+                    attention_output = ops.dot_product_attention(
+                        query=query,
+                        key=key,
+                        value=value,
+                        bias=None,
+                        mask=None,
+                        scale=self._inverse_sqrt_key_dim,
+                        is_causal=True,
+                        flash_attention=self._flash_attention,
+                    )
+                return attention_output, None
+
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
@@ -563,15 +602,29 @@ class MultiHeadAttention(Layer):
         backend.set_keras_mask(value, None)
         backend.set_keras_mask(key, None)
 
-        attention_mask = self._compute_attention_mask(
-            query,
-            value,
-            query_mask=query_mask,
-            value_mask=value_mask,
-            key_mask=key_mask,
-            attention_mask=attention_mask,
-            use_causal_mask=use_causal_mask,
+        # Fast path: when only causal masking is needed (no other masks),
+        # skip _compute_attention_mask entirely and use native is_causal
+        # flag in SDPA.
+        _use_is_causal = (
+            use_causal_mask
+            and attention_mask is None
+            and query_mask is None
+            and value_mask is None
+            and key_mask is None
         )
+
+        if _use_is_causal:
+            attention_mask = None
+        else:
+            attention_mask = self._compute_attention_mask(
+                query,
+                value,
+                query_mask=query_mask,
+                value_mask=value_mask,
+                key_mask=key_mask,
+                attention_mask=attention_mask,
+                use_causal_mask=use_causal_mask,
+            )
         #   N = `num_attention_heads`
         #   H = `size_per_head`
 
@@ -594,6 +647,7 @@ class MultiHeadAttention(Layer):
             attention_mask,
             training,
             return_attention_scores,
+            _use_is_causal=_use_is_causal,
         )
         if self._use_gate:
             attention_output = self._output_dense(
@@ -705,6 +759,18 @@ class MultiHeadAttention(Layer):
         """
         q_seq_length = ops.shape(query)[1]
         v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
+        if isinstance(q_seq_length, int) and isinstance(v_seq_length, int):
+            cache_key = (q_seq_length, v_seq_length)
+            if cache_key not in self._causal_mask_cache:
+                ones_mask = ops.ones(
+                    (1, q_seq_length, v_seq_length), dtype="int32"
+                )
+                row_index = ops.cumsum(ones_mask, axis=-2)
+                col_index = ops.cumsum(ones_mask, axis=-1)
+                self._causal_mask_cache[cache_key] = ops.greater_equal(
+                    row_index, col_index
+                )
+            return self._causal_mask_cache[cache_key]
         ones_mask = ops.ones((1, q_seq_length, v_seq_length), dtype="int32")
         row_index = ops.cumsum(ones_mask, axis=-2)
         col_index = ops.cumsum(ones_mask, axis=-1)

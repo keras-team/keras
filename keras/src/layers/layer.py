@@ -873,6 +873,37 @@ class Layer(BackendLayer, Operation):
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
+        # Fast path for top-level inference calls on built layers.
+        # Bypasses CallSpec, mask handling, autocast scope, call context.
+        # Only safe when no outer layer has set a call context.
+        if (
+            self.built
+            and len(args) == 1
+            and (
+                not kwargs
+                or (len(kwargs) == 1 and not kwargs.get("training", True))
+            )
+            and is_backend_tensor_or_symbolic(args[0], allow_none=False)
+            and not any_symbolic_tensors(args)
+            and self.activity_regularizer is None
+            and getattr(self, "quantization_mode", None) is None
+            and getattr(self, "_remat_mode", None) is None
+            and self.compute_dtype == self.variable_dtype
+            and backend.get_autocast_scope() is None
+            and distribution_lib.distribution() is None
+            and global_state.get_global_attribute("current_call_ctx") is None
+            and backend.get_keras_mask(args[0]) is None
+            and utils.is_default(self.compute_mask)
+            and (
+                not self._convert_input_args
+                or backend.standardize_dtype(args[0].dtype) == self.input_dtype
+            )
+        ):
+            self._called = True
+            if kwargs and self._call_has_training_arg:
+                return self.call(args[0], training=False)
+            return self.call(args[0])
+
         self._check_super_called()
         self._called = True
 

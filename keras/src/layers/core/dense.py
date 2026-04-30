@@ -3,6 +3,7 @@ import math
 import ml_dtypes
 
 from keras.src import activations
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -152,6 +153,9 @@ class Dense(Layer):
             self.bias = None
         self.input_spec = InputSpec(min_ndim=2, axes={-1: input_shape[-1]})
         self.built = True
+        self._use_torch_fast_path = (
+            backend.backend() == "torch" and self.quantization_mode is None
+        )
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
 
@@ -219,6 +223,19 @@ class Dense(Layer):
         return kernel
 
     def call(self, inputs, training=None):
+        # Torch fast path: F.linear fuses matmul+bias in a single kernel
+        if self._use_torch_fast_path and not self.lora_enabled:
+            import torch
+            import torch.nn.functional as F
+
+            if isinstance(inputs, torch.Tensor):
+                kernel = self._kernel.value
+                if inputs.device == kernel.device:
+                    bias = self.bias.value if self.bias is not None else None
+                    x = F.linear(inputs, kernel.T, bias)
+                    if self.activation is not None:
+                        x = self.activation(x)
+                    return x
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)
