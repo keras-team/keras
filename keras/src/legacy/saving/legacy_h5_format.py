@@ -12,6 +12,8 @@ from keras.src.legacy.saving import saving_options
 from keras.src.legacy.saving import saving_utils
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
+from keras.src.saving.saving_lib import safe_get_h5_dataset
+from keras.src.saving.saving_lib import safe_get_h5_group
 from keras.src.utils import io_utils
 
 try:
@@ -139,7 +141,9 @@ def load_model_from_hdf5(
             )
 
             # set weights
-            load_weights_from_hdf5_group(f["model_weights"], model)
+            load_weights_from_hdf5_group(
+                safe_get_h5_group(f, "model_weights"), model
+            )
 
         if compile:
             # instantiate optimizer
@@ -199,48 +203,50 @@ def load_model_from_hdf5(
     return model
 
 
-def save_weights_to_hdf5_group(f, model):
+def save_weights_to_hdf5_group(group, model):
     """Saves the weights of a list of layers to a HDF5 group.
 
     Args:
-        f: HDF5 group.
+        group: HDF5 group.
         model: Model instance.
     """
     from keras.src import __version__ as keras_version
 
     save_attributes_to_hdf5_group(
-        f, "layer_names", [layer.name.encode("utf8") for layer in model.layers]
+        group,
+        "layer_names",
+        [layer.name.encode("utf8") for layer in model.layers],
     )
-    f.attrs["backend"] = backend.backend().encode("utf8")
-    f.attrs["keras_version"] = str(keras_version).encode("utf8")
+    group.attrs["backend"] = backend.backend().encode("utf8")
+    group.attrs["keras_version"] = str(keras_version).encode("utf8")
 
     # Sort model layers by layer name to ensure that group names are strictly
     # growing to avoid prefix issues.
     for layer in sorted(model.layers, key=lambda x: x.name):
-        g = f.create_group(layer.name)
+        layer_group = group.create_group(layer.name)
         weights = _legacy_weights(layer)
-        save_subset_weights_to_hdf5_group(g, weights)
+        save_subset_weights_to_hdf5_group(layer_group, weights)
     weights = list(
         v
         for v in model._trainable_variables + model._non_trainable_variables
         if v in model.weights
     )
-    g = f.create_group("top_level_model_weights")
-    save_subset_weights_to_hdf5_group(g, weights)
+    layer_group = group.create_group("top_level_model_weights")
+    save_subset_weights_to_hdf5_group(layer_group, weights)
 
 
-def save_subset_weights_to_hdf5_group(f, weights):
+def save_subset_weights_to_hdf5_group(group, weights):
     """Save top-level weights of a model to a HDF5 group.
 
     Args:
-        f: HDF5 group.
+        group: HDF5 group.
         weights: List of weight variables.
     """
     weight_values = [backend.convert_to_numpy(w) for w in weights]
     weight_names = [str(w.path).encode("utf8") for w in weights]
-    save_attributes_to_hdf5_group(f, "weight_names", weight_names)
+    save_attributes_to_hdf5_group(group, "weight_names", weight_names)
     for name, val in zip(weight_names, weight_values):
-        param_dset = f.create_dataset(name, val.shape, dtype=val.dtype)
+        param_dset = group.create_dataset(name, val.shape, dtype=val.dtype)
         if not val.shape:
             # scalar
             param_dset[()] = val
@@ -248,11 +254,11 @@ def save_subset_weights_to_hdf5_group(f, weights):
             param_dset[:] = val
 
 
-def save_optimizer_weights_to_hdf5_group(hdf5_group, optimizer):
+def save_optimizer_weights_to_hdf5_group(group, optimizer):
     """Saves optimizer weights of a optimizer to a HDF5 group.
 
     Args:
-        hdf5_group: HDF5 group.
+        group: HDF5 group.
         optimizer: optimizer instance.
     """
     from keras.src import optimizers
@@ -262,7 +268,7 @@ def save_optimizer_weights_to_hdf5_group(hdf5_group, optimizer):
     else:
         symbolic_weights = getattr(optimizer, "weights")
     if symbolic_weights:
-        weights_group = hdf5_group.create_group("optimizer_weights")
+        weights_group = group.create_group("optimizer_weights")
         weight_names = [str(w.path).encode("utf8") for w in symbolic_weights]
         save_attributes_to_hdf5_group(
             weights_group, "weight_names", weight_names
@@ -323,11 +329,11 @@ def save_attributes_to_hdf5_group(group, name, data):
         group.attrs[name] = data
 
 
-def load_weights_from_hdf5_group(f, model, skip_mismatch=False):
+def load_weights_from_hdf5_group(group, model, skip_mismatch=False):
     """Implements topological (order-based) weight loading.
 
     Args:
-        f: A pointer to a HDF5 group.
+        group: HDF5 group.
         model: Model instance.
         skip_mismatch: Boolean, whether to skip loading of weights
             where there is a mismatch in the shape of the weights,
@@ -336,14 +342,14 @@ def load_weights_from_hdf5_group(f, model, skip_mismatch=False):
         ValueError: in case of mismatch between provided layers
             and weights file.
     """
-    if "keras_version" in f.attrs:
-        original_keras_version = f.attrs["keras_version"]
+    if "keras_version" in group.attrs:
+        original_keras_version = group.attrs["keras_version"]
         if hasattr(original_keras_version, "decode"):
             original_keras_version = original_keras_version.decode("utf8")
     else:
         original_keras_version = "1"
-    if "backend" in f.attrs:
-        original_backend = f.attrs["backend"]
+    if "backend" in group.attrs:
+        original_backend = group.attrs["backend"]
         if hasattr(original_backend, "decode"):
             original_backend = original_backend.decode("utf8")
     else:
@@ -355,11 +361,13 @@ def load_weights_from_hdf5_group(f, model, skip_mismatch=False):
         if weights:
             filtered_layers.append(layer)
 
-    layer_names = load_attributes_from_hdf5_group(f, "layer_names")
+    layer_names = load_attributes_from_hdf5_group(group, "layer_names")
     filtered_layer_names = []
     for name in layer_names:
-        g = f[name]
-        weight_names = load_attributes_from_hdf5_group(g, "weight_names")
+        layer_group = safe_get_h5_group(group, name)
+        weight_names = load_attributes_from_hdf5_group(
+            layer_group, "weight_names"
+        )
         if weight_names:
             filtered_layer_names.append(name)
     layer_names = filtered_layer_names
@@ -371,10 +379,10 @@ def load_weights_from_hdf5_group(f, model, skip_mismatch=False):
         )
 
     for k, name in enumerate(layer_names):
-        g = f[name]
+        layer_group = safe_get_h5_group(group, name)
         layer = filtered_layers[k]
         symbolic_weights = _legacy_weights(layer)
-        weight_values = load_subset_weights_from_hdf5_group(g)
+        weight_values = load_subset_weights_from_hdf5_group(layer_group)
         if len(weight_values) != len(symbolic_weights):
             raise ValueError(
                 f"Weight count mismatch for layer #{k} (named {layer.name} in "
@@ -390,7 +398,7 @@ def load_weights_from_hdf5_group(f, model, skip_mismatch=False):
             name=f"layer #{k} (named {layer.name})",
         )
 
-    if "top_level_model_weights" in f:
+    if "top_level_model_weights" in group:
         symbolic_weights = list(
             # model.weights
             v
@@ -398,7 +406,7 @@ def load_weights_from_hdf5_group(f, model, skip_mismatch=False):
             if v in model.weights
         )
         weight_values = load_subset_weights_from_hdf5_group(
-            f["top_level_model_weights"]
+            safe_get_h5_group(group, "top_level_model_weights")
         )
         if len(weight_values) != len(symbolic_weights):
             raise ValueError(
@@ -462,13 +470,13 @@ def _set_weights(
         instance.finalize_state()
 
 
-def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
+def load_weights_from_hdf5_group_by_name(group, model, skip_mismatch=False):
     """Implements name-based weight loading (instead of topological loading).
 
     Layers that have no matching name are skipped.
 
     Args:
-        f: A pointer to a HDF5 group.
+        group: HDF5 group.
         model: Model instance.
         skip_mismatch: Boolean, whether to skip loading of layers
             where there is a mismatch in the number of weights,
@@ -478,21 +486,21 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
         ValueError: in case of mismatch between provided layers
             and weights file and skip_match=False.
     """
-    if "keras_version" in f.attrs:
-        original_keras_version = f.attrs["keras_version"]
+    if "keras_version" in group.attrs:
+        original_keras_version = group.attrs["keras_version"]
         if hasattr(original_keras_version, "decode"):
             original_keras_version = original_keras_version.decode("utf8")
     else:
         original_keras_version = "1"
-    if "backend" in f.attrs:
-        original_backend = f.attrs["backend"]
+    if "backend" in group.attrs:
+        original_backend = group.attrs["backend"]
         if hasattr(original_backend, "decode"):
             original_backend = original_backend.decode("utf8")
     else:
         original_backend = None
 
     # New file format.
-    layer_names = load_attributes_from_hdf5_group(f, "layer_names")
+    layer_names = load_attributes_from_hdf5_group(group, "layer_names")
 
     # Reverse index of layer name to list of layers with name.
     index = {}
@@ -501,8 +509,8 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
             index.setdefault(layer.name, []).append(layer)
 
     for k, name in enumerate(layer_names):
-        g = f[name]
-        weight_values = load_subset_weights_from_hdf5_group(g)
+        layer_group = safe_get_h5_group(group, name)
+        weight_values = load_subset_weights_from_hdf5_group(layer_group)
         for layer in index.get(name, []):
             symbolic_weights = _legacy_weights(layer)
             if len(weight_values) != len(symbolic_weights):
@@ -530,12 +538,12 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
                 name=f"layer #{k} (named {layer.name})",
             )
 
-    if "top_level_model_weights" in f:
+    if "top_level_model_weights" in group:
         symbolic_weights = (
             model._trainable_variables + model._non_trainable_variables
         )
         weight_values = load_subset_weights_from_hdf5_group(
-            f["top_level_model_weights"]
+            safe_get_h5_group(group, "top_level_model_weights")
         )
 
         if len(weight_values) != len(symbolic_weights):
@@ -565,11 +573,11 @@ def load_weights_from_hdf5_group_by_name(f, model, skip_mismatch=False):
             )
 
 
-def load_subset_weights_from_hdf5_group(f):
+def load_subset_weights_from_hdf5_group(group):
     """Load layer weights of a model from hdf5.
 
     Args:
-        f: A pointer to a HDF5 group.
+        group: HDF5 group.
 
     Returns:
         List of NumPy arrays of the weight values.
@@ -578,25 +586,29 @@ def load_subset_weights_from_hdf5_group(f):
         ValueError: in case of mismatch between provided model
             and weights file.
     """
-    weight_names = load_attributes_from_hdf5_group(f, "weight_names")
-    return [np.asarray(f[weight_name]) for weight_name in weight_names]
+    weight_names = load_attributes_from_hdf5_group(group, "weight_names")
+    return [
+        np.asarray(safe_get_h5_dataset(group, weight_name))
+        for weight_name in weight_names
+    ]
 
 
-def load_optimizer_weights_from_hdf5_group(hdf5_group):
+def load_optimizer_weights_from_hdf5_group(group):
     """Load optimizer weights from a HDF5 group.
 
     Args:
-        hdf5_group: A pointer to a HDF5 group.
+        group: HDF5 group.
 
     Returns:
         data: List of optimizer weight names.
     """
-    weights_group = hdf5_group["optimizer_weights"]
+    weights_group = safe_get_h5_group(group, "optimizer_weights")
     optimizer_weight_names = load_attributes_from_hdf5_group(
         weights_group, "weight_names"
     )
     return [
-        weights_group[weight_name] for weight_name in optimizer_weight_names
+        safe_get_h5_dataset(weights_group, weight_name)
+        for weight_name in optimizer_weight_names
     ]
 
 
