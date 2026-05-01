@@ -1,5 +1,5 @@
 pre-commit
-namex>=0.0.8
+namex>=0.1.0
 ruff
 pytest
 numpy
