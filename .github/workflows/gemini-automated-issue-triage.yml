@@ -58,7 +58,7 @@ jobs:
         id: 'get_issue_data'
         if: |-
           github.event_name == 'workflow_dispatch'
-        uses: 'actions/github-script@v8'
+        uses: 'actions/github-script@v9'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
@@ -78,7 +78,7 @@ jobs:
 
       - name: 'Get Repository Labels'
         id: 'get_labels'
-        uses: 'actions/github-script@v8'
+        uses: 'actions/github-script@v9'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |-
@@ -117,7 +117,7 @@ jobs:
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.title || github.event.issue.title }}
           ISSUE_BODY: >-
             ${{ github.event_name == 'workflow_dispatch' && steps.get_issue_data.outputs.body || github.event.issue.body }}
-        uses: 'actions/github-script@v8'
+        uses: 'actions/github-script@v9'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |-
@@ -162,7 +162,7 @@ jobs:
         run: mkdir -p ~/.gemini
 
       - name: 'Run Gemini Issue Analysis & Response'
-        uses: 'google-github-actions/run-gemini-cli@9dbec29a20fab3f35017a40ad0eb798a257d4d51'
+        uses: 'google-github-actions/run-gemini-cli@f77273f4c914e4bf38440cf36a0369cb64a37489'
         id: 'gemini_issue_analysis'
         env:
           GITHUB_TOKEN: '' # Do not pass any auth token here
@@ -239,7 +239,7 @@ jobs:
         env:
           ISSUE_NUMBER: '${{ github.event.issue.number || github.event.inputs.issue_number }}'
           LABELS_OUTPUT: '${{ steps.gemini_issue_analysis.outputs.summary }}'
-        uses: 'actions/github-script@v8'
+        uses: 'actions/github-script@v9'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
