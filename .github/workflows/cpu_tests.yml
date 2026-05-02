@@ -134,7 +134,7 @@ jobs:
 
       - name: Run Tests
         if: ${{ matrix.nnx_enabled == false }}
-        run: pytest keras -n auto --dist loadfile --ignore keras/src/applications --ignore keras/src/wrappers --cov=keras --cov-config=pyproject.toml
+        run: pytest keras --pytest-durations=100 --pytest-durations-group-by=class --ignore keras/src/applications --ignore keras/src/wrappers --cov=keras --cov-config=pyproject.toml
 
       - name: Run Tests Incompatible with pytest-xdist
         if: ${{ matrix.nnx_enabled == false }}
