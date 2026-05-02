@@ -18,6 +18,7 @@ rich
 build
 optree
 pytest-cov
+pytest-durations
 packaging
 # for tree_test.py
 dm_tree
