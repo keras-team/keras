@@ -1,3 +1,4 @@
+import inspect
 import math
 
 from keras.src.api_export import keras_export
@@ -201,25 +202,70 @@ def _draw_legend(layers, color_wheel, background_fill):
 def layered_view(
     model,
     to_file=None,
-    min_z=20,
-    min_xy=20,
-    max_z=400,
-    max_xy=2000,
-    scale_z=1.5,
-    scale_xy=4,
     draw_volume=True,
     draw_funnel=True,
-    shade_step=10,
     color_map=None,
-    spacing=10,
-    padding=10,
-    background_fill="white",
     text_callable=None,
     legend=False,
+    **kwargs,
 ):
-    """Render a Keras model as a layered architecture diagram."""
+    """Render a Keras model as a layered architecture diagram.
+
+    Note: This visualization assumes a linear sequence of layers.
+    For non-linear models (e.g., Functional models with multiple branches
+    or skip connections), this visualization will connect layers based
+    on their order in `model.layers` rather than the actual graph topology.
+
+    Arguments:
+        model: A built Keras model.
+        to_file: Optional string or path-like object to save the image.
+        draw_volume: Boolean, whether to draw the 3D depth of layers.
+        draw_funnel: Boolean, whether to draw connector funnels between layers.
+        color_map: Optional dictionary mapping layer classes to colors.
+        text_callable: Optional callback function to generate labels for each
+            layer. Can take either `(layer) -> str` or `(index, layer) -> str`.
+        legend: Boolean, whether to display a color legend.
+        **kwargs: Additional styling parameters. Supported arguments include:
+            - `min_z`, `min_xy`, `max_z`, `max_xy`: Bounding sizes.
+            - `scale_z`, `scale_xy`: Scaling factors.
+            - `shade_step`: Color darkening step for 3D faces.
+            - `spacing`: Space between layers.
+            - `padding`: Canvas padding.
+            - `background_fill`: Canvas background color.
+
+    Returns:
+        A PIL Image object containing the architecture diagram.
+
+    Example:
+    ```python
+    model = keras.Sequential([
+            keras.layers.Input(shape=(28, 28, 1)),
+            keras.layers.Conv2D(32, 3, activation="relu"),
+            keras.layers.MaxPooling2D(),
+            keras.layers.Flatten(),
+            keras.layers.Dense(10),
+        ]
+    )
+    keras.visualization.layered_view(model, to_file="model.png")
+    ```
+    """
     if not model.built:
-        raise ValueError("This model has not yet been built.")
+        raise ValueError(
+            f"Model {model.name} has not yet been built. "
+            "Build the model first by calling `model.build(input_shape)` "
+            "or by passing some data to it."
+        )
+
+    min_z = kwargs.get("min_z", 20)
+    min_xy = kwargs.get("min_xy", 20)
+    max_z = kwargs.get("max_z", 400)
+    max_xy = kwargs.get("max_xy", 2000)
+    scale_z = kwargs.get("scale_z", 1.5)
+    scale_xy = kwargs.get("scale_xy", 4)
+    shade_step = kwargs.get("shade_step", 10)
+    spacing = kwargs.get("spacing", 10)
+    padding = kwargs.get("padding", 10)
+    background_fill = kwargs.get("background_fill", "white")
 
     color_wheel = ColorWheel(color_map)
     boxes = []
@@ -304,11 +350,17 @@ def layered_view(
     draw_text = pil_imagedraw.Draw(img)
 
     if text_callable:
+        try:
+            expects_index = (
+                len(inspect.signature(text_callable).parameters) == 2
+            )
+        except Exception:
+            expects_index = False
+
         for idx, box in enumerate(boxes):
             res = (
                 text_callable(idx, box["layer"])
-                if hasattr(text_callable, "__code__")
-                and text_callable.__code__.co_argcount == 2
+                if expects_index
                 else text_callable(box["layer"])
             )
 

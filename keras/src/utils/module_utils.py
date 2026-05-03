@@ -90,7 +90,7 @@ ocp = OrbaxLazyModule(
     ),
 )
 
-# Pillow submodules required for visualization
+
 pil_image = LazyModule("PIL.Image", pip_name="pillow")
 pil_imagedraw = LazyModule("PIL.ImageDraw", pip_name="pillow")
 pil_imagefont = LazyModule("PIL.ImageFont", pip_name="pillow")
