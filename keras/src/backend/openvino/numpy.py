@@ -48,7 +48,9 @@ def add(x1, x2):
 def einsum(subscripts, *operands, **kwargs):
     inputs = [get_ov_output(operand) for operand in operands]
     keras_types = [ov_to_keras_type(inp.get_element_type()) for inp in inputs]
-    result_dtype = dtypes.result_type(*keras_types) if keras_types else config.floatx()
+    result_dtype = (
+        dtypes.result_type(*keras_types) if keras_types else config.floatx()
+    )
     if set(keras_types) == {"int8"}:
         result_dtype = "int32"
     ov_result_type = OPENVINO_DTYPES[result_dtype]
@@ -155,7 +157,9 @@ def _compute_extrema(x, operation, axis=None, keepdims=False, initial=None):
         reduction_op = ov_opset.reduce_max
         elementwise_op = ov_opset.maximum
     else:
-        raise ValueError(f"Operation must be 'min' or 'max', received {operation}")
+        raise ValueError(
+            f"Operation must be 'min' or 'max', received {operation}"
+        )
 
     x = get_ov_output(x)
     x_type = x.get_element_type()
@@ -236,7 +240,9 @@ def all(x, axis=None, keepdims=False):
     if axis is None:
         return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
-    return OpenVINOKerasTensor(ov_opset.reduce_logical_and(x, axis, keepdims).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.reduce_logical_and(x, axis, keepdims).output(0)
+    )
 
 
 def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
@@ -249,7 +255,9 @@ def allclose(x1, x2, rtol=1e-05, atol=1e-08, equal_nan=False):
         try:
             return OpenVINOKerasTensor(
                 ov_opset.constant(
-                    np.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan),
+                    np.allclose(
+                        x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan
+                    ),
                     Type.boolean,
                 ).output(0)
             )
@@ -283,7 +291,9 @@ def any(x, axis=None, keepdims=False):
     if axis is None:
         return OpenVINOKerasTensor(x)
     x = ov_opset.convert(x, Type.boolean).output(0)
-    return OpenVINOKerasTensor(ov_opset.reduce_logical_or(x, axis, keepdims).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.reduce_logical_or(x, axis, keepdims).output(0)
+    )
 
 
 def amax(x, axis=None, keepdims=False):
@@ -488,7 +498,9 @@ def argmax(x, axis=None, keepdims=False):
     if rank == 0:
         return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
     if axis is None:
-        flatten_shape = ov_opset.constant([-1] + [1] * (rank - 1), Type.i32).output(0)
+        flatten_shape = ov_opset.constant(
+            [-1] + [1] * (rank - 1), Type.i32
+        ).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -518,7 +530,9 @@ def argmin(x, axis=None, keepdims=False):
     if rank == 0:
         return OpenVINOKerasTensor(ov_opset.constant([0], Type.i32).output(0))
     if axis is None:
-        flatten_shape = ov_opset.constant([-1] + [1] * (rank - 1), Type.i32).output(0)
+        flatten_shape = ov_opset.constant(
+            [-1] + [1] * (rank - 1), Type.i32
+        ).output(0)
         x = ov_opset.reshape(x, flatten_shape, False).output(0)
         axis = 0
         k = ov_opset.constant(1, Type.i32).output(0)
@@ -654,7 +668,9 @@ def view(x, dtype=None):
 
     if old_itemsize == new_itemsize:
         # Same-width signed↔unsigned: convert preserves bit pattern
-        return OpenVINOKerasTensor(ov_opset.convert(x_ov, new_ov_type).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.convert(x_ov, new_ov_type).output(0)
+        )
     elif old_itemsize > new_itemsize:
         return _view_int_expand(x_ov, new_ov_type, old_itemsize, new_itemsize)
     else:
@@ -702,7 +718,9 @@ def _view_int_expand(x, new_ov_type, old_itemsize, new_itemsize):
         shifted = ov_opset.bitwise_right_shift(x_uint, shift).output(0)
         masked = ov_opset.bitwise_and(shifted, mask).output(0)
         part = ov_opset.convert(masked, dst_uint_type).output(0)
-        part = ov_opset.unsqueeze(part, ov_opset.constant(-1, Type.i32)).output(0)
+        part = ov_opset.unsqueeze(part, ov_opset.constant(-1, Type.i32)).output(
+            0
+        )
         byte_parts.append(part)
 
     # Concat along last axis: [..., N, ratio]
@@ -737,19 +755,25 @@ def _view_int_contract(x, new_ov_type, old_itemsize, new_itemsize):
         last_dim, ov_opset.constant([ratio], Type.i64).output(0)
     ).output(0)
     ratio_dim = ov_opset.constant([ratio], Type.i64).output(0)
-    inter_shape = ov_opset.concat([leading, grouped_last, ratio_dim], axis=0).output(0)
+    inter_shape = ov_opset.concat(
+        [leading, grouped_last, ratio_dim], axis=0
+    ).output(0)
     reshaped = ov_opset.reshape(x_uint, inter_shape, False).output(0)
 
     # Combine bytes: gather each position, shift, OR
     last_axis = ov_opset.constant(-1, Type.i64).output(0)
     idx = ov_opset.constant([0], Type.i64).output(0)
     byte_0 = ov_opset.gather(reshaped, idx, last_axis).output(0)
-    byte_0 = ov_opset.squeeze(byte_0, ov_opset.constant([-1], Type.i32)).output(0)
+    byte_0 = ov_opset.squeeze(byte_0, ov_opset.constant([-1], Type.i32)).output(
+        0
+    )
     result = ov_opset.convert(byte_0, dst_uint_type).output(0)
     for i in range(1, ratio):
         idx = ov_opset.constant([i], Type.i64).output(0)
         byte_i = ov_opset.gather(reshaped, idx, last_axis).output(0)
-        byte_i = ov_opset.squeeze(byte_i, ov_opset.constant([-1], Type.i32)).output(0)
+        byte_i = ov_opset.squeeze(
+            byte_i, ov_opset.constant([-1], Type.i32)
+        ).output(0)
         byte_i = ov_opset.convert(byte_i, dst_uint_type).output(0)
         shift = ov_opset.constant(i * bits_per_elem, dst_uint_type).output(0)
         byte_i = ov_opset.bitwise_left_shift(byte_i, shift).output(0)
@@ -811,14 +835,18 @@ def bartlett(x):
     )
     second_half = ov_opset.subtract(two_const_f64, first_half)
     window = ov_opset.select(condition, first_half, second_half)
-    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(0)
+    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
+        0
+    )
     return OpenVINOKerasTensor(window)
 
 
 def hamming(x):
     m = get_ov_output(x)
 
-    m_i64 = m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
+    m_i64 = (
+        m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
+    )
 
     start = ov_opset.constant(0, Type.i64)
     step = ov_opset.constant(1, Type.i64)
@@ -838,7 +866,9 @@ def hamming(x):
     a = ov_opset.constant(0.54, Type.f64)
     b = ov_opset.constant(0.46, Type.f64)
     hamming_window = ov_opset.subtract(a, ov_opset.multiply(b, c))
-    hamming_window = ov_opset.convert(hamming_window, OPENVINO_DTYPES[config.floatx()])
+    hamming_window = ov_opset.convert(
+        hamming_window, OPENVINO_DTYPES[config.floatx()]
+    )
 
     return OpenVINOKerasTensor(hamming_window.output(0))
 
@@ -846,7 +876,9 @@ def hamming(x):
 def hanning(x):
     m = get_ov_output(x)
 
-    m_i64 = m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
+    m_i64 = (
+        m if m.get_element_type() == Type.i64 else ov_opset.convert(m, Type.i64)
+    )
 
     start = ov_opset.constant(0, Type.i64)
     step = ov_opset.constant(1, Type.i64)
@@ -877,7 +909,9 @@ def hanning(x):
     ones = ov_opset.broadcast(one_f64, ov_opset.shape_of(hanning_window))
     hanning_window = ov_opset.select(is_zero, ones, hanning_window)
 
-    hanning_window = ov_opset.convert(hanning_window, OPENVINO_DTYPES[config.floatx()])
+    hanning_window = ov_opset.convert(
+        hanning_window, OPENVINO_DTYPES[config.floatx()]
+    )
 
     return OpenVINOKerasTensor(hanning_window.output(0))
 
@@ -932,7 +966,9 @@ def kaiser(x, beta):
     n = ov_opset.range(start, m_i64, step, calc_type).output(0)
     one_float = ov_opset.constant(1.0, calc_type).output(0)
     two_float = ov_opset.constant(2.0, calc_type).output(0)
-    alpha = ov_opset.divide(ov_opset.subtract(m_float, one_float), two_float).output(0)
+    alpha = ov_opset.divide(
+        ov_opset.subtract(m_float, one_float), two_float
+    ).output(0)
     zero_float = ov_opset.constant(0.0, calc_type).output(0)
     is_alpha_zero = ov_opset.equal(alpha, zero_float).output(0)
     safe_alpha = ov_opset.select(is_alpha_zero, one_float, alpha).output(0)
@@ -945,7 +981,9 @@ def kaiser(x, beta):
     num = i0(arg).output
     den = i0(beta).output
     result = ov_opset.divide(num, den).output(0)
-    result = ov_opset.convert(result, OPENVINO_DTYPES[config.floatx()]).output(0)
+    result = ov_opset.convert(result, OPENVINO_DTYPES[config.floatx()]).output(
+        0
+    )
     return OpenVINOKerasTensor(result)
 
 
@@ -1002,10 +1040,12 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     max_element = ov_opset.reduce_max(x, const_zero, keep_dims=False).output(0)
     depth = ov_opset.add(max_element, const_one).output(0)
     depth = ov_opset.maximum(depth, minlength).output(0)
-    depth_scalar = ov_opset.reduce_max(depth, const_zero, keep_dims=False).output(0)
-    one_hot = ov_opset.one_hot(x, depth_scalar, const_one, const_zero, axis=-1).output(
-        0
-    )
+    depth_scalar = ov_opset.reduce_max(
+        depth, const_zero, keep_dims=False
+    ).output(0)
+    one_hot = ov_opset.one_hot(
+        x, depth_scalar, const_one, const_zero, axis=-1
+    ).output(0)
     if weights is not None:
         weights = get_ov_output(weights)
         weights_type = weights.get_element_type()
@@ -1037,7 +1077,9 @@ def _bitwise_op_i8u8(ov_op, x, y):
         x = ov_opset.convert(x, cast_type).output(0)
         y = ov_opset.convert(y, cast_type).output(0)
         result = ov_op(x, y).output(0)
-        return OpenVINOKerasTensor(ov_opset.convert(result, elem_type).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.convert(result, elem_type).output(0)
+        )
     return OpenVINOKerasTensor(ov_op(x, y).output(0))
 
 
@@ -1092,7 +1134,9 @@ def blackman(x):
     term_2_final = ov_opset.multiply(term_2, cos_2pi)
     term_3_final = ov_opset.multiply(term_3, cos_4pi)
     window = ov_opset.add(ov_opset.subtract(term_1, term_2_final), term_3_final)
-    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(0)
+    window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
+        0
+    )
     return OpenVINOKerasTensor(window)
 
 
@@ -1145,7 +1189,9 @@ def concatenate(xs, axis=0):
     elems = [get_ov_output(x) for x in xs]
     if axis is None:
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        elems = [ov_opset.reshape(x, flatten_shape, False).output(0) for x in elems]
+        elems = [
+            ov_opset.reshape(x, flatten_shape, False).output(0) for x in elems
+        ]
         axis = 0
     keras_types = [ov_to_keras_type(x.get_element_type()) for x in elems]
     if keras_types:
@@ -1313,7 +1359,9 @@ def cumprod(x, axis=None, dtype=None):
 
     signs = ov_opset.sign(x).output(0)
 
-    is_zero_sign = ov_opset.equal(signs, ov_opset.constant(0, compute_dtype)).output(0)
+    is_zero_sign = ov_opset.equal(
+        signs, ov_opset.constant(0, compute_dtype)
+    ).output(0)
     signs_no_zeros = ov_opset.select(
         is_zero_sign, ov_opset.constant(1, compute_dtype), signs
     ).output(0)
@@ -1324,7 +1372,9 @@ def cumprod(x, axis=None, dtype=None):
     num_negatives = ov_opset.cumsum(
         ov_opset.convert(is_negative, Type.i32), axis
     ).output(0)
-    is_odd = ov_opset.mod(num_negatives, ov_opset.constant(2, Type.i32)).output(0)
+    is_odd = ov_opset.mod(num_negatives, ov_opset.constant(2, Type.i32)).output(
+        0
+    )
 
     cum_sign = ov_opset.subtract(
         ov_opset.constant(1, Type.i32),
@@ -1333,7 +1383,9 @@ def cumprod(x, axis=None, dtype=None):
     cum_sign = ov_opset.convert(cum_sign, compute_dtype).output(0)
 
     abs_x = ov_opset.absolute(x).output(0)
-    is_zero_abs = ov_opset.equal(abs_x, ov_opset.constant(0, compute_dtype)).output(0)
+    is_zero_abs = ov_opset.equal(
+        abs_x, ov_opset.constant(0, compute_dtype)
+    ).output(0)
     abs_x_safe = ov_opset.select(
         is_zero_abs, ov_opset.constant(1, compute_dtype), abs_x
     ).output(0)
@@ -1345,12 +1397,12 @@ def cumprod(x, axis=None, dtype=None):
     result = ov_opset.multiply(cumprod_abs, cum_sign).output(0)
 
     is_zero = ov_opset.equal(x, ov_opset.constant(0, compute_dtype)).output(0)
-    has_zero_before = ov_opset.cumsum(ov_opset.convert(is_zero, Type.i32), axis).output(
-        0
-    )
-    zero_mask = ov_opset.equal(has_zero_before, ov_opset.constant(0, Type.i32)).output(
-        0
-    )
+    has_zero_before = ov_opset.cumsum(
+        ov_opset.convert(is_zero, Type.i32), axis
+    ).output(0)
+    zero_mask = ov_opset.equal(
+        has_zero_before, ov_opset.constant(0, Type.i32)
+    ).output(0)
     result = ov_opset.multiply(
         result, ov_opset.convert(zero_mask, compute_dtype)
     ).output(0)
@@ -1425,7 +1477,9 @@ def diag(x, k=0):
     if rank == 1:
         N_dim = x_shape[0]
         if not N_dim.is_static:
-            raise ValueError("diag requires input with static shape for 1D input.")
+            raise ValueError(
+                "diag requires input with static shape for 1D input."
+            )
         N = N_dim.get_length()
         output_size = N + np.abs(k)
         out_shape = ov_opset.constant(
@@ -1451,7 +1505,9 @@ def diag(x, k=0):
         M_dim = x_shape[0]
         N_dim = x_shape[1]
         if not M_dim.is_static or not N_dim.is_static:
-            raise ValueError("diag requires input with static shape for 2D input.")
+            raise ValueError(
+                "diag requires input with static shape for 2D input."
+            )
         M = M_dim.get_length()
         N = N_dim.get_length()
 
@@ -1466,7 +1522,9 @@ def diag(x, k=0):
             keras_dtype = ov_to_keras_type(x.get_element_type())
             np_dtype = np.dtype(keras_dtype)
             empty_np = np.empty((0,), dtype=np_dtype)
-            empty_const = ov_opset.constant(empty_np, x.get_element_type()).output(0)
+            empty_const = ov_opset.constant(
+                empty_np, x.get_element_type()
+            ).output(0)
             return OpenVINOKerasTensor(empty_const)
 
         indices = np.array(indices, dtype=np.int32)
@@ -1555,7 +1613,9 @@ def diagonal(x, offset=0, axis1=0, axis2=1):
     if axis1 == axis2:
         raise ValueError("`axis1` and `axis2` cannot be the same.")
 
-    perm_order = [axis1, axis2] + [i for i in range(rank) if i != axis1 and i != axis2]
+    perm_order = [axis1, axis2] + [
+        i for i in range(rank) if i != axis1 and i != axis2
+    ]
     perm_const = ov_opset.constant(perm_order, dtype=Type.i32).output(0)
     x_transposed = ov_opset.transpose(x, perm_const)
 
@@ -1715,14 +1775,26 @@ def dstack(xs):
         rank = shape.rank
         shape_len = rank.get_length()
         if shape_len == 0:
-            elem = ov_opset.unsqueeze(elem, ov_opset.constant(0, Type.i32)).output(0)
-            elem = ov_opset.unsqueeze(elem, ov_opset.constant(1, Type.i32)).output(0)
-            elem = ov_opset.unsqueeze(elem, ov_opset.constant(2, Type.i32)).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(1, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
         elif shape_len == 1:
-            elem = ov_opset.unsqueeze(elem, ov_opset.constant(0, Type.i32)).output(0)
-            elem = ov_opset.unsqueeze(elem, ov_opset.constant(2, Type.i32)).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(0, Type.i32)
+            ).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
         elif shape_len == 2:
-            elem = ov_opset.unsqueeze(elem, ov_opset.constant(2, Type.i32)).output(0)
+            elem = ov_opset.unsqueeze(
+                elem, ov_opset.constant(2, Type.i32)
+            ).output(0)
         processed_elems.append(elem)
 
     for i in range(1, len(processed_elems)):
@@ -1915,7 +1987,9 @@ def full(shape, fill_value, dtype=None):
     if isinstance(shape, tuple):
         shape = list(shape)
     target_shape = ov_opset.constant(shape, Type.i32)
-    return OpenVINOKerasTensor(ov_opset.broadcast(fill_value, target_shape).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.broadcast(fill_value, target_shape).output(0)
+    )
 
 
 def full_like(x, fill_value, dtype=None):
@@ -1951,9 +2025,9 @@ def gcd(x1, x2):
 
         shape_b = ov_opset.shape_of(b, Type.i64).output(0)
         rank_b = ov_opset.shape_of(shape_b, Type.i64).output(0)
-        rank_b_scalar = ov_opset.squeeze(rank_b, ov_opset.constant(0, Type.i32)).output(
-            0
-        )
+        rank_b_scalar = ov_opset.squeeze(
+            rank_b, ov_opset.constant(0, Type.i32)
+        ).output(0)
         axes = ov_opset.range(
             ov_opset.constant(0, Type.i64).output(0),
             rank_b_scalar,
@@ -2027,7 +2101,9 @@ def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
 
     start_sign = ov_opset.sign(start).output(0)
     result_output = get_ov_output(result)
-    return OpenVINOKerasTensor(ov_opset.multiply(result_output, start_sign).output(0))
+    return OpenVINOKerasTensor(
+        ov_opset.multiply(result_output, start_sign).output(0)
+    )
 
 
 def greater(x1, x2):
@@ -2063,7 +2139,9 @@ def hstack(xs):
     is_1d = elems and len(elems[0].get_partial_shape().to_shape()) == 1
     axis = 0 if is_1d else 1
     for i in range(1, len(elems)):
-        elems[0], elems[i] = _align_operand_types(elems[0], elems[i], "hstack()")
+        elems[0], elems[i] = _align_operand_types(
+            elems[0], elems[i], "hstack()"
+        )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
@@ -2225,7 +2303,9 @@ def isfinite(x):
     # that ever changes, we could simplify this to just call that operation.
     inf_values = get_ov_output(isinf(x))
     nan_values = get_ov_output(isnan(x))
-    all_non_finite_values = ov_opset.logical_or(inf_values, nan_values).output(0)
+    all_non_finite_values = ov_opset.logical_or(inf_values, nan_values).output(
+        0
+    )
     is_finite = ov_opset.logical_not(all_non_finite_values).output(0)
     return OpenVINOKerasTensor(is_finite)
 
@@ -2288,7 +2368,9 @@ def _is_inf(x, pos=True):
     if x_type.is_integral() or x_type == Type.boolean:
         shape = ov_opset.shape_of(x, "i32").output(0)
         false_const = ov_opset.constant(False, Type.boolean).output(0)
-        return OpenVINOKerasTensor(ov_opset.broadcast(false_const, shape).output(0))
+        return OpenVINOKerasTensor(
+            ov_opset.broadcast(false_const, shape).output(0)
+        )
 
     if x_type == Type.bf16:
         x_f32 = ov_opset.convert(x, Type.f32).output(0)
@@ -2370,9 +2452,9 @@ def kron(x1, x2):
         ov_opset.reshape(x1, x1_new_shape, False),
         ov_opset.reshape(x2, x2_new_shape, False),
     )
-    result = ov_opset.reshape(result, ov_opset.multiply(shape1, shape2), False).output(
-        0
-    )
+    result = ov_opset.reshape(
+        result, ov_opset.multiply(shape1, shape2), False
+    ).output(0)
     return OpenVINOKerasTensor(result)
 
 
@@ -2446,7 +2528,9 @@ def less_equal(x1, x2):
     return OpenVINOKerasTensor(ov_opset.less_equal(x1, x2).output(0))
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
+def linspace(
+    start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0
+):
     """Return evenly spaced numbers over a specified interval.
 
     Supports axis=0 (prepend) and axis=-1 (append). Intermediate axis values are
@@ -2466,9 +2550,13 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
                 num_value = num_tensor.get_node().get_vector()[0]
                 num = int(num_value)
             else:
-                raise NotImplementedError("Dynamic num values not fully supported")
+                raise NotImplementedError(
+                    "Dynamic num values not fully supported"
+                )
         except Exception as e:
-            raise NotImplementedError("Could not extract num value from tensor") from e
+            raise NotImplementedError(
+                "Could not extract num value from tensor"
+            ) from e
     else:
         num = int(num)
 
@@ -2516,7 +2604,9 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
     else:
         divisor = num_const
 
-    step = ov_opset.divide(ov_opset.subtract(stop, start).output(0), divisor).output(0)
+    step = ov_opset.divide(
+        ov_opset.subtract(stop, start).output(0), divisor
+    ).output(0)
 
     indices = ov_opset.range(
         zero_i32,
@@ -2525,9 +2615,9 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
         output_type,
     ).output(0)
 
-    start_shape = ov_opset.convert(ov_opset.shape_of(start).output(0), Type.i32).output(
-        0
-    )
+    start_shape = ov_opset.convert(
+        ov_opset.shape_of(start).output(0), Type.i32
+    ).output(0)
     indices_shape = ov_opset.convert(
         ov_opset.shape_of(indices).output(0), Type.i32
     ).output(0)
@@ -2539,18 +2629,28 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
         indices_target_shape = ov_opset.concat(
             [indices_shape, ones_for_start], 0
         ).output(0)
-        start_target_shape = ov_opset.concat([one_i32_array, start_shape], 0).output(0)
+        start_target_shape = ov_opset.concat(
+            [one_i32_array, start_shape], 0
+        ).output(0)
     else:
         indices_target_shape = ov_opset.concat(
             [ones_for_start, indices_shape], 0
         ).output(0)
-        start_target_shape = ov_opset.concat([start_shape, one_i32_array], 0).output(0)
+        start_target_shape = ov_opset.concat(
+            [start_shape, one_i32_array], 0
+        ).output(0)
 
-    indices_reshaped = ov_opset.reshape(indices, indices_target_shape, False).output(0)
-    start_reshaped = ov_opset.reshape(start, start_target_shape, False).output(0)
+    indices_reshaped = ov_opset.reshape(
+        indices, indices_target_shape, False
+    ).output(0)
+    start_reshaped = ov_opset.reshape(start, start_target_shape, False).output(
+        0
+    )
     step_reshaped = ov_opset.reshape(step, start_target_shape, False).output(0)
 
-    scaled_indices = ov_opset.multiply(indices_reshaped, step_reshaped).output(0)
+    scaled_indices = ov_opset.multiply(indices_reshaped, step_reshaped).output(
+        0
+    )
     result = ov_opset.add(start_reshaped, scaled_indices).output(0)
 
     if retstep:
@@ -2687,7 +2787,9 @@ def logaddexp2(x1, x2):
 
     power_of_2 = ov_opset.power(two, neg_abs_diff)
 
-    one_plus_power = ov_opset.add(ov_opset.constant(1, dtype=element_type), power_of_2)
+    one_plus_power = ov_opset.add(
+        ov_opset.constant(1, dtype=element_type), power_of_2
+    )
     log2_term = ov_opset.divide(ov_opset.log(one_plus_power), ov_opset.log(two))
     result = ov_opset.add(max_val, log2_term).output(0)
 
@@ -2816,8 +2918,12 @@ def median(x, axis=None, keepdims=False):
     ).output(0)
 
     # Check if k is odd
-    k_mod_2 = ov_opset.mod(k_scalar, ov_opset.constant(2, Type.i32).output(0)).output(0)
-    is_odd = ov_opset.equal(k_mod_2, ov_opset.constant(1, Type.i32).output(0)).output(0)
+    k_mod_2 = ov_opset.mod(
+        k_scalar, ov_opset.constant(2, Type.i32).output(0)
+    ).output(0)
+    is_odd = ov_opset.equal(
+        k_mod_2, ov_opset.constant(1, Type.i32).output(0)
+    ).output(0)
 
     # For odd case: take the middle element
     odd_idx = k_minus_1_div_2
@@ -2867,8 +2973,12 @@ def median(x, axis=None, keepdims=False):
     if keepdims:
         if flattened_all:
             # When axis=None, keepdims should restore all dimensions as 1
-            ones_shape = ov_opset.constant([1] * original_rank, Type.i32).output(0)
-            median_result = ov_opset.reshape(median_result, ones_shape, False).output(0)
+            ones_shape = ov_opset.constant(
+                [1] * original_rank, Type.i32
+            ).output(0)
+            median_result = ov_opset.reshape(
+                median_result, ones_shape, False
+            ).output(0)
         else:
             median_result = ov_opset.unsqueeze(median_result, [axis]).output(0)
 
@@ -2887,7 +2997,9 @@ def meshgrid(*x, indexing="xy"):
     tensors = [get_ov_output(xi) for xi in x]
     n = len(tensors)
 
-    shapes = [ov_opset.shape_of(t, Type.i64).output(0) for t in tensors]  # each is [Ni]
+    shapes = [
+        ov_opset.shape_of(t, Type.i64).output(0) for t in tensors
+    ]  # each is [Ni]
     one = ov_opset.constant([1], Type.i64).output(0)
 
     if indexing == "xy":
@@ -2975,7 +3087,9 @@ def nanargmax(x, axis=None, keepdims=False):
     original_axis = axis
 
     if x_type.is_integral() or x_type == Type.boolean:
-        return argmax(OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims)
+        return argmax(
+            OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims
+        )
 
     x, resolved_axis = _resolve_axis(x, original_axis)
     if resolved_axis is None:
@@ -2992,7 +3106,9 @@ def nanargmax(x, axis=None, keepdims=False):
     )
     result_ov = get_ov_output(result)
 
-    all_nan = ov_opset.reduce_logical_and(nan_mask, resolved_axis, keepdims).output(0)
+    all_nan = ov_opset.reduce_logical_and(
+        nan_mask, resolved_axis, keepdims
+    ).output(0)
     nan_value = ov_opset.constant(-1, Type.i32).output(0)
     if result_ov.get_element_type() != Type.i32:
         nan_value = ov_opset.convert(nan_value, result_ov.get_element_type())
@@ -3015,7 +3131,9 @@ def nanargmin(x, axis=None, keepdims=False):
     original_axis = axis
 
     if x_type.is_integral() or x_type == Type.boolean:
-        return argmin(OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims)
+        return argmin(
+            OpenVINOKerasTensor(x), axis=original_axis, keepdims=keepdims
+        )
 
     x, resolved_axis = _resolve_axis(x, original_axis)
     if resolved_axis is None:
@@ -3032,7 +3150,9 @@ def nanargmin(x, axis=None, keepdims=False):
     )
     result_ov = get_ov_output(result)
 
-    all_nan = ov_opset.reduce_logical_and(nan_mask, resolved_axis, keepdims).output(0)
+    all_nan = ov_opset.reduce_logical_and(
+        nan_mask, resolved_axis, keepdims
+    ).output(0)
     nan_value = ov_opset.constant(-1, Type.i32).output(0)
     if result_ov.get_element_type() != Type.i32:
         nan_value = ov_opset.convert(nan_value, result_ov.get_element_type())
@@ -3363,7 +3483,9 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     gathered = ov_opset.select(all_nan, nan_val, gathered).output(0)
 
     if keepdims:
-        axes_to_add = list(range(x_ndim)) if norm_axis is None else sorted(norm_axis)
+        axes_to_add = (
+            list(range(x_ndim)) if norm_axis is None else sorted(norm_axis)
+        )
         for i in axes_to_add:
             gathered = ov_opset.unsqueeze(
                 gathered, ov_opset.constant([i], Type.i32).output(0)
@@ -3433,7 +3555,9 @@ def nanvar(x, axis=None, keepdims=False):
         return OpenVINOKerasTensor(result)
 
     # Compute mean ignoring NaN, keeping dims for broadcasting
-    mean_val = get_ov_output(nanmean(OpenVINOKerasTensor(x), axis=axis, keepdims=True))
+    mean_val = get_ov_output(
+        nanmean(OpenVINOKerasTensor(x), axis=axis, keepdims=True)
+    )
 
     nan_mask = ov_opset.is_nan(x)
     zero = ov_opset.constant(0, x_type)
@@ -3470,9 +3594,7 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     if dtype.is_integral():
         return OpenVINOKerasTensor(x)
     isfloat64 = True if dtype == Type.f64 else False
-    if (
-        isfloat64
-    ):  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
+    if isfloat64:  # conversion to f32 due to https://github.com/openvinotoolkit/openvino/issues/34138
         x = ov_opset.convert(x, Type.f32).output(0)
         dtype = Type.f32
     nan_val = ov_opset.constant(nan, dtype).output(0)
@@ -3582,7 +3704,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 "in constant mode with the openvino backend. "
                 f"Received: constant_values={constant_values}"
             )
-        pad_value = ov_opset.constant(constant_values, x.get_element_type()).output(0)
+        pad_value = ov_opset.constant(
+            constant_values, x.get_element_type()
+        ).output(0)
 
     # split pad_width into two tensors pads_begin and pads_end
     pads_begin = []
@@ -3663,9 +3787,9 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     # exact_idx = (n - 1) * q  in float64 for precision
     n_f64 = ov_opset.convert(n_i32, Type.f64).output(0)
     exact_idx = ov_opset.multiply(
-        ov_opset.subtract(n_f64, ov_opset.constant(np.float64(1.0)).output(0)).output(
-            0
-        ),
+        ov_opset.subtract(
+            n_f64, ov_opset.constant(np.float64(1.0)).output(0)
+        ).output(0),
         q_f64,
     ).output(0)
 
@@ -3730,7 +3854,9 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
     # keepdims: insert size-1 dims before rotating q to front
     if keepdims:
-        axes_to_add = list(range(x_ndim)) if norm_axis is None else sorted(norm_axis)
+        axes_to_add = (
+            list(range(x_ndim)) if norm_axis is None else sorted(norm_axis)
+        )
         for i in axes_to_add:
             gathered = ov_opset.unsqueeze(
                 gathered, ov_opset.constant([i], Type.i32).output(0)
@@ -3786,7 +3912,11 @@ def repeat(x, repeats, axis=None):
 
     if isinstance(repeats, np.integer):
         repeats = int(repeats)
-    elif isinstance(repeats, np.ndarray) and repeats.size == 1 and repeats.ndim <= 1:
+    elif (
+        isinstance(repeats, np.ndarray)
+        and repeats.size == 1
+        and repeats.ndim <= 1
+    ):
         repeats = int(repeats.item())
 
     if isinstance(repeats, int):
@@ -3796,9 +3926,13 @@ def repeat(x, repeats, axis=None):
             const_0,
         )
         dim_len = ov_opset.squeeze(dim_len, ov_opset.constant([0], Type.i32))
-        idx_range = ov_opset.range(const_0, dim_len, const_1, output_type=Type.i32)
+        idx_range = ov_opset.range(
+            const_0, dim_len, const_1, output_type=Type.i32
+        )
         idx_range = ov_opset.unsqueeze(idx_range, const_1)
-        tiled = ov_opset.tile(idx_range, ov_opset.constant([1, repeats], Type.i32))
+        tiled = ov_opset.tile(
+            idx_range, ov_opset.constant([1, repeats], Type.i32)
+        )
         idx = ov_opset.reshape(tiled, const_neg_1, special_zero=False)
         result = ov_opset.gather(x, idx, ov_opset.constant(axis, Type.i32))
         return OpenVINOKerasTensor(result.output(0))
@@ -3816,7 +3950,9 @@ def repeat(x, repeats, axis=None):
     gather_indices = ov_opset.reduce_sum(
         ov_opset.convert(mask, Type.i32), ov_opset.constant([1], Type.i32)
     )
-    result = ov_opset.gather(x, gather_indices, ov_opset.constant(axis, Type.i32))
+    result = ov_opset.gather(
+        x, gather_indices, ov_opset.constant(axis, Type.i32)
+    )
     return OpenVINOKerasTensor(result.output(0))
 
 
@@ -3960,7 +4096,9 @@ def sort(x, axis=-1):
 
     # Handle axis=None by flattening the input
     if axis is None:
-        x = ov_opset.reshape(x, ov_opset.constant([-1], Type.i32), False).output(0)
+        x = ov_opset.reshape(
+            x, ov_opset.constant([-1], Type.i32), False
+        ).output(0)
         axis = 0
     # Handle negative axis
     elif axis < 0:
@@ -3999,7 +4137,9 @@ def split(x, indices_or_sections, axis=0):
     )
 
     if isinstance(indices_or_sections, OpenVINOKerasTensor):
-        indices_or_sections = indices_or_sections.output.get_node().get_data().tolist()
+        indices_or_sections = (
+            indices_or_sections.output.get_node().get_data().tolist()
+        )
 
     if isinstance(indices_or_sections, int):
         num_splits = indices_or_sections
@@ -4055,7 +4195,9 @@ def array_split(x, indices_or_sections, axis=0):
     split_lengths = [base_size + 1] * remainder + [base_size] * (
         num_splits_val - remainder
     )
-    split_lengths_tensor = ov_opset.constant(split_lengths, dtype=Type.i64).output(0)
+    split_lengths_tensor = ov_opset.constant(
+        split_lengths, dtype=Type.i64
+    ).output(0)
 
     axis_tensor = ov_opset.constant(axis, dtype=Type.i32).output(0)
     splits = ov_opset.variadic_split(x, axis_tensor, split_lengths_tensor)
@@ -4146,7 +4288,9 @@ def take_along_axis(x, indices, axis=None):
     ).output(0)
     zero_scalar = ov_opset.constant(0, indices.get_element_type()).output(0)
     is_neg = ov_opset.less(indices, zero_scalar).output(0)
-    dim_size_cast = ov_opset.convert(dim_size, indices.get_element_type()).output(0)
+    dim_size_cast = ov_opset.convert(
+        dim_size, indices.get_element_type()
+    ).output(0)
     indices = ov_opset.select(
         is_neg, ov_opset.add(indices, dim_size_cast).output(0), indices
     ).output(0)
@@ -4157,7 +4301,9 @@ def take_along_axis(x, indices, axis=None):
     for i in range(x_rank):
         dim_idx = ov_opset.constant([i], dtype=Type.i32).output(0)
         x_dim = ov_opset.gather(x_shape, dim_idx, zero_const).output(0)
-        indices_dim = ov_opset.gather(indices_shape, dim_idx, zero_const).output(0)
+        indices_dim = ov_opset.gather(
+            indices_shape, dim_idx, zero_const
+        ).output(0)
 
         if i == axis:
             # For axis dimension: keep original dimensions
@@ -4170,14 +4316,18 @@ def take_along_axis(x, indices, axis=None):
             indices_target_parts.append(max_dim)
 
     x_target_shape = ov_opset.concat(x_target_parts, axis=0).output(0)
-    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(0)
+    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(
+        0
+    )
 
     # Broadcast to target shapes and gather elements
     x_broadcasted = ov_opset.broadcast(x, x_target_shape).output(0)
-    indices_broadcasted = ov_opset.broadcast(indices, indices_target_shape).output(0)
-    result = ov_opset.gather_elements(x_broadcasted, indices_broadcasted, axis).output(
-        0
-    )
+    indices_broadcasted = ov_opset.broadcast(
+        indices, indices_target_shape
+    ).output(0)
+    result = ov_opset.gather_elements(
+        x_broadcasted, indices_broadcasted, axis
+    ).output(0)
 
     return OpenVINOKerasTensor(result)
 
@@ -4222,12 +4372,18 @@ def tensordot(x1, x2, axes=2):
     notin_b = [i for i in range(rank_b) if i not in axes_b]
 
     # Transpose so contraction axes are at the end of A and beginning of B
-    a_transpose = ov_opset.transpose(a, ov_opset.constant(notin_a + axes_a, Type.i32))
-    b_transpose = ov_opset.transpose(b, ov_opset.constant(axes_b + notin_b, Type.i32))
+    a_transpose = ov_opset.transpose(
+        a, ov_opset.constant(notin_a + axes_a, Type.i32)
+    )
+    b_transpose = ov_opset.transpose(
+        b, ov_opset.constant(axes_b + notin_b, Type.i32)
+    )
 
     # Calculate the product of the contraction dimensions
     shape_a = ov_opset.shape_of(a, Type.i32)
-    contract_dims = ov_opset.gather(shape_a, ov_opset.constant(axes_a, Type.i32), 0)
+    contract_dims = ov_opset.gather(
+        shape_a, ov_opset.constant(axes_a, Type.i32), 0
+    )
     contract_size = ov_opset.reduce_prod(contract_dims, 0, keep_dims=True)
 
     # Reshape A to [-1, contract_size] and B to [contract_size, -1]
@@ -4247,20 +4403,28 @@ def tensordot(x1, x2, axes=2):
     # Reconstruct final shape from free dimensions
     if not notin_a and not notin_b:
         # Scalar output case
-        result = ov_opset.reshape(result, ov_opset.constant([], Type.i32), False)
+        result = ov_opset.reshape(
+            result, ov_opset.constant([], Type.i32), False
+        )
     else:
         shape_b = ov_opset.shape_of(b, Type.i32)
         final_parts = []
         if notin_a:
             final_parts.append(
-                ov_opset.gather(shape_a, ov_opset.constant(notin_a, Type.i32), 0)
+                ov_opset.gather(
+                    shape_a, ov_opset.constant(notin_a, Type.i32), 0
+                )
             )
         if notin_b:
             final_parts.append(
-                ov_opset.gather(shape_b, ov_opset.constant(notin_b, Type.i32), 0)
+                ov_opset.gather(
+                    shape_b, ov_opset.constant(notin_b, Type.i32), 0
+                )
             )
 
-        result = ov_opset.reshape(result, ov_opset.concat(final_parts, 0), False)
+        result = ov_opset.reshape(
+            result, ov_opset.concat(final_parts, 0), False
+        )
 
     return OpenVINOKerasTensor(result.output(0))
 
@@ -4324,7 +4488,9 @@ def tile(x, repeats):
     x = ov_opset.reshape(x, new_x_shape, False)
 
     pad_r = ov_opset.maximum(ov_opset.subtract(rank_x, rank_r), zero)
-    repeats = ov_opset.concat([ov_opset.broadcast(one, pad_r).output(0), repeats], 0)
+    repeats = ov_opset.concat(
+        [ov_opset.broadcast(one, pad_r).output(0), repeats], 0
+    )
 
     return OpenVINOKerasTensor(ov_opset.tile(x, repeats).output(0))
 
@@ -4450,7 +4616,9 @@ def vstack(xs):
     elems = [get_ov_output(elem, element_type) for elem in elems]
     axis = 0
     for i in range(1, len(elems)):
-        elems[0], elems[i] = _align_operand_types(elems[0], elems[i], "vstack()")
+        elems[0], elems[i] = _align_operand_types(
+            elems[0], elems[i], "vstack()"
+        )
     return OpenVINOKerasTensor(ov_opset.concat(elems, axis).output(0))
 
 
@@ -4580,7 +4748,9 @@ def nextafter(x1, x2):
 
     # Compute ULP = 2^(floor(log2(|x1|)) - 52) for normal float64 numbers
     ln2 = ov_opset.constant(np.log(2.0), Type.f64).output(0)
-    log2_abs = ov_opset.floor(ov_opset.divide(ov_opset.log(abs_x1), ln2)).output(0)
+    log2_abs = ov_opset.floor(
+        ov_opset.divide(ov_opset.log(abs_x1), ln2)
+    ).output(0)
     min_exp = ov_opset.constant(-1022.0, Type.f64).output(0)
     clamped_exp = ov_opset.maximum(log2_abs, min_exp).output(0)
     mantissa_bits = ov_opset.constant(52.0, Type.f64).output(0)
@@ -4591,9 +4761,13 @@ def nextafter(x1, x2):
     # because we step into the adjacent binade with finer spacing
     pow2_floor = ov_opset.power(two, log2_abs).output(0)
     is_pow2 = ov_opset.equal(abs_x1, pow2_floor).output(0)
-    going_towards_zero = ov_opset.less(ov_opset.multiply(x1, direction), zero).output(0)
+    going_towards_zero = ov_opset.less(
+        ov_opset.multiply(x1, direction), zero
+    ).output(0)
     halve_mask = ov_opset.logical_and(is_pow2, going_towards_zero).output(0)
-    ulp = ov_opset.select(halve_mask, ov_opset.multiply(ulp, half), ulp).output(0)
+    ulp = ov_opset.select(halve_mask, ov_opset.multiply(ulp, half), ulp).output(
+        0
+    )
 
     result = ov_opset.add(x1, ov_opset.multiply(direction, ulp)).output(0)
 
@@ -4780,7 +4954,9 @@ def vander(x, N=None, increasing=False):
 
     const_N_minus_one = ov_opset.subtract(const_N, const_one).output(0)
     if increasing:
-        powers = ov_opset.range(const_zero, const_N, const_one, x_type).output(0)
+        powers = ov_opset.range(const_zero, const_N, const_one, x_type).output(
+            0
+        )
     else:
         powers = ov_opset.range(
             const_N_minus_one, const_mone, const_mone, x_type
@@ -4927,7 +5103,9 @@ def correlate(x1, x2, mode="valid"):
     const_two = ov_opset.constant(2, Type.f64).output(0)
     const_one = ov_opset.constant(1, Type.i64).output(0)
     const_zero = ov_opset.constant(0, result_type).output(0)
-    shape_filter_minus_one = ov_opset.subtract(shape_filter, const_one).output(0)
+    shape_filter_minus_one = ov_opset.subtract(shape_filter, const_one).output(
+        0
+    )
 
     # padding x1
     if mode == "valid":
@@ -4950,7 +5128,9 @@ def correlate(x1, x2, mode="valid"):
         x1 = ov_opset.pad(x1, pad, pad, "constant", const_zero).output(0)
 
     else:
-        raise ValueError(f"mode: {mode} not available chose from valid, same, full.")
+        raise ValueError(
+            f"mode: {mode} not available chose from valid, same, full."
+        )
 
     axes = ov_opset.constant([0, 1], dtype=Type.i64).output(0)
     x2 = ov_opset.unsqueeze(x2, axes).output(0)
@@ -4965,7 +5145,9 @@ def correlate(x1, x2, mode="valid"):
 
 def select(condlist, choicelist, default=0):
     if len(condlist) != len(choicelist):
-        raise ValueError("select(): condlist and choicelist must have the same length")
+        raise ValueError(
+            "select(): condlist and choicelist must have the same length"
+        )
     conds = [get_ov_output(c) for c in condlist]
     choices = [get_ov_output(v) for v in choicelist]
 
@@ -5169,7 +5351,9 @@ def slogdet(x):
     sign_result = ov_opset.reshape(sign_det, out_shape, False).output(0)
     logabsdet_result = ov_opset.reshape(log_abs_det, out_shape, False).output(0)
 
-    return OpenVINOKerasTensor(sign_result), OpenVINOKerasTensor(logabsdet_result)
+    return OpenVINOKerasTensor(sign_result), OpenVINOKerasTensor(
+        logabsdet_result
+    )
 
 
 def argpartition(x, kth, axis=-1):
@@ -5254,8 +5438,12 @@ def histogram(x, bins=10, range=None):
 
         is_equal = ov_opset.equal(min_val, max_val)
         half = ov_opset.constant(0.5, float_type).output(0)
-        min_val = ov_opset.select(is_equal, ov_opset.subtract(min_val, half), min_val)
-        max_val = ov_opset.select(is_equal, ov_opset.add(max_val, half), max_val)
+        min_val = ov_opset.select(
+            is_equal, ov_opset.subtract(min_val, half), min_val
+        )
+        max_val = ov_opset.select(
+            is_equal, ov_opset.add(max_val, half), max_val
+        )
 
         min_val = min_val.output(0)
         max_val = max_val.output(0)
@@ -5264,7 +5452,9 @@ def histogram(x, bins=10, range=None):
         max_val = ov_opset.constant(range[1], float_type).output(0)
 
     bins_const = ov_opset.constant(bins, float_type).output(0)
-    step = ov_opset.divide(ov_opset.subtract(max_val, min_val), bins_const).output(0)
+    step = ov_opset.divide(
+        ov_opset.subtract(max_val, min_val), bins_const
+    ).output(0)
 
     idx_float = ov_opset.range(
         ov_opset.constant(0, float_type),
@@ -5273,17 +5463,23 @@ def histogram(x, bins=10, range=None):
         output_type=float_type,
     ).output(0)
 
-    bin_edges = ov_opset.add(min_val, ov_opset.multiply(idx_float, step)).output(0)
+    bin_edges = ov_opset.add(
+        min_val, ov_opset.multiply(idx_float, step)
+    ).output(0)
 
     inds = ov_opset.bucketize(
         x_float, bin_edges, output_type=Type.i32, with_right_bound=False
     ).output(0)
 
-    inds_shifted = ov_opset.subtract(inds, ov_opset.constant(1, Type.i32).output(0))
+    inds_shifted = ov_opset.subtract(
+        inds, ov_opset.constant(1, Type.i32).output(0)
+    )
 
     trash_idx = ov_opset.constant(bins, Type.i32).output(0)
 
-    is_under = ov_opset.less(inds_shifted, ov_opset.constant(0, Type.i32).output(0))
+    is_under = ov_opset.less(
+        inds_shifted, ov_opset.constant(0, Type.i32).output(0)
+    )
     is_over = ov_opset.greater_equal(inds_shifted, trash_idx)
 
     is_max = ov_opset.equal(x_float, max_val)
