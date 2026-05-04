@@ -8,6 +8,8 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend import standardize_data_format
+from keras.src.backend.common.backend_utils import canonicalize_axes
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
@@ -983,6 +985,8 @@ class LogSoftmax(Operation):
         return backend.nn.log_softmax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -1046,6 +1050,7 @@ class Sparsemax(Operation):
         return backend.nn.sparsemax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        canonicalize_axis(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -2124,16 +2129,20 @@ class SparseCategoricalCrossentropy(Operation):
                 "Received: "
                 f"output.shape={output.shape}"
             )
+        axis = canonicalize_axis(self.axis, len(output.shape))
         target_shape = target.shape
         if len(target_shape) == len(output.shape) and target_shape[-1] == 1:
             target_shape = target_shape[:-1]
-        if target_shape != output.shape[:-1]:
+        output_shape_without_class = (
+            output.shape[:axis] + output.shape[axis + 1 :]
+        )
+        if target_shape != output_shape_without_class:
             raise ValueError(
                 "Arguments `target` and `output` must have the same shape "
                 "up until the last dimension: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+        return KerasTensor(output_shape_without_class, dtype=output.dtype)
 
 
 @keras_export(
