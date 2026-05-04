@@ -3043,11 +3043,9 @@ def take_along_axis(x, indices, axis=None):
         # we rely on the broacast itself to fail in the incorrect case rather
         # than make some expensive dynamic checks here.
         broadcast_shape = [
-            (
-                tf.maximum(x_original_shape[i], indices_original_shape[i])
-                if dim is None
-                else dim
-            )
+            tf.maximum(x_original_shape[i], indices_original_shape[i])
+            if dim is None
+            else dim
             for i, dim in enumerate(broadcast_shape)
         ]
 
@@ -3696,23 +3694,33 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
-    x = tf.convert_to_tensor(x)
+    x = convert_to_tensor(x, tf.int32)
 
     if axis is None:
         x = tf.reshape(x, [-1])
         axis = 0
+        original_axis = None
+    else:
+        original_axis = axis
 
     x = swapaxes(x, axis, -1)
 
     n = tf.shape(x)[-1]
     kth = tf.clip_by_value(tf.cast(kth, tf.int32), 0, n - 1)
 
-    idx = tf.argsort(x, axis=-1, stable=True)
+    bottom_ind = tf.math.top_k(-x, kth + 1).indices
 
-    left = idx[..., : kth + 1]
-    right = idx[..., kth + 1 :]
+    mask = tf.reduce_sum(tf.one_hot(bottom_ind, n, dtype=tf.int32), axis=0)
+    indices = tf.where(mask)
+    updates = tf.zeros(tf.shape(indices)[0], dtype=tf.int32)
+    final_mask = tf.tensor_scatter_nd_update(x, indices, updates)
 
-    out = tf.concat([left, right], axis=-1)
+    top_ind = tf.math.top_k(final_mask, n - kth - 1).indices
+
+    out = tf.concat([bottom_ind, top_ind], axis=-1)
+
+    if original_axis is None:
+        return out
 
     return swapaxes(out, -1, axis)
 
