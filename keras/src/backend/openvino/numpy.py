@@ -66,11 +66,9 @@ def einsum(subscripts, *operands, **kwargs):
     else:
         ov_compute_type = ov_result_type
     inputs = [
-        (
-            ov_opset.convert(inp, ov_compute_type).output(0)
-            if inp.get_element_type() != ov_compute_type
-            else inp
-        )
+        ov_opset.convert(inp, ov_compute_type).output(0)
+        if inp.get_element_type() != ov_compute_type
+        else inp
         for inp in inputs
     ]
     result = ov_opset.einsum(inputs, subscripts).output(0)
