@@ -1,6 +1,6 @@
-from keras.src import layers
-from keras.src import models
-from keras.src import tree
+import functools
+import tempfile
+
 from keras.src.export.export_utils import get_input_signature
 from keras.src.utils import io_utils
 from keras.src.utils.module_utils import tensorflow as tf
@@ -67,161 +67,63 @@ class LiteRTExporter:
         Returns:
             Path to exported model
         """
-        # 1. Resolve / infer input signature
         if self.input_signature is None:
-            # Use the standard get_input_signature which handles all model types
-            # and preserves nested structures (dicts, lists, etc.)
             self.input_signature = get_input_signature(self.model)
 
-        # 2. Determine input structure and create adapter if needed
-        # There are 3 cases:
-        # Case 1: Single input (not nested)
-        # Case 2: Flat list of inputs (list where flattened == original)
-        # Case 3: Nested structure (dicts, nested lists, etc.)
+        # Normalize input_signature for tf.function: must be a list/tuple
+        # of specs, one per positional argument. Wrap bare structures as
+        # a single argument.
+        if not isinstance(self.input_signature, (list, tuple)):
+            self.input_signature = [self.input_signature]
 
-        # Special handling for Functional models: get_input_signature wraps
-        # the structure in a list, so unwrap it for analysis
-        input_struct = self.input_signature
-        if (
-            isinstance(self.input_signature, list)
-            and len(self.input_signature) == 1
-        ):
-            input_struct = self.input_signature[0]
-
-        if not tree.is_nested(input_struct):
-            # Case 1: Single input - use as-is
-            model_to_convert = self.model
-            signature_for_conversion = self.input_signature
-        elif isinstance(input_struct, list) and len(input_struct) == len(
-            tree.flatten(input_struct)
-        ):
-            # Case 2: Flat list of inputs - use as-is
-            model_to_convert = self.model
-            signature_for_conversion = self.input_signature
-        else:
-            # Case 3: Nested structure (dict, nested lists, etc.)
-            # Create adapter model that converts flat list to nested structure
-            adapted_model = self._create_nested_inputs_adapter(input_struct)
-
-            # Flatten signature for TFLite conversion
-            signature_for_conversion = tree.flatten(input_struct)
-
-            # Use adapted model and flat list signature for conversion
-            model_to_convert = adapted_model
-
-        # Store original model reference for later use
-        original_model = self.model
-
-        # Temporarily replace self.model with the model to convert
-        self.model = model_to_convert
-
-        try:
-            # Convert the model to TFLite.
-            tflite_model = self._convert_to_tflite(signature_for_conversion)
-        finally:
-            # Restore original model
-            self.model = original_model
-
-        # Save the TFLite model to the specified file path.
         if not filepath.endswith(".tflite"):
             raise ValueError(
                 f"The LiteRT export requires the filepath to end with "
                 f"'.tflite'. Got: {filepath}"
             )
 
+        tflite_model = self._convert_to_tflite(self.input_signature)
+
         with open(filepath, "wb") as f:
             f.write(tflite_model)
 
         return filepath
 
-    def _create_nested_inputs_adapter(self, input_signature_struct):
-        """Create an adapter model that converts flat list inputs to nested
-        structure.
-
-        This adapter allows models expecting nested inputs (dicts, lists, etc.)
-        to be exported to TFLite format (which only supports positional/list
-        inputs).
-
-        Args:
-            input_signature_struct: Nested structure of InputSpecs (dict, list,
-                etc.)
-
-        Returns:
-            A Functional model that accepts flat list inputs and converts to
-            nested
-        """
-        # Get flat paths to preserve names and print input mapping
-        paths_and_specs = tree.flatten_with_path(input_signature_struct)
-        paths = [".".join(str(e) for e in p) for p, v in paths_and_specs]
-        io_utils.print_msg(f"Creating adapter for inputs: {paths}")
-
-        # Create Input layers for TFLite (flat list-based)
-        input_layers = []
-        for path, spec in paths_and_specs:
-            # Extract the input name from spec or path
-            name = (
-                spec.name
-                if hasattr(spec, "name") and spec.name
-                else (str(path[-1]) if path else "input")
-            )
-
-            input_layer = layers.Input(
-                shape=spec.shape[1:],  # Remove batch dimension
-                dtype=spec.dtype,
-                name=name,
-            )
-            input_layers.append(input_layer)
-
-        # Reconstruct the nested structure from flat list
-        inputs_structure = tree.pack_sequence_as(
-            input_signature_struct, input_layers
-        )
-
-        # Call the original model with nested inputs
-        outputs = self.model(inputs_structure)
-
-        # Build as Functional model (flat list inputs -> nested -> model ->
-        # output)
-        adapted_model = models.Model(inputs=input_layers, outputs=outputs)
-
-        # Preserve the original model's variables
-        adapted_model._variables = self.model.variables
-        adapted_model._trainable_variables = self.model.trainable_variables
-        adapted_model._non_trainable_variables = (
-            self.model.non_trainable_variables
-        )
-
-        return adapted_model
-
     def _convert_to_tflite(self, input_signature):
         """Converts the Keras model to TFLite format.
+
+        Uses Keras ExportArchive as an intermediate SavedModel step.
+        This aligns with TensorFlow's official Keras 3 TFLite conversion path:
+        ExportArchive -> SavedModel -> from_saved_model.
+
+        Args:
+            input_signature: Input signature for the model to convert.
 
         Returns:
             A bytes object containing the serialized TFLite model.
         """
-        # Try direct conversion first for all models
-        try:
-            converter = tf.lite.TFLiteConverter.from_keras_model(self.model)
+        from keras.src import export as keras_export
+
+        with tempfile.TemporaryDirectory() as saved_model_dir:
+            archive = keras_export.ExportArchive()
+            archive.track(self.model)
+            archive.add_endpoint(
+                "serve",
+                functools.partial(self.model.__call__, training=False),
+                input_signature=input_signature,
+            )
+            archive.write_out(saved_model_dir, verbose=False)
+
+            converter = tf.lite.TFLiteConverter.from_saved_model(
+                saved_model_dir
+            )
             converter.target_spec.supported_ops = [
                 tf.lite.OpsSet.TFLITE_BUILTINS,
                 tf.lite.OpsSet.SELECT_TF_OPS,
             ]
-            # Keras 3 only supports resource variables
             converter.experimental_enable_resource_variables = True
-
-            # Apply any additional converter settings from kwargs
             self._apply_converter_kwargs(converter)
-
-            tflite_model = converter.convert()
-
-            return tflite_model
-
-        except Exception as e:
-            # If direct conversion fails, raise the error with helpful message
-            raise RuntimeError(
-                f"Direct TFLite conversion failed. This may be due to model "
-                f"complexity or unsupported operations. Error: {e}"
-            ) from e
+            return converter.convert()
 
     def _apply_converter_kwargs(self, converter):
         """Apply additional converter settings from kwargs.
