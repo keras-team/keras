@@ -1198,11 +1198,9 @@ def concatenate(xs, axis=0):
         target_type = dtypes.result_type(*keras_types)
         ov_target_type = OPENVINO_DTYPES[target_type]
         elems = [
-            (
-                ov_opset.convert(x, ov_target_type).output(0)
-                if x.get_element_type() != ov_target_type
-                else x
-            )
+            ov_opset.convert(x, ov_target_type).output(0)
+            if x.get_element_type() != ov_target_type
+            else x
             for x in elems
         ]
     res = ov_opset.concat(elems, axis).output(0)
