@@ -27,15 +27,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        multi_device: [false, true]
-        backend: [jax]
+        include:
+          - backend: jax
+            multi_device: false
+            runner: linux-x86-ct6e-44-1tpu
+            name: Run tests on TPU
+          - backend: jax
+            multi_device: true
+            runner: linux-x86-ct5lp-112-4tpu
+            name: Run tests on multi-TPU
 
     container:
       image: python:3.11-slim
       options: --privileged --network host
 
-    name: ${{ format('Run tests on {0}TPU', matrix.multi_device && 'multi-' || '') }}
-    runs-on: ${{ matrix.multi_device && 'linux-x86-ct5lp-112-4tpu' || 'linux-x86-ct6e-44-1tpu' }}
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
 
     env:
