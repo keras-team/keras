@@ -38,6 +38,12 @@ class GroupedQueryAttention(Layer):
         num_key_value_heads: Number of key and value attention heads.
         dropout: Dropout probability.
         use_bias: Boolean, whether the dense layers use bias vectors/matrices.
+        sliding_window: Optional positive integer. If set, restricts each
+            query position to attend only to key positions within
+            `sliding_window - 1` of itself (a symmetric band). Composes
+            naturally with `use_causal_mask=True` to give the causal
+            sliding window used by Mistral, Llama-3 long-context, and
+            Phi-3. Defaults to `None` (full attention).
         flash_attention: If `None`, the layer attempts to use flash
             attention for faster and more memory-efficient attention
             computations when possible. This behavior can be configured using
@@ -101,6 +107,7 @@ class GroupedQueryAttention(Layer):
         num_key_value_heads,
         dropout=0.0,
         use_bias=True,
+        sliding_window=None,
         flash_attention=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
@@ -126,6 +133,14 @@ class GroupedQueryAttention(Layer):
         self.dropout = dropout
         self.use_bias = use_bias
         self.use_gate = use_gate
+        if sliding_window is not None and (
+            not isinstance(sliding_window, int) or sliding_window <= 0
+        ):
+            raise ValueError(
+                "`sliding_window` must be `None` or a positive integer. "
+                f"Received: sliding_window={sliding_window}"
+            )
+        self.sliding_window = sliding_window
         self._flash_attention = flash_attention or is_flash_attention_enabled()
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
@@ -354,6 +369,10 @@ class GroupedQueryAttention(Layer):
             # the shape of the causal mask is [1, T, S]
             mask = self._compute_causal_mask(query, value)
             auto_mask = mask if auto_mask is None else auto_mask & mask
+        if self.sliding_window is not None:
+            # the shape of the sliding window mask is [1, T, S]
+            mask = self._compute_sliding_window_mask(query, value)
+            auto_mask = mask if auto_mask is None else auto_mask & mask
         if auto_mask is not None:
             # merge attention_mask & automatic mask, to shape [B, T, S]
             attention_mask = (
@@ -391,6 +410,25 @@ class GroupedQueryAttention(Layer):
         row_index = ops.cumsum(ones_mask, axis=-2)
         col_index = ops.cumsum(ones_mask, axis=-1)
         return ops.greater_equal(row_index, col_index)
+
+    def _compute_sliding_window_mask(self, query, value=None):
+        """Computes a banded sliding-window mask of shape `(1, T, S)`.
+
+        Returns a symmetric band where each query position attends to keys
+        within `self.sliding_window - 1` positions on either side. When
+        ANDed with a causal mask, this yields the canonical causal
+        sliding-window pattern used by Mistral, Llama-3 long-context, and
+        Phi-3.
+        """
+        q_seq_length = ops.shape(query)[1]
+        v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
+        row_index = ops.reshape(
+            ops.arange(q_seq_length, dtype="int32"), (1, q_seq_length, 1)
+        )
+        col_index = ops.reshape(
+            ops.arange(v_seq_length, dtype="int32"), (1, 1, v_seq_length)
+        )
+        return ops.less(ops.abs(row_index - col_index), self.sliding_window)
 
     def _compute_attention(
         self, query, key, value, attention_mask=None, training=None
@@ -539,6 +577,7 @@ class GroupedQueryAttention(Layer):
             "num_key_value_heads": self.num_key_value_heads,
             "use_bias": self.use_bias,
             "use_gate": self.use_gate,
+            "sliding_window": self.sliding_window,
             "dropout": self.dropout,
             "kernel_initializer": initializers.serialize(
                 self.kernel_initializer

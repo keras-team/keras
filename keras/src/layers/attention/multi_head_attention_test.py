@@ -490,6 +490,54 @@ class MultiHeadAttentionTest(testing.TestCase):
             _ = layer(query=masked_query, value=masked_value)
             self.assertLen(warning_logs, 0)
 
+    def test_sliding_window(self):
+        # Causal sliding window of size 3: each query should only attend to
+        # itself and the previous 2 keys. Verified via attention scores.
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, sliding_window=3
+        )
+        x = np.random.RandomState(0).randn(1, 6, 8).astype("float32")
+        _, scores = layer(
+            x, x, use_causal_mask=True, return_attention_scores=True
+        )
+        scores = ops.convert_to_numpy(scores)[0, 0]  # (T, T) for first head
+        for i in range(scores.shape[0]):
+            for j in range(scores.shape[1]):
+                in_window = (j <= i) and (i - j < 3)
+                if in_window:
+                    self.assertGreater(scores[i, j], 0.0)
+                else:
+                    self.assertEqual(scores[i, j], 0.0)
+
+        # Bidirectional sliding window of size 3 (no causal mask): each
+        # query should attend to keys within `|i - j| < 3`.
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, sliding_window=3
+        )
+        _, scores = layer(x, x, return_attention_scores=True)
+        scores = ops.convert_to_numpy(scores)[0, 0]
+        for i in range(scores.shape[0]):
+            for j in range(scores.shape[1]):
+                if abs(i - j) < 3:
+                    self.assertGreater(scores[i, j], 0.0)
+                else:
+                    self.assertEqual(scores[i, j], 0.0)
+
+    def test_sliding_window_validation(self):
+        with self.assertRaisesRegex(ValueError, "sliding_window"):
+            layers.MultiHeadAttention(num_heads=2, key_dim=4, sliding_window=0)
+        with self.assertRaisesRegex(ValueError, "sliding_window"):
+            layers.MultiHeadAttention(num_heads=2, key_dim=4, sliding_window=-3)
+
+    def test_sliding_window_serialization(self):
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, sliding_window=5
+        )
+        config = layer.get_config()
+        self.assertEqual(config["sliding_window"], 5)
+        restored = layers.MultiHeadAttention.from_config(config)
+        self.assertEqual(restored._sliding_window, 5)
+
     @parameterized.named_parameters(
         ("disable_flash_attention", False), ("enable_flash_attention", True)
     )

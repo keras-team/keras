@@ -5,6 +5,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
+from keras.src import ops
 from keras.src import testing
 from keras.src.backend.config import disable_flash_attention
 from keras.src.backend.config import enable_flash_attention
@@ -378,6 +379,47 @@ class GroupedQueryAttentionTest(testing.TestCase):
             query=masked_query, value=masked_value, attention_mask=mask
         )
         self.assertAllClose(output, output_with_manual_mask)
+
+    def test_sliding_window(self):
+        layer = layers.GroupedQueryAttention(
+            head_dim=4,
+            num_query_heads=4,
+            num_key_value_heads=2,
+            sliding_window=3,
+        )
+        x = np.random.RandomState(0).randn(1, 6, 8).astype("float32")
+        _, scores = layer(
+            x, x, use_causal_mask=True, return_attention_scores=True
+        )
+        scores = ops.convert_to_numpy(scores)[0, 0]
+        for i in range(scores.shape[0]):
+            for j in range(scores.shape[1]):
+                in_window = (j <= i) and (i - j < 3)
+                if in_window:
+                    self.assertGreater(scores[i, j], 0.0)
+                else:
+                    self.assertEqual(scores[i, j], 0.0)
+
+    def test_sliding_window_validation(self):
+        with self.assertRaisesRegex(ValueError, "sliding_window"):
+            layers.GroupedQueryAttention(
+                head_dim=2,
+                num_query_heads=2,
+                num_key_value_heads=2,
+                sliding_window=0,
+            )
+
+    def test_sliding_window_serialization(self):
+        layer = layers.GroupedQueryAttention(
+            head_dim=4,
+            num_query_heads=2,
+            num_key_value_heads=2,
+            sliding_window=5,
+        )
+        config = layer.get_config()
+        self.assertEqual(config["sliding_window"], 5)
+        restored = layers.GroupedQueryAttention.from_config(config)
+        self.assertEqual(restored.sliding_window, 5)
 
     @parameterized.named_parameters(
         ("disable_flash_attention", False), ("enable_flash_attention", True)

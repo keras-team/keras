@@ -52,6 +52,12 @@ class MultiHeadAttention(Layer):
             feature dim (the query input's last dimension).
         attention_axes: axes over which the attention is applied. `None` means
             attention over all axes, but batch, heads, and features.
+        sliding_window: Optional positive integer. If set, restricts each
+            query position to attend only to key positions within
+            `sliding_window - 1` of itself (a symmetric band). Composes
+            naturally with `use_causal_mask=True` to give the causal
+            sliding window used by Mistral, Llama-3 long-context, and
+            Phi-3. Defaults to `None` (full attention).
         flash_attention: If `None`, the layer attempts to use flash
             attention for faster and more memory-efficient attention
             computations when possible. This behavior can be configured using
@@ -115,6 +121,7 @@ class MultiHeadAttention(Layer):
         use_bias=True,
         output_shape=None,
         attention_axes=None,
+        sliding_window=None,
         flash_attention=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
@@ -163,6 +170,14 @@ class MultiHeadAttention(Layer):
                 f"Received: attention_axes={attention_axes}"
             )
         self._attention_axes = attention_axes
+        if sliding_window is not None and (
+            not isinstance(sliding_window, int) or sliding_window <= 0
+        ):
+            raise ValueError(
+                "`sliding_window` must be `None` or a positive integer. "
+                f"Received: sliding_window={sliding_window}"
+            )
+        self._sliding_window = sliding_window
         self.seed = seed
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
@@ -212,6 +227,7 @@ class MultiHeadAttention(Layer):
             "use_gate": self._use_gate,
             "output_shape": self._output_shape,
             "attention_axes": self._attention_axes,
+            "sliding_window": self._sliding_window,
             "kernel_initializer": initializers.serialize(
                 self._kernel_initializer
             ),
@@ -669,6 +685,10 @@ class MultiHeadAttention(Layer):
             # the shape of the causal mask is [1, T, S]
             mask = self._compute_causal_mask(query, value)
             auto_mask = mask if auto_mask is None else auto_mask & mask
+        if self._sliding_window is not None:
+            # the shape of the sliding window mask is [1, T, S]
+            mask = self._compute_sliding_window_mask(query, value)
+            auto_mask = mask if auto_mask is None else auto_mask & mask
 
         if attention_mask is not None:
             attention_mask = ops.cast(attention_mask, "bool")
@@ -709,6 +729,25 @@ class MultiHeadAttention(Layer):
         row_index = ops.cumsum(ones_mask, axis=-2)
         col_index = ops.cumsum(ones_mask, axis=-1)
         return ops.greater_equal(row_index, col_index)
+
+    def _compute_sliding_window_mask(self, query, value=None):
+        """Computes a banded sliding-window mask of shape `(1, T, S)`.
+
+        Returns a symmetric band where each query position attends to keys
+        within `self._sliding_window - 1` positions on either side. When
+        ANDed with a causal mask, this yields the canonical causal
+        sliding-window pattern used by Mistral, Llama-3 long-context, and
+        Phi-3.
+        """
+        q_seq_length = ops.shape(query)[1]
+        v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
+        row_index = ops.reshape(
+            ops.arange(q_seq_length, dtype="int32"), (1, q_seq_length, 1)
+        )
+        col_index = ops.reshape(
+            ops.arange(v_seq_length, dtype="int32"), (1, 1, v_seq_length)
+        )
+        return ops.less(ops.abs(row_index - col_index), self._sliding_window)
 
     def compute_output_shape(
         self,
