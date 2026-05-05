@@ -302,6 +302,13 @@ def canonicalize_axis(axis, num_dims):
     return axis
 
 
+def canonicalize_axes(axis, num_dims):
+    """Canonicalize an axis or axes to a tuple of non-negative integers."""
+    if isinstance(axis, (tuple, list)):
+        return tuple(canonicalize_axis(a, num_dims) for a in axis)
+    return (canonicalize_axis(axis, num_dims),)
+
+
 def standardize_axis_for_numpy(axis):
     """Standardize an axis to a tuple if it is a list in the numpy backend."""
     return tuple(axis) if isinstance(axis, list) else axis

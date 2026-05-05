@@ -32,8 +32,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
         return tf.math.segment_max(data, segment_ids)
     else:
         if num_segments is None:
-            unique_segment_ids, _ = tf.unique(segment_ids)
-            num_segments = tf.shape(unique_segment_ids)[0]
+            num_segments = tf.cast(tf.reduce_max(segment_ids) + 1, tf.int32)
         return tf.math.unsorted_segment_max(data, segment_ids, num_segments)
 
 

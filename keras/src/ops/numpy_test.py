@@ -1709,6 +1709,9 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
     def test_flip(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.flip(x).shape, (None, 3))
+        self.assertEqual(knp.flip(x, axis=[0, 1]).shape, (None, 3))
+        with self.assertRaises(ValueError):
+            knp.flip(x, axis=2)
 
     def test_fliplr(self):
         x = KerasTensor((None, 3))
@@ -2174,6 +2177,9 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.roll(x, 1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=1).shape, (None, 3))
         self.assertEqual(knp.roll(x, 1, axis=0).shape, (None, 3))
+        self.assertEqual(knp.roll(x, 1, axis=[0, 1]).shape, (None, 3))
+        with self.assertRaises(ValueError):
+            knp.roll(x, 1, axis=2)
 
     def test_round(self):
         x = KerasTensor((None, 3))
@@ -2263,6 +2269,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3, None, 5))
         self.assertEqual(knp.trace(x).shape, (None, 5))
         self.assertEqual(knp.trace(x, axis1=2, axis2=3).shape, (None, 3))
+        with self.assertRaises(ValueError):
+            knp.trace(x, axis1=1, axis2=1)
+        with self.assertRaises(ValueError):
+            knp.trace(x, axis1=0, axis2=4)
 
     def test_tril(self):
         x = KerasTensor((None, 3, None, 5))

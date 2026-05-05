@@ -19,7 +19,7 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
         .view(*data.shape)
         .type(torch.int64)
     )
-    num_segments = num_segments or len(torch.unique(segment_ids))
+    num_segments = num_segments or torch.max(segment_ids) + 1
 
     # .scatter_add does not support -1 in the indices.
     # Add all out-of-bound indices value to an extra dimension after

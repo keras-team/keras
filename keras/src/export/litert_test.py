@@ -12,35 +12,18 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
-from keras.src.utils.module_utils import litert
 from keras.src.utils.module_utils import tensorflow
 
-# Set up LiteRT interpreter with fallback logic:
-# 1. Try AI Edge LiteRT interpreter (preferred)
-# 2. Fall back to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
-AI_EDGE_LITERT_AVAILABLE = False
-LiteRTInterpreter = None
+# LiteRT tests require the AI Edge LiteRT interpreter.
+if backend.backend() != "tensorflow":
+    LiteRTInterpreter = None
+else:
+    try:
+        from ai_edge_litert.interpreter import Interpreter as LiteRTInterpreter
+    except (ImportError, OSError):
+        LiteRTInterpreter = None
 
-if backend.backend() == "tensorflow":
-    if litert.available:
-        try:
-            from ai_edge_litert.interpreter import (
-                Interpreter as LiteRTInterpreter,
-            )
-
-            AI_EDGE_LITERT_AVAILABLE = True
-        except (ImportError, OSError):
-            LiteRTInterpreter = tensorflow.lite.Interpreter
-    else:
-        LiteRTInterpreter = tensorflow.lite.Interpreter
-
-# Model types to test (LSTM only if AI Edge LiteRT is available)
 model_types = ["sequential", "functional"]
-# TODO(#21914): `"lstm"` does not work with ai-edge-litert==1.3.0.
-# Unfortunately, for TF 2.20.0, this is the only version which works. Uncomment
-# this part when we upgrade TF and ai-edge-litert.
-# if AI_EDGE_LITERT_AVAILABLE:
-#     model_types.append("lstm")
 
 
 class CustomModel(models.Model):
@@ -176,15 +159,12 @@ def _get_interpreter_outputs(interpreter):
 class ExportLitertTest(testing.TestCase):
     """Test suite for LiteRT (TFLite) model export functionality.
 
-    Tests use AI Edge LiteRT interpreter when available, otherwise fall back
-    to TensorFlow Lite interpreter for validation.
+    Tests use AI Edge LiteRT interpreter for validation.
     """
 
     @parameterized.named_parameters(named_product(model_type=model_types))
     def test_standard_model_export(self, model_type):
         """Test exporting standard model types to LiteRT format."""
-        if model_type == "lstm" and not AI_EDGE_LITERT_AVAILABLE:
-            self.skipTest("LSTM models require AI Edge LiteRT interpreter.")
 
         temp_filepath = os.path.join(
             self.get_temp_dir(), "exported_model.tflite"
@@ -1039,8 +1019,8 @@ class ExportLitertTest(testing.TestCase):
                 sig_output_values[i], ref_out, atol=1e-4, rtol=1e-4
             )
 
-    def test_dict_input_adapter_creation(self):
-        """Test that dict input adapter is created and works correctly."""
+    def test_dict_input_native(self):
+        """Test that dict inputs are handled natively without adapter."""
 
         # Create a model with dictionary inputs
         input1 = layers.Input(shape=(10,), name="x")
@@ -1049,11 +1029,11 @@ class ExportLitertTest(testing.TestCase):
         model = models.Model(inputs={"x": input1, "y": input2}, outputs=output)
 
         temp_filepath = os.path.join(
-            self.get_temp_dir(), "dict_adapter_model.tflite"
+            self.get_temp_dir(), "dict_native_model.tflite"
         )
 
-        # Export with verbose to verify adapter creation messages
-        model.export(temp_filepath, format="litert", verbose=True)
+        # Export the model
+        model.export(temp_filepath, format="litert")
 
         # Verify the file was created
         self.assertTrue(os.path.exists(temp_filepath))
@@ -1062,7 +1042,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter = LiteRTInterpreter(model_path=temp_filepath)
         interpreter.allocate_tensors()
 
-        # Check input details - should have 2 inputs in list form
+        # Check input details - should have 2 inputs
         input_details = interpreter.get_input_details()
         self.assertEqual(len(input_details), 2)
 
@@ -1080,8 +1060,8 @@ class ExportLitertTest(testing.TestCase):
             )
         )
 
-        # Set inputs as list (adapter converts list to dict internally)
-        _set_interpreter_inputs(interpreter, [x_val, y_val])
+        # Set inputs as dict (native dict support)
+        _set_interpreter_inputs(interpreter, {"x": x_val, "y": y_val})
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
@@ -1136,10 +1116,14 @@ class ExportLitertTest(testing.TestCase):
             self.get_temp_dir(), "dict_custom_sig_model.tflite"
         )
 
-        # Provide custom dict input signature
+        # Provide custom dict input signature with names
         input_signature = {
-            "input_x": layers.InputSpec(shape=(None, 10), dtype="float32"),
-            "input_y": layers.InputSpec(shape=(None, 10), dtype="float32"),
+            "input_x": layers.InputSpec(
+                shape=(None, 10), dtype="float32", name="input_x"
+            ),
+            "input_y": layers.InputSpec(
+                shape=(None, 10), dtype="float32", name="input_y"
+            ),
         }
 
         model.export(
@@ -1166,7 +1150,9 @@ class ExportLitertTest(testing.TestCase):
             )
         )
 
-        _set_interpreter_inputs(interpreter, [x_val, y_val])
+        _set_interpreter_inputs(
+            interpreter, {"input_x": x_val, "input_y": y_val}
+        )
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
@@ -1213,7 +1199,9 @@ class ExportLitertTest(testing.TestCase):
 
         interpreter = LiteRTInterpreter(model_path=temp_filepath)
         interpreter.allocate_tensors()
-        _set_interpreter_inputs(interpreter, [tokens_val, mask_val])
+        _set_interpreter_inputs(
+            interpreter, {"tokens": tokens_val, "mask": mask_val}
+        )
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
@@ -1270,7 +1258,9 @@ class ExportLitertTest(testing.TestCase):
             )
         )
 
-        _set_interpreter_inputs(interpreter, [a_val, b_val])
+        _set_interpreter_inputs(
+            interpreter, {"branch_a": a_val, "branch_b": b_val}
+        )
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
