@@ -162,7 +162,7 @@ jobs:
         run: mkdir -p ~/.gemini
 
       - name: 'Run Gemini Issue Analysis & Response'
-        uses: 'google-github-actions/run-gemini-cli@v0.39.1'
+        uses: 'google-github-actions/run-gemini-cli@v0.1.22'
         id: 'gemini_issue_analysis'
         env:
           GITHUB_TOKEN: '' # Do not pass any auth token here
