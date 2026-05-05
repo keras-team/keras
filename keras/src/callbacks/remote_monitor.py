@@ -1,4 +1,6 @@
+import ipaddress
 import json
+import urllib.parse
 import warnings
 
 import numpy as np
@@ -45,6 +47,23 @@ class RemoteMonitor(Callback):
     ):
         super().__init__()
 
+        parsed = urllib.parse.urlparse(root)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(
+                f"Invalid URL scheme '{parsed.scheme}'. "
+                "Only 'http' and 'https' are allowed."
+            )
+        hostname = parsed.hostname
+        if hostname:
+            try:
+                ip = ipaddress.ip_address(hostname)
+            except ValueError:
+                ip = None
+            if ip is not None and not ip.is_global:
+                raise ValueError(
+                    f"Requests to non-global IP addresses are not "
+                    f"allowed: {hostname}"
+                )
         self.root = root
         self.path = path
         self.field = field
@@ -68,13 +87,17 @@ class RemoteMonitor(Callback):
         try:
             if self.send_as_json:
                 requests.post(
-                    self.root + self.path, json=send, headers=self.headers
+                    self.root + self.path,
+                    json=send,
+                    headers=self.headers,
+                    timeout=10,
                 )
             else:
                 requests.post(
                     self.root + self.path,
                     {self.field: json.dumps(send)},
                     headers=self.headers,
+                    timeout=10,
                 )
         except requests.exceptions.RequestException:
             warnings.warn(
