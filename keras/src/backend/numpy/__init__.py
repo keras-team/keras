@@ -21,6 +21,7 @@ from keras.src.backend.numpy.core import is_tensor
 from keras.src.backend.numpy.core import random_seed_dtype
 from keras.src.backend.numpy.core import shape
 from keras.src.backend.numpy.core import vectorized_map
+from keras.src.backend.numpy.rnn import bidirectional_lstm
 from keras.src.backend.numpy.rnn import cudnn_ok
 from keras.src.backend.numpy.rnn import gru
 from keras.src.backend.numpy.rnn import lstm

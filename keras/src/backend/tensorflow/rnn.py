@@ -979,3 +979,7 @@ def _cudnn_lstm(
         outputs = tf.expand_dims(last_output, axis=0 if time_major else 1)
 
     return (last_output, outputs, [h, c])
+
+
+def bidirectional_lstm(*args, **kwargs):
+    raise NotImplementedError

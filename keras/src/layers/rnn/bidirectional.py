@@ -1,9 +1,11 @@
 import copy
 
+from keras.src import backend
 from keras.src import ops
 from keras.src import utils
 from keras.src.api_export import keras_export
 from keras.src.layers.layer import Layer
+from keras.src.layers.rnn.lstm import LSTM
 from keras.src.saving import serialization_lib
 
 
@@ -200,6 +202,12 @@ class Bidirectional(Layer):
         mask=None,
         training=None,
     ):
+        if self._can_attempt_fused_lstm(mask, initial_state):
+            try:
+                return self._call_fused_lstm(sequences, initial_state)
+            except NotImplementedError:
+                pass
+
         kwargs = {}
         if self.forward_layer._call_has_training_arg:
             kwargs["training"] = training
@@ -253,6 +261,110 @@ class Bidirectional(Layer):
                 'Expected one of {"concat", "sum", "ave", "mul"}.'
             )
         if self.return_state:
+            if self.merge_mode is None:
+                return output + states
+            return (output,) + states
+        return output
+
+    def _can_attempt_fused_lstm(self, mask, initial_state=None):
+        # Layer-level preconditions for dispatching to
+        # `backend.bidirectional_lstm`. Backends that don't support a
+        # fused path (or don't have the runtime resources for one, e.g.
+        # no GPU) raise `NotImplementedError` from the call itself, and
+        # the caller falls back to the two-layer path.
+        if mask is not None or self.stateful:
+            return False
+        if initial_state is not None and len(initial_state) != 4:
+            return False
+
+        fwd, bwd = self.forward_layer, self.backward_layer
+        if not isinstance(fwd, LSTM) or not isinstance(bwd, LSTM):
+            return False
+        if fwd.use_cudnn not in (True, "auto"):
+            return False
+        if bwd.use_cudnn not in (True, "auto"):
+            return False
+        if fwd.cell.dropout or fwd.cell.recurrent_dropout:
+            return False
+        if bwd.cell.dropout or bwd.cell.recurrent_dropout:
+            return False
+        if fwd.cell.units != bwd.cell.units:
+            return False
+        if fwd.cell.activation is not bwd.cell.activation:
+            return False
+        if fwd.cell.recurrent_activation is not bwd.cell.recurrent_activation:
+            return False
+        if not fwd.cell.use_bias or not bwd.cell.use_bias:
+            return False
+        if not fwd.built or not bwd.built:
+            return False
+        return True
+
+    def _call_fused_lstm(self, sequences, initial_state):
+        fwd_cell = self.forward_layer.cell
+        bwd_cell = self.backward_layer.cell
+        units = fwd_cell.units
+
+        sequences = ops.convert_to_tensor(sequences)
+        batch_size = ops.shape(sequences)[0]
+
+        if initial_state is None:
+            zeros = ops.zeros((batch_size, units), dtype=sequences.dtype)
+            fwd_h0, fwd_c0, bwd_h0, bwd_c0 = zeros, zeros, zeros, zeros
+        else:
+            fwd_h0, fwd_c0, bwd_h0, bwd_c0 = initial_state
+
+        fwd_out, bwd_out = backend.bidirectional_lstm(
+            sequences,
+            fwd_h0,
+            fwd_c0,
+            bwd_h0,
+            bwd_c0,
+            mask=None,
+            fwd_kernel=fwd_cell.kernel,
+            fwd_recurrent_kernel=fwd_cell.recurrent_kernel,
+            fwd_bias=fwd_cell.bias,
+            bwd_kernel=bwd_cell.kernel,
+            bwd_recurrent_kernel=bwd_cell.recurrent_kernel,
+            bwd_bias=bwd_cell.bias,
+            activation=fwd_cell.activation,
+            recurrent_activation=fwd_cell.recurrent_activation,
+            return_sequences=self.return_sequences,
+            unroll=self.forward_layer.unroll,
+        )
+        fwd_last, fwd_seq, fwd_states = fwd_out
+        bwd_last, bwd_seq, bwd_states = bwd_out
+
+        if self.return_sequences:
+            y, y_rev = fwd_seq, bwd_seq
+        else:
+            y, y_rev = fwd_last, bwd_last
+
+        y = ops.cast(y, self.compute_dtype)
+        y_rev = ops.cast(y_rev, self.compute_dtype)
+
+        # The fused backend helper already returns backward outputs in
+        # original time order, so the per-layer `ops.flip(y_rev)` that the
+        # non-fused path applies is unnecessary here.
+        if self.merge_mode == "concat":
+            output = ops.concatenate([y, y_rev], axis=-1)
+        elif self.merge_mode == "sum":
+            output = y + y_rev
+        elif self.merge_mode == "ave":
+            output = (y + y_rev) / 2
+        elif self.merge_mode == "mul":
+            output = y * y_rev
+        elif self.merge_mode is None:
+            output = (y, y_rev)
+        else:
+            raise ValueError(
+                "Unrecognized value for `merge_mode`. "
+                f"Received: {self.merge_mode}. "
+                'Expected one of {"concat", "sum", "ave", "mul"}.'
+            )
+
+        if self.return_state:
+            states = tuple(fwd_states + bwd_states)
             if self.merge_mode is None:
                 return output + states
             return (output,) + states

@@ -870,3 +870,7 @@ def _cudnn_gru(
         outputs = last_output.unsqueeze(1)
 
     return last_output, outputs, [h_n]
+
+
+def bidirectional_lstm(*args, **kwargs):
+    raise NotImplementedError
