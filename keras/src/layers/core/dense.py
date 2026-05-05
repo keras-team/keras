@@ -391,6 +391,13 @@ class Dense(Layer):
 
     @classmethod
     def from_config(cls, config):
+        MAX_UNITS = 1_000_000
+        units = config.get("units")
+        if units is not None and units > MAX_UNITS:
+            raise ValueError(
+                f"units={units} exceeds maximum "
+                f"allowed value of {MAX_UNITS}."
+            )
         config = config.copy()
         config["quantization_config"] = (
             serialization_lib.deserialize_keras_object(
