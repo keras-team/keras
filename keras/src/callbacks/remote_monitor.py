@@ -1,5 +1,6 @@
 import ipaddress
 import json
+import socket
 import urllib.parse
 import warnings
 
@@ -12,6 +13,68 @@ try:
     import requests
 except ImportError:
     requests = None
+
+
+def _validate_url_for_ssrf(root, path):
+    """Validate the final request URL for SSRF risks.
+
+    Protects against:
+    - Non-http(s) schemes.
+    - Link-local IP targets (e.g. the AWS/GCP/Azure metadata endpoint
+      169.254.169.254) reached either directly or via DNS rebinding.
+    - Host-injection attacks where a crafted ``path`` value (e.g.
+      ``@attacker.com``) redirects the request to a different host.
+    """
+    # --- scheme check on root ---
+    root_parsed = urllib.parse.urlparse(root)
+    if root_parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Invalid URL scheme '{root_parsed.scheme}'. "
+            "Only 'http' and 'https' are allowed."
+        )
+
+    # --- build and re-parse the full URL to catch host-injection via path ---
+    full_url = root + path
+    full_parsed = urllib.parse.urlparse(full_url)
+
+    # Detect host injection: path must not alter the authority component.
+    if full_parsed.hostname != root_parsed.hostname:
+        raise ValueError(
+            f"Host injection detected: the combined URL hostname "
+            f"'{full_parsed.hostname}' does not match the root hostname "
+            f"'{root_parsed.hostname}'. Ensure 'path' does not contain "
+            f"'@', scheme separators, or other authority-altering characters."
+        )
+
+    hostname = full_parsed.hostname
+    if not hostname:
+        raise ValueError("URL must contain a valid hostname.")
+
+    # --- DNS resolution check (catches rebinding attacks) ---
+    try:
+        addr_infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as exc:
+        raise ValueError(
+            f"Unable to resolve hostname '{hostname}': {exc}"
+        ) from exc
+
+    resolved_ips = {info[4][0] for info in addr_infos}
+    for ip_str in resolved_ips:
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            continue
+        # Block only link-local addresses; these are used by cloud
+        # instance-metadata services (AWS 169.254.169.254, GCP, Azure).
+        # Loopback (127.x.x.x) and private RFC-1918 ranges are intentionally
+        # allowed so that the default localhost target and intranet monitoring
+        # configurations continue to work.
+        if ip.is_link_local:
+            raise ValueError(
+                f"Requests to link-local IP addresses are not allowed "
+                f"(SSRF protection): '{ip_str}' resolved from '{hostname}'. "
+                f"This range is used by cloud instance-metadata services."
+            )
 
 
 @keras_export("keras.callbacks.RemoteMonitor")
@@ -47,23 +110,8 @@ class RemoteMonitor(Callback):
     ):
         super().__init__()
 
-        parsed = urllib.parse.urlparse(root)
-        if parsed.scheme not in ("http", "https"):
-            raise ValueError(
-                f"Invalid URL scheme '{parsed.scheme}'. "
-                "Only 'http' and 'https' are allowed."
-            )
-        hostname = parsed.hostname
-        if hostname:
-            try:
-                ip = ipaddress.ip_address(hostname)
-            except ValueError:
-                ip = None
-            if ip is not None and not ip.is_global:
-                raise ValueError(
-                    f"Requests to non-global IP addresses are not "
-                    f"allowed: {hostname}"
-                )
+        _validate_url_for_ssrf(root, path)
+
         self.root = root
         self.path = path
         self.field = field
