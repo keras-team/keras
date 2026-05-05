@@ -395,8 +395,7 @@ class Dense(Layer):
         units = config.get("units")
         if units is not None and units > MAX_UNITS:
             raise ValueError(
-                f"units={units} exceeds maximum "
-                f"allowed value of {MAX_UNITS}."
+                f"units={units} exceeds maximum allowed value of {MAX_UNITS}."
             )
         config = config.copy()
         config["quantization_config"] = (
