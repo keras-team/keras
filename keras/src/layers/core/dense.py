@@ -391,6 +391,16 @@ class Dense(Layer):
 
     @classmethod
     def from_config(cls, config):
+        MAX_UNITS = 100_000_000
+        units = config.get("units")
+        if isinstance(units, (int, float)) and units > MAX_UNITS:
+            raise ValueError(
+                f"The `units` argument in the config ({units}) "
+                f"exceeds the safety limit of {MAX_UNITS}. This check "
+                "is intended to prevent OOM errors during deserialization. "
+                "If this value is intentional, please verify your model "
+                "configuration."
+            )
         config = config.copy()
         config["quantization_config"] = (
             serialization_lib.deserialize_keras_object(
