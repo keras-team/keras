@@ -61,25 +61,43 @@ jobs:
           filters: |
             applications:
               - 'keras/src/applications/**'
+            wrappers:
+              - 'keras/src/wrappers/**'
 
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
           pip install --no-deps tf_keras
 
-      - name: Test applications with pytest
+      - name: Run Tests for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
         run: |
           pytest keras/src/applications --cov=keras/src/applications --cov-config=pyproject.toml
           coverage xml --include='keras/src/applications/*' -o apps-coverage.xml
 
-      - name: Codecov keras.applications
+      - name: Upload Coverage for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
         uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
           files: apps-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      - name: Run Tests for wrappers
+        if: ${{ steps.filter.outputs.wrappers == 'true' && matrix.nnx_enabled == false }}
+        run: |
+          pytest keras/src/wrappers --cov=keras/src/wrappers --cov-config=pyproject.toml
+          coverage xml --include='keras/src/wrappers/*' -o wrappers-coverage.xml
+
+      - name: Upload Coverage for wrappers
+        if: ${{ steps.filter.outputs.wrappers == 'true' && matrix.nnx_enabled == false }}
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
+        with:
+          env_vars: PYTHON,KERAS_HOME
+          flags: keras.wrappers,keras.wrappers-${{ matrix.backend }}
+          files: wrappers-coverage.xml
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
 
@@ -116,7 +134,7 @@ jobs:
 
       - name: Run Tests
         if: ${{ matrix.nnx_enabled == false }}
-        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+        run: pytest keras -n auto --dist loadfile --ignore keras/src/applications --ignore keras/src/wrappers --cov=keras --cov-config=pyproject.toml
 
       - name: Run Multi-Device Tests
         if: ${{ matrix.backend == 'jax' }}
@@ -124,7 +142,7 @@ jobs:
 
       - name: Convert Coverage
         if: ${{ matrix.nnx_enabled == false }}
-        run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+        run: coverage xml --omit='keras/src/applications/*,keras/src/wrappers/*,keras/api' -o core-coverage.xml
 
       - name: Upload Coverage
         if: ${{ matrix.nnx_enabled == false }}

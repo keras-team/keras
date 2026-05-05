@@ -1,7 +1,6 @@
 pre-commit
 namex>=0.1.0
 ruff
-pytest
 numpy
 scipy
 scikit-learn
@@ -17,7 +16,9 @@ tensorboard-plugin-profile
 rich
 build
 optree
+pytest
 pytest-cov
+pytest-xdist
 packaging
 # for tree_test.py
 dm_tree
