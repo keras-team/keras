@@ -632,15 +632,15 @@ class SavingTest(testing.TestCase):
         out.seek(0)
         model = saving_lib.load_model(out)
 
-        model.fit(np.array([1, 2]), np.array([1, 2]))
-        pred1 = model.predict(np.array([1, 2]))
+        model.fit(np.array([[1], [2]]), np.array([[1], [2]]))
+        pred1 = model.predict(np.array([[1], [2]]))
 
         out = BytesIO()
         saving_lib.save_model(model, out)
         out.seek(0)
         new_model = saving_lib.load_model(out)
 
-        pred2 = new_model.predict(np.array([1, 2]))
+        pred2 = new_model.predict(np.array([[1], [2]]))
 
         self.assertAllClose(pred1, pred2, atol=1e-5)
 

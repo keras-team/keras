@@ -919,7 +919,7 @@ def distribute_tensor(tensor, layout):
 @keras_export("keras.distribution.distribution")
 def distribution():
     """Retrieve the current distribution from global context."""
-    return global_state.get_global_attribute(GLOBAL_ATTRIBUTE_NAME)
+    return getattr(global_state.GLOBAL_STATE_TRACKER, "distribution", None)
 
 
 @keras_export("keras.distribution.set_distribution")

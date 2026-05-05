@@ -54,6 +54,28 @@ class Loss(KerasSaveable):
         return self._dtype
 
     def __call__(self, y_true, y_pred, sample_weight=None):
+        # Torch fast path: skip convert_to_tensor, mask checks, name_scope
+        if (
+            sample_weight is None
+            and backend.backend() == "torch"
+            and not isinstance(y_pred, (dict, list, tuple))
+        ):
+            import torch
+
+            if isinstance(y_pred, torch.Tensor):
+                mask = backend.get_keras_mask(y_pred)
+                if mask is None:
+                    losses = self.call(y_true, y_pred)
+                    out_mask = backend.get_keras_mask(losses)
+                    if out_mask is None:
+                        if self.reduction == "sum_over_batch_size":
+                            return losses.mean()
+                        elif self.reduction == "sum":
+                            return losses.sum()
+                        elif self.reduction in (None, "none"):
+                            return losses
+                        # fall through for other reductions
+
         in_mask = backend.get_keras_mask(y_pred)
 
         with ops.name_scope(self.name):

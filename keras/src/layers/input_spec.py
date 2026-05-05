@@ -139,6 +139,62 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
     if not input_spec:
         return
 
+    # Fast path: single InputSpec + single tensor (most common case)
+    if isinstance(input_spec, InputSpec) and not isinstance(
+        inputs, (list, tuple, dict)
+    ):
+        spec = input_spec
+        x = inputs
+        if not hasattr(x, "shape"):
+            raise ValueError(
+                f"Inputs to a layer should be tensors. Got '{x}' "
+                f"(of type {type(x)}) as input for layer '{layer_name}'."
+            )
+        shape = backend.standardize_shape(x.shape)
+        ndim = len(shape)
+        if spec.ndim is not None and not spec.allow_last_axis_squeeze:
+            if ndim != spec.ndim:
+                raise ValueError(
+                    f"Input 0 with name '{spec.name}' of layer "
+                    f"'{layer_name}' is incompatible with the layer: "
+                    f"expected ndim={spec.ndim}, found ndim={ndim}. "
+                    f"Full shape received: {shape}"
+                )
+        if spec.min_ndim is not None and ndim < spec.min_ndim:
+            raise ValueError(
+                f"Input 0 with name '{spec.name}' of layer "
+                f"'{layer_name}' is incompatible with the layer: "
+                f"expected min_ndim={spec.min_ndim}, found ndim={ndim}. "
+                f"Full shape received: {shape}"
+            )
+        if spec.axes:
+            for axis, value in spec.axes.items():
+                if value is not None and shape[axis] not in {value, None}:
+                    raise ValueError(
+                        f"Input 0 with name '{spec.name}' of layer "
+                        f"'{layer_name}' is incompatible with the layer: "
+                        f"expected axis {axis} of input shape to have "
+                        f"value {value}, but received input with "
+                        f"shape {shape}"
+                    )
+        if spec.shape is not None:
+            spec_shape = spec.shape
+            if spec.allow_last_axis_squeeze:
+                if shape and shape[-1] == 1:
+                    shape = shape[:-1]
+                if spec_shape and spec_shape[-1] == 1:
+                    spec_shape = spec_shape[:-1]
+            for spec_dim, dim in zip(spec_shape, shape):
+                if spec_dim is not None and dim is not None:
+                    if spec_dim != dim:
+                        raise ValueError(
+                            f"Input 0 with name '{spec.name}' of layer "
+                            f"'{layer_name}' is incompatible with the "
+                            f"layer: expected shape={spec.shape}, found "
+                            f"shape={shape}"
+                        )
+        return
+
     input_spec = tree.flatten(input_spec)
     if isinstance(inputs, dict):
         # Flatten `inputs` by reference order if input spec names are provided

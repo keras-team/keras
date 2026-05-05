@@ -219,6 +219,69 @@ def inject_argument_info_in_traceback(fn, object_name=None):
     return error_handler
 
 
+def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
+    """Add call argument info to an already-caught exception.
+
+    Unlike `inject_argument_info_in_traceback`, this does not create a
+    wrapper function. It processes the exception directly, which avoids
+    per-call overhead when no exception is raised.
+    """
+    if backend.backend() == "tensorflow":
+        from tensorflow import errors as tf_errors
+    else:
+        tf_errors = None
+
+    try:
+        signature = inspect.signature(fn)
+        bound_signature = signature.bind(*args, **kwargs)
+    except TypeError:
+        return
+
+    try:
+        arguments_context = []
+        for arg in signature.parameters.values():
+            if arg.name in bound_signature.arguments:
+                value = format_argument_value(
+                    bound_signature.arguments[arg.name],
+                )
+            else:
+                value = arg.default
+            arguments_context.append(f"  • {arg.name}={value}")
+        if arguments_context:
+            arguments_context = "\n".join(arguments_context)
+            if tf_errors is not None and isinstance(e, tf_errors.OpError):
+                message = e.message
+            elif e.args:
+                message = e.args[0]
+            else:
+                message = ""
+            display_name = f"{object_name if object_name else fn.__name__}"
+            message = (
+                f"Exception encountered when calling "
+                f"{display_name}.\n\n"
+                f"\x1b[1m{message}\x1b[0m\n\n"
+                f"Arguments received by {display_name}:\n"
+                f"{arguments_context}"
+            )
+            if tf_errors is not None and isinstance(e, tf_errors.OpError):
+                new_e = e.__class__(e.node_def, e.op, message, e.error_code)
+            else:
+                try:
+                    new_e = e.__class__(message)
+                except TypeError:
+                    new_e = RuntimeError(message)
+            new_e._keras_call_info_injected = True
+            new_e.__traceback__ = e.__traceback__
+            # Modify the original exception's args in place
+            try:
+                e.args = (message,)
+                e._keras_call_info_injected = True
+            except (AttributeError, TypeError):
+                pass
+    except Exception:
+        pass
+
+
 def format_argument_value(value):
     if backend.is_tensor(value):
         # Simplified representation for eager / graph tensors

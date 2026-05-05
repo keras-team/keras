@@ -235,6 +235,17 @@ class Sequential(Model):
         self._functional = Functional(inputs=inputs, outputs=outputs)
 
     def call(self, inputs, training=None, mask=None, **kwargs):
+        # Fast path: simple tensor, no masks, no kwargs → iterate directly
+        if (
+            self._functional
+            and mask is None
+            and not kwargs
+            and not isinstance(inputs, (dict, list, tuple))
+        ):
+            for layer in self.layers:
+                inputs = layer(inputs, training=training)
+            return inputs
+
         if self._functional:
             return self._functional.call(
                 inputs, training=training, mask=mask, **kwargs

@@ -1723,6 +1723,53 @@ class LayerTest(testing.TestCase):
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
 
+    @pytest.mark.skipif(backend.backend() != "torch", reason="Torch only test.")
+    def test_torch_compile_no_recompile_after_warmup(self):
+        import torch
+        from torch._dynamo.utils import counters
+
+        global_state.clear_session()
+
+        with backend.device("cpu:0"):
+            inputs = layers.Input((8,), dtype="int32")
+            x = layers.Embedding(32, 16)(inputs)
+            residual = x
+            x = layers.LayerNormalization()(x)
+            x = layers.MultiHeadAttention(2, 8)(x, x, use_causal_mask=True)
+            x = x + residual
+            residual = x
+            x = layers.LayerNormalization()(x)
+            x = layers.Dense(32, activation="gelu")(x)
+            x = layers.Dense(16)(x) + residual
+            outputs = layers.Dense(32)(layers.LayerNormalization()(x))
+            model = models.Model(inputs, outputs)
+            batch = torch.ones((2, 8), dtype=torch.int32, device="cpu")
+
+        def generate_fn(prompt):
+            current = prompt
+            for _ in range(4):
+                logits = model(current, training=False)
+                next_token = ops.cast(
+                    ops.argmax(logits[:, -1:, :], axis=-1), "int32"
+                )
+                current = ops.concatenate([current[:, 1:], next_token], axis=1)
+            return current
+
+        torch._dynamo.reset()
+        counters.clear()
+        compiled_generate = torch.compile(generate_fn)
+
+        compiled_generate(batch)
+        stats_after_warmup = dict(counters["stats"])
+        frames_after_warmup = dict(counters["frames"])
+
+        compiled_generate(batch)
+        compiled_generate(batch)
+        compiled_generate(batch)
+
+        self.assertEqual(dict(counters["stats"]), stats_after_warmup)
+        self.assertEqual(dict(counters["frames"]), frames_after_warmup)
+
     @pytest.mark.skipif(
         not backend.SUPPORTS_COMPLEX_DTYPES,
         reason=f"{backend.backend()} backend doesn't support complex dtypes.",

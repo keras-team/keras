@@ -5143,19 +5143,12 @@ def eye(N, M=None, k=0, dtype=None):
 
 
 def floor_divide(x1, x2):
-    x1_output = get_ov_output(x1)
-    x2_output = get_ov_output(x2)
-    if x1_output.get_element_type() == Type.boolean:
-        x1_output = ov_opset.convert(x1_output, Type.i32).output(0)
-    if isinstance(x2, (int, float)):
-        if x1_output.get_element_type().is_integral() and isinstance(x2, float):
-            ov_type = OPENVINO_DTYPES[config.floatx()]
-        else:
-            ov_type = x1_output.get_element_type()
-        x1 = ov_opset.convert(x1_output, ov_type).output(0)
-        x2 = ov_opset.convert(x2_output, ov_type).output(0)
-    else:
-        x1, x2 = _align_operand_types(x1_output, x2_output, "floor_divide()")
+    x1, x2 = _promote_binary_op_types(x1, x2)
+    x1, x2 = _align_operand_types(x1, x2, "floor_divide()")
+    if x1.get_element_type() == Type.boolean:
+        int32_type = OPENVINO_DTYPES["int32"]
+        x1 = ov_opset.convert(x1, int32_type).output(0)
+        x2 = ov_opset.convert(x2, int32_type).output(0)
     div = ov_opset.divide(x1, x2).output(0)
     floored_div = ov_opset.floor(div).output(0)
     return OpenVINOKerasTensor(floored_div)

@@ -67,6 +67,13 @@ else:
         f"Backend '{backend.backend()}' must implement a layer mixin class."
     )
 
+if backend.backend() == "torch":
+    import torch.compiler
+
+    _is_torch_compiling = torch.compiler.is_compiling
+else:
+    _is_torch_compiling = lambda: False
+
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
 class Layer(BackendLayer, Operation):
@@ -876,6 +883,19 @@ class Layer(BackendLayer, Operation):
         self._check_super_called()
         self._called = True
 
+        # Torch compile fast path: when dynamo is tracing sub-layers,
+        # skip all Python-level guards that cause recompilations.
+        # The top-level TorchLayer.forward already validated inputs.
+        if self.built and _is_torch_compiling():
+            if kwargs:
+                kwargs = {
+                    key: value
+                    for key, value in kwargs.items()
+                    if key not in self._call_context_args
+                    or self._call_has_context_arg.get(key, False)
+                }
+            return self.call(*args, **kwargs)
+
         original_args = args
         original_kwargs = kwargs
 
@@ -1624,22 +1644,22 @@ class Layer(BackendLayer, Operation):
         return self.__repr__()
 
     def __setattr__(self, name, value):
+        # Bypass for `_called` and `built` attributes:
+        # - NNX tracing cannot call nnx.Module.__setattr__
+        # - Torch dynamo cannot trace through _setattr_hook
+        if (name == "_called" or name == "built") and (
+            (backend.backend() == "jax" and is_nnx_enabled())
+            or (backend.backend() == "torch" and _is_torch_compiling())
+        ):
+            object.__setattr__(self, name, value)
+            return
+
         # Track Variables, Layers, Metrics, SeedGenerators.
         name, value = self._setattr_hook(name, value)
         if name != "_tracker":
             if not hasattr(self, "_tracker"):
                 self._initialize_tracker()
             value = self._tracker.track(value)
-
-        # NNX-specific bypass for `_called` and `built` attributes
-        # bypass nnx.Module.__setattr__ which cannot be called while tracing
-        if (
-            backend.backend() == "jax"
-            and is_nnx_enabled()
-            and (name == "_called" or name == "built")
-        ):
-            object.__setattr__(self, name, value)
-            return
 
         super().__setattr__(name, value)
 
