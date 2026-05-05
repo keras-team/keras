@@ -2,9 +2,8 @@
 <!-- Describe your changes here -->
 
 ## Contributor Agreement
-**Please review our
-[AI-Assisted Contribution Policy](../CONTRIBUTING.md#ai-assisted-contribution-policy)
-and check all boxes below before submitting your PR for review:**
+
+**Please review our [AI-Assisted Contribution Policy](../CONTRIBUTING.md#ai-assisted-contribution-policy) and check all boxes below before submitting your PR for review:**
 
 - [ ] I am a human, and not a bot.
 - [ ] I will be responsible for responding to review comments in a timely manner.
