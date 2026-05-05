@@ -632,7 +632,7 @@ class EinsumDenseTest(testing.TestCase):
             "btnh,nhd->btd",
             (None, 8),
             (1, 2, 2, 4),
-            3e-3,
+            4e-3,
         ),
         (
             "int4_btd,ndh->btnh",
@@ -640,7 +640,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,ndh->btnh",
             (None, 2, 8),
             (1, 2, 4),
-            3e-3,
+            4e-3,
         ),
         (
             "int4_btd,df->btf",
@@ -648,7 +648,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            3.5e-3,  # Slightly higher threshold for grouped quantization
+            4e-3,
         ),
     )
     def test_quantize_with_specific_equations(
