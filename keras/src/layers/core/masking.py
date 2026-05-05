@@ -61,8 +61,8 @@ class Masking(Layer):
         boolean_mask = ops.any(
             ops.not_equal(inputs, self.mask_value), axis=-1, keepdims=True
         )
-        # Set masked outputs to 0
-        outputs = inputs * backend.cast(boolean_mask, dtype=inputs.dtype)
+        # Set masked outputs to 0.
+        outputs = ops.where(boolean_mask, inputs, 0)
         # Compute the mask and outputs simultaneously.
         backend.set_keras_mask(outputs, mask=ops.squeeze(boolean_mask, axis=-1))
         return outputs

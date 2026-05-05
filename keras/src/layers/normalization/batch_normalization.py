@@ -439,29 +439,24 @@ class BatchNormalization(Layer):
                 synchronized=self.synchronized,
             )
 
-        mask_weights = ops.cast(mask, inputs.dtype)
-        mask_weights_broadcasted = ops.expand_dims(mask_weights, axis=-1)
-        broadcasted_mask = ops.broadcast_to(
-            mask_weights_broadcasted, ops.shape(inputs)
-        )
-        weighted_inputs = broadcasted_mask * inputs
-
-        weighted_input_sum = ops.sum(
-            weighted_inputs,
+        mask_b = ops.cast(
+            ops.expand_dims(mask, axis=-1), "bool"
+        )  # defensive casting
+        mask_float = ops.cast(mask_b, inputs.dtype)
+        sum_of_weights = ops.sum(
+            ops.broadcast_to(mask_float, ops.shape(inputs)),
             self._reduction_axes,
             keepdims=True,
         )
-        sum_of_weights = ops.sum(
-            broadcasted_mask,
+        weighted_input_sum = ops.sum(
+            ops.where(mask_b, inputs, 0),
             self._reduction_axes,
             keepdims=True,
         )
         mean = weighted_input_sum / (sum_of_weights + backend.epsilon())
 
-        difference = weighted_inputs - mean
-        squared_difference = ops.square(difference)
         weighted_distsq = ops.sum(
-            broadcasted_mask * squared_difference,
+            ops.where(mask_b, ops.square(inputs - mean), 0),
             self._reduction_axes,
             keepdims=True,
         )
