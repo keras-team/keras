@@ -1139,9 +1139,7 @@ class SegmentMinTest(testing.TestCase):
         )
 
         output = segment_min_op.call(data, segment_ids)
-
         expected_output = np.array([[1, 4, 7], [3, 6, 9]], dtype=np.float32)
-
         self.assertAllClose(output, expected_output)
 
 
