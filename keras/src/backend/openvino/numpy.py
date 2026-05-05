@@ -5355,13 +5355,11 @@ def slogdet(x):
 def argpartition(x, kth, axis=-1):
     x = get_ov_output(x)
     if axis is None:
-        x = get_ov_output(
-            ov_opset.reshape(
-                x,
-                ov_opset.constant([-1], dtype="int64"),
-                False,
-            )
-        )
+        x = ov_opset.reshape(
+            x,
+            ov_opset.constant([-1], dtype="int64"),
+            False,
+        ).output(0)
     axis = 0
     x_shape = x.get_partial_shape()
     rank = x_shape.rank.get_length()
