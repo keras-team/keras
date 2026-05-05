@@ -11,3 +11,6 @@ torch-xla;sys_platform != 'darwin'
 jax[cpu]
 
 -r requirements-common.txt
+
+# LiteRT torch converter.
+litert-torch>=0.9.0

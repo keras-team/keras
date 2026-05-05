@@ -1795,6 +1795,17 @@ def repeat(x, repeats, axis=None):
         new_shape[axis] = shape[axis] * repeats
         return x.reshape(new_shape)
 
+    # When repeats is a list/tuple of ints, pass it directly to
+    # repeat_interleave without converting to a tensor. The output
+    # size (sum(repeats)) is statically known, so torch.export can
+    # infer shapes without introducing unbacked symbols.
+    if (
+        isinstance(repeats, (list, tuple))
+        and all(isinstance(r, int) for r in repeats)
+        and axis is not None
+    ):
+        return torch.repeat_interleave(x, repeats, dim=axis)
+
     repeats = convert_to_tensor(repeats, dtype=int)
 
     return torch.repeat_interleave(x, repeats, dim=axis)
