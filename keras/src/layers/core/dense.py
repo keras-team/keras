@@ -391,12 +391,15 @@ class Dense(Layer):
 
     @classmethod
     def from_config(cls, config):
-        MAX_UNITS = 1_000_000
+        MAX_UNITS = 100_000_000
         units = config.get("units")
-        if units is not None and units > MAX_UNITS:
+        if isinstance(units, (int, float)) and units > MAX_UNITS:
             raise ValueError(
-                f"units={units} exceeds maximum "
-                f"allowed value of {MAX_UNITS}."
+                f"The `units` argument in the config ({units}) "
+                f"exceeds the safety limit of {MAX_UNITS}. This check "
+                "is intended to prevent OOM errors during deserialization. "
+                "If this value is intentional, please verify your model "
+                "configuration."
             )
         config = config.copy()
         config["quantization_config"] = (

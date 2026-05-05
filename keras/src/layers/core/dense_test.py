@@ -129,6 +129,11 @@ class DenseTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "positive integer"):
             layers.Dense(units)
 
+    def test_dense_from_config_exceeds_max_units(self):
+        config = {"units": 100_000_001, "name": "dense"}
+        with self.assertRaisesRegex(ValueError, "exceeds the safety limit"):
+            layers.Dense.from_config(config)
+
     def test_dense_correctness(self):
         # With bias and activation.
         layer = layers.Dense(units=2, activation="relu")
