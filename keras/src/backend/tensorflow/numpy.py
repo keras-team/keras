@@ -3787,6 +3787,7 @@ def histogram(x, bins=10, range=None):
 def unique(
     x,
     sorted=True,
+    return_index=False,
     return_inverse=False,
     return_counts=False,
     axis=None,
@@ -3808,6 +3809,13 @@ def unique(
         axis_to_use = tf.constant([dim], dtype=tf.int32)
         y, inverse, counts = tf.raw_ops.UniqueWithCountsV2(
             x=x, axis=axis_to_use, out_idx=tf.int32
+        )
+
+    if return_index:
+        num_unique = tf.shape(y)[dim]
+        dim_size = tf.shape(x)[0] if is_flatten else original_shape[dim]
+        unique_indices = tf.math.unsorted_segment_min(
+            tf.range(dim_size, dtype=tf.int32), inverse, num_unique
         )
 
     if sorted:
@@ -3837,6 +3845,8 @@ def unique(
             )
 
         y = tf.gather(y, sort_order, axis=dim)
+        if return_index:
+            unique_indices = tf.gather(unique_indices, sort_order)
         if return_counts:
             counts = tf.gather(counts, sort_order)
         if return_inverse:
@@ -3851,6 +3861,8 @@ def unique(
         # 1. Truncate using gather
         truncate_size = tf.minimum(values_count, size)
         y = tf.gather(y, tf.range(truncate_size), axis=dim)
+        if return_index:
+            unique_indices = tf.gather(unique_indices, tf.range(truncate_size))
         if return_counts:
             counts = tf.gather(counts, tf.range(truncate_size))
 
@@ -3864,6 +3876,11 @@ def unique(
         fill = tf.cast(0 if fill_value is None else fill_value, y.dtype)
         y = tf.pad(y, paddings, constant_values=fill)
 
+        if return_index:
+            unique_indices = tf.pad(
+                unique_indices, [[0, pad_amount]], constant_values=1
+            )
+
         if return_counts:
             counts = tf.pad(counts, [[0, pad_amount]], constant_values=0)
 
@@ -3871,6 +3888,8 @@ def unique(
         static_shape = y.shape.as_list()
         static_shape[dim] = size
         y.set_shape(static_shape)
+        if return_index:
+            unique_indices.set_shape([size])
         if return_counts:
             counts.set_shape([size])
 
@@ -3878,6 +3897,8 @@ def unique(
         inverse = tf.reshape(inverse, original_shape)
 
     results = [y]
+    if return_index:
+        results.append(unique_indices)
     if return_inverse:
         results.append(inverse)
     if return_counts:

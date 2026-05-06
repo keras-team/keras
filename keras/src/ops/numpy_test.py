@@ -2373,8 +2373,11 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         out = knp.unique(x)
         self.assertEqual(out.shape, (None,))
 
-        v, inv, c = knp.unique(x, return_inverse=True, return_counts=True)
+        v, idx, inv, c = knp.unique(
+            x, return_index=True, return_inverse=True, return_counts=True
+        )
         self.assertEqual(v.shape, (None,))
+        self.assertEqual(idx.shape, (None,))
         self.assertEqual(inv.shape, (None, 3))  # Matches input shape
         self.assertEqual(c.shape, (None,))
 
@@ -3183,23 +3186,35 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 4))
 
         # Test with axis=0
-        v, inv = knp.unique(x, axis=0, return_inverse=True)
+        v, idx, inv = knp.unique(
+            x, axis=0, return_index=True, return_inverse=True
+        )
         # The size of the unique axis is unknown at compile time
         self.assertEqual(v.shape, (None, 4))
         # Inverse indices for axis is always 1D with length of that axis
         self.assertEqual(inv.shape, (2,))
+        self.assertEqual(idx.shape, (None,))
 
     def test_unique_symbolic_with_size(self):
         x = KerasTensor((2, 4))
 
-        v_flat = knp.unique(x, size=5)
+        v_flat, idx = knp.unique(x, return_index=True, size=5)
         self.assertEqual(v_flat.shape, (5,))
+        self.assertEqual(idx.shape, (5,))
 
-        v_axis0 = knp.unique(x, axis=0, size=3)
+        v_axis0, idx0 = knp.unique(x, return_index=True, axis=0, size=3)
         self.assertEqual(v_axis0.shape, (3, 4))
+        self.assertEqual(idx0.shape, (3,))
 
-        v_axis1 = knp.unique(x, axis=1, size=6)
+        v_axis1, idx1 = knp.unique(x, return_index=True, axis=1, size=6)
         self.assertEqual(v_axis1.shape, (2, 6))
+        self.assertEqual(idx1.shape, (6,))
+
+        v_axis_neg1, idx_neg1 = knp.unique(
+            x, return_index=True, axis=-1, size=6
+        )
+        self.assertEqual(v_axis1.shape, (2, 6))
+        self.assertEqual(idx1.shape, (6,))
 
 
 class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
@@ -7349,6 +7364,97 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         v, inv = op.call(x)
         self.assertAllClose(v, [[1, 2], [3, 4]])
         self.assertAllClose(inv, [0, 0, 1])
+
+        # test_unique_return_index_1d
+        x = np.array([3, 1, 2, 1])
+        expected_v = np.array([1, 2, 3])
+        # First occurrences of [1, 2, 3] are at source indices [1, 2, 0]
+        expected_idx = np.array([1, 2, 0])
+        v, idx = knp.unique(x, return_index=True)
+        self.assertAllClose(v, expected_v)
+        self.assertAllClose(idx, expected_idx)
+
+        # test_unique_return_index_axis_0
+        x = np.array([[1, 0], [0, 1], [1, 0]])
+        expected_v = np.array([[0, 1], [1, 0]])
+        # [0, 1] first occurs at row 1, [1, 0] first occurs at row 0
+        expected_idx = np.array([1, 0])
+        v, idx = knp.unique(x, axis=0, return_index=True)
+        self.assertAllClose(v, expected_v)
+        self.assertAllClose(idx, expected_idx)
+
+        # test_unique_return_index_combinations
+        x = np.array([3, 1, 2, 1])
+        v, idx, inv, counts = knp.unique(
+            x, return_index=True, return_inverse=True, return_counts=True
+        )
+        self.assertAllClose(v, [1, 2, 3])
+        self.assertAllClose(idx, [1, 2, 0])
+        self.assertAllClose(inv, [2, 0, 1, 0])
+        self.assertAllClose(counts, [2, 1, 1])
+
+        # test_unique_return_index_combinations_2d
+        x = np.array([[1, 0], [0, 1], [1, 0], [2, 2], [0, 1]])
+        v, idx, inv, counts = knp.unique(
+            x,
+            axis=0,
+            return_index=True,
+            return_inverse=True,
+            return_counts=True,
+            size=5,
+            fill_value=-1,
+        )
+        # Unique rows (sorted lexicographically): [0, 1], [1, 0], [2, 2]
+        self.assertAllClose(v, [[0, 1], [1, 0], [2, 2], [-1, -1], [-1, -1]])
+        # First occurrences of each row: [0, 1] at row 1,
+        # [1, 0] at row 0, [2, 2] at row 3
+        self.assertAllClose(idx, [1, 0, 3, 1, 1])
+        # Source row map: row0->1, row1->0, row2->1, row3->2, row4->0
+        self.assertAllClose(inv, [1, 0, 1, 2, 0])
+        self.assertAllClose(counts, [2, 2, 1, 0, 0])
+
+        # test_unique_return_index_combinations_2d with negative axis
+        x = np.array([[1, 0], [0, 1], [1, 0], [2, 2], [0, 1]])
+        v, idx, inv, counts = knp.unique(
+            x,
+            axis=-1,
+            return_index=True,
+            return_inverse=True,
+            return_counts=True,
+            size=5,
+            fill_value=-1,
+        )
+        # Unique columns (sorted lexicographically): Col 1 before Col 0
+        # Resized to size=5 along last dimension (columns) via padding with -1
+        self.assertAllClose(
+            v,
+            [
+                [0, 1, -1, -1, -1],
+                [1, 0, -1, -1, -1],
+                [0, 1, -1, -1, -1],
+                [2, 2, -1, -1, -1],
+                [1, 0, -1, -1, -1],
+            ],
+        )
+        # Indices of first occurrences: [Col 1, Col 0]. Padded with 1.
+        self.assertAllClose(idx, [1, 0, 1, 1, 1])
+        # Mapping source columns to unique indexes:
+        # col 0 -> position 1, col 1 -> position 0
+        self.assertAllClose(inv, [1, 0])
+        # Both occur once. Padded with 0.
+        self.assertAllClose(counts, [1, 1, 0, 0, 0])
+
+        # test_unique_return_index_with_size
+        x = np.array([3, 1, 2, 1])
+        # Padding case
+        v, idx = knp.unique(x, return_index=True, size=5, fill_value=-1)
+        self.assertAllClose(v, [1, 2, 3, -1, -1])
+        self.assertAllClose(idx, [1, 2, 0, 1, 1])
+
+        # Truncation case
+        v, idx = knp.unique(x, return_index=True, size=2)
+        self.assertAllClose(v, [1, 2])
+        self.assertAllClose(idx, [1, 2])
 
 
 class NumpyArrayCreateOpsCorrectnessTest(testing.TestCase):

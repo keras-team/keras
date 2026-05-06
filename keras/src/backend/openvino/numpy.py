@@ -5621,6 +5621,7 @@ def histogram(x, bins=10, range=None):
 def unique(
     x,
     sorted=True,
+    return_index=False,
     return_inverse=False,
     return_counts=False,
     axis=None,
@@ -5645,6 +5646,7 @@ def unique(
             and x_flat_pshape[0].get_length() == 0
         ):
             values = x_flat
+            indices = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
             inverse = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
             counts = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
             dim = 0
@@ -5689,6 +5691,7 @@ def unique(
                     count_element_type="i32",
                 )
                 uniq_rows = uniq.output(0)
+                indices = uniq.output(1)
                 inverse = uniq.output(2)
                 counts = uniq.output(3)
 
@@ -5724,11 +5727,12 @@ def unique(
                     count_element_type="i32",
                 )
                 values = uniq.output(0)
+                indices = uniq.output(1)
                 inverse = uniq.output(2)
                 counts = uniq.output(3)
             dim = 0
     else:
-        dim = axis + x_rank if axis < 0 else axis
+        dim = canonicalize_axis(axis, x_rank)
         axis_node = ov_opset.constant(dim, Type.i32).output(0)
         dim_len_is_zero = False
         x_pshape = x.get_partial_shape()
@@ -5740,6 +5744,7 @@ def unique(
             dim_len_is_zero = True
         if dim_len_is_zero:
             values = x
+            indices = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
             inverse = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
             counts = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
         else:
@@ -5751,6 +5756,7 @@ def unique(
                 count_element_type="i32",
             )
             values = uniq.output(0)
+            indices = uniq.output(1)
             inverse = uniq.output(2)
             counts = uniq.output(3)
 
@@ -5845,6 +5851,24 @@ def unique(
                 ov_opset.constant(inv_perm, Type.i32).output(0),
             ).output(0)
 
+        if return_index:
+            indices = ov_opset.gather(
+                indices,
+                trunc_idx,
+                ov_opset.constant(0, Type.i32).output(0),
+            ).output(0)
+            one_indices = ov_opset.constant(
+                1, indices.get_element_type()
+            ).output(0)
+            indices_pad = ov_opset.broadcast(
+                one_indices,
+                ov_opset.unsqueeze(
+                    pad_amount,
+                    ov_opset.constant([0], Type.i32).output(0),
+                ).output(0),
+            ).output(0)
+            indices = ov_opset.concat([indices, indices_pad], axis=0).output(0)
+
         if return_counts:
             counts = ov_opset.gather(
                 counts,
@@ -5867,6 +5891,8 @@ def unique(
         inverse = ov_opset.reshape(inverse, x_shape, False).output(0)
 
     outputs = [OpenVINOKerasTensor(values)]
+    if return_index:
+        outputs.append(OpenVINOKerasTensor(indices))
     if return_inverse:
         outputs.append(OpenVINOKerasTensor(inverse))
     if return_counts:
