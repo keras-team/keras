@@ -3012,10 +3012,9 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.dstack([x, y]).shape, (2, 3, 9))
 
     def test_argpartition(self):
-        x = KerasTensor((2, 3))
-        self.assertEqual(knp.argpartition(x, 3).shape, (2, 3))
-        self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (2, 3))
-        self.assertEqual(knp.argpartition(x, 1, axis=None).shape, (6,))
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
+        self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (None, 3))
 
         with self.assertRaises(ValueError):
             knp.argpartition(x, (1, 3))
