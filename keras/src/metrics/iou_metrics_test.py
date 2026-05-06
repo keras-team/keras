@@ -131,9 +131,7 @@ class IoUTest(testing.TestCase):
         y_true = [0, 0, 1, 1]
         y_pred = [0, 1, 0, 1]
 
-        obj = metrics.IoU(
-            num_classes=4, target_class_ids=[0, 1, 2, 3]
-        )
+        obj = metrics.IoU(num_classes=4, target_class_ids=[0, 1, 2, 3])
         result = obj(y_true, y_pred)
 
         # cm = [[1, 1, 0, 0],
@@ -145,9 +143,7 @@ class IoUTest(testing.TestCase):
         # iou_0 = 1 / (2+2-1) = 1/3
         # iou_1 = 1 / (2+2-1) = 1/3
         # mean = (1/3 + 1/3) / 2 = 1/3
-        expected_result = (
-            1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)
-        ) / 2
+        expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
         self.assertAllClose(result, expected_result, atol=1e-3)
 
     @pytest.mark.requires_trainable_backend
