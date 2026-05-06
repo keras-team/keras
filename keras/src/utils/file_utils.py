@@ -44,20 +44,51 @@ def resolve_path(path):
     return os.path.realpath(os.path.abspath(path))
 
 
-def is_path_in_dir(path, base_dir):
-    return resolve_path(os.path.join(base_dir, path)).startswith(base_dir)
+def resolve_sub_path(base_dir, relative_path):
+    """Verify that a relative path stays within the base directory.
+
+    Args:
+        base_dir: The base directory to check against, must be resolved via
+            `resolve_path`.
+        relative_path: The relative path to check.
+
+    Returns:
+        The resolved path if it is within the base directory, None otherwise.
+    """
+    path = resolve_path(os.path.join(base_dir, relative_path))
+    try:
+        if os.path.commonpath([path, base_dir]) == base_dir:
+            return path
+        return None
+    except ValueError:
+        return None
 
 
-def is_link_in_dir(info, base):
-    tip = resolve_path(os.path.join(base, os.path.dirname(info.name)))
-    return is_path_in_dir(info.linkname, base_dir=tip)
+def is_link_in_dir(info, base_dir):
+    if info.islnk():
+        # Hard links resolve relative to the root.
+        return resolve_sub_path(base_dir, info.linkname) is not None
+
+    # Symlinks resolve relative to the directory of their destination.
+    destination = resolve_sub_path(base_dir, info.name)
+    if destination is None:
+        return False
+    link = resolve_path(
+        os.path.join(os.path.dirname(destination), info.linkname)
+    )
+    try:
+        if os.path.commonpath([link, base_dir]) == base_dir:
+            return True
+        return False
+    except ValueError:
+        return False
 
 
 def filter_safe_zipinfos(members, base_dir):
     base_dir = resolve_path(base_dir)
     for finfo in members:
         valid_path = False
-        if is_path_in_dir(finfo.filename, base_dir):
+        if resolve_sub_path(base_dir, finfo.filename) is not None:
             valid_path = True
             yield finfo
         if not valid_path:
@@ -76,7 +107,7 @@ def filter_safe_tarinfos(members, base_dir):
             if is_link_in_dir(finfo, base_dir):
                 valid_path = True
                 yield finfo
-        elif is_path_in_dir(finfo.name, base_dir):
+        elif resolve_sub_path(base_dir, finfo.name) is not None:
             valid_path = True
             yield finfo
         if not valid_path:

@@ -1696,3 +1696,137 @@ def is_memory_sufficient(model):
         weight_memory_size(model.variables)
         < available_memory * _MEMORY_UPPER_BOUND
     )
+
+
+def _split_path_components(path):
+    """Split a relative path into a list of individual components.
+
+    Uses ``os.path.split`` iteratively so the result is independent of
+    the platform path separator.
+
+    Example::
+
+        _split_path_components("a/b/c.txt") -> ["a", "b", "c.txt"]
+    """
+    parts = []
+    while True:
+        head, tail = os.path.split(path)
+        if tail:
+            parts.append(tail)
+        elif head:
+            parts.append(head)
+            break
+        else:
+            break
+        path = head
+    parts.reverse()
+    return parts
+
+
+def _write_nested_dict_to_dir(tree, base_dir):
+    """Recursively write a nested dict of numpy arrays to a directory tree.
+
+    Each dict key becomes a directory or filename. Leaf values (numpy
+    arrays) are written as binary files.
+
+    Args:
+        tree: A nested dictionary of numpy arrays.
+        base_dir: The base directory to write the assets to. Must be resolved
+            via `file_utils.resolve_path` first.
+    """
+    for key, value in tree.items():
+        if os.path.sep in key or (os.path.altsep and os.path.altsep in key):
+            raise ValueError(f"Invalid asset path: {key}")
+        child_path = file_utils.resolve_sub_path(base_dir, key)
+        if child_path is None:
+            raise ValueError(f"Invalid asset path: {key}")
+
+        if isinstance(value, dict):
+            os.makedirs(child_path, exist_ok=True)
+            _write_nested_dict_to_dir(value, child_path)
+        elif isinstance(value, np.ndarray):
+            with open(child_path, "wb") as f:
+                f.write(value.tobytes())
+
+
+def _save_assets_to_dict(model):
+    """Save model assets to a nested dictionary.
+
+    Collects assets (e.g. vocabulary files) from the model using the
+    Keras ``_save_state`` mechanism and returns them as a nested dictionary
+    that mirrors the directory hierarchy. Leaf values are numpy uint8
+    arrays containing file contents.
+
+    For example, a file at ``layer/sublayer/vocab.txt`` is stored as::
+
+        {"layer": {"sublayer": {"vocab.txt": np.array([...])}}}
+
+    Using a nested structure instead of flat path keys avoids
+    platform-specific path separator issues and zip-slip vulnerabilities.
+
+    Args:
+        model: The model whose assets should be collected.
+
+    Returns:
+        A nested dictionary of numpy uint8 arrays mirroring the asset
+        directory tree, or ``None`` if the model has no assets.
+    """
+    assets_store = DiskIOStore("assets", mode="w")
+    try:
+        _save_state(
+            model,
+            weights_store=None,
+            assets_store=assets_store,
+            inner_path="",
+            visited_saveables=set(),
+        )
+
+        assets_tree = {}
+        working_dir = assets_store.working_dir
+        for root, dirs, files in os.walk(working_dir):
+            for fname in files:
+                file_path = os.path.join(root, fname)
+                rel = os.path.relpath(file_path, working_dir)
+                parts = _split_path_components(rel)
+                with open(file_path, "rb") as f:
+                    data = np.frombuffer(f.read(), dtype=np.uint8)
+                node = assets_tree
+                for part in parts[:-1]:
+                    node = node.setdefault(part, {})
+                node[parts[-1]] = data
+
+        return assets_tree if assets_tree else None
+    finally:
+        assets_store.close()
+
+
+def _load_assets_from_dict(model, assets_dict):
+    """Load assets from a nested dictionary into the model.
+
+    Reconstructs the asset directory tree from a nested dictionary
+    produced by ``_save_assets_to_dict`` and loads the assets into
+    the model via the Keras ``_load_state`` mechanism.
+
+    Args:
+        model: The model to load assets into.
+        assets_dict: Nested dictionary mirroring the asset directory
+            tree, with numpy uint8 arrays as leaf values.
+    """
+    if not assets_dict:
+        return
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_dir = file_utils.resolve_path(tmp_dir)
+        _write_nested_dict_to_dir(assets_dict, tmp_dir)
+
+        assets_store = DiskIOStore(tmp_dir, mode="r")
+        _load_state(
+            model,
+            weights_store=None,
+            assets_store=assets_store,
+            inner_path="",
+            visited_saveables=set(),
+            failed_saveables=set(),
+            error_msgs={},
+        )
+        assets_store.close()
