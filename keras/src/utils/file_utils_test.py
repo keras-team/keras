@@ -7,6 +7,8 @@ import urllib.request
 import zipfile
 from unittest.mock import patch
 
+from absl.testing import parameterized
+
 from keras.src.testing import test_case
 from keras.src.utils import file_utils
 
@@ -50,61 +52,93 @@ class ResolvePathTest(test_case.TestCase):
         self.assertEqual(resolved_path, os.path.realpath(os.path.abspath(path)))
 
 
-class IsPathInDirTest(test_case.TestCase):
-    def test_is_path_in_dir_with_absolute_paths(self):
+class ResolveSubPathTest(test_case.TestCase):
+    def test_resolve_sub_path_with_absolute_paths(self):
         base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
         path = os.path.join(base_dir, "file.txt")
-        self.assertTrue(file_utils.is_path_in_dir(path, base_dir))
+        resolved_path = file_utils.resolve_sub_path(base_dir, path)
+        self.assertEqual(resolved_path, path)
+
+    def test_resolve_sub_path_with_subdir(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join("subdir", "file.txt")
+        resolved_path = file_utils.resolve_sub_path(base_dir, path)
+        self.assertEqual(
+            resolved_path, os.path.realpath(os.path.join(base_dir, path))
+        )
+
+    def test_resolve_sub_path_with_same_dir(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        resolved_path = file_utils.resolve_sub_path(base_dir, ".")
+        self.assertEqual(resolved_path, os.path.realpath(base_dir))
+
+    def test_resolve_sub_path_with_path_traversal(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join("..", "other_dir", "file.txt")
+        self.assertIsNone(file_utils.resolve_sub_path(base_dir, path))
+
+    def test_resolve_sub_path_with_prefix_confusion(self):
+        base_dir = os.path.join(os.path.sep, "path", "to", "base_dir")
+        path = os.path.join("..", "base_dir_other", "file.txt")
+        self.assertIsNone(file_utils.resolve_sub_path(base_dir, path))
 
 
 class IsLinkInDirTest(test_case.TestCase):
-    def test_is_link_in_dir_with_absolute_paths(self):
-        base_dir = self.get_temp_dir()
-        link_path = os.path.join(base_dir, "symlink")
-        target_path = os.path.join(base_dir, "file.txt")
+    @parameterized.named_parameters(
+        [
+            {
+                "testcase_name": "hardlink_in",
+                "is_symlink": False,
+                "name": None,
+                "linkname": "file.txt",
+                "expected": True,
+            },
+            {
+                "testcase_name": "hardlink_out",
+                "is_symlink": False,
+                "name": None,
+                "linkname": "../file.txt",
+                "expected": False,
+            },
+            {
+                "testcase_name": "symlink_in",
+                "is_symlink": True,
+                "name": "folder/foo.txt",
+                "linkname": "../file.txt",
+                "expected": True,
+            },
+            {
+                "testcase_name": "symlink_dest_out",
+                "is_symlink": True,
+                "name": "../foo.txt",
+                "linkname": "file.txt",
+                "expected": False,
+            },
+            {
+                "testcase_name": "symlink_link_out",
+                "is_symlink": True,
+                "name": "folder/foo.txt",
+                "linkname": "../../file.txt",
+                "expected": False,
+            },
+        ]
+    )
+    def test_is_link_in_dir(self, is_symlink, name, linkname, expected):
+        base_dir = file_utils.resolve_path(self.get_temp_dir())
 
-        # Create the file.txt file.
-        with open(target_path, "w") as f:
-            f.write("Hello, world!")
-
-        os.symlink(target_path, link_path)
-
-        # Creating a stat_result-like object with a name attribute
-        info = os.lstat(link_path)
+        # Creating a TarInfo-like object with a name attribute
         info = type(
-            "stat_with_name",
+            "TarInfo",
             (object,),
             {
-                "name": os.path.basename(link_path),
-                "linkname": os.readlink(link_path),
+                "name": name,
+                "linkname": linkname,
+                "issym": lambda: is_symlink,
+                "islnk": lambda: not is_symlink,
             },
         )
 
-        self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
-
-    def test_is_link_in_dir_with_relative_paths(self):
-        base_dir = self.get_temp_dir()
-        link_path = os.path.join(base_dir, "symlink")
-        target_path = os.path.join(base_dir, "file.txt")
-
-        # Create the file.txt file.
-        with open(target_path, "w") as f:
-            f.write("Hello, world!")
-
-        os.symlink(target_path, link_path)
-
-        # Creating a stat_result-like object with a name attribute
-        info = os.lstat(link_path)
-        info = type(
-            "stat_with_name",
-            (object,),
-            {
-                "name": os.path.basename(link_path),
-                "linkname": os.readlink(link_path),
-            },
-        )
-
-        self.assertTrue(file_utils.is_link_in_dir(info, base_dir))
+        self.assertEqual(file_utils.is_link_in_dir(info, base_dir), expected)
 
 
 class FilterSafePathsTest(test_case.TestCase):
