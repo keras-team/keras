@@ -622,6 +622,13 @@ def matmul(x1, x2):
             output = tf.tensordot(x1, x2, axes=1)
         elif x1_shape.rank == 1:
             output = tf.tensordot(x1, x2, axes=[[0], [-2]])
+        elif (
+            x2_shape.rank == 2
+            and x1_shape.rank is not None
+            and x1_shape.rank > 2
+            and output_type is None
+        ):
+            output = tf.tensordot(x1, x2, axes=[[-1], [0]])
         else:
             output = tf.matmul(x1, x2, output_type=output_type)
         return tf.cast(output, result_dtype)
