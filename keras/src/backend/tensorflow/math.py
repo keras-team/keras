@@ -36,6 +36,21 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
         return tf.math.unsorted_segment_max(data, segment_ids, num_segments)
 
 
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
+        return tf.math.segment_min(data, segment_ids)
+    else:
+        if num_segments is None:
+            num_segments = tf.cast(tf.reduce_max(segment_ids) + 1, tf.int32)
+        return tf.math.unsorted_segment_min(data, segment_ids, num_segments)
+
+
 def top_k(x, k, sorted=True):
     return tf.math.top_k(x, k, sorted=sorted)
 

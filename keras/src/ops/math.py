@@ -133,6 +133,51 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
+class SegmentMin(SegmentReduction):
+    def call(self, data, segment_ids):
+        _segment_reduce_validation(data, segment_ids)
+        return backend.math.segment_min(
+            data,
+            segment_ids,
+            num_segments=self.num_segments,
+            sorted=self.sorted,
+        )
+
+
+@keras_export("keras.ops.segment_min")
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    """Computes the min of segments in a tensor.
+
+    Args:
+        data: Input tensor.
+        segment_ids: A N-D tensor containing segment indices for each
+            element in `data`. data.shape[:len(segment_ids.shape)] should match.
+        num_segments: An integer representing the total number of
+            segments. If not specified, it is inferred from the maximum
+            value in `segment_ids`.
+        sorted: A boolean indicating whether `segment_ids` is sorted.
+            Defaults to `False`.
+
+    Returns:
+        A tensor containing the min of segments, where each element
+        represents the min of the corresponding segment in `data`.
+
+    Example:
+
+    >>> data = keras.ops.convert_to_tensor([1, 2, 10, 20, 100, 200])
+    >>> segment_ids = keras.ops.convert_to_tensor([0, 0, 1, 1, 2, 2])
+    >>> num_segments = 3
+    >>> keras.ops.segment_min(data, segment_ids, num_segments)
+    array([1, 10, 100], dtype=int32)
+    """
+    _segment_reduce_validation(data, segment_ids)
+    if any_symbolic_tensors((data,)):
+        return SegmentMin(num_segments, sorted).symbolic_call(data, segment_ids)
+    return backend.math.segment_min(
+        data, segment_ids, num_segments=num_segments, sorted=sorted
+    )
+
+
 class TopK(Operation):
     def __init__(self, k, sorted=True, *, name=None):
         super().__init__(name=name)

@@ -21,3 +21,4 @@ MathOpsCorrectnessTest::test_erfinv_operation_dtype
 NNOpsCorrectnessTest::test_ctc_decode
 NNOpsDtypeTest::test_ctc_decode
 RandAugmentTest::test_random_augment_randomness
+SegmentMinTest::test_segment_min_call

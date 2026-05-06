@@ -135,6 +135,12 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     return OpenVINOKerasTensor(result)
 
 
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    raise NotImplementedError(
+        "`segment_min` is not supported with openvino backend"
+    )
+
+
 def top_k(x, k, sorted=True):
     x = get_ov_output(x)
     k_tensor = ov_opset.constant(k, dtype=Type.i32)

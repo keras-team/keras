@@ -61,6 +61,7 @@ from keras.src.ops.math import logsumexp as logsumexp
 from keras.src.ops.math import rfft as rfft
 from keras.src.ops.math import rsqrt as rsqrt
 from keras.src.ops.math import segment_max as segment_max
+from keras.src.ops.math import segment_min as segment_min
 from keras.src.ops.math import segment_sum as segment_sum
 from keras.src.ops.math import stft as stft
 from keras.src.ops.math import top_k as top_k

@@ -36,6 +36,8 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
 
     if reduction_method == "amax":
         result = torch.ones(*shape, device=get_device()) * -float("Inf")
+    elif reduction_method == "amin":
+        result = torch.ones(*shape, device=get_device()) * float("Inf")
     else:
         result = torch.zeros(*shape, device=get_device())
 
@@ -59,6 +61,12 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     data = convert_to_tensor(data)
     segment_ids = convert_to_tensor(segment_ids)
     return _segment_reduction_fn(data, segment_ids, "amax", num_segments)
+
+
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+    return _segment_reduction_fn(data, segment_ids, "amin", num_segments)
 
 
 def top_k(x, k, sorted=True):
