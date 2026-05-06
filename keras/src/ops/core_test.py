@@ -1805,6 +1805,50 @@ class CoreOpsBehaviorTests(testing.TestCase):
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))
 
+    def test_convert_to_tensor_python_float_with_dtype(self):
+        # Regression: a Python float passed with an explicit dtype must
+        # not go through a float64 numpy intermediate. On the torch
+        # backend, torch.export would otherwise lift the float64
+        # constant into the graph before the cast runs.
+        t = ops.convert_to_tensor(1.5, dtype="float32")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+        t = ops.convert_to_tensor(1.5, dtype="float16")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float16")
+
+    def test_convert_to_tensor_python_int_with_dtype(self):
+        t = ops.convert_to_tensor(7, dtype="int16")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "int16")
+        t = ops.convert_to_tensor(7, dtype="float32")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+
+    def test_convert_to_tensor_python_bool_with_dtype(self):
+        t = ops.convert_to_tensor(True, dtype="float32")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+        t = ops.convert_to_tensor(True)
+        self.assertEqual(backend.standardize_dtype(t.dtype), "bool")
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="torch.export graph inspection is torch-only.",
+    )
+    def test_convert_to_tensor_python_scalar_no_float64_in_export(self):
+        import torch
+
+        class M(torch.nn.Module):
+            def forward(self, x):
+                scalar = ops.convert_to_tensor(1e-7, dtype="float32")
+                return torch.maximum(x, scalar)
+
+        # torch.export requires all tensors on the same device. Force CPU
+        # so the test is independent of the runner's default device.
+        with backend.device("cpu"):
+            exported = torch.export.export(
+                M(), (torch.ones(5, dtype=torch.float32),)
+            )
+        for val in exported.constants.values():
+            if isinstance(val, torch.Tensor):
+                self.assertNotEqual(val.dtype, torch.float64)
+
     def test_scan_invalid_arguments(self):
         def cumsum(carry, xs):
             carry = carry + xs
