@@ -691,11 +691,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     An integer value that specifies the ONNX opset version.
                 - LiteRT-specific options: Optional keyword arguments specific
                     to `format="litert"`. These are passed directly to the
-                    TensorFlow Lite converter and include options like
-                    `optimizations`, `representative_dataset`,
-                    `experimental_new_quantizer`, `allow_custom_ops`,
-                    `enable_select_tf_ops`, etc. See TensorFlow Lite
-                    documentation for all available options.
+                    TensorFlow Lite converter on the TensorFlow backend and
+                    include options like `optimizations`,
+                    `representative_dataset`, `experimental_new_quantizer`,
+                    `allow_custom_ops`, `enable_select_tf_ops`, etc. On the
+                    PyTorch backend, LiteRT export accepts `optimizations`
+                    plus the installed `litert_torch.convert()` keyword
+                    arguments such as `strict_export`, `dynamic_shapes`,
+                    `lightweight_conversion`, `enable_x64`,
+                    `runtime_constant_folding`, and `quant_config`.
                 - PyTorch export options: Optional keyword arguments specific
                     to `format="torch"`. These are passed directly to
                     `torch.export.export` and include `strict`,
@@ -786,9 +790,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 f"{list(available_formats)}."
             )
 
-        # Check if LiteRT export is available (requires TensorFlow backend)
-        if format == "litert" and backend.backend() != "tensorflow":
-            raise ImportError("LiteRT export requires TensorFlow backend.")
+        # Check if LiteRT export is available (requires TensorFlow or
+        # PyTorch backend)
+        if format == "litert" and backend.backend() not in (
+            "tensorflow",
+            "torch",
+        ):
+            raise ValueError(
+                "LiteRT export requires TensorFlow or PyTorch backend."
+            )
 
         # Check if Torch export is available (requires PyTorch backend)
         if format == "torch" and backend.backend() != "torch":
@@ -822,6 +832,7 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             export_litert(
                 self,
                 filepath,
+                verbose=verbose,
                 input_signature=input_signature,
                 **kwargs,
             )
