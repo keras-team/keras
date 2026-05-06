@@ -29,7 +29,7 @@ jobs:
       matrix:
         backend: [jax, tensorflow, torch]
 
-    name: Keras GPU Tests / Run tests on GPU
+    name: Run tests on GPU
     runs-on: linux-x86-g2-16-l4-1gpu
     timeout-minutes: 120
 
