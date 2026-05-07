@@ -1,0 +1,111 @@
+[build-system]
+requires = ["setuptools >=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "keras"
+authors = [
+    {name = "Keras team", email = "keras-users@googlegroups.com"},
+]
+description = "Multi-backend Keras"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache License 2.0"}
+dynamic = ["version"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Software Development",
+]
+dependencies = [
+    "absl-py",
+    "numpy",
+    "rich",
+    "namex",
+    "h5py",
+    "optree",
+    "ml-dtypes",
+    "packaging",
+]
+# Run also: pip install -r requirements.txt
+
+[project.urls]
+Home = "https://keras.io/"
+Repository = "https://github.com/keras-team/keras"
+
+[tool.setuptools.dynamic]
+version = {attr = "keras.src.version.__version__"}
+
+[tool.setuptools.package-dir]
+"" = "."
+"keras" = "keras/api"  # Remap api/ to the root of the package.
+"keras.src" = "keras/src"
+
+[tool.ruff]
+line-length = 80
+exclude = ["keras/src/namex"]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle error
+    "F",  # Pyflakes
+    "I",  # isort
+]
+ignore = [
+    "E722",  # do not use bare 'except'
+    "E741",  # ambiguous variable name
+    "E731",  # do not assign a `lambda` expression, use a `def`
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["E501", "F401"]  # lines too long; imported but unused
+"**/random.py" = ["F401"]  # imported but unused
+"examples/*" = ["I", "E"]
+"guides/*" = ["I", "E", "F"]
+
+[tool.ruff.lint.isort]
+force-single-line = true
+known-first-party = ["keras"]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning",
+    "ignore::ImportWarning",
+    "ignore::RuntimeWarning",
+    "ignore::PendingDeprecationWarning",
+    "ignore::FutureWarning",
+    "ignore::UserWarning",
+    # Ignore a spurious warning on tf-nightly related to save model changes.
+    "ignore:Custom mask layers require a config",
+]
+addopts = "-vv"
+
+# Do not run tests in the `build` folders
+norecursedirs = ["build"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "@abstract",
+    "raise NotImplementedError",
+]
+omit = [
+    "*/*_test.py",
+    "keras/src/legacy/*",
+]
+
+[tool.coverage.run]
+branch = true
+omit = [
+    "*/*_test.py",
+    "keras/src/legacy/*",
+]
+
