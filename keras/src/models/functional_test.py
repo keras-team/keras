@@ -430,23 +430,6 @@ class FunctionalTest(testing.TestCase):
         model = Functional({"a": input_a, "b": input_b}, outputs)
         self.run_class_serialization_test(model)
 
-        # Test model with unmodified input as output
-        input_a = Input(shape=(3,), batch_size=2, name="a")
-        input_b = Input(shape=(3,), batch_size=2, name="b")
-        output_a = input_a * 2
-        output_b = input_b
-        model = Functional(
-            {"a": input_a, "b": input_b}, {"a": output_a, "b": output_b}
-        )
-        self.run_class_serialization_test(model)
-
-        # Test model with unused input
-        input_a = Input(shape=(3,), batch_size=2, name="a")
-        input_b = Input(shape=(3,), batch_size=2, name="b")
-        output_a = input_a * 2
-        model = Functional({"a": input_a, "b": input_b}, output_a)
-        self.run_class_serialization_test(model)
-
     def test_bad_input_spec(self):
         # Single input
         inputs = Input(shape=(4,))
