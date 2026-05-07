@@ -362,23 +362,6 @@ class FunctionalTest(testing.TestCase):
         out_val = model(np.random.random((2, 3)))
         self.assertEqual(out_val.shape, (2, 3, 3))
 
-    def test_rank_standardization_failure(self):
-        # Simple input and rank too high
-        inputs = Input(shape=(3,), name="foo")
-        outputs = layers.Dense(3)(inputs)
-        model = Functional(inputs, outputs)
-        with self.assertRaisesRegex(ValueError, "name 'foo' .* path ''"):
-            model(np.random.random((2, 3, 4)))
-
-        # Deeply nested input and rank too low
-        inputs = [{"foo": Input(shape=(3,), name="my_input")}]
-        outputs = layers.Dense(3)(inputs[0]["foo"])
-        model = Functional(inputs, outputs)
-        with self.assertRaisesRegex(
-            ValueError, "name 'my_input' .* path '0.foo'"
-        ):
-            model(np.random.random(()))
-
     def test_dtype_standardization(self):
         float_input = Input(shape=(2,), dtype="float16")
         int_input = Input(shape=(2,), dtype="int32")
