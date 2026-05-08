@@ -63,6 +63,29 @@ def logsumexp(x, axis=None, keepdims=False):
     return tf.math.reduce_logsumexp(x, axis=axis, keepdims=keepdims)
 
 
+def qr(x, mode="reduced"):
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+    if mode == "reduced":
+        return tf.linalg.qr(x)
+    return tf.linalg.qr(x, full_matrices=True)
+
+
+def cdist(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    if x.shape.rank < 2 or y.shape.rank < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if x.shape[-1] != y.shape[-1]:
+        raise ValueError("Last dimension of inputs to `cdist` must match")
+    diff = tf.expand_dims(x, -2) - tf.expand_dims(y, -3)
+    return tf.sqrt(tf.reduce_sum(tf.square(diff), axis=-1))
+
+
 def extract_sequences(x, sequence_length, sequence_stride):
     return tf.signal.frame(
         x,

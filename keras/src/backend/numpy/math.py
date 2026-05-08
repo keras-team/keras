@@ -86,6 +86,27 @@ def logsumexp(x, axis=None, keepdims=False):
     return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
+def qr(x, mode="reduced"):
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+    return np.linalg.qr(x, mode=mode)
+
+
+def cdist(x, y):
+    x = np.asarray(x)
+    y = np.asarray(y)
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if x.shape[-1] != y.shape[-1]:
+        raise ValueError("Last dimension of inputs to `cdist` must match")
+    diff = x[..., :, None, :] - y[..., None, :, :]
+    return np.sqrt(np.sum(diff * diff, axis=-1))
+
+
 def extract_sequences(x, sequence_length, sequence_stride):
     *batch_shape, _ = x.shape
     batch_shape = list(batch_shape)
