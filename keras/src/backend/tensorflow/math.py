@@ -62,8 +62,8 @@ def qr(x, mode="reduced"):
 
 
 def cdist(x, y):
-    x = tf.convert_to_tensor(x)
-    y = tf.convert_to_tensor(y)
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
     if x.shape.rank < 2 or y.shape.rank < 2:
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
