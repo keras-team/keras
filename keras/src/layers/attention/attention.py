@@ -176,7 +176,7 @@ class Attention(Layer):
             max_value = 65504.0 if scores.dtype == "float16" else 1.0e9
             if len(padding_mask.shape) == 2:
                 padding_mask = ops.expand_dims(padding_mask, axis=-2)
-            scores -= max_value * ops.cast(padding_mask, dtype=scores.dtype)
+            scores = ops.where(padding_mask, scores - max_value, scores)
 
         weights = ops.softmax(scores, axis=-1)
         if training and self.dropout > 0:
@@ -234,7 +234,7 @@ class Attention(Layer):
         if q_mask is not None:
             # Mask of shape [batch_size, Tq, 1].
             q_mask = ops.expand_dims(q_mask, axis=-1)
-            attention_output *= ops.cast(q_mask, dtype=attention_output.dtype)
+            attention_output = ops.where(q_mask, attention_output, 0)
         if return_attention_scores:
             return (attention_output, attention_scores)
         else:

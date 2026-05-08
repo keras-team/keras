@@ -508,7 +508,8 @@ class R2Score(reduction_metrics.Metric):
 
         sample_weight = ops.broadcast_to(sample_weight, ops.shape(y_true))
 
-        weighted_y_true = y_true * ops.cast(sample_weight, y_true.dtype)
+        sample_weight = ops.cast(sample_weight, y_true.dtype)
+        weighted_y_true = y_true * sample_weight
         self.sum.assign(self.sum + ops.sum(weighted_y_true, axis=0))
         self.squared_sum.assign(
             self.squared_sum + ops.sum(y_true * weighted_y_true, axis=0)
@@ -516,7 +517,7 @@ class R2Score(reduction_metrics.Metric):
         self.total_mse.assign(
             self.total_mse
             + ops.sum(
-                (y_true - y_pred) ** 2 * ops.cast(sample_weight, y_true.dtype),
+                (y_true - y_pred) ** 2 * sample_weight,
                 axis=0,
             )
         )
