@@ -1,9 +1,11 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.backend.numpy.core import convert_to_tensor
 
@@ -1093,6 +1095,23 @@ def nanmin(x, axis=None, keepdims=False):
     return np.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype(config.floatx())
+    if not backend.is_float_dtype(x.dtype):
+        dtype = config.floatx()
+    else:
+        dtype = x.dtype
+    return np.nanpercentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
+
+
 def nanprod(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
 
@@ -1192,6 +1211,18 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["constant_values"] = constant_values
     return np.pad(x, pad_width, mode=mode, **kwargs)
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    ori_dtype = standardize_dtype(x.dtype)
+    if ori_dtype == "bool":
+        x = x.astype(config.floatx())
+    dtype = dtypes.result_type(x.dtype, float)
+    return np.percentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    ).astype(dtype)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -1680,3 +1711,66 @@ def argpartition(x, kth, axis=-1):
 
 def histogram(x, bins=10, range=None):
     return np.histogram(x, bins=bins, range=range)
+
+
+def unique(
+    x,
+    sorted=True,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    # Note: np.unique always sorts the output in versions < 2.3.0.
+    # We accept the 'sorted' argument for API consistency across backends
+    # but do not pass it to np.unique to avoid TypeError in older versions.
+    output = np.unique(
+        x,
+        return_index=return_index,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        equal_nan=False,
+    )
+
+    if not (return_index or return_inverse or return_counts):
+        output = [output]
+    else:
+        output = list(output)
+
+    values = output[0]
+
+    if size is not None:
+        if axis is None:
+            dim = 0
+        else:
+            dim = canonicalize_axis(axis, x.ndim)
+        values_count = values.shape[dim]
+
+        if values_count > size:
+            # Truncate
+            indices = [slice(None)] * values.ndim
+            indices[dim] = slice(0, size)
+            values = values[tuple(indices)]
+            if return_counts:
+                output[-1] = output[-1][indices[dim]]
+            if return_index:
+                output[1] = output[1][indices[dim]]
+
+        elif values_count < size:
+            # Pad
+            pad_width = [(0, 0)] * values.ndim
+            pad_width[dim] = (0, size - values_count)
+            fill = 0 if fill_value is None else fill_value
+            values = np.pad(values, pad_width, constant_values=fill)
+            if return_counts:
+                output[-1] = np.pad(
+                    output[-1], pad_width[dim], constant_values=0
+                )
+            if return_index:
+                output[1] = np.pad(output[1], pad_width[dim], constant_values=1)
+
+    output[0] = values
+    return output[0] if len(output) == 1 else tuple(output)

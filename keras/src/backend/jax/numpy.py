@@ -1115,6 +1115,12 @@ def nanmin(x, axis=None, keepdims=False):
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.nanpercentile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanprod(x, axis=axis, keepdims=keepdims)
@@ -1184,6 +1190,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["constant_values"] = constant_values
     return jnp.pad(x, pad_width, mode=mode, **kwargs)
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.percentile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -1637,3 +1649,26 @@ def argpartition(x, kth, axis=-1):
 
 def histogram(x, bins=10, range=None):
     return jnp.histogram(x, bins=bins, range=range)
+
+
+def unique(
+    x,
+    sorted=True,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    return jnp.unique(
+        x,
+        return_index=return_index,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        equal_nan=False,
+        size=size,
+        sorted=sorted,
+        fill_value=fill_value,
+    )

@@ -121,7 +121,7 @@ class ExportONNXTest(testing.TestCase):
         named_product(struct_type=["tuple", "array", "dict"])
     )
     def test_model_with_input_structure(self, struct_type):
-        if backend.backend() == "torch" and struct_type in ("tuple", "dict"):
+        if backend.backend() == "torch" and struct_type == "tuple":
             self.skipTest("The torch backend doesn't support this structure.")
 
         class TupleModel(models.Model):

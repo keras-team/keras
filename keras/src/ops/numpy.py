@@ -8,6 +8,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend.common import dtypes
+from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 from keras.src.ops import operation_utils
@@ -1341,14 +1342,6 @@ def average(x, axis=None, weights=None):
     return backend.numpy.average(x, axis=axis, weights=weights)
 
 
-class Bartlett(Operation):
-    def call(self, x):
-        return backend.numpy.bartlett(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
-
-
 @keras_export(["keras.ops.bartlett", "keras.ops.numpy.bartlett"])
 def bartlett(x):
     """Bartlett window function.
@@ -1366,16 +1359,11 @@ def bartlett(x):
     array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Bartlett().symbolic_call(x)
+        raise TypeError(
+            f"Bartlett operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.bartlett(x)
-
-
-class Hamming(Operation):
-    def call(self, x):
-        return backend.numpy.hamming(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
 
 
 @keras_export(["keras.ops.hamming", "keras.ops.numpy.hamming"])
@@ -1397,16 +1385,11 @@ def hamming(x):
     array([0.08, 0.54, 1.  , 0.54, 0.08], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Hamming().symbolic_call(x)
+        raise TypeError(
+            f"Hamming operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.hamming(x)
-
-
-class Hanning(Operation):
-    def call(self, x):
-        return backend.numpy.hanning(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
 
 
 @keras_export(["keras.ops.hanning", "keras.ops.numpy.hanning"])
@@ -1428,7 +1411,10 @@ def hanning(x):
     array([0. , 0.5, 1. , 0.5, 0. ], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Hanning().symbolic_call(x)
+        raise TypeError(
+            f"Hanning operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.hanning(x)
 
 
@@ -1470,18 +1456,6 @@ def heaviside(x1, x2):
     return backend.numpy.heaviside(x1, x2)
 
 
-class Kaiser(Operation):
-    def __init__(self, beta, *, name=None):
-        super().__init__(name=name)
-        self.beta = beta
-
-    def call(self, x):
-        return backend.numpy.kaiser(x, self.beta)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
-
-
 @keras_export(["keras.ops.kaiser", "keras.ops.numpy.kaiser"])
 def kaiser(x, beta):
     """Kaiser window function.
@@ -1504,7 +1478,10 @@ def kaiser(x, beta):
        7.7268669e-06], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Kaiser(beta).symbolic_call(x)
+        raise TypeError(
+            f"Kaiser operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.kaiser(x, beta)
 
 
@@ -1859,33 +1836,27 @@ def right_shift(x, y):
     return backend.numpy.right_shift(x, y)
 
 
-class Blackman(Operation):
-    def call(self, x):
-        return backend.numpy.blackman(x)
-
-    def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype=backend.floatx())
-
-
 @keras_export(["keras.ops.blackman", "keras.ops.numpy.blackman"])
 def blackman(x):
     """Blackman window function.
     The Blackman window is a taper formed by using a weighted cosine.
 
     Args:
-        x: Scalar or 1D Tensor. Window length.
+        x: Scalar or 1D tensor. Window length.
 
     Returns:
         A 1D tensor containing the Blackman window values.
 
     Example:
-    >>> x = keras.ops.convert_to_tensor(5)
     >>> keras.ops.blackman(x)
-    array([-1.3877788e-17,  3.4000000e-01,  1.0000000e+00,  3.4000000e-01,
-           -1.3877788e-17], dtype=float32)
+    array([-1.4901161e-08,  3.4000003e-01,  9.9999994e-01,  3.3999997e-01,
+       -1.4901161e-08], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
-        return Blackman().symbolic_call(x)
+        raise TypeError(
+            f"Blackman operation does not support symbolic tensors. "
+            f"Received input x = {x} of type {type(x)}"
+        )
     return backend.numpy.blackman(x)
 
 
@@ -3496,6 +3467,8 @@ class Flip(Operation):
         return backend.numpy.flip(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -5956,6 +5929,91 @@ def nanmin(x, axis=None, keepdims=False):
     return backend.numpy.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+class Nanpercentile(Operation):
+    def __init__(
+        self, axis=None, method="linear", keepdims=False, *, name=None
+    ):
+        super().__init__(name=name)
+        self.axis = axis
+        self.method = method
+        self.keepdims = keepdims
+
+    def call(self, x, q):
+        return backend.numpy.nanpercentile(
+            x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x, q):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+
+        if hasattr(q, "shape"):
+            if len(q.shape) > 0:
+                output_shape = (q.shape[0],) + output_shape
+        elif isinstance(q, (list, tuple)):
+            output_shape = (len(q),) + output_shape
+
+        if backend.is_int_dtype(x.dtype):
+            dtype = backend.floatx()
+        else:
+            dtype = dtypes.result_type(x.dtype, float)
+
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.nanpercentile", "keras.ops.numpy.nanpercentile"])
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    """Compute the q-th percentile(s) of the data along the specified axis,
+    while ignoring NaNs.
+
+    Args:
+        x: Input tensor.
+        q: Percentile or sequence of percentiles to compute.
+            Values must be between 0 and 100 inclusive.
+        axis: Axis or axes along which the percentiles are computed.
+        method: A string specifies the method to use for estimating the
+            percentile. Available methods are `"linear"`, `"lower"`, `"higher"`,
+            `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
+            If the desired percentile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
+        keepdims: If True, reduced axes are kept with size 1.
+
+    Returns:
+        The percentile(s) ignoring NaNs.
+
+    Examples:
+    >>> import keras
+    >>> from keras import ops
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanpercentile(x, 50)
+    2.5
+    >>> x = keras.ops.array([1., 2., float("nan"), 4.])
+    >>> keras.ops.nanpercentile(x, 50)
+    2.0
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.nanpercentile(x, [25, 75])
+    array([1.75, 3.25])
+    >>> x = keras.ops.array([[1., 2., float("nan")],
+    ...                      [4., 5., 6.]])
+    >>> keras.ops.nanpercentile(x, 50, axis=1)
+    array([1.5, 5.0])
+    """
+    if any_symbolic_tensors((x, q)):
+        return Nanpercentile(
+            axis=axis, method=method, keepdims=keepdims
+        ).symbolic_call(x, q)
+
+    return backend.numpy.nanpercentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    )
+
+
 class Nanprod(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
@@ -6609,6 +6667,90 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     return Pad(pad_width, mode=mode)(x, constant_values=constant_values)
 
 
+class Percentile(Operation):
+    def __init__(
+        self, axis=None, method="linear", keepdims=False, *, name=None
+    ):
+        super().__init__(name=name)
+        self.axis = axis
+        self.method = method
+        self.keepdims = keepdims
+
+    def call(self, x, q):
+        return backend.numpy.percentile(
+            x, q, axis=self.axis, method=self.method, keepdims=self.keepdims
+        )
+
+    def compute_output_spec(self, x, q):
+        output_shape = reduce_shape(
+            x.shape, axis=self.axis, keepdims=self.keepdims
+        )
+
+        if hasattr(q, "shape"):
+            if len(q.shape) > 0:
+                output_shape = (q.shape[0],) + output_shape
+        elif isinstance(q, (list, tuple)):
+            output_shape = (len(q),) + output_shape
+
+        if not backend.is_float_dtype(x.dtype):
+            dtype = backend.floatx()
+        else:
+            dtype = x.dtype
+        return KerasTensor(output_shape, dtype=dtype)
+
+
+@keras_export(["keras.ops.percentile", "keras.ops.numpy.percentile"])
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    """Compute the q-th percentile(s) of the data along the specified axis.
+
+    Args:
+        x: Input tensor.
+        q: Percentile or sequence of percentiles to compute.
+            Values must be between 0 and 100 inclusive.
+        axis: Axis or axes along which the percentiles are computed.
+        method: A string specifies the method to use for estimating the
+            percentile. Available methods are `"linear"`, `"lower"`, `"higher"`,
+            `"midpoint"`, and `"nearest"`. Defaults to `"linear"`.
+            If the desired percentile lies between two data points `i < j`:
+            - `"linear"`: `i + (j - i) * fraction`, where fraction is the
+                fractional part of the index surrounded by `i` and `j`.
+            - `"lower"`: `i`.
+            - `"higher"`: `j`.
+            - `"midpoint"`: `(i + j) / 2`
+            - `"nearest"`: `i` or `j`, whichever is nearest.
+        keepdims: If True, reduced axes are kept with size 1.
+
+    Returns:
+        The percentile(s). If `q` is a single percentile and `axis=None`, then
+        the result is a scalar. If multiple percentile levels are given, the
+        first axis of the result corresponds to the percentiles. The other axes
+        are the axes that remain after the reduction of `x`.
+
+    Examples:
+    >>> import keras
+    >>> from keras import ops
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.percentile(x, 50)
+    2.5
+    >>> x = keras.ops.array([1., 2., 3., 4.])
+    >>> keras.ops.percentile(x, [25, 75])
+    array([1.75, 3.25])
+    >>> x = keras.ops.array([[1., 2., 3.],
+    ...                      [4., 5., 6.]])
+    >>> keras.ops.percentile(x, 50, axis=1)
+    array([2., 5.])
+    """
+
+    if any_symbolic_tensors((x, q)):
+        return Percentile(
+            axis=axis, method=method, keepdims=keepdims
+        ).symbolic_call(x, q)
+
+    return backend.numpy.percentile(
+        x, q, axis=axis, method=method, keepdims=keepdims
+    )
+
+
 class Prod(Operation):
     def __init__(self, axis=None, keepdims=False, dtype=None, *, name=None):
         super().__init__(name=name)
@@ -7058,6 +7200,8 @@ class Roll(Operation):
         return backend.numpy.roll(x, self.shift, self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -7854,8 +7998,15 @@ class Trace(Operation):
 
     def compute_output_spec(self, x):
         x_shape = list(x.shape)
-        x_shape[self.axis1] = -1
-        x_shape[self.axis2] = -1
+        axis1 = canonicalize_axis(self.axis1, len(x_shape))
+        axis2 = canonicalize_axis(self.axis2, len(x_shape))
+        if axis1 == axis2:
+            raise ValueError(
+                "`axis1` and `axis2` must be different. "
+                f"Received: axis1={self.axis1}, axis2={self.axis2}"
+            )
+        x_shape[axis1] = -1
+        x_shape[axis2] = -1
         output_shape = list(filter((-1).__ne__, x_shape))
         output_dtype = backend.standardize_dtype(x.dtype)
         if output_dtype in ("bool", "int8", "int16"):
@@ -9468,4 +9619,176 @@ def array_split(x, indices_or_sections, axis=0):
 
     return backend.numpy.array_split(
         x, indices_or_sections=indices_or_sections, axis=axis
+    )
+
+
+class Unique(Operation):
+    def __init__(
+        self,
+        sorted=True,
+        return_index=False,
+        return_inverse=False,
+        return_counts=False,
+        axis=None,
+        size=None,
+        fill_value=None,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.sorted = sorted
+        self.return_index = return_index
+        self.return_inverse = return_inverse
+        self.return_counts = return_counts
+        self.axis = axis
+        self.size = size
+        self.fill_value = fill_value
+
+    def call(self, x):
+        return backend.numpy.unique(
+            x,
+            sorted=self.sorted,
+            return_index=self.return_index,
+            return_inverse=self.return_inverse,
+            return_counts=self.return_counts,
+            axis=self.axis,
+            size=self.size,
+            fill_value=self.fill_value,
+        )
+
+    def compute_output_spec(self, x):
+        input_shape = list(x.shape)
+        # Determine the dimension of the unique values
+        # If size is provided, the shape becomes static for JIT compatibility
+        u_dim = self.size if self.size is not None else None
+
+        if self.axis is None:
+            values_shape = (u_dim,)
+        else:
+            axis = canonicalize_axis(self.axis, len(input_shape))
+            values_shape = list(input_shape)
+            values_shape[axis] = u_dim
+
+        outputs = [KerasTensor(tuple(values_shape), dtype=x.dtype)]
+
+        # Indices of first occurrences shape is 1D
+        # with length matching the unique values
+        if self.return_index:
+            outputs.append(KerasTensor((u_dim,), dtype="int32"))
+
+        # Inverse indices shape matches the original input size along axis
+        if self.return_inverse:
+            if self.axis is None:
+                inv_shape = x.shape
+            else:
+                axis = canonicalize_axis(self.axis, len(input_shape))
+                inv_shape = (input_shape[axis],)
+            outputs.append(KerasTensor(tuple(inv_shape), dtype="int32"))
+
+        # Counts shape is 1D with length matching the unique values
+        if self.return_counts:
+            outputs.append(KerasTensor((u_dim,), dtype="int32"))
+
+        if len(outputs) == 1:
+            return outputs[0]
+        return tuple(outputs)
+
+
+@keras_export(["keras.ops.unique", "keras.ops.numpy.unique"])
+def unique(
+    x,
+    sorted=True,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    """Finds the unique elements of a tensor.
+
+    This function returns the unique elements of an array, optionally sorted.
+    When `size` is provided, the output shape is fixed, making it compatible
+    with JIT compilation (e.g., JAX, TensorFlow Graph Mode).
+
+    Args:
+        x: Input tensor.
+        sorted: Whether to sort the unique elements in ascending order.
+            Defaults to `True`.
+        return_index: If `True`, also return the indices of the first
+            occurrence of each unique element in `x`. Defaults to `False`.
+        return_inverse: If `True`, also return the indices of the unique tensor
+            (for the specified axis, if provided) that can be used to
+            reconstruct `x`. Defaults to `False`.
+        return_counts: If `True`, also return the number of times each
+            unique item appears in `x`. Defaults to `False`.
+        axis: The axis to operate on. If `None`, `x` will be flattened.
+            If an integer, the subarrays indexed by the given axis will be
+            treated as the elements. Defaults to `None`.
+        size: Optional integer. If provided, the output will always have this
+            fixed size. If the number of unique elements is less than `size`,
+            the output will be padded with `fill_value`. If greater, the
+            output will be truncated.
+        fill_value: The value used to pad the output when `size` is specified
+            and there are fewer unique elements than `size`. Defaults to `0`.
+
+    Returns:
+        A tensor or a tuple of tensors.
+        - `unique_values`: The unique values. Shape is `(size,)` if `size` is
+          provided and `axis=None`.
+        - `unique_index` (optional): The indices of the first occurrence of each
+          unique element in `x`. Only provided if `return_index` is `True`.
+        - `unique_inverse` (optional): The indices to reconstruct the original
+          array. Only provided if `return_inverse` is `True`.
+        - `unique_counts` (optional): The number of occurrences of each unique
+          value. Only provided if `return_counts` is `True`.
+
+    Examples:
+
+    >>> x = keras.ops.convert_to_tensor([3, 1, 2, 1, 3, 2])
+    >>> keras.ops.unique(x)
+    array([1, 2, 3], dtype=int32)
+
+    Fixed size output with padding (JIT-compatible):
+
+    >>> x = keras.ops.convert_to_tensor([3, 1, 2, 1])
+    >>> values, counts = keras.ops.unique(x, size=5, fill_value=0,
+    ...                                   return_counts=True)
+    >>> values
+    array([1, 2, 3, 0, 0], dtype=int32)
+    >>> counts
+    array([2, 1, 1, 0, 0], dtype=int32)
+
+    Fixed size output with truncation:
+
+    >>> x = keras.ops.convert_to_tensor([3, 1, 2, 1])
+    >>> keras.ops.unique(x, size=2)
+    array([1, 2], dtype=int32)
+
+    Return unique rows of a 2D array:
+
+    >>> x = keras.ops.convert_to_tensor([[1, 0, 0], [0, 1, 0], [1, 0, 0]])
+    >>> keras.ops.unique(x, axis=0)
+    array([[0, 1, 0],
+           [1, 0, 0]], dtype=int32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Unique(
+            sorted=sorted,
+            return_index=return_index,
+            return_inverse=return_inverse,
+            return_counts=return_counts,
+            axis=axis,
+            size=size,
+            fill_value=fill_value,
+        ).symbolic_call(x)
+    return backend.numpy.unique(
+        backend.convert_to_tensor(x),
+        sorted=sorted,
+        return_index=return_index,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        size=size,
+        fill_value=fill_value,
     )

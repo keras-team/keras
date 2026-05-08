@@ -145,6 +145,7 @@ from keras.src.ops.numpy import nanmax as nanmax
 from keras.src.ops.numpy import nanmean as nanmean
 from keras.src.ops.numpy import nanmedian as nanmedian
 from keras.src.ops.numpy import nanmin as nanmin
+from keras.src.ops.numpy import nanpercentile as nanpercentile
 from keras.src.ops.numpy import nanprod as nanprod
 from keras.src.ops.numpy import nanquantile as nanquantile
 from keras.src.ops.numpy import nanstd as nanstd
@@ -159,6 +160,7 @@ from keras.src.ops.numpy import ones as ones
 from keras.src.ops.numpy import ones_like as ones_like
 from keras.src.ops.numpy import outer as outer
 from keras.src.ops.numpy import pad as pad
+from keras.src.ops.numpy import percentile as percentile
 from keras.src.ops.numpy import power as power
 from keras.src.ops.numpy import prod as prod
 from keras.src.ops.numpy import ptp as ptp
@@ -206,6 +208,7 @@ from keras.src.ops.numpy import tril as tril
 from keras.src.ops.numpy import triu as triu
 from keras.src.ops.numpy import true_divide as true_divide
 from keras.src.ops.numpy import trunc as trunc
+from keras.src.ops.numpy import unique as unique
 from keras.src.ops.numpy import unravel_index as unravel_index
 from keras.src.ops.numpy import vander as vander
 from keras.src.ops.numpy import var as var

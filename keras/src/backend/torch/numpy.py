@@ -1463,6 +1463,12 @@ def nanmin(x, axis=None, keepdims=False):
     )
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx()) / 100.0
+    return nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
 
@@ -1645,6 +1651,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     return x
 
 
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx()) / 100.0
+    return quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is None:
@@ -1765,6 +1777,34 @@ def repeat(x, repeats, axis=None):
             dtype=to_torch_dtype(outputs.dtype),
             device=get_device(),
         )
+
+    # When repeats is a scalar int and axis is specified, use
+    # unsqueeze + expand + reshape instead of repeat_interleave.
+    # repeat_interleave introduces unbacked symbolic integers during
+    # torch.export tracing, preventing static shape inference. This
+    # alternative preserves static output shapes.
+    if isinstance(repeats, int) and axis is not None:
+        if axis < 0:
+            axis = x.ndim + axis
+        shape = list(x.shape)
+        x = x.unsqueeze(axis + 1)
+        expand_shape = [-1] * x.ndim
+        expand_shape[axis + 1] = repeats
+        x = x.expand(expand_shape)
+        new_shape = list(shape)
+        new_shape[axis] = shape[axis] * repeats
+        return x.reshape(new_shape)
+
+    # When repeats is a list/tuple of ints, pass it directly to
+    # repeat_interleave without converting to a tensor. The output
+    # size (sum(repeats)) is statically known, so torch.export can
+    # infer shapes without introducing unbacked symbols.
+    if (
+        isinstance(repeats, (list, tuple))
+        and all(isinstance(r, int) for r in repeats)
+        and axis is not None
+    ):
+        return torch.repeat_interleave(x, repeats, dim=axis)
 
     repeats = convert_to_tensor(repeats, dtype=int)
 
@@ -2328,3 +2368,84 @@ def argpartition(x, kth, axis=-1):
 def histogram(x, bins=10, range=None):
     hist_result = torch.histogram(x, bins=bins, range=range)
     return hist_result.hist, hist_result.bin_edges
+
+
+def unique(
+    x,
+    sorted=True,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    if not isinstance(x, torch.Tensor):
+        x = torch.as_tensor(x)
+
+    output = torch.unique(
+        x,
+        sorted=sorted,  # Added sorted parameter here
+        return_inverse=(return_inverse or return_index),
+        return_counts=return_counts,
+        dim=axis,
+    )
+
+    if not (return_inverse or return_counts or return_index):
+        output = [output]
+    else:
+        output = list(output)
+
+    values = output[0]
+
+    if axis is None:
+        dim = 0
+    else:
+        dim = canonicalize_axis(axis, x.ndim)
+
+    if return_index:
+        inverse = output[1]
+        perm = torch.arange(
+            inverse.size(0), dtype=inverse.dtype, device=inverse.device
+        )
+        unique_indices = inverse.new_empty(values.size(dim)).scatter_reduce_(
+            0, inverse, perm, reduce="min", include_self=False
+        )
+
+    if size is not None:
+        values_count = values.shape[dim]
+
+        if values_count > size:
+            # Truncate
+            indices = [slice(None)] * values.ndim
+            indices[dim] = slice(0, size)
+            values = values[tuple(indices)]
+            if return_counts:
+                output[-1] = output[-1][indices[dim]]
+            if return_index:
+                unique_indices = unique_indices[indices[dim]]
+
+        elif values_count < size:
+            # Pad
+            diff = size - values_count
+            pad_width = [0, 0] * values.ndim
+            # F.pad expects padding from last dim to first
+            idx = (values.ndim - 1 - dim) * 2
+            pad_width[idx + 1] = diff
+            fill = 0 if fill_value is None else fill_value
+            values = torch.nn.functional.pad(values, pad_width, value=fill)
+            if return_counts:
+                output[-1] = torch.nn.functional.pad(
+                    output[-1], pad_width[idx : idx + 2], value=0
+                )
+            if return_index:
+                unique_indices = torch.nn.functional.pad(
+                    unique_indices, pad_width[idx : idx + 2], value=1
+                )
+
+    output[0] = values
+    if return_index and return_inverse:
+        output.insert(1, unique_indices)
+    elif return_index:
+        output[1] = unique_indices
+    return output[0] if len(output) == 1 else tuple(output)

@@ -302,7 +302,7 @@ class RandomCorrectnessTest(testing.TestCase):
             )
         else:
             actual_mean = np.mean(values_np.flatten())
-            self.assertAlmostEqual(expected_mean, actual_mean, decimal=2)
+            self.assertAlmostEqual(actual_mean, expected_mean, decimal=2)
 
         # Variance check:
         # For a beta distributed random variable,
@@ -321,7 +321,7 @@ class RandomCorrectnessTest(testing.TestCase):
         else:
             actual_variance = np.var(values_np.flatten())
             self.assertAlmostEqual(
-                expected_variance, actual_variance, decimal=2
+                actual_variance, expected_variance, decimal=2
             )
 
 

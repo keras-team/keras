@@ -22,6 +22,7 @@ from keras.src.backend.common.stateless_scope import StatelessScope
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = False
 IS_THREAD_SAFE = True
 
 OPENVINO_DTYPES = {
@@ -76,7 +77,7 @@ DTYPES_MIN = {
 }
 
 
-def align_operand_types(x1, x2, op_name):
+def align_operand_types(x1, x2, op_name, force_float=False):
     x1_type = x1.element_type
     x2_type = x2.element_type
     if x1_type.is_dynamic() or x2_type.is_dynamic():
@@ -86,7 +87,10 @@ def align_operand_types(x1, x2, op_name):
         )
     x1_type = ov_to_keras_type(x1_type)
     x2_type = ov_to_keras_type(x2_type)
-    result_type = dtypes.result_type(x1_type, x2_type)
+    if force_float:
+        result_type = dtypes.result_type(x1_type, x2_type, float)
+    else:
+        result_type = dtypes.result_type(x1_type, x2_type)
     result_type = OPENVINO_DTYPES[result_type]
     if x1_type != result_type:
         x1 = ov_opset.convert(x1, result_type).output(0)
@@ -149,6 +153,42 @@ def get_ov_output(x, ov_type=None, context_dtype=None):
             "unsupported type of `x` to create ov.Output: {}".format(type(x))
         )
     return x
+
+
+def shape_to_ov_output(shape):
+    """Convert a shape tuple/list to an i32 ov.Output.
+
+    Unlike get_ov_output, handles mixed shapes where some dims are
+    OpenVINOKerasTensor scalars (from ops.shape() on dynamic tensors).
+    None dims (from tensor.shape) are not supported — use ops.shape(x) instead.
+    """
+    if not isinstance(shape, (list, tuple)):
+        raise ValueError(f"shape must be a list or tuple, got {type(shape)}")
+    if any(e is None for e in shape):
+        raise ValueError(
+            "Shape contains None (dynamic) dimensions. Use ops.shape(x) "
+            "instead of x.shape to get a runtime-resolved shape."
+        )
+    if not any(isinstance(e, (OpenVINOKerasTensor, ov.Output)) for e in shape):
+        return ov_opset.constant(list(shape), Type.i32).output(0)
+    parts = []
+    for e in shape:
+        if isinstance(e, OpenVINOKerasTensor):
+            elem = e.output
+        elif isinstance(e, ov.Output):
+            elem = e
+        else:
+            elem = ov_opset.constant([e], Type.i32).output(0)
+        if elem.get_element_type() != Type.i32:
+            elem = ov_opset.convert(elem, Type.i32).output(0)
+        # Scalar dims need to be reshaped to [1] for concat
+        ps = elem.get_partial_shape()
+        if ps.rank.is_static and ps.rank.get_length() == 0:
+            elem = ov_opset.reshape(
+                elem, ov_opset.constant([1], Type.i32).output(0), False
+            ).output(0)
+        parts.append(elem)
+    return ov_opset.concat(parts, 0).output(0)
 
 
 # wrapper for OpenVINO symbolic tensor ov.Output
@@ -241,7 +281,7 @@ class OpenVINOKerasTensor:
         first = self.output
         other = get_ov_output(other, context_dtype=self.dtype)
         first, other = align_operand_types(
-            first, other, "OpenVINOKerasTensor::__truediv__"
+            first, other, "OpenVINOKerasTensor::__truediv__", force_float=True
         )
         return OpenVINOKerasTensor(ov_opset.divide(first, other).output(0))
 
@@ -249,7 +289,7 @@ class OpenVINOKerasTensor:
         first = self.output
         other = get_ov_output(other, context_dtype=self.dtype)
         first, other = align_operand_types(
-            first, other, "OpenVINOKerasTensor::__rtruediv__"
+            first, other, "OpenVINOKerasTensor::__rtruediv__", force_float=True
         )
         return OpenVINOKerasTensor(ov_opset.divide(other, first).output(0))
 
@@ -259,7 +299,14 @@ class OpenVINOKerasTensor:
         first, other = align_operand_types(
             first, other, "OpenVINOKerasTensor::__floordiv__"
         )
-        return OpenVINOKerasTensor(ov_opset.divide(first, other).output(0))
+        div = ov_opset.divide(first, other).output(0)
+        div_type = div.get_element_type()
+        if div_type.is_integral():
+            div = ov_opset.convert(div, Type.f32).output(0)
+            div = ov_opset.floor(div).output(0)
+            div = ov_opset.convert(div, div_type).output(0)
+            return OpenVINOKerasTensor(div)
+        return OpenVINOKerasTensor(ov_opset.floor(div).output(0))
 
     def __rfloordiv__(self, other):
         first = self.output
@@ -267,7 +314,14 @@ class OpenVINOKerasTensor:
         first, other = align_operand_types(
             first, other, "OpenVINOKerasTensor::__rfloordiv__"
         )
-        return OpenVINOKerasTensor(ov_opset.divide(other, first).output(0))
+        div = ov_opset.divide(other, first).output(0)
+        div_type = div.get_element_type()
+        if div_type.is_integral():
+            div = ov_opset.convert(div, Type.f32).output(0)
+            div = ov_opset.floor(div).output(0)
+            div = ov_opset.convert(div, div_type).output(0)
+            return OpenVINOKerasTensor(div)
+        return OpenVINOKerasTensor(ov_opset.floor(div).output(0))
 
     def __neg__(self):
         first = self.output
@@ -408,9 +462,17 @@ class OpenVINOKerasTensor:
                 axes.append(dim)
                 gather_indices_nodes.append(idx_value.output(0))
             elif isinstance(index, builtins.slice):
-                if index == builtins.slice(None):
+                if (
+                    index.start is None
+                    and index.stop is None
+                    and index.step is None
+                ):
                     continue
-                if index.step is not None and index.step < 0:
+                if (
+                    index.step is not None
+                    and not isinstance(index.step, OpenVINOKerasTensor)
+                    and index.step < 0
+                ):
                     raise ValueError("OpenVINO doesn't support negative steps")
                 slice_axes.append(dim)
                 slice_starts.append(0 if index.start is None else index.start)
@@ -455,9 +517,29 @@ class OpenVINOKerasTensor:
                 )
 
         if slice_axes:
-            step = ov_opset.constant(slice_steps, Type.i32).output(0)
-            start = ov_opset.constant(slice_starts, Type.i32).output(0)
-            stop = ov_opset.constant(slice_ends, Type.i32).output(0)
+
+            def _to_slice_bound(values, dtype=Type.i32):
+                nodes = []
+                for v in values:
+                    if isinstance(v, OpenVINOKerasTensor):
+                        node = v.output
+                    else:
+                        node = ov_opset.constant([v], dtype).output(0)
+                    if node.get_element_type() != dtype:
+                        node = ov_opset.convert(node, dtype).output(0)
+                    ps = node.get_partial_shape()
+                    if len(ps) == 0:
+                        node = ov_opset.unsqueeze(
+                            node, ov_opset.constant(0, Type.i32)
+                        ).output(0)
+                    nodes.append(node)
+                if len(nodes) == 1:
+                    return nodes[0]
+                return ov_opset.concat(nodes, axis=0).output(0)
+
+            step = _to_slice_bound(slice_steps)
+            start = _to_slice_bound(slice_starts)
+            stop = _to_slice_bound(slice_ends)
             adjusted_slice_axes = [
                 ax - sum(1 for unsq in unsqueeze_axes if unsq <= ax)
                 for ax in slice_axes
@@ -851,9 +933,19 @@ def convert_to_numpy(x):
         pass
     try:
         ov_result = x.output
+        casted_from_bool = False
+        if ov_result.get_element_type() == Type.boolean:
+            ov_result = ov_opset.convert(ov_result, Type.i32).output(0)
+            casted_from_bool = True
         ov_model = Model(results=[ov_result], parameters=[])
-        ov_compiled_model = compile_model(ov_model, get_device())
+        ov_compiled_model = compile_model(
+            ov_model,
+            get_device(),
+            config={"INFERENCE_PRECISION_HINT": "f32"},
+        )
         result = ov_compiled_model({})[0]
+        if casted_from_bool:
+            result = result.astype(bool)
     except Exception as inner_exception:
         raise RuntimeError(
             "`convert_to_numpy` failed to convert the tensor."
@@ -874,7 +966,25 @@ def is_tensor(x):
 
 
 def shape(x):
-    return tuple(x.shape)
+    if not isinstance(x, OpenVINOKerasTensor):
+        return tuple(x.shape)
+
+    static_shape = x.shape
+    if static_shape is None or None not in static_shape:
+        return static_shape
+
+    # For dynamic dims, return OpenVINOKerasTensor scalars obtained at runtime
+    shape_node = ov_opset.shape_of(x.output, Type.i32).output(0)
+    axis = ov_opset.constant(0, Type.i32).output(0)
+    result = []
+    for i, dim in enumerate(static_shape):
+        if dim is None:
+            idx = ov_opset.constant(i, Type.i32).output(0)
+            dim_scalar = ov_opset.gather(shape_node, idx, axis).output(0)
+            result.append(OpenVINOKerasTensor(dim_scalar))
+        else:
+            result.append(dim)
+    return tuple(result)
 
 
 def cast(x, dtype):

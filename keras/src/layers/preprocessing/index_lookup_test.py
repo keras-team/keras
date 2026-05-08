@@ -787,8 +787,8 @@ class IndexLookupLayerTest(testing.TestCase):
         }
         layer_floormod = layers.IndexLookup(oov_method="floormod", **kwargs)
         layer_farmhash = layers.IndexLookup(oov_method="farmhash", **kwargs)
-        out_floormod = backend.convert_to_numpy(layer_floormod(oov_data))
-        out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_data))
+        out_floormod = np.array(layer_floormod(oov_data))
+        out_farmhash = np.array(layer_farmhash(oov_data))
         self.assertAllClose(out_floormod, out_farmhash)
 
     def test_salt_config_serialization(self):
@@ -854,8 +854,8 @@ class IndexLookupLayerTest(testing.TestCase):
             )
             layer_farmhash = layers.IndexLookup(**base_kwargs)
             layer_siphash = layers.IndexLookup(salt=[137, 42], **base_kwargs)
-            out_farmhash = backend.convert_to_numpy(layer_farmhash(oov_data))
-            out_siphash = backend.convert_to_numpy(layer_siphash(oov_data))
+            out_farmhash = np.array(layer_farmhash(oov_data))
+            out_siphash = np.array(layer_siphash(oov_data))
             self.assertFalse(
                 np.array_equal(out_farmhash, out_siphash),
                 msg=f"Expected different outputs for dtype={dtype}",

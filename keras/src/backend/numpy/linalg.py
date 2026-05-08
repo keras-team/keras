@@ -98,5 +98,20 @@ def lstsq(a, b, rcond=None):
     return np.linalg.lstsq(a, b, rcond=rcond)[0]
 
 
+def matrix_rank(x, tol=None):
+    x = convert_to_tensor(x)
+    if x.ndim < 2:
+        raise ValueError(
+            "Expected input to have rank >= 2. "
+            f"Received input with shape {x.shape}."
+        )
+    return np.linalg.matrix_rank(x, tol=tol).astype("int32")
+
+
+def pinv(x, rcond=None):
+    x = convert_to_tensor(x)
+    return np.linalg.pinv(x, rcond=rcond)
+
+
 def jvp(fun, primals, tangents, has_aux=False):
     raise NotImplementedError("JVP is not supported by the Numpy backend.")

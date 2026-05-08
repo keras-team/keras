@@ -55,7 +55,6 @@ def get_model(type="sequential", input_shape=(10,), layer_list=None):
         "torch backends."
     ),
 )
-@pytest.mark.skipif(testing.jax_uses_gpu(), reason="Leads to core dumps on CI")
 @pytest.mark.skipif(
     testing.torch_uses_gpu(), reason="Leads to core dumps on CI"
 )

@@ -18,6 +18,7 @@ from keras.src.backend.openvino.core import (
 from keras.src.backend.openvino.core import convert_to_tensor
 from keras.src.backend.openvino.core import get_ov_output
 from keras.src.backend.openvino.core import ov_to_keras_type
+from keras.src.backend.openvino.core import shape_to_ov_output
 from keras.src.backend.openvino.core import while_loop
 
 
@@ -198,11 +199,9 @@ def ones(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_one = ov_opset.constant(1, ov_type).output(0)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    output_shape = shape_to_ov_output(list(shape))
     ones = ov_opset.broadcast(const_one, output_shape)
     return OpenVINOKerasTensor(ones.output(0))
 
@@ -211,11 +210,9 @@ def zeros(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    output_shape = ov_opset.constant(shape, dtype=Type.i32).output(0)
+    output_shape = shape_to_ov_output(list(shape))
     zeros = ov_opset.broadcast(const_zero, output_shape)
     return OpenVINOKerasTensor(zeros.output(0))
 
@@ -848,17 +845,28 @@ def bartlett(x):
     two_const_f64 = ov_opset.constant(2.0, Type.f64)
     if x.get_element_type() != Type.i64:
         x = ov_opset.convert(x, Type.i64)
-    half = ov_opset.convert(
-        ov_opset.divide(ov_opset.subtract(x, one_const), two_const), Type.f64
-    )
+    denom_i64 = ov_opset.subtract(x, one_const)
+    is_one = ov_opset.equal(denom_i64, zero_const)
+    one_f64 = ov_opset.constant(1.0, Type.f64)
+
+    half = ov_opset.convert(ov_opset.divide(denom_i64, two_const), Type.f64)
     n = ov_opset.range(zero_const, x, one_const, Type.f64)
     condition = ov_opset.less_equal(n, half)
+
+    safe_denom = ov_opset.select(
+        is_one, one_f64, ov_opset.convert(denom_i64, Type.f64)
+    )
+
     first_half = ov_opset.divide(
         ov_opset.multiply(two_const_f64, n),
-        ov_opset.convert(ov_opset.subtract(x, one_const), Type.f64),
+        safe_denom,
     )
     second_half = ov_opset.subtract(two_const_f64, first_half)
     window = ov_opset.select(condition, first_half, second_half)
+
+    ones = ov_opset.broadcast(one_f64, ov_opset.shape_of(window))
+    window = ov_opset.select(is_one, ones, window)
+
     window = ov_opset.convert(window, OPENVINO_DTYPES[config.floatx()]).output(
         0
     )
@@ -878,10 +886,15 @@ def hamming(x):
 
     one_i64 = ov_opset.constant(1, Type.i64)
     denom_i64 = ov_opset.subtract(m_i64, one_i64)
-    denom = ov_opset.convert(denom_i64, Type.f64)
+    is_one = ov_opset.equal(denom_i64, ov_opset.constant(0, Type.i64))
+    one_f64 = ov_opset.constant(1.0, Type.f64)
+
+    safe_denom = ov_opset.select(
+        is_one, one_f64, ov_opset.convert(denom_i64, Type.f64)
+    )
 
     two_pi = ov_opset.constant(2.0 * np.pi, Type.f64)
-    two_pi_over_m_minus_1 = ov_opset.divide(two_pi, denom)
+    two_pi_over_m_minus_1 = ov_opset.divide(two_pi, safe_denom)
 
     x = ov_opset.multiply(two_pi_over_m_minus_1, n)
     c = ov_opset.cos(x)
@@ -890,6 +903,11 @@ def hamming(x):
     a = ov_opset.constant(0.54, Type.f64)
     b = ov_opset.constant(0.46, Type.f64)
     hamming_window = ov_opset.subtract(a, ov_opset.multiply(b, c))
+
+    # Fix for x=1: return [1.] instead of [0.08]
+    ones = ov_opset.broadcast(one_f64, ov_opset.shape_of(hamming_window))
+    hamming_window = ov_opset.select(is_one, ones, hamming_window)
+
     hamming_window = ov_opset.convert(
         hamming_window, OPENVINO_DTYPES[config.floatx()]
     )
@@ -1180,7 +1198,7 @@ def broadcast_to(x, shape):
             f"`broadcast_to` is supported only for tuple and list `shape`. "
             f"Received: shape={shape} (type {type(shape)})"
         )
-    target_shape = ov_opset.constant(list(shape), Type.i32).output(0)
+    target_shape = shape_to_ov_output(list(shape))
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset.broadcast(x, target_shape).output(0))
 
@@ -1839,11 +1857,9 @@ def dstack(xs):
 def empty(shape, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    elif isinstance(shape, int):
+    if isinstance(shape, int):
         shape = [shape]
-    shape_node = ov_opset.constant(shape, Type.i32).output(0)
+    shape_node = shape_to_ov_output(list(shape))
     const_zero = ov_opset.constant(0, dtype=ov_type).output(0)
     empty_tensor = ov_opset.broadcast(const_zero, shape_node).output(0)
     return OpenVINOKerasTensor(empty_tensor)
@@ -2016,9 +2032,9 @@ def full(shape, fill_value, dtype=None):
     dtype = standardize_dtype(dtype) or config.floatx()
     ov_type = OPENVINO_DTYPES[dtype]
     fill_value = get_ov_output(fill_value, ov_type)
-    if isinstance(shape, tuple):
-        shape = list(shape)
-    target_shape = ov_opset.constant(shape, Type.i32)
+    if isinstance(shape, int):
+        shape = [shape]
+    target_shape = shape_to_ov_output(list(shape))
     return OpenVINOKerasTensor(
         ov_opset.broadcast(fill_value, target_shape).output(0)
     )
@@ -3276,9 +3292,7 @@ def nanmean(x, axis=None, keepdims=False):
 
 
 def nanmedian(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanmedian` is not supported with openvino backend"
-    )
+    return nanquantile(x, 0.5, axis=axis, method="midpoint", keepdims=keepdims)
 
 
 def nanmin(x, axis=None, keepdims=False):
@@ -3314,6 +3328,12 @@ def nanmin(x, axis=None, keepdims=False):
     result = ov_opset.select(all_nan, nan_value, result).output(0)
 
     return OpenVINOKerasTensor(result)
+
+
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    return nanquantile(
+        x, q / 100.0, axis=axis, method=method, keepdims=keepdims
+    )
 
 
 def nanprod(x, axis=None, keepdims=False):
@@ -3749,7 +3769,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
                 "provided when `mode == 'constant'`. "
                 f"Received: mode={mode}"
             )
-        if not isinstance(constant_values, int):
+        if not isinstance(
+            constant_values, (int, float, np.integer, np.floating)
+        ):
             raise ValueError(
                 "`pad` operation supports only scalar pad value "
                 "in constant mode with the openvino backend. "
@@ -3769,6 +3791,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     pads_end = ov_opset.constant(pads_end, Type.i32).output(0)
     return OpenVINOKerasTensor(
         ov_opset.pad(x, pads_begin, pads_end, mode, pad_value).output(0)
+    )
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    return quantile(
+        x, divide(q, 100.0), axis=axis, method=method, keepdims=keepdims
     )
 
 
@@ -4014,6 +4042,31 @@ def reshape(x, newshape):
     elif isinstance(newshape, tuple):
         newshape = list(newshape)
     if isinstance(newshape, list):
+        has_dyn = False
+        for _d in newshape:
+            if isinstance(_d, OpenVINOKerasTensor):
+                has_dyn = True
+                break
+        if has_dyn:
+            # Build a shape tensor from mixed static/dynamic dims
+            axis = ov_opset.constant(0, Type.i32).output(0)
+            dim_tensors = []
+            for d in newshape:
+                if isinstance(d, OpenVINOKerasTensor):
+                    d_ov = get_ov_output(d)
+                    rank = d_ov.get_partial_shape().rank
+                    if rank.is_static and rank.get_length() == 0:
+                        d_ov = ov_opset.unsqueeze(d_ov, axis).output(0)
+                    dim_tensors.append(d_ov)
+                else:
+                    val = -1 if d is None else d
+                    dim_tensors.append(
+                        ov_opset.constant([val], Type.i32).output(0)
+                    )
+            newshape = ov_opset.concat(dim_tensors, 0).output(0)
+            return OpenVINOKerasTensor(
+                ov_opset.reshape(x, newshape, False).output(0)
+            )
         newshape = [-1 if d is None else d for d in newshape]
     if isinstance(newshape, OpenVINOKerasTensor):
         newshape = get_ov_output(newshape)
@@ -4347,29 +4400,19 @@ def take_along_axis(x, indices, axis=None):
     ).output(0)
     indices = ov_opset.convert(indices, Type.i32).output(0)
 
-    x_target_parts, indices_target_parts = [], []
-
-    for i in range(x_rank):
-        dim_idx = ov_opset.constant([i], dtype=Type.i32).output(0)
-        x_dim = ov_opset.gather(x_shape, dim_idx, zero_const).output(0)
-        indices_dim = ov_opset.gather(
-            indices_shape, dim_idx, zero_const
-        ).output(0)
-
-        if i == axis:
-            # For axis dimension: keep original dimensions
-            x_target_parts.append(x_dim)
-            indices_target_parts.append(indices_dim)
-        else:
-            # For other dimensions: use maximum for broadcasting
-            max_dim = ov_opset.maximum(x_dim, indices_dim).output(0)
-            x_target_parts.append(max_dim)
-            indices_target_parts.append(max_dim)
-
-    x_target_shape = ov_opset.concat(x_target_parts, axis=0).output(0)
-    indices_target_shape = ov_opset.concat(indices_target_parts, axis=0).output(
-        0
-    )
+    # Compute broadcast targets: non-axis dims use element-wise max of both
+    # shapes; axis dim is kept separately for x and indices.
+    max_shape = ov_opset.maximum(x_shape, indices_shape).output(0)
+    x_axis_dim = ov_opset.gather(x_shape, axis_index, zero_const).output(0)
+    indices_axis_dim = ov_opset.gather(
+        indices_shape, axis_index, zero_const
+    ).output(0)
+    x_target_shape = ov_opset.scatter_elements_update(
+        max_shape, axis_index, x_axis_dim, zero_const
+    ).output(0)
+    indices_target_shape = ov_opset.scatter_elements_update(
+        max_shape, axis_index, indices_axis_dim, zero_const
+    ).output(0)
 
     # Broadcast to target shapes and gather elements
     x_broadcasted = ov_opset.broadcast(x, x_target_shape).output(0)
@@ -4881,8 +4924,8 @@ def transpose(x, axes=None):
             rank_minus_one, const_minus_one, const_minus_one, "i64"
         ).output(0)
     else:
-        if isinstance(axes, tuple):
-            axes = list(axes)
+        rank = x.get_partial_shape().rank.get_length()
+        axes = [canonicalize_axis(a, rank) for a in axes]
         axes = ov_opset.constant(axes, Type.i32).output(0)
     return OpenVINOKerasTensor(ov_opset.transpose(x, axes).output(0))
 
@@ -5573,3 +5616,286 @@ def histogram(x, bins=10, range=None):
     )
 
     return OpenVINOKerasTensor(hist.output(0)), OpenVINOKerasTensor(bin_edges)
+
+
+def unique(
+    x,
+    sorted=True,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    x = get_ov_output(x)
+    # OpenVINO Unique with sorted=False may produce unstable values on CPU.
+    # Keep outputs deterministic and correct by always requesting sorted values.
+    ov_sorted = True
+    x_shape = ov_opset.shape_of(x, Type.i32).output(0)
+    x_rank = x.get_partial_shape().rank.get_length()
+
+    if axis is None:
+        x_flat = ov_opset.reshape(
+            x, ov_opset.constant([-1], Type.i32).output(0), False
+        ).output(0)
+        x_flat_pshape = x_flat.get_partial_shape()
+        if (
+            x_flat_pshape.rank.is_static
+            and x_flat_pshape[0].is_static
+            and x_flat_pshape[0].get_length() == 0
+        ):
+            values = x_flat
+            indices = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
+            inverse = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
+            counts = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
+            dim = 0
+        else:
+            x_type = x_flat.get_element_type()
+
+            if x_type.is_real():
+                nan_mask = ov_opset.not_equal(x_flat, x_flat).output(0)
+                n = ov_opset.squeeze(
+                    ov_opset.shape_of(x_flat, Type.i32).output(0),
+                    ov_opset.constant([0], Type.i32).output(0),
+                ).output(0)
+                idx = ov_opset.range(
+                    ov_opset.constant(0, Type.i32).output(0),
+                    n,
+                    ov_opset.constant(1, Type.i32).output(0),
+                    output_type=Type.i32,
+                ).output(0)
+                idx_as_x = ov_opset.convert(idx, x_type).output(0)
+
+                payload = ov_opset.select(nan_mask, idx_as_x, x_flat).output(0)
+                nan_tag = ov_opset.convert(nan_mask, x_type).output(0)
+                rows = ov_opset.concat(
+                    [
+                        ov_opset.unsqueeze(
+                            nan_tag,
+                            ov_opset.constant([1], Type.i32).output(0),
+                        ).output(0),
+                        ov_opset.unsqueeze(
+                            payload,
+                            ov_opset.constant([1], Type.i32).output(0),
+                        ).output(0),
+                    ],
+                    axis=1,
+                ).output(0)
+
+                uniq = ov_opset.unique(
+                    rows,
+                    axis=ov_opset.constant(0, Type.i32).output(0),
+                    sorted=ov_sorted,
+                    index_element_type="i32",
+                    count_element_type="i32",
+                )
+                uniq_rows = uniq.output(0)
+                indices = uniq.output(1)
+                inverse = uniq.output(2)
+                counts = uniq.output(3)
+
+                uniq_nan_tag = ov_opset.squeeze(
+                    ov_opset.gather(
+                        uniq_rows,
+                        ov_opset.constant([0], Type.i32).output(0),
+                        ov_opset.constant(1, Type.i32).output(0),
+                    ).output(0),
+                    ov_opset.constant([1], Type.i32).output(0),
+                ).output(0)
+                uniq_payload = ov_opset.squeeze(
+                    ov_opset.gather(
+                        uniq_rows,
+                        ov_opset.constant([1], Type.i32).output(0),
+                        ov_opset.constant(1, Type.i32).output(0),
+                    ).output(0),
+                    ov_opset.constant([1], Type.i32).output(0),
+                ).output(0)
+
+                nan_mask_u = ov_opset.convert(
+                    uniq_nan_tag, Type.boolean
+                ).output(0)
+                nan_const = ov_opset.constant(np.nan, x_type).output(0)
+                values = ov_opset.select(
+                    nan_mask_u, nan_const, uniq_payload
+                ).output(0)
+            else:
+                uniq = ov_opset.unique(
+                    x_flat,
+                    sorted=ov_sorted,
+                    index_element_type="i32",
+                    count_element_type="i32",
+                )
+                values = uniq.output(0)
+                indices = uniq.output(1)
+                inverse = uniq.output(2)
+                counts = uniq.output(3)
+            dim = 0
+    else:
+        dim = canonicalize_axis(axis, x_rank)
+        axis_node = ov_opset.constant(dim, Type.i32).output(0)
+        dim_len_is_zero = False
+        x_pshape = x.get_partial_shape()
+        if (
+            x_pshape.rank.is_static
+            and x_pshape[dim].is_static
+            and x_pshape[dim].get_length() == 0
+        ):
+            dim_len_is_zero = True
+        if dim_len_is_zero:
+            values = x
+            indices = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
+            inverse = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
+            counts = ov_opset.constant(np.array([], dtype=np.int32)).output(0)
+        else:
+            uniq = ov_opset.unique(
+                x,
+                axis=axis_node,
+                sorted=ov_sorted,
+                index_element_type="i32",
+                count_element_type="i32",
+            )
+            values = uniq.output(0)
+            indices = uniq.output(1)
+            inverse = uniq.output(2)
+            counts = uniq.output(3)
+
+    if size is not None:
+        values_shape = ov_opset.shape_of(values, Type.i32).output(0)
+        values_count = ov_opset.squeeze(
+            ov_opset.gather(
+                values_shape,
+                ov_opset.constant([dim], Type.i32).output(0),
+                ov_opset.constant(0, Type.i32).output(0),
+            ).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+        ).output(0)
+
+        size_node = ov_opset.constant(size, Type.i32).output(0)
+        trunc_size = ov_opset.minimum(values_count, size_node).output(0)
+
+        trunc_idx = ov_opset.range(
+            ov_opset.constant(0, Type.i32).output(0),
+            trunc_size,
+            ov_opset.constant(1, Type.i32).output(0),
+            output_type=Type.i32,
+        ).output(0)
+        values = ov_opset.gather(
+            values,
+            trunc_idx,
+            ov_opset.constant(dim, Type.i32).output(0),
+        ).output(0)
+
+        pad_amount = ov_opset.maximum(
+            ov_opset.subtract(size_node, values_count).output(0),
+            ov_opset.constant(0, Type.i32).output(0),
+        ).output(0)
+
+        if dim == 0:
+            values_shape_after_trunc = ov_opset.shape_of(
+                values, Type.i32
+            ).output(0)
+            tail_shape = ov_opset.slice(
+                values_shape_after_trunc,
+                ov_opset.constant([1], Type.i32).output(0),
+                ov_opset.constant([2**31 - 1], Type.i32).output(0),
+                ov_opset.constant([1], Type.i32).output(0),
+            ).output(0)
+            pad_shape = ov_opset.concat(
+                [
+                    ov_opset.unsqueeze(
+                        pad_amount,
+                        ov_opset.constant([0], Type.i32).output(0),
+                    ).output(0),
+                    tail_shape,
+                ],
+                axis=0,
+            ).output(0)
+            fill = 0 if fill_value is None else fill_value
+            fill_node = get_ov_output(fill, values.get_element_type())
+            pad_block = ov_opset.broadcast(fill_node, pad_shape).output(0)
+            values = ov_opset.concat([values, pad_block], axis=0).output(0)
+        else:
+            perm = [dim] + [i for i in range(x_rank) if i != dim]
+            inv_perm = [0] * x_rank
+            for i, p in enumerate(perm):
+                inv_perm[p] = i
+
+            values_t = ov_opset.transpose(
+                values,
+                ov_opset.constant(perm, Type.i32).output(0),
+            ).output(0)
+            values_t_shape = ov_opset.shape_of(values_t, Type.i32).output(0)
+            tail_shape = ov_opset.slice(
+                values_t_shape,
+                ov_opset.constant([1], Type.i32).output(0),
+                ov_opset.constant([2**31 - 1], Type.i32).output(0),
+                ov_opset.constant([1], Type.i32).output(0),
+            ).output(0)
+            pad_shape = ov_opset.concat(
+                [
+                    ov_opset.unsqueeze(
+                        pad_amount,
+                        ov_opset.constant([0], Type.i32).output(0),
+                    ).output(0),
+                    tail_shape,
+                ],
+                axis=0,
+            ).output(0)
+            fill = 0 if fill_value is None else fill_value
+            fill_node = get_ov_output(fill, values_t.get_element_type())
+            pad_block = ov_opset.broadcast(fill_node, pad_shape).output(0)
+            values_t = ov_opset.concat([values_t, pad_block], axis=0).output(0)
+            values = ov_opset.transpose(
+                values_t,
+                ov_opset.constant(inv_perm, Type.i32).output(0),
+            ).output(0)
+
+        if return_index:
+            indices = ov_opset.gather(
+                indices,
+                trunc_idx,
+                ov_opset.constant(0, Type.i32).output(0),
+            ).output(0)
+            one_indices = ov_opset.constant(
+                1, indices.get_element_type()
+            ).output(0)
+            indices_pad = ov_opset.broadcast(
+                one_indices,
+                ov_opset.unsqueeze(
+                    pad_amount,
+                    ov_opset.constant([0], Type.i32).output(0),
+                ).output(0),
+            ).output(0)
+            indices = ov_opset.concat([indices, indices_pad], axis=0).output(0)
+
+        if return_counts:
+            counts = ov_opset.gather(
+                counts,
+                trunc_idx,
+                ov_opset.constant(0, Type.i32).output(0),
+            ).output(0)
+            zero_counts = ov_opset.constant(
+                0, counts.get_element_type()
+            ).output(0)
+            counts_pad = ov_opset.broadcast(
+                zero_counts,
+                ov_opset.unsqueeze(
+                    pad_amount,
+                    ov_opset.constant([0], Type.i32).output(0),
+                ).output(0),
+            ).output(0)
+            counts = ov_opset.concat([counts, counts_pad], axis=0).output(0)
+
+    if return_inverse and axis is None:
+        inverse = ov_opset.reshape(inverse, x_shape, False).output(0)
+
+    outputs = [OpenVINOKerasTensor(values)]
+    if return_index:
+        outputs.append(OpenVINOKerasTensor(indices))
+    if return_inverse:
+        outputs.append(OpenVINOKerasTensor(inverse))
+    if return_counts:
+        outputs.append(OpenVINOKerasTensor(counts))
+
+    return outputs[0] if len(outputs) == 1 else tuple(outputs)

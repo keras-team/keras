@@ -839,9 +839,9 @@ class LayerTest(testing.TestCase):
         backend.set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
         self.assertAllEqual(
-            mask,
             backend.get_keras_mask(y),
-            "Masking is not propagated by Autocast",
+            mask,
+            msg="Masking is not propagated by Autocast",
         )
 
     @pytest.mark.skipif(
@@ -1378,6 +1378,14 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w.dtype, "int8")
         self.assertEqual(layer.w.trainable, False)
 
+    def test_trainable_init_arg_validation(self):
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable="yes")
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable=1)
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable=None)
+
     def test_trainable_init_arg(self):
         inputs = layers.Input(shape=(1,))
         layer = layers.Dense(2, trainable=False)
@@ -1715,6 +1723,10 @@ class LayerTest(testing.TestCase):
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):
             def __init__(self, num_outputs):
@@ -1733,7 +1745,7 @@ class LayerTest(testing.TestCase):
         inputs = ops.zeros([10, 5], dtype="complex64")
         layer = MyDenseLayer(10)
         output = layer(inputs)
-        self.assertAllEqual(output.shape, (10, 10))
+        self.assertEqual(output.shape, (10, 10))
 
     def test_call_context_args_with_custom_layers(self):
         class Inner(layers.Layer):

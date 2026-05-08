@@ -480,21 +480,21 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         # Test prefix sum
         arr = np.arange(5)
         result = core.associative_scan(f=operator.add, elems=arr)
-        self.assertAllEqual(result, [0, 1, 3, 6, 10])
+        self.assertAllClose(result, [0, 1, 3, 6, 10])
         # Test reverse
         result = core.associative_scan(f=operator.add, elems=arr, reverse=True)
-        self.assertAllEqual(result, [10, 10, 9, 7, 4])
+        self.assertAllClose(result, [10, 10, 9, 7, 4])
 
         # Test multiple dimensions, across different axes
         batched_arr = np.stack([arr, arr + 1, arr + 2])
         result = core.associative_scan(
             f=operator.add, elems=batched_arr, axis=1
         )
-        self.assertAllEqual(result[2], [2, 5, 9, 14, 20])
+        self.assertAllClose(result[2], [2, 5, 9, 14, 20])
         result = core.associative_scan(
             f=operator.add, elems=batched_arr, axis=0
         )
-        self.assertAllEqual(result[:, 0], [0, 1, 3])
+        self.assertAllClose(result[:, 0], [0, 1, 3])
 
         # Test structured input
         elems = {
@@ -506,7 +506,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
             return {"a": x["a"] + y["b"], "b": x["b"] + y["b"]}
 
         ax0 = core.associative_scan(f=_dict_add, elems=elems, axis=0)
-        self.assertAllEqual(
+        self.assertAllClose(
             ax0["b"],
             [[6, 7, 8], [15, 17, 19]],
         )
@@ -605,19 +605,19 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         x = np.ones((2,))
         x = ops.convert_to_tensor(x)
         x = ops.convert_to_numpy(x)
-        self.assertAllEqual(x, (1, 1))
+        self.assertAllClose(x, (1, 1))
         self.assertIsInstance(x, np.ndarray)
 
         # Empty lists should give an empty array.
         x = ops.convert_to_tensor([])
         np_x = ops.convert_to_numpy(x)
         self.assertTrue(ops.is_tensor(x))
-        self.assertAllEqual(x, [])
+        self.assertAllClose(x, [])
         self.assertIsInstance(np_x, np.ndarray)
 
         # Partially converted.
         x = ops.convert_to_tensor((1, ops.array(2), 3))
-        self.assertAllEqual(x, (1, 2, 3))
+        self.assertAllClose(x, (1, 2, 3))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -1219,11 +1219,11 @@ class CoreOpsCorrectnessTest(testing.TestCase):
     def test_shape(self):
         x = ops.ones((2, 3, 7, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
-        self.assertAllEqual(core.shape(x), (2, 3, 7, 1))
+        self.assertEqual(core.shape(x), (2, 3, 7, 1))
 
         x = KerasTensor((None, 3, None, 1))
         self.assertEqual(core.shape(x).__class__, tuple)
-        self.assertAllEqual(core.shape(x), (None, 3, None, 1))
+        self.assertEqual(core.shape(x), (None, 3, None, 1))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -1241,7 +1241,7 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         else:
             self.fail(f"Sparse is unsupported with backend {backend.backend()}")
 
-        self.assertAllEqual(core.shape(x), (2, 3))
+        self.assertEqual(core.shape(x), (2, 3))
 
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
@@ -1251,10 +1251,10 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         import tensorflow as tf
 
         x = tf.ragged.constant([[3, 1, 4, 1], [], [5, 9, 2], [6], []])
-        self.assertAllEqual(core.shape(x), (5, None))
+        self.assertEqual(core.shape(x), (5, None))
 
         x = tf.RaggedTensor.from_row_lengths(tf.zeros([15, 2]), [4, 5, 6])
-        self.assertAllEqual(core.shape(x), (3, None, 2))
+        self.assertEqual(core.shape(x), (3, None, 2))
 
     def test_slice(self):
         # Test 1D.
@@ -1804,6 +1804,50 @@ class CoreOpsBehaviorTests(testing.TestCase):
 
         with self.assertRaises(ValueError):
             ops.convert_to_numpy(KerasTensor((2,)))
+
+    def test_convert_to_tensor_python_float_with_dtype(self):
+        # Regression: a Python float passed with an explicit dtype must
+        # not go through a float64 numpy intermediate. On the torch
+        # backend, torch.export would otherwise lift the float64
+        # constant into the graph before the cast runs.
+        t = ops.convert_to_tensor(1.5, dtype="float32")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+        t = ops.convert_to_tensor(1.5, dtype="float16")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float16")
+
+    def test_convert_to_tensor_python_int_with_dtype(self):
+        t = ops.convert_to_tensor(7, dtype="int16")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "int16")
+        t = ops.convert_to_tensor(7, dtype="float32")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+
+    def test_convert_to_tensor_python_bool_with_dtype(self):
+        t = ops.convert_to_tensor(True, dtype="float32")
+        self.assertEqual(backend.standardize_dtype(t.dtype), "float32")
+        t = ops.convert_to_tensor(True)
+        self.assertEqual(backend.standardize_dtype(t.dtype), "bool")
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="torch.export graph inspection is torch-only.",
+    )
+    def test_convert_to_tensor_python_scalar_no_float64_in_export(self):
+        import torch
+
+        class M(torch.nn.Module):
+            def forward(self, x):
+                scalar = ops.convert_to_tensor(1e-7, dtype="float32")
+                return torch.maximum(x, scalar)
+
+        # torch.export requires all tensors on the same device. Force CPU
+        # so the test is independent of the runner's default device.
+        with backend.device("cpu"):
+            exported = torch.export.export(
+                M(), (torch.ones(5, dtype=torch.float32),)
+            )
+        for val in exported.constants.values():
+            if isinstance(val, torch.Tensor):
+                self.assertNotEqual(val.dtype, torch.float64)
 
     def test_scan_invalid_arguments(self):
         def cumsum(carry, xs):

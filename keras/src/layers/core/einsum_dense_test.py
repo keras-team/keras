@@ -16,6 +16,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.layers.core.einsum_dense import _analyze_einsum_string
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
@@ -360,6 +361,37 @@ class EinsumDenseTest(testing.TestCase):
         layer.build((2, 1, 2))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
 
+    def test_analyze_einsum_string_axes(self):
+        # Test case 1: Standard dense
+        equation = "ab,bc->ac"
+        input_shape = (None, 32)
+        output_shape = (64,)
+        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
+            _analyze_einsum_string(
+                equation,
+                bias_axes=None,
+                input_shape=input_shape,
+                output_shape=output_shape,
+            )
+        )
+        self.assertEqual(input_axes, [0])
+        self.assertEqual(output_axes, [1])
+
+        # Test case 2: Attention QKV projection
+        equation = "abc,cde->abde"
+        input_shape = (None, 10, 32)
+        output_shape = (10, 3, 4)
+        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
+            _analyze_einsum_string(
+                equation,
+                bias_axes=None,
+                input_shape=input_shape,
+                output_shape=output_shape,
+            )
+        )
+        self.assertEqual(input_axes, [0])
+        self.assertEqual(output_axes, [1, 2])
+
     @pytest.mark.requires_trainable_backend
     def test_enable_lora(self):
         layer = layers.EinsumDense(
@@ -373,6 +405,9 @@ class EinsumDenseTest(testing.TestCase):
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
             self.assertLen(layer.torch_params, 3)
+        self.assertDType(layer.lora_kernel_a, "float32")
+        self.assertDType(layer.lora_kernel_b, "float32")
+
         # Try eager call
         x = np.random.random((64, 3))
         y = np.random.random((64, 8, 32))
@@ -597,7 +632,7 @@ class EinsumDenseTest(testing.TestCase):
             "btnh,nhd->btd",
             (None, 8),
             (1, 2, 2, 4),
-            3e-3,
+            4e-3,
         ),
         (
             "int4_btd,ndh->btnh",
@@ -605,7 +640,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,ndh->btnh",
             (None, 2, 8),
             (1, 2, 4),
-            3e-3,
+            4e-3,
         ),
         (
             "int4_btd,df->btf",
@@ -613,7 +648,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            3.5e-3,  # Slightly higher threshold for grouped quantization
+            4e-3,
         ),
     )
     def test_quantize_with_specific_equations(

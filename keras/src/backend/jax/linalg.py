@@ -99,5 +99,25 @@ def lstsq(a, b, rcond=None):
     return jnp.linalg.lstsq(a, b, rcond=rcond)[0]
 
 
+def matrix_rank(x, tol=None):
+    x = convert_to_tensor(x)
+    if x.ndim < 2:
+        raise ValueError(
+            "Expected input to have rank >= 2. "
+            f"Received input with shape {x.shape}."
+        )
+    return jnp.linalg.matrix_rank(x, tol=tol).astype("int32")
+
+
+def pinv(x, rcond=None):
+    x = convert_to_tensor(x)
+    if x.ndim < 2:
+        raise ValueError(
+            "Expected input to have rank >= 2. "
+            f"Received input with shape {x.shape}."
+        )
+    return jnp.linalg.pinv(x, rcond=rcond)
+
+
 def jvp(fun, primals, tangents, has_aux=False):
     return jax.jvp(fun, primals, tangents, has_aux=has_aux)

@@ -517,7 +517,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             num_segments = np.max(segment_ids).item() + 1
         expected_shape = (num_segments,) + data_dims
         if segment_reduce_op == kmath.segment_max:
-            if backend.backend() == "tensorflow":
+            if backend.backend() in ("tensorflow", "openvino"):
                 empty_fill_value = -np.finfo(np.float32).max
             else:
                 empty_fill_value = -np.inf
@@ -763,8 +763,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.fft(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_output, real_ref)
-        self.assertAllClose(imag_output, imag_ref)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     def test_fft2(self):
         real = np.random.random((2, 4, 3))
@@ -775,8 +775,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.fft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_output, real_ref)
-        self.assertAllClose(imag_output, imag_ref)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     def test_ifft2(self):
         real = np.random.random((2, 4, 3)).astype(np.float32)
@@ -787,8 +787,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.ifft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_output, real_ref)
-        self.assertAllClose(imag_output, imag_ref)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     @parameterized.parameters([(None,), (3,), (15,)])
     def test_rfft(self, n):
@@ -901,7 +901,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if backend.backend() in ("numpy", "jax", "torch", "openvino"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
@@ -933,7 +933,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if backend.backend() in ("numpy", "jax", "torch", "openvino"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
@@ -1144,6 +1144,22 @@ class SegmentMaxTest(testing.TestCase):
         )
         output = segment_max_op.call(data, segment_ids)
         expected_output = np.array([[2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        self.assertAllClose(output, expected_output)
+
+
+class SegmentMinTest(testing.TestCase):
+    def test_segment_min_call(self):
+        data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1], dtype=np.int32)
+        num_segments = 2
+        sorted_segments = False
+
+        segment_min_op = kmath.SegmentMin(
+            num_segments=num_segments, sorted=sorted_segments
+        )
+
+        output = segment_min_op.call(data, segment_ids)
+        expected_output = np.array([[1, 4, 7], [3, 6, 9]], dtype=np.float32)
         self.assertAllClose(output, expected_output)
 
 

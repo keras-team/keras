@@ -16,6 +16,7 @@ from keras.src.backend.common.symbolic_scope import SymbolicScope
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = True
 IS_THREAD_SAFE = True
 
 

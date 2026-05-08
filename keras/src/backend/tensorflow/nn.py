@@ -5,6 +5,9 @@ import tensorflow as tf
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    check_depthwise_conv_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.common.backend_utils import (
@@ -847,12 +850,15 @@ def depthwise_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
     num_spatial_dims = len(inputs.shape) - 2
     if num_spatial_dims > 2:
         raise ValueError(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
             f"{inputs.ndim}."
         )
+    check_depthwise_conv_input_channels(inputs, kernel, data_format)
     # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
     tf_data_format = _convert_data_format(data_format, 4)
@@ -863,7 +869,15 @@ def depthwise_conv(
         dilation_rate = (dilation_rate,) * num_spatial_dims
     if num_spatial_dims == 1:
         # 1D depthwise conv.
-        if data_format == "channels_last":
+        # `tf.nn.depthwise_conv2d` does not support `channels_first` with
+        # dilations on CPU. Transpose to `channels_last`, compute, and
+        # transpose back to avoid the limitation.
+        need_transpose = data_format == "channels_first" and all(
+            d.device_type == "CPU" for d in tf.config.list_logical_devices()
+        )
+        if need_transpose:
+            inputs = _transpose_spatial_inputs(inputs)
+        if need_transpose or data_format == "channels_last":
             strides = (1,) + strides * 2 + (1,)
             spatial_start_dim = 1
         else:
@@ -874,15 +888,22 @@ def depthwise_conv(
 
         dilation_rate = None if dilation_rate is None else (1,) + dilation_rate
 
+        if need_transpose or data_format == "channels_last":
+            conv_data_format = _convert_data_format("channels_last", 4)
+        else:
+            conv_data_format = _convert_data_format("channels_first", 4)
         outputs = tf.nn.depthwise_conv2d(
             inputs,
             kernel,
             strides,
             padding,
-            data_format=tf_data_format,
+            data_format=conv_data_format,
             dilations=dilation_rate,
         )
-        return tf.squeeze(outputs, [spatial_start_dim])
+        outputs = tf.squeeze(outputs, [spatial_start_dim])
+        if need_transpose:
+            outputs = _transpose_spatial_outputs(outputs)
+        return outputs
 
     if data_format == "channels_last":
         strides = (1,) + strides + (1,)
@@ -910,12 +931,16 @@ def separable_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    depthwise_kernel = convert_to_tensor(depthwise_kernel)
+    pointwise_kernel = convert_to_tensor(pointwise_kernel)
     num_spatial_dims = len(inputs.shape) - 2
     if num_spatial_dims > 2:
         raise ValueError(
             "`num_spatial_dims` must be 1 or 2. Received: "
             f"num_spatial_dims={num_spatial_dims}."
         )
+    check_depthwise_conv_input_channels(inputs, depthwise_kernel, data_format)
     # Because we use `tf.nn.separable_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
     tf_data_format = _convert_data_format(data_format, 4)

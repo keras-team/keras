@@ -224,7 +224,6 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(data_layout.device_mesh, self.device_mesh)
         self.assertEqual(data_layout.axes, ("data", None, None))
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_get_variable_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh
@@ -235,7 +234,6 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(variable_layout.device_mesh, self.device_mesh)
         self.assertEqual(variable_layout.axes, (None,))
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_get_variable_layout_with_explicit_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh
@@ -284,7 +282,6 @@ class ModelParallelDistributionTest(testing.TestCase):
             shape, axis_names, self.devices
         )
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_distribute_weights(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
@@ -336,7 +333,6 @@ class ModelParallelDistributionTest(testing.TestCase):
         layout = distribution.get_tensor_layout("/model/layer/other_tensor")
         self.assertIsNone(layout)
 
-    @pytest.mark.skipif(testing.jax_uses_gpu(), reason="CI segfault")
     def test_get_variable_layout_with_explicit_layout(self):
         layout_map = distribution_lib.LayoutMap(self.device_mesh)
         layout_map[".*kernel"] = distribution_lib.TensorLayout([None, "model"])
@@ -361,6 +357,24 @@ class ModelParallelDistributionTest(testing.TestCase):
         )
         distributed_dataset = distribution.distribute_dataset(dataset)
         self.assertIs(dataset, distributed_dataset)
+
+    @mock.patch.object(backend_dlib, "num_processes", return_value=4)
+    def test_num_process_validation(self, mock_backend_num_processes):
+        device_mesh = distribution_lib.DeviceMesh(
+            (3, 2),
+            ["data", "model"],
+            ["cpu:0", "cpu:1", "cpu:2", "cpu:3", "cpu:4", "cpu:5"],
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        with self.assertRaisesRegex(
+            ValueError,
+            "`num_process` must be divisible by `num_model_replicas`",
+        ):
+            distribution_lib.ModelParallel(
+                layout_map=layout_map,
+                batch_dim_name="data",
+                auto_shard_dataset=True,
+            )
 
 
 class LayoutMapTest(testing.TestCase):
@@ -476,6 +490,65 @@ class LayoutMapTest(testing.TestCase):
 
         self.assertEqual(keys, ["dense/kernel", "dense/bias"])
         self.assertEqual(values, [self.sharded_2d, self.sharded_1d])
+
+
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the proper backend distribution lib",
+)
+@pytest.mark.multi_device
+class DataShardingIntegrationTest(testing.TestCase):
+    def test_distribute_dataset_sharding_behavior(self):
+        num_devices = distribution_lib.get_device_count()
+        self.assertGreaterEqual(
+            num_devices, 4, "Number of devices must be at least 4"
+        )
+        self.assertEqual(num_devices % 2, 0, "Number of devices must be even")
+
+        num_model_replicas = num_devices // 2
+        device_mesh = distribution_lib.DeviceMesh(
+            (num_model_replicas, 2),
+            ["data", "model"],
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        global_dataset = tf.data.Dataset.range(4 * num_model_replicas).batch(
+            2 * num_model_replicas
+        )
+
+        shards = []
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map,
+            batch_dim_name="data",
+            auto_shard_dataset=True,
+        )
+
+        # Simulate one process per local device to exercise process-group
+        # sharding semantics without backend mocking.
+        distribution._num_process = num_devices
+        distribution._is_multi_process = True
+
+        for process_id in range(num_devices):
+            distribution._process_id = process_id
+            ds = distribution.distribute_dataset(global_dataset)
+            shards.append(list(ds.unbatch().as_numpy_iterator()))
+
+        processes_per_replica = num_devices // num_model_replicas
+        for replica_id in range(num_model_replicas):
+            start = replica_id * processes_per_replica
+            for process_id in range(start + 1, start + processes_per_replica):
+                self.assertEqual(
+                    shards[start],
+                    shards[process_id],
+                    f"Processes {start} and {process_id} should have same "
+                    f"shard, got {shards}",
+                )
+
+        for replica_id in range(1, num_model_replicas):
+            self.assertNotEqual(
+                shards[0],
+                shards[replica_id * processes_per_replica],
+                f"Replica groups should have different shards, got {shards}",
+            )
 
 
 # @pytest.mark.skipif(

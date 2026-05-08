@@ -244,6 +244,10 @@ class VarianceScaling(RandomInitializer):
             across multiple calls. To get different random values
             across multiple calls, use as seed an instance
             of `keras.backend.SeedGenerator`.
+        input_axes: Optional list of integers. The axes of the input tensor
+            that should be considered for computing the fan-in.
+        output_axes: Optional list of integers. The axes of the output tensor
+            that should be considered for computing the fan-out.
     """
 
     def __init__(
@@ -252,6 +256,8 @@ class VarianceScaling(RandomInitializer):
         mode="fan_in",
         distribution="truncated_normal",
         seed=None,
+        input_axes=None,
+        output_axes=None,
     ):
         if scale <= 0.0:
             raise ValueError(
@@ -280,11 +286,15 @@ class VarianceScaling(RandomInitializer):
         self.scale = scale
         self.mode = mode
         self.distribution = distribution
+        self.input_axes = input_axes
+        self.output_axes = output_axes
         super().__init__(seed=seed)
 
     def __call__(self, shape, dtype=None):
         scale = self.scale
-        fan_in, fan_out = compute_fans(shape)
+        fan_in, fan_out = compute_fans(
+            shape, input_axes=self.input_axes, output_axes=self.output_axes
+        )
         if self.mode == "fan_in":
             scale /= max(1.0, fan_in)
         elif self.mode == "fan_out":
@@ -313,6 +323,8 @@ class VarianceScaling(RandomInitializer):
             "scale": self.scale,
             "mode": self.mode,
             "distribution": self.distribution,
+            "input_axes": self.input_axes,
+            "output_axes": self.output_axes,
         }
         return {**base_config, **config}
 
@@ -355,14 +367,21 @@ class GlorotUniform(VarianceScaling):
     - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, input_axes=None, output_axes=None):
         super().__init__(
-            scale=1.0, mode="fan_avg", distribution="uniform", seed=seed
+            scale=1.0,
+            mode="fan_avg",
+            distribution="uniform",
+            seed=seed,
+            input_axes=input_axes,
+            output_axes=output_axes,
         )
 
     def get_config(self):
         return {
-            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+            "seed": serialization_lib.serialize_keras_object(self._init_seed),
+            "input_axes": self.input_axes,
+            "output_axes": self.output_axes,
         }
 
 
@@ -405,17 +424,21 @@ class GlorotNormal(VarianceScaling):
     - [Glorot et al., 2010](http://proceedings.mlr.press/v9/glorot10a.html)
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, input_axes=None, output_axes=None):
         super().__init__(
             scale=1.0,
             mode="fan_avg",
             distribution="truncated_normal",
             seed=seed,
+            input_axes=input_axes,
+            output_axes=output_axes,
         )
 
     def get_config(self):
         return {
-            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+            "seed": serialization_lib.serialize_keras_object(self._init_seed),
+            "input_axes": self.input_axes,
+            "output_axes": self.output_axes,
         }
 
 
@@ -461,14 +484,21 @@ class LecunNormal(VarianceScaling):
     - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, input_axes=None, output_axes=None):
         super().__init__(
-            scale=1.0, mode="fan_in", distribution="truncated_normal", seed=seed
+            scale=1.0,
+            mode="fan_in",
+            distribution="truncated_normal",
+            seed=seed,
+            input_axes=input_axes,
+            output_axes=output_axes,
         )
 
     def get_config(self):
         return {
-            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+            "seed": serialization_lib.serialize_keras_object(self._init_seed),
+            "input_axes": self.input_axes,
+            "output_axes": self.output_axes,
         }
 
 
@@ -510,14 +540,21 @@ class LecunUniform(VarianceScaling):
     - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, input_axes=None, output_axes=None):
         super().__init__(
-            scale=1.0, mode="fan_in", distribution="uniform", seed=seed
+            scale=1.0,
+            mode="fan_in",
+            distribution="uniform",
+            seed=seed,
+            input_axes=input_axes,
+            output_axes=output_axes,
         )
 
     def get_config(self):
         return {
-            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+            "seed": serialization_lib.serialize_keras_object(self._init_seed),
+            "input_axes": self.input_axes,
+            "output_axes": self.output_axes,
         }
 
 
@@ -554,14 +591,21 @@ class HeNormal(VarianceScaling):
     - [He et al., 2015](https://arxiv.org/abs/1502.01852)
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, input_axes=None, output_axes=None):
         super().__init__(
-            scale=2.0, mode="fan_in", distribution="truncated_normal", seed=seed
+            scale=2.0,
+            mode="fan_in",
+            distribution="truncated_normal",
+            seed=seed,
+            input_axes=input_axes,
+            output_axes=output_axes,
         )
 
     def get_config(self):
         return {
-            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+            "seed": serialization_lib.serialize_keras_object(self._init_seed),
+            "input_axes": self.input_axes,
+            "output_axes": self.output_axes,
         }
 
 
@@ -598,27 +642,45 @@ class HeUniform(VarianceScaling):
     - [He et al., 2015](https://arxiv.org/abs/1502.01852)
     """
 
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, input_axes=None, output_axes=None):
         super().__init__(
-            scale=2.0, mode="fan_in", distribution="uniform", seed=seed
+            scale=2.0,
+            mode="fan_in",
+            distribution="uniform",
+            seed=seed,
+            input_axes=input_axes,
+            output_axes=output_axes,
         )
 
     def get_config(self):
         return {
-            "seed": serialization_lib.serialize_keras_object(self._init_seed)
+            "seed": serialization_lib.serialize_keras_object(self._init_seed),
+            "input_axes": self.input_axes,
+            "output_axes": self.output_axes,
         }
 
 
-def compute_fans(shape):
+def compute_fans(shape, input_axes=None, output_axes=None):
     """Computes the number of input and output units for a weight shape.
 
     Args:
         shape: Integer shape tuple.
+        input_axes: Optional list of integers, axes representing input units.
+        output_axes: Optional list of integers, axes representing output units.
 
     Returns:
         A tuple of integer scalars: `(fan_in, fan_out)`.
     """
     shape = tuple(shape)
+    if input_axes is not None and output_axes is not None:
+        fan_in = 1
+        for axis in input_axes:
+            fan_in *= shape[axis]
+        fan_out = 1
+        for axis in output_axes:
+            fan_out *= shape[axis]
+        return int(fan_in), int(fan_out)
+
     if len(shape) < 1:  # Just to avoid errors for constants.
         fan_in = fan_out = 1
     elif len(shape) == 1:

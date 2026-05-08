@@ -49,8 +49,14 @@ class TextVectorization(Layer):
        serializables (see `keras.saving.register_keras_serializable`
        for more details).
     2. When using a custom callable for `standardize`, the data received
-       by the callable will be exactly as passed to this layer. The callable
-       should return a tensor of the same shape as the input.
+       by the callable depends on the active Keras backend. With the
+       TensorFlow backend, the callable receives a `tf.Tensor` of dtype
+       `string`, so it should use `tf.strings` operations. With any other
+       backend (JAX, NumPy, PyTorch, OpenVINO) the callable receives a
+       NumPy array of unicode strings, so it should use `np.char` /
+       `np.strings` operations (or any vectorized string logic of your
+       choice). The callable should return data of the same shape as the
+       input.
     3. When using a custom callable for `split`, the data received by the
        callable will have the 1st dimension squeezed out - instead of
        `[["string to split"], ["another string to split"]]`, the Callable will
@@ -526,20 +532,68 @@ class TextVectorization(Layer):
         """
         self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
+    def _apply_standardize_with_np_arrays(self, inputs):
+        """Run a callable `standardize` on a NumPy string array.
+
+        Used on non-TensorFlow backends so the user callable receives a NumPy
+        array of unicode strings (suitable for `np.char` / `np.strings` ops)
+        rather than a `tf.EagerTensor`.
+        """
+        if isinstance(inputs, np.ndarray):
+            np_inputs = inputs
+        elif backend.is_tensor(inputs):
+            np_inputs = backend.convert_to_numpy(inputs)
+        else:
+            np_inputs = np.asarray(inputs)
+
+        if np_inputs.dtype.kind == "S":
+            np_inputs = np.char.decode(np_inputs, self._encoding)
+        elif np_inputs.dtype.kind == "O":
+            # Object arrays (e.g. from tf.string tensors) contain `bytes`.
+            np_inputs = np.char.decode(
+                np_inputs.astype(np.bytes_), self._encoding
+            )
+
+        result = self._standardize(np_inputs)
+
+        if isinstance(result, tf.Tensor):
+            return tf.cast(result, tf.string)
+        return tf.constant(np.asarray(result), dtype=tf.string)
+
     def _preprocess(self, inputs):
+        if not isinstance(
+            inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
+        ) and backend.is_tensor(inputs):
+            inputs = backend.convert_to_numpy(inputs)
         with tf.device("CPU:0"):
-            inputs = tf_utils.ensure_tensor(inputs, dtype=tf.string)
-            if self._standardize in ("lower", "lower_and_strip_punctuation"):
-                inputs = tf.strings.lower(inputs)
-            if self._standardize in (
-                "strip_punctuation",
-                "lower_and_strip_punctuation",
+            if (
+                callable(self._standardize)
+                and backend.backend() != "tensorflow"
             ):
-                inputs = tf.strings.regex_replace(
-                    inputs, r'[!"#$%&()\*\+,-\./:;<=>?@\[\\\]^_`{|}~\']', ""
-                )
-            if callable(self._standardize):
-                inputs = self._standardize(inputs)
+                # On non-TensorFlow backends, hand the user-provided callable
+                # a NumPy array of unicode strings so it can use `np.char` /
+                # `np.strings` ops rather than `tf.strings` (which would
+                # require a `tf.EagerTensor` and TF as a hard dependency
+                # outside TF backend code).
+                inputs = self._apply_standardize_with_np_arrays(inputs)
+            else:
+                inputs = tf_utils.ensure_tensor(inputs, dtype=tf.string)
+                if self._standardize in (
+                    "lower",
+                    "lower_and_strip_punctuation",
+                ):
+                    inputs = tf.strings.lower(inputs)
+                if self._standardize in (
+                    "strip_punctuation",
+                    "lower_and_strip_punctuation",
+                ):
+                    inputs = tf.strings.regex_replace(
+                        inputs,
+                        r'[!"#$%&()\*\+,-\./:;<=>?@\[\\\]^_`{|}~\']',
+                        "",
+                    )
+                if callable(self._standardize):
+                    inputs = self._standardize(inputs)
 
             if self._split is not None:
                 # If we are splitting, we validate that the 1st axis is of
@@ -576,11 +630,6 @@ class TextVectorization(Layer):
             return inputs
 
     def call(self, inputs):
-        if not isinstance(
-            inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
-        ):
-            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
-
         inputs = self._preprocess(inputs)
 
         lookup_data = self._lookup_layer.call(inputs)

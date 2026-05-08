@@ -30,14 +30,33 @@ class OpenVINOTrainer(base_trainer.Trainer):
             return x[0]
         return x
 
+    def _unpack_inference_outputs(self, all_outputs):
+        """Split raw inference outputs into main outputs and apply masks."""
+        main_outputs = all_outputs[: self._n_main_outputs]
+        y_pred = self._unpack_singleton(
+            tree.pack_sequence_as(self.struct_outputs, main_outputs)
+        )
+        if self._output_mask_indices:
+            flat_y_pred = tree.flatten(y_pred)
+            for out_idx, mask_idx in self._output_mask_indices.items():
+                backend.set_keras_mask(
+                    flat_y_pred[out_idx], all_outputs[mask_idx]
+                )
+        return y_pred
+
     def test_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
-        ov_compiled_model = self._get_compiled_model(x)
-        flatten_x = tree.flatten(x)
-        y_pred = ov_compiled_model(flatten_x)
-        y_pred = self._unpack_singleton(
-            tree.pack_sequence_as(self.struct_outputs, y_pred.to_tuple())
-        )
+        if not base_trainer.model_supports_jit(self):
+            if self._call_has_training_arg:
+                y_pred = self(x, training=False)
+            else:
+                y_pred = self(x)
+            y_pred = tree.map_structure(backend.convert_to_numpy, y_pred)
+        else:
+            ov_compiled_model = self._get_compiled_model(x)
+            flatten_x = tree.flatten(x)
+            ov_result = ov_compiled_model(flatten_x)
+            y_pred = self._unpack_inference_outputs(ov_result.to_tuple())
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
         )
@@ -49,14 +68,16 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if not base_trainer.model_supports_jit(self):
+            if self._call_has_training_arg:
+                y_pred = self(x, training=False)
+            else:
+                y_pred = self(x)
+            return tree.map_structure(backend.convert_to_numpy, y_pred)
         ov_compiled_model = self._get_compiled_model(x)
         flatten_x = tree.flatten(x)
-        y_pred = ov_compiled_model(flatten_x)
-        # recover structure of the model output
-        y_pred = self._unpack_singleton(
-            tree.pack_sequence_as(self.struct_outputs, y_pred.to_tuple())
-        )
-        return y_pred
+        ov_result = ov_compiled_model(flatten_x)
+        return self._unpack_inference_outputs(ov_result.to_tuple())
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
@@ -78,22 +99,24 @@ class OpenVINOTrainer(base_trainer.Trainer):
 
         self.test_function = test_step
 
-    def _parameterize_data(self, data):
+    def _parameterize_data(self, data, dynamic_batch_size=False):
         if isinstance(data, (list, tuple)):
             parametrize_data = []
             for elem in data:
-                param_elem = self._parameterize_data(elem)
+                param_elem = self._parameterize_data(elem, dynamic_batch_size)
                 parametrize_data.append(param_elem)
         elif isinstance(data, dict):
             parametrize_data = dict()
             for elem_name, elem in data.items():
-                param_elem = self._parameterize_data(elem)
+                param_elem = self._parameterize_data(elem, dynamic_batch_size)
                 parametrize_data[elem_name] = param_elem
         elif isinstance(data, OpenVINOKerasTensor):
             parametrize_data = data
         elif isinstance(data, np.ndarray) or np.isscalar(data):
             ov_type = OPENVINO_DTYPES[str(data.dtype)]
             ov_shape = list(data.shape)
+            if dynamic_batch_size and len(ov_shape) > 0:
+                ov_shape[0] = -1
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
             parametrize_data = OpenVINOKerasTensor(param.output(0))
         elif isinstance(data, int):
@@ -110,7 +133,8 @@ class OpenVINOTrainer(base_trainer.Trainer):
         shapes = []
         for x in tree.flatten(data):
             if isinstance(x, np.ndarray):
-                shapes.append(x.shape)
+                shape = (-1,) + x.shape[1:] if x.ndim > 0 else x.shape
+                shapes.append(shape)
             else:
                 shapes.append(None)
         return shapes
@@ -128,16 +152,33 @@ class OpenVINOTrainer(base_trainer.Trainer):
         del self.ov_compiled_model
 
         # prepare parameterized input
-        self.struct_params = self._parameterize_data(data)
+        self.struct_params = self._parameterize_data(
+            data, dynamic_batch_size=True
+        )
         # construct OpenVINO graph during calling Keras Model
-        self.struct_outputs = self(self.struct_params)
+        if self._call_has_training_arg:
+            self.struct_outputs = self(self.struct_params, training=False)
+        else:
+            self.struct_outputs = self(self.struct_params)
 
         parameters = []
         for p in tree.flatten(self.struct_params):
             parameters.append(p.output.get_node())
         results = []
-        for r in tree.flatten(self.struct_outputs):
+        flat_struct_outputs = tree.flatten(self.struct_outputs)
+        for r in flat_struct_outputs:
             results.append(ov_opset.result(r.output))
+
+        self._n_main_outputs = len(results)
+
+        # Include mask tensors as extra outputs so they are evaluated
+        # during inference and can be propagated to y_pred.
+        self._output_mask_indices = {}
+        for i, out in enumerate(flat_struct_outputs):
+            mask = backend.get_keras_mask(out)
+            if mask is not None and isinstance(mask, OpenVINOKerasTensor):
+                self._output_mask_indices[i] = len(results)
+                results.append(ov_opset.result(mask.output))
 
         # prepare compiled model from scratch
         ov_model = ov.Model(results=results, parameters=parameters)

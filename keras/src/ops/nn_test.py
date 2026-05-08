@@ -207,10 +207,14 @@ class NNOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knn.log_softmax(x).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=1).shape, (None, 2, 3))
         self.assertEqual(knn.log_softmax(x, axis=-1).shape, (None, 2, 3))
+        with self.assertRaises(ValueError):
+            knn.log_softmax(x, axis=3)
 
     def test_sparsemax(self):
         x = KerasTensor([None, 2, 3])
         self.assertEqual(knn.sparsemax(x).shape, (None, 2, 3))
+        with self.assertRaises(ValueError):
+            knn.sparsemax(x, axis=3)
 
     def test_max_pool(self):
         data_format = backend.config.image_data_format()
@@ -1233,6 +1237,14 @@ class NNOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(
             knn.sparse_categorical_crossentropy(x1, x2).shape, (2, 3)
         )
+        x1 = KerasTensor([2, 4], dtype="int32")
+        x2 = KerasTensor([2, 3, 4])
+        self.assertEqual(
+            knn.sparse_categorical_crossentropy(x1, x2, axis=1).shape,
+            (2, 4),
+        )
+        with self.assertRaises(ValueError):
+            knn.sparse_categorical_crossentropy(x1, x2, axis=3)
 
     def test_moments(self):
         x = KerasTensor([2, 3, 4])
@@ -1579,6 +1591,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             )
             self.assertAllClose(normalized_sum_by_axis, 1.0)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_polar_corectness(self):
         abs_ = np.array([1, 2], dtype="float32")
         angle = np.array([2, 3], dtype="float32")
@@ -2372,9 +2388,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(decoded, repeated_labels)
         self.assertAllClose(scores, score_labels)
 
-        if backend.backend() == "torch":
-            self.skipTest("torch doesn't support 'beam_search' strategy")
-
         labels = np.array(
             [
                 [[1, 2, -1], [2, -1, -1], [3, -1, -1]],
@@ -2485,11 +2498,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
             mask = mask[None, None, ...]
             mask = np.tile(mask, (2, 4, 1, 1))
         if bias is not None:
-            if backend.backend() == "openvino":
-                self.skipTest(
-                    "openvino does not support `bias` with "
-                    "`dot_product_attention`"
-                )
             if backend.backend() == "torch" and mask is not None:
                 self.skipTest(
                     "torch does not support `mask` and `bias` with "
@@ -2500,10 +2508,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             )
 
         if flash_attention:
-            if backend.backend() in ("tensorflow", "numpy", "openvino"):
+            if backend.backend() in ("tensorflow", "numpy"):
                 self.skipTest(
-                    "Flash attention is not supported in tensorflow, numpy, "
-                    "and openvino backends."
+                    "Flash attention is not supported in tensorflow and numpy "
+                    "backends."
                 )
             elif backend.backend() == "torch":
                 import torch
@@ -3074,6 +3082,10 @@ class NNOpsDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_polar(self, dtype):
         import jax.nn as jnn
@@ -3138,9 +3150,6 @@ class NNOpsDtypeTest(testing.TestCase):
         )
         self.assertEqual(standardize_dtype(decoded.dtype), "int32")
         self.assertEqual(standardize_dtype(scores.dtype), expected_dtype)
-
-        if backend.backend() == "torch":
-            self.skipTest("torch doesn't support 'beam_search' strategy")
 
         # Test strategy="beam_search"
         decoded, scores = knn.ctc_decode(

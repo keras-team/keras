@@ -35,7 +35,7 @@ class DtypesTest(test_case.TestCase):
         # exclusively enable the int64 dtype for TF. However, JAX does not
         # natively support int64, which prevents us from comparing the dtypes.
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
-    elif backend.backend() == "openvino":
+    if not backend.SUPPORTS_COMPLEX_DTYPES:
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
 
     @parameterized.named_parameters(
@@ -139,12 +139,12 @@ class DtypesTest(test_case.TestCase):
         )
 
     def test_respect_weak_type_for_complex64(self):
-        self.assertAllEqual(
+        self.assertEqual(
             dtypes._respect_weak_type("complex64", True), "complex"
         )
 
     def test_respect_weak_type_for_complex128(self):
-        self.assertAllEqual(
+        self.assertEqual(
             dtypes._respect_weak_type("complex128", True), "complex"
         )
 
