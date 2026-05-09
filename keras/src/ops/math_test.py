@@ -1163,6 +1163,26 @@ class SegmentMinTest(testing.TestCase):
         self.assertAllClose(output, expected_output)
 
 
+class SegmentProdTest(testing.TestCase):
+    def test_segment_prod_call(self):
+        data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1], dtype=np.int32)
+
+        num_segments = 2
+        sorted_segments = False
+
+        segment_prod_op = kmath.SegmentProd(
+            num_segments=num_segments, sorted=sorted_segments
+        )
+
+        output = segment_prod_op.call(data, segment_ids)
+        expected_output = np.array(
+            [[2, 20, 56], [3, 6, 9]],
+            dtype=np.float32,
+        )
+        self.assertAllClose(output, expected_output)
+
+
 class TopKTest(testing.TestCase):
     def test_top_k_call_values(self):
         data = np.array([[1, 3, 2], [4, 6, 5]], dtype=np.float32)
