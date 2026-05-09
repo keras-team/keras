@@ -210,7 +210,6 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
         represents the product of the corresponding segment in `data`.
 
     Example:
-
     >>> data = keras.ops.convert_to_tensor([1, 2, 10, 20, 100, 200])
     >>> segment_ids = keras.ops.convert_to_tensor([0, 0, 1, 1, 2, 2])
     >>> num_segments = 3

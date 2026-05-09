@@ -141,6 +141,12 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    raise NotImplementedError(
+        "`segment_prod` is not supported with openvino backend"
+    )
+
+
 def top_k(x, k, sorted=True):
     x = get_ov_output(x)
     k_tensor = ov_opset.constant(k, dtype=Type.i32)
