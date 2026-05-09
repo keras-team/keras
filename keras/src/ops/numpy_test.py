@@ -3022,7 +3022,7 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_angle(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.angle(x).shape, (2, 3))
-    
+
     def test_argpartition_dynamic_shape(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
