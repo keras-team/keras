@@ -332,3 +332,72 @@ class SimpleRNNTest(testing.TestCase):
         bidi = layers.Bidirectional(rnn)
         self.assertFalse(hasattr(bidi.forward_layer, "use_cudnn"))
         self.assertFalse(hasattr(bidi.backward_layer, "use_cudnn"))
+
+    def test_fused_lstm_eligibility(self):
+        # LSTM with use_cudnn != False passes the layer-level precondition.
+        bidi = layers.Bidirectional(layers.LSTM(4, use_cudnn="auto"))
+        bidi.build((None, 5, 3))
+        self.assertTrue(bidi._can_attempt_fused_lstm(mask=None))
+
+        # GRU and SimpleRNN are not eligible.
+        gru = layers.Bidirectional(layers.GRU(4, use_cudnn="auto"))
+        gru.build((None, 5, 3))
+        self.assertFalse(gru._can_attempt_fused_lstm(mask=None))
+
+        simple = layers.Bidirectional(layers.SimpleRNN(4))
+        simple.build((None, 5, 3))
+        self.assertFalse(simple._can_attempt_fused_lstm(mask=None))
+
+        # use_cudnn=False disables the fast path.
+        off = layers.Bidirectional(layers.LSTM(4, use_cudnn=False))
+        off.build((None, 5, 3))
+        self.assertFalse(off._can_attempt_fused_lstm(mask=None))
+
+        # Dropout disables the fast path.
+        dp = layers.Bidirectional(layers.LSTM(4, use_cudnn="auto", dropout=0.1))
+        dp.build((None, 5, 3))
+        self.assertFalse(dp._can_attempt_fused_lstm(mask=None))
+
+        # A mask disables the fast path.
+        eligible = layers.Bidirectional(layers.LSTM(4, use_cudnn="auto"))
+        eligible.build((None, 5, 3))
+        mask = np.ones((2, 5), dtype="bool")
+        self.assertFalse(eligible._can_attempt_fused_lstm(mask=mask))
+
+        # Wrong initial_state arity (should be 4: fwd_h, fwd_c, bwd_h, bwd_c).
+        wrong_state = [np.zeros((2, 4), dtype="float32")] * 2
+        self.assertFalse(
+            eligible._can_attempt_fused_lstm(
+                mask=None, initial_state=wrong_state
+            )
+        )
+
+    def test_fused_lstm_matches_unfused(self):
+        # The fused path requires backend support (JAX with cuDNN today).
+        # On other backends and on CPU runners, `backend.bidirectional_lstm`
+        # raises `NotImplementedError` and the layer falls back to the
+        # two-call path, so this test trivially passes; on GPU it
+        # exercises the fused dispatch and asserts numerical equivalence
+        # with the two-call reference.
+        rng = np.random.default_rng(0)
+        x = rng.standard_normal((3, 6, 4)).astype("float32")
+
+        def _build(use_cudnn):
+            layer = layers.Bidirectional(
+                layers.LSTM(
+                    5,
+                    use_cudnn=use_cudnn,
+                    return_sequences=True,
+                    kernel_initializer=initializers.GlorotUniform(seed=1),
+                    recurrent_initializer=initializers.Orthogonal(seed=2),
+                )
+            )
+            layer.build(x.shape)
+            return layer
+
+        ref = _build(use_cudnn=False)
+        fused = _build(use_cudnn="auto")
+        for rv, fv in zip(ref.weights, fused.weights):
+            fv.assign(rv.value)
+
+        self.assertAllClose(ref(x), fused(x), atol=1e-5)

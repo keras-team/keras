@@ -1654,6 +1654,7 @@ def histogram(x, bins=10, range=None):
 def unique(
     x,
     sorted=True,
+    return_index=False,
     return_inverse=False,
     return_counts=False,
     axis=None,
@@ -1662,6 +1663,7 @@ def unique(
 ):
     return jnp.unique(
         x,
+        return_index=return_index,
         return_inverse=return_inverse,
         return_counts=return_counts,
         axis=axis,
