@@ -39,7 +39,7 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
     elif reduction_method == "amin":
         result = torch.ones(*shape, device=get_device()) * float("Inf")
     elif reduction_method == "prod":
-        result = torch.ones(shape, device=get_device(), dtype=torch.float32)
+        result = torch.ones(*shape, device=get_device())
     else:
         result = torch.zeros(*shape, device=get_device())
 

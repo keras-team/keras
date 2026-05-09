@@ -197,8 +197,9 @@ def segment_prod(data, segment_ids, num_segments=None, sorted=False):
 
     Args:
         data: Input tensor.
-        segment_ids: A N-D tensor containing segment indices for each
-            element in `data`. data.shape[:len(segment_ids.shape)] should match.
+        segment_ids: A 1-D tensor containing segment indices for each
+            element in `data`. `data.shape[0]` should match
+            `segment_ids.shape[0]`.
         num_segments: An integer representing the total number of
             segments. If not specified, it is inferred from the maximum
             value in `segment_ids`.
