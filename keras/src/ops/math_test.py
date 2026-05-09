@@ -1181,7 +1181,7 @@ class SegmentProdTest(testing.TestCase):
         data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
         segment_ids = np.array([0, 0, 1], dtype=np.int32)
 
-        segment_prod_op = kmath.SegmentProd(num_segments=2, sorted=True)
+        segment_prod_op = kmath.SegmentProd(sorted=True)
 
         output = segment_prod_op.call(data, segment_ids)
         expected_output = np.array(
