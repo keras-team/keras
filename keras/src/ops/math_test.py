@@ -1177,7 +1177,30 @@ class SegmentProdTest(testing.TestCase):
         )
         self.assertAllClose(output, expected_output)
 
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="Argument `num_segments` cannot be set when sorted is True "
+        f"when using the {backend.backend()}",
+    )
     def test_segment_prod_call_sorted(self):
+        data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1], dtype=np.int32)
+
+        segment_prod_op = kmath.SegmentProd(num_segments=2, sorted=True)
+
+        output = segment_prod_op.call(data, segment_ids)
+        expected_output = np.array(
+            [[2, 20, 56], [3, 6, 9]],
+            dtype=np.float32,
+        )
+        self.assertAllClose(output, expected_output)
+
+    @pytest.mark.skipif(
+        backend.backend() == "jax",
+        reason="Argument `num_segments` must be set "
+        f"when using the {backend.backend()}",
+    )
+    def test_segment_prod_call_sorted_without_num_segments(self):
         data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
         segment_ids = np.array([0, 0, 1], dtype=np.int32)
 
