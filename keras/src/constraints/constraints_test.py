@@ -8,7 +8,7 @@ from keras.src import testing
 def get_example_array():
     np.random.seed(3537)
     example_array = np.random.random((100, 100)) * 100.0 - 50.0
-    example_array[0, 0] = 0.0  # Possible edge case
+    example_array[0, 0] = 0.0
     return example_array
 
 
@@ -80,12 +80,27 @@ class ConstraintsTest(testing.TestCase):
         config = constraint_fn.get_config()
         expected_config = {"max_value": 3.0, "axis": 1}
         self.assertEqual(config, expected_config)
+        restored = constraints.MaxNorm.from_config(config)
+        self.assertEqual(restored.max_value, constraint_fn.max_value)
+        self.assertEqual(restored.axis, constraint_fn.axis)
+        x = get_example_array()
+        self.assertAllClose(
+            backend.convert_to_numpy(constraint_fn(x)),
+            backend.convert_to_numpy(restored(x)),
+        )
 
     def test_unit_norm_get_config(self):
         constraint_fn = constraints.UnitNorm(axis=1)
         config = constraint_fn.get_config()
         expected_config = {"axis": 1}
         self.assertEqual(config, expected_config)
+        restored = constraints.UnitNorm.from_config(config)
+        self.assertEqual(restored.axis, constraint_fn.axis)
+        x = get_example_array()
+        self.assertAllClose(
+            backend.convert_to_numpy(constraint_fn(x)),
+            backend.convert_to_numpy(restored(x)),
+        )
 
     def test_min_max_norm_get_config(self):
         constraint_fn = constraints.MinMaxNorm(
@@ -99,27 +114,29 @@ class ConstraintsTest(testing.TestCase):
             "axis": 1,
         }
         self.assertEqual(config, expected_config)
-
-    # ------------------------------------------------------------------ #
-    # NEW: NonNeg — get_config / from_config / serialization              #
-    # NonNeg had NO config/serialization tests at all before this PR.     #
-    # ------------------------------------------------------------------ #
+        restored = constraints.MinMaxNorm.from_config(config)
+        self.assertEqual(restored.min_value, constraint_fn.min_value)
+        self.assertEqual(restored.max_value, constraint_fn.max_value)
+        self.assertEqual(restored.rate, constraint_fn.rate)
+        self.assertEqual(restored.axis, constraint_fn.axis)
+        x = get_example_array()
+        self.assertAllClose(
+            backend.convert_to_numpy(constraint_fn(x)),
+            backend.convert_to_numpy(restored(x)),
+        )
 
     def test_non_neg_get_config(self):
-        # NonNeg has no parameters, so its config should always be empty
         constraint_fn = constraints.NonNeg()
         config = constraint_fn.get_config()
         self.assertEqual(config, {})
 
     def test_non_neg_from_config(self):
-        # Verify NonNeg can be reconstructed from an empty config
         constraint_fn = constraints.NonNeg()
         config = constraint_fn.get_config()
         recreated = constraints.NonNeg.from_config(config)
         self.assertIsInstance(recreated, constraints.NonNeg)
 
     def test_non_neg_serialization_roundtrip(self):
-        # Full roundtrip: create -> get_config -> from_config -> same output
         original = constraints.NonNeg()
         config = original.get_config()
         restored = constraints.NonNeg.from_config(config)
@@ -129,70 +146,19 @@ class ConstraintsTest(testing.TestCase):
         self.assertAllClose(out_original, out_restored)
 
     def test_non_neg_zeroes_negatives(self):
-        # All negative inputs must become zero after NonNeg
         constraint_fn = constraints.NonNeg()
         x = np.full((5, 5), -3.0)
         output = backend.convert_to_numpy(constraint_fn(x))
         self.assertAllClose(output, np.zeros((5, 5)))
 
     def test_non_neg_preserves_positives(self):
-        # All positive inputs must be unchanged after NonNeg
         constraint_fn = constraints.NonNeg()
         x = np.full((5, 5), 3.0)
         output = backend.convert_to_numpy(constraint_fn(x))
         self.assertAllClose(output, x)
 
     def test_non_neg_all_zeros_input(self):
-        # All-zeros input should stay all-zeros after NonNeg
         constraint_fn = constraints.NonNeg()
         x = np.zeros((5, 5))
         output = backend.convert_to_numpy(constraint_fn(x))
         self.assertAllClose(output, np.zeros((5, 5)))
-
-    # ------------------------------------------------------------------ #
-    # NEW: MaxNorm from_config roundtrip                                  #
-    # ------------------------------------------------------------------ #
-
-    def test_max_norm_from_config_roundtrip(self):
-        # Verify MaxNorm can be fully reconstructed from its config
-        original = constraints.MaxNorm(max_value=3.0, axis=1)
-        config = original.get_config()
-        restored = constraints.MaxNorm.from_config(config)
-        self.assertEqual(restored.max_value, original.max_value)
-        self.assertEqual(restored.axis, original.axis)
-        # Verify identical outputs on same input
-        x = get_example_array()
-        out_original = backend.convert_to_numpy(original(x))
-        out_restored = backend.convert_to_numpy(restored(x))
-        self.assertAllClose(out_original, out_restored)
-
-    # ------------------------------------------------------------------ #
-    # NEW: UnitNorm from_config roundtrip                                 #
-    # ------------------------------------------------------------------ #
-
-    def test_unit_norm_from_config_roundtrip(self):
-        # Verify UnitNorm can be fully reconstructed from its config
-        original = constraints.UnitNorm(axis=0)
-        config = original.get_config()
-        restored = constraints.UnitNorm.from_config(config)
-        self.assertEqual(restored.axis, original.axis)
-        x = get_example_array()
-        out_original = backend.convert_to_numpy(original(x))
-        out_restored = backend.convert_to_numpy(restored(x))
-        self.assertAllClose(out_original, out_restored)
-
-    # ------------------------------------------------------------------ #
-    # NEW: MinMaxNorm from_config roundtrip                               #
-    # ------------------------------------------------------------------ #
-
-    def test_min_max_norm_from_config_roundtrip(self):
-        # Verify MinMaxNorm can be fully reconstructed from its config
-        original = constraints.MinMaxNorm(
-            min_value=0.2, max_value=0.9, rate=0.5, axis=0
-        )
-        config = original.get_config()
-        restored = constraints.MinMaxNorm.from_config(config)
-        self.assertEqual(restored.min_value, original.min_value)
-        self.assertEqual(restored.max_value, original.max_value)
-        self.assertEqual(restored.rate, original.rate)
-        self.assertEqual(restored.axis, original.axis)
