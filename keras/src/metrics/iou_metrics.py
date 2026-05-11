@@ -123,19 +123,40 @@ class _IoUBase(Metric):
 
         sample_weight = ops.broadcast_to(sample_weight, ops.shape(y_true))
 
+        # Build a bounds mask to filter out-of-range class IDs
+        # (>= num_classes or < 0) so they never reach the
+        # confusion matrix. This is graph-safe (no Python ifs
+        # on tensor values).
+        num_cls = ops.convert_to_tensor(self.num_classes, dtype=y_true.dtype)
+        bounds_mask = ops.logical_and(
+            ops.logical_and(
+                ops.greater_equal(y_true, 0),
+                ops.less(y_true, num_cls),
+            ),
+            ops.logical_and(
+                ops.greater_equal(y_pred, 0),
+                ops.less(y_pred, num_cls),
+            ),
+        )
+
         if self.ignore_class is not None:
             ignore_class = ops.convert_to_tensor(
                 self.ignore_class, y_true.dtype
             )
-            valid_mask = ops.not_equal(y_true, ignore_class)
-            y_true = ops.where(valid_mask, y_true, 0)
-            y_pred = ops.where(valid_mask, y_pred, 0)
-            if sample_weight is not None:
-                sample_weight = ops.where(valid_mask, sample_weight, 0)
+            bounds_mask = ops.logical_and(
+                bounds_mask,
+                ops.not_equal(y_true, ignore_class),
+            )
+
+        y_true = ops.where(bounds_mask, y_true, 0)
+        y_pred = ops.where(bounds_mask, y_pred, 0)
+
+        if sample_weight is not None:
+            sample_weight = ops.where(bounds_mask, sample_weight, 0)
+            sample_weight = ops.cast(sample_weight, dtype=self.dtype)
 
         y_pred = ops.cast(y_pred, dtype=self.dtype)
         y_true = ops.cast(y_true, dtype=self.dtype)
-        sample_weight = ops.cast(sample_weight, dtype=self.dtype)
 
         current_cm = confusion_matrix(
             y_true,
@@ -284,16 +305,25 @@ class IoU(_IoUBase):
             denominator, target_class_ids, axis=-1
         )
         denominator = ops.cast(denominator, dtype="float32")
+        true_positives = ops.cast(true_positives, dtype="float32")
 
         # If the denominator is 0, we need to ignore the class.
-        num_valid_entries = ops.sum(
-            ops.cast(ops.greater(denominator, 1e-9), dtype="float32")
+        valid_entries = ops.cast(
+            ops.greater(denominator, 1e-9), dtype="float32"
         )
+        num_valid_entries = ops.sum(valid_entries)
 
-        iou = ops.divide(true_positives, denominator + backend.epsilon())
+        iou = ops.divide(
+            true_positives,
+            denominator + backend.epsilon(),
+        )
+        # Zero out IoU for absent classes so they
+        # contribute 0.0, not ~1.0.
+        iou = ops.where(valid_entries, iou, 0.0)
 
         return ops.divide(
-            ops.sum(iou, axis=self.axis), num_valid_entries + backend.epsilon()
+            ops.sum(iou, axis=self.axis),
+            num_valid_entries + backend.epsilon(),
         )
 
     def get_config(self):
