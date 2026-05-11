@@ -76,8 +76,7 @@ class MultiOptimizer(optimizer.Optimizer):
         default_optimizer: Default Keras Optimizer for any unmapped variables.
         name: String. The name of this optimizer.
     """
-
-    @tracking.no_automatic_dependency_tracking
+    
     def __init__(self, obj_map, default_optimizer, name=None, **kwargs):
         if not isinstance(obj_map, OptimizerMap):
             raise ValueError(
@@ -352,8 +351,6 @@ class MultiOptimizer(optimizer.Optimizer):
     def _get_map_class(cls, class_name, custom_objects=None):
         if custom_objects and class_name in custom_objects:
             return custom_objects[class_name]
-        if class_name == "OptimizerMap":
-            return OptimizerMap
         globals_dict = globals()
         if class_name in globals_dict:
             return globals_dict[class_name]
