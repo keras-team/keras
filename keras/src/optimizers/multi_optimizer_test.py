@@ -6,6 +6,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
+from keras.src.saving.serialization_lib import enable_unsafe_deserialization
 
 
 class MultiOptimizerTest(testing.TestCase):
@@ -182,6 +183,10 @@ class MultiOptimizerTest(testing.TestCase):
         self.assertAllClose(new_trainable_vars[1], [[2.0, 2.0]])
 
     def test_callback_integration(self):
+        if backend.backend() in ["numpy", "openvino"]:
+            self.skipTest(
+                "skipped test due to backend does not support fit function"
+            )
         # Simple linear model
         model = models.Sequential(
             [
@@ -313,3 +318,52 @@ class MultiOptimizerTest(testing.TestCase):
         loss = backend.convert_to_tensor(2.0)
         scaled_loss = multi_opt.scale_loss(loss)
         self.assertAllClose(scaled_loss, 200.0)
+
+    def test_serialization_with_variables(self):
+        opt_adam = optimizers.Adam(learning_rate=1e-3)
+        default_opt = optimizers.SGD(learning_rate=1e-2)
+
+        with backend.name_scope("dense_1"):
+            w = backend.Variable([[1.0]], name="kernel")
+
+        # Mapping uses direct Keras Variable instance in a list
+        opt_map = optimizers.OptimizerMap([opt_adam], [[w]])
+        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+
+        # Serializing should succeed without TypeError
+        config = optimizers.serialize(multi_opt)
+        reconstructed = optimizers.deserialize(config)
+
+        # Reconstructed optimizer should build and match variables correctly
+        reconstructed.build([w])
+        self.assertEqual(
+            reconstructed._get_optimizer_for_variable(w).__class__.__name__,
+            "Adam",
+        )
+
+    def test_serialization_with_callable(self):
+        opt_adam = optimizers.Adam(learning_rate=1e-3)
+        default_opt = optimizers.SGD(learning_rate=1e-2)
+
+        with backend.name_scope("dense_1"):
+            w = backend.Variable([[1.0]], name="kernel")
+
+        # Mapping uses a callable function (serializable lambda)
+        opt_map = optimizers.OptimizerMap(
+            [opt_adam], [lambda var: "kernel" in (var.path or var.name)]
+        )
+        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+
+        # Enable unsafe deserialization for lambda loading in test
+        enable_unsafe_deserialization()
+
+        config = optimizers.serialize(multi_opt)
+        reconstructed = optimizers.deserialize(config)
+
+        # Reconstructed optimizer should build and match
+        #  correctly via the deserialized lambda
+        reconstructed.build([w])
+        self.assertEqual(
+            reconstructed._get_optimizer_for_variable(w).__class__.__name__,
+            "Adam",
+        )

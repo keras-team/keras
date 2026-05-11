@@ -2,6 +2,7 @@ import re
 
 from keras.src import ops
 from keras.src.api_export import keras_export
+from keras.src.backend.common.variables import Variable
 from keras.src.optimizers import optimizer
 from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
@@ -85,7 +86,7 @@ class MultiOptimizer(optimizer.Optimizer):
     opt_map = keras.optimizers.OptimizerMap(
         optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd, opt_adam],
         variable_identifier=[
-            "kernel",                            # name substring
+            "kernel",                            # variable name or path
             "^dense_1/.*",                       # regex pattern
             keras_var,                           # Keras Variable instance
             lambda var: "bias" in var.name,      # custom callable function
@@ -210,9 +211,8 @@ class MultiOptimizer(optimizer.Optimizer):
 
     @property
     def iterations(self):
-        if self._inner_optimizers:
-            return self._inner_optimizers[0].iterations
-        return super().iterations
+        # master and inner optimizer iterations will be in sync.
+        return self._iterations
 
     def apply(self, grads, trainable_variables=None):
         if len(grads) == 0:
@@ -330,10 +330,12 @@ class MultiOptimizer(optimizer.Optimizer):
                 "optimizer weights before calling `set_weights()`."
             )
 
-        # Distribute weights back to wrapper and sub-optimizers
-        self._iterations.assign(weights[0])
+        # Distribute own variables dynamically (iterations, learning_rate, etc.)
+        own_var_count = len(self._variables)
+        for i in range(own_var_count):
+            self._variables[i].assign(weights[i])
 
-        idx = 1
+        idx = own_var_count
         for opt in self._inner_optimizers:
             num_opt_vars = len(opt.variables)
             if num_opt_vars > 0:
@@ -343,6 +345,34 @@ class MultiOptimizer(optimizer.Optimizer):
 
     def get_config(self):
         config = super().get_config()
+
+        serialized_identifiers = []
+        for identifier in self.obj_map.variable_identifier:
+            if isinstance(identifier, Variable):
+                serialized_identifiers.append(
+                    f"^{re.escape(identifier.path or identifier.name)}$"
+                )
+            elif isinstance(identifier, (list, tuple, set)):
+                if any(isinstance(item, Variable) for item in identifier):
+                    escaped_paths = []
+                    for item in identifier:
+                        if isinstance(item, Variable):
+                            escaped_paths.append(
+                                re.escape(item.path or item.name)
+                            )
+                        else:
+                            escaped_paths.append(re.escape(str(item)))
+                    or_pattern = "|".join(escaped_paths)
+                    serialized_identifiers.append(f"^({or_pattern})$")
+                else:
+                    serialized_identifiers.append(identifier)
+            elif callable(identifier):
+                serialized_identifiers.append(
+                    serialization_lib.serialize_keras_object(identifier)
+                )
+            else:
+                serialized_identifiers.append(identifier)
+
         serialized_map = {
             "class_name": self.obj_map.__class__.__name__,
             "config": {
@@ -350,7 +380,7 @@ class MultiOptimizer(optimizer.Optimizer):
                     serialization_lib.serialize_keras_object(opt)
                     for opt in self.obj_map.optimizer
                 ],
-                "variable_identifier": self.obj_map.variable_identifier,
+                "variable_identifier": serialized_identifiers,
             },
         }
         config.update(
@@ -379,7 +409,13 @@ class MultiOptimizer(optimizer.Optimizer):
             )
             for opt_config in serialized_opts
         ]
-        variable_identifiers = obj_map_config["config"]["variable_identifier"]
+
+        variable_identifiers = [
+            serialization_lib.deserialize_keras_object(
+                ident, custom_objects=custom_objects
+            )
+            for ident in obj_map_config["config"]["variable_identifier"]
+        ]
 
         map_cls = cls._get_map_class(
             obj_map_config["class_name"], custom_objects
