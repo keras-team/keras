@@ -3,6 +3,9 @@ import torch.nn.functional as tnn
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    check_conv_transpose_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     check_depthwise_conv_input_channels,
 )
 from keras.src.backend.common.backend_utils import (
@@ -720,6 +723,7 @@ def conv_transpose(
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
     data_format = backend.standardize_data_format(data_format)
+    check_conv_transpose_input_channels(inputs, kernel, data_format)
     (
         torch_padding,
         torch_output_padding,
