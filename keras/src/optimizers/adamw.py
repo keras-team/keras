@@ -95,6 +95,7 @@ class AdamW(adam.Adam):
             )
 
 
-AdamW.__doc__ = AdamW.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if AdamW.__doc__ is not None:
+    AdamW.__doc__ = AdamW.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

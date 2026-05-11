@@ -116,18 +116,15 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 f"{self._SUPPORTED_INTERPOLATION}."
             )
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training:
-            return self.backend.image.affine_transform(
-                images=images,
-                transform=transformation["rotation_matrix"],
-                interpolation=self.interpolation,
-                fill_mode=self.fill_mode,
-                fill_value=self.fill_value,
-                data_format=self.data_format,
-            )
-        return images
+    def _transform_images(self, images, transformation, interpolation):
+        return self.backend.image.affine_transform(
+            images=images,
+            transform=transformation["rotation_matrix"],
+            interpolation=interpolation,
+            fill_mode=self.fill_mode,
+            fill_value=self.fill_value,
+            data_format=self.data_format,
+        )
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
@@ -171,13 +168,6 @@ class RandomRotation(BaseImagePreprocessingLayer):
                 width=width,
             )
         return bounding_boxes
-
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
 
     def get_random_transformation(self, data, training=True, seed=None):
         ops = self.backend
@@ -256,9 +246,10 @@ class RandomRotation(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandomRotation.__doc__ = RandomRotation.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandomRotation"
-    ),
-)
+if RandomRotation.__doc__ is not None:
+    RandomRotation.__doc__ = RandomRotation.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandomRotation"
+        ),
+    )

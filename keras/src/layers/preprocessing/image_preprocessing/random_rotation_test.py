@@ -74,4 +74,4 @@ class RandomRotationTest(testing.TestCase):
             ]
         ).reshape(input_shape[1:])
         output = next(iter(ds)).numpy()
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)

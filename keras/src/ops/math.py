@@ -851,6 +851,8 @@ class ISTFT(Operation):
                 output_size = output_size - (self.fft_length // 2) * 2
         else:
             output_size = None
+            if self.length is not None:
+                output_size = self.length
         new_shape = real.shape[:-2] + (output_size,)
         return KerasTensor(shape=new_shape, dtype=real.dtype)
 
@@ -919,6 +921,7 @@ def istft(
             sequence_length=sequence_length,
             sequence_stride=sequence_stride,
             fft_length=fft_length,
+            length=length,
             window=window,
             center=center,
         ).symbolic_call(x)

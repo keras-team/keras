@@ -65,6 +65,7 @@ class HashedCrossingTest(testing.TestCase):
         output = layer((feat1, feat2))
         self.assertSparse(output, sparse)
         self.assertAllClose(
+            output,
             np.array(
                 [
                     [0.0, 1.0, 0.0, 0.0, 0.0],
@@ -74,7 +75,6 @@ class HashedCrossingTest(testing.TestCase):
                     [0.0, 0.0, 0.0, 1.0, 0.0],
                 ]
             ),
-            output,
         )
 
     def test_tf_data_compatibility(self):
@@ -87,7 +87,7 @@ class HashedCrossingTest(testing.TestCase):
             .map(lambda x1, x2: layer((x1, x2)))
         )
         output = next(iter(ds)).numpy()
-        self.assertAllClose(np.array([1, 4, 1, 1, 3]), output)
+        self.assertAllClose(output, np.array([1, 4, 1, 1, 3]))
 
     def test_static_shape_preserved(self):
         layer = layers.HashedCrossing(num_bins=5)

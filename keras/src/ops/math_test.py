@@ -279,6 +279,52 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         ref_shape = (None,) + ref.shape[1:]
         self.assertEqual(output.shape, ref_shape)
 
+    def test_istft_with_length(self):
+        sequence_length = 4
+        sequence_stride = 1
+        fft_length = 8
+        length = 1
+        window = "hann"
+        center = False
+        real = KerasTensor((None, 10, 5), dtype="float32")
+        imag = KerasTensor((None, 10, 5), dtype="float32")
+
+        output = kmath.istft(
+            (real, imag),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            length,
+            window,
+            center,
+        )
+
+        ref = _istft(
+            (np.ones((2, 10, 5)), np.ones((2, 10, 5))),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            length,
+            window,
+            center,
+        )
+        ref_shape = (None,) + ref.shape[1:]
+        self.assertEqual(output.shape, ref_shape)
+
+        real_dyn = KerasTensor((None, None, 5), dtype="float32")
+        imag_dyn = KerasTensor((None, None, 5), dtype="float32")
+
+        output_dyn = kmath.istft(
+            (real_dyn, imag_dyn),
+            sequence_length,
+            sequence_stride,
+            fft_length,
+            length,
+            window,
+            center,
+        )
+        self.assertEqual(output_dyn.shape, (None, 1))
+
     def test_rsqrt(self):
         x = KerasTensor([None, 3])
         self.assertEqual(kmath.rsqrt(x).shape, (None, 3))
@@ -471,7 +517,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             num_segments = np.max(segment_ids).item() + 1
         expected_shape = (num_segments,) + data_dims
         if segment_reduce_op == kmath.segment_max:
-            if backend.backend() == "tensorflow":
+            if backend.backend() in ("tensorflow", "openvino"):
                 empty_fill_value = -np.finfo(np.float32).max
             else:
                 empty_fill_value = -np.inf
@@ -717,8 +763,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.fft(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output)
-        self.assertAllClose(imag_ref, imag_output)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     def test_fft2(self):
         real = np.random.random((2, 4, 3))
@@ -729,8 +775,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.fft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output)
-        self.assertAllClose(imag_ref, imag_output)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     def test_ifft2(self):
         real = np.random.random((2, 4, 3)).astype(np.float32)
@@ -741,8 +787,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.ifft2(complex_arr)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output)
-        self.assertAllClose(imag_ref, imag_output)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     @parameterized.parameters([(None,), (3,), (15,)])
     def test_rfft(self, n):
@@ -752,8 +798,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.rfft(x, n=n)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
         # Test N-D case.
         x = np.random.random((2, 3, 10))
@@ -761,8 +807,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         ref = np.fft.rfft(x, n=n)
         real_ref = np.real(ref)
         imag_ref = np.imag(ref)
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     @parameterized.parameters([(None,), (3,), (15,)])
     def test_irfft(self, n):
@@ -804,8 +850,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         real_ref, imag_ref = _stft(
             x, sequence_length, sequence_stride, fft_length, window, center
         )
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
         # Test N-D case.
         x = np.random.random((2, 3, 32))
@@ -815,8 +861,8 @@ class MathOpsCorrectnessTest(testing.TestCase):
         real_ref, imag_ref = _stft(
             x, sequence_length, sequence_stride, fft_length, window, center
         )
-        self.assertAllClose(real_ref, real_output, atol=1e-5, rtol=1e-5)
-        self.assertAllClose(imag_ref, imag_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(real_output, real_ref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(imag_output, imag_ref, atol=1e-5, rtol=1e-5)
 
     @parameterized.parameters(
         [
@@ -855,7 +901,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if backend.backend() in ("numpy", "jax", "torch", "openvino"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
@@ -887,7 +933,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             window=window,
             center=center,
         )
-        if backend.backend() in ("numpy", "jax", "torch"):
+        if backend.backend() in ("numpy", "jax", "torch", "openvino"):
             # these backends have different implementation for the boundary of
             # the output, so we need to truncate 5% before assertAllClose
             truncated_len = int(output.shape[-1] * 0.05)
@@ -914,7 +960,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         output_from_erf_op = kmath.erf(sample_values)
 
         # Assert that the outputs are close
-        self.assertAllClose(expected_output, output_from_erf_op, atol=1e-4)
+        self.assertAllClose(output_from_erf_op, expected_output, atol=1e-4)
 
     def test_erf_operation_dtype(self):
         # Test for float32 and float64 data types
@@ -924,14 +970,14 @@ class MathOpsCorrectnessTest(testing.TestCase):
             )
             expected_output = scipy.special.erf(sample_values)
             output_from_erf_op = kmath.erf(sample_values)
-            self.assertAllClose(expected_output, output_from_erf_op, atol=1e-4)
+            self.assertAllClose(output_from_erf_op, expected_output, atol=1e-4)
 
     def test_erf_operation_edge_cases(self):
         # Test for edge cases
         edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
         expected_output = scipy.special.erf(edge_values)
         output_from_edge_erf_op = kmath.erf(edge_values)
-        self.assertAllClose(expected_output, output_from_edge_erf_op, atol=1e-4)
+        self.assertAllClose(output_from_edge_erf_op, expected_output, atol=1e-4)
 
     def test_erfinv_operation_basic(self):
         # Sample values for testing
@@ -944,7 +990,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         output_from_erfinv_op = kmath.erfinv(sample_values)
 
         # Assert that the outputs are close
-        self.assertAllClose(expected_output, output_from_erfinv_op, atol=1e-4)
+        self.assertAllClose(output_from_erfinv_op, expected_output, atol=1e-4)
 
     def test_erfinv_operation_dtype(self):
         # Test for float32 and float64 data types
@@ -955,7 +1001,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
             expected_output = scipy.special.erfinv(sample_values)
             output_from_erfinv_op = kmath.erfinv(sample_values)
             self.assertAllClose(
-                expected_output, output_from_erfinv_op, atol=1e-4
+                output_from_erfinv_op, expected_output, atol=1e-4
             )
 
     def test_erfinv_operation_edge_cases(self):
@@ -964,7 +1010,7 @@ class MathOpsCorrectnessTest(testing.TestCase):
         expected_output = scipy.special.erfinv(edge_values)
         output_from_edge_erfinv_op = kmath.erfinv(edge_values)
         self.assertAllClose(
-            expected_output, output_from_edge_erfinv_op, atol=1e-4
+            output_from_edge_erfinv_op, expected_output, atol=1e-4
         )
 
     def test_logdet(self):

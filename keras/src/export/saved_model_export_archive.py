@@ -1,5 +1,7 @@
 """Base class for SavedModel export archive."""
 
+import contextlib
+
 from keras.src import backend
 from keras.src import layers
 from keras.src import tree
@@ -331,26 +333,82 @@ class SavedModelExportArchive:
         tvs, ntvs = _list_variables_used_by_fns(fns)
         self._tf_trackable._all_variables = list(tvs + ntvs)
 
-        # `tf.train.TrackableView` hardcodes the `save_type` to "checkpoint".
-        # We need to subclass to use a `save_type` of "savedmodel".
-        savedmodel_cache = {}
+        # TF < 2.21 fix: see `_patch_tf_is_tf_type_for_object_proxy`.
+        with _patch_tf_is_tf_type_for_object_proxy():
+            # `tf.train.TrackableView` hardcodes the `save_type` to
+            # "checkpoint". We need to subclass to use a `save_type` of
+            # "savedmodel".
+            savedmodel_cache = {}
 
-        class SavedModelTrackableView(tf.train.TrackableView):
-            @classmethod
-            def children(cls, obj, save_type="savedmodel", **kwargs):
-                return super().children(obj, save_type, cache=savedmodel_cache)
+            class SavedModelTrackableView(tf.train.TrackableView):
+                @classmethod
+                def children(cls, obj, save_type="savedmodel", **kwargs):
+                    try:
+                        return super().children(
+                            obj, save_type, cache=savedmodel_cache
+                        )
+                    except TypeError as err:
+                        if "missing a required argument" not in str(err):
+                            raise
+                        # In SavedModel mode, TF's AutoTrackable calls
+                        # `_list_all_concrete_functions_for_serialization()`
+                        # on every tf.function it finds on a trackable.  For
+                        # Keras 3 layers whose `call()` has required keyword
+                        # arguments (beyond `inputs`), tracing with a partial
+                        # input signature raises `TypeError: missing a
+                        # required argument`.  Returning {} here is safe: the
+                        # walk is only used to collect TrackableResources (e.g.
+                        # lookup tables); layers with complex signatures do not
+                        # hold such resources.  The _DictWrapper / is_tf_type
+                        # TypeError that motivated the original workaround is
+                        # separately eliminated by
+                        # `_patch_tf_is_tf_type_for_object_proxy` above.
+                        return {}
 
-        # Next, track lookup tables.
-        # Hopefully, one day this will be automated at the tf.function level.
-        self._tf_trackable._misc_assets = []
-        from tensorflow.saved_model.experimental import TrackableResource
+            # Next, track lookup tables.
+            # Hopefully, one day this will be automated at the tf.function
+            # level.
+            self._tf_trackable._misc_assets = []
+            from tensorflow.saved_model.experimental import TrackableResource
 
-        if hasattr(self, "_tracked"):
-            for root in self._tracked:
-                descendants = SavedModelTrackableView(root).descendants()
-                for trackable in descendants:
-                    if isinstance(trackable, TrackableResource):
-                        self._tf_trackable._misc_assets.append(trackable)
+            if hasattr(self, "_tracked"):
+                for root in self._tracked:
+                    descendants = SavedModelTrackableView(root).descendants()
+                    for trackable in descendants:
+                        if isinstance(trackable, TrackableResource):
+                            self._tf_trackable._misc_assets.append(trackable)
+
+
+@contextlib.contextmanager
+def _patch_tf_is_tf_type_for_object_proxy():
+    """Backport of the TF 2.21 fix for `tensor_util.is_tf_type` on proxies.
+
+    On Python 3.12+, `is_tf_type()` crashes with `TypeError` when given a
+    `wrapt.ObjectProxy` subclass (e.g. TF's `_DictWrapper`, which wraps
+    captured call kwargs like `{"training": True}` on `ConcreteFunction`s).
+    TF fixed this in 2.21 (commits `e1fab9f0bba`, `80c1d06aa8f`) by returning
+    `False` early for `ObjectProxy` types. This shim applies the same fix for
+    TF < 2.21.
+    """
+    tf_version = tuple(int(x) for x in tf.__version__.split(".")[:2])
+    if tf_version >= (2, 21):
+        yield
+        return
+
+    from tensorflow.python.framework import tensor_util
+
+    original = tensor_util.is_tf_type
+
+    def patched(x):
+        if type(x).__name__ in ("ObjectProxy", "_DictWrapper"):
+            return False
+        return original(x)
+
+    tensor_util.is_tf_type = patched
+    try:
+        yield
+    finally:
+        tensor_util.is_tf_type = original
 
 
 def _print_signature(fn, name, verbose=True):

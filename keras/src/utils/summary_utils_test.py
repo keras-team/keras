@@ -124,3 +124,38 @@ class SummaryUtilsTest(testing.TestCase):
         self.assertIn("Total params: 56", summary_content)
         self.assertIn("Trainable params: 56", summary_content)
         self.assertIn("Non-trainable params: 0", summary_content)
+
+    def test_print_model_summary_dict_output(self):
+        """model.summary() should not crash when a layer returns a dict."""
+
+        class DictHead(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.head1 = layers.Dense(10)
+
+            def call(self, x):
+                return {"head1": self.head1(x)}
+
+            def compute_output_shape(self, input_shape):
+                return {"head1": self.head1.compute_output_shape(input_shape)}
+
+        class MyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(32)
+                self.dict_head = DictHead()
+
+            def call(self, x):
+                return self.dict_head(self.dense(x))
+
+        model = MyModel()
+        model(np.zeros((1, 16)))
+
+        summary_content = []
+
+        def print_to_variable(text, line_break=False):
+            summary_content.append(text)
+
+        summary_utils.print_summary(model, print_fn=print_to_variable)
+        summary_content = "\n".join(summary_content)
+        self.assertIn("(1, 10)", summary_content)  # dict_head

@@ -104,6 +104,12 @@ class MelSpectrogram(DataLayer):
         self.fft_length = fft_length
         self.sequence_stride = sequence_stride
         self.sequence_length = sequence_length or fft_length
+        if self.fft_length < self.sequence_length:
+            raise ValueError(
+                "`fft_length` must be greater than or equal to  "
+                f" `sequence_length`. Received: `sequence_length`="
+                f"{self.sequence_length}, `fft_length`={self.fft_length}."
+            )
         self.window = window
         self.sampling_rate = sampling_rate
         self.num_mel_bins = num_mel_bins

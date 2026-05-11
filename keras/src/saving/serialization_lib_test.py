@@ -8,6 +8,7 @@ import pytest
 import keras
 from keras.src import ops
 from keras.src import testing
+from keras.src.saving import deserialize_keras_object
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
 
@@ -419,6 +420,162 @@ class SerializationLibTest(testing.TestCase):
         self.assertEqual(
             restored_dense_relu_string.activation, keras.activations.relu
         )
+
+    def test_missing_name_for_sequential_model(self):
+        """Tests serialization when sequential model has no name."""
+        serialized = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": {
+                "layers": [
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "config": {"units": 4},
+                    }
+                ],
+            },
+        }
+        with self.assertRaisesRegex(
+            ValueError,
+            "A Sequential model configuration "
+            "must be either a list of layers or a "
+            "dictionary containing the 'name' and 'layers' keys",
+        ):
+            deserialize_keras_object(serialized)
+
+    def test_config_as_list_of_layers(self):
+        """Tests serialization when sequential model config is list of
+        layers."""
+        serialized = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": [
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 4},
+                },
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 2},
+                },
+            ],
+        }
+        model = deserialize_keras_object(serialized)
+        self.assertIsInstance(model, keras.Sequential)
+        self.assertLen(model.layers, 2)
+        self.assertEqual(model.layers[0].units, 4)
+        self.assertEqual(model.layers[1].units, 2)
+
+    def test_malformed_layer_for_sequential_model(self):
+        serialized = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": {
+                "name": "sequential_model",
+                "layers": [
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "config": {"units": 4},
+                    },
+                    {},
+                ],
+            },
+        }
+        with self.assertRaisesRegex(
+            ValueError, "Expected a dictionary containing a 'config' key."
+        ):
+            deserialize_keras_object(serialized)
+
+    def test_registered_name_for_keras_builtin_raises(self):
+        for bad_name in (
+            "builtins.eval",
+            "subprocess.Popen",
+            "not.a.real.name",
+            "my_pkg>MyDense",
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "resolved to a Keras built-in"
+            ):
+                serialization_lib.deserialize_keras_object(
+                    {
+                        "class_name": "Dense",
+                        "module": "keras.layers",
+                        "registered_name": bad_name,
+                        "config": {"units": 1},
+                    }
+                )
+
+    def test_registered_name_matching_class_name_passes_through(self):
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "registered_name": "Dense",
+                "config": {"units": 1},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.Dense)
+
+    def test_none_or_missing_registered_name_passes_through(self):
+        for config in (
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "registered_name": None,
+                "config": {"units": 1},
+            },
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "config": {"units": 1},
+            },
+        ):
+            obj = serialization_lib.deserialize_keras_object(config)
+            self.assertIsInstance(obj, keras.layers.Dense)
+
+    def test_empty_string_registered_name_passes_through(self):
+        obj = serialization_lib.deserialize_keras_object(
+            {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "registered_name": "",
+                "config": {"units": 1},
+            }
+        )
+        self.assertIsInstance(obj, keras.layers.Dense)
+
+    def test_registered_name_for_keras_builtin_function_raises(self):
+        with self.assertRaisesRegex(ValueError, "resolved to a Keras built-in"):
+            serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "function",
+                    "module": "builtins",
+                    "registered_name": "some_other_name",
+                    "config": "relu",
+                }
+            )
+
+    def test_registered_name_matching_function_name_passes_through(self):
+        for registered_name in ("function", "kl_divergence"):
+            obj = serialization_lib.deserialize_keras_object(
+                {
+                    "class_name": "function",
+                    "module": "builtins",
+                    "registered_name": registered_name,
+                    "config": "kl_divergence",
+                }
+            )
+            self.assertIs(obj, keras.metrics.kl_divergence)
+
+    def test_registered_custom_object_still_resolves(self):
+        layer = MyDense(units=4)
+        config = serialization_lib.serialize_keras_object(layer)
+        restored = serialization_lib.deserialize_keras_object(config)
+        self.assertIsInstance(restored, MyDense)
 
 
 @keras.saving.register_keras_serializable()

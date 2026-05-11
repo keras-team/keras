@@ -237,7 +237,7 @@ class RandomCorrectnessTest(testing.TestCase):
         # Hence, we do an element wise comparison between `counts` array
         # and the (generated) `values` array.
         values_np = ops.convert_to_numpy(values)
-        assert np.greater_equal(np.array(counts), values_np).all()
+        self.assertTrue(np.greater_equal(np.array(counts), values_np).all())
 
         # Following test computes the probabilities of each event
         # by dividing number of times an event occurs (which is the generated
@@ -302,7 +302,7 @@ class RandomCorrectnessTest(testing.TestCase):
             )
         else:
             actual_mean = np.mean(values_np.flatten())
-            self.assertAlmostEqual(expected_mean, actual_mean, decimal=2)
+            self.assertAlmostEqual(actual_mean, expected_mean, decimal=2)
 
         # Variance check:
         # For a beta distributed random variable,
@@ -321,7 +321,7 @@ class RandomCorrectnessTest(testing.TestCase):
         else:
             actual_variance = np.var(values_np.flatten())
             self.assertAlmostEqual(
-                expected_variance, actual_variance, decimal=2
+                actual_variance, expected_variance, decimal=2
             )
 
 
@@ -356,8 +356,7 @@ class RandomBehaviorTest(testing.TestCase):
         input_data = np.random.random([2, 4, 4, 3])
         ds = tf.data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
-            output = ops.convert_to_numpy(output)
-        self.assertEqual(output.shape, (2, 4, 4, 3))
+            self.assertEqual(output.shape, (2, 4, 4, 3))
 
     def test_categorical_errors(self):
         with self.assertRaises(ValueError):

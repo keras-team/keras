@@ -32,8 +32,7 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
         return tf.math.segment_max(data, segment_ids)
     else:
         if num_segments is None:
-            unique_segment_ids, _ = tf.unique(segment_ids)
-            num_segments = tf.shape(unique_segment_ids)[0]
+            num_segments = tf.cast(tf.reduce_max(segment_ids) + 1, tf.int32)
         return tf.math.unsorted_segment_max(data, segment_ids, num_segments)
 
 
@@ -47,18 +46,6 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     return tf.math.reduce_logsumexp(x, axis=axis, keepdims=keepdims)
-
-
-def qr(x, mode="reduced"):
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    if mode == "reduced":
-        return tf.linalg.qr(x)
-    return tf.linalg.qr(x, full_matrices=True)
 
 
 def extract_sequences(x, sequence_length, sequence_stride):

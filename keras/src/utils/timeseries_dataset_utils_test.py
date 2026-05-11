@@ -27,7 +27,7 @@ class TimeseriesDatasetTest(testing.TestCase):
                 # Last batch: size 2
                 self.assertEqual(inputs.shape, (2, 9))
             # Check target values
-            self.assertAllClose(targets, inputs[:, 0] * 2)
+            self.assertAllClose(inputs[:, 0] * 2, targets)
             for j in range(min(5, len(inputs))):
                 # Check each sample in the batch
                 self.assertAllClose(

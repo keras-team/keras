@@ -1,10 +1,45 @@
+import logging
+
+import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Model
 from openvino import Type
 
 from keras.src import tree
+from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
+from keras.src.backend.openvino.core import convert_to_numpy
 from keras.src.backend.openvino.core import get_ov_output
+
+
+def _try_eval_constant(ov_output):
+    """Try to evaluate ov_output as a numpy array (no upstream Parameters).
+
+    Returns the numpy array on success, or None if the subgraph contains
+    Parameter nodes (i.e. depends on runtime input) or evaluation fails.
+    """
+    try:
+        return convert_to_numpy(OpenVINOKerasTensor(ov_output))
+    except (RuntimeError, ValueError, TypeError) as e:
+        logging.debug("_try_eval_constant: could not evaluate subgraph: %s", e)
+        return None
+
+
+def _ov_const(np_array, dtype):
+    """Create an OV Constant output from a numpy array."""
+    if dtype == "bfloat16":
+        np_array = np.ascontiguousarray(np_array)
+    else:
+        np_array = np.ascontiguousarray(np_array, dtype=dtype)
+    return ov_opset.constant(np_array, dtype=OPENVINO_DTYPES[dtype]).output(0)
+
+
+def _reorder_np(arr, from_order, to_order, axis):
+    """Reorder gate chunks of a numpy array along `axis`."""
+    n = len(from_order)
+    slices = np.split(arr, n, axis=axis)
+    gate_map = {g: slices[i] for i, g in enumerate(from_order)}
+    return np.concatenate([gate_map[g] for g in to_order], axis=axis)
 
 
 def rnn(
@@ -34,8 +69,6 @@ def rnn(
         if mask is not None:
             mask = swap_batch_timestep(mask)
     flattened_inputs = tree.flatten(inputs)
-    flattened_states = tree.flatten(initial_states)
-    flattened_constants = tree.flatten(constants) if constants else []
     input_0 = flattened_inputs[0]
     input_0_ov = get_ov_output(input_0)
     input_shape = ov_opset.shape_of(input_0_ov, Type.i32).output(0)
@@ -101,11 +134,185 @@ def rnn(
             mask = reverse_time(mask)
         flattened_inputs = tree.flatten(inputs)
 
+    # If the time dimension is statically known, use the unrolled path.
+    # The OV CPU TensorIterator plugin does not support Convolution ops
+    # inside a Loop body, so ConvLSTM (and any cell using ops.conv) would
+    # fail at compile time with the loop-based path.
+    static_time_steps = None
+    pshape_0 = input_0_ov.get_partial_shape()
+    if pshape_0.rank.is_static and pshape_0.rank.get_length() >= 1:
+        dim0 = pshape_0[0]
+        if dim0.is_static:
+            static_time_steps = dim0.get_length()
+
+    if static_time_steps is not None:
+        return _rnn_unrolled(
+            step_function,
+            inputs,
+            initial_states,
+            mask,
+            constants,
+            static_time_steps,
+            time_major,
+            zero_output_for_mask,
+            return_all_outputs,
+            swap_batch_timestep,
+        )
+
+    return _rnn_loop(
+        step_function,
+        inputs,
+        initial_states,
+        mask,
+        constants,
+        time_steps,
+        time_major,
+        zero_output_for_mask,
+        return_all_outputs,
+        swap_batch_timestep,
+    )
+
+
+def _rnn_unrolled(
+    step_function,
+    inputs,
+    initial_states,
+    mask,
+    constants,
+    num_time_steps,
+    time_major,
+    zero_output_for_mask,
+    return_all_outputs,
+    swap_batch_timestep,
+):
+    """Unrolled RNN: iterate time steps in Python, producing a flat OV graph
+    with no Loop op. Required when the cell contains ops (e.g. Convolution)
+    that the OV CPU TensorIterator plugin cannot execute inside a loop body.
+    """
+    constants = constants or []
+    flattened_constants = tree.flatten(constants)
+
+    axis_0 = ov_opset.constant(0, dtype=Type.i32).output(0)
+
+    def _slice_at(x, t_const):
+        x_ov = get_ov_output(x)
+        return OpenVINOKerasTensor(
+            ov_opset.gather(x_ov, t_const, axis_0).output(0)
+        )
+
+    # Build constant wrappers for invariant inputs once, outside the time loop.
+    constants_ov = [
+        OpenVINOKerasTensor(get_ov_output(c)) for c in flattened_constants
+    ]
+
+    states = list(initial_states)
+    successive_outputs = []
+    last_output = None
+
+    for t in range(num_time_steps):
+        t_const = ov_opset.constant(t, dtype=Type.i32).output(0)
+        inp_t = tree.map_structure(lambda x: _slice_at(x, t_const), inputs)
+        output_t, new_states = step_function(
+            inp_t, tuple(states) + tuple(constants_ov)
+        )
+        if not tree.is_nested(new_states):
+            new_states = [new_states]
+
+        if mask is not None:
+            mask_t_ov = get_ov_output(_slice_at(mask, t_const))
+            flat_new = tree.flatten(new_states)
+            flat_old = tree.flatten(states)
+            masked_states = []
+            for ns, os in zip(flat_new, flat_old):
+                ns_ov = get_ov_output(ns)
+                os_ov = get_ov_output(os)
+                masked_states.append(
+                    OpenVINOKerasTensor(
+                        ov_opset.select(mask_t_ov, ns_ov, os_ov).output(0)
+                    )
+                )
+            states = tree.pack_sequence_as(new_states, masked_states)
+
+            out_ov = get_ov_output(output_t)
+            if last_output is not None:
+                prev_ov = get_ov_output(last_output)
+            else:
+                prev_ov = ov_opset.broadcast(
+                    ov_opset.constant(0, out_ov.get_element_type()).output(0),
+                    ov_opset.shape_of(out_ov, Type.i32).output(0),
+                ).output(0)
+
+            last_output = OpenVINOKerasTensor(
+                ov_opset.select(mask_t_ov, out_ov, prev_ov).output(0)
+            )
+
+            if zero_output_for_mask:
+                zero = ov_opset.broadcast(
+                    ov_opset.constant(0, out_ov.get_element_type()).output(0),
+                    ov_opset.shape_of(out_ov, Type.i32).output(0),
+                ).output(0)
+                seq_out = OpenVINOKerasTensor(
+                    ov_opset.select(mask_t_ov, out_ov, zero).output(0)
+                )
+            else:
+                seq_out = last_output
+        else:
+            states = list(new_states)
+            last_output = output_t
+            seq_out = output_t
+
+        if return_all_outputs:
+            successive_outputs.append(seq_out)
+        else:
+            successive_outputs = [seq_out]
+
+    # Stack outputs along time axis (axis=0, inputs are time-major here).
+    flat_outputs = [tree.flatten(o) for o in successive_outputs]
+    n_outs = len(flat_outputs[0])
+    stacked = []
+    unsq_ax = ov_opset.constant([0], dtype=Type.i32).output(0)
+    for i in range(n_outs):
+        parts = [
+            ov_opset.unsqueeze(
+                get_ov_output(flat_outputs[t][i]), unsq_ax
+            ).output(0)
+            for t in range(len(successive_outputs))
+        ]
+        stacked.append(
+            OpenVINOKerasTensor(ov_opset.concat(parts, axis=0).output(0))
+        )
+    outputs = tree.pack_sequence_as(successive_outputs[0], stacked)
+
+    if not time_major:
+        outputs = tree.map_structure(swap_batch_timestep, outputs)
+
+    return last_output, outputs, list(states)
+
+
+def _rnn_loop(
+    step_function,
+    inputs,
+    initial_states,
+    mask,
+    constants,
+    time_steps,
+    time_major,
+    zero_output_for_mask,
+    return_all_outputs,
+    swap_batch_timestep,
+):
+    """Loop-based RNN using OV's Loop op (TensorIterator).
+    Used as fallback when the time dimension is not statically known.
+    """
+    flattened_inputs = tree.flatten(inputs)
+    flattened_states = tree.flatten(initial_states)
+    flattened_constants = tree.flatten(constants) if constants else []
+
     def _slice_at_0(x):
         x_ov = get_ov_output(x)
         slice_0 = ov_opset.gather(
             x_ov,
-            ov_opset.constant([0], dtype=Type.i32).output(0),
+            ov_opset.constant(0, dtype=Type.i32).output(0),
             ov_opset.constant(0, dtype=Type.i32).output(0),
         ).output(0)
         return OpenVINOKerasTensor(slice_0)
@@ -130,13 +337,9 @@ def rnn(
         inp_ov = get_ov_output(inp)
         pshape = inp_ov.get_partial_shape()
         if pshape.rank.is_static:
-            new_shape = list(pshape)[1:]
+            new_shape = [1] + list(pshape)[1:]
         else:
-            new_shape = (
-                [-1] * (pshape.rank.get_length() - 1)
-                if pshape.rank.is_static
-                else None
-            )
+            new_shape = None
         param = ov_opset.parameter(new_shape, inp_ov.get_element_type())
         sliced_inputs_params.append(param)
         params.append(param)
@@ -144,7 +347,7 @@ def rnn(
     if mask is not None:
         mask_ov = get_ov_output(mask)
         pshape = mask_ov.get_partial_shape()
-        new_shape = list(pshape)[1:] if pshape.rank.is_static else None
+        new_shape = [1] + list(pshape)[1:] if pshape.rank.is_static else None
         param = ov_opset.parameter(new_shape, mask_ov.get_element_type())
         sliced_mask_params.append(param)
         params.append(param)
@@ -173,7 +376,13 @@ def rnn(
         constants_params.append(param)
         params.append(param)
     sliced_inputs_t = [
-        OpenVINOKerasTensor(p.output(0)) for p in sliced_inputs_params
+        OpenVINOKerasTensor(
+            ov_opset.squeeze(
+                p.output(0),
+                ov_opset.constant([0], dtype=Type.i32).output(0),
+            ).output(0)
+        )
+        for p in sliced_inputs_params
     ]
     merged_states_t = [
         OpenVINOKerasTensor(p.output(0)) for p in merged_states_params
@@ -191,7 +400,10 @@ def rnn(
     final_states_list = []
     final_last_output_list = []
     if mask is not None:
-        mask_t = sliced_mask_params[0].output(0)
+        mask_t = ov_opset.squeeze(
+            sliced_mask_params[0].output(0),
+            ov_opset.constant([0], dtype=Type.i32).output(0),
+        ).output(0)
         for i, (new_st, old_st) in enumerate(
             zip(flat_step_new_states, merged_states_t)
         ):
@@ -225,6 +437,10 @@ def rnn(
         final_states_list = [get_ov_output(x) for x in flat_step_new_states]
         final_output_list = [get_ov_output(x) for x in flat_step_output]
         final_last_output_list = [get_ov_output(x) for x in flat_step_output]
+    unsq_ax = ov_opset.constant([0], dtype=Type.i32).output(0)
+    final_output_list = [
+        ov_opset.unsqueeze(x, unsq_ax).output(0) for x in final_output_list
+    ]
     cond_const = ov_opset.constant(True, Type.boolean).output(0)
     results = (
         [cond_const]
@@ -284,23 +500,327 @@ def rnn(
     return last_output, outputs, new_states
 
 
-def lstm(*args, **kwargs):
-    raise NotImplementedError("`lstm` is not supported with openvino backend")
+def _reorder_gates(x_ov, from_order, to_order, axis):
+    """Reorder gate slices of a tensor along `axis`.
+
+    `from_order` and `to_order` are lists of single-char gate names, e.g.
+    from_order=['i','f','c','o'], to_order=['f','i','c','o'].
+    The tensor dimension along `axis` must be divisible by len(from_order).
+    """
+    n_gates = len(from_order)
+    axis_const = ov_opset.constant(axis, dtype=Type.i32).output(0)
+    chunks = ov_opset.split(x_ov, axis_const, n_gates).outputs()
+    gate_map = {g: chunks[i] for i, g in enumerate(from_order)}
+    reordered = [gate_map[g] for g in to_order]
+    return ov_opset.concat(reordered, axis=axis).output(0)
 
 
-def gru(*args, **kwargs):
-    raise NotImplementedError("`gru` is not supported with openvino backend")
+def _seq_lengths(inputs_ov):
+    """Return int32 sequence-length tensor [batch] equal to full time steps."""
+    input_shape = ov_opset.shape_of(inputs_ov, Type.i32).output(0)
+    batch_size = ov_opset.gather(
+        input_shape,
+        ov_opset.constant([0], dtype=Type.i32).output(0),
+        ov_opset.constant(0, dtype=Type.i32).output(0),
+    ).output(0)
+    time_steps = ov_opset.gather(
+        input_shape,
+        ov_opset.constant([1], dtype=Type.i32).output(0),
+        ov_opset.constant(0, dtype=Type.i32).output(0),
+    ).output(0)
+    return ov_opset.broadcast(time_steps, batch_size).output(0)
 
 
-def unstack(x, axis=0):
-    raise NotImplementedError(
-        "`unstack` is not supported with openvino backend"
+def lstm(
+    inputs,
+    initial_h,
+    initial_c,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+):
+    act_name = getattr(activation, "__name__", None)
+    rec_act_name = getattr(recurrent_activation, "__name__", None)
+    if not (
+        act_name == "tanh"
+        and rec_act_name == "sigmoid"
+        and not unroll
+        and bias is not None
+        and mask is None
+    ):
+        raise NotImplementedError
+
+    inputs_ov = get_ov_output(inputs)
+    initial_h_ov = get_ov_output(initial_h)
+    initial_c_ov = get_ov_output(initial_c)
+    kernel_ov = get_ov_output(kernel)
+    recurrent_kernel_ov = get_ov_output(recurrent_kernel)
+    bias_ov = get_ov_output(bias)
+
+    weight_type = kernel_ov.get_element_type()
+    if inputs_ov.get_element_type() != weight_type:
+        inputs_ov = ov_opset.convert(inputs_ov, weight_type).output(0)
+
+    hidden_size = recurrent_kernel_ov.get_partial_shape()[0].get_length()
+
+    k_data = _try_eval_constant(kernel_ov)
+    r_data = _try_eval_constant(recurrent_kernel_ov)
+    b_data = _try_eval_constant(bias_ov)
+    if k_data is not None and r_data is not None and b_data is not None:
+        # Pre-fold into numpy Constants so the CPU plugin sees Constant nodes
+        # on the W, R, B ports of LSTMSequence (requires Constant or Parameter).
+        dtype = str(k_data.dtype)
+        # kernel [in,4h] -> [4h,in] reordered [i,f,c,o]->[f,i,c,o] -> [1,4h,in]
+        k_np = _reorder_np(
+            k_data.T, ["i", "f", "c", "o"], ["f", "i", "c", "o"], axis=0
+        )
+        w = _ov_const(k_np[np.newaxis], dtype)
+        # recurrent_kernel [h, 4*h] -> [4*h, h] reordered -> [1, 4*h, h]
+        r_np = _reorder_np(
+            r_data.T, ["i", "f", "c", "o"], ["f", "i", "c", "o"], axis=0
+        )
+        r = _ov_const(r_np[np.newaxis], dtype)
+        # bias [4*h] reordered -> [1, 4*h]
+        b_np = _reorder_np(
+            b_data, ["i", "f", "c", "o"], ["f", "i", "c", "o"], axis=0
+        )
+        b = _ov_const(b_np[np.newaxis], dtype)
+    else:
+        kt = ov_opset.transpose(
+            kernel_ov,
+            ov_opset.constant([1, 0], dtype=Type.i32).output(0),
+        ).output(0)
+        w = _reorder_gates(
+            kt, ["i", "f", "c", "o"], ["f", "i", "c", "o"], axis=0
+        )
+        w = ov_opset.unsqueeze(
+            w, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
+
+        rt = ov_opset.transpose(
+            recurrent_kernel_ov,
+            ov_opset.constant([1, 0], dtype=Type.i32).output(0),
+        ).output(0)
+        r = _reorder_gates(
+            rt, ["i", "f", "c", "o"], ["f", "i", "c", "o"], axis=0
+        )
+        r = ov_opset.unsqueeze(
+            r, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
+
+        b = _reorder_gates(
+            bias_ov, ["i", "f", "c", "o"], ["f", "i", "c", "o"], axis=0
+        )
+        b = ov_opset.unsqueeze(
+            b, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
+
+    h0 = ov_opset.unsqueeze(
+        initial_h_ov, ov_opset.constant([1], dtype=Type.i32).output(0)
+    ).output(0)
+    c0 = ov_opset.unsqueeze(
+        initial_c_ov, ov_opset.constant([1], dtype=Type.i32).output(0)
+    ).output(0)
+
+    seq_lens = _seq_lengths(inputs_ov)
+    direction = "reverse" if go_backwards else "forward"
+
+    lstm_out = ov_opset.lstm_sequence(
+        inputs_ov, h0, c0, seq_lens, w, r, b, hidden_size, direction
+    )
+    dir_axis = ov_opset.constant([1], dtype=Type.i32).output(0)
+    all_outputs = ov_opset.squeeze(lstm_out.output(0), dir_axis).output(0)
+    h_n = ov_opset.squeeze(lstm_out.output(1), dir_axis).output(0)
+    c_n = ov_opset.squeeze(lstm_out.output(2), dir_axis).output(0)
+
+    if go_backwards:
+        shape = ov_opset.shape_of(all_outputs, Type.i32).output(0)
+        time_len = ov_opset.gather(
+            shape,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+            ov_opset.constant(0, dtype=Type.i32).output(0),
+        ).output(0)
+        idx = ov_opset.range(
+            ov_opset.subtract(
+                time_len, ov_opset.constant(1, dtype=Type.i32).output(0)
+            ).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            output_type=Type.i32,
+        ).output(0)
+        all_outputs = ov_opset.gather(
+            all_outputs,
+            idx,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+        ).output(0)
+
+    return (
+        OpenVINOKerasTensor(h_n),
+        OpenVINOKerasTensor(all_outputs),
+        [OpenVINOKerasTensor(h_n), OpenVINOKerasTensor(c_n)],
     )
 
 
-def numpy_scan(f, init, xs, reverse=False, mask=None):
-    raise NotImplementedError(
-        "`numpy_scan` is not supported with openvino backend"
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+):
+    act_name = getattr(activation, "__name__", None)
+    rec_act_name = getattr(recurrent_activation, "__name__", None)
+    if not (
+        act_name == "tanh"
+        and rec_act_name == "sigmoid"
+        and not unroll
+        and bias is not None
+        and reset_after
+        and mask is None
+    ):
+        raise NotImplementedError
+
+    inputs_ov = get_ov_output(inputs)
+    initial_state_ov = get_ov_output(initial_state)
+    kernel_ov = get_ov_output(kernel)
+    recurrent_kernel_ov = get_ov_output(recurrent_kernel)
+    bias_ov = get_ov_output(bias)
+
+    weight_type = kernel_ov.get_element_type()
+    if inputs_ov.get_element_type() != weight_type:
+        inputs_ov = ov_opset.convert(inputs_ov, weight_type).output(0)
+
+    hidden_size = recurrent_kernel_ov.get_partial_shape()[0].get_length()
+
+    k_data = _try_eval_constant(kernel_ov)
+    r_data = _try_eval_constant(recurrent_kernel_ov)
+    b_data = _try_eval_constant(bias_ov)
+    if k_data is not None and r_data is not None and b_data is not None:
+        # Pre-fold into numpy Constants so the CPU plugin sees Constant nodes
+        # on the W, R, B ports of GRUSequence (requires Constant or Parameter).
+        dtype = str(k_data.dtype)
+        # kernel [in, 3*h] -> [3*h, in] -> [1, 3*h, in]
+        w = _ov_const(k_data.T[np.newaxis], dtype)
+        # recurrent_kernel [h, 3*h] -> [3*h, h] -> [1, 3*h, h]
+        r = _ov_const(r_data.T[np.newaxis], dtype)
+        # Keras bias [2,3h]: row 0=[b_z,b_r,b_h], row 1=[rb_z,rb_r,rb_h]
+        # OV gru_sequence (linear_before_reset=True) wants B [1, 4*h]:
+        # [b_z+rb_z, b_r+rb_r, b_h, rb_h]
+        b_in, b_rc = b_data[0], b_data[1]
+        n = b_in.shape[0] // 3
+        b_np = np.concatenate(
+            [
+                b_in[:n] + b_rc[:n],
+                b_in[n : 2 * n] + b_rc[n : 2 * n],
+                b_in[2 * n :],
+                b_rc[2 * n :],
+            ],
+            axis=0,
+        )
+        b = _ov_const(b_np[np.newaxis], dtype)
+    else:
+        w = ov_opset.transpose(
+            kernel_ov,
+            ov_opset.constant([1, 0], dtype=Type.i32).output(0),
+        ).output(0)
+        w = ov_opset.unsqueeze(
+            w, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
+
+        r = ov_opset.transpose(
+            recurrent_kernel_ov,
+            ov_opset.constant([1, 0], dtype=Type.i32).output(0),
+        ).output(0)
+        r = ov_opset.unsqueeze(
+            r, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
+
+        # Keras bias [2, 3*units]: row 0 = input biases [b_z, b_r, b_h],
+        # row 1 = recurrent biases [rb_z, rb_r, rb_h].
+        # OV gru_sequence (linear_before_reset=True) wants B [1, 4*units]:
+        # [b_z+rb_z, b_r+rb_r, b_h, rb_h]
+        ax = ov_opset.constant(0, dtype=Type.i32).output(0)
+        b_input = ov_opset.gather(
+            bias_ov, ov_opset.constant(0, dtype=Type.i32).output(0), ax
+        ).output(0)
+        b_recur = ov_opset.gather(
+            bias_ov, ov_opset.constant(1, dtype=Type.i32).output(0), ax
+        ).output(0)
+        split_ax = ov_opset.constant(0, dtype=Type.i32).output(0)
+        b_in_parts = ov_opset.split(b_input, split_ax, 3).outputs()
+        b_rc_parts = ov_opset.split(b_recur, split_ax, 3).outputs()
+        b_z = ov_opset.add(b_in_parts[0], b_rc_parts[0]).output(0)
+        b_r = ov_opset.add(b_in_parts[1], b_rc_parts[1]).output(0)
+        b_h = b_in_parts[2]
+        rb_h = b_rc_parts[2]
+        b = ov_opset.concat([b_z, b_r, b_h, rb_h], axis=0).output(0)
+        b = ov_opset.unsqueeze(
+            b, ov_opset.constant([0], dtype=Type.i32).output(0)
+        ).output(0)
+
+    h0 = ov_opset.unsqueeze(
+        initial_state_ov, ov_opset.constant([1], dtype=Type.i32).output(0)
+    ).output(0)
+
+    seq_lens = _seq_lengths(inputs_ov)
+    direction = "reverse" if go_backwards else "forward"
+
+    gru_out = ov_opset.gru_sequence(
+        inputs_ov,
+        h0,
+        seq_lens,
+        w,
+        r,
+        b,
+        hidden_size,
+        direction,
+        linear_before_reset=True,
+    )
+    dir_axis = ov_opset.constant([1], dtype=Type.i32).output(0)
+    all_outputs = ov_opset.squeeze(gru_out.output(0), dir_axis).output(0)
+    h_n = ov_opset.squeeze(gru_out.output(1), dir_axis).output(0)
+
+    if go_backwards:
+        # OV direction="reverse" outputs Y in original time order
+        # (Y[0]=fully-accumulated state). Keras go_backwards expects
+        # Y[0]=state after first reversed step. Flip time axis to match.
+        shape = ov_opset.shape_of(all_outputs, Type.i32).output(0)
+        time_len = ov_opset.gather(
+            shape,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+            ov_opset.constant(0, dtype=Type.i32).output(0),
+        ).output(0)
+        idx = ov_opset.range(
+            ov_opset.subtract(
+                time_len, ov_opset.constant(1, dtype=Type.i32).output(0)
+            ).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            ov_opset.constant(-1, dtype=Type.i32).output(0),
+            output_type=Type.i32,
+        ).output(0)
+        all_outputs = ov_opset.gather(
+            all_outputs,
+            idx,
+            ov_opset.constant(1, dtype=Type.i32).output(0),
+        ).output(0)
+
+    return (
+        OpenVINOKerasTensor(h_n),
+        OpenVINOKerasTensor(all_outputs),
+        [OpenVINOKerasTensor(h_n)],
     )
 
 

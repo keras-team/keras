@@ -1,0 +1,88 @@
+name: Keras GPU Tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [unlabeled]
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+
+  test-in-container:
+    # Only run on pushes to master, releases or "kokoro:force-run" unlabel
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'release' ||
+      (github.event.action == 'unlabeled' && github.event.label.name == 'kokoro:force-run')
+
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [jax, tensorflow, torch]
+
+    name: Run tests on GPU
+    runs-on: linux-x86-g2-16-l4-1gpu
+    timeout-minutes: 120
+
+    container:
+      image: python:3.11-slim
+      options: --privileged --network host
+
+    env:
+      KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+
+    steps:
+      - name: Checkout ${{ github.ref }}
+        uses: actions/checkout@v6
+
+      - name: Check CUDA Version
+        run: nvidia-smi
+
+      - name: Install binary dependencies
+        # build-essential is the C++ compiler for Torch Dynamo
+        # curl, git, gpg are for codecov/codecov-action
+        run: |
+          apt-get update
+          apt-get -y install build-essential
+          apt-get -y install curl
+          apt-get -y install git
+          apt-get -y install gnupg
+
+      - name: Install Python dependencies
+        run: pip install --no-cache-dir -r requirements-${{ matrix.backend }}-cuda.txt
+
+      - name: Verify TF Installation
+        if: ${{ matrix.backend == 'tensorflow'}}
+        run: python3 -c "import tensorflow as tf; print('Tensorflow devices:', tf.config.list_logical_devices()); assert len(tf.config.list_physical_devices('GPU')) > 0"
+
+      - name: Verify JAX Installation
+        if: ${{ matrix.backend == 'jax'}}
+        run: python3 -c "import jax; print('JAX devices:', jax.devices(), jax.devices()[0].device_kind); assert jax.default_backend() == 'gpu'"
+
+      - name: Verify Torch Installation
+        if: ${{ matrix.backend == 'torch'}}
+        run: python3 -c "import torch; print('Torch devices:', [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]); assert torch.cuda.device_count() > 0"
+
+      - name: Run Tests
+        run: pytest keras --ignore keras/src/applications --cov=keras --cov-config=pyproject.toml
+
+      - name: Convert Coverage
+        run: coverage xml --omit='keras/src/applications/*,keras/api' -o core-coverage.xml
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
+        with:
+          env_vars: KERAS_HOME
+          flags: keras,keras-gpu,keras-${{ matrix.backend }}${{ matrix.multi_device == 'true' && '-multi' || '' }}
+          files: core-coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

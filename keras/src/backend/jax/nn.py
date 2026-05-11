@@ -17,6 +17,9 @@ from jax.experimental.pallas.ops.tpu.splash_attention import (
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    check_depthwise_conv_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.common.backend_utils import (
@@ -764,7 +767,7 @@ def conv(
         dimension_numbers=dimension_numbers,
         feature_group_count=feature_group_count,
     )
-    if result.size == 0:
+    if result.size == 0 and inputs.size != 0:
         raise ValueError(
             "The convolution operation resulted in an empty output. "
             "This can happen if the input is too small for the given "
@@ -783,6 +786,9 @@ def depthwise_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    check_depthwise_conv_input_channels(inputs, kernel, data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -804,8 +810,6 @@ def depthwise_conv(
     feature_group_count = (
         inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
     )
-    kernel = convert_to_tensor(kernel)
-    inputs = convert_to_tensor(inputs)
     kernel = jnp.reshape(
         kernel,
         kernel.shape[:-2] + (1, feature_group_count * kernel.shape[-1]),
@@ -831,6 +835,10 @@ def separable_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    depthwise_kernel = convert_to_tensor(depthwise_kernel)
+    pointwise_kernel = convert_to_tensor(pointwise_kernel)
+    check_depthwise_conv_input_channels(inputs, depthwise_kernel, data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -1594,10 +1602,11 @@ def wrap_flash_attention(
             with decoder_segment_ids.
     """
     if decoder_segment_ids is not None:
-        assert query.shape[2] == decoder_segment_ids.q.shape[1], (
-            "Sharding along sequence dimension not allowed"
-            " in TPU kernel attention"
-        )
+        if query.shape[2] != decoder_segment_ids.q.shape[1]:
+            raise ValueError(
+                "Sharding along sequence dimension not allowed"
+                " in TPU kernel attention"
+            )
 
     if custom_mask is not None:
         mask = splash_attention_mask.NumpyMask(array=custom_mask)
@@ -1826,7 +1835,7 @@ def dot_product_attention(
     G = N // K
     query = jnp.reshape(query, (B, T, K, G, H))
 
-    def _reshape_to_grouped(t):
+    def _reshape_to_grouped(t, t_name):
         if t is not None:
             while t.ndim < 4:
                 if t.ndim == 3 and t.shape[1] == N:
@@ -1837,12 +1846,16 @@ def dot_product_attention(
             if tN == 1:
                 t = jnp.broadcast_to(t[:, :, None, :, :], (tB, tN, G, tT, tS))
             else:
-                assert tN == N
+                if tN != N:
+                    raise ValueError(
+                        f"Expected `{t_name}` to have shape (B, 1, T, S) or "
+                        f"(B, N, T, S) with N={N} but got {t.shape}."
+                    )
                 t = jnp.reshape(t, (tB, K, G, tT, tS))
         return t
 
-    bias = _reshape_to_grouped(bias)
-    mask = _reshape_to_grouped(mask)
+    bias = _reshape_to_grouped(bias, "bias")
+    mask = _reshape_to_grouped(mask, "mask")
     vmapped_fn = jax.vmap(
         _dot_product_attention_core,
         in_axes=(3, None, None, 2, 2, None, None),

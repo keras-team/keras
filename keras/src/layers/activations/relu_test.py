@@ -1,12 +1,10 @@
 import numpy as np
-import pytest
 
 from keras.src import testing
 from keras.src.layers.activations import relu
 
 
 class ReLUTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_relu(self):
         self.run_layer_test(
             relu.ReLU,

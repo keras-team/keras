@@ -4,6 +4,9 @@ from jax import lax
 
 from keras.src import backend
 from keras.src.backend.common.backend_utils import (
+    check_depthwise_conv_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.common.backend_utils import (
@@ -664,7 +667,7 @@ def conv(
             feature_group_count=feature_group_count,
         )
     )
-    if result.size == 0:
+    if result.size == 0 and inputs.size != 0:
         raise ValueError(
             "The convolution operation resulted in an empty output. "
             "This can happen if the input is too small for the given "
@@ -683,6 +686,9 @@ def depthwise_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    check_depthwise_conv_input_channels(inputs, kernel, data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -731,6 +737,10 @@ def separable_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    depthwise_kernel = convert_to_tensor(depthwise_kernel)
+    pointwise_kernel = convert_to_tensor(pointwise_kernel)
+    check_depthwise_conv_input_channels(inputs, depthwise_kernel, data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -1197,11 +1207,9 @@ def _ctc_beam_search_decode(
     def _merge_scores(unique_inverse, scores):
         scores_max = np.max(scores)
         scores_exp = np.exp(scores - scores_max)
-        scores = np.zeros_like(scores)
-        for i, u in enumerate(unique_inverse):
-            scores[u] += scores_exp[i]
-        scores = np.log(scores) + scores_max
-        return scores
+        new_scores = np.zeros_like(scores)
+        np.add.at(new_scores, unique_inverse, scores_exp)
+        return np.log(new_scores) + scores_max
 
     def _prune_paths(paths, scores, masked):
         paths, unique_inverse = np.unique(paths, return_inverse=True, axis=0)

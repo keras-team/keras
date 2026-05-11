@@ -82,5 +82,19 @@ def lstsq(a, b, rcond=None):
     return torch.linalg.lstsq(a, b, rcond=rcond)[0]
 
 
+def matrix_rank(x, tol=None):
+    x = convert_to_tensor(x)
+    # `torch.linalg.matrix_rank` uses `atol` for the absolute threshold
+    # that numpy's `tol` also represents.
+    return torch.linalg.matrix_rank(x, atol=tol).to(torch.int32)
+
+
+def pinv(x, rcond=None):
+    x = convert_to_tensor(x)
+    # `torch.linalg.pinv` expresses the threshold as `rtol` (relative
+    # tolerance), with the same meaning as numpy's `rcond`.
+    return torch.linalg.pinv(x, rtol=rcond)
+
+
 def jvp(fun, primals, tangents, has_aux=False):
     return torch.func.jvp(fun, primals, tangents, has_aux=has_aux)

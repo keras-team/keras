@@ -19,7 +19,7 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
         .view(*data.shape)
         .type(torch.int64)
     )
-    num_segments = num_segments or len(torch.unique(segment_ids))
+    num_segments = num_segments or torch.max(segment_ids) + 1
 
     # .scatter_add does not support -1 in the indices.
     # Add all out-of-bound indices value to an extra dimension after
@@ -80,18 +80,6 @@ def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     axis = tuple(range(x.dim())) if axis is None else axis
     return torch.logsumexp(x, dim=axis, keepdim=keepdims)
-
-
-def qr(x, mode="reduced"):
-    x = convert_to_tensor(x)
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    x = convert_to_tensor(x)
-    return torch.linalg.qr(x, mode=mode)
 
 
 def extract_sequences(x, sequence_length, sequence_stride):

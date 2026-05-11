@@ -75,8 +75,11 @@ from keras.src.ops.numpy import expand_dims as expand_dims
 from keras.src.ops.numpy import expm1 as expm1
 from keras.src.ops.numpy import eye as eye
 from keras.src.ops.numpy import flip as flip
+from keras.src.ops.numpy import fliplr as fliplr
+from keras.src.ops.numpy import flipud as flipud
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
+from keras.src.ops.numpy import fmod as fmod
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like
 from keras.src.ops.numpy import gcd as gcd
@@ -91,6 +94,7 @@ from keras.src.ops.numpy import histogram as histogram
 from keras.src.ops.numpy import hsplit as hsplit
 from keras.src.ops.numpy import hstack as hstack
 from keras.src.ops.numpy import hypot as hypot
+from keras.src.ops.numpy import i0 as i0
 from keras.src.ops.numpy import identity as identity
 from keras.src.ops.numpy import imag as imag
 from keras.src.ops.numpy import inner as inner
@@ -133,12 +137,17 @@ from keras.src.ops.numpy import mod as mod
 from keras.src.ops.numpy import moveaxis as moveaxis
 from keras.src.ops.numpy import multiply as multiply
 from keras.src.ops.numpy import nan_to_num as nan_to_num
+from keras.src.ops.numpy import nanargmax as nanargmax
 from keras.src.ops.numpy import nanargmin as nanargmin
+from keras.src.ops.numpy import nancumprod as nancumprod
 from keras.src.ops.numpy import nancumsum as nancumsum
 from keras.src.ops.numpy import nanmax as nanmax
 from keras.src.ops.numpy import nanmean as nanmean
+from keras.src.ops.numpy import nanmedian as nanmedian
 from keras.src.ops.numpy import nanmin as nanmin
+from keras.src.ops.numpy import nanpercentile as nanpercentile
 from keras.src.ops.numpy import nanprod as nanprod
+from keras.src.ops.numpy import nanquantile as nanquantile
 from keras.src.ops.numpy import nanstd as nanstd
 from keras.src.ops.numpy import nansum as nansum
 from keras.src.ops.numpy import nanvar as nanvar
@@ -151,10 +160,12 @@ from keras.src.ops.numpy import ones as ones
 from keras.src.ops.numpy import ones_like as ones_like
 from keras.src.ops.numpy import outer as outer
 from keras.src.ops.numpy import pad as pad
+from keras.src.ops.numpy import percentile as percentile
 from keras.src.ops.numpy import power as power
 from keras.src.ops.numpy import prod as prod
 from keras.src.ops.numpy import ptp as ptp
 from keras.src.ops.numpy import quantile as quantile
+from keras.src.ops.numpy import rad2deg as rad2deg
 from keras.src.ops.numpy import ravel as ravel
 from keras.src.ops.numpy import real as real
 from keras.src.ops.numpy import reciprocal as reciprocal
@@ -169,6 +180,7 @@ from keras.src.ops.numpy import select as select
 from keras.src.ops.numpy import sign as sign
 from keras.src.ops.numpy import signbit as signbit
 from keras.src.ops.numpy import sin as sin
+from keras.src.ops.numpy import sinc as sinc
 from keras.src.ops.numpy import sinh as sinh
 from keras.src.ops.numpy import size as size
 from keras.src.ops.numpy import slogdet as slogdet
@@ -196,6 +208,7 @@ from keras.src.ops.numpy import tril as tril
 from keras.src.ops.numpy import triu as triu
 from keras.src.ops.numpy import true_divide as true_divide
 from keras.src.ops.numpy import trunc as trunc
+from keras.src.ops.numpy import unique as unique
 from keras.src.ops.numpy import unravel_index as unravel_index
 from keras.src.ops.numpy import vander as vander
 from keras.src.ops.numpy import var as var

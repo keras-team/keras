@@ -1,6 +1,5 @@
 # Tensorflow with cuda support.
-tensorflow[and-cuda]
-tf2onnx
+tensorflow[and-cuda]==2.20.0
 ai-edge-litert
 
 # Torch cpu-only version (needed for testing).

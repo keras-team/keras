@@ -248,14 +248,14 @@ def _load_model_fn(filepath):
 
 class SavingTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
         # Set `_MEMORY_UPPER_BOUND` to zero for testing purpose.
         self.original_value = saving_lib._MEMORY_UPPER_BOUND
         saving_lib._MEMORY_UPPER_BOUND = 0
-        return super().setUp()
 
     def tearDown(self):
+        super().tearDown()
         saving_lib._MEMORY_UPPER_BOUND = self.original_value
-        return super().tearDown()
 
     def _test_inference_after_instantiation(self, model):
         x_ref = np.random.random((2, 4))
@@ -266,8 +266,8 @@ class SavingTest(testing.TestCase):
         loaded_model = saving_lib.load_model(temp_filepath)
         self.assertFalse(model.compiled)
         for w_ref, w in zip(model.variables, loaded_model.variables):
-            self.assertAllClose(w_ref, w)
-        self.assertAllClose(y_ref, loaded_model(x_ref))
+            self.assertAllClose(w, w_ref)
+        self.assertAllClose(loaded_model(x_ref), y_ref)
 
     @parameterized.named_parameters(
         ("subclassed", _get_subclassed_model),
@@ -299,8 +299,8 @@ class SavingTest(testing.TestCase):
         self.assertTrue(model.compiled)
         self.assertTrue(loaded_model.built)
         for w_ref, w in zip(model.variables, loaded_model.variables):
-            self.assertAllClose(w_ref, w)
-        self.assertAllClose(out_ref, loaded_model(x_ref))
+            self.assertAllClose(w, w_ref)
+        self.assertAllClose(loaded_model(x_ref), out_ref)
 
         self.assertEqual(
             model.optimizer.__class__, loaded_model.optimizer.__class__
@@ -311,11 +311,11 @@ class SavingTest(testing.TestCase):
         for w_ref, w in zip(
             model.optimizer.variables, loaded_model.optimizer.variables
         ):
-            self.assertAllClose(w_ref, w)
+            self.assertAllClose(w, w_ref)
 
         new_metrics = loaded_model.evaluate(x_ref, y_ref)
         for ref_m, m in zip(ref_metrics, new_metrics):
-            self.assertAllClose(ref_m, m)
+            self.assertAllClose(m, ref_m)
 
     @parameterized.named_parameters(
         ("subclassed", _get_subclassed_model),
@@ -590,7 +590,7 @@ class SavingTest(testing.TestCase):
         new_weights = new_model.layers[0].get_weights()
         self.assertEqual(len(ref_weights), len(new_weights))
         for ref_w, w in zip(ref_weights, new_weights):
-            self.assertAllClose(ref_w, w)
+            self.assertAllClose(w, ref_w)
         self.assertAllClose(
             np.array(new_model.layers[1].kernel), new_layer_kernel_value
         )
@@ -615,7 +615,7 @@ class SavingTest(testing.TestCase):
             new_weights = new_model.layers[layer_index].get_weights()
             self.assertEqual(len(ref_weights), len(new_weights))
             for ref_w, w in zip(ref_weights, new_weights):
-                self.assertAllClose(ref_w, w)
+                self.assertAllClose(w, ref_w)
         self.assertAllClose(
             np.array(new_model.layers[2].kernel), new_layer_kernel_value
         )
@@ -899,7 +899,7 @@ class SavingAPITest(testing.TestCase):
         model.save(temp_filepath)
         model = saving_lib.load_model(temp_filepath)
         out = model(data)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
         # Without adapt
         model = keras.Sequential(
@@ -915,7 +915,7 @@ class SavingAPITest(testing.TestCase):
         model.save(temp_filepath)
         model = saving_lib.load_model(temp_filepath)
         out = model(data)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
 
 # This class is properly registered with a `get_config()` method.
@@ -1057,7 +1057,7 @@ class SavingBattleTest(testing.TestCase):
         model.save(temp_filepath)
         new_model = keras.saving.load_model(temp_filepath)
         out = new_model(x)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
     def test_legacy_h5_format(self):
         temp_filepath = os.path.join(self.get_temp_dir(), "custom_model.h5")
@@ -1073,7 +1073,7 @@ class SavingBattleTest(testing.TestCase):
         model.save(temp_filepath)
         new_model = keras.saving.load_model(temp_filepath)
         out = new_model(x)
-        self.assertAllClose(ref_out, out, atol=1e-6)
+        self.assertAllClose(out, ref_out, atol=1e-6)
 
     def test_nested_functional_model_saving(self):
         def func(in_size=4, out_size=2, name=None):
@@ -1129,6 +1129,171 @@ class SavingBattleTest(testing.TestCase):
         new_model = keras.saving.load_model(temp_filepath)
         x = np.random.random((1, 3, 2))
         ref_out = model(x)
+        out = new_model(x)
+        self.assertAllClose(out, ref_out)
+
+    @parameterized.named_parameters(
+        ("list", list, lambda b: b),
+        ("tuple", tuple, lambda b: b),
+        ("dict", dict, lambda b: b.values()),
+    )
+    def test_nested_container_layer_saving(self, container_type, get_values):
+        """Test that layers stored in nested containers are saved/loaded."""
+
+        package = f"test_nested_{container_type.__name__}"
+
+        @keras.saving.register_keras_serializable(package=package)
+        class NestedContainerModel(keras.Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                inner1 = [keras.layers.Dense(8), keras.layers.Dense(8)]
+                inner2 = [keras.layers.Dense(8), keras.layers.Dense(8)]
+                if container_type is dict:
+                    self.blocks = {
+                        "block_a": inner1,
+                        "block_b": inner2,
+                    }
+                elif container_type is list:
+                    self.blocks = [inner1, inner2]
+                else:
+                    self.blocks = (tuple(inner1), tuple(inner2))
+                self.out_layer = keras.layers.Dense(2)
+
+            def call(self, x):
+                for block in get_values(self.blocks):
+                    for layer in block:
+                        x = layer(x)
+                return self.out_layer(x)
+
+            def get_config(self):
+                return super().get_config()
+
+        model = NestedContainerModel()
+        x = np.random.random((2, 4))
+        model(x)  # build weights
+
+        # Assign distinct constant kernels so that any layer-swapping
+        # on reload would produce a detectable mismatch.
+        for i, block in enumerate(get_values(model.blocks)):
+            for j, layer in enumerate(block):
+                val = float(i * 2 + j + 1)  # 1.0, 2.0, 3.0, 4.0
+                layer.kernel.assign(np.full_like(layer.kernel, val))
+                layer.bias.assign(np.zeros_like(layer.bias))
+
+        ref_out = model(x)
+        suffix = container_type.__name__
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), f"nested_{suffix}.keras"
+        )
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+
+        # Verify each nested layer's weights were individually restored.
+        for i, (orig_block, new_block) in enumerate(
+            zip(get_values(model.blocks), get_values(new_model.blocks))
+        ):
+            for j, (orig_layer, new_layer) in enumerate(
+                zip(orig_block, new_block)
+            ):
+                self.assertAllClose(
+                    orig_layer.kernel,
+                    new_layer.kernel,
+                    msg=f"Kernel mismatch at blocks[{i}][{j}]",
+                )
+
+        out = new_model(x)
+        self.assertAllClose(ref_out, out)
+
+    def test_deeply_nested_container_layer_saving(self):
+        """Test 3+ levels of nested containers."""
+
+        @keras.saving.register_keras_serializable(package="test_deeply_nested")
+        class DeeplyNestedModel(keras.Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.blocks = [[[keras.layers.Dense(4), keras.layers.Dense(4)]]]
+                self.out_layer = keras.layers.Dense(2)
+
+            def call(self, x):
+                for block_list in self.blocks:
+                    for block in block_list:
+                        for layer in block:
+                            x = layer(x)
+                return self.out_layer(x)
+
+            def get_config(self):
+                return super().get_config()
+
+        model = DeeplyNestedModel()
+        x = np.random.random((2, 4))
+        model(x)
+        ref_out = model(x)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "deeply_nested.keras")
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out)
+
+    def test_mixed_nested_container_layer_saving(self):
+        """Test mixed container types (list + tuple)."""
+
+        @keras.saving.register_keras_serializable(package="test_mixed_nested")
+        class MixedNestedModel(keras.Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.blocks = [(keras.layers.Dense(4), keras.layers.Dense(4))]
+                self.out_layer = keras.layers.Dense(2)
+
+            def call(self, x):
+                for block in self.blocks:
+                    for layer in block:
+                        x = layer(x)
+                return self.out_layer(x)
+
+            def get_config(self):
+                return super().get_config()
+
+        model = MixedNestedModel()
+        x = np.random.random((2, 4))
+        model(x)
+        ref_out = model(x)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "mixed_nested.keras")
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
+        out = new_model(x)
+        self.assertAllClose(ref_out, out)
+
+    def test_cyclic_container_saving(self):
+        """Test that cyclic container references do not cause RecursionError."""
+
+        @keras.saving.register_keras_serializable(
+            package="test_cyclic_container"
+        )
+        class CyclicContainerModel(keras.Model):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.blocks = []
+                self.blocks.append(self.blocks)
+                self.out = keras.layers.Dense(2)
+
+            def call(self, x):
+                return self.out(x)
+
+            def get_config(self):
+                return super().get_config()
+
+        model = CyclicContainerModel()
+        x = np.random.random((2, 4))
+        model(x)
+        ref_out = model(x)
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "cyclic_container.keras"
+        )
+        model.save(temp_filepath)
+        new_model = keras.saving.load_model(temp_filepath)
         out = new_model(x)
         self.assertAllClose(ref_out, out)
 
@@ -1318,6 +1483,32 @@ class SavingH5IOStoreTest(testing.TestCase):
         # Keys.
         for key in ["a", "b"]:
             self.assertIn(key, vars_store.keys())
+
+    def test_sharded_h5_io_store_cross_shard_read(self):
+        name = "cross_shard_read"
+        temp_filepath = Path(os.path.join(self.get_temp_dir(), f"{name}.json"))
+        a = np.random.random((1000, 1000)).astype("float32")
+        b = np.random.random((1000, 1000)).astype("float32")
+
+        store = saving_lib.ShardedH5IOStore(
+            temp_filepath, max_shard_size=0.005, mode="w"
+        )
+        vars_store = store.make("layer_a")
+        vars_store["0"] = a
+        vars_store = store.make("layer_b")
+        vars_store["0"] = b
+        store.close()
+
+        self.assertTrue(
+            os.path.exists(temp_filepath.with_name(f"{name}_00001.weights.h5"))
+        )
+
+        store = saving_lib.ShardedH5IOStore(temp_filepath, mode="r")
+        store.get("layer_b")
+        vars_store = store.get("layer_a")
+        self.assertLen(vars_store.keys(), 1)
+        self.assertAllClose(vars_store["0"], a)
+        store.close()
 
     def test_sharded_h5_io_store_exception_raised(self):
         temp_filepath = Path(os.path.join(self.get_temp_dir(), "store.h5"))

@@ -20,6 +20,8 @@ from keras.src.utils import numerical_utils
 
 class SwapEMAWeightsTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         (x_train, y_train), _ = test_utils.get_test_data(
             train_samples=10,
             test_samples=10,

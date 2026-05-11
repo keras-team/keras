@@ -41,7 +41,7 @@ class LayerTest(testing.TestCase):
         # Case: single output
         class TestLayer(layers.Layer):
             def call(self, x):
-                assert False  # Should never be called.
+                raise RuntimeError("Should never be called.")
 
             def compute_output_shape(self, input_shape):
                 return input_shape
@@ -54,7 +54,7 @@ class LayerTest(testing.TestCase):
         # Case: tuple output
         class TestLayer(layers.Layer):
             def call(self, x):
-                assert False  # Should never be called.
+                raise RuntimeError("Should never be called.")
 
             def compute_output_shape(self, input_shape):
                 return (input_shape, input_shape)
@@ -69,7 +69,7 @@ class LayerTest(testing.TestCase):
         # Case: list output
         class TestLayer(layers.Layer):
             def call(self, x):
-                assert False  # Should never be called.
+                raise RuntimeError("Should never be called.")
 
             def compute_output_shape(self, input_shape):
                 return [input_shape, input_shape]
@@ -84,7 +84,7 @@ class LayerTest(testing.TestCase):
         # Case: dict output
         class TestLayer(layers.Layer):
             def call(self, x):
-                assert False  # Should never be called.
+                raise RuntimeError("Should never be called.")
 
             def compute_output_shape(self, input_shape):
                 return {"1": input_shape, "2": input_shape}
@@ -99,7 +99,7 @@ class LayerTest(testing.TestCase):
         # Case: nested tuple output
         class TestLayer(layers.Layer):
             def call(self, x):
-                assert False  # Should never be called.
+                raise RuntimeError("Should never be called.")
 
             def compute_output_shape(self, input_shape):
                 return (
@@ -125,7 +125,7 @@ class LayerTest(testing.TestCase):
         # Case: nested dict output
         class TestLayer(layers.Layer):
             def call(self, x):
-                assert False  # Should never be called.
+                raise RuntimeError("Should never be called.")
 
             def compute_output_shape(self, input_shape):
                 return {
@@ -604,7 +604,6 @@ class LayerTest(testing.TestCase):
         expected_loss = 0.0 if batch_size == 0 else 0.2
         self.assertAllClose(layer.losses[0], expected_loss)
 
-    @pytest.mark.requires_trainable_backend
     def test_add_loss(self):
         class LossLayer(layers.Layer):
             def call(self, x):
@@ -822,12 +821,8 @@ class LayerTest(testing.TestCase):
         x = [np.zeros(1, dtype="float64"), np.zeros(1, dtype="int32")]
         CustomLayer()(x)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
-    )
     def test_keras_mask_with_autocast(self):
-        assertAllEqual = self.assertAllEqual
-        assertDType = self.assertDType
+        test_obj = self
 
         class CustomLayer(layers.Layer):
             def __init__(self, **kwargs):
@@ -835,22 +830,23 @@ class LayerTest(testing.TestCase):
                 self.supports_masking = True
 
             def call(self, x, mask=None):
-                assert mask is not None
-                assertDType(x, "float16")
+                test_obj.assertIsNotNone(mask)
+                test_obj.assertDType(x, "float16")
                 return x
 
         x = ops.zeros((1, 2), dtype="float32")
         mask = ops.array([True, False])
         backend.set_keras_mask(x, mask)
         y = CustomLayer(dtype="float16")(x)
-        assertAllEqual(
-            mask,
+        self.assertAllEqual(
             backend.get_keras_mask(y),
-            "Masking is not propagated by Autocast",
+            mask,
+            msg="Masking is not propagated by Autocast",
         )
 
     @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
+        backend.backend() == "numpy",
+        reason="compute_output_spec not supported with numpy",
     )
     def test_end_to_end_masking(self):
         # Check that masking survives compilation
@@ -866,17 +862,16 @@ class LayerTest(testing.TestCase):
         loss = model.evaluate(np.array([[1, 0, 0, 1]]), targets, verbose=0)
         self.assertAllClose(loss, 0.0)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
-    )
     def test_masking(self):
+        test_obj = self
+
         class BasicMaskedLayer(layers.Layer):
             def __init__(self):
                 super().__init__()
                 self.supports_masking = True
 
             def call(self, x, mask=None):
-                assert mask is not None
+                test_obj.assertIsNotNone(mask)
                 return x
 
         layer = BasicMaskedLayer()
@@ -893,10 +888,10 @@ class LayerTest(testing.TestCase):
                 self.supports_masking = True
 
             def call(self, x, mask=None):
-                assert isinstance(x, list)
-                assert len(x) == 2
-                assert isinstance(mask, list)
-                assert len(mask) == 2
+                test_obj.assertIsInstance(x, list)
+                test_obj.assertLen(x, 2)
+                test_obj.assertIsInstance(mask, list)
+                test_obj.assertLen(mask, 2)
                 return x
 
         layer = NestedInputMaskedLayer()
@@ -919,8 +914,8 @@ class LayerTest(testing.TestCase):
                 self.supports_masking = True
 
             def call(self, x1, x2, x1_mask=None, x2_mask=None):
-                assert x1_mask is not None
-                assert x2_mask is not None
+                test_obj.assertIsNotNone(x1_mask)
+                test_obj.assertIsNotNone(x2_mask)
                 return x1 + x2
 
         layer = PositionalInputsMaskedLayer()
@@ -933,10 +928,10 @@ class LayerTest(testing.TestCase):
                 self.supports_masking = True
 
             def call(self, x1, x2, x1_mask=None, x2_mask=None):
-                assert isinstance(x1, tuple)
-                assert x1_mask is not None
-                assert x2_mask is not None
-                assert isinstance(x1_mask, tuple)
+                test_obj.assertIsInstance(x1, tuple)
+                test_obj.assertIsNotNone(x1_mask)
+                test_obj.assertIsNotNone(x2_mask)
+                test_obj.assertIsInstance(x1_mask, tuple)
                 return x1[0] + x1[1] + x2
 
         layer = PositionalNestedInputsMaskedLayer()
@@ -958,7 +953,7 @@ class LayerTest(testing.TestCase):
                 self.supports_masking = True
 
             def call(self, x, mask=None):
-                assert mask is not None
+                test_obj.assertIsNotNone(mask)
                 backend.set_keras_mask(x, None)  # Unset mask
                 return x
 
@@ -967,11 +962,8 @@ class LayerTest(testing.TestCase):
         mask = backend.numpy.ones((4,))
         backend.set_keras_mask(x, mask)
         y = layer(x)
-        self.assertAllClose(y._keras_mask, mask)
+        self.assertAllClose(backend.get_keras_mask(y), mask)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy", reason="masking not supported with numpy"
-    )
     def test_masking_with_explicit_kwarg_propagation(self):
         """This test validates that an explicit `mask` kwarg is correctly
         used to compute the output mask.
@@ -990,7 +982,7 @@ class LayerTest(testing.TestCase):
         layer = PassthroughMaskLayer()
         # Create an input tensor WITHOUT an attached mask.
         x = backend.numpy.ones((4, 4))
-        self.assertIsNone(getattr(x, "_keras_mask", None))
+        self.assertIsNone(backend.get_keras_mask(x))
 
         # Create a mask to be passed explicitly.
         explicit_mask = backend.numpy.array([True, True, False, False])
@@ -1054,7 +1046,7 @@ class LayerTest(testing.TestCase):
         for ref_v, v in zip(
             layer1.non_trainable_variables, non_trainable_variables
         ):
-            self.assertAllClose(ref_v, v)
+            self.assertAllClose(v, ref_v)
 
         # Test with loss collection
         layer3 = TestLayer()
@@ -1070,10 +1062,10 @@ class LayerTest(testing.TestCase):
         for ref_v, v in zip(
             layer1.non_trainable_variables, non_trainable_variables
         ):
-            self.assertAllClose(ref_v, v)
+            self.assertAllClose(v, ref_v)
         self.assertLen(losses, 2)
         for ref_loss, loss in zip(layer1.losses, losses):
-            self.assertAllClose(ref_loss, loss)
+            self.assertAllClose(loss, ref_loss)
 
     def test_trainable_setting(self):
         class NonTrainableWeightsLayer(layers.Layer):
@@ -1291,6 +1283,73 @@ class LayerTest(testing.TestCase):
         self.assertEqual(layer.w5.dtype, "float32")
         self.assertAllClose(backend.convert_to_numpy(layer.w5), np.ones((2, 2)))
 
+    def test_add_weight_string_as_first_positional_arg(self):
+        """Test that passing a string as first positional arg to add_weight
+        raises a clear error guiding users to use name= keyword."""
+
+        # Case 1: String as only positional arg (e.g. add_weight("matrix"))
+        class MyLayer1(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight("my_weight")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "name.*keyword argument",
+        ):
+            MyLayer1()
+
+        # Case 2: String positional + shape kwarg — the exact bug from
+        # https://github.com/keras-team/keras/issues/22265
+        # In Keras 2 this was valid: add_weight("matrix", shape=(3, 4))
+        class MyLayer2(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight(
+                    "matrix", shape=(3, 4), initializer="zeros"
+                )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "name.*keyword argument",
+        ):
+            MyLayer2()
+
+        # Case 3: shape passed both positionally and as keyword
+        class MyLayer3(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), shape=(3, 4))
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`shape` was passed both positionally and as a keyword argument",
+        ):
+            MyLayer3()
+
+        # Case 4: positional shape / initializer / dtype must remain valid.
+        class MyLayer4(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), "zeros", "float32")
+
+        layer = MyLayer4()
+        self.assertEqual(layer.w.shape, (3, 4))
+        self.assertEqual(layer.w.dtype, "float32")
+        self.assertAllClose(backend.convert_to_numpy(layer.w), np.zeros((3, 4)))
+
+        # Case 5: too many positional arguments
+        class MyLayer5(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.w = self.add_weight((3, 4), "zeros", "float32", "name")
+
+        with self.assertRaisesRegex(
+            TypeError,
+            "takes at most 3 positional arguments",
+        ):
+            MyLayer5()
+
     def test_remove_weight(self):
         class MyLayer(layers.Layer):
             def __init__(self):
@@ -1318,6 +1377,14 @@ class LayerTest(testing.TestCase):
         layer.custom_change_dtype()
         self.assertEqual(layer.w.dtype, "int8")
         self.assertEqual(layer.w.trainable, False)
+
+    def test_trainable_init_arg_validation(self):
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable="yes")
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable=1)
+        with self.assertRaisesRegex(ValueError, "to be a boolean"):
+            layers.Dense(2, trainable=None)
 
     def test_trainable_init_arg(self):
         inputs = layers.Input(shape=(1,))
@@ -1656,6 +1723,10 @@ class LayerTest(testing.TestCase):
         layer2_names = list(pname for pname, _ in layer2.named_parameters())
         self.assertListEqual(layer1_names, layer2_names)
 
+    @pytest.mark.skipif(
+        not backend.SUPPORTS_COMPLEX_DTYPES,
+        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+    )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):
             def __init__(self, num_outputs):
@@ -1674,7 +1745,7 @@ class LayerTest(testing.TestCase):
         inputs = ops.zeros([10, 5], dtype="complex64")
         layer = MyDenseLayer(10)
         output = layer(inputs)
-        self.assertAllEqual(output.shape, (10, 10))
+        self.assertEqual(output.shape, (10, 10))
 
     def test_call_context_args_with_custom_layers(self):
         class Inner(layers.Layer):

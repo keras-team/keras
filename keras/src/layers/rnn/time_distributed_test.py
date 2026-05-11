@@ -10,7 +10,6 @@ from keras.src.models import Sequential
 
 
 class TimeDistributedTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basics(self):
         self.run_layer_test(
             layers.TimeDistributed,
@@ -44,10 +43,10 @@ class TimeDistributedTest(testing.TestCase):
         layer = layers.TimeDistributed(layer=layer)
         output = layer(sequence)
         self.assertAllClose(
+            output,
             np.array(
                 [[[0.06], [0.22]], [[0.38], [0.53999996]], [[0.7], [0.86]]]
             ),
-            output,
         )
 
     def test_masking(self):
@@ -75,8 +74,7 @@ class TimeDistributedTest(testing.TestCase):
         mask = np.array([[False, True], [True, False], [True, True]])
         output = layer(sequence, mask=mask)
         self.assertAllClose(
-            np.array([[[0], [0.22]], [[0.38], [0]], [[0.7], [0.86]]]),
-            output,
+            output, np.array([[[0], [0.22]], [[0.38], [0]], [[0.7], [0.86]]])
         )
 
     @pytest.mark.requires_trainable_backend

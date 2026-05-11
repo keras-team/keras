@@ -538,6 +538,7 @@ class QuantizedDTypePolicyTest(test_case.TestCase):
 
 class DTypePolicyGlobalFunctionsTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         """Reset the global dtype policy before each test."""
         set_dtype_policy("float32")
 
@@ -676,6 +677,7 @@ class QuantizedDTypePolicyEdgeCasesTest(test_case.TestCase):
 
 class DTypePolicyGlobalFunctionsEdgeCasesTest(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         """Reset the global dtype policy before each test."""
         set_dtype_policy("float32")
 

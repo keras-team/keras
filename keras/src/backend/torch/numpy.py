@@ -100,6 +100,8 @@ def subtract(x1, x2):
 def matmul(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
 
     def can_use_int_matmul(x1, x2):
         # torch._int_mm only accepts the following conditions:
@@ -110,8 +112,6 @@ def matmul(x1, x2):
         # 5. x2.shape must be [>= 16 and a multiplier of 8, multiplier of 8]
         if get_device() != "cuda":
             return False
-        x1_dtype = standardize_dtype(x1.dtype)
-        x2_dtype = standardize_dtype(x2.dtype)
         if x1_dtype != "int8" or x2_dtype != "int8":
             return False
         x1_shape = x1.shape
@@ -127,11 +127,14 @@ def matmul(x1, x2):
     # Shortcut for torch._int_mm
     # TODO: Loosen the restriction of the usage of torch._int_mm
     # TODO: We should replace torch._int_mm with the public api if possible
+    # Not yet supported with CUDA 13 without `use_transpose`
+    # https://github.com/pytorch/pytorch/blob/main/test/test_linalg.py#L7876
     if can_use_int_matmul(x1, x2):
-        return torch._int_mm(x1, x2)
+        try:
+            return torch._int_mm(x1, x2)
+        except RuntimeError:
+            pass
 
-    x1_dtype = standardize_dtype(x1.dtype)
-    x2_dtype = standardize_dtype(x2.dtype)
     if x1_dtype == "int8" and x2_dtype == "int8":
         result_dtype = "int32"
     else:
@@ -713,6 +716,15 @@ def deg2rad(x):
     return torch.deg2rad(x)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+
+    if standardize_dtype(x.dtype) == "int64":
+        return cast(torch.rad2deg(x), "float64")
+
+    return torch.rad2deg(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return torch.diag(x, diagonal=k)
@@ -825,6 +837,16 @@ def flip(x, axis=None):
         axis = tuple(range(x.ndim))
     axis = to_tuple_or_list(axis)
     return torch.flip(x, dims=axis)
+
+
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return torch.fliplr(x)
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return torch.flipud(x)
 
 
 def floor(x):
@@ -943,6 +965,17 @@ def imag(x):
     if not isinstance(x, torch.Tensor):
         x = torch.from_numpy(x)  # needed for complex type conversion
     return torch.imag(x)
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16"]:
+        dtype = config.floatx()
+    x = cast(x, dtype)
+    return torch.i0(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -1320,9 +1353,34 @@ def mod(x1, x2):
     return torch.remainder(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        x1 = cast(x1, "int32")
+        x2 = cast(x2, "int32")
+    return torch.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     x = convert_to_tensor(x)
     return torch.moveaxis(x, source=source, destination=destination)
+
+
+def nanargmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if not torch.is_floating_point(x):
+        return argmax(x, axis=axis, keepdims=keepdims)
+
+    x_clean = torch.where(torch.isnan(x), float("-inf"), x)
+
+    return torch.where(
+        torch.isnan(x).all(dim=axis, keepdim=keepdims),
+        torch.tensor(-1, dtype=torch.int32, device=get_device()),
+        argmax(x_clean, axis=axis, keepdims=keepdims),
+    )
 
 
 def nanargmin(x, axis=None, keepdims=False):
@@ -1343,6 +1401,11 @@ def nanargmin(x, axis=None, keepdims=False):
 def nancumsum(x, axis=None, dtype=None):
     x = nan_to_num(x)
     return cumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    x = nan_to_num(x, nan=1.0)
+    return cumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1373,6 +1436,15 @@ def nanmean(x, axis=None, keepdims=False):
     return torch.nanmean(cast(x, dtype), dim=axis, keepdim=keepdims)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+
+    if axis == () or axis == []:
+        return x
+
+    return nanquantile(x, q=0.5, axis=axis, keepdims=keepdims)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if not torch.is_floating_point(x):
@@ -1389,6 +1461,12 @@ def nanmin(x, axis=None, keepdims=False):
         torch.tensor(float("nan"), dtype=x.dtype, device=get_device()),
         out,
     )
+
+
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx()) / 100.0
+    return nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
 def nanprod(x, axis=None, keepdims=False):
@@ -1408,6 +1486,45 @@ def nanprod(x, axis=None, keepdims=False):
         axis=axis,
         keepdims=keepdims,
     )
+
+
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    axis = to_tuple_or_list(axis)
+
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+
+    x = cast(x, compute_dtype)
+    if x.dtype != q.dtype:
+        q = cast(q, x.dtype)
+
+    if axis is None:
+        y = reshape(x, [-1])
+    else:
+        axis = [canonicalize_axis(a, x.ndim) for a in axis]
+        other_dims = sorted(set(range(x.ndim)).difference(axis))
+        x_permed = torch.permute(x, dims=(other_dims + list(axis)))
+
+        x_shape = list(x.shape)
+        other_shape = [x_shape[i] for i in other_dims]
+        end_shape = [math.prod([x_shape[i] for i in axis])]
+        full_shape = other_shape + end_shape
+        y = reshape(x_permed, full_shape)
+
+    y = torch.nanquantile(y, q, dim=-1, interpolation=method)
+
+    if keepdims:
+        if axis is None:
+            for _ in range(x.ndim):
+                y = expand_dims(y, axis=-1)
+        else:
+            for i in sorted(axis):
+                i = i + 1 if q.ndim > 0 else i
+                y = expand_dims(y, axis=i)
+
+    return cast(y, result_dtype)
 
 
 def nanstd(x, axis=None, keepdims=False):
@@ -1534,6 +1651,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
     return x
 
 
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q, dtype=config.floatx()) / 100.0
+    return quantile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is None:
@@ -1655,6 +1778,23 @@ def repeat(x, repeats, axis=None):
             device=get_device(),
         )
 
+    # When repeats is a scalar int and axis is specified, use
+    # unsqueeze + expand + reshape instead of repeat_interleave.
+    # repeat_interleave introduces unbacked symbolic integers during
+    # torch.export tracing, preventing static shape inference. This
+    # alternative preserves static output shapes.
+    if isinstance(repeats, int) and axis is not None:
+        if axis < 0:
+            axis = x.ndim + axis
+        shape = list(x.shape)
+        x = x.unsqueeze(axis + 1)
+        expand_shape = [-1] * x.ndim
+        expand_shape[axis + 1] = repeats
+        x = x.expand(expand_shape)
+        new_shape = list(shape)
+        new_shape[axis] = shape[axis] * repeats
+        return x.reshape(new_shape)
+
     repeats = convert_to_tensor(repeats, dtype=int)
 
     return torch.repeat_interleave(x, repeats, dim=axis)
@@ -1701,6 +1841,11 @@ def sin(x):
     return torch.sin(x)
 
 
+def sinc(x):
+    x = convert_to_tensor(x)
+    return torch.sinc(x)
+
+
 def sinh(x):
     x = convert_to_tensor(x)
     return torch.sinh(x)
@@ -1713,6 +1858,9 @@ def size(x):
 
 def sort(x, axis=-1):
     x = convert_to_tensor(x)
+    if axis is None:
+        x = x.reshape(-1)
+        axis = 0
     # TODO: torch.sort doesn't support bool with cuda
     if get_device() == "cuda" and standardize_dtype(x.dtype) == "bool":
         x = cast(x, "uint8")
@@ -1960,7 +2108,8 @@ def where(condition, x1=None, x2=None):
         x2 = convert_to_tensor(x2)
         return torch.where(condition, x1, x2)
     else:
-        return torch.where(condition)
+        # `torch.where(condition)` returns a tuple of tensors.
+        return torch.stack(torch.where(condition), dim=0)
 
 
 def divide(x1, x2):
@@ -2208,3 +2357,60 @@ def argpartition(x, kth, axis=-1):
 def histogram(x, bins=10, range=None):
     hist_result = torch.histogram(x, bins=bins, range=range)
     return hist_result.hist, hist_result.bin_edges
+
+
+def unique(
+    x,
+    sorted=True,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    if not isinstance(x, torch.Tensor):
+        x = torch.as_tensor(x)
+
+    output = torch.unique(
+        x,
+        sorted=sorted,  # Added sorted parameter here
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        dim=axis,
+    )
+
+    if not (return_inverse or return_counts):
+        output = [output]
+    else:
+        output = list(output)
+
+    values = output[0]
+
+    if size is not None:
+        dim = axis if axis is not None else 0
+        values_count = values.shape[dim]
+
+        if values_count > size:
+            # Truncate
+            indices = [slice(None)] * values.ndim
+            indices[dim] = slice(0, size)
+            values = values[tuple(indices)]
+            if return_counts:
+                output[-1] = output[-1][tuple(indices)]
+
+        elif values_count < size:
+            # Pad
+            diff = size - values_count
+            pad_width = [0, 0] * values.ndim
+            # F.pad expects padding from last dim to first
+            idx = (values.ndim - 1 - dim) * 2
+            pad_width[idx + 1] = diff
+            fill = 0 if fill_value is None else fill_value
+            values = torch.nn.functional.pad(values, pad_width, value=fill)
+            if return_counts:
+                output[-1] = torch.nn.functional.pad(
+                    output[-1], pad_width, value=0
+                )
+
+    output[0] = values
+    return output[0] if len(output) == 1 else tuple(output)

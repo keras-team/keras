@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -8,7 +7,6 @@ from keras.src import testing
 
 
 class CutMixTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.CutMix,
@@ -70,7 +68,7 @@ class CutMixTest(testing.TestCase):
 
         output = layer.transform_images(inputs, transformation)
 
-        self.assertAllClose(expected_output, output)
+        self.assertAllClose(output, expected_output)
 
     def test_tf_data_compatibility(self):
         data_format = backend.config.image_data_format()

@@ -13,7 +13,9 @@ from keras.src.ops.linalg import inv as inv
 from keras.src.ops.linalg import jvp as jvp
 from keras.src.ops.linalg import lstsq as lstsq
 from keras.src.ops.linalg import lu_factor as lu_factor
+from keras.src.ops.linalg import matrix_rank as matrix_rank
 from keras.src.ops.linalg import norm as norm
+from keras.src.ops.linalg import pinv as pinv
 from keras.src.ops.linalg import qr as qr
 from keras.src.ops.linalg import solve as solve
 from keras.src.ops.linalg import solve_triangular as solve_triangular

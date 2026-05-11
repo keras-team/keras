@@ -1,10 +1,10 @@
-"""Base class for Orbax export archive."""
+"""Base class for NeptuneModel export archive."""
 
 
-class OrbaxExportArchive:
+class NeptuneModelExportArchive:
     def __init__(self):
         raise NotImplementedError(
-            "OrbaxExportArchive is an abstract class. "
+            "NeptuneExportArchive is an abstract class. "
             "Use a subclass such as OrbaxSavedModelExportArchive."
         )
 
