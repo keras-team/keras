@@ -1,10 +1,10 @@
 import re
-from keras.src import backend
+
+from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.optimizers import optimizer
 from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
-from keras.src import ops
 
 
 @keras_export("keras.optimizers.OptimizerMap")
@@ -44,23 +44,25 @@ class OptimizerMap:
 
         if len(matched_optimizers) > 1:
             raise ValueError(
-                f"Multiple optimizers assigned to variable {variable.path or variable.name}: "
-                f"{matched_optimizers}"
+                f"Multiple optimizers assigned to variable "
+                f"{variable.path or variable.name}: {matched_optimizers}"
             )
         elif len(matched_optimizers) == 1:
             return matched_optimizers[0]
         return None
 
     def _match(self, variable, identifier):
-        # If identifier is a callable, evaluate it
+        # If callable, evaluate it
         if callable(identifier) and not isinstance(identifier, str):
             return bool(identifier(variable))
-        # If identifier is a string, treat it as a regex pattern
+        # If string, treat it as a regex pattern
         if isinstance(identifier, str):
             path = getattr(variable, "path", "") or ""
             name = getattr(variable, "name", "") or ""
-            return bool(re.match(identifier, path) or re.match(identifier, name))
-        # If identifier is a list/tuple/set, check identity containment to avoid value-based comparison
+            return bool(
+                re.match(identifier, path) or re.match(identifier, name)
+            )
+        # list/tuple/set
         if isinstance(identifier, (list, tuple, set)):
             return any(variable is item for item in identifier)
         # Direct identity comparison
@@ -83,11 +85,11 @@ class MultiOptimizer(optimizer.Optimizer):
     opt_map = keras.optimizers.OptimizerMap(
         optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd, opt_adam],
         variable_identifier=[
-            "kernel",                            # 1. Match variable name substring
-            "^dense_1/.*",                       # 2. Match variable path regex pattern
-            keras_var,                           # 3. Match exact Keras Variable instance
-            lambda var: "bias" in var.name,      # 4. Match via custom callable function
-            [var1, var2]                         # 5. Match if variable is in list/tuple
+            "kernel",                            # name substring
+            "^dense_1/.*",                       # regex pattern
+            keras_var,                           # Keras Variable instance
+            lambda var: "bias" in var.name,      # custom callable function
+            [var1, var2]                         # list/tuple
         ]
     )
 
@@ -103,15 +105,18 @@ class MultiOptimizer(optimizer.Optimizer):
     overriding its `__call__(self, variable)` method.
 
     Args:
-        obj_map: An `OptimizerMap` instance containing variable-to-optimizer rules.
+        obj_map: An `OptimizerMap` instance containing
+               variable-to-optimizer rules.
         default_optimizer: Default Keras `Optimizer` for any unmapped variables.
-        name: String. The name of this optimizer. Defaults to `"multi_optimizer"`.
+        name: String. The name of this optimizer. Defaults to
+              "multi_optimizer".
     """
-    
+
     def __init__(self, obj_map, default_optimizer, name=None, **kwargs):
         if not isinstance(obj_map, OptimizerMap):
             raise ValueError(
-                f"obj_map must be an instance of OptimizerMap. Received: {obj_map}"
+                f"obj_map must be an instance "
+                f"of OptimizerMap. Received: {obj_map}"
             )
         if not isinstance(default_optimizer, optimizer.Optimizer):
             raise ValueError(
@@ -119,9 +124,7 @@ class MultiOptimizer(optimizer.Optimizer):
                 f"Received: {default_optimizer}"
             )
 
-        # Always set learning_rate to 0.0 as it's not supported for MultiOptimizer
-        learning_rate = 0.0
-        super().__init__(learning_rate=learning_rate, name=name)
+        super().__init__(learning_rate=0.0, name=name)
 
         self.obj_map = obj_map
         self.default_optimizer = default_optimizer
@@ -223,7 +226,9 @@ class MultiOptimizer(optimizer.Optimizer):
             self.built = True
 
         # Group gradients and variables by sub-optimizer
-        optimizer_to_grads_and_vars = {opt: [] for opt in self._inner_optimizers}
+        optimizer_to_grads_and_vars = {
+            opt: [] for opt in self._inner_optimizers
+        }
         for grad, var in zip(grads, trainable_variables):
             opt = self._get_optimizer_for_variable(var)
             optimizer_to_grads_and_vars[opt].append((grad, var))
@@ -240,19 +245,19 @@ class MultiOptimizer(optimizer.Optimizer):
     def stateless_apply(self, optimizer_variables, grads, trainable_variables):
         if len(grads) == 0:
             return trainable_variables, optimizer_variables
-        
+
         if trainable_variables is None:
             trainable_variables = self._trainable_variables
 
         own_var_count = len(self._variables)
         own_variables = optimizer_variables[:own_var_count]
         remaining_opt_vars = optimizer_variables[own_var_count:]
-        
+
         inner_opt_variables = []
         offset = 0
         for opt in self._inner_optimizers:
             opt_var_count = len(opt.variables)
-            opt_vars = remaining_opt_vars[offset:offset + opt_var_count]
+            opt_vars = remaining_opt_vars[offset : offset + opt_var_count]
             inner_opt_variables.append(opt_vars)
             offset += opt_var_count
 
@@ -261,15 +266,16 @@ class MultiOptimizer(optimizer.Optimizer):
         optimizer_train_var_indices = [[] for _ in self._inner_optimizers]
 
         for i, (grad, var) in enumerate(zip(grads, trainable_variables)):
-            # Map the incoming stateless tracer array to the static Keras Variable via index alignment
+            # Map the incoming stateless tracer array
+            # to the static Keras Variable via index alignment
             keras_var = self._trainable_variables[i]
             opt = self._get_optimizer_for_variable(keras_var)
             opt_idx = self._inner_optimizers.index(opt)
-            
+
             optimizer_grads[opt_idx].append(grad)
             optimizer_train_vars[opt_idx].append(var)
             optimizer_train_var_indices[opt_idx].append(i)
-        
+
         new_trainable_variables = list(trainable_variables)
         new_inner_opt_variables = []
 
@@ -299,7 +305,7 @@ class MultiOptimizer(optimizer.Optimizer):
 
         new_optimizer_variables = new_own_variables + new_inner_opt_variables
         return new_trainable_variables, new_optimizer_variables
-        
+
     def scale_loss(self, loss):
         if self.loss_scale_factor is not None:
             return loss * self.loss_scale_factor
@@ -331,7 +337,7 @@ class MultiOptimizer(optimizer.Optimizer):
         for opt in self._inner_optimizers:
             num_opt_vars = len(opt.variables)
             if num_opt_vars > 0:
-                opt_weights = weights[idx:idx + num_opt_vars]
+                opt_weights = weights[idx : idx + num_opt_vars]
                 opt.set_weights(opt_weights)
                 idx += num_opt_vars
 
@@ -347,12 +353,14 @@ class MultiOptimizer(optimizer.Optimizer):
                 "variable_identifier": self.obj_map.variable_identifier,
             },
         }
-        config.update({
-            "obj_map": serialized_map,
-            "default_optimizer": serialization_lib.serialize_keras_object(
-                self.default_optimizer
-            ),
-        })
+        config.update(
+            {
+                "obj_map": serialized_map,
+                "default_optimizer": serialization_lib.serialize_keras_object(
+                    self.default_optimizer
+                ),
+            }
+        )
         return config
 
     @classmethod
@@ -373,10 +381,14 @@ class MultiOptimizer(optimizer.Optimizer):
         ]
         variable_identifiers = obj_map_config["config"]["variable_identifier"]
 
-        map_cls = cls._get_map_class(obj_map_config["class_name"], custom_objects)
+        map_cls = cls._get_map_class(
+            obj_map_config["class_name"], custom_objects
+        )
         obj_map = map_cls(optimizers_list, variable_identifiers)
 
-        return cls(obj_map=obj_map, default_optimizer=default_optimizer, **config)
+        return cls(
+            obj_map=obj_map, default_optimizer=default_optimizer, **config
+        )
 
     @classmethod
     def _get_map_class(cls, class_name, custom_objects=None):
@@ -386,5 +398,6 @@ class MultiOptimizer(optimizer.Optimizer):
         if class_name in globals_dict:
             return globals_dict[class_name]
         raise ValueError(
-            f"Could not find class {class_name} for OptimizerMap deserialization."
+            f"Could not find class {class_name} for "
+            "OptimizerMap deserialization."
         )
