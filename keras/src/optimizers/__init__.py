@@ -8,7 +8,8 @@ from keras.src.optimizers.adamw import AdamW
 from keras.src.optimizers.ftrl import Ftrl
 from keras.src.optimizers.lion import Lion
 from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
-from keras.src.optimizers.multi_optimizer import MultiOptimizer, OptimizerMap
+from keras.src.optimizers.multi_optimizer import MultiOptimizer
+from keras.src.optimizers.multi_optimizer import OptimizerMap
 from keras.src.optimizers.muon import Muon
 from keras.src.optimizers.nadam import Nadam
 from keras.src.optimizers.optimizer import Optimizer

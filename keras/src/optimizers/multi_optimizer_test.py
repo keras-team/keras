@@ -1,4 +1,5 @@
 import numpy as np
+
 from keras.src import backend
 from keras.src import callbacks
 from keras.src import layers
@@ -20,18 +21,14 @@ class MultiOptimizerTest(testing.TestCase):
 
         # Test regex matching
         var_identifier = ["^dense/.*", "^conv/.*"]
-        opt_map = optimizers.OptimizerMap(
-            [opt_adam, opt_sgd], var_identifier
-        )
+        opt_map = optimizers.OptimizerMap([opt_adam, opt_sgd], var_identifier)
 
         self.assertEqual(opt_map(w_dense), opt_adam)
         self.assertEqual(opt_map(w_conv), opt_sgd)
         self.assertIsNone(opt_map(w_other))
 
         # Test direct variable reference matching
-        opt_map_direct = optimizers.OptimizerMap(
-            [opt_adam], [[w_dense]]
-        )
+        opt_map_direct = optimizers.OptimizerMap([opt_adam], [[w_dense]])
         self.assertEqual(opt_map_direct(w_dense), opt_adam)
         self.assertIsNone(opt_map_direct(w_conv))
 
@@ -99,8 +96,12 @@ class MultiOptimizerTest(testing.TestCase):
 
         multi_opt.build([w_mapped, w_unmapped])
 
-        self.assertEqual(multi_opt._get_optimizer_for_variable(w_mapped), opt_adam)
-        self.assertEqual(multi_opt._get_optimizer_for_variable(w_unmapped), default_opt)
+        self.assertEqual(
+            multi_opt._get_optimizer_for_variable(w_mapped), opt_adam
+        )
+        self.assertEqual(
+            multi_opt._get_optimizer_for_variable(w_unmapped), default_opt
+        )
 
     def test_stateful_apply(self):
         if backend.backend() == "jax":
@@ -116,7 +117,7 @@ class MultiOptimizerTest(testing.TestCase):
 
         opt_sgd_1 = optimizers.SGD(learning_rate=0.1)
         opt_sgd_2 = optimizers.SGD(learning_rate=1.0)
-        default_opt = optimizers.SGD(learning_rate=0.0)  # Should leave it unchanged
+        default_opt = optimizers.SGD(learning_rate=0.0)
 
         opt_map = optimizers.OptimizerMap(
             [opt_sgd_1, opt_sgd_2], ["^dense_1/.*", "^dense_2/.*"]
@@ -158,9 +159,7 @@ class MultiOptimizerTest(testing.TestCase):
         opt_sgd_1 = optimizers.SGD(learning_rate=0.1)
         opt_sgd_2 = optimizers.SGD(learning_rate=1.0)
 
-        opt_map = optimizers.OptimizerMap(
-            [opt_sgd_1], ["^dense_1/.*"]
-        )
+        opt_map = optimizers.OptimizerMap([opt_sgd_1], ["^dense_1/.*"])
         multi_opt = optimizers.MultiOptimizer(opt_map, opt_sgd_2)
 
         multi_opt.build([w1, w2])
@@ -184,11 +183,13 @@ class MultiOptimizerTest(testing.TestCase):
 
     def test_callback_integration(self):
         # Simple linear model
-        model = models.Sequential([
-            layers.Input(shape=(2,)),
-            layers.Dense(4, name="dense_1"),
-            layers.Dense(1, name="dense_2"),
-        ])
+        model = models.Sequential(
+            [
+                layers.Input(shape=(2,)),
+                layers.Dense(4, name="dense_1"),
+                layers.Dense(1, name="dense_2"),
+            ]
+        )
 
         opt_adam = optimizers.Adam(learning_rate=1e-1)
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
@@ -205,12 +206,15 @@ class MultiOptimizerTest(testing.TestCase):
         lr_scheduler = callbacks.LearningRateScheduler(lambda epoch: 5e-2)
 
         # Getter/setter tests inside fit
-        model.fit(x, y, epochs=1, batch_size=8, callbacks=[lr_scheduler], verbose=0)
+        model.fit(
+            x, y, epochs=1, batch_size=8, callbacks=[lr_scheduler], verbose=0
+        )
 
-        # Verify callback correctly modified ONLY the first optimizer (opt_adam)
+        # Verify callback correctly modified ONLY the
+        # first optimizer (opt_adam)
         self.assertAllClose(opt_adam.learning_rate, 5e-2)
         self.assertAllClose(opt_sgd.learning_rate, 1e-2)
-    
+
     def test_optimizer_map_comprehensive(self):
         with backend.name_scope("dense_1"):
             w_dense1_kernel = backend.Variable([[1.0]], name="kernel")
@@ -237,8 +241,8 @@ class MultiOptimizerTest(testing.TestCase):
                 "^dense_1/.*",
                 w_dense2_kernel,
                 lambda var: "bias" in (var.path or var.name),
-                [w_other1, w_other2]
-            ]
+                [w_other1, w_other2],
+            ],
         )
 
         # 1. Substring match -> opt_adam
@@ -247,7 +251,8 @@ class MultiOptimizerTest(testing.TestCase):
         self.assertEqual(opt_map(w_dense1_kernel), opt_sgd)
         # 3. Keras Variable direct match -> opt_adam
         self.assertEqual(opt_map(w_dense2_kernel), opt_adam)
-        # 4. Callable match -> opt_sgd (and matches dense_1/.* also mapping to opt_sgd)
+        # 4. Callable match -> opt_sgd
+        # (and matches dense_1/.* also mapping to opt_sgd)
         self.assertEqual(opt_map(w_dense1_bias), opt_sgd)
         # 5. List/Tuple match -> opt_adam
         self.assertEqual(opt_map(w_other1), opt_adam)
@@ -267,12 +272,44 @@ class MultiOptimizerTest(testing.TestCase):
         reconstructed = optimizers.deserialize(config)
 
         self.assertEqual(reconstructed.num_optimizers, 3)
-        self.assertEqual(reconstructed.get_optimizer(0).__class__.__name__, "Adam")
-        self.assertEqual(reconstructed.get_optimizer(1).__class__.__name__, "SGD")
-        self.assertEqual(reconstructed.get_optimizer(2).__class__.__name__, "RMSprop")
+        self.assertEqual(
+            reconstructed.get_optimizer(0).__class__.__name__, "Adam"
+        )
+        self.assertEqual(
+            reconstructed.get_optimizer(1).__class__.__name__, "SGD"
+        )
+        self.assertEqual(
+            reconstructed.get_optimizer(2).__class__.__name__, "RMSprop"
+        )
 
         # Test with default mapping behavior after reconstruct
         with backend.name_scope("dense_1"):
             w = backend.Variable([[1.0]], name="kernel")
         reconstructed.build([w])
-        self.assertEqual(reconstructed._get_optimizer_for_variable(w).__class__.__name__, "Adam")
+        self.assertEqual(
+            reconstructed._get_optimizer_for_variable(w).__class__.__name__,
+            "Adam",
+        )
+
+    def test_loss_scaling(self):
+        opt_adam = optimizers.Adam(learning_rate=1e-3)
+        opt_sgd = optimizers.SGD(learning_rate=1e-2)
+        default_opt = optimizers.RMSprop(learning_rate=1e-4)
+
+        opt_map = optimizers.OptimizerMap(
+            [opt_adam, opt_sgd], ["^dense_1/.*", "^dense_2/.*"]
+        )
+        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+
+        # Assert that inner optimizers have their loss
+        # scaling disabled to prevent double scaling
+        self.assertIsNone(opt_adam.loss_scale_factor)
+        self.assertIsNone(opt_sgd.loss_scale_factor)
+        self.assertIsNone(default_opt.loss_scale_factor)
+
+        # Assert that wrapper scales loss
+        # correctly when loss_scale_factor is set
+        multi_opt.loss_scale_factor = 100.0
+        loss = backend.convert_to_tensor(2.0)
+        scaled_loss = multi_opt.scale_loss(loss)
+        self.assertAllClose(scaled_loss, 200.0)
