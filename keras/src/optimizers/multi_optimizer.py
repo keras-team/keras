@@ -71,10 +71,41 @@ class OptimizerMap:
 class MultiOptimizer(optimizer.Optimizer):
     """An optimizer wrapper that delegates variables to different optimizers.
 
+    Example:
+
+    ```python
+    # 1. Define your sub-optimizers
+    opt_adam = keras.optimizers.Adam(learning_rate=1e-3)
+    opt_sgd = keras.optimizers.SGD(learning_rate=1e-2)
+    default_opt = keras.optimizers.RMSprop(learning_rate=1e-4)
+
+    # 2. Create mapping using different identifier types
+    opt_map = keras.optimizers.OptimizerMap(
+        optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd, opt_adam],
+        variable_identifier=[
+            "kernel",                            # 1. Match variable name substring
+            "^dense_1/.*",                       # 2. Match variable path regex pattern
+            keras_var,                           # 3. Match exact Keras Variable instance
+            lambda var: "bias" in var.name,      # 4. Match via custom callable function
+            [var1, var2]                         # 5. Match if variable is in list/tuple
+        ]
+    )
+
+    # 3. Wrap and compile
+    multi_opt = keras.optimizers.MultiOptimizer(
+        obj_map=opt_map,
+        default_optimizer=default_opt
+    )
+    model.compile(optimizer=multi_opt, loss="mse")
+    ```
+
+    Note: You can subclass `OptimizerMap` to define custom routing logic by
+    overriding its `__call__(self, variable)` method.
+
     Args:
-        obj_map: An OptimizerMap instance.
-        default_optimizer: Default Keras Optimizer for any unmapped variables.
-        name: String. The name of this optimizer.
+        obj_map: An `OptimizerMap` instance containing variable-to-optimizer rules.
+        default_optimizer: Default Keras `Optimizer` for any unmapped variables.
+        name: String. The name of this optimizer. Defaults to `"multi_optimizer"`.
     """
     
     def __init__(self, obj_map, default_optimizer, name=None, **kwargs):

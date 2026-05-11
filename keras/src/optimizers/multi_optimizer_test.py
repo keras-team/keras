@@ -210,6 +210,48 @@ class MultiOptimizerTest(testing.TestCase):
         # Verify callback correctly modified ONLY the first optimizer (opt_adam)
         self.assertAllClose(opt_adam.learning_rate, 5e-2)
         self.assertAllClose(opt_sgd.learning_rate, 1e-2)
+    
+    def test_optimizer_map_comprehensive(self):
+        with backend.name_scope("dense_1"):
+            w_dense1_kernel = backend.Variable([[1.0]], name="kernel")
+            w_dense1_bias = backend.Variable([[1.0]], name="bias")
+        with backend.name_scope("dense_2"):
+            w_dense2_kernel = backend.Variable([[1.0]], name="kernel")
+        w_exact = backend.Variable([[1.0]], name="exact_var")
+        w_other1 = backend.Variable([[1.0]], name="other1")
+        w_other2 = backend.Variable([[1.0]], name="other2")
+
+        opt_adam = optimizers.Adam(learning_rate=1e-3)
+        opt_sgd = optimizers.SGD(learning_rate=1e-2)
+
+        # Comprehensive mapping covering all 5 types of identifiers:
+        # 1. String substring matching
+        # 2. Regex matching
+        # 3. Keras Variable instance direct match
+        # 4. Callable match
+        # 5. List/Tuple of Keras variables
+        opt_map = optimizers.OptimizerMap(
+            optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd, opt_adam],
+            variable_identifier=[
+                "exact_var",
+                "^dense_1/.*",
+                w_dense2_kernel,
+                lambda var: "bias" in (var.path or var.name),
+                [w_other1, w_other2]
+            ]
+        )
+
+        # 1. Substring match -> opt_adam
+        self.assertEqual(opt_map(w_exact), opt_adam)
+        # 2. Regex match -> opt_sgd
+        self.assertEqual(opt_map(w_dense1_kernel), opt_sgd)
+        # 3. Keras Variable direct match -> opt_adam
+        self.assertEqual(opt_map(w_dense2_kernel), opt_adam)
+        # 4. Callable match -> opt_sgd (and matches dense_1/.* also mapping to opt_sgd)
+        self.assertEqual(opt_map(w_dense1_bias), opt_sgd)
+        # 5. List/Tuple match -> opt_adam
+        self.assertEqual(opt_map(w_other1), opt_adam)
+        self.assertEqual(opt_map(w_other2), opt_adam)
 
     def test_serialization(self):
         opt_adam = optimizers.Adam(learning_rate=1e-3)
