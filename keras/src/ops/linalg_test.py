@@ -642,16 +642,17 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         ("rcond", 1, 1e-3),
     )
     def test_lstsq(self, b_rank, rcond):
-        if backend.backend() == "torch" and rcond is not None:
-            pytest.skip("lstsq results with rcond are inconsistent on torch")
-
-        a = np.random.random((5, 7)).astype("float32")
+        # Seed for determinism: lstsq with `rcond` is sensitive to the
+        # conditioning of randomly drawn matrices, and an unseeded input
+        # was the source of historical flakiness on the torch backend.
+        rng = np.random.default_rng(0)
+        a = rng.random((5, 7)).astype("float32")
         a_symb = backend.KerasTensor((5, 7))
         if b_rank == 1:
-            b = np.random.random((5,)).astype("float32")
+            b = rng.random((5,)).astype("float32")
             b_symb = backend.KerasTensor((5,))
         else:
-            b = np.random.random((5, 4)).astype("float32")
+            b = rng.random((5, 4)).astype("float32")
             b_symb = backend.KerasTensor((5, 4))
         out = linalg.lstsq(a, b, rcond=rcond)
         ref_out = np.linalg.lstsq(a, b, rcond=rcond)[0]

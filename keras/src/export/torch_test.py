@@ -346,11 +346,15 @@ class ExportTorchTest(testing.TestCase):
         self._verify_export_and_inference(model, ref_input)
 
     def test_export_functional_with_add_skip_connection(self):
-        """Functional model with a skip connection via Add layer."""
+        """Functional model with a multi-branch graph (Add merge layer).
+
+        Tests that torch.export correctly traces a non-sequential graph
+        where two branches are merged with an `Add` layer (skip connection).
+        """
         inputs = layers.Input(shape=(10,))
         x = layers.Dense(16, activation="relu")(inputs)
-        residual = layers.Dense(16)(inputs)
-        x = layers.Add()([x, residual])
+        skip = layers.Dense(16)(inputs)
+        x = layers.Add()([x, skip])
         x = layers.Activation("relu")(x)
         outputs = layers.Dense(1)(x)
         model = models.Model(inputs=inputs, outputs=outputs)

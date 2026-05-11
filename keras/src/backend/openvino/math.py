@@ -135,6 +135,12 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     return OpenVINOKerasTensor(result)
 
 
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    raise NotImplementedError(
+        "`segment_min` is not supported with openvino backend"
+    )
+
+
 def top_k(x, k, sorted=True):
     x = get_ov_output(x)
     k_tensor = ov_opset.constant(k, dtype=Type.i32)
@@ -197,6 +203,16 @@ def logsumexp(x, axis=None, keepdims=False):
         norm_max = ov_opset.squeeze(norm_max, axis).output(0)
     log_sum_exp = ov_opset.add(norm_max, log_sum_exp).output(0)
     return OpenVINOKerasTensor(log_sum_exp)
+
+
+def qr(x, mode="reduced"):
+    raise NotImplementedError("`qr` is not supported with openvino backend")
+
+
+def cdist(x, y):
+    raise NotImplementedError(
+        "`cdist` is not supported with the OpenVINO backend"
+    )
 
 
 def extract_sequences(x, sequence_length, sequence_stride):

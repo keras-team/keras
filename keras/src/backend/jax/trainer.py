@@ -1090,9 +1090,11 @@ class JAXEpochIterator(EpochIterator):
         if distribution is not None:
             return self._get_distributed_iterator(distribution)
         else:
-            return self._one_batch_ahead_iterator(
-                self.data_adapter.get_jax_iterator()
-            )
+            iterator = self.data_adapter.get_jax_iterator()
+            # No benefit from look-ahead on CPU — avoid the overhead
+            if jax.default_backend() == "cpu":
+                return iterator
+            return self._one_batch_ahead_iterator(iterator)
 
     def _get_distributed_iterator(self, distribution):
         """Lazily compute layouts to reduce host to device transfer latency."""

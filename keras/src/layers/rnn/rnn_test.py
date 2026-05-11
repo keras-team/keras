@@ -414,4 +414,78 @@ class RNNTest(testing.TestCase):
             x_bad = ops.random.uniform(shape=(1, timesteps, features))
             model(x_bad)
 
-    # TODO: test masking
+    def test_masking(self):
+        sequence = np.arange(24).reshape((2, 4, 3)).astype("float32")
+        mask = np.array([[True, True, True, False], [True, True, False, False]])
+
+        # Test unroll=False, return_sequences=False
+        layer = layers.RNN(OneStateRNNCell(2), unroll=False)
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array([[57.0, 57.0], [126.0, 126.0]]),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
+
+        # Test unroll=True, return_sequences=False
+        layer = layers.RNN(OneStateRNNCell(2), unroll=True)
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array([[57.0, 57.0], [126.0, 126.0]]),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
+
+        # Test unroll=False, return_sequences=True
+        layer = layers.RNN(
+            OneStateRNNCell(2), return_sequences=True, unroll=False
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array(
+                [
+                    [[3.0, 3.0], [18.0, 18.0], [57.0, 57.0], [57.0, 57.0]],
+                    [
+                        [39.0, 39.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                    ],
+                ]
+            ),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )
+
+        # Test unroll=True, return_sequences=True
+        layer = layers.RNN(
+            OneStateRNNCell(2), return_sequences=True, unroll=True
+        )
+        output = layer(sequence, mask=mask)
+        self.assertAllClose(
+            output,
+            np.array(
+                [
+                    [[3.0, 3.0], [18.0, 18.0], [57.0, 57.0], [57.0, 57.0]],
+                    [
+                        [39.0, 39.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                        [126.0, 126.0],
+                    ],
+                ]
+            ),
+            atol=1e-5,
+            rtol=1e-5,
+            tpu_atol=1e-3,
+            tpu_rtol=1e-3,
+        )

@@ -167,6 +167,12 @@ class EinsumDense(Layer):
         Updates the kernel initializer with the correct input and output axes.
         """
         config = self.kernel_initializer.get_config()
+        # RandomInitializer.get_config() returns the seed passed to the
+        # constructor, which is often None. However, to maintain backwards
+        # compatibility with the old behavior of having one initializer called
+        # multiple times, we pass the concrete seed when cloning the
+        # initializer.
+        config["seed"] = self.kernel_initializer.seed
         config["input_axes"] = input_axes
         config["output_axes"] = output_axes
         return self.kernel_initializer.__class__.from_config(config)
