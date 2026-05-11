@@ -51,9 +51,7 @@ class EqualizationTest(testing.TestCase):
     )
     def test_input_dtypes(self, dtype):
         rng = np.random.default_rng(seed=42)
-        xs = rng.uniform(low=0, high=255, size=(2, 512, 512, 3)).astype(
-            dtype
-        )
+        xs = rng.uniform(low=0, high=255, size=(2, 512, 512, 3)).astype(dtype)
         layer = layers.Equalization(value_range=(0, 255))
         xs = ops.convert_to_numpy(layer(xs))
 
@@ -64,9 +62,9 @@ class EqualizationTest(testing.TestCase):
     @parameterized.named_parameters(("0_255", 0, 255), ("0_1", 0, 1))
     def test_output_range(self, lower, upper):
         rng = np.random.default_rng(seed=42)
-        xs = rng.uniform(
-            low=lower, high=upper, size=(2, 512, 512, 3)
-        ).astype(np.float32)
+        xs = rng.uniform(low=lower, high=upper, size=(2, 512, 512, 3)).astype(
+            np.float32
+        )
         layer = layers.Equalization(value_range=(lower, upper))
         xs = ops.convert_to_numpy(layer(xs))
         self.assertAllInRange(xs, lower, upper)
@@ -122,7 +120,9 @@ class EqualizationTest(testing.TestCase):
 
     def test_different_bin_sizes(self):
         rng = np.random.default_rng(seed=42)
-        xs = rng.uniform(low=0, high=255, size=(1, 64, 64, 3)).astype(np.float32)
+        xs = rng.uniform(low=0, high=255, size=(1, 64, 64, 3)).astype(
+            np.float32
+        )
         bin_sizes = [16, 64, 128, 256]
         for bins in bin_sizes:
             layer = layers.Equalization(value_range=(0, 255), bins=bins)
