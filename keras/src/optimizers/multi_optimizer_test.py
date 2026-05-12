@@ -6,7 +6,6 @@ from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
-from keras.src.saving.serialization_lib import enable_unsafe_deserialization
 
 
 class MultiOptimizerTest(testing.TestCase):
@@ -32,13 +31,6 @@ class MultiOptimizerTest(testing.TestCase):
         opt_map_direct = optimizers.OptimizerMap([opt_adam], [[w_dense]])
         self.assertEqual(opt_map_direct(w_dense), opt_adam)
         self.assertIsNone(opt_map_direct(w_conv))
-
-        # Test callable matching
-        opt_map_callable = optimizers.OptimizerMap(
-            [opt_adam], [lambda x: "dense" in (x.path or x.name)]
-        )
-        self.assertEqual(opt_map_callable(w_dense), opt_adam)
-        self.assertIsNone(opt_map_callable(w_conv))
 
         # Test conflict detection
         opt_map_conflict = optimizers.OptimizerMap(
@@ -223,7 +215,6 @@ class MultiOptimizerTest(testing.TestCase):
     def test_optimizer_map_comprehensive(self):
         with backend.name_scope("dense_1"):
             w_dense1_kernel = backend.Variable([[1.0]], name="kernel")
-            w_dense1_bias = backend.Variable([[1.0]], name="bias")
         with backend.name_scope("dense_2"):
             w_dense2_kernel = backend.Variable([[1.0]], name="kernel")
         w_exact = backend.Variable([[1.0]], name="exact_var")
@@ -233,19 +224,17 @@ class MultiOptimizerTest(testing.TestCase):
         opt_adam = optimizers.Adam(learning_rate=1e-3)
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
 
-        # Comprehensive mapping covering all 5 types of identifiers:
+        # Comprehensive mapping covering 4 types of identifiers:
         # 1. String substring matching
         # 2. Regex matching
         # 3. Keras Variable instance direct match
-        # 4. Callable match
-        # 5. List/Tuple of Keras variables
+        # 4. List/Tuple of Keras variables
         opt_map = optimizers.OptimizerMap(
-            optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd, opt_adam],
+            optimizer=[opt_adam, opt_sgd, opt_adam, opt_adam],
             variable_identifier=[
                 "exact_var",
                 "^dense_1/.*",
                 w_dense2_kernel,
-                lambda var: "bias" in (var.path or var.name),
                 [w_other1, w_other2],
             ],
         )
@@ -256,10 +245,7 @@ class MultiOptimizerTest(testing.TestCase):
         self.assertEqual(opt_map(w_dense1_kernel), opt_sgd)
         # 3. Keras Variable direct match -> opt_adam
         self.assertEqual(opt_map(w_dense2_kernel), opt_adam)
-        # 4. Callable match -> opt_sgd
-        # (and matches dense_1/.* also mapping to opt_sgd)
-        self.assertEqual(opt_map(w_dense1_bias), opt_sgd)
-        # 5. List/Tuple match -> opt_adam
+        # 4. List/Tuple match -> opt_adam
         self.assertEqual(opt_map(w_other1), opt_adam)
         self.assertEqual(opt_map(w_other2), opt_adam)
 
@@ -341,29 +327,26 @@ class MultiOptimizerTest(testing.TestCase):
             "Adam",
         )
 
-    def test_serialization_with_callable(self):
-        opt_adam = optimizers.Adam(learning_rate=1e-3)
-        default_opt = optimizers.SGD(learning_rate=1e-2)
-
+    def test_gradient_unscaling(self):
         with backend.name_scope("dense_1"):
-            w = backend.Variable([[1.0]], name="kernel")
+            w = backend.Variable([[2.0, 2.0]], name="kernel")
 
-        # Mapping uses a callable function (serializable lambda)
-        opt_map = optimizers.OptimizerMap(
-            [opt_adam], [lambda var: "kernel" in (var.path or var.name)]
-        )
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+        # SGD with learning rate 0.1
+        opt_sgd = optimizers.SGD(learning_rate=0.1)
+        opt_map = optimizers.OptimizerMap([opt_sgd], ["^dense_1/.*"])
+        multi_opt = optimizers.MultiOptimizer(opt_map, opt_sgd)
 
-        # Enable unsafe deserialization for lambda loading in test
-        enable_unsafe_deserialization()
+        # Set loss scale factor
+        multi_opt.loss_scale_factor = 10.0
 
-        config = optimizers.serialize(multi_opt)
-        reconstructed = optimizers.deserialize(config)
+        multi_opt.build([w])
 
-        # Reconstructed optimizer should build and match
-        #  correctly via the deserialized lambda
-        reconstructed.build([w])
-        self.assertEqual(
-            reconstructed._get_optimizer_for_variable(w).__class__.__name__,
-            "Adam",
-        )
+        # Gradient is 10.0 (which is scaled by loss_scale_factor=10.0)
+        # Expected unscaled gradient is 10.0 / 10.0 = 1.0
+        # Expected weight update is:
+        # 2.0 - lr * unscaled_grad = 2.0 - 0.1 * 1.0 = 1.9
+        grads = [backend.convert_to_tensor([[10.0, 10.0]])]
+
+        multi_opt.apply(grads, [w])
+
+        self.assertAllClose(w.numpy(), [[1.9, 1.9]])

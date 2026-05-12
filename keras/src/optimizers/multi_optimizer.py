@@ -16,8 +16,7 @@ class OptimizerMap:
         optimizer: A list of optimizer instances.
         variable_identifier: A list of variable identifiers matching the
             optimizer list. Identifiers can be string regex patterns, Keras
-            Variables, list/tuple of Keras Variables, or callables returning a
-            boolean.
+            Variables, or list/tuple of Keras Variables.
     """
 
     def __init__(self, optimizer, variable_identifier):
@@ -53,9 +52,6 @@ class OptimizerMap:
         return None
 
     def _match(self, variable, identifier):
-        # If callable, evaluate it
-        if callable(identifier) and not isinstance(identifier, str):
-            return bool(identifier(variable))
         # If string, treat it as a regex pattern
         if isinstance(identifier, str):
             path = getattr(variable, "path", "") or ""
@@ -84,12 +80,11 @@ class MultiOptimizer(optimizer.Optimizer):
 
     # 2. Create mapping using different identifier types
     opt_map = keras.optimizers.OptimizerMap(
-        optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd, opt_adam],
+        optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd],
         variable_identifier=[
             "kernel",                            # variable name or path
             "^dense_1/.*",                       # regex pattern
             keras_var,                           # Keras Variable instance
-            lambda var: "bias" in var.name,      # custom callable function
             [var1, var2]                         # list/tuple
         ]
     )
@@ -130,7 +125,6 @@ class MultiOptimizer(optimizer.Optimizer):
         self.obj_map = obj_map
         self.default_optimizer = default_optimizer
 
-        # Disable loss scaling for all inner optimizers to avoid double scaling
         self.default_optimizer.loss_scale_factor = None
         for opt in self.obj_map.optimizer:
             opt.loss_scale_factor = None
@@ -225,6 +219,11 @@ class MultiOptimizer(optimizer.Optimizer):
             self.build(trainable_variables)
             self.built = True
 
+        # Statefully unscale gradients if loss_scale_factor is set
+        if self.loss_scale_factor is not None:
+            scale = self.loss_scale_factor
+            grads = [g if g is None else g / scale for g in grads]
+
         # Group gradients and variables by sub-optimizer
         optimizer_to_grads_and_vars = {
             opt: [] for opt in self._inner_optimizers
@@ -248,6 +247,11 @@ class MultiOptimizer(optimizer.Optimizer):
 
         if trainable_variables is None:
             trainable_variables = self._trainable_variables
+
+        # Statelessly unscale gradients if loss_scale_factor is set
+        if self.loss_scale_factor is not None:
+            scale = self.loss_scale_factor
+            grads = [g if g is None else g / scale for g in grads]
 
         own_var_count = len(self._variables)
         own_variables = optimizer_variables[:own_var_count]
@@ -366,10 +370,6 @@ class MultiOptimizer(optimizer.Optimizer):
                     serialized_identifiers.append(f"^({or_pattern})$")
                 else:
                     serialized_identifiers.append(identifier)
-            elif callable(identifier):
-                serialized_identifiers.append(
-                    serialization_lib.serialize_keras_object(identifier)
-                )
             else:
                 serialized_identifiers.append(identifier)
 
@@ -410,12 +410,7 @@ class MultiOptimizer(optimizer.Optimizer):
             for opt_config in serialized_opts
         ]
 
-        variable_identifiers = [
-            serialization_lib.deserialize_keras_object(
-                ident, custom_objects=custom_objects
-            )
-            for ident in obj_map_config["config"]["variable_identifier"]
-        ]
+        variable_identifiers = obj_map_config["config"]["variable_identifier"]
 
         map_cls = cls._get_map_class(
             obj_map_config["class_name"], custom_objects
