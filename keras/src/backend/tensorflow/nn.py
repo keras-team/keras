@@ -4,6 +4,7 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
 )
@@ -861,7 +862,7 @@ def depthwise_conv(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
             f"{inputs.ndim}."
         )
-    check_depthwise_conv_input_channels(inputs, kernel, data_format)
+    check_conv_input_channels(inputs, kernel, data_format)
     # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
     tf_data_format = _convert_data_format(data_format, 4)
@@ -943,7 +944,7 @@ def separable_conv(
             "`num_spatial_dims` must be 1 or 2. Received: "
             f"num_spatial_dims={num_spatial_dims}."
         )
-    check_depthwise_conv_input_channels(inputs, depthwise_kernel, data_format)
+    check_conv_input_channels(inputs, depthwise_kernel, data_format)
     # Because we use `tf.nn.separable_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
     tf_data_format = _convert_data_format(data_format, 4)
