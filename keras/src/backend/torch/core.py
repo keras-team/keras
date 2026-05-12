@@ -207,26 +207,29 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype is not None:
             x = x.to(to_torch_dtype(dtype))
         return x
-    if dtype is None:
-        if isinstance(x, bool):
-            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
+    if isinstance(x, (bool, int, float, complex)):
+        if dtype is not None:
+            dt = to_torch_dtype(dtype)
+        elif isinstance(x, bool):
+            dt = torch.bool
         elif isinstance(x, int):
-            if x < -(2**31) or x >= 2**31:
-                return torch.as_tensor(
-                    x, dtype=torch.int64, device=get_device()
-                )
-            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
+            dt = torch.int64 if x < -(2**31) or x >= 2**31 else torch.int32
         elif isinstance(x, float):
-            return torch.as_tensor(
-                x, dtype=to_torch_dtype(floatx()), device=get_device()
-            )
+            dt = to_torch_dtype(floatx())
+        else:
+            dt = torch.complex64
+        return torch.as_tensor(x, dtype=dt, device=get_device())
 
     # Convert to np in case of any array-like that is not list or tuple.
-    if not isinstance(x, (list, tuple)):
+    # Skip scalar Python values to avoid np.array(float) -> float64, which
+    # causes dtype issues during torch.export (constants are lifted before
+    # the cast to the requested dtype).
+    if isinstance(x, (list, tuple)):
+        if len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
+            # Handle list or tuple of torch tensors
+            return torch.stack([convert_to_tensor(x1) for x1 in x])
+    elif not isinstance(x, (bool, int, float)):
         x = np.array(x)
-    elif len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
-        # Handle list or tuple of torch tensors
-        return torch.stack([convert_to_tensor(x1) for x1 in x])
     if isinstance(x, np.ndarray):
         if x.dtype == np.uint32:
             # Torch backend does not support uint32.
@@ -670,8 +673,9 @@ def slice_update(inputs, start_indices, updates):
     # We cannot use Python slice objects because they require scalar int
     # bounds, and extracting scalars from traced tensors creates unbacked
     # symbols that torch.export cannot resolve.
-    # Instead, we build a flat index list via meshgrid and use
-    # index_put_, which is fully traceable.
+    # We also cannot use `torch.narrow` (as the `slice` slow-path does)
+    # because `narrow` is read-only; for in-place updates we need
+    # `index_put_`, which is fully traceable.
     start_indices = convert_to_tensor(start_indices, dtype="int64")
     outputs = inputs.clone()
     update_shape = list(updates.shape)

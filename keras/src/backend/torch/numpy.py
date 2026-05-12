@@ -1795,6 +1795,17 @@ def repeat(x, repeats, axis=None):
         new_shape[axis] = shape[axis] * repeats
         return x.reshape(new_shape)
 
+    # When repeats is a list/tuple of ints, pass it directly to
+    # repeat_interleave without converting to a tensor. The output
+    # size (sum(repeats)) is statically known, so torch.export can
+    # infer shapes without introducing unbacked symbols.
+    if (
+        isinstance(repeats, (list, tuple))
+        and all(isinstance(r, int) for r in repeats)
+        and axis is not None
+    ):
+        return torch.repeat_interleave(x, repeats, dim=axis)
+
     repeats = convert_to_tensor(repeats, dtype=int)
 
     return torch.repeat_interleave(x, repeats, dim=axis)
@@ -2362,6 +2373,7 @@ def histogram(x, bins=10, range=None):
 def unique(
     x,
     sorted=True,
+    return_index=False,
     return_inverse=False,
     return_counts=False,
     axis=None,
@@ -2374,20 +2386,33 @@ def unique(
     output = torch.unique(
         x,
         sorted=sorted,  # Added sorted parameter here
-        return_inverse=return_inverse,
+        return_inverse=(return_inverse or return_index),
         return_counts=return_counts,
         dim=axis,
     )
 
-    if not (return_inverse or return_counts):
+    if not (return_inverse or return_counts or return_index):
         output = [output]
     else:
         output = list(output)
 
     values = output[0]
 
+    if axis is None:
+        dim = 0
+    else:
+        dim = canonicalize_axis(axis, x.ndim)
+
+    if return_index:
+        inverse = output[1]
+        perm = torch.arange(
+            inverse.size(0), dtype=inverse.dtype, device=inverse.device
+        )
+        unique_indices = inverse.new_empty(values.size(dim)).scatter_reduce_(
+            0, inverse, perm, reduce="min", include_self=False
+        )
+
     if size is not None:
-        dim = axis if axis is not None else 0
         values_count = values.shape[dim]
 
         if values_count > size:
@@ -2396,7 +2421,9 @@ def unique(
             indices[dim] = slice(0, size)
             values = values[tuple(indices)]
             if return_counts:
-                output[-1] = output[-1][tuple(indices)]
+                output[-1] = output[-1][indices[dim]]
+            if return_index:
+                unique_indices = unique_indices[indices[dim]]
 
         elif values_count < size:
             # Pad
@@ -2409,8 +2436,16 @@ def unique(
             values = torch.nn.functional.pad(values, pad_width, value=fill)
             if return_counts:
                 output[-1] = torch.nn.functional.pad(
-                    output[-1], pad_width, value=0
+                    output[-1], pad_width[idx : idx + 2], value=0
+                )
+            if return_index:
+                unique_indices = torch.nn.functional.pad(
+                    unique_indices, pad_width[idx : idx + 2], value=1
                 )
 
     output[0] = values
+    if return_index and return_inverse:
+        output.insert(1, unique_indices)
+    elif return_index:
+        output[1] = unique_indices
     return output[0] if len(output) == 1 else tuple(output)

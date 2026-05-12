@@ -208,6 +208,10 @@ def gru(*args, **kwargs):
     raise NotImplementedError
 
 
+def bidirectional_lstm(*args, **kwargs):
+    raise NotImplementedError
+
+
 def unstack(x, axis=0):
     return [x.take(i, axis) for i in range(x.shape[axis])]
 

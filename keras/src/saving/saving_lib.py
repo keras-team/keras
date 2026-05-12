@@ -1778,14 +1778,23 @@ def _write_nested_dict_to_dir(tree, base_dir):
 
     Each dict key becomes a directory or filename. Leaf values (numpy
     arrays) are written as binary files.
+
+    Args:
+        tree: A nested dictionary of numpy arrays.
+        base_dir: The base directory to write the assets to. Must be resolved
+            via `file_utils.resolve_path` first.
     """
     for key, value in tree.items():
-        child_path = os.path.join(base_dir, key)
+        if os.path.sep in key or (os.path.altsep and os.path.altsep in key):
+            raise ValueError(f"Invalid asset path: {key}")
+        child_path = file_utils.resolve_sub_path(base_dir, key)
+        if child_path is None:
+            raise ValueError(f"Invalid asset path: {key}")
+
         if isinstance(value, dict):
             os.makedirs(child_path, exist_ok=True)
             _write_nested_dict_to_dir(value, child_path)
         elif isinstance(value, np.ndarray):
-            os.makedirs(os.path.dirname(child_path), exist_ok=True)
             with open(child_path, "wb") as f:
                 f.write(value.tobytes())
 
@@ -1857,6 +1866,7 @@ def _load_assets_from_dict(model, assets_dict):
         return
 
     with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_dir = file_utils.resolve_path(tmp_dir)
         _write_nested_dict_to_dir(assets_dict, tmp_dir)
 
         assets_store = DiskIOStore(tmp_dir, mode="r")

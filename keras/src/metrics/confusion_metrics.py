@@ -667,7 +667,7 @@ class SensitivitySpecificityBase(Metric):
         feasible = predicate(constrained, self.value)
         # Mask values based on whether they satisfy the constraint and take max.
         return ops.max(
-            ops.multiply(dependent, ops.cast(feasible, dependent.dtype)),
+            ops.where(feasible, dependent, 0),
             initial=0,
         )
 

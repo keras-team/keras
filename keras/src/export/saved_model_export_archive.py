@@ -373,7 +373,16 @@ class SavedModelExportArchive:
 
             if hasattr(self, "_tracked"):
                 for root in self._tracked:
-                    descendants = SavedModelTrackableView(root).descendants()
+                    try:
+                        descendants = SavedModelTrackableView(
+                            root
+                        ).descendants()
+                    except TypeError:
+                        # Python 3.13 + wrapt.ObjectProxy incompatibility:
+                        # inspect.getattr_static calls object.__getattribute__
+                        # on _DictWrapper objects, which raises TypeError.
+                        # Skip lookup-table tracking for this root.
+                        continue
                     for trackable in descendants:
                         if isinstance(trackable, TrackableResource):
                             self._tf_trackable._misc_assets.append(trackable)
