@@ -7246,13 +7246,31 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
         self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
 
+        result = knp.argpartition(x, 2, axis=None)
+        flat_x = x.flatten()
+        kth_value = np.sort(flat_x)[2]
+        self.assertTrue(np.all(flat_x[result[:2]] <= kth_value))
+        self.assertTrue(np.all(flat_x[result[3:]] >= kth_value))
+
         x = np.array([[3, 4, 2], [1, 3, 4]])
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
+        result = knp.argpartition(x, 1, axis=None)
+        flat_x = x.flatten()
+        kth_value = np.sort(flat_x)[1]
+        self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
+        self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
+
         x = np.array([[[3, 4], [2, 3]], [[1, 2], [0, 1]]])
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
+
+        result = knp.argpartition(x, 1, axis=None)
+        flat_x = x.flatten()
+        kth_value = np.sort(flat_x)[1]
+        self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
+        self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
 
     def test_angle(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])

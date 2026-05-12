@@ -9400,7 +9400,18 @@ class Argpartition(Operation):
         return backend.numpy.argpartition(x, kth=self.kth, axis=self.axis)
 
     def compute_output_spec(self, x):
-        return KerasTensor(x.shape, dtype="int32")
+        shape = x.shape
+
+        if self.axis is None:
+            size = 1
+            for dim in shape:
+                if dim is None:
+                    size = None
+                    break
+                size *= dim
+            shape = (size,)
+
+        return KerasTensor(shape, dtype="int32")
 
 
 @keras_export(["keras.ops.argpartition", "keras.ops.numpy.argpartition"])
