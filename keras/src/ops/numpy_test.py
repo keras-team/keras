@@ -2232,6 +2232,14 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         self.assertEqual(knp.vsplit(x, [1, 3])[1].shape, (2, 3, 3))
         self.assertEqual(knp.vsplit(x, [1, 3])[2].shape, (None, 3, 3))
 
+    def test_argpartition(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
+        self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (None, 3))
+
+        with self.assertRaises(ValueError):
+            knp.argpartition(x, (1, 3))
+
     def test_angle(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.angle(x).shape, (None, 3))
@@ -3022,14 +3030,6 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_angle(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.angle(x).shape, (2, 3))
-
-    def test_argpartition_dynamic_shape(self):
-        x = KerasTensor((None, 3))
-        self.assertEqual(knp.argpartition(x, 3).shape, (None, 3))
-        self.assertEqual(knp.argpartition(x, 1, axis=1).shape, (None, 3))
-
-        with self.assertRaises(ValueError):
-            knp.argpartition(x, (1, 3))
 
     def test_view(self):
         x = knp.array(KerasTensor((2, 3)), dtype="int32")
