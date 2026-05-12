@@ -1154,6 +1154,52 @@ class NNOpsStaticShapeTest(testing.TestCase):
             (2, 4, 5, 5) if data_format == "channels_last" else (2, 5, 4, 5),
         )
 
+    def test_conv_input_channel_validation(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs = KerasTensor(input_shape)
+        # kernel input channels (5) do not match the input's channels (3)
+        bad_kernel = KerasTensor([3, 5, 4])
+        bad_depthwise_kernel = KerasTensor([3, 5, 1])
+        pointwise_kernel = KerasTensor([1, 5, 4])
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.conv(inputs, bad_kernel, padding="valid")
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.depthwise_conv(inputs, bad_depthwise_kernel, padding="valid")
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.separable_conv(
+                inputs,
+                bad_depthwise_kernel,
+                pointwise_kernel,
+                padding="valid",
+            )
+
+        # Dynamic channel dimension should NOT raise.
+        if data_format == "channels_last":
+            dyn_inputs = KerasTensor((2, 10, None))
+        else:
+            dyn_inputs = KerasTensor((2, None, 10))
+        knn.conv(dyn_inputs, bad_kernel, padding="valid")
+        knn.depthwise_conv(dyn_inputs, bad_depthwise_kernel, padding="valid")
+        knn.separable_conv(
+            dyn_inputs,
+            bad_depthwise_kernel,
+            pointwise_kernel,
+            padding="valid",
+        )
+
     def test_conv_transpose(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
