@@ -74,16 +74,6 @@ def logsumexp(x, axis=None, keepdims=False):
     return jax.scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
-def qr(x, mode="reduced"):
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    return jnp.linalg.qr(x, mode=mode)
-
-
 def cdist(x, y):
     x = jnp.asarray(x)
     y = jnp.asarray(y)

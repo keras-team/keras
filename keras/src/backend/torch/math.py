@@ -98,18 +98,6 @@ def logsumexp(x, axis=None, keepdims=False):
     return torch.logsumexp(x, dim=axis, keepdim=keepdims)
 
 
-def qr(x, mode="reduced"):
-    x = convert_to_tensor(x)
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    x = convert_to_tensor(x)
-    return torch.linalg.qr(x, mode=mode)
-
-
 def cdist(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)

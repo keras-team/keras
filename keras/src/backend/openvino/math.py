@@ -211,10 +211,6 @@ def logsumexp(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(log_sum_exp)
 
 
-def qr(x, mode="reduced"):
-    raise NotImplementedError("`qr` is not supported with openvino backend")
-
-
 def cdist(x, y):
     x = get_ov_output(x)
     y = get_ov_output(y)

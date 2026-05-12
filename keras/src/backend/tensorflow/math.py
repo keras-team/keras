@@ -78,18 +78,6 @@ def logsumexp(x, axis=None, keepdims=False):
     return tf.math.reduce_logsumexp(x, axis=axis, keepdims=keepdims)
 
 
-def qr(x, mode="reduced"):
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    if mode == "reduced":
-        return tf.linalg.qr(x)
-    return tf.linalg.qr(x, full_matrices=True)
-
-
 def cdist(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
