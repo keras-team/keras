@@ -15,8 +15,8 @@ class OptimizerMap:
     Args:
         optimizer: A list of optimizer instances.
         variable_identifier: A list of variable identifiers matching the
-            optimizer list. Identifiers can be string regex patterns, Keras
-            Variables, or list/tuple of Keras Variables.
+            length of the optimizer list. Identifiers can be string regex
+            patterns, Keras Variables, or list/tuple of Keras Variables.
     """
 
     def __init__(self, optimizer, variable_identifier):
@@ -73,6 +73,7 @@ class MultiOptimizer(optimizer.Optimizer):
     Example:
 
     ```python
+
     # 1. Define your sub-optimizers
     opt_adam = keras.optimizers.Adam(learning_rate=1e-3)
     opt_sgd = keras.optimizers.SGD(learning_rate=1e-2)
