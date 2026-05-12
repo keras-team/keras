@@ -7,9 +7,6 @@ from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
 )
 from keras.src.backend.common.backend_utils import (
-    check_depthwise_conv_input_channels,
-)
-from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_torch,
 )
 from keras.src.backend.torch.core import cast
