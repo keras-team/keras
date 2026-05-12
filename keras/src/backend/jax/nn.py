@@ -21,9 +21,6 @@ from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
 )
 from keras.src.backend.common.backend_utils import (
-    check_depthwise_conv_input_channels,
-)
-from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.common.backend_utils import (
