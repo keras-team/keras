@@ -95,6 +95,20 @@ class ReshapeTest(testing.TestCase):
         reshaped = layers.Reshape((8,))(input_layer)
         self.assertEqual(reshaped.shape, (None, 8))
 
+    def test_reshape_rejects_invalid_target_shape(self):
+        # Negative values other than -1 are invalid.
+        with self.assertRaisesRegex(
+            ValueError, "non-negative integer.*-1.*target_shape=\\(-2, 5\\)"
+        ):
+            layers.Reshape(target_shape=(-2, 5))
+
+        # Existing constraint: at most one -1.
+        with self.assertRaisesRegex(
+            ValueError,
+            "at most one unknown dimension.*target_shape=\\(-1, -1, 5\\)",
+        ):
+            layers.Reshape(target_shape=(-1, -1, 5))
+
     def test_reshape_with_dynamic_batch_size_and_minus_one(self):
         input = KerasTensor((None, 6, 4))
         layer = layers.Reshape((-1, 8))

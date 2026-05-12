@@ -282,17 +282,35 @@ def compute_matmul_output_shape(shape1, shape2):
     return tuple(output_shape)
 
 
+def validate_reshape_shape(newshape, newshape_arg_name="newshape"):
+    """Validate the `newshape` argument of `reshape`.
+
+    Each dimension that is a concrete Python int must be either non-negative
+    or `-1` (with at most one `-1`). Dynamic dimensions (e.g. backend tensor
+    scalars resolved at runtime) are not validated here.
+    """
+    for dim in newshape:
+        if isinstance(dim, int) and dim < -1:
+            raise ValueError(
+                f"Each dimension in `{newshape_arg_name}` must be a "
+                "non-negative integer, or `-1` for a single unknown "
+                f"dimension. Received: {newshape_arg_name}={newshape}."
+            )
+    if [d for d in newshape if isinstance(d, int)].count(-1) > 1:
+        raise ValueError(
+            "There must be at most one unknown dimension (-1) in "
+            f"`{newshape_arg_name}`. Received: "
+            f"{newshape_arg_name}={newshape}."
+        )
+
+
 def compute_reshape_output_shape(input_shape, newshape, newshape_arg_name):
     """Converts `-1` in `newshape` to either an actual dimension or `None`.
 
     This utility does not special case the 0th dimension (batch size).
     """
+    validate_reshape_shape(newshape, newshape_arg_name)
     unknown_dim_count = newshape.count(-1)
-    if unknown_dim_count > 1:
-        raise ValueError(
-            "There must be at most one unknown dimension (-1) in "
-            f"{newshape_arg_name}. Received: {newshape_arg_name}={newshape}."
-        )
 
     # If there is a None in input_shape, we can't infer what the -1 is
     if None in input_shape:
