@@ -26,6 +26,8 @@ def _segment_reduction_fn(
         result = np.ones(data_shape, dtype=valid_data.dtype) * -np.inf
     elif reduction_method == np.minimum:
         result = np.ones(data_shape, dtype=valid_data.dtype) * np.inf
+    elif reduction_method == np.multiply:
+        result = np.ones(data_shape, dtype=valid_data.dtype)
     else:
         result = np.zeros(data_shape, dtype=valid_data.dtype)
 
@@ -56,6 +58,12 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 def segment_min(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(
         data, segment_ids, np.minimum, num_segments, sorted
+    )
+
+
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(
+        data, segment_ids, np.multiply, num_segments, sorted
     )
 
 
