@@ -388,7 +388,7 @@ def compress_summary(summary, epsilon):
 
     percents = epsilon + np.arange(0.0, 1.0, epsilon)
     cum_weights = summary[1].cumsum()
-    cum_weight_percents = cum_weights / cum_weights[-1]
+    cum_weight_percents = cum_weights / (cum_weights[-1] + cum_weights[0])
     new_bins = np.interp(percents, cum_weight_percents, summary[0])
     cum_weights = np.interp(percents, cum_weight_percents, cum_weights)
     new_weights = cum_weights - np.concatenate(
