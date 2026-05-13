@@ -1,147 +1,163 @@
 import re
+from collections.abc import MutableMapping
 
 from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.backend.common.variables import Variable
 from keras.src.optimizers import optimizer
 from keras.src.saving import serialization_lib
 from keras.src.utils import tracking
 
 
 @keras_export("keras.optimizers.OptimizerMap")
-class OptimizerMap:
+class OptimizerMap(MutableMapping):
     """A class mapping variables to optimizers.
 
     Args:
-        optimizer: A list of optimizer instances.
-        variable_identifier: A list of variable identifiers matching the
-            length of the optimizer list. Identifiers can be string regex
-            patterns, Keras Variables, or list/tuple of Keras Variables.
+        default_optimizer: Default Keras `Optimizer`
+            for any unmapped variables.
     """
 
-    def __init__(self, optimizer, variable_identifier):
-        self.optimizer = optimizer
-        self.variable_identifier = variable_identifier
+    def __init__(self, default_optimizer):
+        if not isinstance(default_optimizer, optimizer.Optimizer):
+            raise TypeError(
+                "default_optimizer must be a Keras Optimizer instance. "
+                f"Received: {default_optimizer}"
+            )
+        self._default_optimizer = default_optimizer
+        self._optimizer_map = dict()
 
-    def __call__(self, variable):
-        """Evaluates a single variable and returns its assigned optimizer.
+    @property
+    def default_optimizer(self):
+        return self._default_optimizer
+
+    def __getitem__(self, key):
+        """Retrieves the corresponding `Optimizer` by the string key.
+
+        This method first attempts an exact key match. If no exact match is
+        found, it treats all keys in the map as regular expression patterns
+        and uses `re.fullmatch` to find a policy.
+
+        For example,
+        to apply a optimizer to all sublayers of an `encoder` block,
+        the key should be explicitly set to `"encoder/.*"`. A key of
+        `"encoder"` will only match the layer with that exact path.
 
         Args:
-            variable: A single Keras Variable.
+            key: str. The key to query for an `Optimizer`.
 
         Returns:
-            An Optimizer instance if matched, or None.
+            The corresponding `Optimizer`. If no match is found, this method
+            returns `self.default_optimizer`.
 
         Raises:
-            ValueError: If multiple different optimizers are mapped to the same
-                variable.
+            ValueError: If the `key` matches more than one regex pattern in the
+            map.
+
+        Example:
+
+        ```python
+        >>> from keras.src import optimizers
+        >>> opt_adam = optimizers.Adam()
+        >>> opt_sgd = optimizers.SGD()
+        >>> opt_rmsprop = optimizers.RMSprop()
+        >>> optimizer_map = OptimizerMap(default_optimizer=opt_rmsprop)
+        >>> optimizer_map["encoder/layer_0/dense"] = opt_adam
+        >>> optimizer_map["encoder/.*"] = opt_sgd
+        >>> optimizer_map["decoder"] = opt_adam
+
+        >>> optimizer_map["decoder"].name
+        'adam'
+
+        >>> optimizer_map["encoder/layer_0/dense"].name
+        'adam'
+
+        >>> optimizer_map["encoder/layer_0/attention/query"].name
+        'sgd'
+
+        >>> optimizer_map["decoder/layer_0/dense"].name
+        'rmsprop'
+        ```
         """
-        matched_optimizers = []
-        for opt, identifier in zip(self.optimizer, self.variable_identifier):
-            if self._match(variable, identifier):
-                if opt not in matched_optimizers:
-                    matched_optimizers.append(opt)
 
-        if len(matched_optimizers) > 1:
+        if key in self._optimizer_map:
+            return self._optimizer_map[key]
+
+        matching_keys = [
+            pattern
+            for pattern in self._optimizer_map.keys()
+            if re.fullmatch(pattern, key)
+        ]
+
+        if len(matching_keys) > 1:
+            raise ValueError(f"Multiple optimizers assigned to variable {key}.")
+        elif len(matching_keys) == 1:
+            return self._optimizer_map[matching_keys[0]]
+        return self.default_optimizer
+
+    def __setitem__(self, key, optim):
+        """Set optimizer for a given variable.
+
+        Args:
+            key: string representing the variable path or regex pattern
+            optim: Keras Optimizer instance
+        """
+        if isinstance(optim, MultiOptimizer):
             raise ValueError(
-                f"Multiple optimizers assigned to variable "
-                f"{variable.path or variable.name}: {matched_optimizers}"
+                f"{key} already exist in the OptimizerMap with "
+                f"value {self._optimizer_map[key]}. Please make sure to "
+                "not use duplicated keys."
             )
-        elif len(matched_optimizers) == 1:
-            return matched_optimizers[0]
-        return None
+        if not isinstance(key, str):
+            raise ValueError(f"key must be a string. Received: {key}")
+        if not isinstance(optim, optimizer.Optimizer):
+            raise ValueError(
+                f"optim must be a Keras Optimizer instance. Received: {optim}"
+            )
+        self._optimizer_map[key] = optim
 
-    def _match(self, variable, identifier):
-        # If string, treat it as a regex pattern
-        if isinstance(identifier, str):
-            path = getattr(variable, "path", "") or ""
-            name = getattr(variable, "name", "") or ""
-            return bool(
-                re.match(identifier, path) or re.match(identifier, name)
+    def __delitem__(self, key):
+        del self._optimizer_map[key]
+
+    def __len__(self):
+        return len(self._optimizer_map)
+
+    def __iter__(self):
+        return iter(self._optimizer_map)
+
+    def __call__(self, variable):
+        return self[variable.path]
+
+    def get_config(self):
+        return {
+            "default_optimizer": serialization_lib.serialize_keras_object(
+                self._default_optimizer
+            ),
+            "optimizer_map": {
+                k: serialization_lib.serialize_keras_object(v)
+                for k, v in self._optimizer_map.items()
+            },
+        }
+
+    @classmethod
+    def from_config(cls, config, custom_objects=None):
+        default_optimizer = serialization_lib.deserialize_keras_object(
+            config["default_optimizer"], custom_objects=custom_objects
+        )
+        obj_map = cls(default_optimizer)
+        for k, v in config["optimizer_map"].items():
+            obj_map[k] = serialization_lib.deserialize_keras_object(
+                v, custom_objects=custom_objects
             )
-        # list/tuple/set
-        if isinstance(identifier, (list, tuple, set)):
-            return any(variable is item for item in identifier)
-        # Direct identity comparison
-        return variable is identifier
+        return obj_map
 
 
 @keras_export("keras.optimizers.MultiOptimizer")
 class MultiOptimizer(optimizer.Optimizer):
-    """An optimizer wrapper that delegates variables to different optimizers.
+    """An optimizer wrapper that delegates variables to different optimizers."""
 
-    Example:
-
-    ```python
-
-    # 1. Define your sub-optimizers
-    opt_adam = keras.optimizers.Adam(learning_rate=1e-3)
-    opt_sgd = keras.optimizers.SGD(learning_rate=1e-2)
-    default_opt = keras.optimizers.RMSprop(learning_rate=1e-4)
-
-    # 2. Create mapping using different identifier types
-    opt_map = keras.optimizers.OptimizerMap(
-        optimizer=[opt_adam, opt_sgd, opt_adam, opt_sgd],
-        variable_identifier=[
-            "kernel",                            # variable name or path
-            "^dense_1/.*",                       # regex pattern
-            keras_var,                           # Keras Variable instance
-            [var1, var2]                         # list/tuple
-        ]
-    )
-
-    # 3. Wrap and compile
-    multi_opt = keras.optimizers.MultiOptimizer(
-        obj_map=opt_map,
-        default_optimizer=default_opt
-    )
-    model.compile(optimizer=multi_opt, loss="mse")
-    ```
-
-    Note: You can subclass `OptimizerMap` to define custom routing logic by
-    overriding its `__call__(self, variable)` method.
-
-    Args:
-        obj_map: An `OptimizerMap` instance containing
-               variable-to-optimizer rules.
-        default_optimizer: Default Keras `Optimizer` for any unmapped variables.
-        name: String. The name of this optimizer. Defaults to
-              "multi_optimizer".
-    """
-
-    def __init__(self, obj_map, default_optimizer, name=None, **kwargs):
-        if not isinstance(obj_map, OptimizerMap):
-            raise ValueError(
-                f"obj_map must be an instance "
-                f"of OptimizerMap. Received: {obj_map}"
-            )
-        if not isinstance(default_optimizer, optimizer.Optimizer):
-            raise ValueError(
-                f"default_optimizer must be a Keras Optimizer instance. "
-                f"Received: {default_optimizer}"
-            )
-
+    def __init__(self, optim_map, name=None):
         super().__init__(learning_rate=0.0, name=name)
-
-        self.obj_map = obj_map
-        self.default_optimizer = default_optimizer
-
-        self.default_optimizer.loss_scale_factor = None
-        for opt in self.obj_map.optimizer:
-            opt.loss_scale_factor = None
-
-        # Unique inner optimizers list, keeping default optimizer at the end
-        unique_opts = []
-        for opt in self.obj_map.optimizer:
-            if opt not in unique_opts:
-                unique_opts.append(opt)
-        if self.default_optimizer not in unique_opts:
-            unique_opts.append(self.default_optimizer)
-        else:
-            unique_opts.remove(self.default_optimizer)
-            unique_opts.append(self.default_optimizer)
-
-        self._inner_optimizers = unique_opts
+        self._optim_map = optim_map
 
     def _var_key(self, variable):
         return id(variable)
@@ -152,13 +168,14 @@ class MultiOptimizer(optimizer.Optimizer):
             return
 
         self._var_to_optimizer_idx = {}
-        self._optimizer_to_vars = {opt: [] for opt in self._inner_optimizers}
+        self._inner_optimizers = []
+        self._optimizer_to_vars = {}
 
         for var in var_list:
-            opt = self.obj_map(var)
-            if opt is None:
-                opt = self.default_optimizer
-
+            opt = self._optim_map(var)
+            if opt not in self._inner_optimizers:
+                self._inner_optimizers.append(opt)
+                self._optimizer_to_vars[opt] = []
             idx = self._inner_optimizers.index(opt)
             self._var_to_optimizer_idx[self._var_key(var)] = idx
             self._optimizer_to_vars[opt].append(var)
@@ -195,19 +212,22 @@ class MultiOptimizer(optimizer.Optimizer):
     def learning_rate(self):
         if self._inner_optimizers:
             return self._inner_optimizers[0].learning_rate
-        return super().learning_rate
+        else:
+            raise ValueError("MultiOptimizer has no inner optimizers.")
 
     @learning_rate.setter
     def learning_rate(self, value):
         if self._inner_optimizers:
             self._inner_optimizers[0].learning_rate = value
         else:
-            super().learning_rate = value
+            raise ValueError("MultiOptimizer has no inner optimizers.")
 
     @property
     def iterations(self):
-        # master and inner optimizer iterations will be in sync.
-        return self._iterations
+        if self._inner_optimizers:
+            return self._inner_optimizers[0].iterations
+        else:
+            raise ValueError("MultiOptimizer has no inner optimizers.")
 
     def apply(self, grads, trainable_variables=None):
         if len(grads) == 0:
@@ -219,11 +239,6 @@ class MultiOptimizer(optimizer.Optimizer):
         if not self.built:
             self.build(trainable_variables)
             self.built = True
-
-        # Statefully unscale gradients if loss_scale_factor is set
-        if self.loss_scale_factor is not None:
-            scale = self.loss_scale_factor
-            grads = [g if g is None else g / scale for g in grads]
 
         # Group gradients and variables by sub-optimizer
         optimizer_to_grads_and_vars = {
@@ -312,9 +327,10 @@ class MultiOptimizer(optimizer.Optimizer):
         return new_trainable_variables, new_optimizer_variables
 
     def scale_loss(self, loss):
-        if self.loss_scale_factor is not None:
-            return loss * self.loss_scale_factor
-        return loss
+        if self._inner_optimizers:
+            return self._inner_optimizers[0].scale_loss(loss)
+        else:
+            raise ValueError("MultiOptimizer has no inner optimizers.")
 
     def finalize_variable_values(self, var_list):
         optimizer_to_vars = {opt: [] for opt in self._inner_optimizers}
@@ -349,87 +365,18 @@ class MultiOptimizer(optimizer.Optimizer):
                 idx += num_opt_vars
 
     def get_config(self):
-        config = super().get_config()
-
-        serialized_identifiers = []
-        for identifier in self.obj_map.variable_identifier:
-            if isinstance(identifier, Variable):
-                serialized_identifiers.append(
-                    f"^{re.escape(identifier.path or identifier.name)}$"
-                )
-            elif isinstance(identifier, (list, tuple, set)):
-                if any(isinstance(item, Variable) for item in identifier):
-                    escaped_paths = []
-                    for item in identifier:
-                        if isinstance(item, Variable):
-                            escaped_paths.append(
-                                re.escape(item.path or item.name)
-                            )
-                        else:
-                            escaped_paths.append(re.escape(str(item)))
-                    or_pattern = "|".join(escaped_paths)
-                    serialized_identifiers.append(f"^({or_pattern})$")
-                else:
-                    serialized_identifiers.append(identifier)
-            else:
-                serialized_identifiers.append(identifier)
-
-        serialized_map = {
-            "class_name": self.obj_map.__class__.__name__,
-            "config": {
-                "optimizer": [
-                    serialization_lib.serialize_keras_object(opt)
-                    for opt in self.obj_map.optimizer
-                ],
-                "variable_identifier": serialized_identifiers,
-            },
+        return {
+            "optim_map": serialization_lib.serialize_keras_object(
+                self._optim_map
+            ),
+            "name": self.name,
         }
-        config.update(
-            {
-                "obj_map": serialized_map,
-                "default_optimizer": serialization_lib.serialize_keras_object(
-                    self.default_optimizer
-                ),
-            }
-        )
-        return config
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        obj_map_config = config.pop("obj_map")
-        default_opt_config = config.pop("default_optimizer")
-
-        default_optimizer = serialization_lib.deserialize_keras_object(
-            default_opt_config, custom_objects=custom_objects
-        )
-
-        serialized_opts = obj_map_config["config"]["optimizer"]
-        optimizers_list = [
-            serialization_lib.deserialize_keras_object(
-                opt_config, custom_objects=custom_objects
-            )
-            for opt_config in serialized_opts
-        ]
-
-        variable_identifiers = obj_map_config["config"]["variable_identifier"]
-
-        map_cls = cls._get_map_class(
-            obj_map_config["class_name"], custom_objects
-        )
-        obj_map = map_cls(optimizers_list, variable_identifiers)
-
         return cls(
-            obj_map=obj_map, default_optimizer=default_optimizer, **config
-        )
-
-    @classmethod
-    def _get_map_class(cls, class_name, custom_objects=None):
-        if custom_objects and class_name in custom_objects:
-            return custom_objects[class_name]
-        globals_dict = globals()
-        if class_name in globals_dict:
-            return globals_dict[class_name]
-        raise ValueError(
-            f"Could not find class {class_name} for "
-            "OptimizerMap deserialization."
+            optim_map=serialization_lib.deserialize_keras_object(
+                config.pop("optim_map"), custom_objects=custom_objects
+            ),
+            name=config.pop("name"),
         )

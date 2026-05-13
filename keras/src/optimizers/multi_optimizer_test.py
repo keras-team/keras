@@ -18,24 +18,23 @@ class MultiOptimizerTest(testing.TestCase):
 
         opt_adam = optimizers.Adam(learning_rate=1e-3)
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
+        default_opt = optimizers.RMSprop()
 
         # Test regex matching
-        var_identifier = ["^dense/.*", "^conv/.*"]
-        opt_map = optimizers.OptimizerMap([opt_adam, opt_sgd], var_identifier)
+        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
+        opt_map["^dense/.*"] = opt_adam
+        opt_map["^conv/.*"] = opt_sgd
 
         self.assertEqual(opt_map(w_dense), opt_adam)
         self.assertEqual(opt_map(w_conv), opt_sgd)
-        self.assertIsNone(opt_map(w_other))
-
-        # Test direct variable reference matching
-        opt_map_direct = optimizers.OptimizerMap([opt_adam], [[w_dense]])
-        self.assertEqual(opt_map_direct(w_dense), opt_adam)
-        self.assertIsNone(opt_map_direct(w_conv))
+        self.assertEqual(opt_map(w_other), default_opt)
 
         # Test conflict detection
         opt_map_conflict = optimizers.OptimizerMap(
-            [opt_adam, opt_sgd], [".*kernel.*", ".*dense.*"]
+            default_optimizer=default_opt
         )
+        opt_map_conflict[".*kernel.*"] = opt_adam
+        opt_map_conflict[".*dense.*"] = opt_sgd
         with self.assertRaises(ValueError):
             opt_map_conflict(w_dense)
 
@@ -44,13 +43,22 @@ class MultiOptimizerTest(testing.TestCase):
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
         default_opt = optimizers.RMSprop(learning_rate=1e-4)
 
-        opt_map = optimizers.OptimizerMap(
-            [opt_adam, opt_sgd], ["^dense_1/.*", "^dense_2/.*"]
-        )
+        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
+        opt_map["^dense_1/.*"] = opt_adam
+        opt_map["^dense_2/.*"] = opt_sgd
 
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+        multi_opt = optimizers.MultiOptimizer(opt_map)
 
-        # Verify unique optimizers list, with default_optimizer at the end
+        with backend.name_scope("dense_1"):
+            w1 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("other"):
+            w3 = backend.Variable([[1.0]], name="kernel")
+
+        multi_opt.build([w1, w2, w3])
+
+        # Verify unique optimizers list
         self.assertEqual(multi_opt.num_optimizers, 3)
         self.assertEqual(multi_opt.get_optimizer(0), opt_adam)
         self.assertEqual(multi_opt.get_optimizer(1), opt_sgd)
@@ -61,10 +69,17 @@ class MultiOptimizerTest(testing.TestCase):
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
         default_opt = optimizers.RMSprop(learning_rate=1e-4)
 
-        opt_map = optimizers.OptimizerMap(
-            [opt_adam, opt_sgd], ["^dense_1/.*", "^dense_2/.*"]
-        )
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
+        opt_map["^dense_1/.*"] = opt_adam
+        opt_map["^dense_2/.*"] = opt_sgd
+        multi_opt = optimizers.MultiOptimizer(opt_map)
+
+        with backend.name_scope("dense_1"):
+            w1 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[1.0]], name="kernel")
+
+        multi_opt.build([w1, w2])
 
         # Getter should return the first optimizer's learning rate
         self.assertAllClose(multi_opt.learning_rate, 1e-3)
@@ -84,8 +99,9 @@ class MultiOptimizerTest(testing.TestCase):
         opt_adam = optimizers.Adam(learning_rate=1e-3)
         default_opt = optimizers.SGD(learning_rate=1e-2)
 
-        opt_map = optimizers.OptimizerMap([opt_adam], ["^dense_1/.*"])
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
+        opt_map["^dense_1/.*"] = opt_adam
+        multi_opt = optimizers.MultiOptimizer(opt_map)
 
         multi_opt.build([w_mapped, w_unmapped])
 
@@ -112,10 +128,10 @@ class MultiOptimizerTest(testing.TestCase):
         opt_sgd_2 = optimizers.SGD(learning_rate=1.0)
         default_opt = optimizers.SGD(learning_rate=0.0)
 
-        opt_map = optimizers.OptimizerMap(
-            [opt_sgd_1, opt_sgd_2], ["^dense_1/.*", "^dense_2/.*"]
-        )
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
+        opt_map["^dense_1/.*"] = opt_sgd_1
+        opt_map["^dense_2/.*"] = opt_sgd_2
+        multi_opt = optimizers.MultiOptimizer(opt_map)
 
         multi_opt.build([w1, w2, w_fallback])
 
@@ -152,8 +168,9 @@ class MultiOptimizerTest(testing.TestCase):
         opt_sgd_1 = optimizers.SGD(learning_rate=0.1)
         opt_sgd_2 = optimizers.SGD(learning_rate=1.0)
 
-        opt_map = optimizers.OptimizerMap([opt_sgd_1], ["^dense_1/.*"])
-        multi_opt = optimizers.MultiOptimizer(opt_map, opt_sgd_2)
+        opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd_2)
+        opt_map["^dense_1/.*"] = opt_sgd_1
+        multi_opt = optimizers.MultiOptimizer(opt_map)
 
         multi_opt.build([w1, w2])
 
@@ -191,8 +208,9 @@ class MultiOptimizerTest(testing.TestCase):
         opt_adam = optimizers.Adam(learning_rate=1e-1)
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
 
-        opt_map = optimizers.OptimizerMap([opt_adam], ["^dense_1/.*"])
-        multi_opt = optimizers.MultiOptimizer(opt_map, opt_sgd)
+        opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd)
+        opt_map["^sequential/dense_1/.*"] = opt_adam
+        multi_opt = optimizers.MultiOptimizer(opt_map)
 
         model.compile(optimizer=multi_opt, loss="mse")
 
@@ -201,6 +219,10 @@ class MultiOptimizerTest(testing.TestCase):
 
         # Custom schedule that forces an LR adjustment
         lr_scheduler = callbacks.LearningRateScheduler(lambda epoch: 5e-2)
+
+        # Dummy call to build model weights
+        model(x)
+        multi_opt.build(model.trainable_variables)
 
         # Getter/setter tests inside fit
         model.fit(
@@ -212,55 +234,29 @@ class MultiOptimizerTest(testing.TestCase):
         self.assertAllClose(opt_adam.learning_rate, 5e-2)
         self.assertAllClose(opt_sgd.learning_rate, 1e-2)
 
-    def test_optimizer_map_comprehensive(self):
-        with backend.name_scope("dense_1"):
-            w_dense1_kernel = backend.Variable([[1.0]], name="kernel")
-        with backend.name_scope("dense_2"):
-            w_dense2_kernel = backend.Variable([[1.0]], name="kernel")
-        w_exact = backend.Variable([[1.0]], name="exact_var")
-        w_other1 = backend.Variable([[1.0]], name="other1")
-        w_other2 = backend.Variable([[1.0]], name="other2")
-
-        opt_adam = optimizers.Adam(learning_rate=1e-3)
-        opt_sgd = optimizers.SGD(learning_rate=1e-2)
-
-        # Comprehensive mapping covering 4 types of identifiers:
-        # 1. String substring matching
-        # 2. Regex matching
-        # 3. Keras Variable instance direct match
-        # 4. List/Tuple of Keras variables
-        opt_map = optimizers.OptimizerMap(
-            optimizer=[opt_adam, opt_sgd, opt_adam, opt_adam],
-            variable_identifier=[
-                "exact_var",
-                "^dense_1/.*",
-                w_dense2_kernel,
-                [w_other1, w_other2],
-            ],
-        )
-
-        # 1. Substring match -> opt_adam
-        self.assertEqual(opt_map(w_exact), opt_adam)
-        # 2. Regex match -> opt_sgd
-        self.assertEqual(opt_map(w_dense1_kernel), opt_sgd)
-        # 3. Keras Variable direct match -> opt_adam
-        self.assertEqual(opt_map(w_dense2_kernel), opt_adam)
-        # 4. List/Tuple match -> opt_adam
-        self.assertEqual(opt_map(w_other1), opt_adam)
-        self.assertEqual(opt_map(w_other2), opt_adam)
-
     def test_serialization(self):
         opt_adam = optimizers.Adam(learning_rate=1e-3)
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
         default_opt = optimizers.RMSprop(learning_rate=1e-4)
 
-        opt_map = optimizers.OptimizerMap(
-            [opt_adam, opt_sgd], ["^dense_1/.*", "^dense_2/.*"]
-        )
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
+        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
+        opt_map["^dense_1/.*"] = opt_adam
+        opt_map["^dense_2/.*"] = opt_sgd
+        multi_opt = optimizers.MultiOptimizer(opt_map)
+
+        with backend.name_scope("dense_1"):
+            w1 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("other"):
+            w3 = backend.Variable([[1.0]], name="kernel")
+
+        multi_opt.build([w1, w2, w3])
 
         config = optimizers.serialize(multi_opt)
         reconstructed = optimizers.deserialize(config)
+
+        reconstructed.build([w1, w2, w3])
 
         self.assertEqual(reconstructed.num_optimizers, 3)
         self.assertEqual(
@@ -273,80 +269,49 @@ class MultiOptimizerTest(testing.TestCase):
             reconstructed.get_optimizer(2).__class__.__name__, "RMSprop"
         )
 
-        # Test with default mapping behavior after reconstruct
-        with backend.name_scope("dense_1"):
-            w = backend.Variable([[1.0]], name="kernel")
-        reconstructed.build([w])
         self.assertEqual(
-            reconstructed._get_optimizer_for_variable(w).__class__.__name__,
+            reconstructed._get_optimizer_for_variable(w1).__class__.__name__,
             "Adam",
         )
 
     def test_loss_scaling(self):
-        opt_adam = optimizers.Adam(learning_rate=1e-3)
-        opt_sgd = optimizers.SGD(learning_rate=1e-2)
-        default_opt = optimizers.RMSprop(learning_rate=1e-4)
-
-        opt_map = optimizers.OptimizerMap(
-            [opt_adam, opt_sgd], ["^dense_1/.*", "^dense_2/.*"]
+        opt_adam = optimizers.Adam(learning_rate=1e-3, loss_scale_factor=3.0)
+        opt_sgd = optimizers.SGD(learning_rate=1e-2, loss_scale_factor=4.0)
+        default_opt = optimizers.RMSprop(
+            learning_rate=1e-4, loss_scale_factor=8.0
         )
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
 
-        # Assert that inner optimizers have their loss
-        # scaling disabled to prevent double scaling
-        self.assertIsNone(opt_adam.loss_scale_factor)
-        self.assertIsNone(opt_sgd.loss_scale_factor)
-        self.assertIsNone(default_opt.loss_scale_factor)
-
-        # Assert that wrapper scales loss
-        # correctly when loss_scale_factor is set
-        multi_opt.loss_scale_factor = 100.0
-        loss = backend.convert_to_tensor(2.0)
-        scaled_loss = multi_opt.scale_loss(loss)
-        self.assertAllClose(scaled_loss, 200.0)
-
-    def test_serialization_with_variables(self):
-        opt_adam = optimizers.Adam(learning_rate=1e-3)
-        default_opt = optimizers.SGD(learning_rate=1e-2)
+        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
+        opt_map["^dense_1/.*"] = opt_adam
+        opt_map["^dense_2/.*"] = opt_sgd
+        multi_opt = optimizers.MultiOptimizer(opt_map)
 
         with backend.name_scope("dense_1"):
-            w = backend.Variable([[1.0]], name="kernel")
+            w1 = backend.Variable([[1.0]], name="kernel")
+        multi_opt.build([w1])
 
-        # Mapping uses direct Keras Variable instance in a list
-        opt_map = optimizers.OptimizerMap([opt_adam], [[w]])
-        multi_opt = optimizers.MultiOptimizer(opt_map, default_opt)
-
-        # Serializing should succeed without TypeError
-        config = optimizers.serialize(multi_opt)
-        reconstructed = optimizers.deserialize(config)
-
-        # Reconstructed optimizer should build and match variables correctly
-        reconstructed.build([w])
-        self.assertEqual(
-            reconstructed._get_optimizer_for_variable(w).__class__.__name__,
-            "Adam",
-        )
+        loss = backend.convert_to_tensor(2.0)
+        scaled_loss = multi_opt.scale_loss(loss)
+        self.assertAllClose(scaled_loss, 6.0)
 
     def test_gradient_unscaling(self):
         with backend.name_scope("dense_1"):
             w = backend.Variable([[2.0, 2.0]], name="kernel")
 
         # SGD with learning rate 0.1
-        opt_sgd = optimizers.SGD(learning_rate=0.1)
-        opt_map = optimizers.OptimizerMap([opt_sgd], ["^dense_1/.*"])
-        multi_opt = optimizers.MultiOptimizer(opt_map, opt_sgd)
-
-        # Set loss scale factor
-        multi_opt.loss_scale_factor = 10.0
+        opt_sgd = optimizers.SGD(learning_rate=0.1, loss_scale_factor=5.0)
+        opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd)
+        opt_map["^dense_1/.*"] = opt_sgd
+        multi_opt = optimizers.MultiOptimizer(opt_map)
 
         multi_opt.build([w])
 
-        # Gradient is 10.0 (which is scaled by loss_scale_factor=10.0)
-        # Expected unscaled gradient is 10.0 / 10.0 = 1.0
+        # Gradient is 10.0 (which is scaled by loss_scale_factor=5.0)
+        # Expected unscaled gradient is 10.0 / 5.0 = 2.0
         # Expected weight update is:
-        # 2.0 - lr * unscaled_grad = 2.0 - 0.1 * 1.0 = 1.9
+        # 2.0 - lr * unscaled_grad = 2.0 - 0.1 * 2.0 = 1.8
         grads = [backend.convert_to_tensor([[10.0, 10.0]])]
 
         multi_opt.apply(grads, [w])
 
-        self.assertAllClose(w.numpy(), [[1.9, 1.9]])
+        self.assertAllClose(w.numpy(), [[1.8, 1.8]])
