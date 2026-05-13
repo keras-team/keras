@@ -287,16 +287,22 @@ def validate_reshape_shape(newshape, newshape_arg_name="newshape"):
 
     Each dimension that is a concrete Python int must be either non-negative
     or `-1` (with at most one `-1`). Dynamic dimensions (e.g. backend tensor
-    scalars resolved at runtime) are not validated here.
+    scalars resolved at runtime, such as `torch.SymInt` under `torch.compile`)
+    are not validated here.
     """
+    neg_one_count = 0
     for dim in newshape:
-        if isinstance(dim, int) and dim < -1:
+        if not isinstance(dim, (int, np.integer)):
+            continue
+        if dim < -1:
             raise ValueError(
                 f"Each dimension in `{newshape_arg_name}` must be a "
                 "non-negative integer, or `-1` for a single unknown "
                 f"dimension. Received: {newshape_arg_name}={newshape}."
             )
-    if [d for d in newshape if isinstance(d, int)].count(-1) > 1:
+        elif dim == -1:
+            neg_one_count += 1
+    if neg_one_count > 1:
         raise ValueError(
             "There must be at most one unknown dimension (-1) in "
             f"`{newshape_arg_name}`. Received: "
