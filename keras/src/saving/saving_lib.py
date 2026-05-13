@@ -748,7 +748,7 @@ def _save_state(
                 ),
                 visited_saveables=visited_saveables,
             )
-        elif isinstance(child_obj, (list, dict, tuple)):
+        elif isinstance(child_obj, (list, dict, tuple, set)):
             _save_container_state(
                 child_obj,
                 weights_store,
@@ -836,7 +836,7 @@ def _load_state(
                 failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
-        elif isinstance(child_obj, (list, dict, tuple)):
+        elif isinstance(child_obj, (list, dict, tuple, set)):
             _load_container_state(
                 child_obj,
                 weights_store,
@@ -869,6 +869,38 @@ def _get_unique_name(name, used_names):
         return f"{name}_{used_names[name]}"
     used_names[name] = 0
     return name
+
+
+def _store_has_path(store, path):
+    """Return True if `store` contains anything under `path`.
+
+    Used to detect legacy files that predate the nested-container
+    recursion added in PR #22362 — older files don't contain the
+    `container*` groups the new loader expects.
+    """
+    if store is None:
+        return False
+    if isinstance(store, ShardedH5IOStore):
+        weight_map = store.sharding_config.get("weight_map", {})
+        leading = f"/{path}"
+        prefix = f"{leading}/"
+        return any(k == leading or k.startswith(prefix) for k in weight_map)
+    if isinstance(store, H5IOStore):
+        return path in store.h5_file
+    if isinstance(store, NpzIOStore):
+        prefix = f"{path}/"
+        return any(k == path or k.startswith(prefix) for k in store.contents)
+    if isinstance(store, DiskIOStore):
+        return file_utils.exists(
+            file_utils.join(store.working_dir, path).replace("\\", "/")
+        )
+    return False
+
+
+def _container_path_present(weights_store, assets_store, path):
+    return _store_has_path(weights_store, path) or _store_has_path(
+        assets_store, path
+    )
 
 
 def _save_container_state(
@@ -907,7 +939,7 @@ def _save_container_state(
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_saveables=visited_saveables,
             )
-        elif isinstance(saveable, (list, dict, tuple)):
+        elif isinstance(saveable, (list, dict, tuple, set)):
             name = _get_unique_name("container", used_names)
             _save_container_state(
                 saveable,
@@ -958,13 +990,31 @@ def _load_container_state(
                 failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
-        elif isinstance(saveable, (list, dict, tuple)):
+        elif isinstance(saveable, (list, dict, tuple, set)):
             name = _get_unique_name("container", used_names)
+            nested_path = file_utils.join(inner_path, name).replace("\\", "/")
+            if not _container_path_present(
+                weights_store, assets_store, nested_path
+            ):
+                # Legacy files saved before PR #22362 didn't write the
+                # `container*` groups for nested containers — silently
+                # skip so the model still loads (sublayers keep their
+                # freshly-initialized weights).
+                warnings.warn(
+                    f"Skipping nested container at '{nested_path}': no "
+                    "matching group found in the saved file. This usually "
+                    "means the file was saved with a Keras version that "
+                    "did not serialize sublayers nested inside containers. "
+                    "Affected layers will retain their freshly-initialized "
+                    "weights.",
+                    stacklevel=2,
+                )
+                continue
             _load_container_state(
                 saveable,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
+                inner_path=nested_path,
                 skip_mismatch=skip_mismatch,
                 visited_saveables=visited_saveables,
                 failed_saveables=failed_saveables,
