@@ -15,17 +15,20 @@ except ImportError:
     requests = None
 
 
-def _validate_url_for_ssrf(root, path):
-    """Validate the final request URL for SSRF risks.
+def _validate_url_structure(root, path):
+    """Validate the URL structure for SSRF risks at configuration time.
 
-    Protects against:
-    - Non-http(s) schemes.
-    - Link-local IP targets (e.g. the AWS/GCP/Azure metadata endpoint
-      169.254.169.254) reached either directly or via DNS rebinding.
-    - Host-injection attacks where a crafted ``path`` value (e.g.
-      ``@attacker.com``) redirects the request to a different host.
+    Checks performed (no network I/O):
+
+    - The ``root`` scheme must be ``http`` or ``https``.
+    - Concatenating ``root + path`` must not alter the URL's host
+      (host-injection guard: prevents crafted ``path`` values such as
+      ``@attacker.com`` from redirecting requests to a different host).
+
+    DNS resolution is intentionally deferred to request time — see
+    :func:`_check_resolved_address` — so that DNS-rebinding attacks are
+    also caught.
     """
-    # --- scheme check on root ---
     root_parsed = urllib.parse.urlparse(root)
     if root_parsed.scheme not in ("http", "https"):
         raise ValueError(
@@ -33,11 +36,10 @@ def _validate_url_for_ssrf(root, path):
             "Only 'http' and 'https' are allowed."
         )
 
-    # --- build and re-parse the full URL to catch host-injection via path ---
+    # Re-parse the fully concatenated URL to detect host injection via path.
     full_url = root + path
     full_parsed = urllib.parse.urlparse(full_url)
 
-    # Detect host injection: path must not alter the authority component.
     if full_parsed.hostname != root_parsed.hostname:
         raise ValueError(
             f"Host injection detected: the combined URL hostname "
@@ -46,11 +48,29 @@ def _validate_url_for_ssrf(root, path):
             f"'@', scheme separators, or other authority-altering characters."
         )
 
-    hostname = full_parsed.hostname
-    if not hostname:
+    if not full_parsed.hostname:
         raise ValueError("URL must contain a valid hostname.")
 
-    # --- DNS resolution check (catches rebinding attacks) ---
+
+def _check_resolved_address(hostname):
+    """Resolve *hostname* and block link-local targets (SSRF protection).
+
+    This function is called at **request time** (inside ``on_epoch_end``)
+    so that DNS-rebinding attacks are caught: an attacker who controls DNS
+    could serve a benign address during the initial ``__init__`` check and
+    later switch to a link-local address for subsequent requests.
+
+    Only link-local addresses (``169.254.0.0/16`` for IPv4,
+    ``fe80::/10`` for IPv6) are blocked — these are the ranges used by
+    cloud instance-metadata services (e.g. AWS IMDSv1 at
+    ``169.254.169.254``, GCP, and Azure).
+
+    Loopback addresses (``127.x.x.x`` / ``::1``) and private RFC-1918
+    ranges (``10.x``, ``172.16.x``, ``192.168.x``) are intentionally
+    **allowed** so that the default localhost target
+    (``http://localhost:9000``) and intranet monitoring configurations
+    continue to work.
+    """
     try:
         addr_infos = socket.getaddrinfo(hostname, None)
     except socket.gaierror as exc:
@@ -64,16 +84,12 @@ def _validate_url_for_ssrf(root, path):
             ip = ipaddress.ip_address(ip_str)
         except ValueError:
             continue
-        # Block only link-local addresses; these are used by cloud
-        # instance-metadata services (AWS 169.254.169.254, GCP, Azure).
-        # Loopback (127.x.x.x) and private RFC-1918 ranges are intentionally
-        # allowed so that the default localhost target and intranet monitoring
-        # configurations continue to work.
         if ip.is_link_local:
             raise ValueError(
                 f"Requests to link-local IP addresses are not allowed "
                 f"(SSRF protection): '{ip_str}' resolved from '{hostname}'. "
-                f"This range is used by cloud instance-metadata services."
+                f"This range is used by cloud instance-metadata services "
+                f"(e.g. AWS IMDSv1 at 169.254.169.254)."
             )
 
 
@@ -110,7 +126,10 @@ class RemoteMonitor(Callback):
     ):
         super().__init__()
 
-        _validate_url_for_ssrf(root, path)
+        # Validate URL structure (scheme + host-injection) at construction
+        # time. DNS resolution is deferred to on_epoch_end so that
+        # DNS-rebinding attacks are also caught at request time.
+        _validate_url_structure(root, path)
 
         self.root = root
         self.path = path
@@ -132,6 +151,11 @@ class RemoteMonitor(Callback):
                 send[k] = v.item()
             else:
                 send[k] = v
+
+        # Re-validate at request time to catch DNS-rebinding attacks.
+        hostname = urllib.parse.urlparse(self.root).hostname
+        _check_resolved_address(hostname)
+
         try:
             if self.send_as_json:
                 requests.post(
