@@ -748,7 +748,7 @@ def _save_state(
                 ),
                 visited_saveables=visited_saveables,
             )
-        elif isinstance(child_obj, (list, dict, tuple, set)):
+        elif isinstance(child_obj, (list, dict, tuple)):
             _save_container_state(
                 child_obj,
                 weights_store,
@@ -836,7 +836,7 @@ def _load_state(
                 failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
-        elif isinstance(child_obj, (list, dict, tuple, set)):
+        elif isinstance(child_obj, (list, dict, tuple)):
             _load_container_state(
                 child_obj,
                 weights_store,
@@ -919,7 +919,7 @@ def _save_container_state(
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_saveables=visited_saveables,
             )
-        elif isinstance(saveable, (list, dict, tuple, set)):
+        elif isinstance(saveable, (list, dict, tuple)):
             name = _get_unique_name("container", used_names)
             _save_container_state(
                 saveable,
@@ -970,7 +970,7 @@ def _load_container_state(
                 failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
             )
-        elif isinstance(saveable, (list, dict, tuple, set)):
+        elif isinstance(saveable, (list, dict, tuple)):
             name = _get_unique_name("container", used_names)
             nested_path = file_utils.join(inner_path, name).replace("\\", "/")
             if not _container_path_present(

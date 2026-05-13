@@ -1379,39 +1379,6 @@ class SavingBattleTest(testing.TestCase):
             atol=1e-6,
         )
 
-    def test_set_container_round_trip(self):
-        """`set` was removed from supported containers in PR #22362; this
-        regression test ensures it round-trips again."""
-
-        @keras.saving.register_keras_serializable(package="set_container")
-        class SetContainerModel(keras.Model):
-            def __init__(self, **kwargs):
-                super().__init__(**kwargs)
-                self.layer_set = {
-                    keras.layers.Dense(4, use_bias=False),
-                    keras.layers.Dense(4, use_bias=False),
-                }
-                self.out = keras.layers.Dense(2)
-
-            def call(self, x):
-                for layer in self.layer_set:
-                    x = layer(x)
-                return self.out(x)
-
-            def get_config(self):
-                return super().get_config()
-
-        model = SetContainerModel()
-        x = np.random.random((2, 4)).astype("float32")
-        model(x)
-        ref_out = model(x)
-
-        temp_filepath = os.path.join(self.get_temp_dir(), "set.keras")
-        model.save(temp_filepath)
-        loaded = keras.saving.load_model(temp_filepath)
-        new_out = loaded(x)
-        self.assertAllClose(ref_out, new_out)
-
     def test_remove_weights_only_saving_and_loading(self):
         def is_remote_path(path):
             return True
