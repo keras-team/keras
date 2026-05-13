@@ -212,6 +212,62 @@ def compute_conv_transpose_padding_args_for_torch(
     return torch_paddings, torch_output_paddings
 
 
+def compute_conv_transpose_output_crops_for_torch(
+    input_shape,
+    kernel_shape,
+    strides,
+    padding,
+    output_padding,
+    dilation_rate,
+):
+    """Per-spatial-dim asymmetric (left, right) crop amounts for torch.
+
+    Torch's `conv_transpose*d` only supports symmetric `padding` plus a
+    right-side `output_padding`, which cannot express the asymmetric crops
+    that Keras "same" semantics requires when stride > 1 with an odd kernel.
+    We work around this by calling torch with `padding=0, output_padding=0`
+    (which produces the largest "natural" output of size
+    `(input - 1) * stride + effective_kernel`), then asymmetrically slicing
+    the spatial dims to the same window JAX would compute.
+
+    The slice on each side is `(effective_kernel - 1) - left_pad` from the
+    left and `(effective_kernel - 1) - right_pad` from the right, where
+    `left_pad` / `right_pad` come from the existing JAX helper. A negative
+    value means we need to extend with zero-padding instead of cropping.
+    """
+    num_spatial_dims = len(input_shape) - 2
+    kernel_spatial_shape = kernel_shape[:-2]
+
+    crops = []
+    for i in range(num_spatial_dims):
+        output_padding_i = (
+            output_padding
+            if output_padding is None or isinstance(output_padding, int)
+            else output_padding[i]
+        )
+        strides_i = strides if isinstance(strides, int) else strides[i]
+        dilation_rate_i = (
+            dilation_rate
+            if isinstance(dilation_rate, int)
+            else dilation_rate[i]
+        )
+        (
+            left_pad,
+            right_pad,
+        ) = _convert_conv_transpose_padding_args_from_keras_to_jax(
+            kernel_size=kernel_spatial_shape[i],
+            stride=strides_i,
+            dilation_rate=dilation_rate_i,
+            padding=padding,
+            output_padding=output_padding_i,
+        )
+        effective_kernel = (kernel_spatial_shape[i] - 1) * dilation_rate_i + 1
+        crop_left = (effective_kernel - 1) - left_pad
+        crop_right = (effective_kernel - 1) - right_pad
+        crops.append((crop_left, crop_right))
+    return crops
+
+
 def _get_output_shape_given_tf_padding(
     input_size, kernel_size, strides, padding, output_padding, dilation_rate
 ):

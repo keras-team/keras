@@ -7,7 +7,7 @@ from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
 )
 from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_padding_args_for_torch,
+    compute_conv_transpose_output_crops_for_torch,
 )
 from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
@@ -722,10 +722,15 @@ def conv_transpose(
 
     data_format = backend.standardize_data_format(data_format)
     check_conv_transpose_input_channels(inputs, kernel, data_format)
-    (
-        torch_padding,
-        torch_output_padding,
-    ) = compute_conv_transpose_padding_args_for_torch(
+
+    # Torch's `conv_transpose*d` only takes a symmetric `padding` plus a
+    # right-side `output_padding`, which cannot reproduce the asymmetric
+    # padding Keras's "same" mode requires when stride > 1 with an odd
+    # kernel. We call torch with `padding=0, output_padding=0` (giving the
+    # largest "natural" output) and asymmetrically slice the spatial dims to
+    # the same window JAX would compute. Negative crops mean we extend with
+    # zero-padding to match JAX's left/right pad semantics.
+    crops = compute_conv_transpose_output_crops_for_torch(
         input_shape=inputs.shape,
         kernel_shape=kernel.shape,
         strides=strides,
@@ -733,26 +738,22 @@ def conv_transpose(
         output_padding=output_padding,
         dilation_rate=dilation_rate,
     )
+
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
     # Transpose kernel from keras format to torch format.
     kernel = _transpose_conv_kernel(kernel)
 
-    if data_format == "channels_last":
-        inputs = _maybe_convert_to_channels_last(inputs)
-        kernel = _maybe_convert_to_channels_last(kernel)
-
-    kernel_spatial_shape = kernel.shape[2:]
     if isinstance(dilation_rate, int):
-        dilation_rate = [dilation_rate] * len(kernel_spatial_shape)
+        dilation_rate = [dilation_rate] * num_spatial_dims
 
     if num_spatial_dims == 1:
         outputs = tnn.conv_transpose1d(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=0,
+            output_padding=0,
             dilation=dilation_rate,
         )
     elif num_spatial_dims == 2:
@@ -760,8 +761,8 @@ def conv_transpose(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=0,
+            output_padding=0,
             dilation=dilation_rate,
         )
     elif num_spatial_dims == 3:
@@ -769,8 +770,8 @@ def conv_transpose(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=0,
+            output_padding=0,
             dilation=dilation_rate,
         )
     else:
@@ -779,6 +780,29 @@ def conv_transpose(
             "corresponding to 1D, 2D and 3D inputs. Received input "
             f"shape: {inputs.shape}."
         )
+
+    # Apply asymmetric crop (or zero-pad if a crop amount is negative) to
+    # each spatial dim. `outputs` is NCHW-style here; spatial dims start at
+    # axis 2.
+    slices = [slice(None), slice(None)]
+    needs_zero_pad = any(cl < 0 or cr < 0 for cl, cr in crops)
+    for crop_left, crop_right in crops:
+        start = max(0, crop_left)
+        end = -crop_right if crop_right > 0 else None
+        slices.append(slice(start, end))
+    outputs = outputs[tuple(slices)]
+    if needs_zero_pad:
+        # torch's F.pad takes pads in REVERSE spatial order: last dim first.
+        pads = []
+        for crop_left, crop_right in reversed(crops):
+            pads.extend(
+                [
+                    -crop_left if crop_left < 0 else 0,
+                    -crop_right if crop_right < 0 else 0,
+                ]
+            )
+        outputs = tnn.pad(outputs, pads)
+
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
     return outputs
