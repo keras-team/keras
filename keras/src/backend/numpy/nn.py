@@ -5,6 +5,9 @@ from jax import lax
 from keras.src import backend
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
+    check_conv_transpose_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.common.backend_utils import (
@@ -767,6 +770,9 @@ def conv_transpose(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    check_conv_transpose_input_channels(inputs, kernel, data_format)
     num_spatial_dims = inputs.ndim - 2
     padding_values = compute_conv_transpose_padding_args_for_jax(
         input_shape=inputs.shape,

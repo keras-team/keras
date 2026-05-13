@@ -12,6 +12,9 @@ from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
+    check_conv_transpose_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras.src.ops import operation_utils
@@ -1795,6 +1798,8 @@ class ConvTranspose(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_transpose_input_channels(inputs, kernel, data_format)
         kernel_size = kernel.shape[:-2]
         filters = kernel.shape[-2]
         output_shape = compute_conv_transpose_output_shape(
@@ -1804,7 +1809,7 @@ class ConvTranspose(Operation):
             self.strides,
             self.padding,
             self.output_padding,
-            self.data_format,
+            data_format,
             self.dilation_rate,
         )
         return KerasTensor(output_shape, dtype=inputs.dtype)

@@ -1248,6 +1248,29 @@ class NNOpsStaticShapeTest(testing.TestCase):
             ),
         )
 
+    def test_conv_transpose_input_channel_validation(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (2, 4, 3)
+        else:
+            input_shape = (2, 3, 4)
+        inputs = KerasTensor(input_shape)
+        # conv_transpose kernel layout: (spatial..., out_channels, in_channels)
+        # in_channels=5 mismatches the input's 3 channels.
+        bad_kernel = KerasTensor([2, 4, 5])
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.conv_transpose(inputs, bad_kernel, 2)
+
+        # Dynamic channel dimension should NOT raise.
+        if data_format == "channels_last":
+            dyn_inputs = KerasTensor((2, 4, None))
+        else:
+            dyn_inputs = KerasTensor((2, None, 4))
+        knn.conv_transpose(dyn_inputs, bad_kernel, 2)
+
     def test_batched_and_unbatched_inputs_multi_hot(self):
         x = KerasTensor([2, 3, 1])
         unbatched_input = KerasTensor(

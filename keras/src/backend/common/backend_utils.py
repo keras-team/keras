@@ -341,6 +341,30 @@ def check_conv_input_channels(inputs, kernel, data_format):
         )
 
 
+def check_conv_transpose_input_channels(inputs, kernel, data_format):
+    """Validate a conv_transpose input against its kernel shape.
+
+    `conv_transpose` kernels use the layout
+    `(spatial..., out_channels, in_channels)`, so the input-channel dimension
+    is at `kernel.shape[-1]` (vs. `kernel.shape[-2]` for regular conv).
+    """
+    input_channels = (
+        inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
+    )
+    kernel_input_channels = kernel.shape[-1]
+    if (
+        isinstance(input_channels, int)
+        and isinstance(kernel_input_channels, int)
+        and input_channels != kernel_input_channels
+    ):
+        raise ValueError(
+            "The number of input channels must match the kernel's input "
+            f"channels. Received: input channels={input_channels}, kernel "
+            f"input channels={kernel_input_channels}, "
+            f"data_format='{data_format}'."
+        )
+
+
 def to_tuple_or_list(value):
     """Convert the non-`None` value to either a tuple or a list."""
     if value is None:
