@@ -1,4 +1,3 @@
-import contextlib
 import inspect
 import platform
 import warnings
@@ -1073,25 +1072,34 @@ class Trainer:
         if len(results) == 1:
             return results[0]
         return results
+        def _warn_if_trainable_state_changed(self):
+            if not self.compiled or not hasattr(self, "_compiled_trainable_state"):
+                return
 
-    @contextlib.contextmanager
-    def _respect_compiled_trainable_state(self):
-        """Context manager to restore the trainable state at compile time."""
-        if not self.compiled:
-            yield
-            return
-
-        current_trainable_state = {
+        current_state = {
             layer: layer.trainable for layer in self._flatten_layers()
         }
-        try:
-            for layer, trainable in self._compiled_trainable_state.items():
-                layer.trainable = trainable
-            yield
-        finally:
-            for layer, trainable in current_trainable_state.items():
-                layer.trainable = trainable
+        changed_layers = []
+        for layer, compiled_trainable in self._compiled_trainable_state.items():
+            if (
+                layer in current_state
+                and current_state[layer] != compiled_trainable
+            ):
+                changed_layers.append(layer.name)
 
+        if changed_layers:
+            warnings.warn(
+                "A layer's `trainable` state has changed since the model was "
+                "compiled. This can result in unexpected behavior, as the "
+                "compiled optimizer and loss functions may not track the "
+                "correct variables. Please recompile your model "
+                "(e.g. `model.compile(...)`) before calling `fit()` or "
+                "`evaluate()` so the change takes effect. "
+                f"Changed layers: {changed_layers}",
+                stacklevel=2,
+            )
+            # Update the state so we only warn once per compile
+            self._compiled_trainable_state = current_state
     def _assert_compile_called(self, method_name=None):
         if not self.compiled:
             msg = "You must call `compile()` before "
@@ -1100,6 +1108,8 @@ class Trainer:
             else:
                 msg += f"calling `{method_name}()`."
             raise ValueError(msg)
+        if method_name in ("fit", "evaluate"):
+            self._warn_if_trainable_state_changed()
 
     def _symbolic_build(self, iterator=None, data_batch=None):
         model_unbuilt = not all(layer.built for layer in self._flatten_layers())
