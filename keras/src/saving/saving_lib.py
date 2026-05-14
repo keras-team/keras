@@ -375,6 +375,15 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
     model = _model_from_config(config_json, custom_objects, compile, safe_mode)
 
     all_filenames = file_utils.listdir(dirpath)
+    # Up-front validation: refuse to honor a symlinked asset tree before
+    # opening any store. Done outside the try/finally so failure here does
+    # not need to clean up half-initialized stores.
+    if len(all_filenames) > 3:
+        _validate_asset_dir_no_symlink_escape(
+            file_utils.join(dirpath, _ASSETS_DIRNAME)
+        )
+    weights_store = None
+    asset_store = None
     try:
         if _VARS_FNAME_H5 in all_filenames:
             weights_file_path = file_utils.join(dirpath, _VARS_FNAME_H5)
@@ -387,12 +396,9 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
                 f"Expected a {_VARS_FNAME_H5} or {_VARS_FNAME_NPZ} file."
             )
         if len(all_filenames) > 3:
-            assets_dirpath = file_utils.join(dirpath, _ASSETS_DIRNAME)
-            _validate_asset_dir_no_symlink_escape(assets_dirpath)
-            asset_store = DiskIOStore(assets_dirpath, mode="r")
-
-        else:
-            asset_store = None
+            asset_store = DiskIOStore(
+                file_utils.join(dirpath, _ASSETS_DIRNAME), mode="r"
+            )
 
         failed_saveables = set()
         error_msgs = {}
@@ -407,8 +413,9 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
         )
 
     finally:
-        weights_store.close()
-        if asset_store:
+        if weights_store is not None:
+            weights_store.close()
+        if asset_store is not None:
             asset_store.close()
 
     if failed_saveables:
