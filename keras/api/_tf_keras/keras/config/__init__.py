@@ -8,9 +8,11 @@ from keras.src.backend.config import backend as backend
 from keras.src.backend.config import (
     disable_flash_attention as disable_flash_attention,
 )
+from keras.src.backend.config import disable_tf32 as disable_tf32
 from keras.src.backend.config import (
     enable_flash_attention as enable_flash_attention,
 )
+from keras.src.backend.config import enable_tf32 as enable_tf32
 from keras.src.backend.config import epsilon as epsilon
 from keras.src.backend.config import floatx as floatx
 from keras.src.backend.config import image_data_format as image_data_format
@@ -18,6 +20,7 @@ from keras.src.backend.config import (
     is_flash_attention_enabled as is_flash_attention_enabled,
 )
 from keras.src.backend.config import is_nnx_enabled as is_nnx_enabled
+from keras.src.backend.config import is_tf32_enabled as is_tf32_enabled
 from keras.src.backend.config import max_epochs as max_epochs
 from keras.src.backend.config import max_steps_per_epoch as max_steps_per_epoch
 from keras.src.backend.config import set_epsilon as set_epsilon

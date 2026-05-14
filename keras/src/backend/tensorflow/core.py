@@ -887,3 +887,21 @@ class name_scope(base_name_scope):
 
 def device_scope(device_name):
     return tf.device(device_name)
+
+
+def _apply_tf32():
+    """Honor `keras.config.is_tf32_enabled()` for float32 matmul precision.
+
+    TensorFlow already enables TF32 for `float32` matmuls by default on
+    supported GPUs. This only forces full precision when TF32 is disabled
+    in Keras. Applied once at import and re-applied by
+    `keras.config.enable_tf32` / `disable_tf32`.
+    """
+    from keras.src.backend.config import is_tf32_enabled
+
+    tf.config.experimental.enable_tensor_float_32_execution(
+        is_tf32_enabled() is not False
+    )
+
+
+_apply_tf32()

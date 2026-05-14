@@ -832,3 +832,23 @@ class CustomGradientFunction(torch.autograd.Function):
         if not isinstance(grads, tuple):
             grads = (grads,)
         return (None,) + grads
+
+
+def _apply_tf32():
+    """Honor `keras.config.is_tf32_enabled()` for float32 matmul precision.
+
+    Torch defaults to full `float32` matmuls (`"highest"`), while JAX and
+    TF use TF32 by default. Mapping the Keras setting onto
+    `torch.set_float32_matmul_precision` keeps the Torch backend consistent
+    with the others. Applied once at import and re-applied by
+    `keras.config.enable_tf32` / `disable_tf32`.
+    """
+    from keras.src.backend.config import is_tf32_enabled
+
+    if is_tf32_enabled() is False:
+        torch.set_float32_matmul_precision("highest")
+    else:
+        torch.set_float32_matmul_precision("high")
+
+
+_apply_tf32()

@@ -233,6 +233,80 @@ def is_flash_attention_enabled():
     return global_state.get_global_attribute("flash_attention", default=None)
 
 
+@keras_export("keras.config.enable_tf32")
+def enable_tf32():
+    """Enable TensorFloat-32 (TF32) for float32 matrix multiplications.
+
+    TF32 is a reduced-precision mode available on NVIDIA Ampere and later
+    GPUs that runs `float32` matmuls and convolutions on the tensor cores,
+    typically several times faster with a small loss of mantissa precision.
+
+    This is enabled by default. The JAX and TensorFlow backends already use
+    TF32 by default. The Torch backend does not, so without this Keras would
+    silently run `float32` matmuls slower on Torch than on the other
+    backends for the same model code.
+
+    Note that this only affects `float32` compute on supported GPUs. It has
+    no effect on CPU, on TPU, or for other dtypes.
+    """
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute("tf32", None)
+    _refresh_backend_tf32()
+
+
+@keras_export("keras.config.disable_tf32")
+def disable_tf32():
+    """Disable TensorFloat-32 (TF32) for float32 matrix multiplications.
+
+    Once disabled, `float32` matmuls run at full `float32` precision on all
+    backends. Use this when you need bit-for-bit `float32` accuracy and are
+    willing to give up the tensor-core speedup.
+    """
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute("tf32", False)
+    _refresh_backend_tf32()
+
+
+@keras_export("keras.config.is_tf32_enabled")
+def is_tf32_enabled():
+    """Checks whether TF32 is globally enabled in Keras.
+
+    TF32 lets `float32` matrix multiplications run on GPU tensor cores at
+    reduced mantissa precision for a large speedup. This function checks the
+    global Keras configuration. See `keras.config.enable_tf32` and
+    `keras.config.disable_tf32`.
+
+    Returns:
+        `False` if disabled. Otherwise, it indicates that it is enabled.
+    """
+    from keras.src.backend.common import global_state
+
+    return global_state.get_global_attribute("tf32", default=None)
+
+
+def _refresh_backend_tf32():
+    """Re-apply the current TF32 setting to the active backend.
+
+    The backend applies TF32 once at import time; this lets a later
+    `enable_tf32()` / `disable_tf32()` call take effect immediately.
+    """
+    name = backend()
+    try:
+        if name == "torch":
+            from keras.src.backend.torch.core import _apply_tf32
+        elif name == "jax":
+            from keras.src.backend.jax.core import _apply_tf32
+        elif name == "tensorflow":
+            from keras.src.backend.tensorflow.core import _apply_tf32
+        else:
+            return
+    except ImportError:
+        return
+    _apply_tf32()
+
+
 @keras_export("keras.config.is_nnx_enabled")
 def is_nnx_enabled():
     """Checks whether NNX specific features are enabled for the JAX backend.
