@@ -201,10 +201,8 @@ def test_sklearn_estimator_decision_function(estimator):
             random_state=42,
         )
         estimator.fit(X, y)
-        assert (
-            estimator.decision_function(X[:1]).argmax(axis=-1)
-            == estimator.predict(X[:1]).flatten()
-        )
+        if estimator.decision_function(X[:1]).argmax(axis=-1) != estimator.predict(X[:1]).flatten():
+            raise AssertionError("decision_function and predict are inconsistent")
     except Exception as exc:
         if keras.config.backend() in ["numpy", "openvino"] and (
             isinstance(exc, NotImplementedError)
