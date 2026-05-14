@@ -1055,8 +1055,6 @@ class DiskIOStore:
 
     def has_path(self, path):
         """Return True if `path` exists on disk under the store's root."""
-        if not path:
-            return file_utils.exists(self.working_dir)
         return file_utils.exists(
             file_utils.join(self.working_dir, path).replace("\\", "/")
         )
@@ -1261,8 +1259,6 @@ class H5IOStore:
 
     def has_path(self, path):
         """Return True if a group exists at `path` in the H5 file."""
-        if not path:
-            return "vars" in self.h5_file
         return path in self.h5_file
 
     def close(self):
@@ -1461,7 +1457,7 @@ class ShardedH5IOStore(H5IOStore):
         shard, so the answer is independent of which shard is active.
         """
         weight_map = self.sharding_config.get("weight_map", {})
-        leading = f"/{path}" if path else "/vars"
+        leading = f"/{path}"
         prefix = f"{leading}/"
         return any(k == leading or k.startswith(prefix) for k in weight_map)
 
@@ -1695,8 +1691,6 @@ class NpzIOStore:
 
     def has_path(self, path):
         """Return True if `path` exists as a key in the npz contents."""
-        if not path:
-            return "__root__" in self.contents
         return path in self.contents
 
     def close(self):
