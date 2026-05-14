@@ -806,7 +806,6 @@ class SavingTest(testing.TestCase):
         saving_lib.load_weights_only(model, temp_filepath)
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
-
     @pytest.mark.skipif(
         os.name == "nt",
         reason="POSIX symlink semantics required for this test.",
@@ -824,9 +823,7 @@ class SavingTest(testing.TestCase):
         # Save a TextVectorization model whose vocabulary is persisted as
         # an asset file (`adapt()` ensures `input_vocabulary is None`, which
         # causes the vocabulary table to be written to assets/...).
-        model = keras.Sequential(
-            [keras.layers.TextVectorization(name="vec")]
-        )
+        model = keras.Sequential([keras.layers.TextVectorization(name="vec")])
         model.layers[0].adapt(np.array(["a", "b", "c"]))
         zipped_path = os.path.join(self.get_temp_dir(), "real.keras")
         model.save(zipped_path)
@@ -868,9 +865,7 @@ class SavingTest(testing.TestCase):
     )
     def test_load_model_from_dir_rejects_symlink_to_inside_asset_root(self):
         """In-tree symlinks are also rejected as tamper indicators."""
-        model = keras.Sequential(
-            [keras.layers.TextVectorization(name="vec")]
-        )
+        model = keras.Sequential([keras.layers.TextVectorization(name="vec")])
         model.layers[0].adapt(np.array(["a", "b", "c"]))
         zipped_path = os.path.join(self.get_temp_dir(), "real.keras")
         model.save(zipped_path)
