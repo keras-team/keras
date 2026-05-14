@@ -1297,6 +1297,88 @@ class SavingBattleTest(testing.TestCase):
         out = new_model(x)
         self.assertAllClose(ref_out, out)
 
+    def test_legacy_load_skips_missing_nested_containers(self):
+        """Regression test for PR #22362 backward-compat.
+
+        Loads a real pre-PR-22362 .keras fixture whose sublayers live in
+        a nested container (`self.blocks = [(Dense,), ...]`). The pre-PR
+        saver silently skipped the inner tuples, so the file has all
+        Dense weights stored under the model's flat `.layers/` walk path
+        — exactly the on-disk shape users have. Post-PR load must not
+        raise on it; it should warn that the inner `container*` groups
+        are missing and recover the weights from `/layers/dense_X`.
+
+        Fixture was generated from the parent of PR #22362
+        (commit d5a88bdb1). See the PR description for the regen script
+        and pinned SHA-256.
+        """
+
+        # Same class definition used to generate the fixture. Must match
+        # the get_config / call signature so deserialization rebuilds the
+        # same Python container topology.
+        @keras.saving.register_keras_serializable(
+            package="legacy_nested_container"
+        )
+        class NestedDenseModel(keras.Model):
+            def __init__(self, num=3, **kwargs):
+                super().__init__(**kwargs)
+                self.num = num
+                self.blocks = [
+                    (keras.layers.Dense(4, use_bias=False, name=f"d_{i}"),)
+                    for i in range(num)
+                ]
+                self.out = keras.layers.Dense(2)
+
+            def call(self, x):
+                for (d,) in self.blocks:
+                    x = d(x)
+                return self.out(x)
+
+            def get_config(self):
+                cfg = super().get_config()
+                cfg["num"] = self.num
+                return cfg
+
+        fixture_path = os.path.join(
+            os.path.dirname(__file__),
+            "test_data",
+            "pre_pr22362_nested_container.keras",
+        )
+        self.assertTrue(
+            os.path.exists(fixture_path),
+            f"Backward-compat fixture missing at {fixture_path}",
+        )
+
+        # Loading must succeed and emit the legacy-skip warning.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            loaded = keras.saving.load_model(fixture_path)
+        self.assertTrue(
+            any("Skipping nested container" in str(w.message) for w in caught),
+            msg="Expected a 'Skipping nested container' UserWarning.",
+        )
+
+        # The fixture was saved with deterministic kernels:
+        #   blocks[i][0].kernel = 0.1 * (i + 1)
+        #   out.kernel = 0.5, out.bias = 0.0
+        for i, (d,) in enumerate(loaded.blocks):
+            self.assertAllClose(
+                ops.convert_to_numpy(d.kernel),
+                np.full((4, 4), 0.1 * (i + 1), dtype="float32"),
+                atol=1e-6,
+                msg=f"blocks[{i}][0].kernel mismatch",
+            )
+        self.assertAllClose(
+            ops.convert_to_numpy(loaded.out.kernel),
+            np.full((4, 2), 0.5, dtype="float32"),
+            atol=1e-6,
+        )
+        self.assertAllClose(
+            ops.convert_to_numpy(loaded.out.bias),
+            np.zeros((2,), dtype="float32"),
+            atol=1e-6,
+        )
+
     def test_remove_weights_only_saving_and_loading(self):
         def is_remote_path(path):
             return True
