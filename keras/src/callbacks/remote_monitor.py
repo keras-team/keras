@@ -152,7 +152,10 @@ class RemoteMonitor(Callback):
             else:
                 send[k] = v
 
-        # Re-validate at request time to catch DNS-rebinding attacks.
+        # Re-validate URL structure and DNS at request time to catch
+        # both DNS-rebinding attacks and any post-init host injection
+        # via mutated self.root or self.path.
+        _validate_url_structure(self.root, self.path)
         hostname = urllib.parse.urlparse(self.root).hostname
         _check_resolved_address(hostname)
 
