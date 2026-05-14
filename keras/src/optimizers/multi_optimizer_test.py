@@ -220,10 +220,6 @@ class MultiOptimizerTest(testing.TestCase):
         # Custom schedule that forces an LR adjustment
         lr_scheduler = callbacks.LearningRateScheduler(lambda epoch: 5e-2)
 
-        # Dummy call to build model weights
-        model(x)
-        multi_opt.build(model.trainable_variables)
-
         # Getter/setter tests inside fit
         model.fit(
             x, y, epochs=1, batch_size=8, callbacks=[lr_scheduler], verbose=0
@@ -315,3 +311,39 @@ class MultiOptimizerTest(testing.TestCase):
         multi_opt.apply(grads, [w])
 
         self.assertAllClose(w.numpy(), [[1.8, 1.8]])
+
+    def test_custom_callable_function(self):
+        opt_adam = optimizers.Adam(learning_rate=1e-3)
+        opt_sgd = optimizers.SGD(learning_rate=1e-2)
+
+        def optimizer_fn(variable):
+            if "dense_1" in getattr(variable, "path", ""):
+                return opt_adam
+            else:
+                return opt_sgd
+
+        multi_opt = optimizers.MultiOptimizer(optimizer_fn)
+
+        with backend.name_scope("dense_1"):
+            w1 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[1.0]], name="kernel")
+
+        multi_opt.build([w1, w2])
+
+        self.assertAllClose(multi_opt.learning_rate, 1e-3)
+
+        # Verify dynamic sub-optimizer discovery
+        self.assertEqual(multi_opt.num_optimizers, 2)
+        self.assertEqual(multi_opt.get_optimizer(0), opt_adam)
+        self.assertEqual(multi_opt.get_optimizer(1), opt_sgd)
+
+        # Verify gradient application via custom callable routing
+        grads = [
+            backend.convert_to_tensor([[1.0]]),
+            backend.convert_to_tensor([[1.0]]),
+        ]
+        multi_opt.apply(grads, [w1, w2])
+
+        # w1 updated by Adam, w2 updated by SGD(0.01) -> 1.0 - 0.01 = 0.99
+        self.assertAllClose(w2.numpy(), [[0.99]])

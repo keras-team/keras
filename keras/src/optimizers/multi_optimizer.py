@@ -57,6 +57,7 @@ class OptimizerMap(MutableMapping):
 
         ```python
         >>> from keras.src import optimizers
+        >>> from keras.src.optimizers.multi_optimizer import OptimizerMap
         >>> opt_adam = optimizers.Adam()
         >>> opt_sgd = optimizers.SGD()
         >>> opt_rmsprop = optimizers.RMSprop()
@@ -153,11 +154,84 @@ class OptimizerMap(MutableMapping):
 
 @keras_export("keras.optimizers.MultiOptimizer")
 class MultiOptimizer(optimizer.Optimizer):
-    """An optimizer wrapper that delegates variables to different optimizers."""
+    """An optimizer wrapper that delegates variables to different optimizers.
 
-    def __init__(self, optim_map, name=None):
+    Initialize the object with an OptimizerMap instance or a callable
+    function that returns an optimizer for a given variable.
+
+    Example:
+        model.compile(
+            optimizer=MultiOptimizer(
+                OptimizerMap(default_optimizer=optimizers.Adam())
+            ),
+            loss="binary_crossentropy",
+        )
+
+        # Or using a callable
+        def optimizer_fn(variable):
+            if "encoder" in variable.path:
+                return optimizers.Adam()
+            else:
+                return optimizers.SGD()
+
+        model.compile(
+            optimizer=MultiOptimizer(optimizer_fn),
+            loss="binary_crossentropy",
+        )
+
+    To access the attributes of the sub-optimizers, iterate over the
+    optimizers using `get_optimizer(i)`:
+
+    For example:
+
+    optimizer = MultiOptimizer(OptimizerMap(
+        default_optimizer=optimizers.Adam()
+    ))
+    optimizer['.encoder'] = optimizers.SGD()
+
+    for i in range(optimizer.num_optimizers):
+        optim = optimizer.get_optimizer(i)
+        print(optim.learning_rate)
+        print(optim.iterations)
+        print(optim.loss_scale_factor)
+        ...
+
+    The MultiOptimizer class instances will return the `learning_rate`
+    and `iterations` attributes of the first optimizer in the
+    OptimizerMap. In the case of callable function it will return the
+    attributes of the first optimizer returned by the callable function.
+
+    Note: Optimizer-specific callbacks are only supported for the
+    first optimizer, irrespective of initialization method.
+    For example: ReduceLROnPlateau will only update the learning rate
+    of the first optimizer.
+
+    """
+
+    def __init__(self, optim_map, name="multi_optimizer"):
         super().__init__(learning_rate=0.0, name=name)
         self._optim_map = optim_map
+        self._inner_optimizers = []
+        self._optimizer_to_vars = {}
+
+        if hasattr(self._optim_map, "values"):
+            for opt in self._optim_map.values():
+                if opt not in self._inner_optimizers:
+                    self._inner_optimizers.append(opt)
+                    self._optimizer_to_vars[opt] = []
+
+        default_opt = getattr(self._optim_map, "default_optimizer", None)
+        if (
+            default_opt is not None
+            and default_opt not in self._inner_optimizers
+        ):
+            self._inner_optimizers.append(default_opt)
+            self._optimizer_to_vars[default_opt] = []
+
+        # if len(self._inner_optimizers) > 0:
+        #     # Use the first optimizer's attributes as defaults
+        #     for attr in dir(self._inner_optimizers[0]):
+        #         self.__dict__[attr] = getattr(self._inner_optimizers[0], attr)
 
     def _var_key(self, variable):
         return id(variable)
@@ -168,8 +242,6 @@ class MultiOptimizer(optimizer.Optimizer):
             return
 
         self._var_to_optimizer_idx = {}
-        self._inner_optimizers = []
-        self._optimizer_to_vars = {}
 
         for var in var_list:
             opt = self._optim_map(var)
@@ -213,21 +285,21 @@ class MultiOptimizer(optimizer.Optimizer):
         if self._inner_optimizers:
             return self._inner_optimizers[0].learning_rate
         else:
-            raise ValueError("MultiOptimizer has no inner optimizers.")
+            return super()._learning_rate
 
     @learning_rate.setter
     def learning_rate(self, value):
         if self._inner_optimizers:
             self._inner_optimizers[0].learning_rate = value
         else:
-            raise ValueError("MultiOptimizer has no inner optimizers.")
+            super()._learning_rate.assign(value)
 
     @property
     def iterations(self):
         if self._inner_optimizers:
             return self._inner_optimizers[0].iterations
         else:
-            raise ValueError("MultiOptimizer has no inner optimizers.")
+            return self._iterations
 
     def apply(self, grads, trainable_variables=None):
         if len(grads) == 0:
