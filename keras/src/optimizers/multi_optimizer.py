@@ -102,7 +102,7 @@ class OptimizerMap(MutableMapping):
             key: string representing the variable path or regex pattern
             optim: Keras Optimizer instance
         """
-        if isinstance(optim, MultiOptimizer):
+        if key in self._optimizer_map:
             raise ValueError(
                 f"{key} already exist in the OptimizerMap with "
                 f"value {self._optimizer_map[key]}. Please make sure to "
@@ -113,6 +113,10 @@ class OptimizerMap(MutableMapping):
         if not isinstance(optim, optimizer.Optimizer):
             raise ValueError(
                 f"optim must be a Keras Optimizer instance. Received: {optim}"
+            )
+        if isinstance(optim, MultiOptimizer):
+            raise ValueError(
+                "MultiOptimizer can not be nested inside an OptimizerMap."
             )
         self._optimizer_map[key] = optim
 
@@ -208,8 +212,22 @@ class MultiOptimizer(optimizer.Optimizer):
 
     """
 
-    def __init__(self, optim_map, name="multi_optimizer"):
-        super().__init__(learning_rate=0.0, name=name)
+    def __init__(
+        self, optim_map, name="multi_optimizer", loss_scale_factor=None
+    ):
+        """
+        Initialize the MultiOptimizer.
+
+        Args:
+            optim_map: An OptimizerMap instance or a callable function that
+                returns an optimizer for a given variable.
+            name: The name of the optimizer.
+            loss_scale_factor: It overrides the loss_scale_factor passed
+            to the sub-optimizers.
+        """
+        super().__init__(
+            learning_rate=0.0, name=name, loss_scale_factor=loss_scale_factor
+        )
         self._optim_map = optim_map
         self._inner_optimizers = []
         self._optimizer_to_vars = {}
@@ -217,6 +235,7 @@ class MultiOptimizer(optimizer.Optimizer):
         if hasattr(self._optim_map, "values"):
             for opt in self._optim_map.values():
                 if opt not in self._inner_optimizers:
+                    opt.loss_scale_factor = loss_scale_factor
                     self._inner_optimizers.append(opt)
                     self._optimizer_to_vars[opt] = []
 
@@ -225,13 +244,9 @@ class MultiOptimizer(optimizer.Optimizer):
             default_opt is not None
             and default_opt not in self._inner_optimizers
         ):
+            default_opt.loss_scale_factor = loss_scale_factor
             self._inner_optimizers.append(default_opt)
             self._optimizer_to_vars[default_opt] = []
-
-        # if len(self._inner_optimizers) > 0:
-        #     # Use the first optimizer's attributes as defaults
-        #     for attr in dir(self._inner_optimizers[0]):
-        #         self.__dict__[attr] = getattr(self._inner_optimizers[0], attr)
 
     def _var_key(self, variable):
         return id(variable)
@@ -245,7 +260,13 @@ class MultiOptimizer(optimizer.Optimizer):
 
         for var in var_list:
             opt = self._optim_map(var)
+            if not isinstance(opt, optimizer.Optimizer):
+                raise ValueError(
+                    f"Optimizer for variable {var} is not "
+                    "an Optimizer instance."
+                )
             if opt not in self._inner_optimizers:
+                opt.loss_scale_factor = self.loss_scale_factor
                 self._inner_optimizers.append(opt)
                 self._optimizer_to_vars[opt] = []
             idx = self._inner_optimizers.index(opt)
@@ -335,11 +356,6 @@ class MultiOptimizer(optimizer.Optimizer):
 
         if trainable_variables is None:
             trainable_variables = self._trainable_variables
-
-        # Statelessly unscale gradients if loss_scale_factor is set
-        if self.loss_scale_factor is not None:
-            scale = self.loss_scale_factor
-            grads = [g if g is None else g / scale for g in grads]
 
         own_var_count = len(self._variables)
         own_variables = optimizer_variables[:own_var_count]
@@ -442,6 +458,7 @@ class MultiOptimizer(optimizer.Optimizer):
                 self._optim_map
             ),
             "name": self.name,
+            "loss_scale_factor": self.loss_scale_factor,
         }
 
     @classmethod

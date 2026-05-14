@@ -280,7 +280,7 @@ class MultiOptimizerTest(testing.TestCase):
         opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
         opt_map["^dense_1/.*"] = opt_adam
         opt_map["^dense_2/.*"] = opt_sgd
-        multi_opt = optimizers.MultiOptimizer(opt_map)
+        multi_opt = optimizers.MultiOptimizer(opt_map, loss_scale_factor=5.0)
 
         with backend.name_scope("dense_1"):
             w1 = backend.Variable([[1.0]], name="kernel")
@@ -288,17 +288,17 @@ class MultiOptimizerTest(testing.TestCase):
 
         loss = backend.convert_to_tensor(2.0)
         scaled_loss = multi_opt.scale_loss(loss)
-        self.assertAllClose(scaled_loss, 6.0)
+        self.assertAllClose(scaled_loss, 10.0)
 
     def test_gradient_unscaling(self):
         with backend.name_scope("dense_1"):
             w = backend.Variable([[2.0, 2.0]], name="kernel")
 
         # SGD with learning rate 0.1
-        opt_sgd = optimizers.SGD(learning_rate=0.1, loss_scale_factor=5.0)
+        opt_sgd = optimizers.SGD(learning_rate=0.1, loss_scale_factor=2.0)
         opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd)
         opt_map["^dense_1/.*"] = opt_sgd
-        multi_opt = optimizers.MultiOptimizer(opt_map)
+        multi_opt = optimizers.MultiOptimizer(opt_map, loss_scale_factor=5.0)
 
         multi_opt.build([w])
 
