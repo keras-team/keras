@@ -812,12 +812,14 @@ class SavingTest(testing.TestCase):
         reason="POSIX symlink semantics required for this test.",
     )
     def test_load_model_from_dir_rejects_symlinked_asset(self):
-        """Regression test for huntr report 0090e3ec-d53e-4595-860c-b22bc990b905.
+        """Regression test for the huntr symlink disclosure report.
 
         A directory-form Keras model whose asset file is a symlink pointing
         outside of the asset tree must be rejected. Otherwise layer-side
         `open(...)` calls would follow the link and load arbitrary local
         file content into the model.
+
+        See: huntr report 0090e3ec-d53e-4595-860c-b22bc990b905.
         """
         # Save a TextVectorization model whose vocabulary is persisted as
         # an asset file (`adapt()` ensures `input_vocabulary is None`, which
