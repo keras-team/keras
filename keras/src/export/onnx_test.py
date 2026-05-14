@@ -101,9 +101,14 @@ class ExportONNXTest(testing.TestCase):
         ort_inputs = {
             k.name: v for k, v in zip(ort_session.get_inputs(), [ref_input])
         }
+        # cuDNN-fused LSTM reference vs. unrolled ONNX graph differ by ~3e-6.
+        atol = 1e-5 if model_type == "lstm" else 1e-6
+        rtol = 1e-5 if model_type == "lstm" else 1e-6
         self.assertAllClose(
             ort_session.run(None, ort_inputs)[0],
             ref_output,
+            atol=atol,
+            rtol=rtol,
             tpu_atol=1e-3,
             tpu_rtol=1e-2,
         )
