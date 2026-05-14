@@ -807,6 +807,100 @@ class SavingTest(testing.TestCase):
         self.assertAllClose(model.predict(ref_input), ref_output, atol=1e-6)
 
 
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="POSIX symlink semantics required for this test.",
+    )
+    def test_load_model_from_dir_rejects_symlinked_asset(self):
+        """Regression test for huntr report 0090e3ec-d53e-4595-860c-b22bc990b905.
+
+        A directory-form Keras model whose asset file is a symlink pointing
+        outside of the asset tree must be rejected. Otherwise layer-side
+        `open(...)` calls would follow the link and load arbitrary local
+        file content into the model.
+        """
+        # Save a TextVectorization model whose vocabulary is persisted as
+        # an asset file (`adapt()` ensures `input_vocabulary is None`, which
+        # causes the vocabulary table to be written to assets/...).
+        model = keras.Sequential(
+            [keras.layers.TextVectorization(name="vec")]
+        )
+        model.layers[0].adapt(np.array(["a", "b", "c"]))
+        zipped_path = os.path.join(self.get_temp_dir(), "real.keras")
+        model.save(zipped_path)
+
+        # Unpack the .keras zip into a plain directory — this is the
+        # directory form `_load_model_from_dir` consumes.
+        model_dir = os.path.join(self.get_temp_dir(), "model_dir")
+        os.makedirs(model_dir)
+        with zipfile.ZipFile(zipped_path) as zf:
+            zf.extractall(model_dir)
+
+        # Locate the asset file and swap it for a symlink that escapes the
+        # asset tree.
+        asset_path = None
+        for root, _, files in os.walk(model_dir):
+            for f in files:
+                if f == "vocabulary.txt":
+                    asset_path = os.path.join(root, f)
+                    break
+            if asset_path:
+                break
+        self.assertIsNotNone(
+            asset_path, "Expected to find a vocabulary.txt asset."
+        )
+
+        secret_path = os.path.join(self.get_temp_dir(), "secret.txt")
+        with open(secret_path, "w") as f:
+            f.write("super-secret-content")
+        os.unlink(asset_path)
+        os.symlink(secret_path, asset_path)
+
+        # The directory load must refuse to process the symlinked asset.
+        with self.assertRaisesRegex(ValueError, "symbolic link|symlink"):
+            saving_lib.load_model(model_dir)
+
+    @pytest.mark.skipif(
+        os.name == "nt",
+        reason="POSIX symlink semantics required for this test.",
+    )
+    def test_load_model_from_dir_rejects_symlink_to_inside_asset_root(self):
+        """In-tree symlinks are also rejected as tamper indicators."""
+        model = keras.Sequential(
+            [keras.layers.TextVectorization(name="vec")]
+        )
+        model.layers[0].adapt(np.array(["a", "b", "c"]))
+        zipped_path = os.path.join(self.get_temp_dir(), "real.keras")
+        model.save(zipped_path)
+
+        model_dir = os.path.join(self.get_temp_dir(), "model_dir")
+        os.makedirs(model_dir)
+        with zipfile.ZipFile(zipped_path) as zf:
+            zf.extractall(model_dir)
+
+        asset_path = None
+        for root, _, files in os.walk(model_dir):
+            for f in files:
+                if f == "vocabulary.txt":
+                    asset_path = os.path.join(root, f)
+                    break
+            if asset_path:
+                break
+        self.assertIsNotNone(asset_path)
+
+        # Point the asset at a sibling file that lives inside the asset
+        # root. Keras itself never writes symlinks into the asset tree, so
+        # even an "inside" symlink is unsafe to honor.
+        sibling_path = os.path.join(os.path.dirname(asset_path), "alt.txt")
+        with open(sibling_path, "w") as f:
+            f.write("a\nb\nc\n")
+        os.unlink(asset_path)
+        os.symlink(sibling_path, asset_path)
+
+        with self.assertRaisesRegex(ValueError, "symbolic link|symlink"):
+            saving_lib.load_model(model_dir)
+
+
 class SavingAPITest(testing.TestCase):
     def test_saving_api_errors(self):
         from keras.src.saving import saving_api

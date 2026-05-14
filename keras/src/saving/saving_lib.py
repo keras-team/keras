@@ -387,9 +387,9 @@ def _load_model_from_dir(dirpath, custom_objects, compile, safe_mode):
                 f"Expected a {_VARS_FNAME_H5} or {_VARS_FNAME_NPZ} file."
             )
         if len(all_filenames) > 3:
-            asset_store = DiskIOStore(
-                file_utils.join(dirpath, _ASSETS_DIRNAME), mode="r"
-            )
+            assets_dirpath = file_utils.join(dirpath, _ASSETS_DIRNAME)
+            _validate_asset_dir_no_symlink_escape(assets_dirpath)
+            asset_store = DiskIOStore(assets_dirpath, mode="r")
 
         else:
             asset_store = None
@@ -973,6 +973,117 @@ def _load_container_state(
             )
 
 
+def _is_local_path(path):
+    """Return True if `path` looks like a local filesystem path.
+
+    Remote URIs (e.g. ``gs://`` or ``hdfs://``) have no concept of symbolic
+    links, so the symlink-escape check is a no-op for them. We only enforce
+    it on local paths to avoid false positives against non-POSIX backends.
+    """
+    if not isinstance(path, str):
+        path = str(path)
+    return "://" not in path
+
+
+def _reject_symlink_escape(path, root):
+    """Reject an asset path whose canonical target is outside ``root``.
+
+    A malicious model directory can ship an ``assets/.../<file>`` entry that
+    is a symlink to an arbitrary file on the victim machine (for instance
+    ``/etc/passwd``). When Keras layer code later opens the asset with
+    ``open(...)``, the symlink is followed and the target file's contents
+    are loaded into the model — a local-file disclosure vector.
+
+    Reject any path whose realpath escapes ``root``, and also reject any
+    intermediate component that is itself a symlink to keep behavior
+    predictable on case-insensitive filesystems.
+    """
+    if not _is_local_path(path) or not _is_local_path(root):
+        return
+
+    real_root = os.path.realpath(root)
+    real_path = os.path.realpath(path)
+    try:
+        common = os.path.commonpath([real_root, real_path])
+    except ValueError:
+        # Paths on different drives on Windows.
+        common = ""
+    if common != real_root:
+        raise ValueError(
+            f"Asset path {path!r} resolves to {real_path!r}, which is "
+            f"outside of the model asset root {real_root!r}. Refusing to "
+            "load to prevent symlink-based local file disclosure. If you "
+            "trust this directory, remove the offending symlink before "
+            "retrying."
+        )
+
+    # Walk every component between `root` and `path` and reject any symlink,
+    # even if it would resolve to a location inside `root`. Keras itself
+    # never writes symlinks into the asset tree, so the presence of one is
+    # a strong signal of tampering.
+    try:
+        rel = os.path.relpath(path, root)
+    except ValueError:
+        return
+    if rel in ("", "."):
+        return
+    cur = root
+    for part in rel.split(os.sep):
+        if not part or part == ".":
+            continue
+        cur = os.path.join(cur, part)
+        if os.path.islink(cur):
+            raise ValueError(
+                f"Asset path component {cur!r} is a symbolic link. "
+                "Symbolic links are not permitted inside a Keras model "
+                "asset directory."
+            )
+
+
+def _validate_asset_dir_no_symlink_escape(assets_dirpath):
+    """Scan an asset directory once and reject any unsafe symlink.
+
+    This is the single-pass equivalent of `_reject_symlink_escape` applied
+    to every entry under ``assets_dirpath``. It runs at load time before
+    any layer-side ``open(...)`` so a malicious directory is rejected up
+    front rather than partway through state restoration.
+    """
+    if not _is_local_path(assets_dirpath):
+        return
+    if not file_utils.exists(assets_dirpath):
+        return
+    if not file_utils.isdir(assets_dirpath):
+        return
+
+    real_root = os.path.realpath(assets_dirpath)
+    # `followlinks=False` keeps `os.walk` from descending into symlinked
+    # directories that point outside the asset tree.
+    for current_dir, dirnames, filenames in os.walk(
+        assets_dirpath, followlinks=False
+    ):
+        for name in list(dirnames) + filenames:
+            entry = os.path.join(current_dir, name)
+            if os.path.islink(entry):
+                raise ValueError(
+                    f"Found symbolic link inside model asset directory: "
+                    f"{entry!r}. Symbolic links are not permitted inside "
+                    "a Keras model asset directory; this may indicate a "
+                    "malicious model attempting to disclose local files "
+                    "via `keras.saving.load_model`."
+                )
+            real_entry = os.path.realpath(entry)
+            try:
+                common = os.path.commonpath([real_root, real_entry])
+            except ValueError:
+                common = ""
+            if common != real_root:
+                raise ValueError(
+                    f"Asset entry {entry!r} resolves to {real_entry!r}, "
+                    f"which is outside of the model asset root "
+                    f"{real_root!r}. Refusing to load."
+                )
+
+
 class DiskIOStore:
     """Asset store backed by disk storage.
 
@@ -1020,6 +1131,13 @@ class DiskIOStore:
             return self.working_dir
         path = file_utils.join(self.working_dir, path).replace("\\", "/")
         if file_utils.exists(path):
+            if self.mode == "r" and not self.archive:
+                # Defense in depth: in read-from-dir mode the working_dir
+                # is attacker-controlled. Reject any path that resolves
+                # outside the asset root via a symbolic link, otherwise
+                # layer-side `open(...)` calls would silently follow the
+                # link and disclose arbitrary local files.
+                _reject_symlink_escape(path, self.working_dir)
             return path
         return None
 
