@@ -80,7 +80,7 @@ class TargetReshaper(TransformerMixin, BaseEstimator):
                 If the transformer was fit to a 1D numpy array,
                 and a 2D numpy array with a singleton second dimension
                 is passed, it will be squeezed back to 1D. Otherwise, it
-                will eb left untouched.
+                will be left untouched.
         """
         from sklearn.utils.validation import check_is_fitted
 
