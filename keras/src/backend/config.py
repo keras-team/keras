@@ -288,6 +288,11 @@ def is_tf32_enabled():
 
     Returns:
         `False` if disabled. Otherwise, it indicates that it is enabled.
+
+    Example:
+
+    >>> keras.config.is_tf32_enabled()
+    True
     """
     from keras.src.backend.common import global_state
 
