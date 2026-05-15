@@ -17,7 +17,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import testing
 from keras.src.saving import saving_lib
-from keras.src.utils.module_utils import gfile
+from keras.src.utils import file_utils
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
@@ -1340,13 +1340,13 @@ class SavingBattleTest(testing.TestCase):
                 cfg["num"] = self.num
                 return cfg
 
-        fixture_path = gfile.join(
+        fixture_path = file_utils.join(
             os.path.dirname(__file__),
             "test_data",
             "pre_pr22362_nested_container.keras",
         )
         self.assertTrue(
-            gfile.exists(fixture_path),
+            file_utils.exists(fixture_path),
             f"Backward-compat fixture missing at {fixture_path}",
         )
 
