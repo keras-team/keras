@@ -248,6 +248,10 @@ def enable_tf32():
 
     Note that this only affects `float32` compute on supported GPUs. It has
     no effect on CPU, on TPU, or for other dtypes.
+
+    Example:
+
+    >>> keras.config.enable_tf32()
     """
     from keras.src.backend.common import global_state
 
