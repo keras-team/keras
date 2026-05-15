@@ -1072,9 +1072,9 @@ class Trainer:
         if len(results) == 1:
             return results[0]
         return results
-        def _warn_if_trainable_state_changed(self):
-            if not self.compiled or not hasattr(self, "_compiled_trainable_state"):
-                return
+    def _warn_if_trainable_state_changed(self):
+        if not self.compiled or not hasattr(self, "_compiled_trainable_state"):
+            return
 
         current_state = {
             layer: layer.trainable for layer in self._flatten_layers()
