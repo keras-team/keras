@@ -34,28 +34,46 @@ class TerminateOnNaNTest(testing.TestCase):
         if requests is None:
             self.skipTest("`requests` required to run this test")
 
-        with mock.patch("requests.post") as requests_post:
+        _check_addr = (
+            "keras.src.callbacks.remote_monitor._check_resolved_address"
+        )
+        with (
+            mock.patch("requests.post") as requests_post,
+            mock.patch(_check_addr),
+        ):
             monitor = callbacks.RemoteMonitor(send_as_json=True)
             a = np.arange(1)  # a 1 by 1 array
             logs = {"loss": 0.0, "val": a}
             monitor.on_epoch_end(0, logs=logs)
             send = {"loss": 0.0, "epoch": 0, "val": 0}
             requests_post.assert_called_once_with(
-                monitor.root + monitor.path, json=send, headers=monitor.headers
+                monitor.root + monitor.path,
+                json=send,
+                headers=monitor.headers,
+                timeout=10,
             )
 
     def test_RemoteMonitor_np_float32(self):
         if requests is None:
             self.skipTest("`requests` required to run this test")
 
-        with mock.patch("requests.post") as requests_post:
+        _check_addr = (
+            "keras.src.callbacks.remote_monitor._check_resolved_address"
+        )
+        with (
+            mock.patch("requests.post") as requests_post,
+            mock.patch(_check_addr),
+        ):
             monitor = callbacks.RemoteMonitor(send_as_json=True)
             a = np.float32(1.0)  # a float32 generic type
             logs = {"loss": 0.0, "val": a}
             monitor.on_epoch_end(0, logs=logs)
             send = {"loss": 0.0, "epoch": 0, "val": 1.0}
             requests_post.assert_called_once_with(
-                monitor.root + monitor.path, json=send, headers=monitor.headers
+                monitor.root + monitor.path,
+                json=send,
+                headers=monitor.headers,
+                timeout=10,
             )
 
     @skip_if_backend(
@@ -84,7 +102,13 @@ class TerminateOnNaNTest(testing.TestCase):
         model = Sequential([layers.Dense(NUM_CLASSES)])
         model.compile(loss="mean_squared_error", optimizer="sgd")
 
-        with mock.patch("requests.post") as requests_post:
+        _check_addr = (
+            "keras.src.callbacks.remote_monitor._check_resolved_address"
+        )
+        with (
+            mock.patch("requests.post") as requests_post,
+            mock.patch(_check_addr),
+        ):
             monitor = callbacks.RemoteMonitor(send_as_json=True)
             hist = model.fit(
                 x_train,
@@ -100,5 +124,36 @@ class TerminateOnNaNTest(testing.TestCase):
                 "val_loss": hist.history["val_loss"][0],
             }
             requests_post.assert_called_once_with(
-                monitor.root + monitor.path, json=send, headers=monitor.headers
+                monitor.root + monitor.path,
+                json=send,
+                headers=monitor.headers,
+                timeout=10,
             )
+
+    def test_RemoteMonitor_blocks_link_local(self):
+        if requests is None:
+            self.skipTest("`requests` required to run this test")
+
+        with mock.patch("socket.getaddrinfo") as mock_getaddrinfo:
+            mock_getaddrinfo.return_value = [
+                (2, 1, 6, "", ("169.254.169.254", 0))
+            ]
+            monitor = callbacks.RemoteMonitor(
+                root="http://evil.example.com:9000"
+            )
+            with self.assertRaises(ValueError) as ctx:
+                monitor.on_epoch_end(0, logs={"loss": 0.0})
+            self.assertIn("link-local", str(ctx.exception))
+
+    def test_RemoteMonitor_rejects_invalid_scheme(self):
+        with self.assertRaises(ValueError) as ctx:
+            callbacks.RemoteMonitor(root="file:///etc/passwd")
+        self.assertIn("Invalid URL scheme", str(ctx.exception))
+
+    def test_RemoteMonitor_rejects_host_injection(self):
+        with self.assertRaises(ValueError) as ctx:
+            callbacks.RemoteMonitor(
+                root="http://safe.example.com",
+                path="@attacker.com/steal",
+            )
+        self.assertIn("Host injection", str(ctx.exception))
