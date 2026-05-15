@@ -1,11 +1,9 @@
 import re
 from collections.abc import MutableMapping
 
-from keras.src import ops
 from keras.src.api_export import keras_export
-from keras.src.optimizers import optimizer
+from keras.src.optimizers.optimizer import Optimizer
 from keras.src.saving import serialization_lib
-from keras.src.utils import tracking
 
 
 @keras_export("keras.optimizers.OptimizerMap")
@@ -17,14 +15,18 @@ class OptimizerMap(MutableMapping):
             for any unmapped variables.
     """
 
-    def __init__(self, default_optimizer):
-        if not isinstance(default_optimizer, optimizer.Optimizer):
+    def __init__(self, default_optimizer, optimizer_map=None):
+        if not isinstance(default_optimizer, Optimizer):
             raise TypeError(
                 "default_optimizer must be a Keras Optimizer instance. "
                 f"Received: {default_optimizer}"
             )
+        if optimizer_map is not None and not isinstance(optimizer_map, dict):
+            raise TypeError(
+                f"optimizer_map must be a dictionary. Received: {optimizer_map}"
+            )
         self._default_optimizer = default_optimizer
-        self._optimizer_map = dict()
+        self._optimizer_map = optimizer_map or dict()
 
     @property
     def default_optimizer(self):
@@ -95,30 +97,31 @@ class OptimizerMap(MutableMapping):
             return self._optimizer_map[matching_keys[0]]
         return self.default_optimizer
 
-    def __setitem__(self, key, optim):
+    def __setitem__(self, key, optimizer):
         """Set optimizer for a given variable.
 
         Args:
             key: string representing the variable path or regex pattern
-            optim: Keras Optimizer instance
+            optimizer: Keras Optimizer instance
         """
         if key in self._optimizer_map:
             raise ValueError(
-                f"{key} already exist in the OptimizerMap with "
+                f"'{key}' already exists in the OptimizerMap with "
                 f"value {self._optimizer_map[key]}. Please make sure to "
                 "not use duplicated keys."
             )
         if not isinstance(key, str):
             raise ValueError(f"key must be a string. Received: {key}")
-        if not isinstance(optim, optimizer.Optimizer):
+        if not isinstance(optimizer, Optimizer):
             raise ValueError(
-                f"optim must be a Keras Optimizer instance. Received: {optim}"
+                f"optimizer must be a Keras Optimizer instance. "
+                f"Received: {optimizer}"
             )
-        if isinstance(optim, MultiOptimizer):
+        if isinstance(optimizer, MultiOptimizer):
             raise ValueError(
-                "MultiOptimizer can not be nested inside an OptimizerMap."
+                "MultiOptimizer cannot be nested inside an OptimizerMap."
             )
-        self._optimizer_map[key] = optim
+        self._optimizer_map[key] = optimizer
 
     def __delitem__(self, key):
         del self._optimizer_map[key]
@@ -137,10 +140,9 @@ class OptimizerMap(MutableMapping):
             "default_optimizer": serialization_lib.serialize_keras_object(
                 self._default_optimizer
             ),
-            "optimizer_map": {
-                k: serialization_lib.serialize_keras_object(v)
-                for k, v in self._optimizer_map.items()
-            },
+            "optimizer_map": serialization_lib.serialize_keras_object(
+                self._optimizer_map
+            ),
         }
 
     @classmethod
@@ -148,16 +150,15 @@ class OptimizerMap(MutableMapping):
         default_optimizer = serialization_lib.deserialize_keras_object(
             config["default_optimizer"], custom_objects=custom_objects
         )
-        obj_map = cls(default_optimizer)
-        for k, v in config["optimizer_map"].items():
-            obj_map[k] = serialization_lib.deserialize_keras_object(
-                v, custom_objects=custom_objects
-            )
+        optimizer_map = serialization_lib.deserialize_keras_object(
+            config["optimizer_map"], custom_objects=custom_objects
+        )
+        obj_map = cls(default_optimizer, optimizer_map)
         return obj_map
 
 
 @keras_export("keras.optimizers.MultiOptimizer")
-class MultiOptimizer(optimizer.Optimizer):
+class MultiOptimizer(Optimizer):
     """An optimizer wrapper that delegates variables to different optimizers.
 
     Initialize the object with an OptimizerMap instance or a callable
@@ -166,20 +167,21 @@ class MultiOptimizer(optimizer.Optimizer):
     Example:
         model.compile(
             optimizer=MultiOptimizer(
-                OptimizerMap(default_optimizer=optimizers.Adam())
+                OptimizerMap(default_optimizer=optimizers.SGD(),
+                {"encoder/.*": optimizers.Adam()})
             ),
             loss="binary_crossentropy",
         )
 
         # Or using a callable
-        def optimizer_fn(variable):
+        def optimizer_selector(variable):
             if "encoder" in variable.path:
                 return optimizers.Adam()
             else:
                 return optimizers.SGD()
 
         model.compile(
-            optimizer=MultiOptimizer(optimizer_fn),
+            optimizer=MultiOptimizer(optimizer_selector),
             loss="binary_crossentropy",
         )
 
@@ -193,74 +195,64 @@ class MultiOptimizer(optimizer.Optimizer):
     ))
     optimizer['.encoder'] = optimizers.SGD()
 
-    for i in range(optimizer.num_optimizers):
-        optim = optimizer.get_optimizer(i)
+    for optim in optimizer.optimizers:
         print(optim.learning_rate)
         print(optim.iterations)
         print(optim.loss_scale_factor)
         ...
 
-    The MultiOptimizer class instances will return the `learning_rate`
-    and `iterations` attributes of the first optimizer in the
-    OptimizerMap. In the case of callable function it will return the
-    attributes of the first optimizer returned by the callable function.
+    The MultiOptimizer class instances will not expose `learning_rate`
+    attribute and will raise an error if accessed. This is because the
+    learning rate might be different for different sub-optimizers.
 
-    Note: Optimizer-specific callbacks are only supported for the
-    first optimizer, irrespective of initialization method.
-    For example: ReduceLROnPlateau will only update the learning rate
-    of the first optimizer.
+    Note: Optimizer-specific callbacks are not supported yet.
 
     """
 
-    def __init__(
-        self, optim_map, name="multi_optimizer", loss_scale_factor=None
-    ):
+    def __init__(self, optimizer_map, loss_scale_factor=None, name=None):
         """
         Initialize the MultiOptimizer.
 
         Args:
-            optim_map: An OptimizerMap instance or a callable function that
+            optimizer_map: An OptimizerMap instance or a callable function that
                 returns an optimizer for a given variable.
-            name: The name of the optimizer.
             loss_scale_factor: It overrides the loss_scale_factor passed
             to the sub-optimizers.
+            name: The name of the optimizer.
         """
         super().__init__(
-            learning_rate=0.0, name=name, loss_scale_factor=loss_scale_factor
+            learning_rate=0.0,
+            loss_scale_factor=loss_scale_factor,
+            name=name,
         )
-        self._optim_map = optim_map
+        self._optimizer_map = optimizer_map
         self._inner_optimizers = []
-        self._optimizer_to_vars = {}
 
-        if hasattr(self._optim_map, "values"):
-            for opt in self._optim_map.values():
+        if hasattr(self._optimizer_map, "values"):
+            for opt in self._optimizer_map.values():
                 if opt not in self._inner_optimizers:
                     opt.loss_scale_factor = loss_scale_factor
                     self._inner_optimizers.append(opt)
-                    self._optimizer_to_vars[opt] = []
 
-        default_opt = getattr(self._optim_map, "default_optimizer", None)
+        default_opt = getattr(self._optimizer_map, "default_optimizer", None)
         if (
             default_opt is not None
             and default_opt not in self._inner_optimizers
         ):
             default_opt.loss_scale_factor = loss_scale_factor
             self._inner_optimizers.append(default_opt)
-            self._optimizer_to_vars[default_opt] = []
 
-    def _var_key(self, variable):
-        return id(variable)
-
-    @tracking.no_automatic_dependency_tracking
     def build(self, var_list):
         if self.built:
             return
 
         self._var_to_optimizer_idx = {}
+        self._trainable_variables_indices = {}
+        optimizer_vars = [[] for _ in range(len(self._inner_optimizers))]
 
-        for var in var_list:
-            opt = self._optim_map(var)
-            if not isinstance(opt, optimizer.Optimizer):
+        for i, var in enumerate(var_list):
+            opt = self._optimizer_map(var)
+            if not isinstance(opt, Optimizer):
                 raise ValueError(
                     f"Optimizer for variable {var} is not "
                     "an Optimizer instance."
@@ -268,23 +260,19 @@ class MultiOptimizer(optimizer.Optimizer):
             if opt not in self._inner_optimizers:
                 opt.loss_scale_factor = self.loss_scale_factor
                 self._inner_optimizers.append(opt)
-                self._optimizer_to_vars[opt] = []
+                optimizer_vars.append([])
+
             idx = self._inner_optimizers.index(opt)
             self._var_to_optimizer_idx[self._var_key(var)] = idx
-            self._optimizer_to_vars[opt].append(var)
+            self._trainable_variables_indices[self._var_key(var)] = i
+            optimizer_vars[idx].append(var)
 
         # Build all sub-optimizers
-        for opt, variables in self._optimizer_to_vars.items():
+        for opt, variables in zip(self._inner_optimizers, optimizer_vars):
             if variables:
                 opt.build(variables)
 
         super().build(var_list)
-
-    def _get_optimizer_for_variable(self, variable):
-        idx = self._var_to_optimizer_idx.get(self._var_key(variable), None)
-        if idx is None:
-            raise ValueError(f"Variable {variable} not found in any optimizer.")
-        return self._inner_optimizers[idx]
 
     def get_optimizer(self, index):
         return self._inner_optimizers[index]
@@ -292,6 +280,10 @@ class MultiOptimizer(optimizer.Optimizer):
     @property
     def num_optimizers(self):
         return len(self._inner_optimizers)
+
+    @property
+    def optimizers(self):
+        return self._inner_optimizers
 
     @property
     def variables(self):
@@ -303,130 +295,68 @@ class MultiOptimizer(optimizer.Optimizer):
 
     @property
     def learning_rate(self):
-        if self._inner_optimizers:
-            return self._inner_optimizers[0].learning_rate
-        else:
-            return super()._learning_rate
+        raise AttributeError(
+            "Learning rate cannot be accessed on a MultiOptimizer. "
+            "Access the learning rate on the individual sub-optimizers instead."
+        )
 
     @learning_rate.setter
     def learning_rate(self, value):
-        if self._inner_optimizers:
-            self._inner_optimizers[0].learning_rate = value
-        else:
-            super()._learning_rate.assign(value)
+        raise AttributeError(
+            "Learning rate cannot be set on a MultiOptimizer. "
+            "Set the learning rate on the individual sub-optimizers instead."
+        )
 
     @property
     def iterations(self):
-        if self._inner_optimizers:
-            return self._inner_optimizers[0].iterations
-        else:
-            return self._iterations
+        return self._iterations
 
     def apply(self, grads, trainable_variables=None):
         if len(grads) == 0:
             return
 
         if trainable_variables is None:
+            if not self.built:
+                raise ValueError(
+                    "When passing `grads` without `variables`, the optimizer "
+                    "must already be built on a list of variables. "
+                    "Call `optimizer.build(trainable_variables)` first."
+                )
             trainable_variables = self._trainable_variables
 
         if not self.built:
             self.build(trainable_variables)
             self.built = True
 
-        # Group gradients and variables by sub-optimizer
-        optimizer_to_grads_and_vars = {
-            opt: [] for opt in self._inner_optimizers
-        }
-        for grad, var in zip(grads, trainable_variables):
-            opt = self._get_optimizer_for_variable(var)
-            optimizer_to_grads_and_vars[opt].append((grad, var))
-
-        # Dispatch apply calls
-        for opt, grads_and_vars in optimizer_to_grads_and_vars.items():
-            if grads_and_vars:
-                sub_grads, sub_vars = zip(*grads_and_vars)
-                opt.apply(list(sub_grads), list(sub_vars))
-
-        # Keep master iterations in sync
-        self._iterations.assign_add(1)
-
-    def stateless_apply(self, optimizer_variables, grads, trainable_variables):
-        if len(grads) == 0:
-            return trainable_variables, optimizer_variables
-
-        if trainable_variables is None:
-            trainable_variables = self._trainable_variables
-
-        own_var_count = len(self._variables)
-        own_variables = optimizer_variables[:own_var_count]
-        remaining_opt_vars = optimizer_variables[own_var_count:]
-
-        inner_opt_variables = []
-        offset = 0
-        for opt in self._inner_optimizers:
-            opt_var_count = len(opt.variables)
-            opt_vars = remaining_opt_vars[offset : offset + opt_var_count]
-            inner_opt_variables.append(opt_vars)
-            offset += opt_var_count
-
-        optimizer_grads = [[] for _ in self._inner_optimizers]
-        optimizer_train_vars = [[] for _ in self._inner_optimizers]
-        optimizer_train_var_indices = [[] for _ in self._inner_optimizers]
-
-        for i, (grad, var) in enumerate(zip(grads, trainable_variables)):
-            # Map the incoming stateless tracer array
-            # to the static Keras Variable via index alignment
-            keras_var = self._trainable_variables[i]
-            opt = self._get_optimizer_for_variable(keras_var)
-            opt_idx = self._inner_optimizers.index(opt)
-
-            optimizer_grads[opt_idx].append(grad)
-            optimizer_train_vars[opt_idx].append(var)
-            optimizer_train_var_indices[opt_idx].append(i)
-
-        new_trainable_variables = list(trainable_variables)
-        new_inner_opt_variables = []
-
-        for opt_idx, opt in enumerate(self._inner_optimizers):
-            grads_group = optimizer_grads[opt_idx]
-            vars_group = optimizer_train_vars[opt_idx]
-            indices = optimizer_train_var_indices[opt_idx]
-            opt_vars = inner_opt_variables[opt_idx]
-
-            if grads_group:
-                updated_vars, updated_opt_vars = opt.stateless_apply(
-                    opt_vars, grads_group, vars_group
-                )
-                # Update the trainable variables at the correct indices
-                for j, idx in enumerate(indices):
-                    new_trainable_variables[idx] = updated_vars[j]
-                new_inner_opt_variables.extend(updated_opt_vars)
-            else:
-                new_inner_opt_variables.extend(opt_vars)
-
-        # Statelessly increment the master iterations counter
-        new_own_variables = list(own_variables)
-        if new_own_variables:
-            new_own_variables[0] = ops.cast(
-                new_own_variables[0] + 1, new_own_variables[0].dtype
+        if len(grads) != len(self._trainable_variables_indices):
+            raise ValueError(
+                "Gradients must match trainable variables one-to-one. "
+                f"Received {len(grads)} gradients and "
+                f"{len(self._trainable_variables_indices)} variables."
             )
 
-        new_optimizer_variables = new_own_variables + new_inner_opt_variables
-        return new_trainable_variables, new_optimizer_variables
+        grads_and_vars = [[] for _ in range(len(self._inner_optimizers))]
+        for grad, var in zip(grads, trainable_variables):
+            idx = self._var_to_optimizer_idx[self._var_key(var)]
+            grads_and_vars[idx].append((grad, var))
 
-    def scale_loss(self, loss):
-        if self._inner_optimizers:
-            return self._inner_optimizers[0].scale_loss(loss)
-        else:
-            raise ValueError("MultiOptimizer has no inner optimizers.")
+        # Dispatch apply calls
+        for opt, sub_grads_and_vars in zip(
+            self._inner_optimizers, grads_and_vars
+        ):
+            if sub_grads_and_vars:
+                sub_grads, sub_vars = zip(*sub_grads_and_vars)
+                opt.apply(list(sub_grads), list(sub_vars))
+
+        self._iterations.assign_add(1)
 
     def finalize_variable_values(self, var_list):
-        optimizer_to_vars = {opt: [] for opt in self._inner_optimizers}
+        optimizer_vars = [[] for _ in range(len(self._inner_optimizers))]
         for var in var_list:
-            opt = self._get_optimizer_for_variable(var)
-            optimizer_to_vars[opt].append(var)
+            idx = self._var_to_optimizer_idx[self._var_key(var)]
+            optimizer_vars[idx].append(var)
 
-        for opt, variables in optimizer_to_vars.items():
+        for opt, variables in zip(self._inner_optimizers, optimizer_vars):
             if variables:
                 opt.finalize_variable_values(variables)
 
@@ -439,7 +369,6 @@ class MultiOptimizer(optimizer.Optimizer):
                 "optimizer weights before calling `set_weights()`."
             )
 
-        # Distribute own variables dynamically (iterations, learning_rate, etc.)
         own_var_count = len(self._variables)
         for i in range(own_var_count):
             self._variables[i].assign(weights[i])
@@ -454,18 +383,17 @@ class MultiOptimizer(optimizer.Optimizer):
 
     def get_config(self):
         return {
-            "optim_map": serialization_lib.serialize_keras_object(
-                self._optim_map
+            "optimizer_map": serialization_lib.serialize_keras_object(
+                self._optimizer_map
             ),
-            "name": self.name,
             "loss_scale_factor": self.loss_scale_factor,
+            "name": self.name,
         }
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        return cls(
-            optim_map=serialization_lib.deserialize_keras_object(
-                config.pop("optim_map"), custom_objects=custom_objects
-            ),
-            name=config.pop("name"),
+        config = config.copy()
+        config["optimizer_map"] = serialization_lib.deserialize_keras_object(
+            config["optimizer_map"], custom_objects=custom_objects
         )
+        return cls(**config)

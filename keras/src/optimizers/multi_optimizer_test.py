@@ -1,9 +1,4 @@
-import numpy as np
-
 from keras.src import backend
-from keras.src import callbacks
-from keras.src import layers
-from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
 
@@ -64,32 +59,6 @@ class MultiOptimizerTest(testing.TestCase):
         self.assertEqual(multi_opt.get_optimizer(1), opt_sgd)
         self.assertEqual(multi_opt.get_optimizer(2), default_opt)
 
-    def test_learning_rate_get_set(self):
-        opt_adam = optimizers.Adam(learning_rate=1e-3)
-        opt_sgd = optimizers.SGD(learning_rate=1e-2)
-        default_opt = optimizers.RMSprop(learning_rate=1e-4)
-
-        opt_map = optimizers.OptimizerMap(default_optimizer=default_opt)
-        opt_map["^dense_1/.*"] = opt_adam
-        opt_map["^dense_2/.*"] = opt_sgd
-        multi_opt = optimizers.MultiOptimizer(opt_map)
-
-        with backend.name_scope("dense_1"):
-            w1 = backend.Variable([[1.0]], name="kernel")
-        with backend.name_scope("dense_2"):
-            w2 = backend.Variable([[1.0]], name="kernel")
-
-        multi_opt.build([w1, w2])
-
-        # Getter should return the first optimizer's learning rate
-        self.assertAllClose(multi_opt.learning_rate, 1e-3)
-
-        # Setter should only update the first optimizer's learning rate
-        multi_opt.learning_rate = 5e-3
-        self.assertAllClose(opt_adam.learning_rate, 5e-3)
-        self.assertAllClose(opt_sgd.learning_rate, 1e-2)
-        self.assertAllClose(default_opt.learning_rate, 1e-4)
-
     def test_default_fallback(self):
         with backend.name_scope("dense_1"):
             w_mapped = backend.Variable([[1.0]], name="kernel")
@@ -106,10 +75,16 @@ class MultiOptimizerTest(testing.TestCase):
         multi_opt.build([w_mapped, w_unmapped])
 
         self.assertEqual(
-            multi_opt._get_optimizer_for_variable(w_mapped), opt_adam
+            multi_opt._inner_optimizers[
+                multi_opt._var_to_optimizer_idx[multi_opt._var_key(w_mapped)]
+            ],
+            opt_adam,
         )
         self.assertEqual(
-            multi_opt._get_optimizer_for_variable(w_unmapped), default_opt
+            multi_opt._inner_optimizers[
+                multi_opt._var_to_optimizer_idx[multi_opt._var_key(w_unmapped)]
+            ],
+            default_opt,
         )
 
     def test_stateful_apply(self):
@@ -191,45 +166,6 @@ class MultiOptimizerTest(testing.TestCase):
         # w2 updated by fallback SGD(1.0): 3.0 - 1.0 = 2.0
         self.assertAllClose(new_trainable_vars[1], [[2.0, 2.0]])
 
-    def test_callback_integration(self):
-        if backend.backend() in ["numpy", "openvino"]:
-            self.skipTest(
-                "skipped test due to backend does not support fit function"
-            )
-        # Simple linear model
-        model = models.Sequential(
-            [
-                layers.Input(shape=(2,)),
-                layers.Dense(4, name="dense_1"),
-                layers.Dense(1, name="dense_2"),
-            ]
-        )
-
-        opt_adam = optimizers.Adam(learning_rate=1e-1)
-        opt_sgd = optimizers.SGD(learning_rate=1e-2)
-
-        opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd)
-        opt_map["^sequential/dense_1/.*"] = opt_adam
-        multi_opt = optimizers.MultiOptimizer(opt_map)
-
-        model.compile(optimizer=multi_opt, loss="mse")
-
-        x = np.random.uniform(size=(16, 2))
-        y = np.random.uniform(size=(16, 1))
-
-        # Custom schedule that forces an LR adjustment
-        lr_scheduler = callbacks.LearningRateScheduler(lambda epoch: 5e-2)
-
-        # Getter/setter tests inside fit
-        model.fit(
-            x, y, epochs=1, batch_size=8, callbacks=[lr_scheduler], verbose=0
-        )
-
-        # Verify callback correctly modified ONLY the
-        # first optimizer (opt_adam)
-        self.assertAllClose(opt_adam.learning_rate, 5e-2)
-        self.assertAllClose(opt_sgd.learning_rate, 1e-2)
-
     def test_serialization(self):
         opt_adam = optimizers.Adam(learning_rate=1e-3)
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
@@ -266,7 +202,9 @@ class MultiOptimizerTest(testing.TestCase):
         )
 
         self.assertEqual(
-            reconstructed._get_optimizer_for_variable(w1).__class__.__name__,
+            reconstructed._inner_optimizers[
+                reconstructed._var_to_optimizer_idx[reconstructed._var_key(w1)]
+            ].__class__.__name__,
             "Adam",
         )
 
@@ -330,8 +268,6 @@ class MultiOptimizerTest(testing.TestCase):
             w2 = backend.Variable([[1.0]], name="kernel")
 
         multi_opt.build([w1, w2])
-
-        self.assertAllClose(multi_opt.learning_rate, 1e-3)
 
         # Verify dynamic sub-optimizer discovery
         self.assertEqual(multi_opt.num_optimizers, 2)
