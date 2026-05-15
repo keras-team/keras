@@ -230,6 +230,17 @@ def abs(x):
     return OpenVINOKerasTensor(ov_opset.absolute(x).output(0))
 
 
+def fabs(x):
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+
+    if x_type.is_integral() or x_type == Type.boolean:
+        ov_type = OPENVINO_DTYPES[config.floatx()]
+        x = ov_opset.convert(x, ov_type).output(0)
+
+    return OpenVINOKerasTensor(ov_opset.absolute(x).output(0))
+
+
 def all(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     x, axis = _resolve_axis(x, axis)

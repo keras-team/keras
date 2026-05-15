@@ -186,6 +186,43 @@ def abs(x):
     return absolute(x)
 
 
+class Fabs(Operation):
+    def call(self, x):
+        return backend.numpy.fabs(x)
+
+    def compute_output_spec(self, x):
+        sparse = getattr(x, "sparse", False)
+        dtype = backend.standardize_dtype(getattr(x, "dtype", type(x)))
+        if "int" in dtype or dtype == "bool":
+            dtype = backend.floatx()
+        return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
+
+
+@keras_export(["keras.ops.fabs", "keras.ops.numpy.fabs"])
+def fabs(x):
+    """Compute the absolute values element-wise.
+
+    Computes the absolute values elements wise. Integer or boolean inputs are
+    automatically promoted to the default floating-point type.
+    Complex values are not handled.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        An array containing the absolute value of each element in `x`.
+
+    Example:
+
+    >>> x = keras.ops.convert_to_tensor([-1.2, 1.2])
+    >>> keras.ops.fabs(x)
+    array([1.2, 1.2], dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Fabs().symbolic_call(x)
+    return backend.numpy.fabs(x)
+
+
 class Add(Operation):
     def call(self, x1, x2):
         return backend.numpy.add(x1, x2)

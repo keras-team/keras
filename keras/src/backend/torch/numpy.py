@@ -255,6 +255,14 @@ def abs(x):
     return absolute(x)
 
 
+def fabs(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = cast(x, config.floatx())
+    return torch.abs(x)
+
+
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if axis is None:

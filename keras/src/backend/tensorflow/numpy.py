@@ -780,6 +780,15 @@ def abs(x):
     return absolute(x)
 
 
+@sparse.elementwise_unary
+def fabs(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = tf.cast(x, config.floatx())
+    return tf.abs(x)
+
+
 def all(x, axis=None, keepdims=False):
     x = tf.cast(x, "bool")
     return tf.reduce_all(x, axis=axis, keepdims=keepdims)
