@@ -186,7 +186,7 @@ class MultiOptimizer(Optimizer):
         )
 
     To access the attributes of the sub-optimizers, iterate over the
-    optimizers using `get_optimizer(i)`:
+    optimizers using `.optimizers`:
 
     For example:
 
@@ -273,13 +273,6 @@ class MultiOptimizer(Optimizer):
                 opt.build(variables)
 
         super().build(var_list)
-
-    def get_optimizer(self, index):
-        return self._inner_optimizers[index]
-
-    @property
-    def num_optimizers(self):
-        return len(self._inner_optimizers)
 
     @property
     def optimizers(self):

@@ -1,4 +1,9 @@
+import numpy as np
+import pytest
+
 from keras.src import backend
+from keras.src import layers
+from keras.src import models
 from keras.src import optimizers
 from keras.src import testing
 
@@ -54,10 +59,10 @@ class MultiOptimizerTest(testing.TestCase):
         multi_opt.build([w1, w2, w3])
 
         # Verify unique optimizers list
-        self.assertEqual(multi_opt.num_optimizers, 3)
-        self.assertEqual(multi_opt.get_optimizer(0), opt_adam)
-        self.assertEqual(multi_opt.get_optimizer(1), opt_sgd)
-        self.assertEqual(multi_opt.get_optimizer(2), default_opt)
+        self.assertEqual(len(multi_opt.optimizers), 3)
+        self.assertEqual(multi_opt.optimizers[0], opt_adam)
+        self.assertEqual(multi_opt.optimizers[1], opt_sgd)
+        self.assertEqual(multi_opt.optimizers[2], default_opt)
 
     def test_default_fallback(self):
         with backend.name_scope("dense_1"):
@@ -75,13 +80,13 @@ class MultiOptimizerTest(testing.TestCase):
         multi_opt.build([w_mapped, w_unmapped])
 
         self.assertEqual(
-            multi_opt._inner_optimizers[
+            multi_opt.optimizers[
                 multi_opt._var_to_optimizer_idx[multi_opt._var_key(w_mapped)]
             ],
             opt_adam,
         )
         self.assertEqual(
-            multi_opt._inner_optimizers[
+            multi_opt.optimizers[
                 multi_opt._var_to_optimizer_idx[multi_opt._var_key(w_unmapped)]
             ],
             default_opt,
@@ -127,6 +132,8 @@ class MultiOptimizerTest(testing.TestCase):
 
         # Verify iteration increment
         self.assertEqual(int(multi_opt.iterations), 1)
+        for opt in multi_opt.optimizers:
+            self.assertEqual(int(opt.iterations), 1)
 
     def test_stateless_apply(self):
         if backend.backend() == "tensorflow":
@@ -190,19 +197,15 @@ class MultiOptimizerTest(testing.TestCase):
 
         reconstructed.build([w1, w2, w3])
 
-        self.assertEqual(reconstructed.num_optimizers, 3)
+        self.assertEqual(len(reconstructed.optimizers), 3)
+        self.assertEqual(reconstructed.optimizers[0].__class__.__name__, "Adam")
+        self.assertEqual(reconstructed.optimizers[1].__class__.__name__, "SGD")
         self.assertEqual(
-            reconstructed.get_optimizer(0).__class__.__name__, "Adam"
-        )
-        self.assertEqual(
-            reconstructed.get_optimizer(1).__class__.__name__, "SGD"
-        )
-        self.assertEqual(
-            reconstructed.get_optimizer(2).__class__.__name__, "RMSprop"
+            reconstructed.optimizers[2].__class__.__name__, "RMSprop"
         )
 
         self.assertEqual(
-            reconstructed._inner_optimizers[
+            reconstructed.optimizers[
                 reconstructed._var_to_optimizer_idx[reconstructed._var_key(w1)]
             ].__class__.__name__,
             "Adam",
@@ -254,13 +257,13 @@ class MultiOptimizerTest(testing.TestCase):
         opt_adam = optimizers.Adam(learning_rate=1e-3)
         opt_sgd = optimizers.SGD(learning_rate=1e-2)
 
-        def optimizer_fn(variable):
+        def optimizer_selector(variable):
             if "dense_1" in getattr(variable, "path", ""):
                 return opt_adam
             else:
                 return opt_sgd
 
-        multi_opt = optimizers.MultiOptimizer(optimizer_fn)
+        multi_opt = optimizers.MultiOptimizer(optimizer_selector)
 
         with backend.name_scope("dense_1"):
             w1 = backend.Variable([[1.0]], name="kernel")
@@ -270,9 +273,9 @@ class MultiOptimizerTest(testing.TestCase):
         multi_opt.build([w1, w2])
 
         # Verify dynamic sub-optimizer discovery
-        self.assertEqual(multi_opt.num_optimizers, 2)
-        self.assertEqual(multi_opt.get_optimizer(0), opt_adam)
-        self.assertEqual(multi_opt.get_optimizer(1), opt_sgd)
+        self.assertEqual(len(multi_opt.optimizers), 2)
+        self.assertEqual(multi_opt.optimizers[0], opt_adam)
+        self.assertEqual(multi_opt.optimizers[1], opt_sgd)
 
         # Verify gradient application via custom callable routing
         grads = [
@@ -283,3 +286,44 @@ class MultiOptimizerTest(testing.TestCase):
 
         # w1 updated by Adam, w2 updated by SGD(0.01) -> 1.0 - 0.01 = 0.99
         self.assertAllClose(w2.numpy(), [[0.99]])
+
+    @pytest.mark.requires_trainable_backend
+    def test_multi_optimizer_with_model_fit(self):
+        x_train = np.ones((1, 1)).astype("float32")
+        y_train = np.zeros((1, 1)).astype("float32")
+        optimizer = optimizers.MultiOptimizer(
+            optimizers.OptimizerMap(
+                default_optimizer=optimizers.SGD(learning_rate=0.1),
+                optimizer_map={
+                    ".*dense_1/.*": optimizers.SGD(learning_rate=1e-3),
+                    ".*dense_2/.*": optimizers.SGD(learning_rate=1e-2),
+                },
+            )
+        )
+        model = models.Sequential(
+            [
+                layers.Dense(
+                    2, kernel_initializer="ones", use_bias=False, name="dense_1"
+                ),
+                layers.Dense(
+                    1, kernel_initializer="ones", use_bias=False, name="dense_2"
+                ),
+            ]
+        )
+        model.compile(loss="mse", optimizer=optimizer, run_eagerly=True)
+        model.fit(x_train, y_train, batch_size=1, epochs=1)
+
+        # Verify that weights have been updated from their initial ones
+        w1 = model.layers[0].kernel.numpy()
+        w2 = model.layers[1].kernel.numpy()
+
+        self.assertAllClose(w1, [[0.996, 0.996]])
+        self.assertAllClose(w2, [[0.96], [0.96]])
+
+        # Verify master iteration counter incremented correctly
+        self.assertEqual(int(optimizer.iterations), 1)
+        # default iteration must be 0
+        self.assertEqual(int(optimizer.optimizers[2].iterations), 0)
+        # other two optimizer iteration must be 2
+        self.assertEqual(int(optimizer.optimizers[0].iterations), 1)
+        self.assertEqual(int(optimizer.optimizers[1].iterations), 1)
