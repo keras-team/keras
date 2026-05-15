@@ -262,6 +262,10 @@ def disable_tf32():
     Once disabled, `float32` matmuls run at full `float32` precision on all
     backends. Use this when you need bit-for-bit `float32` accuracy and are
     willing to give up the tensor-core speedup.
+
+    Example:
+
+    >>> keras.config.disable_tf32()
     """
     from keras.src.backend.common import global_state
 
