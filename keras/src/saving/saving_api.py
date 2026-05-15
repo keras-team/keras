@@ -310,7 +310,14 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             )
         with h5py.File(filepath, "r") as f:
             if "layer_names" not in f.attrs and "model_weights" in f:
-                f = f["model_weights"]
+                # Route this access through `safe_get_h5_group` so an
+                # attacker-supplied `.h5` cannot use an `h5py.ExternalLink`
+                # / `h5py.SoftLink` at the `model_weights` group to
+                # redirect the weight load into any other HDF5 file the
+                # process can read. `legacy_h5_format` already does the
+                # same on its own `f["model_weights"]` access; this
+                # dispatcher was the last raw subscript on the path.
+                f = saving_lib.safe_get_h5_group(f, "model_weights")
             if by_name:
                 legacy_h5_format.load_weights_from_hdf5_group_by_name(
                     f, model, skip_mismatch
