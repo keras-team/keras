@@ -6,6 +6,7 @@ from keras.src.backend.common import global_state
 from keras.src.backend.config import disable_jit_cache
 from keras.src.backend.config import enable_jit_cache
 from keras.src.backend.config import is_jit_cache_enabled
+from keras.src.backend.config import keras_home
 
 
 class JitCacheConfigTest(testing.TestCase):
@@ -27,7 +28,7 @@ class JitCacheConfigTest(testing.TestCase):
         enable_jit_cache()
         path = is_jit_cache_enabled()
         self.assertTrue(path)
-        self.assertEqual(path, os.path.join(os.path.expanduser("~"), ".keras", "jit_cache"))
+        self.assertEqual(path, os.path.join(keras_home(), "jit_cache"))
 
     def test_enable_custom_path(self):
         enable_jit_cache("/tmp/keras_jit_cache_test")

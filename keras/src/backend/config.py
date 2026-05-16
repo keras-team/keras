@@ -245,11 +245,22 @@ def enable_jit_cache(path=None):
 
     Args:
         path: Optional directory to use for the cache. Defaults to
-            `~/.cache/keras/jit_cache`. If the directory does not exist
-            it is created on first write by JAX.
+            `<keras_home>/jit_cache` (typically `~/.keras/jit_cache`). If
+            the directory does not exist it is created on first write by
+            JAX.
 
     This is opt-in because the cache writes to disk. Only the JAX backend
     is affected; on other backends this is a no-op.
+
+    Example:
+
+    >>> keras.config.enable_jit_cache()
+    >>> keras.config.is_jit_cache_enabled()  # doctest: +ELLIPSIS
+    '.../jit_cache'
+
+    >>> keras.config.enable_jit_cache("/tmp/my_jit_cache")
+    >>> keras.config.is_jit_cache_enabled()
+    '/tmp/my_jit_cache'
     """
     from keras.src.backend.common import global_state
 
@@ -266,6 +277,13 @@ def disable_jit_cache():
     Subsequent jit compilations will not be persisted to disk and will not
     be read from disk on future runs. Existing cache entries on disk are
     left in place.
+
+    Example:
+
+    >>> keras.config.enable_jit_cache("/tmp/my_jit_cache")
+    >>> keras.config.disable_jit_cache()
+    >>> keras.config.is_jit_cache_enabled()
+    False
     """
     from keras.src.backend.common import global_state
 
@@ -279,6 +297,15 @@ def is_jit_cache_enabled():
 
     Returns:
         The cache directory (a string) if enabled, otherwise `False`.
+
+    Example:
+
+    >>> keras.config.is_jit_cache_enabled()
+    False
+
+    >>> keras.config.enable_jit_cache("/tmp/my_jit_cache")
+    >>> keras.config.is_jit_cache_enabled()
+    '/tmp/my_jit_cache'
     """
     from keras.src.backend.common import global_state
 
