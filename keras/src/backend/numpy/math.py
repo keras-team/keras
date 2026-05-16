@@ -310,6 +310,10 @@ def erf(x):
     return np.array(scipy.special.erf(x))
 
 
+def erfc(x):
+    return np.array(scipy.special.erfc(x))
+
+
 def erfinv(x):
     return np.array(scipy.special.erfinv(x))
 

@@ -295,6 +295,10 @@ def erf(x):
     return tf.math.erf(x)
 
 
+def erfc(x):
+    return tf.math.erfc(x)
+
+
 def erfinv(x):
     return tf.math.erfinv(x)
 

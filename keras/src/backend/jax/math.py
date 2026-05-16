@@ -289,6 +289,10 @@ def erf(x):
     return jax.lax.erf(x)
 
 
+def erfc(x):
+    return jax.scipy.special.erfc(x)
+
+
 def erfinv(x):
     return jax.lax.erf_inv(x)
 
