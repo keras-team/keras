@@ -6174,6 +6174,23 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Reshape([3, 2])(x), np.reshape(x, [3, 2]))
         self.assertAllClose(knp.Reshape(-1)(x), np.reshape(x, -1))
 
+    def test_reshape_rejects_invalid_newshape(self):
+        x = np.zeros(20, dtype="float32")
+        # Negative values other than -1 should be rejected on every backend
+        # (NumPy alone accepted them silently, the other backends raised
+        # unrelated low-level errors).
+        with self.assertRaisesRegex(
+            ValueError, "non-negative integer.*-1.*newshape=\\(-2, 5\\)"
+        ):
+            knp.reshape(x, (-2, 5))
+
+        # More than one -1 is still rejected.
+        with self.assertRaisesRegex(
+            ValueError,
+            "at most one unknown dimension.*newshape=\\(-1, -1, 5\\)",
+        ):
+            knp.reshape(x, (-1, -1, 5))
+
     def test_roll(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.roll(x, 1), np.roll(x, 1))
@@ -7229,13 +7246,31 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.argpartition(x, 2), np.argpartition(x, 2))
         self.assertAllClose(knp.Argpartition(2)(x), np.argpartition(x, 2))
 
+        result = backend.convert_to_numpy(knp.argpartition(x, 2, axis=None))
+        flat_x = x.flatten()
+        kth_value = np.sort(flat_x)[2]
+        self.assertTrue(np.all(flat_x[result[:2]] <= kth_value))
+        self.assertTrue(np.all(flat_x[result[3:]] >= kth_value))
+
         x = np.array([[3, 4, 2], [1, 3, 4]])
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
 
+        result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
+        flat_x = x.flatten()
+        kth_value = np.sort(flat_x)[1]
+        self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
+        self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
+
         x = np.array([[[3, 4], [2, 3]], [[1, 2], [0, 1]]])
         self.assertAllClose(knp.argpartition(x, 1), np.argpartition(x, 1))
         self.assertAllClose(knp.Argpartition(1)(x), np.argpartition(x, 1))
+
+        result = backend.convert_to_numpy(knp.argpartition(x, 1, axis=None))
+        flat_x = x.flatten()
+        kth_value = np.sort(flat_x)[1]
+        self.assertTrue(np.all(flat_x[result[:1]] <= kth_value))
+        self.assertTrue(np.all(flat_x[result[2:]] >= kth_value))
 
     def test_angle(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])

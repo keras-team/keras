@@ -26,6 +26,8 @@ def _segment_reduction_fn(
         result = np.ones(data_shape, dtype=valid_data.dtype) * -np.inf
     elif reduction_method == np.minimum:
         result = np.ones(data_shape, dtype=valid_data.dtype) * np.inf
+    elif reduction_method == np.multiply:
+        result = np.ones(data_shape, dtype=valid_data.dtype)
     else:
         result = np.zeros(data_shape, dtype=valid_data.dtype)
 
@@ -59,6 +61,12 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(
+        data, segment_ids, np.multiply, num_segments, sorted
+    )
+
+
 def top_k(x, k, sorted=True):
     if sorted:
         # Take the k largest values.
@@ -84,16 +92,6 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
-
-
-def qr(x, mode="reduced"):
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    return np.linalg.qr(x, mode=mode)
 
 
 def cdist(x, y):

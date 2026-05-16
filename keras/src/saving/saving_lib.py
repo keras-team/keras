@@ -871,6 +871,18 @@ def _get_unique_name(name, used_names):
     return name
 
 
+def _container_path_present(weights_store, assets_store, path):
+    """True if either store has anything under `path`.
+
+    Used to detect legacy files that predate the nested-container
+    recursion added in PR #22362 — older files don't contain the
+    `container*` groups the new loader expects.
+    """
+    return (weights_store is not None and weights_store.has_path(path)) or (
+        assets_store is not None and assets_store.has_path(path)
+    )
+
+
 def _save_container_state(
     container,
     weights_store,
@@ -960,11 +972,29 @@ def _load_container_state(
             )
         elif isinstance(saveable, (list, dict, tuple)):
             name = _get_unique_name("container", used_names)
+            nested_path = file_utils.join(inner_path, name).replace("\\", "/")
+            if not _container_path_present(
+                weights_store, assets_store, nested_path
+            ):
+                # Legacy files saved before PR #22362 didn't write the
+                # `container*` groups for nested containers — silently
+                # skip so the model still loads (sublayers keep their
+                # freshly-initialized weights).
+                warnings.warn(
+                    f"Skipping nested container at '{nested_path}': no "
+                    "matching group found in the saved file. This usually "
+                    "means the file was saved with a Keras version that "
+                    "did not serialize sublayers nested inside containers. "
+                    "Affected layers will retain their freshly-initialized "
+                    "weights.",
+                    stacklevel=2,
+                )
+                continue
             _load_container_state(
                 saveable,
                 weights_store,
                 assets_store,
-                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
+                inner_path=nested_path,
                 skip_mismatch=skip_mismatch,
                 visited_saveables=visited_saveables,
                 failed_saveables=failed_saveables,
@@ -1022,6 +1052,12 @@ class DiskIOStore:
         if file_utils.exists(path):
             return path
         return None
+
+    def has_path(self, path):
+        """Return True if `path` exists on disk under the store's root."""
+        return file_utils.exists(
+            file_utils.join(self.working_dir, path).replace("\\", "/")
+        )
 
     def close(self):
         if self.mode == "w" and self.archive:
@@ -1221,6 +1257,10 @@ class H5IOStore:
 
         return self
 
+    def has_path(self, path):
+        """Return True if a group exists at `path` in the H5 file."""
+        return path in self.h5_file
+
     def close(self):
         self.h5_file.close()
         if self.mode == "w" and self.archive:
@@ -1409,6 +1449,17 @@ class ShardedH5IOStore(H5IOStore):
             self.current_shard_path = self.path.with_name(filename)
             self.h5_file = self._get_h5_file(self.current_shard_path)
         return super().get(path)
+
+    def has_path(self, path):
+        """Return True if any shard has a group under `path`.
+
+        Resolves via the shard weight-map rather than the currently open
+        shard, so the answer is independent of which shard is active.
+        """
+        weight_map = self.sharding_config.get("weight_map", {})
+        leading = f"/{path}"
+        prefix = f"{leading}/"
+        return any(k == leading or k.startswith(prefix) for k in weight_map)
 
     def close(self):
         if self.h5_file is not None:
@@ -1637,6 +1688,10 @@ class NpzIOStore:
         if path in self.contents:
             return self.contents[path].tolist()
         return {}
+
+    def has_path(self, path):
+        """Return True if `path` exists as a key in the npz contents."""
+        return path in self.contents
 
     def close(self):
         if self.mode == "w":

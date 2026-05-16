@@ -6,9 +6,6 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.backend.common.backend_utils import (
-    _convert_conv_transpose_padding_args_from_keras_to_torch,
-)
-from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras.src.backend.common.backend_utils import (
@@ -881,48 +878,6 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
         )
         kc_layer.build(input_shape=input_shape)
         kc_layer.kernel.assign(kernel_weights)
-
-        # Special cases for Torch
-        if backend.backend() == "torch":
-            # Args that cause output_padding >= strides
-            # are clamped with a warning.
-            if (kernel_size, strides, padding, output_padding) in [
-                (2, 1, "same", None),
-                (4, 1, "same", None),
-            ]:
-                clamped_output_padding = strides - 1  # usually 0 when stride=1
-                expected_res = np_conv1d_transpose(
-                    x=input,
-                    kernel_weights=kernel_weights,
-                    bias_weights=np.zeros(shape=(1,)),
-                    strides=strides,
-                    padding=padding,
-                    output_padding=clamped_output_padding,
-                    data_format=backend.config.image_data_format(),
-                    dilation_rate=1,
-                )
-                with pytest.warns(UserWarning):
-                    kc_res = kc_layer(input)
-                self.assertAllClose(kc_res, expected_res, atol=1e-5)
-                return
-
-            # torch_padding > 0 and torch_output_padding > 0 case
-            # Torch output differs from TF.
-            (
-                torch_padding,
-                torch_output_padding,
-            ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
-                kernel_size=kernel_size,
-                stride=strides,
-                dilation_rate=1,
-                padding=padding,
-                output_padding=output_padding,
-            )
-            if torch_padding > 0 and torch_output_padding > 0:
-                with pytest.raises(AssertionError):
-                    kc_res = kc_layer(input)
-                    self.assertAllClose(kc_res, expected_res, atol=1e-5)
-                return
 
         # Compare results
         kc_res = kc_layer(input)

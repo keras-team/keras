@@ -1482,6 +1482,38 @@ class ImageOpsCorrectnessTest(testing.TestCase):
             atol=1.0,
         )
 
+    def test_resize_pad_to_aspect_ratio_fill_value_correctness(self):
+        fill_value = 0.5
+        x = np.zeros((1, 10, 10, 3), dtype="float32")
+        out = kimage.resize(
+            x,
+            size=(10, 20),
+            pad_to_aspect_ratio=True,
+            fill_value=fill_value,
+        )
+        out_np = backend.convert_to_numpy(out)
+        self.assertAllClose(
+            out_np[0, :, :5, :], np.ones((10, 5, 3)) * fill_value
+        )
+        self.assertAllClose(
+            out_np[0, :, 15:, :], np.ones((10, 5, 3)) * fill_value
+        )
+
+        x = np.zeros((1, 10, 10, 3), dtype="float32")
+        out = kimage.resize(
+            x,
+            size=(20, 10),
+            pad_to_aspect_ratio=True,
+            fill_value=fill_value,
+        )
+        out_np = backend.convert_to_numpy(out)
+        self.assertAllClose(
+            out_np[0, :5, :, :], np.ones((5, 10, 3)) * fill_value
+        )
+        self.assertAllClose(
+            out_np[0, 15:, :, :], np.ones((5, 10, 3)) * fill_value
+        )
+
     @parameterized.named_parameters(
         ("zero_height", (0, 10)),
         ("zero_width", (10, 0)),

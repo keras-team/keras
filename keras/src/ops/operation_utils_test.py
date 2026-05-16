@@ -152,6 +152,36 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, (1, 4, 4, 3))
 
+    def test_validate_reshape_shape_rejects_invalid(self):
+        with self.assertRaisesRegex(ValueError, "non-negative integer"):
+            operation_utils.validate_reshape_shape((-2, 5))
+        with self.assertRaisesRegex(
+            ValueError, "at most one unknown dimension"
+        ):
+            operation_utils.validate_reshape_shape((-1, -1, 5))
+
+    def test_validate_reshape_shape_accepts_dynamic_dims(self):
+        # Non-int dimensions (e.g. backend tensor scalars such as
+        # ``torch.SymInt`` produced by ``ops.shape(x)`` under
+        # ``torch.compile``) must pass through without raising, even when
+        # mixed with a single ``-1`` sentinel. This is the path
+        # ``GroupNormalization._reshape_into_groups`` exercises and that
+        # previously crashed dynamo tracing (see fix for #22868).
+        class DynamicDim:
+            """Stand-in for a non-int dynamic shape value."""
+
+        d = DynamicDim()
+        # Mixed int / -1 / dynamic — must not raise.
+        operation_utils.validate_reshape_shape((-1, 32, d, d))
+        operation_utils.validate_reshape_shape((d, d, d))
+        operation_utils.validate_reshape_shape((d, -1, d, 8))
+        # A second ``-1`` sentinel mixed with dynamic dims is still
+        # rejected — dynamic dims do not absorb the ``-1`` count.
+        with self.assertRaisesRegex(
+            ValueError, "at most one unknown dimension"
+        ):
+            operation_utils.validate_reshape_shape((d, -1, d, -1, 4))
+
     def test_compute_reshape_output_shape(self):
         input_shape = (1, 4, 4, 1)
         target_shape = (16, 1)

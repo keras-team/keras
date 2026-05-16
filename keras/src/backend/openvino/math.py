@@ -141,6 +141,12 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    raise NotImplementedError(
+        "`segment_prod` is not supported with openvino backend"
+    )
+
+
 def top_k(x, k, sorted=True):
     x = get_ov_output(x)
     k_tensor = ov_opset.constant(k, dtype=Type.i32)
@@ -205,14 +211,30 @@ def logsumexp(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(log_sum_exp)
 
 
-def qr(x, mode="reduced"):
-    raise NotImplementedError("`qr` is not supported with openvino backend")
-
-
 def cdist(x, y):
-    raise NotImplementedError(
-        "`cdist` is not supported with the OpenVINO backend"
-    )
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x_shape = x.get_partial_shape()
+    y_shape = y.get_partial_shape()
+    if x_shape.rank.is_static and x_shape.rank.get_length() < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if y_shape.rank.is_static and y_shape.rank.get_length() < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    x_last = x_shape[-1]
+    y_last = y_shape[-1]
+    if x_last.is_static and y_last.is_static:
+        if x_last.get_length() != y_last.get_length():
+            raise ValueError("Last dimension of inputs to `cdist` must match")
+    neg2 = ov_opset.constant(-2, Type.i32).output(0)
+    neg3 = ov_opset.constant(-3, Type.i32).output(0)
+    x = ov_opset.unsqueeze(x, neg2).output(0)
+    y = ov_opset.unsqueeze(y, neg3).output(0)
+    diff = ov_opset.subtract(x, y).output(0)
+    sq = ov_opset.multiply(diff, diff).output(0)
+    last_axis = ov_opset.constant(-1, Type.i32).output(0)
+    summed = ov_opset.reduce_sum(sq, last_axis, False).output(0)
+    result = ov_opset.sqrt(summed).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def extract_sequences(x, sequence_length, sequence_stride):

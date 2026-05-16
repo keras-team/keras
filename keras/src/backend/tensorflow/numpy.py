@@ -3070,7 +3070,6 @@ def take_along_axis(x, indices, axis=None):
     broadcast_shape = operation_utils.broadcast_shapes(
         x_static_shape, indices_static_shape
     )
-
     if None in broadcast_shape:
         # Dynamic broadcast case. Note that `tf.broadcast_dynamic_shape` is
         # not always XLA compilable with dynamic dimensions.
@@ -3734,21 +3733,32 @@ def slogdet(x):
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x, tf.int32)
 
+    if axis is None:
+        x = tf.reshape(x, [-1])
+        axis = 0
+        original_axis = None
+    else:
+        original_axis = axis
+
     x = swapaxes(x, axis, -1)
-    bottom_ind = tf.math.top_k(-x, kth + 1).indices
 
     n = tf.shape(x)[-1]
+    kth = tf.clip_by_value(tf.cast(kth, tf.int32), 0, n - 1)
+
+    bottom_ind = tf.math.top_k(-x, kth + 1).indices
 
     mask = tf.reduce_sum(tf.one_hot(bottom_ind, n, dtype=tf.int32), axis=0)
-
     indices = tf.where(mask)
-    updates = tf.squeeze(tf.zeros(tf.shape(indices)[0], dtype=tf.int32))
-
+    updates = tf.zeros(tf.shape(indices)[0], dtype=tf.int32)
     final_mask = tf.tensor_scatter_nd_update(x, indices, updates)
 
-    top_ind = tf.math.top_k(final_mask, tf.shape(x)[-1] - kth - 1).indices
+    top_ind = tf.math.top_k(final_mask, n - kth - 1).indices
 
-    out = tf.concat([bottom_ind, top_ind], axis=x.ndim - 1)
+    out = tf.concat([bottom_ind, top_ind], axis=-1)
+
+    if original_axis is None:
+        return out
+
     return swapaxes(out, -1, axis)
 
 

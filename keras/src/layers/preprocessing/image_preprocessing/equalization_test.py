@@ -36,7 +36,8 @@ class EqualizationTest(testing.TestCase):
         )
 
     def test_equalizes_to_all_bins(self):
-        xs = np.random.uniform(size=(2, 512, 512, 3), low=0, high=255).astype(
+        rng = np.random.default_rng(seed=42)
+        xs = rng.uniform(low=0, high=255, size=(2, 512, 512, 3)).astype(
             np.float32
         )
         layer = layers.Equalization(value_range=(0, 255))
@@ -49,9 +50,8 @@ class EqualizationTest(testing.TestCase):
         ("float32", np.float32), ("int32", np.int32), ("int64", np.int64)
     )
     def test_input_dtypes(self, dtype):
-        xs = np.random.uniform(size=(2, 512, 512, 3), low=0, high=255).astype(
-            dtype
-        )
+        rng = np.random.default_rng(seed=42)
+        xs = rng.uniform(low=0, high=255, size=(2, 512, 512, 3)).astype(dtype)
         layer = layers.Equalization(value_range=(0, 255))
         xs = ops.convert_to_numpy(layer(xs))
 
@@ -61,9 +61,10 @@ class EqualizationTest(testing.TestCase):
 
     @parameterized.named_parameters(("0_255", 0, 255), ("0_1", 0, 1))
     def test_output_range(self, lower, upper):
-        xs = np.random.uniform(
-            size=(2, 512, 512, 3), low=lower, high=upper
-        ).astype(np.float32)
+        rng = np.random.default_rng(seed=42)
+        xs = rng.uniform(low=lower, high=upper, size=(2, 512, 512, 3)).astype(
+            np.float32
+        )
         layer = layers.Equalization(value_range=(lower, upper))
         xs = ops.convert_to_numpy(layer(xs))
         self.assertAllInRange(xs, lower, upper)
@@ -81,7 +82,8 @@ class EqualizationTest(testing.TestCase):
         self.assertAllInRange(equalized, 0, 255)
 
     def test_grayscale_images(self):
-        xs_last = np.random.uniform(0, 255, size=(2, 64, 64, 1)).astype(
+        rng = np.random.default_rng(seed=42)
+        xs_last = rng.uniform(low=0, high=255, size=(2, 64, 64, 1)).astype(
             np.float32
         )
         layer_last = layers.Equalization(
@@ -91,7 +93,7 @@ class EqualizationTest(testing.TestCase):
         self.assertEqual(equalized_last.shape[-1], 1)
         self.assertAllInRange(equalized_last, 0, 255)
 
-        xs_first = np.random.uniform(0, 255, size=(2, 1, 64, 64)).astype(
+        xs_first = rng.uniform(low=0, high=255, size=(2, 1, 64, 64)).astype(
             np.float32
         )
         layer_first = layers.Equalization(
@@ -117,7 +119,10 @@ class EqualizationTest(testing.TestCase):
         self.assertAllClose(equalized_first, 128.0)
 
     def test_different_bin_sizes(self):
-        xs = np.random.uniform(0, 255, size=(1, 64, 64, 3)).astype(np.float32)
+        rng = np.random.default_rng(seed=42)
+        xs = rng.uniform(low=0, high=255, size=(1, 64, 64, 3)).astype(
+            np.float32
+        )
         bin_sizes = [16, 64, 128, 256]
         for bins in bin_sizes:
             layer = layers.Equalization(value_range=(0, 255), bins=bins)
@@ -126,7 +131,8 @@ class EqualizationTest(testing.TestCase):
 
     def test_tf_data_compatibility(self):
         layer = layers.Equalization(value_range=(0, 255))
-        input_data = np.random.random((2, 8, 8, 3)) * 255
+        rng = np.random.default_rng(seed=42)
+        input_data = rng.random((2, 8, 8, 3)) * 255
         ds = tf_data.Dataset.from_tensor_slices(input_data).batch(2).map(layer)
         for output in ds.take(1):
             output_array = output.numpy()

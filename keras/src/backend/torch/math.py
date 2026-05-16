@@ -38,6 +38,8 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
         result = torch.ones(*shape, device=get_device()) * -float("Inf")
     elif reduction_method == "amin":
         result = torch.ones(*shape, device=get_device()) * float("Inf")
+    elif reduction_method == "prod":
+        result = torch.ones(*shape, device=get_device())
     else:
         result = torch.zeros(*shape, device=get_device())
 
@@ -69,6 +71,12 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(data, segment_ids, "amin", num_segments)
 
 
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+    return _segment_reduction_fn(data, segment_ids, "prod", num_segments)
+
+
 def top_k(x, k, sorted=True):
     x = convert_to_tensor(x)
     return torch.topk(x, k, sorted=sorted)
@@ -88,18 +96,6 @@ def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     axis = tuple(range(x.dim())) if axis is None else axis
     return torch.logsumexp(x, dim=axis, keepdim=keepdims)
-
-
-def qr(x, mode="reduced"):
-    x = convert_to_tensor(x)
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    x = convert_to_tensor(x)
-    return torch.linalg.qr(x, mode=mode)
 
 
 def cdist(x, y):
