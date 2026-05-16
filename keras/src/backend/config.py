@@ -251,12 +251,10 @@ def enable_jit_cache(path=None):
     This is opt-in because the cache writes to disk. Only the JAX backend
     is affected; on other backends this is a no-op.
     """
-    import os as _os
-
     from keras.src.backend.common import global_state
 
     if path is None:
-        path = _os.path.expanduser("~/.cache/keras/jit_cache")
+        path = os.path.join(keras_home(), "jit_cache")
     global_state.set_global_attribute("jit_cache_dir", path)
     _apply_jit_cache(path)
 
