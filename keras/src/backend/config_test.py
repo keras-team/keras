@@ -27,7 +27,7 @@ class JitCacheConfigTest(testing.TestCase):
         enable_jit_cache()
         path = is_jit_cache_enabled()
         self.assertTrue(path)
-        self.assertEqual(path, os.path.expanduser("~/.cache/keras/jit_cache"))
+        self.assertEqual(path, os.path.join(os.path.expanduser("~"), ".keras", "jit_cache"))
 
     def test_enable_custom_path(self):
         enable_jit_cache("/tmp/keras_jit_cache_test")
