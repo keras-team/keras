@@ -233,6 +233,84 @@ def is_flash_attention_enabled():
     return global_state.get_global_attribute("flash_attention", default=None)
 
 
+@keras_export("keras.config.enable_jit_cache")
+def enable_jit_cache(path=None):
+    """Enable the JAX persistent JIT compilation cache.
+
+    JAX recompiles every jit-decorated function on first call, which for a
+    typical Keras model takes 15-30 seconds. When the persistent cache is
+    enabled, compiled HLO is written to disk and reused across processes
+    and runs, so the second invocation of the same model skips compilation
+    entirely.
+
+    Args:
+        path: Optional directory to use for the cache. Defaults to
+            `~/.cache/keras/jit_cache`. If the directory does not exist
+            it is created on first write by JAX.
+
+    This is opt-in because the cache writes to disk. Only the JAX backend
+    is affected; on other backends this is a no-op.
+    """
+    import os as _os
+
+    from keras.src.backend.common import global_state
+
+    if path is None:
+        path = _os.path.expanduser("~/.cache/keras/jit_cache")
+    global_state.set_global_attribute("jit_cache_dir", path)
+    _apply_jit_cache(path)
+
+
+@keras_export("keras.config.disable_jit_cache")
+def disable_jit_cache():
+    """Disable the JAX persistent JIT compilation cache.
+
+    Subsequent jit compilations will not be persisted to disk and will not
+    be read from disk on future runs. Existing cache entries on disk are
+    left in place.
+    """
+    from keras.src.backend.common import global_state
+
+    global_state.set_global_attribute("jit_cache_dir", False)
+    _apply_jit_cache(None)
+
+
+@keras_export("keras.config.is_jit_cache_enabled")
+def is_jit_cache_enabled():
+    """Checks whether the JAX persistent JIT compilation cache is enabled.
+
+    Returns:
+        The cache directory (a string) if enabled, otherwise `False`.
+    """
+    from keras.src.backend.common import global_state
+
+    val = global_state.get_global_attribute("jit_cache_dir", default=None)
+    if val is False or val is None:
+        return False
+    return val
+
+
+def _apply_jit_cache(path):
+    """Push the current cache setting into the JAX runtime if jax is loaded.
+
+    No-op when the JAX backend is not selected or when jax has not been
+    imported yet. In the latter case the value remains in `global_state`
+    and is re-applied the next time `enable_jit_cache` is called.
+    """
+    if backend() != "jax":
+        return
+    try:
+        import jax
+    except ImportError:
+        return
+    if path is None:
+        jax.config.update("jax_compilation_cache_dir", "")
+        return
+    jax.config.update("jax_compilation_cache_dir", path)
+    jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
+    jax.config.update("jax_persistent_cache_min_entry_size_bytes", 0)
+
+
 @keras_export("keras.config.is_nnx_enabled")
 def is_nnx_enabled():
     """Checks whether NNX specific features are enabled for the JAX backend.
