@@ -23,3 +23,6 @@ NNOpsDtypeTest::test_ctc_decode
 RandAugmentTest::test_random_augment_randomness
 SegmentMinTest::test_segment_min_call
 SegmentProdTest::test_segment_prod_call
+MathOpsCorrectnessTest::test_erfc_operation_basic
+MathOpsCorrectnessTest::test_erfc_operation_dtype
+MathOpsCorrectnessTest::test_erfc_operation_edge_cases
