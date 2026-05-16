@@ -979,6 +979,31 @@ class MathOpsCorrectnessTest(testing.TestCase):
         output_from_edge_erf_op = kmath.erf(edge_values)
         self.assertAllClose(output_from_edge_erf_op, expected_output, atol=1e-4)
 
+    def test_erfc_operation_basic(self):
+        sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
+
+        expected_output = scipy.special.erfc(sample_values)
+        output_from_erfc_op = kmath.erfc(sample_values)
+
+        self.assertAllClose(output_from_erfc_op, expected_output, atol=1e-4)
+
+    def test_erfc_operation_dtype(self):
+        for dtype in ("float32", "float64"):
+            sample_values = np.array(
+                [-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0], dtype=dtype
+            )
+            expected_output = scipy.special.erfc(sample_values)
+            output_from_erfc_op = kmath.erfc(sample_values)
+            self.assertAllClose(output_from_erfc_op, expected_output, atol=1e-4)
+
+    def test_erfc_operation_edge_cases(self):
+        edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
+        expected_output = scipy.special.erfc(edge_values)
+        output_from_edge_erfc_op = kmath.erfc(edge_values)
+        self.assertAllClose(
+            output_from_edge_erfc_op, expected_output, atol=1e-4
+        )
+
     def test_erfinv_operation_basic(self):
         # Sample values for testing
         sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
