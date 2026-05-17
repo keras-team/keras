@@ -331,6 +331,12 @@ class TensorFlowTrainer(base_trainer.Trainer):
         validation_batch_size=None,
         validation_freq=1,
     ):
+        self._assert_compile_called("fit")
+        # Possibly cap epochs for debugging runs.
+        max_epochs = config.max_epochs()
+        if max_epochs and max_epochs < epochs:
+            warnings.warn("Limiting epochs to %d" % max_epochs)
+            epochs = max_epochs
         
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
