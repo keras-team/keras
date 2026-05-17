@@ -401,3 +401,61 @@ class SimpleRNNTest(testing.TestCase):
             fv.assign(rv.value)
 
         self.assertAllClose(ref(x), fused(x), atol=1e-5)
+
+    def test_fused_gru_eligibility(self):
+        # Shared gating (use_cudnn, dropout, mask, initial_state arity)
+        # is already exercised by test_fused_lstm_eligibility. Cover only
+        # the GRU-specific gates here.
+
+        # GRU with use_cudnn != False passes.
+        bidi = layers.Bidirectional(layers.GRU(4, use_cudnn="auto"))
+        bidi.build((None, 5, 3))
+        self.assertTrue(bidi._can_attempt_fused_gru(mask=None))
+
+        # LSTM is not eligible.
+        lstm = layers.Bidirectional(layers.LSTM(4, use_cudnn="auto"))
+        lstm.build((None, 5, 3))
+        self.assertFalse(lstm._can_attempt_fused_gru(mask=None))
+
+        # reset_after=False is incompatible with the cuDNN GRU formulation.
+        legacy = layers.Bidirectional(
+            layers.GRU(4, use_cudnn="auto", reset_after=False)
+        )
+        legacy.build((None, 5, 3))
+        self.assertFalse(legacy._can_attempt_fused_gru(mask=None))
+
+        # GRU has one state per direction (length 2), not LSTM's four.
+        wrong_state = [np.zeros((2, 4), dtype="float32")] * 4
+        self.assertFalse(
+            bidi._can_attempt_fused_gru(mask=None, initial_state=wrong_state)
+        )
+
+    def test_fused_gru_matches_unfused(self):
+        # The fused path requires backend support (torch with cuDNN today).
+        # On other backends and on CPU runners, `backend.bidirectional_gru`
+        # raises `NotImplementedError` and the layer falls back to the
+        # two-call path, so this test trivially passes. On GPU it exercises
+        # the fused dispatch and asserts numerical equivalence with the
+        # two-call reference.
+        rng = np.random.default_rng(0)
+        x = rng.standard_normal((3, 6, 4)).astype("float32")
+
+        def _build(use_cudnn):
+            layer = layers.Bidirectional(
+                layers.GRU(
+                    5,
+                    use_cudnn=use_cudnn,
+                    return_sequences=True,
+                    kernel_initializer=initializers.GlorotUniform(seed=1),
+                    recurrent_initializer=initializers.Orthogonal(seed=2),
+                )
+            )
+            layer.build(x.shape)
+            return layer
+
+        ref = _build(use_cudnn=False)
+        fused = _build(use_cudnn="auto")
+        for rv, fv in zip(ref.weights, fused.weights):
+            fv.assign(rv.value)
+
+        self.assertAllClose(ref(x), fused(x), atol=1e-5)
