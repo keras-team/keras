@@ -7188,10 +7188,10 @@ def reshape(x, newshape):
     if not backend.is_tensor(newshape) and not isinstance(
         newshape, KerasTensor
     ):
-        if isinstance(newshape, int):
-            newshape = (newshape,)
-        else:
+        try:
             newshape = tuple(newshape)
+        except TypeError:
+            newshape = (newshape,)
         operation_utils.validate_reshape_shape(newshape)
     if any_symbolic_tensors((x, newshape)):
         return Reshape(newshape).symbolic_call(x)
