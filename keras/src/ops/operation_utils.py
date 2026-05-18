@@ -2,8 +2,10 @@ import math
 
 import numpy as np
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 
@@ -290,6 +292,10 @@ def validate_reshape_shape(newshape, newshape_arg_name="newshape"):
     scalars resolved at runtime, such as `torch.SymInt` under `torch.compile`)
     are not validated here.
     """
+
+    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+        return
+
     neg_one_count = 0
     for dim in newshape:
         if not isinstance(dim, (int, np.integer)):
@@ -316,10 +322,24 @@ def compute_reshape_output_shape(input_shape, newshape, newshape_arg_name):
     This utility does not special case the 0th dimension (batch size).
     """
     validate_reshape_shape(newshape, newshape_arg_name)
+    # If `newshape` is a tensor, we infer the output rank based on its shape.
+    # For example, a 1D tensor of shape (4,) indicates a 4D output shape.
+    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+        shape = getattr(newshape, "shape", None)
+        if shape and len(shape) == 1 and shape[0] is not None:
+            return (None,) * shape[0]
+        return (None,)
+
+    # Normalize dimensions by replacing symbolic tensors or
+    # dynamic values with `None`.
+    newshape = tuple(
+        dim if isinstance(dim, (int, np.integer)) else None for dim in newshape
+    )
     unknown_dim_count = newshape.count(-1)
 
-    # If there is a None in input_shape, we can't infer what the -1 is
-    if None in input_shape:
+    # If there is a None in input_shape or dynamic dimensions,
+    # we can't infer what the -1 is
+    if None in input_shape or None in newshape:
         return tuple(dim if dim != -1 else None for dim in newshape)
 
     input_size = math.prod(input_shape)

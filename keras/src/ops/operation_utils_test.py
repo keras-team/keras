@@ -190,6 +190,22 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, target_shape)
 
+    def test_compute_reshape_output_shape_symbolic_tensors(self):
+        # Entire newshape is a KerasTensor
+        input_shape = (2, 10)
+        shape_tensor = backend.KerasTensor((2,), dtype="int32")
+        output_shape = operation_utils.compute_reshape_output_shape(
+            input_shape, newshape=shape_tensor, newshape_arg_name="newshape"
+        )
+        self.assertEqual(output_shape, (None, None))
+
+        # Tuple containing a KerasTensor and -1
+        dim_tensor = backend.KerasTensor((), dtype="int32")
+        output_shape2 = operation_utils.compute_reshape_output_shape(
+            input_shape, newshape=(-1, dim_tensor), newshape_arg_name="newshape"
+        )
+        self.assertEqual(output_shape2, (None, None))
+
     def test_reduce_shape_no_axes_no_keepdims(self):
         input_shape = (1, 4, 4, 1)
         output_shape = operation_utils.reduce_shape(input_shape)
