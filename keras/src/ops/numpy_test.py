@@ -6191,6 +6191,20 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         ):
             knp.reshape(x, (-1, -1, 5))
 
+    def test_reshape_symbolic_tensor_shape(self):
+        input_tensor = KerasTensor((None, 20))
+        shape_tensor = KerasTensor((2,), dtype="int32")
+        out = knp.reshape(input_tensor, shape_tensor)
+        self.assertEqual(out.shape, (None, None))
+
+        out2 = knp.reshape(input_tensor, (None, KerasTensor((), dtype="int32")))
+        self.assertEqual(out2.shape, (None, None))
+
+        # Only newshape is symbolic, x is a concrete array
+        out3 = knp.reshape(np.zeros((20,)), shape_tensor)
+        self.assertIsInstance(out3, KerasTensor)
+        self.assertEqual(out3.shape, (None, None))
+
     def test_roll(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.roll(x, 1), np.roll(x, 1))

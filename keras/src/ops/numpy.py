@@ -7193,7 +7193,7 @@ def reshape(x, newshape):
         else:
             newshape = tuple(newshape)
         operation_utils.validate_reshape_shape(newshape)
-    if any_symbolic_tensors((x,)):
+    if any_symbolic_tensors((x, newshape)):
         return Reshape(newshape).symbolic_call(x)
     return backend.numpy.reshape(x, newshape)
 
