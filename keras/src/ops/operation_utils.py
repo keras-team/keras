@@ -368,12 +368,27 @@ def compute_transpose_output_shape(input_shape, axes):
     if axes is None:
         return tuple(input_shape[::-1])
 
-    if len(axes) != len(input_shape):
+    ndim = len(input_shape)
+    if len(axes) != ndim:
         raise ValueError(
             "axis must be a list of the same length as the input shape, "
-            f"expected {len(input_shape)}, but received {len(axes)}."
+            f"expected {ndim}, but received {len(axes)}."
         )
-    return tuple(input_shape[ax] for ax in axes)
+    normalized_axes = []
+    for ax in axes:
+        if not isinstance(ax, int) or ax < -ndim or ax >= ndim:
+            raise ValueError(
+                "Each axis in `axes` must be an integer in "
+                f"[-{ndim}, {ndim}). Received: axes={list(axes)}."
+            )
+        normalized_axes.append(ax % ndim)
+    if len(set(normalized_axes)) != ndim:
+        raise ValueError(
+            "`axes` must be a valid permutation of the input dimensions "
+            f"(no duplicates). Received: axes={list(axes)} for input of "
+            f"rank {ndim}."
+        )
+    return tuple(input_shape[ax] for ax in normalized_axes)
 
 
 def compute_take_along_axis_output_shape(input_shape, indices_shape, axis):
