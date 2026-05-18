@@ -170,6 +170,32 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         out = kimage.extract_patches_3d(x, 5)
         self.assertEqual(out.shape, (None, 375, 4, 4, 4))
 
+    def test_reconstruct_patches(self):
+        # 2D: patches (None, 4, 4, 75) -> image (None, 20, 20, 3)
+        patches = KerasTensor([None, 4, 4, 75])
+        out = kimage.reconstruct_patches(
+            patches, size=(5, 5), output_size=(20, 20), padding="valid",
+        )
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+        # Dynamic grid dims still resolve channels from flat dim.
+        patches_dyn = KerasTensor([None, None, None, 75])
+        out = kimage.reconstruct_patches(
+            patches_dyn, size=(5, 5), output_size=(20, 20), padding="same",
+        )
+        self.assertEqual(out.shape, (None, 20, 20, 3))
+
+    def test_reconstruct_patches_3d(self):
+        # 3D: patches (None, 4, 4, 4, 375) -> volume (None, 20, 20, 20, 3)
+        patches = KerasTensor([None, 4, 4, 4, 375])
+        out = kimage.reconstruct_patches_3d(
+            patches, size=(5, 5, 5), output_size=(20, 20, 20), padding="valid",
+        )
+        self.assertEqual(out.shape, (None, 20, 20, 20, 3))
+        out = kimage.reconstruct_patches_3d(
+            patches, size=5, output_size=(20, 20, 20), padding="valid",
+        )
+        self.assertEqual(out.shape, (None, 20, 20, 20, 3))
+
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, None])
         coordinates = KerasTensor([3, 15, 15, None])
@@ -413,6 +439,22 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(out.shape, (375, 4, 4, 4))
         out = kimage.extract_patches_3d(x, 5)
         self.assertEqual(out.shape, (375, 4, 4, 4))
+
+    def test_reconstruct_patches(self):
+        # 2D unbatched: patches (4, 4, 75) -> image (20, 20, 3)
+        patches = KerasTensor([4, 4, 75])
+        out = kimage.reconstruct_patches(
+            patches, size=(5, 5), output_size=(20, 20), padding="valid",
+        )
+        self.assertEqual(out.shape, (20, 20, 3))
+
+    def test_reconstruct_patches_3d(self):
+        # 3D unbatched: patches (4, 4, 4, 375) -> volume (20, 20, 20, 3)
+        patches = KerasTensor([4, 4, 4, 375])
+        out = kimage.reconstruct_patches_3d(
+            patches, size=(5, 5, 5), output_size=(20, 20, 20), padding="valid",
+        )
+        self.assertEqual(out.shape, (20, 20, 20, 3))
 
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, 3])

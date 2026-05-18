@@ -338,6 +338,12 @@ from keras.src.layers.reshaping.cropping2d import Cropping2D as Cropping2D
 from keras.src.layers.reshaping.cropping3d import Cropping3D as Cropping3D
 from keras.src.layers.reshaping.flatten import Flatten as Flatten
 from keras.src.layers.reshaping.permute import Permute as Permute
+from keras.src.layers.reshaping.reconstruct_patches2d import (
+    ReconstructPatches2D as ReconstructPatches2D,
+)
+from keras.src.layers.reshaping.reconstruct_patches3d import (
+    ReconstructPatches3D as ReconstructPatches3D,
+)
 from keras.src.layers.reshaping.repeat_vector import (
     RepeatVector as RepeatVector,
 )
