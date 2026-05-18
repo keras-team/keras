@@ -290,6 +290,9 @@ def abs(x):
 
 def fabs(x):
     x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = x.astype(config.floatx())
     return jnp.fabs(x)
 
 

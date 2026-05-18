@@ -8466,6 +8466,9 @@ class NumpyDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_fabs(self, dtype):
+        if "complex" in standardize_dtype(dtype):
+            self.skipTest("fabs does not support complex types")
+
         import jax.numpy as jnp
 
         x = knp.ones((1,), dtype=dtype)

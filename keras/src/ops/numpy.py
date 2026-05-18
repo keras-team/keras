@@ -193,6 +193,10 @@ class Fabs(Operation):
     def compute_output_spec(self, x):
         sparse = getattr(x, "sparse", False)
         dtype = backend.standardize_dtype(getattr(x, "dtype", type(x)))
+        if "complex" in dtype:
+            raise TypeError(
+                f"fabs does not support complex inputs. Received: dtype={dtype}"
+            )
         if "int" in dtype or dtype == "bool":
             dtype = backend.floatx()
         return KerasTensor(x.shape, dtype=dtype, sparse=sparse)
@@ -202,9 +206,9 @@ class Fabs(Operation):
 def fabs(x):
     """Compute the absolute values element-wise.
 
-    Computes the absolute values elements wise. Integer or boolean inputs are
-    automatically promoted to the default floating-point type.
-    Complex values are not handled.
+    Integer or boolean inputs are automatically promoted to the
+    default floating-point type.
+    Complex values are not supported.
 
     Args:
         x: Input tensor.
@@ -214,12 +218,19 @@ def fabs(x):
 
     Example:
 
-    >>> x = keras.ops.convert_to_tensor([-1.2, 1.2])
+     >>> x = keras.ops.convert_to_tensor([-1, 2], dtype="int32")
     >>> keras.ops.fabs(x)
-    array([1.2, 1.2], dtype=float32)
+    array([1., 2.], dtype=float32)
     """
     if any_symbolic_tensors((x,)):
         return Fabs().symbolic_call(x)
+
+    x = backend.convert_to_tensor(x)
+    if "complex" in backend.standardize_dtype(x.dtype):
+        raise TypeError(
+            f"fabs does not support complex inputs. Received: x.dtype={x.dtype}"
+        )
+
     return backend.numpy.fabs(x)
 
 
