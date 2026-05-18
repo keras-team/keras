@@ -330,7 +330,8 @@ def compute_reshape_output_shape(input_shape, newshape, newshape_arg_name):
             return (None,) * shape[0]
         return (None,)
 
-    # Normalize dimensions by replacing symbolic tensors or dynamic values with `None`.
+    # Normalize dimensions by replacing symbolic tensors or
+    # dynamic values with `None`.
     newshape = tuple(
         dim if isinstance(dim, (int, np.integer)) else None for dim in newshape
     )
