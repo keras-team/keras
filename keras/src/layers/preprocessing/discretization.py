@@ -333,9 +333,9 @@ def summarize(values, epsilon):
     elements = np.size(values)
     num_buckets = 1.0 / epsilon
     increment = elements / num_buckets
-    start = increment
+    start = max(increment, 1)
     step = max(increment, 1)
-    boundaries = values[int(start) :: int(step)]
+    boundaries = values[int(start) - 1 :: int(step)]
     weights = np.ones_like(boundaries)
     weights = weights * step
     return np.stack([boundaries, weights])
@@ -388,7 +388,7 @@ def compress_summary(summary, epsilon):
 
     percents = epsilon + np.arange(0.0, 1.0, epsilon)
     cum_weights = summary[1].cumsum()
-    cum_weight_percents = cum_weights / (cum_weights[-1] + cum_weights[0])
+    cum_weight_percents = cum_weights / cum_weights[-1]
     new_bins = np.interp(percents, cum_weight_percents, summary[0])
     cum_weights = np.interp(percents, cum_weight_percents, cum_weights)
     new_weights = cum_weights - np.concatenate(
