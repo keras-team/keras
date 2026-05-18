@@ -7185,7 +7185,9 @@ def reshape(x, newshape):
     Returns:
         The reshaped tensor.
     """
-    if not backend.is_tensor(newshape) and not isinstance(newshape, KerasTensor):
+    if not backend.is_tensor(newshape) and not isinstance(
+        newshape, KerasTensor
+    ):
         if isinstance(newshape, int):
             newshape = (newshape,)
         else:
