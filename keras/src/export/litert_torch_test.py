@@ -34,7 +34,7 @@ def _has_litert_torch():
     return _HAS_LITERT_TORCH
 
 
-class _TinyDenseModel(models.Model):
+class TinyDenseModel(models.Model):
     """Small subclassed model with a single Dense layer for shape tests."""
 
     def __init__(self):
@@ -136,7 +136,7 @@ class LiteRTTorchExportTest(testing.TestCase):
         self, build_input, call_input, expected_shape
     ):
         """Build model, call at new shape, assert signature updates."""
-        model = _TinyDenseModel()
+        model = TinyDenseModel()
         model(build_input)
         model(call_input)
         from keras.src.export.export_utils import get_input_signature

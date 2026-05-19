@@ -76,7 +76,12 @@ _ModelClass = None
 
 
 def _standardize_shape_or_none(x):
-    return None if x is None else backend.standardize_shape(x.shape)
+    if x is None:
+        return None
+    try:
+        return backend.standardize_shape(x.shape)
+    except Exception:
+        return None
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])

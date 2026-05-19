@@ -22,7 +22,7 @@ from keras.src.layers.layer import _is_concrete_shapes_dict
 from keras.src.models import Model
 
 
-class _TinyDenseModel(models.Model):
+class TinyDenseModel(models.Model):
     """Tiny model with a single Dense layer for shape-related tests."""
 
     def __init__(self, **kwargs):
@@ -2098,7 +2098,7 @@ class LayerTest(testing.TestCase):
 
         import torch
 
-        model = _TinyDenseModel()
+        model = TinyDenseModel()
         model(np.zeros((1, 10), dtype="float32"))
 
         # Run torch.export to inject symbolic shapes
@@ -2122,7 +2122,7 @@ class LayerTest(testing.TestCase):
         """_maybe_build must not crash if get_shapes_dict raises."""
         from unittest import mock
 
-        model = _TinyDenseModel()
+        model = TinyDenseModel()
         model(np.zeros((1, 10), dtype="float32"))
         original_shapes = dict(model._build_shapes_dict)
 

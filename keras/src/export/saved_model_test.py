@@ -31,7 +31,7 @@ class CustomModel(models.Model):
         return output
 
 
-class _TinyDenseModel(models.Model):
+class TinyDenseModel(models.Model):
     """Small subclassed model with a single Dense layer for shape tests."""
 
     def __init__(self):
@@ -122,7 +122,7 @@ class ExportSavedModelTest(testing.TestCase):
         Uses 2-D inputs [batch, seq, features] so the sequence length can
         vary while the feature dim (last axis) stays fixed for the Dense.
         """
-        model = _TinyDenseModel()
+        model = TinyDenseModel()
         model(np.zeros((1, 10, 4), dtype="float32"))
         model(np.zeros((1, 32, 4), dtype="float32"))
 
