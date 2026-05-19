@@ -472,7 +472,8 @@ class Trainer:
             raise ValueError(
                 "Argument `trainable_variables` must be a list of tensors "
                 "corresponding 1:1 to "
-                f"{self.__class__.__name__}().trainable_variables. "
+                f"{self.__class__.__name__}().trainable_variables at compile "
+                "time. "
                 f"Received list with length {len(trainable_variables)}, "
                 f"but expected {len(self._trainable_variables_at_compile)} "
                 "variables."
@@ -483,7 +484,8 @@ class Trainer:
             raise ValueError(
                 "Argument `non_trainable_variables` must be a list of tensors "
                 "corresponding 1:1 to "
-                f"{self.__class__.__name__}().non_trainable_variables. "
+                f"{self.__class__.__name__}().non_trainable_variables at "
+                "compile time. "
                 f"Received list with length {len(non_trainable_variables)}, "
                 f"but expected {len(self._non_trainable_variables_at_compile)} "
                 "variables."
@@ -540,6 +542,46 @@ class Trainer:
         sample_weight=None,
         training=True,
     ):
+        self._check_super_called()
+        if not self.built:
+            raise ValueError(
+                f"To call stateless_compute_loss, {self.__class__.__name__} "
+                "must be built (i.e. its variables must have been already "
+                "created). You can build it by calling it on some data."
+            )
+        if len(trainable_variables) != len(
+            self._trainable_variables_at_compile
+        ):
+            raise ValueError(
+                "Argument `trainable_variables` must be a list of tensors "
+                "corresponding 1:1 to "
+                f"{self.__class__.__name__}().trainable_variables at compile "
+                "time. "
+                f"Received list with length {len(trainable_variables)}, "
+                f"but expected {len(self._trainable_variables_at_compile)} "
+                "variables."
+            )
+        if len(non_trainable_variables) != len(
+            self._non_trainable_variables_at_compile
+        ):
+            raise ValueError(
+                "Argument `non_trainable_variables` must be a list of tensors "
+                "corresponding 1:1 to "
+                f"{self.__class__.__name__}().non_trainable_variables at "
+                "compile time. "
+                f"Received list with length {len(non_trainable_variables)}, "
+                f"but expected {len(self._non_trainable_variables_at_compile)} "
+                "variables."
+            )
+        if len(metrics_variables) != len(self.metrics_variables):
+            raise ValueError(
+                "Argument `metrics_variables` must be a list of tensors "
+                "corresponding 1:1 to "
+                f"{self.__class__.__name__}().metrics_variables. "
+                f"Received list with length {len(metrics_variables)}, "
+                f"but expected {len(self.metrics_variables)} "
+                "variables."
+            )
         var_mapping = list(
             zip(self._trainable_variables_at_compile, trainable_variables)
         )
@@ -1268,7 +1310,10 @@ class Trainer:
                     sample_weight=sample_weight,
                     training=False,
                 )
-        if self._compiled_trainable_variables is None:
+        if (
+            self.compiled
+            and getattr(self, "_compiled_trainable_variables", None) is None
+        ):
             self.__dict__["_compiled_trainable_variables"] = (
                 self.trainable_variables
             )

@@ -146,7 +146,10 @@ class NumpyTrainer(base_trainer.Trainer):
                     y_pred,
                     sample_weight=sample_weight,
                 )
-        if self._compiled_trainable_variables is None:
+        if (
+            self.compiled
+            and getattr(self, "_compiled_trainable_variables", None) is None
+        ):
             self.__dict__["_compiled_trainable_variables"] = (
                 self.trainable_variables
             )
