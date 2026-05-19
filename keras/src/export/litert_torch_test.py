@@ -121,6 +121,76 @@ class LiteRTTorchExportTest(testing.TestCase):
         x = np.random.normal(size=(1, 10)).astype("float32")
         self._verify_litert_export(model, x)
 
+    def test_subclass_model_input_signature_reflects_recent_call(self):
+        """Subclassed models should export with most recent call shapes.
+
+        Regression test for stale `_build_shapes_dict` on the torch backend.
+        Uses 2-D inputs [batch, seq, features] so the sequence length can
+        vary while the feature dim (last axis) stays fixed for the Dense.
+        """
+
+        class TinyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(8)
+
+            def call(self, x):
+                return self.dense(x)
+
+        model = TinyModel()
+        # First call builds at seq_len=10, features=4
+        model(np.zeros((1, 10, 4), dtype="float32"))
+
+        # Second call at seq_len=32, features=4 — signature must update
+        model(np.zeros((1, 32, 4), dtype="float32"))
+
+        from keras.src.export.export_utils import get_input_signature
+
+        sig = get_input_signature(model)
+        self.assertEqual(
+            sig[0].shape,
+            (None, 32, 4),
+            "get_input_signature should reflect the most recent call shape",
+        )
+
+        # Export and verify interpreter sees the updated shape
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "torch_subclass_recent_shape.tflite"
+        )
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        interpreter = _get_interpreter(temp_filepath)
+        input_details = interpreter.get_input_details()
+        self.assertEqual(len(input_details), 1)
+        self.assertEqual(tuple(input_details[0]["shape"]), (1, 32, 4))
+
+    def test_subclass_model_single_tensor_input_signature_reflects_recent_call(
+        self,
+    ):
+        """Subclassed models with single-tensor inputs update signature."""
+
+        class TinyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(8)
+
+            def call(self, x):
+                return self.dense(x)
+
+        model = TinyModel()
+        model(np.zeros((1, 10, 4), dtype="float32"))
+        model(np.zeros((1, 32, 4), dtype="float32"))
+
+        from keras.src.export.export_utils import get_input_signature
+
+        sig = get_input_signature(model)
+        self.assertEqual(
+            sig[0].shape,
+            (None, 32, 4),
+            "get_input_signature should reflect the most recent call shape",
+        )
+
     def test_conv_model(self):
         model = models.Sequential(
             [

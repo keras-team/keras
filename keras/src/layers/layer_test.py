@@ -1,3 +1,4 @@
+import os
 import pickle
 from unittest import mock
 
@@ -15,7 +16,19 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
+from keras.src.layers.layer import _is_concrete_shapes_dict
 from keras.src.models import Model
+
+
+class _TinyExportModel(models.Model):
+    """Tiny model for save-after-export round-trip tests."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.dense = layers.Dense(8)
+
+    def call(self, x):
+        return self.dense(x)
 
 
 class MockRemat:
@@ -1943,3 +1956,236 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def test_regular_layer_build_shapes_dict_not_updated(self):
+        """Non-Model layers must not have _build_shapes_dict clobbered.
+
+        The _maybe_build fix is gated by `isinstance(self, Model)`. Regular
+        layers (even subclassed ones) should keep their original build shapes.
+        """
+
+        class MyLayer(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(8)
+
+            def build(self, input_shape):
+                self.dense.build(input_shape)
+                self.built = True
+
+            def call(self, x):
+                return self.dense(x)
+
+        layer = MyLayer()
+        layer.build((None, 10))
+        original_shapes = dict(layer._build_shapes_dict)
+
+        # Call with different batch — _build_shapes_dict must stay unchanged
+        layer(np.zeros((2, 10), dtype="float32"))
+        self.assertEqual(
+            layer._build_shapes_dict,
+            original_shapes,
+            "Regular layers must preserve original _build_shapes_dict",
+        )
+
+    def test_model_build_from_config_uses_original_shape(self):
+        """Models with custom build() preserve shape for build_from_config.
+
+        Verifies that get_build_config / build_from_config round-trip uses
+        the original build shape, not a stale shape from a later call.
+        """
+
+        class CustomBuildModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(8)
+
+            def build(self, input_shape):
+                self.dense.build(input_shape)
+                self.built = True
+
+            def call(self, x):
+                return self.dense(x)
+
+        model = CustomBuildModel()
+        model.build((None, 10))
+        original_config = model.get_build_config()
+
+        # Subsequent call with different batch
+        model(np.zeros((2, 10), dtype="float32"))
+
+        # get_build_config must still return the original shape
+        config_after_call = model.get_build_config()
+        self.assertEqual(
+            config_after_call,
+            original_config,
+            "get_build_config must preserve original build shape",
+        )
+
+        # build_from_config should succeed with the original shape
+        model2 = CustomBuildModel()
+        model2.build_from_config(config_after_call)
+        self.assertTrue(model2.built)
+        self.assertEqual(model2._build_shapes_dict, {"input_shape": (None, 10)})
+
+    def test_is_concrete_shapes_dict_edge_cases(self):
+        """_is_concrete_shapes_dict handles edge cases correctly."""
+        # None shapes
+        self.assertTrue(_is_concrete_shapes_dict({"x_shape": None}))
+
+        # Nested dictionary shapes
+        self.assertTrue(
+            _is_concrete_shapes_dict(
+                {"inputs_shape": {"a": (2, 3), "b": (4, 5)}}
+            )
+        )
+
+        # Mixed concrete and symbolic should return False
+        self.assertFalse(_is_concrete_shapes_dict({"x_shape": (2, object())}))
+
+        # Shapes containing np.integer values
+        self.assertTrue(
+            _is_concrete_shapes_dict({"x_shape": (np.int64(2), np.int32(3))})
+        )
+
+        # Empty shapes_dict
+        self.assertTrue(_is_concrete_shapes_dict({}))
+
+        # List/tuple shapes
+        self.assertTrue(_is_concrete_shapes_dict({"x_shape": [2, 3, 4]}))
+
+    def test_maybe_build_skips_shapes_dict_in_stateless_scope(self):
+        """_build_shapes_dict must not update inside a stateless scope."""
+        from keras.src.backend.common.stateless_scope import StatelessScope
+
+        class TinyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.embed = layers.Embedding(100, 8)
+
+            def call(self, x):
+                return self.embed(x)
+
+        model = TinyModel()
+        model(np.zeros((1, 10), dtype="int32"))
+        original_shapes = dict(model._build_shapes_dict)
+
+        with StatelessScope():
+            model(np.zeros((1, 20), dtype="int32"))
+
+        self.assertEqual(
+            model._build_shapes_dict,
+            original_shapes,
+            "_build_shapes_dict must not mutate inside stateless scope",
+        )
+
+    def test_maybe_build_skips_shapes_dict_in_symbolic_scope(self):
+        """_build_shapes_dict must not update inside a symbolic scope."""
+        from keras.src.backend.common.symbolic_scope import SymbolicScope
+
+        class TinyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.embed = layers.Embedding(100, 8)
+
+            def call(self, x):
+                return self.embed(x)
+
+        model = TinyModel()
+        model(np.zeros((1, 10), dtype="int32"))
+        original_shapes = dict(model._build_shapes_dict)
+
+        with SymbolicScope():
+            model(np.zeros((1, 20), dtype="int32"))
+
+        self.assertEqual(
+            model._build_shapes_dict,
+            original_shapes,
+            "_build_shapes_dict must not mutate inside symbolic scope",
+        )
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Requires torch backend",
+    )
+    def test_model_save_after_torch_export(self):
+        """model.save() must succeed after torch.export symbolic tracing."""
+        import tempfile
+
+        import torch
+
+        model = _TinyExportModel()
+        model(np.zeros((1, 10), dtype="float32"))
+
+        # Run torch.export to inject symbolic shapes
+        torch.export.export(
+            model,
+            (torch.zeros((1, 10), dtype=torch.float32),),
+        )
+
+        # Save must not fail with JSON serialization errors
+        temp_dir = tempfile.mkdtemp()
+        save_path = os.path.join(temp_dir, "model_after_export.keras")
+        model.save(save_path)
+
+        # Load back successfully
+        from keras.src.saving import saving_lib
+
+        loaded = saving_lib.load_model(save_path)
+        self.assertTrue(loaded.built)
+
+    def test_maybe_build_gracefully_handles_shapes_dict_failure(self):
+        """_maybe_build must not crash if get_shapes_dict raises."""
+        from unittest import mock
+
+        class TinyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(8)
+
+            def call(self, x):
+                return self.dense(x)
+
+        model = TinyModel()
+        model(np.zeros((1, 10), dtype="float32"))
+        original_shapes = dict(model._build_shapes_dict)
+
+        with mock.patch(
+            "keras.src.layers.layer.get_shapes_dict",
+            side_effect=ValueError("simulated shape failure"),
+        ):
+            # Must not raise
+            model(np.zeros((1, 10), dtype="float32"))
+
+        self.assertEqual(
+            model._build_shapes_dict,
+            original_shapes,
+            "_build_shapes_dict must remain unchanged "
+            "when get_shapes_dict fails",
+        )
+
+    def test_functional_dict_input_preserves_explicit_none_dims(self):
+        """Functional models with explicit None dims must not be clobbered.
+
+        Regression test for overwriting Input(shape=(None,)) with concrete
+        call shapes in get_input_signature.
+        """
+        from keras.src.export.export_utils import get_input_signature
+
+        inp = layers.Input(shape=(None,), dtype="int32", name="tokens")
+        x = layers.Embedding(100, 8)(inp)
+        out = layers.Dense(1)(x)
+        model = models.Model(inputs={"tokens": inp}, outputs=out)
+
+        # Call with two different sequence lengths
+        model({"tokens": np.zeros((1, 10), dtype="int32")})
+        model({"tokens": np.zeros((1, 32), dtype="int32")})
+
+        sig = get_input_signature(model)
+        # The explicit None dimension must stay dynamic, not (None, 32)
+        self.assertEqual(
+            sig[0]["tokens"].shape,
+            (None, None),
+            "Explicit dynamic dims must not be "
+            "overwritten by recent call shapes",
+        )

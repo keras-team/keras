@@ -102,6 +102,39 @@ class ExportSavedModelTest(testing.TestCase):
         # Test with a different batch size
         revived_model.serve(tf.random.normal((6, 10)))
 
+    def test_subclass_model_saved_model_uses_recent_call_shape(self):
+        """SavedModel export should reflect most recent call shapes.
+
+        Regression test for stale `_build_shapes_dict`: when a subclassed
+        model is first built at one shape and later called at a different
+        shape, SavedModel signatures must use the latest shape.
+        Uses 2-D inputs [batch, seq, features] so the sequence length can
+        vary while the feature dim (last axis) stays fixed for the Dense.
+        """
+
+        class TinyModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.dense = layers.Dense(8)
+
+            def call(self, x):
+                return self.dense(x)
+
+        model = TinyModel()
+        model(np.zeros((1, 10, 4), dtype="float32"))
+        model(np.zeros((1, 32, 4), dtype="float32"))
+
+        temp_dir = os.path.join(self.get_temp_dir(), "saved_model_recent_shape")
+        model.export(temp_dir, format="tf_saved_model")
+
+        imported = tf.saved_model.load(temp_dir)
+        concrete_fn = imported.signatures["serving_default"]
+        # structured_input_signature is (args_tuple, kwargs_dict);
+        # positional-only args appear in the kwargs dict as args_0, etc.
+        kwargs_sig = concrete_fn.structured_input_signature[1]
+        input_tensor_spec = list(kwargs_sig.values())[0]
+        self.assertEqual(input_tensor_spec.shape.as_list(), [None, 32, 4])
+
     @parameterized.named_parameters(
         named_product(model_type=["sequential", "functional", "subclass"])
     )

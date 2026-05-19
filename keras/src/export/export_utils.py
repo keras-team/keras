@@ -35,6 +35,79 @@ def get_input_signature(model):
         input_signature = [
             tree.map_structure(make_input_spec, model._inputs_struct)
         ]
+        # For models that were called with concrete shapes, merge those
+        # shapes into the signature so that exporters (especially torch
+        # backend LiteRT) trace with representative dimensions rather
+        # than all-None shapes that collapse to (1, 1) sample tensors.
+        shapes_dict = getattr(model, "_build_shapes_dict", None)
+        if (
+            shapes_dict
+            and input_signature
+            and isinstance(input_signature[0], dict)
+        ):
+            # For Functional models the call argument is always named
+            # ``inputs``, so the recorded shapes dict contains the key
+            # ``inputs_shape``.
+            actual_shapes = shapes_dict.get("inputs_shape")
+            if isinstance(actual_shapes, dict) and set(
+                actual_shapes.keys()
+            ) == set(input_signature[0].keys()):
+
+                def _update_spec(spec, shape):
+                    if isinstance(spec, layers.InputSpec):
+                        original_shape = spec.shape
+                        shape_tuple = tuple(shape)
+                        # Preserve explicit non-None dimensions from the
+                        # original InputSpec (e.g. a fixed sequence length
+                        # set via Input(shape=(None, 128))) while filling
+                        # in concrete values for dynamic dims from the
+                        # most recent call.
+                        if original_shape is not None:
+                            new_shape = tuple(
+                                original_shape[i]
+                                if i < len(original_shape)
+                                and original_shape[i] is not None
+                                else dim
+                                for i, dim in enumerate(shape_tuple)
+                            )
+                        else:
+                            new_shape = shape_tuple
+                        return layers.InputSpec(
+                            shape=new_shape,
+                            dtype=spec.dtype,
+                            name=getattr(spec, "name", None),
+                        )
+                    if isinstance(spec, dict):
+                        if not isinstance(shape, dict):
+                            return spec
+                        return {
+                            k: _update_spec(v, shape[k])
+                            for k, v in spec.items()
+                            if k in shape
+                        }
+                    if isinstance(spec, (list, tuple)):
+                        if not isinstance(shape, (list, tuple)):
+                            return spec
+                        if len(shape) != len(spec):
+                            return spec
+                        result = [
+                            _update_spec(v, shape[i])
+                            for i, v in enumerate(spec)
+                        ]
+                        return (
+                            tuple(result) if isinstance(spec, tuple) else result
+                        )
+                    return spec
+
+                # Use a plain dict comprehension rather than
+                # tree.map_structure because InputSpec may be registered
+                # as a pytree node in some backends (e.g.
+                # TensorFlow/optree) and would not match the tuple
+                # structure of actual_shapes.
+                input_signature[0] = {
+                    k: _update_spec(v, actual_shapes[k])
+                    for k, v in input_signature[0].items()
+                }
     elif isinstance(model, models.Sequential):
         input_signature = tree.map_structure(make_input_spec, model.inputs)
     else:

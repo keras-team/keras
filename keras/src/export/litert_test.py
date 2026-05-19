@@ -10,6 +10,7 @@ from keras.src import models
 from keras.src import ops
 from keras.src import testing
 from keras.src import tree
+from keras.src.export.export_utils import get_input_signature
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.utils.module_utils import tensorflow
@@ -36,6 +37,19 @@ class CustomModel(models.Model):
         for layer in self.layer_list:
             output = layer(output)
         return output
+
+
+class TinyLM(models.Model):
+    """Small subclassed model for regression tests."""
+
+    def __init__(self, vocab_size=100, hidden_dim=16):
+        super().__init__()
+        self.embed = layers.Embedding(vocab_size, hidden_dim)
+        self.dense = layers.Dense(vocab_size)
+
+    def call(self, inputs):
+        x = self.embed(inputs["token_ids"])
+        return self.dense(x)
 
 
 def get_model(type="sequential", input_shape=(10,), layer_list=None):
@@ -1251,6 +1265,118 @@ class ExportLitertInterpreterTest(testing.TestCase):
         litert_output = _get_interpreter_outputs(interpreter)
 
         self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
+
+    def test_subclass_model_input_signature_reflects_recent_call(self):
+        """Subclassed models should export with most recent call shapes.
+
+        Regression test for stale `_build_shapes_dict`: when a subclassed model
+        is first built at one shape (e.g. `[1, 1]`) and later called at a
+        different shape (e.g. `[1, 32]`), `get_input_signature` must return
+        the latest shape so that LiteRT export traces the correct graph.
+        """
+
+        model = TinyLM()
+        # First call builds the model at shape [1, 1]
+        model({"token_ids": ops.zeros((1, 1), dtype="int32")})
+        sig_after_build = get_input_signature(model)
+        self.assertEqual(sig_after_build[0]["token_ids"].shape, (None, 1))
+
+        # Second call at shape [1, 32] — get_input_signature must update
+        model({"token_ids": ops.zeros((1, 32), dtype="int32")})
+        sig_after_call = get_input_signature(model)
+        self.assertEqual(
+            sig_after_call[0]["token_ids"].shape,
+            (None, 32),
+            "get_input_signature should reflect the most recent call shape",
+        )
+
+        # Export should use the updated signature and produce correct shapes
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "subclass_recent_shape.tflite"
+        )
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+
+        input_details = interpreter.get_input_details()
+        self.assertEqual(len(input_details), 1)
+        # Subclassed models export with concrete shapes from
+        # _build_shapes_dict, so the interpreter sees static (1, 32).
+        self.assertEqual(tuple(input_details[0]["shape"]), (1, 32))
+
+    def test_subclass_model_with_custom_build_preserves_original_shape(self):
+        """Models with custom build() must not update _build_shapes_dict.
+
+        The _maybe_build fix is gated by `utils.is_default(self.build)`.
+        Models that override build() rely on _build_shapes_dict for
+        build_from_config semantics; updating it would break weight
+        recreation on deserialization.
+        """
+
+        class CustomBuildModel(models.Model):
+            def __init__(self):
+                super().__init__()
+                self.embed = layers.Embedding(100, 8)
+
+            def build(self, input_shape):
+                self.embed.build(input_shape)
+                self.built = True
+
+            def call(self, x):
+                return self.embed(x)
+
+        model = CustomBuildModel()
+        model.build((None, 10))  # explicit build at seq_len 10
+        original_shapes = dict(model._build_shapes_dict)
+
+        # Subsequent call with different batch AND different seq_len
+        model(ops.zeros((2, 20), dtype="int32"))
+
+        # _build_shapes_dict must stay at the original build shape
+        self.assertEqual(
+            model._build_shapes_dict,
+            original_shapes,
+            "Custom build() models must preserve original _build_shapes_dict",
+        )
+
+        sig = get_input_signature(model)
+        self.assertEqual(sig[0].shape, (None, 10))
+
+    def test_functional_model_input_signature_ignores_build_shapes_dict(self):
+        """Functional models use _inputs_struct, not _build_shapes_dict.
+
+        Calling a Functional model at different shapes must not affect
+        get_input_signature, which derives shapes from the static graph.
+        """
+
+        inp = layers.Input(shape=(None,), dtype="int32")
+        x = layers.Embedding(100, 8)(inp)
+        out = layers.Dense(1)(x)
+        model = models.Model(inputs=inp, outputs=out)
+
+        # Call at two different sequence lengths
+        model(ops.zeros((1, 10), dtype="int32"))
+        model(ops.zeros((1, 100), dtype="int32"))
+
+        # Signature must remain fully dynamic from _inputs_struct
+        sig = get_input_signature(model)
+        self.assertEqual(sig[0].shape, (None, None))
+
+        # Export must produce dynamic TFLite shapes
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "functional_dynamic_shape.tflite"
+        )
+        model.export(temp_filepath, format="litert")
+        self.assertTrue(os.path.exists(temp_filepath))
+
+        interpreter = LiteRTInterpreter(model_path=temp_filepath)
+        interpreter.allocate_tensors()
+        input_details = interpreter.get_input_details()
+        self.assertEqual(len(input_details), 1)
+        # TFLite uses [1, 1] as the default for dynamic dims
+        self.assertEqual(tuple(input_details[0]["shape"]), (1, 1))
 
     def test_dict_input_multi_output_model(self):
         """Test dict input model with multiple outputs exports successfully."""
