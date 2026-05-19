@@ -1566,11 +1566,23 @@ class Layer(BackendLayer, Operation):
                 return
             if in_stateless_scope() or in_symbolic_scope():
                 return
+            # Guard against torch.jit tracing (used by torch.onnx.export).
+            # During tracing, tensor shapes are 0-dim Tensor objects rather
+            # than plain ints, and extracting Python scalars triggers a
+            # TracerWarning that becomes a SystemError when warnings are
+            # configured as errors.
+            try:
+                import torch
+
+                if torch.jit.is_tracing():
+                    return
+            except ImportError:
+                pass
             try:
                 shapes_dict = get_shapes_dict(call_spec)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, SystemError):
                 # During torch.export.export() or other tracing contexts,
-                # get_shapes_dict may fail on symbolic shapes.
+                # get_shapes_dict may fail on symbolic/traced shapes.
                 return
             # Only update with concrete (non-symbolic) shapes.
             # Symbolic values from torch.export/jax tracing are not
