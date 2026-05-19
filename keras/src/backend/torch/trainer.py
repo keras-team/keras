@@ -1,3 +1,4 @@
+import contextlib
 import warnings
 
 import numpy as np
@@ -23,6 +24,22 @@ class TorchTrainer(base_trainer.Trainer):
         self.train_function = None
         self.test_function = None
         self.predict_function = None
+
+    def _sync_variable_trainable_state(self):
+        for v in self._trainable_variables_at_compile:
+            v.trainable = True
+        for v in self._non_trainable_variables_at_compile:
+            v.trainable = False
+
+    @contextlib.contextmanager
+    def _trainable_state_scope(self):
+        previous_states = [(v, v.trainable) for v in self.variables]
+        try:
+            self._sync_variable_trainable_state()
+            yield
+        finally:
+            for v, state in previous_states:
+                v.trainable = state
 
     def _should_torch_compile(self):
         # require torch>=2.1.0 to enable dynamo since it
@@ -64,12 +81,12 @@ class TorchTrainer(base_trainer.Trainer):
             loss = self.optimizer.scale_loss(loss)
 
         # Compute gradients
-        if self.trainable_weights:
+        if self._trainable_variables_at_compile:
             # Call torch.Tensor.backward() on the loss to compute gradients
             # for the weights.
             loss.backward()
 
-            trainable_weights = self.trainable_weights[:]
+            trainable_weights = self._trainable_variables_at_compile[:]
             gradients = [v.value.grad for v in trainable_weights]
 
             # Update weights
@@ -201,7 +218,6 @@ class TorchTrainer(base_trainer.Trainer):
             warnings.warn("Limiting epochs to %d" % max_epochs)
             epochs = max_epochs
 
-        # TODO: respect compiled trainable state
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
@@ -249,71 +265,70 @@ class TorchTrainer(base_trainer.Trainer):
             )
 
         self.stop_training = False
-        training_logs = {}
         self.make_train_function()
         callbacks.on_train_begin()
         initial_epoch = self._initial_epoch or initial_epoch
-        for epoch in range(initial_epoch, epochs):
-            self.reset_metrics()
-            callbacks.on_epoch_begin(epoch)
+        with self._trainable_state_scope():
+            for epoch in range(initial_epoch, epochs):
+                self.reset_metrics()
+                callbacks.on_epoch_begin(epoch)
 
-            # Switch the torch Module to training mode. Inform torch layers to
-            # do training behavior in case the user did not use `self.training`
-            # when implementing a custom layer with torch layers.
-            self.train()
+                # Switch torch Module to training mode. Inform torch layers to
+                # do training behavior in case user did not use `self.training`
+                # when implementing custom layer with torch layers.
+                self.train()
 
-            logs = {}
-            for begin_step, end_step, data in epoch_iterator:
-                # Callbacks
-                callbacks.on_train_batch_begin(begin_step)
+                logs = {}
+                for begin_step, end_step, data in epoch_iterator:
+                    # Callbacks
+                    callbacks.on_train_batch_begin(begin_step)
 
-                logs = self.train_function(data)
+                    logs = self.train_function(data)
 
-                # Callbacks
-                callbacks.on_train_batch_end(end_step, logs)
-                if self.stop_training:
-                    break
+                    # Callbacks
+                    callbacks.on_train_batch_end(end_step, logs)
+                    if self.stop_training:
+                        break
 
-            # Override with model metrics instead of last step logs if needed.
-            epoch_logs = dict(self._get_metrics_result_or_logs(logs))
+                epoch_logs = dict(self._get_metrics_result_or_logs(logs))
 
-            # Switch the torch Module back to testing mode.
-            self.eval()
+                # Switch the torch Module back to testing mode.
+                self.eval()
 
-            # Run validation.
-            if validation_data is not None and self._should_eval(
-                epoch, validation_freq
-            ):
-                # Create TorchEpochIterator for evaluation and cache it.
-                if getattr(self, "_eval_epoch_iterator", None) is None:
-                    self._eval_epoch_iterator = TorchEpochIterator(
+                # Run validation.
+                if validation_data is not None and self._should_eval(
+                    epoch, validation_freq
+                ):
+                    # Create TorchEpochIterator for evaluation and cache it.
+                    if getattr(self, "_eval_epoch_iterator", None) is None:
+                        self._eval_epoch_iterator = TorchEpochIterator(
+                            x=val_x,
+                            y=val_y,
+                            sample_weight=val_sample_weight,
+                            batch_size=validation_batch_size or batch_size,
+                            steps_per_execution=self.steps_per_execution,
+                            steps_per_epoch=validation_steps,
+                            shuffle=False,
+                        )
+                    val_logs = self.evaluate(
                         x=val_x,
                         y=val_y,
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
-                        steps_per_execution=self.steps_per_execution,
-                        steps_per_epoch=validation_steps,
-                        shuffle=False,
+                        steps=validation_steps,
+                        callbacks=callbacks,
+                        return_dict=True,
+                        _use_cached_eval_dataset=True,
                     )
-                val_logs = self.evaluate(
-                    x=val_x,
-                    y=val_y,
-                    sample_weight=val_sample_weight,
-                    batch_size=validation_batch_size or batch_size,
-                    steps=validation_steps,
-                    callbacks=callbacks,
-                    return_dict=True,
-                    _use_cached_eval_dataset=True,
-                )
-                val_logs = {
-                    f"val_{name}": val for name, val in val_logs.items()
-                }
-                epoch_logs.update(val_logs)
+                    val_logs = {
+                        f"val_{name}": val for name, val in val_logs.items()
+                    }
+                    epoch_logs.update(val_logs)
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
-            training_logs = epoch_logs
-            if self.stop_training:
-                break
+                callbacks.on_epoch_end(epoch, epoch_logs)
+                training_logs = epoch_logs
+                if self.stop_training:
+                    break
 
         if (
             isinstance(self.optimizer, optimizers_module.Optimizer)
@@ -340,7 +355,6 @@ class TorchTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
-        # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
             raise ValueError(f"Arguments not recognized: {kwargs}")
@@ -381,12 +395,13 @@ class TorchTrainer(base_trainer.Trainer):
         callbacks.on_test_begin()
         logs = {}
         self.reset_metrics()
-        for begin_step, end_step, data in epoch_iterator:
-            callbacks.on_test_batch_begin(begin_step)
-            logs = self.test_function(data)
-            callbacks.on_test_batch_end(end_step, logs)
-            if self.stop_evaluating:
-                break
+        with self._trainable_state_scope():
+            for begin_step, end_step, data in epoch_iterator:
+                callbacks.on_test_batch_begin(begin_step)
+                logs = self.test_function(data)
+                callbacks.on_test_batch_end(end_step, logs)
+                if self.stop_evaluating:
+                    break
         logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
 
@@ -440,13 +455,16 @@ class TorchTrainer(base_trainer.Trainer):
         self.stop_predicting = False
         callbacks.on_predict_begin()
         outputs = None
-        for begin_step, end_step, data in epoch_iterator:
-            callbacks.on_predict_batch_begin(begin_step)
-            batch_outputs = self.predict_function(data)
-            outputs = append_to_outputs(batch_outputs, outputs)
-            callbacks.on_predict_batch_end(end_step, {"outputs": batch_outputs})
-            if self.stop_predicting:
-                break
+        with self._trainable_state_scope():
+            for begin_step, end_step, data in epoch_iterator:
+                callbacks.on_predict_batch_begin(begin_step)
+                batch_outputs = self.predict_function(data)
+                outputs = append_to_outputs(batch_outputs, outputs)
+                callbacks.on_predict_batch_end(
+                    end_step, {"outputs": batch_outputs}
+                )
+                if self.stop_predicting:
+                    break
         callbacks.on_predict_end()
         outputs = tree.map_structure(backend.convert_to_numpy, outputs)
         return tree.map_structure_up_to(batch_outputs, np.concatenate, outputs)
@@ -479,7 +497,8 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_train_function()
         self.reset_metrics()
 
-        logs = self.train_function([data])
+        with self._trainable_state_scope():
+            logs = self.train_function([data])
         logs = pythonify_logs(logs)
         if return_dict:
             return logs
@@ -501,7 +520,8 @@ class TorchTrainer(base_trainer.Trainer):
         self.make_test_function()
         self.reset_metrics()
 
-        logs = self.test_function([data])
+        with self._trainable_state_scope():
+            logs = self.test_function([data])
         logs = pythonify_logs(logs)
         if return_dict:
             return logs
@@ -509,7 +529,8 @@ class TorchTrainer(base_trainer.Trainer):
 
     def predict_on_batch(self, x):
         self.make_predict_function()
-        batch_outputs = self.predict_function([(x,)])
+        with self._trainable_state_scope():
+            batch_outputs = self.predict_function([(x,)])
         batch_outputs = tree.map_structure(
             backend.convert_to_numpy, batch_outputs
         )

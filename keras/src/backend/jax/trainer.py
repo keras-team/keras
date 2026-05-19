@@ -384,7 +384,6 @@ class JAXTrainer(base_trainer.Trainer):
         if max_epochs and max_epochs < epochs:
             warnings.warn("Limiting epochs to %d" % max_epochs)
             epochs = max_epochs
-        # TODO: respect compiled trainable state
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported
@@ -560,7 +559,6 @@ class JAXTrainer(base_trainer.Trainer):
         **kwargs,
     ):
         self._assert_compile_called("evaluate")
-        # TODO: respect compiled trainable state
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
             raise ValueError(f"Arguments not recognized: {kwargs}")
@@ -888,11 +886,14 @@ class JAXTrainer(base_trainer.Trainer):
         optimizer_variables = self._jax_state.get("optimizer_variables", None)
         metrics_variables = self._jax_state.get("metrics_variables", None)
         if trainable_variables:
-            for ref_v, v in zip(self.trainable_variables, trainable_variables):
+            for ref_v, v in zip(
+                self._trainable_variables_at_compile, trainable_variables
+            ):
                 ref_v.assign(v)
         if non_trainable_variables:
             for ref_v, v in zip(
-                self.non_trainable_variables, non_trainable_variables
+                self._non_trainable_variables_at_compile,
+                non_trainable_variables,
             ):
                 ref_v.assign(v)
         if optimizer_variables:
@@ -905,10 +906,10 @@ class JAXTrainer(base_trainer.Trainer):
 
     def _get_state_sharding_spec(self):
         trainable_shardings = [
-            v.value.sharding for v in self.trainable_variables
+            v.value.sharding for v in self._trainable_variables_at_compile
         ]
         non_trainable_shardings = [
-            v.value.sharding for v in self.non_trainable_variables
+            v.value.sharding for v in self._non_trainable_variables_at_compile
         ]
         if hasattr(self, "optimizer") and self.optimizer is not None:
             optimizer_shardings = [
@@ -952,8 +953,11 @@ class JAXTrainer(base_trainer.Trainer):
             return
 
         var_shard_pairs = itertools.chain(
-            zip(self.trainable_variables, trainable_shardings),
-            zip(self.non_trainable_variables, non_trainable_shardings),
+            zip(self._trainable_variables_at_compile, trainable_shardings),
+            zip(
+                self._non_trainable_variables_at_compile,
+                non_trainable_shardings,
+            ),
             zip(
                 (
                     self.optimizer.variables
@@ -1024,10 +1028,10 @@ class JAXTrainer(base_trainer.Trainer):
         `jax_state_sync()`.
         """
         if trainable_variables:
-            for v in self.trainable_variables:
+            for v in self._trainable_variables_at_compile:
                 v._value = None
         if non_trainable_variables:
-            for v in self.non_trainable_variables:
+            for v in self._non_trainable_variables_at_compile:
                 v._value = None
         if optimizer_variables:
             for v in self.optimizer.variables:
@@ -1046,9 +1050,13 @@ class JAXTrainer(base_trainer.Trainer):
     ):
         state = []
         if trainable_variables:
-            state.append([v.value for v in self.trainable_variables])
+            state.append(
+                [v.value for v in self._trainable_variables_at_compile]
+            )
         if non_trainable_variables:
-            state.append([v.value for v in self.non_trainable_variables])
+            state.append(
+                [v.value for v in self._non_trainable_variables_at_compile]
+            )
         if optimizer_variables:
             state.append([v.value for v in self.optimizer.variables])
         if metrics_variables:

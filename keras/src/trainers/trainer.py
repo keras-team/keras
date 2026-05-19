@@ -210,6 +210,17 @@ class Trainer:
         self.test_function = None
         self.predict_function = None
 
+        if self.built:
+            self.__dict__["_compiled_trainable_variables"] = (
+                self.trainable_variables
+            )
+            self.__dict__["_compiled_non_trainable_variables"] = (
+                self.non_trainable_variables
+            )
+        else:
+            self.__dict__["_compiled_trainable_variables"] = None
+            self.__dict__["_compiled_non_trainable_variables"] = None
+
         self._compile_config = serialization_lib.SerializableDict(
             optimizer=optimizer,
             loss=loss,
@@ -422,6 +433,102 @@ class Trainer:
             loss = ops.cast(loss, dtype=backend.floatx())
         return ops.sum(loss)
 
+    @property
+    def _trainable_variables_at_compile(self):
+        if (
+            hasattr(self, "_compiled_trainable_variables")
+            and self._compiled_trainable_variables is not None
+        ):
+            return self._compiled_trainable_variables
+        return self.trainable_variables
+
+    @property
+    def _non_trainable_variables_at_compile(self):
+        if (
+            hasattr(self, "_compiled_non_trainable_variables")
+            and self._compiled_non_trainable_variables is not None
+        ):
+            return self._compiled_non_trainable_variables
+        return self.non_trainable_variables
+
+    def stateless_call(
+        self,
+        trainable_variables,
+        non_trainable_variables,
+        *args,
+        return_losses=False,
+        **kwargs,
+    ):
+        self._check_super_called()
+        if not self.built:
+            raise ValueError(
+                f"To call stateless_call, {self.__class__.__name__} must be "
+                "built (i.e. its variables must have been already created). "
+                "You can build it by calling it on some data."
+            )
+        if len(trainable_variables) != len(
+            self._trainable_variables_at_compile
+        ):
+            raise ValueError(
+                "Argument `trainable_variables` must be a list of tensors "
+                "corresponding 1:1 to "
+                f"{self.__class__.__name__}().trainable_variables. "
+                f"Received list with length {len(trainable_variables)}, "
+                f"but expected {len(self._trainable_variables_at_compile)} "
+                "variables."
+            )
+        if len(non_trainable_variables) != len(
+            self._non_trainable_variables_at_compile
+        ):
+            raise ValueError(
+                "Argument `non_trainable_variables` must be a list of tensors "
+                "corresponding 1:1 to "
+                f"{self.__class__.__name__}().non_trainable_variables. "
+                f"Received list with length {len(non_trainable_variables)}, "
+                f"but expected {len(self._non_trainable_variables_at_compile)} "
+                "variables."
+            )
+
+        # Gather variable mapping
+        trainable_mapping = zip(
+            self._trainable_variables_at_compile, trainable_variables
+        )
+        non_trainable_mapping = zip(
+            self._non_trainable_variables_at_compile, non_trainable_variables
+        )
+        mapping = list(trainable_mapping) + list(non_trainable_mapping)
+
+        # Call in stateless scope
+        losses = None
+        with backend.StatelessScope(
+            state_mapping=mapping, collect_losses=return_losses
+        ) as scope:
+            if self.dtype_policy.quantization_mode is not None:
+                if self._remat_mode is not None:
+                    outputs = self.rematerialized_call(
+                        self.quantized_call, *args, **kwargs
+                    )(*args, **kwargs)
+                else:
+                    outputs = self.quantized_call(*args, **kwargs)
+            elif self._remat_mode is not None:
+                outputs = self.rematerialized_call(self.call, *args, **kwargs)(
+                    *args, **kwargs
+                )
+            else:
+                outputs = self.call(*args, **kwargs)
+            if return_losses:
+                losses = self.losses
+
+        # Gather updated non-trainable variables
+        non_trainable_variables = []
+        for v in self._non_trainable_variables_at_compile:
+            new_v = scope.get_current_value(v)
+            non_trainable_variables.append(new_v)
+
+        if return_losses:
+            return outputs, non_trainable_variables, losses
+        return outputs, non_trainable_variables
+
     def stateless_compute_loss(
         self,
         trainable_variables,
@@ -433,9 +540,14 @@ class Trainer:
         sample_weight=None,
         training=True,
     ):
-        var_mapping = list(zip(self.trainable_variables, trainable_variables))
+        var_mapping = list(
+            zip(self._trainable_variables_at_compile, trainable_variables)
+        )
         var_mapping.extend(
-            zip(self.non_trainable_variables, non_trainable_variables)
+            zip(
+                self._non_trainable_variables_at_compile,
+                non_trainable_variables,
+            )
         )
         var_mapping.extend(zip(self.metrics_variables, metrics_variables))
         with backend.StatelessScope(state_mapping=var_mapping) as scope:
@@ -451,7 +563,7 @@ class Trainer:
 
         # Update non trainable vars (may have been updated in compute_loss)
         non_trainable_variables = []
-        for v in self.non_trainable_variables:
+        for v in self._non_trainable_variables_at_compile:
             new_v = scope.get_current_value(v)
             non_trainable_variables.append(new_v)
 
@@ -1003,7 +1115,7 @@ class Trainer:
         self.compile(**config)
         if hasattr(self, "optimizer") and self.built:
             # Create optimizer variables.
-            self.optimizer.build(self.trainable_variables)
+            self.optimizer.build(self._trainable_variables_at_compile)
 
     def _should_eval(self, epoch, validation_freq):
         epoch = epoch + 1  # one-index the user-facing epoch.
@@ -1156,9 +1268,16 @@ class Trainer:
                     sample_weight=sample_weight,
                     training=False,
                 )
+        if self._compiled_trainable_variables is None:
+            self.__dict__["_compiled_trainable_variables"] = (
+                self.trainable_variables
+            )
+            self.__dict__["_compiled_non_trainable_variables"] = (
+                self.non_trainable_variables
+            )
         if optimizer_unbuilt:
             # Build optimizer
-            self.optimizer.build(self.trainable_variables)
+            self.optimizer.build(self._trainable_variables_at_compile)
         self._post_build()
 
 

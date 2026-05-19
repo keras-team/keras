@@ -349,6 +349,41 @@ class StepCount(Callback):
 
 class TestTrainer(testing.TestCase):
     @pytest.mark.requires_trainable_backend
+    def test_trainable_respect_compile(self):
+        model = models.Sequential(
+            [
+                layers.Dense(
+                    1,
+                    input_shape=(10,),
+                    use_bias=False,
+                    kernel_initializer="ones",
+                )
+            ]
+        )
+        model.compile(optimizer="sgd", loss="mse")
+
+        initial_weights = model.get_weights()[0].copy()
+
+        # Change trainable to False AFTER compile.
+        model.layers[0].trainable = False
+
+        x = np.ones((1, 10))
+        y = np.zeros((1, 1))
+        model.fit(x, y, epochs=1, verbose=0)
+
+        final_weights = model.get_weights()[0]
+
+        # Weights SHOULD change because it was trainable at compile time.
+        self.assertNotAllClose(initial_weights, final_weights)
+
+        # Re-compile should freeze it.
+        model.compile(optimizer="sgd", loss="mse")
+        initial_weights = model.get_weights()[0].copy()
+        model.fit(x, y, epochs=1, verbose=0)
+        final_weights = model.get_weights()[0]
+        self.assertAllClose(initial_weights, final_weights)
+
+    @pytest.mark.requires_trainable_backend
     def test_metric_tracking(self):
         class ModelWithMetric(Trainer, layers.Dense):
             def __init__(self, units):

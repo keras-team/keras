@@ -146,6 +146,13 @@ class NumpyTrainer(base_trainer.Trainer):
                     y_pred,
                     sample_weight=sample_weight,
                 )
+        if self._compiled_trainable_variables is None:
+            self.__dict__["_compiled_trainable_variables"] = (
+                self.trainable_variables
+            )
+            self.__dict__["_compiled_non_trainable_variables"] = (
+                self.non_trainable_variables
+            )
         self._post_build()
 
     def fit(
