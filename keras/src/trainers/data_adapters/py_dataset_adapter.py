@@ -203,13 +203,24 @@ class PyDatasetAdapter(DataAdapter):
         x,
         class_weight=None,
         shuffle=False,
+        distribution=None,
     ):
+        from keras.src.distribution import distribution_lib
+
         self.py_dataset = x
         self.class_weight = class_weight
         self.enqueuer = None
         self.shuffle = shuffle
         self._output_signature = None
         self._within_epoch = False
+        self._epoch = 0
+
+        dist = distribution or distribution_lib.distribution()
+        self._num_processes = 1
+        self._process_id = 0
+        if dist is not None and getattr(dist, "auto_shard_dataset", False):
+            self._num_processes = dist.num_model_replicas
+            self._process_id = dist.data_shard_id
 
         workers = self.py_dataset.workers
         use_multiprocessing = self.py_dataset.use_multiprocessing
@@ -220,6 +231,8 @@ class PyDatasetAdapter(DataAdapter):
                 use_multiprocessing=use_multiprocessing,
                 max_queue_size=self.py_dataset.max_queue_size,
                 shuffle=self.shuffle,
+                num_processes=self._num_processes,
+                process_id=self._process_id,
             )
 
     def _standardize_batch(self, batch):
@@ -251,26 +264,35 @@ class PyDatasetAdapter(DataAdapter):
         return batch
 
     def _infinite_generator(self):
-        for i in itertools.count():
+        for i in itertools.count(
+            start=self._process_id, step=self._num_processes
+        ):
             yield self._standardize_batch(self.py_dataset[i])
 
     def _finite_generator(self):
-        indices = range(self.py_dataset.num_batches)
+        num_batches = self.py_dataset.num_batches
+        indices = list(range(num_batches))
         if self.shuffle:
-            indices = list(indices)
-            random.shuffle(indices)
+            random.Random(self._epoch).shuffle(indices)
 
-        for i in indices:
-            yield self._standardize_batch(self.py_dataset[i])
+        num_batches_per_rank = (
+            num_batches + self._num_processes - 1
+        ) // self._num_processes
+        for i in range(num_batches_per_rank):
+            idx = i * self._num_processes + self._process_id
+            if idx < num_batches:
+                yield self._standardize_batch(self.py_dataset[indices[idx]])
 
     def _infinite_enqueuer_generator(self):
-        self.enqueuer.start()
+        self.enqueuer.start(self._epoch)
         for batch in self.enqueuer.get():
             yield self._standardize_batch(batch)
 
     def _finite_enqueuer_generator(self):
-        self.enqueuer.start()
-        num_batches = self.py_dataset.num_batches
+        self.enqueuer.start(self._epoch)
+        num_batches = (
+            self.py_dataset.num_batches + self._num_processes - 1
+        ) // self._num_processes
         for i, batch in enumerate(self.enqueuer.get()):
             yield self._standardize_batch(batch)
             if i >= num_batches - 1:
@@ -338,7 +360,7 @@ class PyDatasetAdapter(DataAdapter):
             )
         self._within_epoch = True
         if self.enqueuer:
-            self.enqueuer.start()
+            self.enqueuer.start(self._epoch)
         self.py_dataset.on_epoch_begin()
 
     def on_epoch_end(self):
@@ -346,6 +368,7 @@ class PyDatasetAdapter(DataAdapter):
             self.enqueuer.stop()
         self.py_dataset.on_epoch_end()
         self._within_epoch = False
+        self._epoch += 1
 
     @property
     def num_batches(self):
@@ -473,7 +496,7 @@ class PyDatasetEnqueuer:
         """
         return self.running
 
-    def start(self):
+    def start(self, epoch=None):
         """Starts the handler's workers.
 
         This method is thread safe but is called from the main thread.
@@ -482,6 +505,7 @@ class PyDatasetEnqueuer:
         with self.start_stop_lock:
             if self.running:
                 return
+            self.epoch = epoch
             self.running = True
             self.run_thread = threading.Thread(target=self._run)
             self.run_thread.name = f"Worker_{self.uid}"
@@ -579,15 +603,23 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         use_multiprocessing=False,
         max_queue_size=10,
         shuffle=False,
+        num_processes=1,
+        process_id=0,
     ):
         super().__init__(
             py_dataset, workers, use_multiprocessing, max_queue_size
         )
         self.shuffle = shuffle
+        self._num_processes = num_processes
+        self._process_id = process_id
         if self.py_dataset.num_batches is None:
             # For infinite datasets, `self.indices` is created here once for all
             # so that subsequent runs resume from where they stopped.
-            self.indices = itertools.count()
+            self.indices = (
+                i
+                for i in itertools.count()
+                if i % self._num_processes == self._process_id
+            )
 
     def _get_executor_init(self, workers):
         """Gets the Pool initializer for multiprocessing.
@@ -622,7 +654,19 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
                 indices = range(self.py_dataset.num_batches)
                 if self.shuffle:
                     indices = list(indices)
-                    random.shuffle(indices)
+                    random.Random(self.epoch).shuffle(indices)
+
+                if self._num_processes > 1:
+                    num_batches = len(indices)
+                    num_batches_per_rank = (
+                        num_batches + self._num_processes - 1
+                    ) // self._num_processes
+                    sharded_indices = []
+                    for i in range(num_batches_per_rank):
+                        idx = i * self._num_processes + self._process_id
+                        if idx < num_batches:
+                            sharded_indices.append(indices[idx])
+                    indices = sharded_indices
                 self.indices = iter(indices)
             self._send_py_dataset()  # Share the initial py_dataset
 

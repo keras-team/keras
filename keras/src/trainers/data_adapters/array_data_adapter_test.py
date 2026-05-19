@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import jax
 import jax.experimental.sparse as jax_sparse
 import numpy as np
@@ -9,6 +11,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
 
@@ -300,3 +303,79 @@ class TestArrayDataAdapter(testing.TestCase):
             array_data_adapter.ArrayDataAdapter(
                 x=x, y=nested_y, class_weight=cw
             )
+
+    def test_torch_data_loader_nested_input(self):
+        # This tests ArrayDataset.__len__ with nested input
+        x = {"a": np.ones((10, 1)), "b": np.ones((10, 2))}
+        y = np.ones((10, 3))
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x=x, y=y, batch_size=5, shuffle=False
+        )
+        dl = adapter.get_torch_dataloader()
+        self.assertEqual(len(dl.dataset), 10)
+        batch = next(iter(dl))
+        self.assertEqual(batch[0]["a"].shape, (5, 1))
+        self.assertEqual(batch[0]["b"].shape, (5, 2))
+        self.assertEqual(batch[1].shape, (5, 3))
+
+    @parameterized.named_parameters(
+        ("dataparallel", "dp", 4, 1, (4,), 4, 1),
+        ("modelparallel", "mp", 8, 5, (2, 4), 2, 1),
+        ("modelparallel_large_mesh", "mp", 4, 2, (8, 2), 4, 2),
+    )
+    @patch("torch.distributed.get_world_size")
+    @patch("torch.distributed.get_rank")
+    @patch("keras.src.distribution.distribution_lib.distribution_lib")
+    @patch("keras.src.distribution.distribution_lib.distribution")
+    def test_sharding(
+        self,
+        dist_type,
+        world_size,
+        rank,
+        mesh_shape,
+        expected_num_replicas,
+        expected_rank,
+        mock_distribution,
+        mock_backend_dist_lib,
+        mock_get_rank,
+        mock_get_world_size,
+    ):
+        mock_get_world_size.return_value = world_size
+        mock_get_rank.return_value = rank
+        mock_backend_dist_lib.num_processes.return_value = world_size
+        mock_backend_dist_lib.process_id.return_value = rank
+
+        if dist_type == "dp":
+            dist = dist_lib.DataParallel(devices=["cpu:0"] * world_size)
+        else:
+            device_mesh = dist_lib.DeviceMesh(
+                shape=mesh_shape,
+                axis_names=("data", "model"),
+                devices=["cpu:0"] * np.prod(mesh_shape),
+            )
+            dist = dist_lib.ModelParallel(
+                device_mesh=device_mesh,
+                layout_map=dist_lib.LayoutMap(device_mesh),
+                batch_dim_name="data",
+            )
+        dist.auto_shard_dataset = True
+        mock_distribution.return_value = dist
+
+        x = np.ones((100, 10))
+        y = np.ones((100, 1))
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, y, batch_size=10, shuffle=False
+        )
+        new_dataloader = adapter.get_torch_dataloader()
+
+        self.assertIsInstance(
+            new_dataloader.batch_sampler.sampler,
+            torch.utils.data.distributed.DistributedSampler,
+        )
+        self.assertEqual(
+            new_dataloader.batch_sampler.sampler.num_replicas,
+            expected_num_replicas,
+        )
+        self.assertEqual(
+            new_dataloader.batch_sampler.sampler.rank, expected_rank
+        )

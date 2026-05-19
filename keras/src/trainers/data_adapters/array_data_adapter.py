@@ -259,10 +259,12 @@ class ArrayDataAdapter(DataAdapter):
         import torch
 
         from keras.src.backend.torch.core import convert_to_tensor
+        from keras.src.distribution import distribution_lib as dist_lib
 
         class ArrayDataset(torch.utils.data.Dataset):
-            def __init__(self, array):
+            def __init__(self, array, num_samples):
                 self.array = array
+                self.num_samples = num_samples
 
             def __getitems__(self, indices):
                 def slice_and_convert(sliceable):
@@ -276,7 +278,7 @@ class ArrayDataAdapter(DataAdapter):
                 )
 
             def __len__(self):
-                return len(self.array[0])
+                return self.num_samples
 
         class RandomBatchSampler(torch.utils.data.Sampler):
             def __init__(self, sampler):
@@ -289,6 +291,7 @@ class ArrayDataAdapter(DataAdapter):
             def __len__(self):
                 return len(self.sampler)
 
+        dist = dist_lib.distribution()
         if self._shuffle == "batch":
             batch_sampler = RandomBatchSampler(
                 torch.utils.data.BatchSampler(
@@ -318,10 +321,13 @@ class ArrayDataAdapter(DataAdapter):
         inputs = array_slicing.convert_to_sliceable(
             self._inputs, target_backend="torch"
         )
-        dataset = ArrayDataset(inputs)
-        return torch.utils.data.DataLoader(
+        dataset = ArrayDataset(inputs, self._num_samples)
+        dataloader = torch.utils.data.DataLoader(
             dataset, batch_sampler=batch_sampler, collate_fn=no_op_collate
         )
+        if dist is not None:
+            dataloader = dist.distribute_torch_dataloader(dataloader)
+        return dataloader
 
     def _get_iterator(self, slice_and_convert_fn, inputs):
         global_permutation = None

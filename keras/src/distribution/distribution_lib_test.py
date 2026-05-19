@@ -134,6 +134,10 @@ class TensorLayoutTest(testing.TestCase):
             layout.device_mesh = self.mesh
 
 
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the backend to mock at the moment",
+)
 class DistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()
@@ -191,7 +195,7 @@ class DataParallelDistributionTest(testing.TestCase):
 
         self.assertFalse(distribution._is_multi_process)
         self.assertEqual(distribution._process_id, 0)
-        self.assertEqual(distribution._num_process, 1)
+        self.assertEqual(distribution.num_processes, 1)
 
     def test_create_with_devices(self):
         distribution = distribution_lib.DataParallel(devices=self.devices)
@@ -265,6 +269,43 @@ class DataParallelDistributionTest(testing.TestCase):
         )
         distributed_dataset = distribution.distribute_dataset(dataset)
         self.assertIs(dataset, distributed_dataset)
+
+    def test_distribute_dataset_tf_multi_process(self):
+        dataset = tf.data.Dataset.range(16).batch(4)
+
+        with (
+            mock.patch.object(backend_dlib, "num_processes", return_value=2),
+            mock.patch.object(backend_dlib, "process_id", return_value=0),
+        ):
+            distribution = distribution_lib.DataParallel(
+                device_mesh=self.device_mesh
+            )
+            self.assertTrue(distribution._is_multi_process)
+            self.assertEqual(distribution.num_processes, 2)
+
+            distributed_dataset = distribution.distribute_dataset(dataset)
+
+            self.assertIsNot(dataset, distributed_dataset)
+
+            result = list(distributed_dataset.as_numpy_iterator())
+            # Rebatched to 2, then AutoShard (index=0)
+            self.assertEqual(len(result), 4)
+            self.assertAllClose(result[0], [0, 1])
+            self.assertAllClose(result[1], [4, 5])
+
+        with (
+            mock.patch.object(backend_dlib, "num_processes", return_value=2),
+            mock.patch.object(backend_dlib, "process_id", return_value=1),
+        ):
+            distribution = distribution_lib.DataParallel(
+                device_mesh=self.device_mesh
+            )
+            distributed_dataset = distribution.distribute_dataset(dataset)
+            result = list(distributed_dataset.as_numpy_iterator())
+            # Rebatched to 2, then AutoShard (index=1)
+            self.assertEqual(len(result), 4)
+            self.assertAllClose(result[0], [2, 3])
+            self.assertAllClose(result[1], [6, 7])
 
 
 @pytest.mark.skipif(
@@ -524,7 +565,7 @@ class DataShardingIntegrationTest(testing.TestCase):
 
         # Simulate one process per local device to exercise process-group
         # sharding semantics without backend mocking.
-        distribution._num_process = num_devices
+        distribution._num_processes = num_devices
         distribution._is_multi_process = True
 
         for process_id in range(num_devices):

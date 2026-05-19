@@ -38,7 +38,11 @@ def get_data_adapter(
         distribution is not None
         and getattr(distribution, "_is_multi_process", False)
         and getattr(distribution, "auto_shard_dataset", False)
-        and not is_tf_dataset(x)
+        and not (
+            is_tf_dataset(x)
+            or is_torch_dataloader(x)
+            or isinstance(x, py_dataset_adapter.PyDataset)
+        )
     ):
         raise ValueError(
             "When using a multi-worker distribution with auto-sharding enabled, "
@@ -87,13 +91,17 @@ def get_data_adapter(
             )
         if getattr(x, "num_batches", None) is None and shuffle:
             warnings.warn(
-                "`shuffle=True` was passed, but will be ignored since the "
-                "data `x` was provided as an infinite PyDataset. The "
+                "shuffle=True was passed, but will be ignored since the "
+                "data x was provided as an infinite PyDataset. The "
                 "PyDataset is expected to already be shuffled.",
                 stacklevel=2,
             )
-        return PyDatasetAdapter(x, class_weight=class_weight, shuffle=shuffle)
-
+        return PyDatasetAdapter(
+            x,
+            class_weight=class_weight,
+            shuffle=shuffle,
+            distribution=distribution,
+        )
     elif is_torch_dataloader(x):
         if y is not None:
             raise_unsupported_arg("y", "the targets", "torch DataLoader")
@@ -150,10 +158,10 @@ def get_data_adapter(
 
     elif isinstance(x, types.GeneratorType):
         if y is not None:
-            raise_unsupported_arg("y", "the targets", "PyDataset")
+            raise_unsupported_arg("y", "the targets", "generator")
         if sample_weight is not None:
             raise_unsupported_arg(
-                "sample_weights", "the sample weights", "PyDataset"
+                "sample_weights", "the sample weights", "generator"
             )
         if class_weight is not None:
             raise ValueError(
