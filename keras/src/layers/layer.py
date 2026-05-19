@@ -1560,7 +1560,9 @@ class Layer(BackendLayer, Operation):
                 from keras.src.models.model import Model
 
                 _ModelClass = Model
-            if not isinstance(self, _ModelClass) or not utils.is_default(self.build):
+            if not isinstance(self, _ModelClass) or not utils.is_default(
+                self.build
+            ):
                 return
             if in_stateless_scope() or in_symbolic_scope():
                 return

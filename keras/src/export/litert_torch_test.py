@@ -135,7 +135,7 @@ class LiteRTTorchExportTest(testing.TestCase):
     def _build_subclass_and_assert_signature(
         self, build_input, call_input, expected_shape
     ):
-        """Build a subclass model at one shape and assert the signature updates."""
+        """Build model, call at new shape, assert signature updates."""
         model = _TinyDenseModel()
         model(build_input)
         model(call_input)

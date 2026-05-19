@@ -43,8 +43,7 @@ def _update_input_spec_shape(spec, shape):
         if len(shape) != len(spec):
             return spec
         result = [
-            _update_input_spec_shape(v, shape[i])
-            for i, v in enumerate(spec)
+            _update_input_spec_shape(v, shape[i]) for i, v in enumerate(spec)
         ]
         return tuple(result) if isinstance(spec, tuple) else result
     return spec
@@ -96,7 +95,6 @@ def get_input_signature(model):
             if isinstance(latest_input_shapes, dict) and set(
                 latest_input_shapes.keys()
             ) == set(input_signature[0].keys()):
-
                 input_signature[0] = {
                     k: _update_input_spec_shape(v, latest_input_shapes[k])
                     for k, v in input_signature[0].items()
