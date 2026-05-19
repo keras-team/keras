@@ -373,7 +373,7 @@ class TestTrainer(testing.TestCase):
 
         final_weights = model.get_weights()[0]
 
-        # Weights SHOULD change because it was trainable at compile time.
+        # Weights should change because it was trainable at compile time.
         self.assertNotAllClose(initial_weights, final_weights)
 
         # Re-compile should freeze it.
