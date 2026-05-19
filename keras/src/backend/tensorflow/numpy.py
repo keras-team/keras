@@ -3133,7 +3133,7 @@ def tensordot(x1, x2, axes=2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
-    
+
     if result_dtype in [
         "int32",
         "int64",
