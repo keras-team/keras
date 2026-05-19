@@ -337,7 +337,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         if max_epochs and max_epochs < epochs:
             warnings.warn("Limiting epochs to %d" % max_epochs)
             epochs = max_epochs
-        
+
         self._eval_epoch_iterator = None
         if validation_split and validation_data is None:
             # Create the validation data using the training data. Only supported

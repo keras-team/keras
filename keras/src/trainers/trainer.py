@@ -1072,6 +1072,7 @@ class Trainer:
         if len(results) == 1:
             return results[0]
         return results
+
     def _warn_if_trainable_state_changed(self):
         if not self.compiled or not hasattr(self, "_compiled_trainable_state"):
             return
@@ -1100,6 +1101,7 @@ class Trainer:
             )
             # Update the state so we only warn once per compile
             self._compiled_trainable_state = current_state
+
     def _assert_compile_called(self, method_name=None):
         if not self.compiled:
             msg = "You must call `compile()` before "
