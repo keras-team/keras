@@ -298,21 +298,10 @@ class LoadWeightsTests(test_case.TestCase):
             model.load_weights("invalid_extension.pkl")
 
     def test_load_weights_rejects_h5_external_link(self):
-        """Regression test for the legacy `.h5` dispatcher in `load_weights`.
-
-        A ~1 KB attacker payload whose `/model_weights` group is an
-        `h5py.ExternalLink` to another HDF5 file used to be followed by
-        the raw `f["model_weights"]` subscript in `saving_api.py`,
-        completing CVE-2026-1669 for the public `load_weights` API.
-        The dispatcher must reject the link rather than silently loading
-        the target file's weights into the victim model.
-        """
-        # Build a legitimate target file the attacker would want to read.
         target_fpath = os.path.join(self.get_temp_dir(), "target.h5")
         src_model = self.get_model()
         save_model_to_hdf5(src_model, target_fpath)
 
-        # Build the attacker payload: only contains an `ExternalLink`.
         attacker_fpath = os.path.join(self.get_temp_dir(), "attacker.h5")
         with h5py.File(attacker_fpath, "w") as f:
             f["model_weights"] = h5py.ExternalLink(
@@ -324,7 +313,6 @@ class LoadWeightsTests(test_case.TestCase):
             dest_model.load_weights(attacker_fpath)
 
     def test_load_weights_rejects_h5_soft_link(self):
-        """Same guard for `h5py.SoftLink` at the `model_weights` group."""
         attacker_fpath = os.path.join(
             self.get_temp_dir(), "softlink_attacker.h5"
         )
