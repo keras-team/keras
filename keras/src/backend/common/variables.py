@@ -610,10 +610,19 @@ def standardize_shape(shape):
 
     if config.backend() == "torch":
         # Replace symbolic dimensions with None to preserve dynamic shapes
-        # during torch.export tracing
+        # during torch.export tracing. Also convert 0-dim scalar tensors
+        # (which appear during torch.jit / ONNX export tracing) to plain
+        # ints via .item() to avoid TracerWarning from int(tensor).
         import torch
 
-        shape = tuple(None if isinstance(d, torch.SymInt) else d for d in shape)
+        shape = tuple(
+            None
+            if isinstance(d, torch.SymInt)
+            else int(d.item())
+            if isinstance(d, torch.Tensor) and d.ndim == 0
+            else d
+            for d in shape
+        )
 
     # Handle dimensions that are not ints and not None, verify they're >= 0.
     standardized_shape = []
