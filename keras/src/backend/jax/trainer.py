@@ -1,9 +1,9 @@
 import itertools
-import warnings
-from functools import partial
+import os
 import queue
 import threading
-import os
+import warnings
+from functools import partial
 
 import jax
 import numpy as np
@@ -1235,9 +1235,6 @@ class JAXEpochIteratorThreaded(JAXEpochIterator):
     def __init__(self, *args, prefetch=2, **kwargs):
         super().__init__(*args, **kwargs)
         self.prefetch = max(1, prefetch)
-        self._layout_cache = {}
-        self._last_signature = None
-        self._last_layouts = None
 
     def reset(self):
         self.close()
@@ -1252,9 +1249,6 @@ class JAXEpochIteratorThreaded(JAXEpochIterator):
             if close is not None:
                 close()
             self._current_iterator = None
-        self._layout_cache.clear()
-        self._last_signature = None
-        self._last_layouts = None
 
     def _get_iterator(self):
         distribution = distribution_lib.distribution()
@@ -1269,16 +1263,22 @@ class JAXEpochIteratorThreaded(JAXEpochIterator):
         if distribution is None:
             return device_put_tree
 
+        layout_cache = {}
+        last_signature = None
+        last_layouts = None
+
         def prepare_distributed_batch(batch):
+            nonlocal last_signature, last_layouts
+
             if batch is None:
                 return None
 
             signature = shape_signature(batch)
 
-            if signature == self._last_signature:
-                layouts = self._last_layouts
+            if signature == last_signature:
+                layouts = last_layouts
             else:
-                layouts = self._layout_cache.get(signature)
+                layouts = layout_cache.get(signature)
 
                 if layouts is None:
                     layouts = tree.map_structure(
@@ -1291,10 +1291,10 @@ class JAXEpochIteratorThreaded(JAXEpochIterator):
                         ),
                         batch,
                     )
-                    self._layout_cache[signature] = layouts
+                    layout_cache[signature] = layouts
 
-                self._last_signature = signature
-                self._last_layouts = layouts
+                last_signature = signature
+                last_layouts = layouts
 
             return _distribute_data(batch, layouts)
 
