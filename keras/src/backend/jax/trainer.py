@@ -1,6 +1,9 @@
 import itertools
 import warnings
 from functools import partial
+import queue
+import threading
+import os
 
 import jax
 import numpy as np
@@ -1160,14 +1163,9 @@ def shape_signature(batch):
 
 class ThreadedPrefetchIterator:
     def __init__(self, iterator, transform, maxsize=2):
-        import queue
-        import threading
-
         self.iterator = iter(iterator)
         self.transform = transform
         self.queue = queue.Queue(maxsize=maxsize)
-        self.queue_module = queue
-        self.threading = threading
         self.end = object()
         self.errors = []
         self.stop = threading.Event()
@@ -1176,7 +1174,7 @@ class ThreadedPrefetchIterator:
 
     def _start(self):
         if self.thread is None:
-            self.thread = self.threading.Thread(
+            self.thread = threading.Thread(
                 target=self._producer,
                 name="jax_iterator_prefetch",
                 daemon=True,
@@ -1204,7 +1202,7 @@ class ThreadedPrefetchIterator:
             try:
                 self.queue.put(item, timeout=0.1)
                 return True
-            except self.queue_module.Full:
+            except queue.Full:
                 pass
         return False
 
@@ -1304,12 +1302,10 @@ class JAXEpochIteratorThreaded(JAXEpochIterator):
 
 
 def build_jax_epoch_iterator(*args, **kwargs):
-    import os
-
     mode = os.environ.get("KERAS_JAX_EPOCH_ITERATOR", "default")
 
     if mode == "default":
         return JAXEpochIterator(*args, **kwargs)
     elif mode == "threaded":
         return JAXEpochIteratorThreaded(*args, **kwargs)
-    raise ValueError("Invalid value for KERAS_JAX_EPOCH_ITERATOR")
+    raise ValueError(f"Invalid value for KERAS_JAX_EPOCH_ITERATOR: {mode}")
