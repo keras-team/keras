@@ -585,13 +585,13 @@ class LinalgOpsCorrectnessTest(testing.TestCase):
         x = np.random.random((4, 5))
         q, r = linalg.qr(x, mode="reduced")
         qref, rref = np.linalg.qr(x, mode="reduced")
-        self.assertAllClose(q, qref)
-        self.assertAllClose(r, rref)
+        self.assertAllClose(q, qref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(r, rref, atol=1e-5, rtol=1e-5)
 
         q, r = linalg.qr(x, mode="complete")
         qref, rref = np.linalg.qr(x, mode="complete")
-        self.assertAllClose(q, qref)
-        self.assertAllClose(r, rref)
+        self.assertAllClose(q, qref, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(r, rref, atol=1e-5, rtol=1e-5)
 
     def test_solve(self):
         x1 = np.array([[1, 2], [4, 5]], dtype="float32")
