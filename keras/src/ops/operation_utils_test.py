@@ -90,6 +90,17 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, (1, 4, 4, 3))
 
+    def test_compute_pooling_output_shape_rejects_zero_output(self):
+        # pool_size > input spatial dim produces a zero-size output that the
+        # downstream model cannot use. The Conv equivalent was fixed in #22418;
+        # the pooling case should behave the same way.
+        with self.assertRaisesRegex(
+            ValueError, "Computed output size would be zero or negative"
+        ):
+            operation_utils.compute_pooling_output_shape(
+                (1, 5, 5, 3), pool_size=(20, 20), strides=(20, 20)
+            )
+
     def test_compute_conv_output_shape(self):
         input_shape = (1, 4, 4, 1)
         filters = 1

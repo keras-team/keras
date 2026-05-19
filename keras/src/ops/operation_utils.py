@@ -136,10 +136,12 @@ def compute_pooling_output_shape(
             np.floor((spatial_shape - pool_size) / strides) + 1
         )
         for i in range(len(output_spatial_shape)):
-            if i not in none_dims and output_spatial_shape[i] < 0:
+            if i not in none_dims and output_spatial_shape[i] <= 0:
                 raise ValueError(
-                    "Computed output size would be negative. Received: "
-                    f"`inputs.shape={input_shape}` and `pool_size={pool_size}`."
+                    "Computed output size would be zero or negative. "
+                    f"Received: `inputs.shape={input_shape}`, "
+                    f"`pool_size={pool_size}`, `strides={strides}`, "
+                    f"`padding={padding}`."
                 )
     elif padding == "same":
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
