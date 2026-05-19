@@ -1430,6 +1430,33 @@ def _can_use_flash_attention(
     return can_use_flash_attention(spda_params, False)
 
 
+def _scaled_dot_product_attention(
+    query, key, value, mask, is_causal, scale, flash_attention
+):
+    if flash_attention:
+        with torch.nn.attention.sdpa_kernel(
+            backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
+        ):
+            return torch.nn.functional.scaled_dot_product_attention(
+                query,
+                key,
+                value,
+                attn_mask=mask,
+                is_causal=is_causal,
+                scale=scale,
+            )
+    if mask is not None:
+        mask = mask.contiguous()
+    return torch.nn.functional.scaled_dot_product_attention(
+        query.contiguous(),
+        key.contiguous(),
+        value.contiguous(),
+        attn_mask=mask,
+        is_causal=is_causal,
+        scale=scale,
+    )
+
+
 def dot_product_attention(
     query,
     key,
@@ -1473,39 +1500,78 @@ def dot_product_attention(
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
 
+    from torch.distributed.tensor import DTensor
+
+    is_dtensor = isinstance(query, DTensor)
+
+    if is_dtensor:
+        from torch.distributed.tensor import Replicate
+        from torch.distributed.tensor import Shard
+
+        orig_query_placements = query.placements
+
+        def _get_replicated_placements(placements, axes):
+            new_placements = list(placements)
+            for i, p in enumerate(new_placements):
+                if isinstance(p, Shard) and p.dim in axes:
+                    new_placements[i] = Replicate()
+            return tuple(new_placements)
+
+        # Redistribute Q: axis 3 (head_dim) must be replicated.
+        query = query.redistribute(
+            query.device_mesh, _get_replicated_placements(query.placements, [3])
+        )
+        # Redistribute K, V: axis 2 and 3 must be replicated.
+        key = key.redistribute(
+            key.device_mesh, _get_replicated_placements(key.placements, [2, 3])
+        )
+        value = value.redistribute(
+            value.device_mesh,
+            _get_replicated_placements(value.placements, [2, 3]),
+        )
+        if mask is not None and isinstance(mask, DTensor):
+            # Redistribute mask: axis 3 (k_seq_len) must be replicated.
+            mask = mask.redistribute(
+                mask.device_mesh,
+                _get_replicated_placements(mask.placements, [3]),
+            )
+
+        q_l = query.to_local()
+        k_l = key.to_local()
+        v_l = value.to_local()
+        m_l = mask.to_local() if mask is not None else None
+    else:
+        q_l, k_l, v_l, m_l = query, key, value, mask
+
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
-            query, key, value, mask, is_causal
+            q_l, k_l, v_l, m_l, is_causal
         )
     elif flash_attention is True:
-        # Use `raise_error=True` to provide more details if the inputs failed to
-        # use flash attention
         _can_use_flash_attention(
-            query, key, value, mask, is_causal, raise_error=True
+            q_l, k_l, v_l, m_l, is_causal, raise_error=True
         )
-    if flash_attention:
-        with torch.nn.attention.sdpa_kernel(
-            backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
-        ):
-            attention_output = torch.nn.functional.scaled_dot_product_attention(
-                query,
-                key,
-                value,
-                attn_mask=mask,
-                is_causal=is_causal,
-                scale=scale,
+
+    # PyTorch SDPA does not support DTensor yet.
+    # However, if the query/key/value are replicated across the model parallel
+    # axis (e.g. batch dimension is sharded but heads are replicated),
+    # then `to_local()` returns a view and SDPA is efficient.
+    # If heads are sharded, `to_local()` might be inefficient as it
+    # returns only a shard of the heads.
+    # For now we always use local tensors for SDPA.
+    attention_output = _scaled_dot_product_attention(
+        q_l, k_l, v_l, m_l, is_causal, scale, flash_attention
+    )
+
+    if is_dtensor:
+        attention_output = DTensor.from_local(
+            attention_output, query.device_mesh, query.placements
+        )
+        if query.placements != orig_query_placements:
+            attention_output = attention_output.redistribute(
+                query.device_mesh, orig_query_placements
             )
-    else:
-        if mask is not None:
-            mask = mask.contiguous()
-        attention_output = torch.nn.functional.scaled_dot_product_attention(
-            query.contiguous(),
-            key.contiguous(),
-            value.contiguous(),
-            attn_mask=mask,
-            is_causal=is_causal,
-            scale=scale,
-        )
+
     return torch.transpose(attention_output, axis1, axis0)
 
 

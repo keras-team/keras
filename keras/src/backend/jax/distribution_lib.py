@@ -220,3 +220,8 @@ def _to_backend_layout(tensor_layout):
     partition_spec = jax.sharding.PartitionSpec(*tensor_layout.axes)
     jax_mesh = tensor_layout.device_mesh.backend_mesh
     return jax.sharding.NamedSharding(jax_mesh, partition_spec)
+
+
+def set_distribution(value):
+    """Set the distribution as the global distribution setting."""
+    pass

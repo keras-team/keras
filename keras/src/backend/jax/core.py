@@ -332,7 +332,9 @@ def should_shard_at_init(init_layout, shape):
     return size >= size_threshold
 
 
-def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None, layout="auto"):
+    if x is None:
+        return None
     if ragged:
         raise ValueError("`ragged=True` is not supported with jax backend")
     if dtype is not None:
