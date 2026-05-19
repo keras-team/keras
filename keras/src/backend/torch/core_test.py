@@ -36,42 +36,57 @@ def _get_backed_symfloat(hint=2):
     backend.backend() != "torch", reason="Requires torch backend"
 )
 class TorchCoreTest(testing.TestCase):
+    def _assert_sym_convert(
+        self,
+        value,
+        expected_dtype,
+        expected_item=None,
+        expected_shape=None,
+        expected_values=None,
+        dtype=None,
+    ):
+        result = convert_to_tensor(value, dtype=dtype)
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertEqual(result.dtype, expected_dtype)
+        if expected_item is not None:
+            self.assertEqual(result.item(), expected_item)
+        if expected_shape is not None:
+            self.assertEqual(tuple(result.shape), expected_shape)
+        if expected_values is not None:
+            self.assertListEqual(result.tolist(), expected_values)
+
     def test_convert_to_tensor_symint_scalar(self):
-        s = _get_backed_symint(5)
-        result = convert_to_tensor(s)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertEqual(result.dtype, torch.int64)
-        self.assertEqual(result.item(), 5)
+        self._assert_sym_convert(
+            _get_backed_symint(5), torch.int64, expected_item=5
+        )
 
     def test_convert_to_tensor_symfloat_scalar(self):
-        s = _get_backed_symfloat(5)
-        result = convert_to_tensor(s)
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertEqual(result.dtype, torch.float32)
-        self.assertEqual(result.item(), 5.0)
+        self._assert_sym_convert(
+            _get_backed_symfloat(5), torch.float32, expected_item=5.0
+        )
 
     def test_convert_to_tensor_list_of_symint(self):
-        s1 = _get_backed_symint(3)
-        s2 = _get_backed_symint(4)
-        result = convert_to_tensor([s1, s2])
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertEqual(result.shape, (2,))
-        self.assertEqual(result.dtype, torch.int64)
-        self.assertListEqual(result.tolist(), [3, 4])
+        self._assert_sym_convert(
+            [_get_backed_symint(3), _get_backed_symint(4)],
+            torch.int64,
+            expected_shape=(2,),
+            expected_values=[3, 4],
+        )
 
     def test_convert_to_tensor_tuple_of_symfloat(self):
-        s1 = _get_backed_symfloat(3)
-        s2 = _get_backed_symfloat(4)
-        result = convert_to_tensor((s1, s2))
-        self.assertTrue(isinstance(result, torch.Tensor))
-        self.assertEqual(result.shape, (2,))
-        self.assertEqual(result.dtype, torch.float32)
-        self.assertListEqual(result.tolist(), [3.0, 4.0])
+        self._assert_sym_convert(
+            (_get_backed_symfloat(3), _get_backed_symfloat(4)),
+            torch.float32,
+            expected_shape=(2,),
+            expected_values=[3.0, 4.0],
+        )
 
     def test_convert_to_tensor_explicit_dtype_for_symint(self):
-        s = _get_backed_symint(5)
-        result = convert_to_tensor(s, dtype="float32")
-        self.assertEqual(result.dtype, torch.float32)
+        self._assert_sym_convert(
+            _get_backed_symint(5),
+            torch.float32,
+            dtype="float32",
+        )
 
     def test_slice_fast_path_accepts_symint(self):
         """slice fast path should accept SymInt without crashing."""

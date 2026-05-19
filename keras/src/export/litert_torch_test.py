@@ -34,6 +34,17 @@ def _has_litert_torch():
     return _HAS_LITERT_TORCH
 
 
+class _TinyDenseModel(models.Model):
+    """Small subclassed model with a single Dense layer for shape tests."""
+
+    def __init__(self):
+        super().__init__()
+        self.dense = layers.Dense(8)
+
+    def call(self, x):
+        return self.dense(x)
+
+
 def _get_interpreter(filepath):
     from ai_edge_litert.interpreter import Interpreter
 
@@ -121,6 +132,23 @@ class LiteRTTorchExportTest(testing.TestCase):
         x = np.random.normal(size=(1, 10)).astype("float32")
         self._verify_litert_export(model, x)
 
+    def _build_subclass_and_assert_signature(
+        self, build_input, call_input, expected_shape
+    ):
+        """Build a subclass model at one shape and assert the signature updates."""
+        model = _TinyDenseModel()
+        model(build_input)
+        model(call_input)
+        from keras.src.export.export_utils import get_input_signature
+
+        sig = get_input_signature(model)
+        self.assertEqual(
+            sig[0].shape,
+            expected_shape,
+            "get_input_signature should reflect the most recent call shape",
+        )
+        return model
+
     def test_subclass_model_input_signature_reflects_recent_call(self):
         """Subclassed models should export with most recent call shapes.
 
@@ -128,29 +156,10 @@ class LiteRTTorchExportTest(testing.TestCase):
         Uses 2-D inputs [batch, seq, features] so the sequence length can
         vary while the feature dim (last axis) stays fixed for the Dense.
         """
-
-        class TinyModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(8)
-
-            def call(self, x):
-                return self.dense(x)
-
-        model = TinyModel()
-        # First call builds at seq_len=10, features=4
-        model(np.zeros((1, 10, 4), dtype="float32"))
-
-        # Second call at seq_len=32, features=4 — signature must update
-        model(np.zeros((1, 32, 4), dtype="float32"))
-
-        from keras.src.export.export_utils import get_input_signature
-
-        sig = get_input_signature(model)
-        self.assertEqual(
-            sig[0].shape,
+        model = self._build_subclass_and_assert_signature(
+            np.zeros((1, 10, 4), dtype="float32"),
+            np.zeros((1, 32, 4), dtype="float32"),
             (None, 32, 4),
-            "get_input_signature should reflect the most recent call shape",
         )
 
         # Export and verify interpreter sees the updated shape
@@ -169,26 +178,10 @@ class LiteRTTorchExportTest(testing.TestCase):
         self,
     ):
         """Subclassed models with single-tensor inputs update signature."""
-
-        class TinyModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(8)
-
-            def call(self, x):
-                return self.dense(x)
-
-        model = TinyModel()
-        model(np.zeros((1, 10, 4), dtype="float32"))
-        model(np.zeros((1, 32, 4), dtype="float32"))
-
-        from keras.src.export.export_utils import get_input_signature
-
-        sig = get_input_signature(model)
-        self.assertEqual(
-            sig[0].shape,
+        self._build_subclass_and_assert_signature(
+            np.zeros((1, 10, 4), dtype="float32"),
+            np.zeros((1, 32, 4), dtype="float32"),
             (None, 32, 4),
-            "get_input_signature should reflect the most recent call shape",
         )
 
     def test_conv_model(self):

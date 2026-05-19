@@ -31,6 +31,17 @@ class CustomModel(models.Model):
         return output
 
 
+class _TinyDenseModel(models.Model):
+    """Small subclassed model with a single Dense layer for shape tests."""
+
+    def __init__(self):
+        super().__init__()
+        self.dense = layers.Dense(8)
+
+    def call(self, x):
+        return self.dense(x)
+
+
 def get_model(type="sequential", input_shape=(10,), layer_list=None):
     layer_list = layer_list or [
         layers.Dense(10, activation="relu"),
@@ -111,16 +122,7 @@ class ExportSavedModelTest(testing.TestCase):
         Uses 2-D inputs [batch, seq, features] so the sequence length can
         vary while the feature dim (last axis) stays fixed for the Dense.
         """
-
-        class TinyModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(8)
-
-            def call(self, x):
-                return self.dense(x)
-
-        model = TinyModel()
+        model = _TinyDenseModel()
         model(np.zeros((1, 10, 4), dtype="float32"))
         model(np.zeros((1, 32, 4), dtype="float32"))
 

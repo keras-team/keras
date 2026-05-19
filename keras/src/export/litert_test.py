@@ -52,6 +52,21 @@ class TinyLM(models.Model):
         return self.dense(x)
 
 
+class _CustomBuildEmbeddingModel(models.Model):
+    """Model with custom build() for build-shape preservation tests."""
+
+    def __init__(self):
+        super().__init__()
+        self.embed = layers.Embedding(100, 8)
+
+    def build(self, input_shape):
+        self.embed.build(input_shape)
+        self.built = True
+
+    def call(self, x):
+        return self.embed(x)
+
+
 def get_model(type="sequential", input_shape=(10,), layer_list=None):
     layer_list = layer_list or [
         layers.Dense(10, activation="relu"),
@@ -1314,20 +1329,7 @@ class ExportLitertInterpreterTest(testing.TestCase):
         build_from_config semantics; updating it would break weight
         recreation on deserialization.
         """
-
-        class CustomBuildModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.embed = layers.Embedding(100, 8)
-
-            def build(self, input_shape):
-                self.embed.build(input_shape)
-                self.built = True
-
-            def call(self, x):
-                return self.embed(x)
-
-        model = CustomBuildModel()
+        model = _CustomBuildEmbeddingModel()
         model.build((None, 10))  # explicit build at seq_len 10
         original_shapes = dict(model._build_shapes_dict)
 

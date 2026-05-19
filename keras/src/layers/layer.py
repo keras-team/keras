@@ -72,7 +72,11 @@ else:
 
 
 # Lazily cached to avoid circular imports with models.model.
-_Model = None
+_ModelClass = None
+
+
+def _standardize_shape_or_none(x):
+    return None if x is None else backend.standardize_shape(x.shape)
 
 
 @keras_export(["keras.Layer", "keras.layers.Layer"])
@@ -1551,12 +1555,12 @@ class Layer(BackendLayer, Operation):
             # Only Functional/Subclassed models that use the default build()
             # may need their _build_shapes_dict refreshed after a call with
             # different concrete shapes.
-            global _Model
-            if _Model is None:
+            global _ModelClass
+            if _ModelClass is None:
                 from keras.src.models.model import Model
 
-                _Model = Model
-            if not isinstance(self, _Model) or not utils.is_default(self.build):
+                _ModelClass = Model
+            if not isinstance(self, _ModelClass) or not utils.is_default(self.build):
                 return
             if in_stateless_scope() or in_symbolic_scope():
                 return
@@ -1999,10 +2003,6 @@ def get_shapes_dict(call_spec):
     {"input_a_shape": (2, 3)}
     ```
     """
-
-    def standardize_shape_or_none(x):
-        return None if x is None else backend.standardize_shape(x.shape)
-
     shapes_dict = {}
     for k, v in call_spec.tensor_arguments_dict.items():
         if k == "mask":
@@ -2013,10 +2013,10 @@ def get_shapes_dict(call_spec):
             continue
         if k in call_spec.nested_tensor_argument_names:
             shapes_dict[f"{k}_shape"] = tree.map_structure(
-                standardize_shape_or_none, v
+                _standardize_shape_or_none, v
             )
         else:
-            shapes_dict[f"{k}_shape"] = standardize_shape_or_none(v)
+            shapes_dict[f"{k}_shape"] = _standardize_shape_or_none(v)
     return shapes_dict
 
 

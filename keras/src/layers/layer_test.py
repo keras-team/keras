@@ -16,16 +16,44 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
+from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
 from keras.src.layers.layer import _is_concrete_shapes_dict
 from keras.src.models import Model
 
 
-class _TinyExportModel(models.Model):
-    """Tiny model for save-after-export round-trip tests."""
+class _TinyDenseModel(models.Model):
+    """Tiny model with a single Dense layer for shape-related tests."""
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.dense = layers.Dense(8)
+
+    def call(self, x):
+        return self.dense(x)
+
+
+class _TinyEmbeddingModel(models.Model):
+    """Tiny model with an Embedding layer for scope-guard tests."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.embed = layers.Embedding(100, 8)
+
+    def call(self, x):
+        return self.embed(x)
+
+
+class _CustomBuildDenseModel(models.Model):
+    """Model with custom build() for build_from_config round-trip tests."""
+
+    def __init__(self):
+        super().__init__()
+        self.dense = layers.Dense(8)
+
+    def build(self, input_shape):
+        self.dense.build(input_shape)
+        self.built = True
 
     def call(self, x):
         return self.dense(x)
@@ -1994,20 +2022,7 @@ class LayerTest(testing.TestCase):
         Verifies that get_build_config / build_from_config round-trip uses
         the original build shape, not a stale shape from a later call.
         """
-
-        class CustomBuildModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(8)
-
-            def build(self, input_shape):
-                self.dense.build(input_shape)
-                self.built = True
-
-            def call(self, x):
-                return self.dense(x)
-
-        model = CustomBuildModel()
+        model = _CustomBuildDenseModel()
         model.build((None, 10))
         original_config = model.get_build_config()
 
@@ -2023,7 +2038,7 @@ class LayerTest(testing.TestCase):
         )
 
         # build_from_config should succeed with the original shape
-        model2 = CustomBuildModel()
+        model2 = _CustomBuildDenseModel()
         model2.build_from_config(config_after_call)
         self.assertTrue(model2.built)
         self.assertEqual(model2._build_shapes_dict, {"input_shape": (None, 10)})
@@ -2054,54 +2069,23 @@ class LayerTest(testing.TestCase):
         # List/tuple shapes
         self.assertTrue(_is_concrete_shapes_dict({"x_shape": [2, 3, 4]}))
 
-    def test_maybe_build_skips_shapes_dict_in_stateless_scope(self):
-        """_build_shapes_dict must not update inside a stateless scope."""
-        from keras.src.backend.common.stateless_scope import StatelessScope
-
-        class TinyModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.embed = layers.Embedding(100, 8)
-
-            def call(self, x):
-                return self.embed(x)
-
-        model = TinyModel()
+    @parameterized.named_parameters(
+        ("stateless", StatelessScope),
+        ("symbolic", SymbolicScope),
+    )
+    def test_maybe_build_skips_shapes_dict_in_scope(self, scope_cls):
+        """_build_shapes_dict must not update inside tracing scopes."""
+        model = _TinyEmbeddingModel()
         model(np.zeros((1, 10), dtype="int32"))
         original_shapes = dict(model._build_shapes_dict)
 
-        with StatelessScope():
+        with scope_cls():
             model(np.zeros((1, 20), dtype="int32"))
 
         self.assertEqual(
             model._build_shapes_dict,
             original_shapes,
-            "_build_shapes_dict must not mutate inside stateless scope",
-        )
-
-    def test_maybe_build_skips_shapes_dict_in_symbolic_scope(self):
-        """_build_shapes_dict must not update inside a symbolic scope."""
-        from keras.src.backend.common.symbolic_scope import SymbolicScope
-
-        class TinyModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.embed = layers.Embedding(100, 8)
-
-            def call(self, x):
-                return self.embed(x)
-
-        model = TinyModel()
-        model(np.zeros((1, 10), dtype="int32"))
-        original_shapes = dict(model._build_shapes_dict)
-
-        with SymbolicScope():
-            model(np.zeros((1, 20), dtype="int32"))
-
-        self.assertEqual(
-            model._build_shapes_dict,
-            original_shapes,
-            "_build_shapes_dict must not mutate inside symbolic scope",
+            f"_build_shapes_dict must not mutate inside {scope_cls.__name__}",
         )
 
     @pytest.mark.skipif(
@@ -2114,7 +2098,7 @@ class LayerTest(testing.TestCase):
 
         import torch
 
-        model = _TinyExportModel()
+        model = _TinyDenseModel()
         model(np.zeros((1, 10), dtype="float32"))
 
         # Run torch.export to inject symbolic shapes
@@ -2138,15 +2122,7 @@ class LayerTest(testing.TestCase):
         """_maybe_build must not crash if get_shapes_dict raises."""
         from unittest import mock
 
-        class TinyModel(models.Model):
-            def __init__(self):
-                super().__init__()
-                self.dense = layers.Dense(8)
-
-            def call(self, x):
-                return self.dense(x)
-
-        model = TinyModel()
+        model = _TinyDenseModel()
         model(np.zeros((1, 10), dtype="float32"))
         original_shapes = dict(model._build_shapes_dict)
 
