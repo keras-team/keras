@@ -252,6 +252,32 @@ class DataParallelDistributionTest(testing.TestCase):
         self.assertIs(variable_layout.device_mesh, explicit_mesh)
         self.assertEqual(variable_layout.axes, explicit_layout.axes)
 
+    @mock.patch.object(backend_dlib, "num_processes", return_value=2)
+    def test_num_model_replicas(self, mock_backend_num_processes):
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+        self.assertEqual(distribution.num_model_replicas, 8)
+        self.assertEqual(distribution.num_processes, 2)
+
+    @mock.patch.object(backend_dlib, "num_processes", return_value=2)
+    @mock.patch.object(backend_dlib, "process_id", return_value=0)
+    def test_distribute_torch_dataloader(
+        self, mock_backend_process_id, mock_backend_num_processes
+    ):
+        from keras.src.trainers.data_adapters import data_adapter_utils
+
+        distribution = distribution_lib.DataParallel(
+            device_mesh=self.device_mesh
+        )
+
+        dataloader = mock.MagicMock()
+        with mock.patch.object(
+            data_adapter_utils, "_add_torch_distributed_sampler"
+        ) as mock_add_sampler:
+            distribution.distribute_torch_dataloader(dataloader)
+            mock_add_sampler.assert_called_once_with(dataloader, 2, 0)
+
     def test_get_tensor_layout(self):
         distribution = distribution_lib.DataParallel(
             device_mesh=self.device_mesh
@@ -412,10 +438,63 @@ class ModelParallelDistributionTest(testing.TestCase):
             "`num_process` must be divisible by `num_model_replicas`",
         ):
             distribution_lib.ModelParallel(
-                layout_map=layout_map,
-                batch_dim_name="data",
-                auto_shard_dataset=True,
+                layout_map=layout_map, batch_dim_name="data"
             )
+
+    @mock.patch.object(backend_dlib, "num_processes", return_value=2)
+    def test_num_model_replicas(self, mock_backend_num_processes):
+        device_mesh = distribution_lib.DeviceMesh(
+            (4, 2),
+            ["data", "model"],
+            [f"cpu:{i}" for i in range(8)],
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map, batch_dim_name="data"
+        )
+        self.assertEqual(distribution.num_model_replicas, 4)
+        self.assertEqual(distribution.num_processes, 2)
+
+    @mock.patch.object(backend_dlib, "num_processes", return_value=2)
+    @mock.patch.object(backend_dlib, "process_id", return_value=0)
+    def test_distribute_torch_dataloader(
+        self, mock_backend_process_id, mock_backend_num_processes
+    ):
+        from keras.src.trainers.data_adapters import data_adapter_utils
+
+        device_mesh = distribution_lib.DeviceMesh(
+            (4, 2),
+            ["data", "model"],
+            [f"cpu:{i}" for i in range(8)],
+        )
+        layout_map = distribution_lib.LayoutMap(device_mesh)
+        distribution = distribution_lib.ModelParallel(
+            layout_map=layout_map, batch_dim_name="data"
+        )
+
+        dataloader = mock.MagicMock()
+        with mock.patch.object(
+            data_adapter_utils, "_add_torch_distributed_sampler"
+        ) as mock_add_sampler:
+            distribution.distribute_torch_dataloader(dataloader)
+            # Should shard by 2 processes, not 4 model replicas
+            mock_add_sampler.assert_called_once_with(dataloader, 2, 0)
+
+        # Case where num_model_replicas < num_processes
+        with (
+            mock.patch.object(backend_dlib, "num_processes", return_value=8),
+            mock.patch.object(backend_dlib, "process_id", return_value=4),
+        ):
+            distribution = distribution_lib.ModelParallel(
+                layout_map=layout_map, batch_dim_name="data"
+            )
+            # num_model_replicas = 4, num_processes = 8
+            # data_shard_id = 4 // (8 // 4) = 4 // 2 = 2
+            with mock.patch.object(
+                data_adapter_utils, "_add_torch_distributed_sampler"
+            ) as mock_add_sampler:
+                distribution.distribute_torch_dataloader(dataloader)
+                mock_add_sampler.assert_called_once_with(dataloader, 4, 2)
 
 
 class LayoutMapTest(testing.TestCase):

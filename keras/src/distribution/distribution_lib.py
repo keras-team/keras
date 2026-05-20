@@ -342,7 +342,12 @@ class Distribution:
     @property
     def data_shard_id(self):
         """ID of the data shard for the current process."""
-        raise NotImplementedError()
+        num_model_replicas = self.num_model_replicas
+        if num_model_replicas >= self.num_processes:
+            return self._process_id
+        else:
+            processes_per_replica = self.num_processes // num_model_replicas
+            return self._process_id // processes_per_replica
 
     def get_data_layout(self, data_shape):
         """Retrieve the `TensorLayout` for the input data.
@@ -418,7 +423,80 @@ class Distribution:
             only produces data for the current local worker/process.  Otherwise,
             returns the original dataset.
         """
-        raise NotImplementedError()
+        if (
+            type(self).distribute_tf_dataset
+            != Distribution.distribute_tf_dataset
+        ):
+            return self.distribute_tf_dataset(dataset)
+        if not self._is_multi_process or not self.auto_shard_dataset:
+            return dataset
+
+        # Try to distribute a global tf.data.Dataset.
+        from keras.src.utils.module_utils import tensorflow as tf
+
+        if not tf.available or not isinstance(dataset, tf.data.Dataset):
+            raise ValueError(
+                "Only `tf.data.Dataset` is supported for auto-sharding, "
+                f"got {type(dataset)}"
+            )
+
+        from tensorflow.python.data.experimental.ops import (
+            distribute as tf_data_distribute,
+        )
+
+        global_batch_size = tf_data_distribute.compute_batch_size(dataset)
+        if global_batch_size.numpy() < 0:
+            raise ValueError(
+                "The batch size of the input dataset is "
+                "unknown. Please config the batch size for "
+                "the input dataset, e.g via `dataset.batch(batch_size)`"
+            )
+
+        # We need to compute the per-process/worker/host batch size.
+        # This will depend on how many model replicas we have on each process.
+        # Note that this might be smaller than one if model replicas are sharded
+        # across multiple processes.
+        num_model_replicas = self.num_model_replicas
+        if num_model_replicas == 1:
+            # No sharding is needed in this case. Each process will have the
+            # global batch size, and data from the iterator will need to be
+            # replicated across all processes.
+            return dataset.prefetch(tf.data.AUTOTUNE)
+        num_model_replicas_per_process = num_model_replicas / self.num_processes
+        if num_model_replicas_per_process >= 1:
+            # Each process will have one or more full model replicas. Data will
+            # be sharded across all processes without replication.
+            if global_batch_size % self.num_processes != 0:
+                raise ValueError(
+                    "Global batch size must be divisible by the number of "
+                    f"processes. `global_batch_size`={global_batch_size} and "
+                    f"`num_process`={self.num_processes}"
+                )
+            per_process_batch_size = global_batch_size // self.num_processes
+            distributed_dataset = dataset.rebatch(per_process_batch_size)
+            distributed_dataset = distributed_dataset.shard(
+                num_shards=self.num_processes,
+                index=self._process_id,
+            )
+            return distributed_dataset.prefetch(tf.data.AUTOTUNE)
+        else:
+            # Model replicas are sharded across multiple processes. Data will be
+            # sharded across model replicas, and replicated across processes
+            # within the same model replica.
+            if global_batch_size % num_model_replicas != 0:
+                raise ValueError(
+                    "Global batch size must be divisible by the number of "
+                    f"replicas. `global_batch_size`={global_batch_size} and "
+                    f"`num_model_replicas`={num_model_replicas}"
+                )
+            per_process_batch_size = global_batch_size // num_model_replicas
+            distributed_dataset = dataset.rebatch(per_process_batch_size)
+            data_shard_id = self.data_shard_id
+            distributed_dataset = distributed_dataset.shard(
+                num_shards=num_model_replicas,
+                index=data_shard_id,
+            )
+            return distributed_dataset.prefetch(tf.data.AUTOTUNE)
 
     def distribute_tf_dataset(self, dataset):
         """Create a distributed tf.data.Dataset.
@@ -437,7 +515,23 @@ class Distribution:
             only produces data for the current local worker/process. Otherwise,
             returns the original dataloader.
         """
-        raise NotImplementedError()
+        if not self._is_multi_process or not self.auto_shard_dataset:
+            return dataloader
+
+        num_model_replicas = self.num_model_replicas
+        num_model_replicas_per_process = num_model_replicas / self.num_processes
+        if num_model_replicas_per_process >= 1:
+            num_replicas = self.num_processes
+            data_shard_id = self._process_id
+        else:
+            num_replicas = num_model_replicas
+            data_shard_id = self.data_shard_id
+
+        from keras.src.trainers.data_adapters import data_adapter_utils
+
+        return data_adapter_utils._add_torch_distributed_sampler(
+            dataloader, num_replicas, data_shard_id
+        )
 
     def __repr__(self):
         return f"<{self.__class__.__name__} device_mesh={self.device_mesh}>"
@@ -486,11 +580,7 @@ class DataParallel(Distribution):
 
     @property
     def num_model_replicas(self):
-        return self.num_processes
-
-    @property
-    def data_shard_id(self):
-        return self._process_id
+        return self.device_mesh.devices.size
 
     def _initialize_with_device_mesh(self, device_mesh, auto_shard_dataset):
         if not isinstance(device_mesh, DeviceMesh):
@@ -547,60 +637,6 @@ class DataParallel(Distribution):
     def get_tensor_layout(self, path):
         # For data parallel training, the intermediate state is not changed.
         return None
-
-    def distribute_dataset(self, dataset):
-        if (
-            type(self).distribute_tf_dataset
-            != Distribution.distribute_tf_dataset
-        ):
-            return self.distribute_tf_dataset(dataset)
-        if not self._is_multi_process or not self.auto_shard_dataset:
-            return dataset
-
-        # Try to distribute a global tf.data.Dataset.
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        if not tf.available or not isinstance(dataset, tf.data.Dataset):
-            raise ValueError(
-                "Only `tf.data.Dataset` is supported for auto-sharding, "
-                f"got {type(dataset)}"
-            )
-
-        from tensorflow.python.data.experimental.ops import (
-            distribute as tf_data_distribute,
-        )
-
-        batch_size = tf_data_distribute.compute_batch_size(dataset)
-        if batch_size.numpy() < 0:
-            raise ValueError(
-                "The batch size of the input dataset is "
-                "unknown. Please config the batch size for "
-                "the input dataset, e.g via `dataset.batch(batch_size)`"
-            )
-        per_worker_batch_size = tf_data_distribute.batch_sizes_for_worker(
-            global_batch_size=batch_size,
-            num_workers=self.num_processes,
-            num_replicas_per_worker=1,  # We hard code this for now.
-            worker_index=self._process_id,
-        )
-        distributed_dataset = dataset.rebatch(per_worker_batch_size)
-        distributed_dataset = tf_data_distribute._AutoShardDataset(
-            distributed_dataset,
-            num_workers=self.num_processes,
-            index=self._process_id,
-            num_replicas=self.num_processes,
-        )
-        return distributed_dataset.prefetch(tf.data.AUTOTUNE)
-
-    def distribute_torch_dataloader(self, dataloader):
-        if not self._is_multi_process or not self.auto_shard_dataset:
-            return dataloader
-
-        from keras.src.trainers.data_adapters import data_adapter_utils
-
-        return data_adapter_utils._add_torch_distributed_sampler(
-            dataloader, self.num_processes, self._process_id
-        )
 
 
 @keras_export("keras.distribution.ModelParallel")
@@ -734,19 +770,7 @@ class ModelParallel(Distribution):
         mesh_batch_dim_index = self.device_mesh.axis_names.index(
             self.batch_dim_name
         )
-        num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
-        if self._is_multi_process:
-            return min(num_model_replicas, self.num_processes)
-        return num_model_replicas
-
-    @property
-    def data_shard_id(self):
-        num_model_replicas = self.num_model_replicas
-        if num_model_replicas >= self.num_processes:
-            return self._process_id
-        else:
-            processes_per_replica = self.num_processes // num_model_replicas
-            return self._process_id // processes_per_replica
+        return self.device_mesh.shape[mesh_batch_dim_index]
 
     def get_data_layout(self, data_shape):
         data_shard_spec = [None] * len(data_shape)
@@ -767,95 +791,6 @@ class ModelParallel(Distribution):
 
     def get_tensor_layout(self, path):
         return self._layout_map[path]
-
-    def distribute_dataset(self, dataset):
-        if (
-            type(self).distribute_tf_dataset
-            != Distribution.distribute_tf_dataset
-        ):
-            return self.distribute_tf_dataset(dataset)
-        if not self._is_multi_process or not self.auto_shard_dataset:
-            return dataset
-
-        # Try to distribute a global tf.data.Dataset.
-        from keras.src.utils.module_utils import tensorflow as tf
-
-        if not tf.available or not isinstance(dataset, tf.data.Dataset):
-            raise ValueError(
-                "Only `tf.data.Dataset` is supported for auto-sharding, "
-                f"got {type(dataset)}"
-            )
-
-        from tensorflow.python.data.experimental.ops import (
-            distribute as tf_data_distribute,
-        )
-
-        global_batch_size = tf_data_distribute.compute_batch_size(dataset)
-        if global_batch_size.numpy() < 0:
-            raise ValueError(
-                "The batch size of the input dataset is "
-                "unknown. Please config the batch size for "
-                "the input dataset, e.g via `dataset.batch(batch_size)`"
-            )
-
-        # We need to compute the per-process/worker/host batch size.
-        # This will depend on how many model replicas we have on each process.
-        # Note that this might be smaller than one if model replicas are sharded
-        # across multiple processes.
-        num_model_replicas = self.num_model_replicas
-        if num_model_replicas == 1:
-            # No sharding is needed in this case. Each process will have the
-            # global batch size, and data from the iterator will need to be
-            # replicated across all processes.
-            return dataset.prefetch(tf.data.AUTOTUNE)
-        num_model_replicas_per_process = num_model_replicas / self.num_processes
-        if num_model_replicas_per_process >= 1:
-            # Each process will have one or more full model replicas. Data will
-            # be sharded across all processes without replication.
-            if global_batch_size % self.num_processes != 0:
-                raise ValueError(
-                    "Global batch size must be divisible by the number of "
-                    f"processes. `global_batch_size`={global_batch_size} and "
-                    f"`num_process`={self.num_processes}"
-                )
-            per_process_batch_size = global_batch_size // self.num_processes
-            distributed_dataset = dataset.rebatch(per_process_batch_size)
-            distributed_dataset = distributed_dataset.shard(
-                num_shards=self.num_processes,
-                index=self._process_id,
-            )
-            return distributed_dataset.prefetch(tf.data.AUTOTUNE)
-        else:
-            # Model replicas are sharded across multiple processes. Data will be
-            # sharded across model replicas, and replicated across processes
-            # within the same model replica.
-            if global_batch_size % num_model_replicas != 0:
-                raise ValueError(
-                    "Global batch size must be divisible by the number of "
-                    f"replicas. `global_batch_size`={global_batch_size} and "
-                    f"`num_model_replicas`={num_model_replicas}"
-                )
-            per_process_batch_size = global_batch_size // num_model_replicas
-            distributed_dataset = dataset.rebatch(per_process_batch_size)
-            data_shard_id = self.data_shard_id
-            distributed_dataset = distributed_dataset.shard(
-                num_shards=num_model_replicas,
-                index=data_shard_id,
-            )
-            return distributed_dataset.prefetch(tf.data.AUTOTUNE)
-
-    def distribute_torch_dataloader(self, dataloader):
-        if not self._is_multi_process or not self.auto_shard_dataset:
-            return dataloader
-
-        num_replicas = self.num_model_replicas
-        data_shard_id = self.data_shard_id
-
-        from keras.src.trainers.data_adapters import data_adapter_utils
-
-        return data_adapter_utils._add_torch_distributed_sampler(
-            dataloader, num_replicas, data_shard_id
-        )
 
 
 @keras_export("keras.distribution.LayoutMap")
