@@ -104,7 +104,7 @@ class JAXEpochIteratorThreadedTest(testing.TestCase):
         self.assertEqual(iterator.errors, [error])
         self.assertIs(iterator.queue.get_nowait(), iterator.end)
 
-    def test_threaded_prefetch_iterator_producer_ignores_errors_after_stop(self):
+    def test_stopped_threaded_prefetch_iterator_producer_ignores_errors(self):
         def transform(x):
             iterator.stop.set()
             raise BaseException("failed")
