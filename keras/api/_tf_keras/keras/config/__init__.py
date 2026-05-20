@@ -15,12 +15,10 @@ from keras.src.backend.config import (
 from keras.src.backend.config import enable_jit_cache as enable_jit_cache
 from keras.src.backend.config import epsilon as epsilon
 from keras.src.backend.config import floatx as floatx
+from keras.src.backend.config import get_jit_cache_dir as get_jit_cache_dir
 from keras.src.backend.config import image_data_format as image_data_format
 from keras.src.backend.config import (
     is_flash_attention_enabled as is_flash_attention_enabled,
-)
-from keras.src.backend.config import (
-    get_jit_cache_dir as get_jit_cache_dir,
 )
 from keras.src.backend.config import (
     is_jit_cache_enabled as is_jit_cache_enabled,
