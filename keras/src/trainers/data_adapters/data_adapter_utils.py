@@ -378,25 +378,6 @@ class DistributedBatchSampler:
 def _add_torch_distributed_sampler(dataloader, num_replicas, rank):
     import torch
 
-    class DistributedBatchSampler:
-        def __init__(self, batch_sampler, num_replicas, rank):
-            self.batch_sampler = batch_sampler
-            self.num_replicas = num_replicas
-            self.rank = rank
-
-        def __iter__(self):
-            # We must ensure all ranks have same number of batches to avoid
-            # hangs. We drop extras to match the rank with fewest batches.
-            num_batches = len(self.batch_sampler) // self.num_replicas
-            for i, batch in enumerate(self.batch_sampler):
-                if i >= num_batches * self.num_replicas:
-                    break
-                if i % self.num_replicas == self.rank:
-                    yield batch
-
-        def __len__(self):
-            return len(self.batch_sampler) // self.num_replicas
-
     kwargs = {
         "num_workers": dataloader.num_workers,
         "collate_fn": dataloader.collate_fn,
