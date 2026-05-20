@@ -752,6 +752,31 @@ def gru(
     if not reset_after or mask is not None:
         raise NotImplementedError
 
+    # Activation/bias eligibility for cuDNN doesn't depend on tensor state, so
+    # check it before paying for conversions we might discard.
+    cudnn_activation_ok = cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    )
+
+    # Peek at the input device without materializing a full tensor: cuDNN
+    # only runs on CUDA, and we want to skip the rest of the conversion
+    # cost when we already know we'll fall back.
+    inputs_device_type = (
+        inputs.device.type if isinstance(inputs, torch.Tensor) else "cpu"
+    )
+    cudnn_runtime_ok = (
+        inputs_device_type == "cuda"
+        and not torch.jit.is_tracing()
+        and not (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    )
+    cudnn_supported = cudnn_activation_ok and cudnn_runtime_ok
+
     # Convert to torch tensors (convert_to_tensor unwraps Variables)
     kernel = convert_to_tensor(kernel)
     recurrent_kernel = convert_to_tensor(recurrent_kernel)
@@ -768,25 +793,6 @@ def gru(
     if go_backwards:
         inputs = torch.flip(inputs, dims=[1])
 
-    # cuDNN only runs on CUDA. Skip it when inputs are on CPU, or when we
-    # are inside a TorchScript or Dynamo trace. The trace records device
-    # transfers that then fail device-consistency validation downstream.
-    device = inputs.device
-    cudnn_supported = (
-        device.type == "cuda"
-        and not torch.jit.is_tracing()
-        and not (
-            hasattr(torch.compiler, "is_compiling")
-            and torch.compiler.is_compiling()
-        )
-        and cudnn_ok(
-            activation,
-            recurrent_activation,
-            unroll,
-            use_bias=bias is not None,
-        )
-    )
-
     if cudnn_supported:
         try:
             return _cudnn_gru(
@@ -796,7 +802,7 @@ def gru(
                 recurrent_kernel,
                 bias,
                 return_sequences=return_sequences,
-                device=device,
+                device=inputs.device,
             )
         except Exception:
             pass
@@ -1148,6 +1154,23 @@ def bidirectional_gru(
     ):
         raise NotImplementedError
 
+    # cuDNN only runs on CUDA. Bail out before paying for any
+    # convert_to_tensor work when inputs are on CPU, or when we are inside
+    # a TorchScript / Dynamo trace (the trace records device transfers
+    # that then fail device-consistency validation downstream).
+    inputs_device_type = (
+        inputs.device.type if isinstance(inputs, torch.Tensor) else "cpu"
+    )
+    if (
+        inputs_device_type != "cuda"
+        or torch.jit.is_tracing()
+        or (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    ):
+        raise NotImplementedError
+
     fwd_kernel = convert_to_tensor(fwd_kernel)
     fwd_recurrent_kernel = convert_to_tensor(fwd_recurrent_kernel)
     bwd_kernel = convert_to_tensor(bwd_kernel)
@@ -1157,21 +1180,7 @@ def bidirectional_gru(
     inputs = convert_to_tensor(inputs, dtype=compute_dtype)
     fwd_h0 = convert_to_tensor(fwd_initial_state, dtype=compute_dtype)
     bwd_h0 = convert_to_tensor(bwd_initial_state, dtype=compute_dtype)
-
-    # cuDNN only runs on CUDA. Fall back to the two-pass path when inputs
-    # are on CPU, or when we are inside a TorchScript or Dynamo trace. The
-    # trace records device transfers that then fail device-consistency
-    # validation downstream.
     device = inputs.device
-    if (
-        device.type != "cuda"
-        or torch.jit.is_tracing()
-        or (
-            hasattr(torch.compiler, "is_compiling")
-            and torch.compiler.is_compiling()
-        )
-    ):
-        raise NotImplementedError
 
     fwd_params = prepare_gru_params(
         fwd_kernel, fwd_recurrent_kernel, fwd_bias, device

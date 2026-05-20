@@ -433,3 +433,46 @@ class GRUTest(testing.TestCase):
 
         y = f(x_concrete)
         self.assertEqual(y.shape, (2, 5))
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Guards the torch-backend cuDNN dispatch path.",
+    )
+    def test_torch_cudnn_dispatch_fires(self):
+        # The cuDNN path in `keras.src.backend.torch.rnn.gru` is wrapped in
+        # a `try/except` and falls back to `_fallback_gru` on failure. If a
+        # future change quietly breaks `_cudnn_gru` (as happened with the
+        # LSTM dispatch before #22874), every existing test would still pass
+        # against the slow fallback. This test asserts that `torch._VF.gru`
+        # is actually invoked when the layer is called with cuDNN-eligible
+        # inputs on CUDA, so the failure mode becomes loud.
+        import torch
+
+        if not torch.cuda.is_available():
+            self.skipTest("Requires a CUDA device.")
+
+        from unittest import mock
+
+        x = torch.randn(4, 6, 5, device="cuda")
+        layer = layers.GRU(8, return_sequences=True)
+        layer(x)  # build on cuda
+
+        real_vf_gru = torch._VF.gru
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append(True)
+            return real_vf_gru(*args, **kwargs)
+
+        with mock.patch.object(torch._VF, "gru", side_effect=spy):
+            _ = layer(x)
+
+        self.assertGreaterEqual(
+            len(calls),
+            1,
+            msg=(
+                "torch._VF.gru was never invoked; cuDNN dispatch is silently "
+                "inactive and every call is routing through the pure-torch "
+                "fallback."
+            ),
+        )

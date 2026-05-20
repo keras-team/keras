@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
@@ -459,3 +460,46 @@ class SimpleRNNTest(testing.TestCase):
             fv.assign(rv.value)
 
         self.assertAllClose(ref(x), fused(x), atol=1e-5)
+
+    def test_torch_cudnn_bidirectional_gru_dispatch_fires(self):
+        # `backend.bidirectional_gru` is wrapped by a try/except in the
+        # Bidirectional layer, so a regression in the fused cuDNN call
+        # silently routes every Bidirectional(GRU) call through the
+        # two-pass fallback while every existing test still passes.
+        # Assert that `torch._VF.gru` actually fires when the layer runs
+        # against cuDNN-eligible inputs on CUDA.
+        if backend.backend() != "torch":
+            self.skipTest("Guards the torch-backend cuDNN dispatch path.")
+
+        import torch
+
+        if not torch.cuda.is_available():
+            self.skipTest("Requires a CUDA device.")
+
+        from unittest import mock
+
+        x = torch.randn(4, 6, 5, device="cuda")
+        layer = layers.Bidirectional(
+            layers.GRU(8, use_cudnn="auto", return_sequences=True)
+        )
+        layer(x)  # build on cuda
+
+        real_vf_gru = torch._VF.gru
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append(True)
+            return real_vf_gru(*args, **kwargs)
+
+        with mock.patch.object(torch._VF, "gru", side_effect=spy):
+            _ = layer(x)
+
+        self.assertGreaterEqual(
+            len(calls),
+            1,
+            msg=(
+                "torch._VF.gru was never invoked from Bidirectional(GRU); "
+                "the fused cuDNN dispatch is silently inactive and every "
+                "call is routing through the two-pass fallback."
+            ),
+        )
