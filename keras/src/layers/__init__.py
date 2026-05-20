@@ -23,7 +23,6 @@ from keras.src.layers.convolutional.separable_conv1d import SeparableConv1D
 from keras.src.layers.convolutional.separable_conv2d import SeparableConv2D
 from keras.src.layers.core.dense import Dense
 from keras.src.layers.core.einsum_dense import EinsumDense
-from keras.src.layers.core.ternary_dense import TernaryDense
 from keras.src.layers.core.embedding import Embedding
 from keras.src.layers.core.identity import Identity
 from keras.src.layers.core.input_layer import Input
@@ -31,6 +30,7 @@ from keras.src.layers.core.input_layer import InputLayer
 from keras.src.layers.core.lambda_layer import Lambda
 from keras.src.layers.core.masking import Masking
 from keras.src.layers.core.reversible_embedding import ReversibleEmbedding
+from keras.src.layers.core.ternary_dense import TernaryDense
 from keras.src.layers.core.wrapper import Wrapper
 from keras.src.layers.input_spec import InputSpec
 from keras.src.layers.layer import Layer
