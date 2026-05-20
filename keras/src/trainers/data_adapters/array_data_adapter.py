@@ -326,7 +326,7 @@ class ArrayDataAdapter(DataAdapter):
             dataset, batch_sampler=batch_sampler, collate_fn=no_op_collate
         )
         if dist is not None:
-            dataloader = dist.distribute_torch_dataloader(dataloader)
+            dataloader = dist.distribute_dataset(dataloader)
         return dataloader
 
     def _get_iterator(self, slice_and_convert_fn, inputs):

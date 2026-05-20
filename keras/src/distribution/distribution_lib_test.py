@@ -134,6 +134,10 @@ class TensorLayoutTest(testing.TestCase):
             layout.device_mesh = self.mesh
 
 
+@pytest.mark.skipif(
+    backend.backend() not in ("torch", "jax"),
+    reason="The distribution lib is not yet supported in these backends.",
+)
 class DistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()

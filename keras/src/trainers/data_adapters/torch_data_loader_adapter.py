@@ -23,7 +23,7 @@ class TorchDataLoaderAdapter(DataAdapter):
 
         dist = dist_lib.distribution()
         if dist is not None:
-            dataloader = dist.distribute_torch_dataloader(dataloader)
+            dataloader = dist.distribute_dataset(dataloader)
 
         self._dataloader = dataloader
         self._output_signature = None

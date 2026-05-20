@@ -428,20 +428,19 @@ class Distribution:
             only produces data for the current local worker/process.  Otherwise,
             returns the original dataset.
         """
-        if (
-            type(self).distribute_tf_dataset
-            != Distribution.distribute_tf_dataset
-        ):
-            return self.distribute_tf_dataset(dataset)
+        import torch
 
         from keras.src.utils.module_utils import tensorflow as tf
-        from keras.src.utils.module_utils import torch
 
         if tf.available and isinstance(dataset, tf.data.Dataset):
+            if (
+                type(self).distribute_tf_dataset
+                != Distribution.distribute_tf_dataset
+            ):
+                return self.distribute_tf_dataset(dataset)
             return self.distribute_tf_dataset(dataset)
-        elif torch.available and isinstance(
-            dataset, torch.utils.data.DataLoader
-        ):
+
+        if isinstance(dataset, torch.utils.data.DataLoader):
             return self.distribute_torch_dataloader(dataset)
 
         if not self._is_multi_process or not self.auto_shard_dataset:
