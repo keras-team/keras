@@ -253,6 +253,16 @@ class JAXEpochIteratorThreadedTest(testing.TestCase):
                     batch_size=1,
                 )
 
+    def test_batch_preparation_without_distribution(self):
+        iterator = jax_trainer.JAXEpochIteratorThreaded(
+            x=np.ones((2, 1)),
+            batch_size=1,
+        )
+
+        prepare_batch = iterator._make_prepare_batch(None)
+
+        self.assertIs(prepare_batch, jax_trainer.device_put_tree)
+
     def test_distributed_batch_preparation_caches_layouts(self):
         class DataLayout:
             def __init__(self, shape):
@@ -282,6 +292,9 @@ class JAXEpochIteratorThreadedTest(testing.TestCase):
             _, layouts = prepare_batch(batch)
             self.assertEqual(layouts[0], ("layout", (2, 3)))
             self.assertIsNone(layouts[1])
+            self.assertEqual(distribution.calls, 1)
+
+            self.assertIsNone(prepare_batch(None))
             self.assertEqual(distribution.calls, 1)
 
             prepare_batch((np.ones((2, 3), dtype="float32"), None))
