@@ -1,3 +1,4 @@
+import queue
 import warnings
 from unittest import mock
 
@@ -44,12 +45,33 @@ class JAXEpochIteratorThreadedTest(testing.TestCase):
             maxsize=1,
         )
 
+        self.assertIs(iter(iterator), iterator)
         self.assertEqual(next(iterator), 2)
         self.assertEqual(next(iterator), 3)
         self.assertEqual(next(iterator), 4)
         with self.assertRaises(StopIteration):
             next(iterator)
         self.assertTrue(iterator.closed)
+
+    def test_threaded_prefetch_iterator_producer_stops_when_queue_full(self):
+        iterator = jax_trainer.ThreadedPrefetchIterator(
+            [1],
+            transform=lambda x: x,
+        )
+
+        def put_and_stop(*args, **kwargs):
+            iterator.stop.set()
+            raise queue.Full
+
+        with mock.patch.object(
+            iterator.queue,
+            "put",
+            side_effect=put_and_stop,
+        ) as queue_put:
+            iterator._producer()
+
+        self.assertEqual(queue_put.call_count, 1)
+        self.assertEqual(iterator.errors, [])
 
     def test_threaded_prefetch_iterator_raises_transform_errors(self):
         def transform(x):
@@ -66,6 +88,36 @@ class JAXEpochIteratorThreadedTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "failed"):
             next(iterator)
         self.assertTrue(iterator.closed)
+
+    def test_threaded_prefetch_iterator_producer_captures_base_exceptions(self):
+        error = BaseException("failed")
+
+        def transform(x):
+            raise error
+
+        iterator = jax_trainer.ThreadedPrefetchIterator(
+            [1],
+            transform=transform,
+        )
+        iterator._producer()
+
+        self.assertEqual(iterator.errors, [error])
+        self.assertIs(iterator.queue.get_nowait(), iterator.end)
+
+    def test_threaded_prefetch_iterator_producer_ignores_errors_after_stop(self):
+        def transform(x):
+            iterator.stop.set()
+            raise BaseException("failed")
+
+        iterator = jax_trainer.ThreadedPrefetchIterator(
+            [1],
+            transform=transform,
+        )
+        iterator._producer()
+
+        self.assertEqual(iterator.errors, [])
+        with self.assertRaises(queue.Empty):
+            iterator.queue.get_nowait()
 
     def test_threaded_prefetch_iterator_close(self):
         def infinite_iterator():
@@ -84,6 +136,90 @@ class JAXEpochIteratorThreadedTest(testing.TestCase):
         self.assertTrue(iterator.closed)
         with self.assertRaises(StopIteration):
             next(iterator)
+
+    def test_jax_epoch_iterator_threaded_reset_closes_current_iterator(self):
+        iterator = jax_trainer.JAXEpochIteratorThreaded(
+            x=np.ones((2, 1)),
+            batch_size=1,
+        )
+        current_iterator = mock.Mock()
+        iterator._current_iterator = current_iterator
+        iterator._epoch_iterator = object()
+        iterator._steps_seen = 1
+
+        with mock.patch.object(
+            iterator.data_adapter, "on_epoch_end"
+        ) as on_epoch_end:
+            iterator.reset()
+
+        current_iterator.close.assert_called_once()
+        on_epoch_end.assert_called_once()
+        self.assertIsNone(iterator._current_iterator)
+        self.assertIsNone(iterator._epoch_iterator)
+        self.assertEqual(iterator._steps_seen, 0)
+
+    def test_jax_epoch_iterator_threaded_close_clears_current_iterator(self):
+        iterator = jax_trainer.JAXEpochIteratorThreaded(
+            x=np.ones((2, 1)),
+            batch_size=1,
+        )
+        current_iterator = mock.Mock()
+        iterator._current_iterator = current_iterator
+
+        iterator.close()
+
+        current_iterator.close.assert_called_once()
+        self.assertIsNone(iterator._current_iterator)
+
+        iterator._current_iterator = object()
+
+        iterator.close()
+
+        self.assertIsNone(iterator._current_iterator)
+
+    def test_jax_epoch_iterator_threaded_get_iterator(self):
+        iterator = jax_trainer.JAXEpochIteratorThreaded(
+            x=np.ones((2, 1)),
+            batch_size=1,
+            prefetch=3,
+        )
+        jax_iterator = object()
+        prepare_batch = object()
+        threaded_iterator = object()
+
+        with (
+            mock.patch.object(
+                jax_trainer.distribution_lib,
+                "distribution",
+                return_value=None,
+            ) as distribution,
+            mock.patch.object(
+                iterator,
+                "_make_prepare_batch",
+                return_value=prepare_batch,
+            ) as make_prepare_batch,
+            mock.patch.object(
+                iterator.data_adapter,
+                "get_jax_iterator",
+                return_value=jax_iterator,
+            ) as get_jax_iterator,
+            mock.patch.object(
+                jax_trainer,
+                "ThreadedPrefetchIterator",
+                return_value=threaded_iterator,
+            ) as threaded_prefetch_iterator,
+        ):
+            result = iterator._get_iterator()
+
+        distribution.assert_called_once_with()
+        make_prepare_batch.assert_called_once_with(None)
+        get_jax_iterator.assert_called_once_with()
+        threaded_prefetch_iterator.assert_called_once_with(
+            jax_iterator,
+            transform=prepare_batch,
+            maxsize=3,
+        )
+        self.assertIs(result, threaded_iterator)
 
     def test_build_jax_epoch_iterator_default(self):
         with mock.patch.dict("os.environ", {}, clear=True):
