@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.jax.math import fft as jax_fft
 from keras.src.backend.jax.math import fft2 as jax_fft2
 from keras.src.backend.numpy.core import convert_to_tensor
@@ -307,7 +308,8 @@ def rsqrt(x):
 
 
 def erf(x):
-    return np.array(scipy.special.erf(x))
+    dtype = dtypes.result_type(x.dtype)
+    return scipy.special.erf(x).astype(dtype)
 
 
 def erfinv(x):
