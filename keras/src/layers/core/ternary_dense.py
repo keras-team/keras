@@ -23,17 +23,21 @@ class TernaryDense(Layer):
     ```
     kernel_ternary[i,j] = sign(kernel[i,j])  if |kernel[i,j]| > threshold
                           0                   otherwise
+    output = beta * matmul(inputs, kernel_ternary) + bias
     ```
 
-    where `threshold` defaults to `mean(|kernel|)` per forward pass.
+    where `threshold` defaults to `0.5 * mean(|kernel|)` and `beta =
+    mean(|kernel|)` per forward pass (both per the BitNet b1.58 §3.1 spec).
+    Gradients flow through the quantization step via a Straight-Through
+    Estimator (STE), keeping the underlying float kernel trainable.
 
     Args:
         units: Positive integer, dimensionality of the output space.
-        threshold: Float or `None`. Quantization boundary applied element-wise
-            to `|kernel|`. `None` (default) uses `mean(|kernel|)` per forward
-            pass, matching the BitNet b1.58 §3.1 rule. `0.0` maps every weight
-            to ±1 (no zeros). Large values (e.g. `1e9`) yield an all-zero
-            effective kernel.
+        threshold: Non-negative float or `None`. Quantization boundary applied
+            element-wise to `|kernel|`. `None` (default) uses
+            `0.5 * mean(|kernel|)` per forward pass, matching the BitNet b1.58
+            §3.1 rule. `0.0` maps every weight to ±1 (no zeros). Large values
+            (e.g. `1e9`) yield an all-zero effective kernel.
         activation: Activation function to use. Defaults to no activation
             (linear: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
@@ -93,6 +97,12 @@ class TernaryDense(Layer):
                 "Received an invalid value for `threshold`, expected a float "
                 f"or None. Received: threshold={threshold}"
             )
+        if threshold is not None and threshold < 0:
+            raise ValueError(
+                "Received an invalid value for `threshold`, expected a "
+                "non-negative float or None. "
+                f"Received: threshold={threshold}"
+            )
 
         super().__init__(activity_regularizer=activity_regularizer, **kwargs)
         self.units = units
@@ -131,15 +141,20 @@ class TernaryDense(Layer):
         self.built = True
 
     def _ternary_kernel(self):
-        """Return the kernel quantized to {-1, 0, +1}."""
+        """Forward value is in {-1, 0, +1}; gradients flow via STE."""
         abs_k = ops.abs(self.kernel)
-        t = ops.mean(abs_k) if self.threshold is None else self.threshold
-        return ops.sign(self.kernel) * ops.cast(
+        t = 0.5 * ops.mean(abs_k) if self.threshold is None else self.threshold
+        k_ternary = ops.sign(self.kernel) * ops.cast(
             abs_k > t, dtype=self.kernel.dtype
         )
+        return self.kernel + ops.stop_gradient(k_ternary - self.kernel)
 
     def call(self, inputs):
-        x = ops.matmul(inputs, self._ternary_kernel())
+        k = self._ternary_kernel()
+        x = ops.matmul(inputs, k)
+        if self.threshold is None:
+            beta = ops.mean(ops.abs(self.kernel))
+            x = ops.multiply(x, beta)
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:

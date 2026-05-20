@@ -18,10 +18,11 @@ class TernaryDenseTest(testing.TestCase):
         x = np.ones((1, 8), dtype="float32")
         layer(x)
         k = ops.convert_to_numpy(layer._ternary_kernel())
-        unique = set(np.unique(k).tolist())
+        # STE adds kernel+(k_ternary-kernel); round to nearest int for fp tolerance
+        rounded = set(np.round(k).astype(np.int32).flat)
         self.assertTrue(
-            unique <= {-1.0, 0.0, 1.0},
-            f"Expected values in {{-1, 0, 1}}, got {unique}",
+            rounded <= {-1, 0, 1},
+            f"Expected values near {{-1, 0, 1}}, got {np.unique(k)}",
         )
 
     def test_threshold_zero_no_zeros(self):
@@ -102,6 +103,23 @@ class TernaryDenseTest(testing.TestCase):
             layers.TernaryDense(0)
         with self.assertRaisesRegex(ValueError, "positive integer"):
             layers.TernaryDense(-4)
+
+    def test_invalid_threshold(self):
+        with self.assertRaisesRegex(ValueError, "non-negative"):
+            layers.TernaryDense(4, threshold=-0.1)
+
+    def test_beta_scaling_applied_when_threshold_none(self):
+        # threshold=None → output *= beta=mean(|kernel|) per BitNet b1.58 §3.1
+        layer = layers.TernaryDense(2, use_bias=False)
+        layer.build((None, 2))
+        kernel = np.array([[0.5, -0.5], [0.5, 0.5]], dtype="float32")
+        layer.kernel.assign(kernel)
+        # t = 0.5 * mean(|kernel|) = 0.5 * 0.5 = 0.25; all |w|=0.5 > 0.25 → all ±1
+        # k_ternary = [[1, -1], [1, 1]]; beta = mean(|kernel|) = 0.5
+        # x=[[1,1]] @ k_ternary = [[2, 0]]; scaled = [[1.0, 0.0]]
+        x = np.array([[1.0, 1.0]], dtype="float32")
+        y = ops.convert_to_numpy(layer(x))
+        np.testing.assert_allclose(y, [[1.0, 0.0]], atol=1e-5)
 
     def test_compute_output_shape(self):
         layer = layers.TernaryDense(10)
