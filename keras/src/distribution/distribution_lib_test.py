@@ -134,10 +134,6 @@ class TensorLayoutTest(testing.TestCase):
             layout.device_mesh = self.mesh
 
 
-@pytest.mark.skipif(
-    backend.backend() != "jax",
-    reason="Only JAX has the backend to mock at the moment",
-)
 class DistributionTest(testing.TestCase):
     def setUp(self):
         super().setUp()

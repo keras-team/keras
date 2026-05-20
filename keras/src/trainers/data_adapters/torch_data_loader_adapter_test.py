@@ -321,9 +321,6 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         reason="Only for torch backend",
     )
     def test_torch_dataloader_distribute_integration(self):
-        if backend.distribution_lib is None:
-            self.skipTest("Torch distribution_lib not implemented yet")
-
         # Initialize torch distributed
         if not torch.distributed.is_initialized():
             os.environ["WORLD_SIZE"] = "1"
