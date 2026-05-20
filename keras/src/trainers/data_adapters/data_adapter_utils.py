@@ -399,28 +399,37 @@ def _add_torch_distributed_sampler(dataloader, num_replicas, rank):
     if isinstance(dataloader.dataset, torch.utils.data.IterableDataset):
 
         class ShardedIterableDataset(torch.utils.data.IterableDataset):
-            def __init__(self, dataset, num_replicas, rank):
+            def __init__(self, dataset, num_replicas, rank, drop_last):
                 self.dataset = dataset
                 self.num_replicas = num_replicas
                 self.rank = rank
+                self.drop_last = drop_last
 
             def __iter__(self):
-                return itertools.islice(
+                it = itertools.islice(
                     self.dataset, self.rank, None, self.num_replicas
                 )
+                if self.drop_last and hasattr(self.dataset, "__len__"):
+                    num_samples = len(self.dataset) // self.num_replicas
+                    return itertools.islice(it, num_samples)
+                return it
 
         if hasattr(dataloader.dataset, "__len__"):
 
             def __len__(self):
+                if self.drop_last:
+                    return len(self.dataset) // self.num_replicas
                 return (
                     len(self.dataset) + self.num_replicas - 1
                 ) // self.num_replicas
 
             ShardedIterableDataset.__len__ = __len__
 
-        dataset = ShardedIterableDataset(dataloader.dataset, num_replicas, rank)
+        dataset = ShardedIterableDataset(
+            dataloader.dataset, num_replicas, rank, dataloader.drop_last
+        )
         kwargs["batch_size"] = dataloader.batch_size
-        kwargs["drop_last"] = dataloader.drop_last
+        kwargs["drop_last"] = False
 
         return torch.utils.data.DataLoader(dataset, **kwargs)
 
@@ -441,7 +450,7 @@ def _add_torch_distributed_sampler(dataloader, num_replicas, rank):
                 drop_last=dataloader.batch_sampler.drop_last,
             )
             kwargs["batch_size"] = dataloader.batch_sampler.batch_size
-            kwargs["drop_last"] = dataloader.batch_sampler.drop_last
+            kwargs["drop_last"] = False
         else:
             kwargs["batch_sampler"] = DistributedBatchSampler(
                 dataloader.batch_sampler, num_replicas, rank
@@ -455,7 +464,7 @@ def _add_torch_distributed_sampler(dataloader, num_replicas, rank):
             drop_last=dataloader.drop_last,
         )
         kwargs["batch_size"] = dataloader.batch_size
-        kwargs["drop_last"] = dataloader.drop_last
+        kwargs["drop_last"] = False
 
     return torch.utils.data.DataLoader(dataloader.dataset, **kwargs)
 

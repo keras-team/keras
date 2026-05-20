@@ -427,8 +427,17 @@ class Distribution:
         return self.distribute_dataset(dataset)
 
     def distribute_torch_dataloader(self, dataloader):
-        """Create a distributed torch DataLoader."""
-        return dataloader
+        """Create a distributed torch DataLoader from the original dataloader.
+
+        Args:
+            dataloader: the original global torch DataLoader instance.
+
+        Returns:
+            If `auto_shard_dataset` is `True`, returns a sharded dataloader that
+            only produces data for the current local worker/process. Otherwise,
+            returns the original dataloader.
+        """
+        raise NotImplementedError()
 
     def __repr__(self):
         return f"<{self.__class__.__name__} device_mesh={self.device_mesh}>"
