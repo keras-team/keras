@@ -510,7 +510,12 @@ class TensorBoard(Callback):
         self._is_tracing = False
 
     def _collect_learning_rate(self, logs):
-        if isinstance(self.model.optimizer, Optimizer):
+        if hasattr(self.model.optimizer, "optimizers"):
+            for idx, opt in enumerate(self.model.optimizer.optimizers):
+                logs[f"learning_rate_{opt.name}{idx}"] = float(
+                    ops.convert_to_numpy(opt.learning_rate)
+                )
+        elif isinstance(self.model.optimizer, Optimizer):
             logs["learning_rate"] = float(
                 ops.convert_to_numpy(self.model.optimizer.learning_rate)
             )

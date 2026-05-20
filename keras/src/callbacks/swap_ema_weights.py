@@ -52,9 +52,9 @@ class SwapEMAWeights(Callback):
 
         self._ema_weights_in_model = False
 
-    def _tf_swap_variables(self, optimizer):
+    def _tf_swap_variables(self, variables, optimizer):
         for var, average_var in zip(
-            self.model.trainable_variables,
+            variables,
             optimizer._model_variables_moving_average,
         ):
             if isinstance(var, backend.Variable):
@@ -78,18 +78,18 @@ class SwapEMAWeights(Callback):
                 args=(average_var,),
             )
 
-    def _backend_swap_variables(self, optimizer):
+    def _backend_swap_variables(self, variables, optimizer):
         for var, average_var in zip(
-            self.model.trainable_variables,
+            variables,
             optimizer._model_variables_moving_average,
         ):
             temporary_variable = ops.convert_to_numpy(var)
             var.assign(average_var)
             average_var.assign(temporary_variable)
 
-    def _tf_finalize_ema_values(self, optimizer):
+    def _tf_finalize_ema_values(self, variables, optimizer):
         for var, average_var in zip(
-            self.model.trainable_variables,
+            variables,
             optimizer._model_variables_moving_average,
         ):
             if isinstance(var, backend.Variable):
@@ -102,9 +102,9 @@ class SwapEMAWeights(Callback):
                 args=(var,),
             )
 
-    def _backend_finalize_ema_values(self, optimizer):
+    def _backend_finalize_ema_values(self, variables, optimizer):
         for var, average_var in zip(
-            self.model.trainable_variables,
+            variables,
             optimizer._model_variables_moving_average,
         ):
             average_var.assign(var)
@@ -115,16 +115,43 @@ class SwapEMAWeights(Callback):
             optimizer = self.model.optimizer.inner_optimizer
         else:
             optimizer = self.model.optimizer
-        if not hasattr(optimizer, "_model_variables_moving_average"):
-            raise ValueError(
-                "SwapEMAWeights must be used when "
-                "`use_ema=True` is set on the optimizer. "
-                f"Received: use_ema={optimizer.use_ema}"
+
+        if hasattr(optimizer, "optimizers"):
+            has_ema = any(
+                getattr(opt, "use_ema", False) for opt in optimizer.optimizers
             )
-        if backend.backend() == "tensorflow":
-            self._tf_swap_variables(optimizer)
+            if not has_ema:
+                raise ValueError(
+                    "SwapEMAWeights must be used when at least one inner "
+                    "optimizer has `use_ema=True` set. Received a "
+                    "MultiOptimizer with all inner optimizers having "
+                    "`use_ema=False`."
+                )
+            for opt in optimizer.optimizers:
+                if getattr(opt, "use_ema", False):
+                    if not hasattr(opt, "_model_variables_moving_average"):
+                        raise ValueError(
+                            "SwapEMAWeights must be used when "
+                            "`use_ema=True` is set on the optimizer. "
+                            f"Received: use_ema={opt.use_ema}"
+                        )
+                    vars_to_swap = opt._trainable_variables
+                    if backend.backend() == "tensorflow":
+                        self._tf_swap_variables(vars_to_swap, opt)
+                    else:
+                        self._backend_swap_variables(vars_to_swap, opt)
         else:
-            self._backend_swap_variables(optimizer)
+            if not hasattr(optimizer, "_model_variables_moving_average"):
+                raise ValueError(
+                    "SwapEMAWeights must be used when "
+                    "`use_ema=True` is set on the optimizer. "
+                    f"Received: use_ema={optimizer.use_ema}"
+                )
+            vars_to_swap = self.model.trainable_variables
+            if backend.backend() == "tensorflow":
+                self._tf_swap_variables(vars_to_swap, optimizer)
+            else:
+                self._backend_swap_variables(vars_to_swap, optimizer)
 
     def _finalize_ema_values(self):
         if hasattr(self.model.optimizer, "inner_optimizer"):
@@ -132,16 +159,43 @@ class SwapEMAWeights(Callback):
             optimizer = self.model.optimizer.inner_optimizer
         else:
             optimizer = self.model.optimizer
-        if not hasattr(optimizer, "_model_variables_moving_average"):
-            raise ValueError(
-                "SwapEMAWeights must be used when "
-                "`use_ema=True` is set on the optimizer. "
-                f"Received: use_ema={optimizer.use_ema}"
+
+        if hasattr(optimizer, "optimizers"):
+            has_ema = any(
+                getattr(opt, "use_ema", False) for opt in optimizer.optimizers
             )
-        if backend.backend() == "tensorflow":
-            self._tf_finalize_ema_values(optimizer)
+            if not has_ema:
+                raise ValueError(
+                    "SwapEMAWeights must be used when at least one inner "
+                    "optimizer has `use_ema=True` set. Received a "
+                    "MultiOptimizer with all inner optimizers having "
+                    "`use_ema=False`."
+                )
+            for opt in optimizer.optimizers:
+                if getattr(opt, "use_ema", False):
+                    if not hasattr(opt, "_model_variables_moving_average"):
+                        raise ValueError(
+                            "SwapEMAWeights must be used when "
+                            "`use_ema=True` is set on the optimizer. "
+                            f"Received: use_ema={opt.use_ema}"
+                        )
+                    vars_to_finalize = opt._trainable_variables
+                    if backend.backend() == "tensorflow":
+                        self._tf_finalize_ema_values(vars_to_finalize, opt)
+                    else:
+                        self._backend_finalize_ema_values(vars_to_finalize, opt)
         else:
-            self._backend_finalize_ema_values(optimizer)
+            if not hasattr(optimizer, "_model_variables_moving_average"):
+                raise ValueError(
+                    "SwapEMAWeights must be used when "
+                    "`use_ema=True` is set on the optimizer. "
+                    f"Received: use_ema={optimizer.use_ema}"
+                )
+            vars_to_finalize = self.model.trainable_variables
+            if backend.backend() == "tensorflow":
+                self._tf_finalize_ema_values(vars_to_finalize, optimizer)
+            else:
+                self._backend_finalize_ema_values(vars_to_finalize, optimizer)
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.swap_on_epoch and self._ema_weights_in_model:
