@@ -693,17 +693,22 @@ def device_scope(device_name):
 
 
 def _apply_tf32():
-    """Honor `keras.config.is_tf32_enabled()` for float32 matmul precision.
+    """Push the Keras TF32 opt-in onto the JAX backend.
 
-    JAX already uses TF32 for `float32` matmuls by default on supported
-    GPUs. This only forces full precision when TF32 is disabled in Keras.
-    Applied once at import and re-applied by `keras.config.enable_tf32` /
-    `disable_tf32`.
+    No-op when the user has not called `keras.config.enable_tf32` or
+    `keras.config.disable_tf32`; in that case JAX keeps its native default
+    (TF32 on for `float32` matmuls). Otherwise we map the Keras setting
+    onto `jax_default_matmul_precision`.
     """
-    if config.is_tf32_enabled() is False:
-        jax.config.update("jax_default_matmul_precision", "highest")
-    else:
+    from keras.src.backend.common import global_state
+
+    val = global_state.get_global_attribute("tf32")
+    if val is None:
+        return
+    if val:
         jax.config.update("jax_default_matmul_precision", "default")
+    else:
+        jax.config.update("jax_default_matmul_precision", "highest")
 
 
 _apply_tf32()

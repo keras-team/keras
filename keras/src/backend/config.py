@@ -241,13 +241,14 @@ def enable_tf32():
     GPUs that runs `float32` matmuls and convolutions on the tensor cores,
     typically several times faster with a small loss of mantissa precision.
 
-    This is enabled by default. The JAX and TensorFlow backends already use
-    TF32 by default. The Torch backend does not, so without this Keras would
-    silently run `float32` matmuls slower on Torch than on the other
-    backends for the same model code.
+    Off by default. Calling this opts the active backend into TF32 (Torch:
+    `set_float32_matmul_precision("high")` and `cudnn.allow_tf32 = True`;
+    JAX: `jax_default_matmul_precision = "default"`; TensorFlow:
+    `enable_tensor_float_32_execution(True)`). Doing nothing leaves each
+    backend at its own native default.
 
-    Note that this only affects `float32` compute on supported GPUs. It has
-    no effect on CPU, on TPU, or for other dtypes.
+    Only affects `float32` compute on supported GPUs. It has no effect on
+    CPU, on TPU, or for other dtypes.
 
     Example:
 
@@ -263,9 +264,9 @@ def enable_tf32():
 def disable_tf32():
     """Disable TensorFloat-32 (TF32) for float32 matrix multiplications.
 
-    Once disabled, `float32` matmuls run at full `float32` precision on all
-    backends. Use this when you need bit-for-bit `float32` accuracy and are
-    willing to give up the tensor-core speedup.
+    Forces full `float32` precision on the active backend regardless of
+    its native default. Use this when you need bit-for-bit `float32`
+    accuracy and are willing to give up the tensor-core speedup.
 
     Example:
 
@@ -279,28 +280,25 @@ def disable_tf32():
 
 @keras_export("keras.config.is_tf32_enabled")
 def is_tf32_enabled():
-    """Checks whether TF32 is globally enabled in Keras.
+    """Checks whether TF32 has been explicitly enabled in Keras.
 
-    TF32 lets `float32` matrix multiplications run on GPU tensor cores at
-    reduced mantissa precision for a large speedup. This function checks the
-    global Keras configuration. See `keras.config.enable_tf32` and
-    `keras.config.disable_tf32`.
+    This reflects the Keras opt-in switch, not the active backend's native
+    precision setting. By default Keras leaves each backend at its own
+    default, in which case this returns `False` even if the backend (e.g.
+    JAX or TensorFlow) is running matmuls in TF32 internally.
 
     Returns:
-        `True` if TF32 is enabled (the default), `False` if it has been
-        explicitly disabled.
+        `True` if `keras.config.enable_tf32` has been called, `False`
+        otherwise.
 
     Example:
 
     >>> keras.config.is_tf32_enabled()
-    True
+    False
     """
     from keras.src.backend.common import global_state
 
-    # Stored as a strict bool by enable_tf32/disable_tf32. When neither has
-    # been called, the attribute is absent and we fall back to the Keras
-    # default (True).
-    return global_state.get_global_attribute("tf32", default=True) is True
+    return global_state.get_global_attribute("tf32", default=False) is True
 
 
 def _refresh_backend_tf32():
