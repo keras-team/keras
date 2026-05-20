@@ -577,13 +577,25 @@ class MultiHeadAttentionTest(testing.TestCase):
     def test_causal_only_with_other_mask_falls_back(self):
         # If any other mask source is present, the layer must NOT take the
         # is_causal=True shortcut, because torch's SDPA rejects passing both
-        # an attn_mask and is_causal=True.
+        # an attn_mask and is_causal=True. A regression that silently kept
+        # the shortcut would also drop the extra mask entirely, so compare
+        # against the explicit merged-mask path to prove `extra_mask` is
+        # honored.
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
         x = np.random.RandomState(0).randn(2, 5, 8).astype("float32")
-        # Build with the slow path so the test exercises the merged path.
+        # Build once so both calls share weights.
+        layer.build(query_shape=x.shape, value_shape=x.shape)
+
+        # Non-trivial extra mask: query position 2 must not attend to key 3.
         extra_mask = np.ones((2, 5, 5), dtype="bool")
-        out = layer(x, x, attention_mask=extra_mask, use_causal_mask=True)
-        self.assertEqual(tuple(out.shape), (2, 5, 8))
+        extra_mask[:, 2, 3] = False
+        causal = np.tril(np.ones((5, 5), dtype="bool"))
+        merged = extra_mask & causal
+
+        out1 = layer(x, x, attention_mask=extra_mask, use_causal_mask=True)
+        out2 = layer(x, x, attention_mask=merged, use_causal_mask=False)
+        self.assertEqual(tuple(out1.shape), (2, 5, 8))
+        self.assertAllClose(out1, out2, atol=1e-5)
 
     def test_sliding_window_validation(self):
         with self.assertRaisesRegex(ValueError, "sliding_window"):
