@@ -69,7 +69,6 @@ from keras.src.layers.core.dense import Dense as Dense
 from keras.src.layers.core.einsum_dense import EinsumDense as EinsumDense
 from keras.src.layers.core.embedding import Embedding as Embedding
 from keras.src.layers.core.identity import Identity as Identity
-from keras.src.layers.core.ternary_dense import TernaryDense as TernaryDense
 from keras.src.layers.core.input_layer import Input as Input
 from keras.src.layers.core.input_layer import InputLayer as InputLayer
 from keras.src.layers.core.lambda_layer import Lambda as Lambda
@@ -77,6 +76,7 @@ from keras.src.layers.core.masking import Masking as Masking
 from keras.src.layers.core.reversible_embedding import (
     ReversibleEmbedding as ReversibleEmbedding,
 )
+from keras.src.layers.core.ternary_dense import TernaryDense as TernaryDense
 from keras.src.layers.core.wrapper import Wrapper as Wrapper
 from keras.src.layers.input_spec import InputSpec as InputSpec
 from keras.src.layers.layer import Layer as Layer
