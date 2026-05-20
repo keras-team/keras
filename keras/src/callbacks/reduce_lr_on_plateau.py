@@ -3,7 +3,6 @@ import warnings
 import numpy as np
 
 from keras.src import backend
-from keras.src import optimizers
 from keras.src.api_export import keras_export
 from keras.src.callbacks.monitor_callback import MonitorCallback
 from keras.src.utils import io_utils
@@ -101,11 +100,9 @@ class ReduceLROnPlateau(MonitorCallback):
             # Delay setup until the model's metrics are all built
             self._set_monitor_op()
         logs = logs or {}
-        if isinstance(
-            self.model.optimizer, optimizers.MultiOptimizer
-        ) and hasattr(self.model.optimizer, "optimizers"):
+        if hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
-                logs[f"learning_rate_{opt.name}{idx}"] = float(
+                logs[f"learning_rate_{opt.name}_{idx}"] = float(
                     backend.convert_to_numpy(opt.learning_rate)
                 )
         else:
@@ -133,14 +130,12 @@ class ReduceLROnPlateau(MonitorCallback):
                 self.wait += 1
                 if self.wait >= self.patience:
                     reduced = False
-                    if isinstance(
-                        self.model.optimizer, optimizers.MultiOptimizer
-                    ) and hasattr(self.model.optimizer, "optimizers"):
+                    if hasattr(self.model.optimizer, "optimizers"):
                         for idx, opt in enumerate(
                             self.model.optimizer.optimizers
                         ):
                             if self._reduce_optimizer_lr(
-                                opt, epoch, f"{opt.name}{idx}"
+                                opt, epoch, f"{opt.name}_{idx}"
                             ):
                                 reduced = True
                     else:

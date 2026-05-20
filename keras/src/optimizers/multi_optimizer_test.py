@@ -470,10 +470,10 @@ class MultiOptimizerTest(testing.TestCase):
             logs = {}
             updated_logs = tb_callback._collect_learning_rate(logs)
 
-            self.assertIn("learning_rate_sgd0", updated_logs)
-            self.assertIn("learning_rate_sgd1", updated_logs)
-            self.assertAllClose(updated_logs["learning_rate_sgd0"], 0.1)
-            self.assertAllClose(updated_logs["learning_rate_sgd1"], 0.01)
+            self.assertIn("learning_rate_sgd_0", updated_logs)
+            self.assertIn("learning_rate_sgd_1", updated_logs)
+            self.assertAllClose(updated_logs["learning_rate_sgd_0"], 0.1)
+            self.assertAllClose(updated_logs["learning_rate_sgd_1"], 0.01)
 
     @pytest.mark.requires_trainable_backend
     def test_swap_ema_weights_with_multi_optimizer(self):
@@ -570,3 +570,95 @@ class MultiOptimizerTest(testing.TestCase):
             opt_1._model_variables_moving_average[0]
         )
         self.assertAllClose(opt_1_ema_after, w_dense_1_ema)
+
+    @pytest.mark.requires_trainable_backend
+    def test_multi_optimizer_wrapped_in_loss_scale_optimizer(self):
+        """Verifies wrapping MultiOptimizer inside LossScaleOptimizer works."""
+        opt_1 = optimizers.SGD(learning_rate=0.1)
+        opt_2 = optimizers.SGD(learning_rate=0.1)
+
+        # MultiOptimizer with initial loss scale 5.0
+        multi_opt = optimizers.MultiOptimizer(
+            optimizers.OptimizerMap(
+                default_optimizer=opt_2,
+                optimizer_map={
+                    ".*dense_1/.*": opt_1,
+                },
+            ),
+            loss_scale_factor=5.0,
+        )
+
+        # Wrap in LossScaleOptimizer with dynamic scaling (initial scale 10.0)
+        lso_opt = optimizers.LossScaleOptimizer(
+            multi_opt, initial_scale=10.0, dynamic_growth_steps=1000
+        )
+
+        with backend.name_scope("dense_1"):
+            w1 = backend.Variable([[2.0, 2.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[2.0, 2.0]], name="kernel")
+
+        lso_opt.build([w1, w2])
+
+        # 1. Verify that LSO set MultiOptimizer.loss_scale_factor to None
+        # and that it successfully propagated to sub-optimizers!
+        self.assertIsNone(multi_opt.loss_scale_factor)
+        self.assertIsNone(opt_1.loss_scale_factor)
+        self.assertIsNone(opt_2.loss_scale_factor)
+
+        # 2. Verify scale_loss uses LSO's dynamic scale (10.0)
+        loss = backend.convert_to_tensor(2.0)
+        self.assertAllClose(lso_opt.scale_loss(loss), 20.0)
+
+        # 3. Verify gradient unscaling and application
+        grads = [
+            backend.convert_to_tensor([[10.0, 10.0]]),  # for w1
+            backend.convert_to_tensor([[10.0, 10.0]]),  # for w2
+        ]
+
+        # Expected unscaled grads: 10.0 / 10.0 = 1.0
+        # Expected updates: 2.0 - lr * 1.0 = 2.0 - 0.1 * 1.0 = 1.9
+        if backend.backend() == "jax":
+            new_trainable, _ = lso_opt.stateless_apply(
+                [v.value for v in lso_opt.variables],
+                grads,
+                [w1.value, w2.value],
+            )
+            w1.assign(new_trainable[0])
+            w2.assign(new_trainable[1])
+        else:
+            lso_opt.apply(grads, [w1, w2])
+
+        self.assertAllClose(w1.numpy(), [[1.9, 1.9]])
+        self.assertAllClose(w2.numpy(), [[1.9, 1.9]])
+
+    @pytest.mark.requires_trainable_backend
+    def test_multi_optimizer_blocks_inner_loss_scale_optimizer(self):
+        """Verifies MultiOptimizer raises ValueError if
+        inner optimizer is LSO."""
+        opt_sgd = optimizers.SGD(learning_rate=0.1)
+        # Wrapping inner SGD in LSO
+        opt_lso = optimizers.LossScaleOptimizer(opt_sgd)
+
+        # 1. Check error during OptimizerMap setitem
+        opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd)
+        with self.assertRaisesRegex(
+            ValueError, "optimizer cannot be LossScaleOptimizer."
+        ):
+            opt_map[".*"] = opt_lso
+
+        # 2. Check error during build (in case it bypassed
+        #  setitem via constructor dict)
+        opt_map_direct = optimizers.OptimizerMap(default_optimizer=opt_sgd)
+        opt_map_direct._optimizer_map = {".*dense_1/.*": opt_lso}
+
+        multi_opt = optimizers.MultiOptimizer(opt_map_direct)
+
+        with backend.name_scope("dense_1"):
+            w = backend.Variable([[1.0]], name="kernel")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "LossScaleOptimizer cannot be used inside an MultiOptimizer.",
+        ):
+            multi_opt.build([w])

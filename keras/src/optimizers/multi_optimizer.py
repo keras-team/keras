@@ -2,6 +2,7 @@ import re
 from collections.abc import MutableMapping
 
 from keras.src.api_export import keras_export
+from keras.src.optimizers.loss_scale_optimizer import LossScaleOptimizer
 from keras.src.optimizers.optimizer import Optimizer
 from keras.src.saving import serialization_lib
 
@@ -117,10 +118,10 @@ class OptimizerMap(MutableMapping):
                 f"optimizer must be a Keras Optimizer instance. "
                 f"Received: {optimizer}"
             )
+        if isinstance(optimizer, LossScaleOptimizer):
+            raise ValueError("optimizer cannot be LossScaleOptimizer.")
         if isinstance(optimizer, MultiOptimizer):
-            raise ValueError(
-                "MultiOptimizer cannot be nested inside an OptimizerMap."
-            )
+            raise ValueError("optimizer cannot be MultiOptimizer.")
         self._optimizer_map[key] = optimizer
 
     def __delitem__(self, key):
@@ -257,6 +258,15 @@ class MultiOptimizer(Optimizer):
                     f"Optimizer for variable {var} is not "
                     "an Optimizer instance."
                 )
+            if isinstance(opt, LossScaleOptimizer):
+                raise ValueError(
+                    "LossScaleOptimizer cannot be used inside an "
+                    "MultiOptimizer."
+                )
+            if isinstance(opt, MultiOptimizer):
+                raise ValueError(
+                    "MultiOptimizer cannot be nested inside an MultiOptimizer."
+                )
             if opt not in self._inner_optimizers:
                 opt.loss_scale_factor = self.loss_scale_factor
                 self._inner_optimizers.append(opt)
@@ -299,6 +309,17 @@ class MultiOptimizer(Optimizer):
             "Learning rate cannot be set on a MultiOptimizer. "
             "Set the learning rate on the individual sub-optimizers instead."
         )
+
+    @property
+    def loss_scale_factor(self):
+        return getattr(self, "_loss_scale_factor", None)
+
+    @loss_scale_factor.setter
+    def loss_scale_factor(self, value):
+        self._loss_scale_factor = value
+        if hasattr(self, "_inner_optimizers"):
+            for opt in self._inner_optimizers:
+                opt.loss_scale_factor = value
 
     @property
     def iterations(self):

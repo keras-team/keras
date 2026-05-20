@@ -512,7 +512,7 @@ class TensorBoard(Callback):
     def _collect_learning_rate(self, logs):
         if hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
-                logs[f"learning_rate_{opt.name}{idx}"] = float(
+                logs[f"learning_rate_{opt.name}_{idx}"] = float(
                     ops.convert_to_numpy(opt.learning_rate)
                 )
         elif isinstance(self.model.optimizer, Optimizer):
