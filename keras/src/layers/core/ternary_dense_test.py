@@ -2,7 +2,6 @@ import numpy as np
 
 from keras.src import layers
 from keras.src import ops
-from keras.src import saving
 from keras.src import testing
 
 
@@ -18,7 +17,7 @@ class TernaryDenseTest(testing.TestCase):
         x = np.ones((1, 8), dtype="float32")
         layer(x)
         k = ops.convert_to_numpy(layer._ternary_kernel())
-        # STE adds kernel+(k_ternary-kernel); round to nearest int for fp tolerance
+        # STE: round to nearest int for fp tolerance
         rounded = set(np.round(k).astype(np.int32).flat)
         self.assertTrue(
             rounded <= {-1, 0, 1},
@@ -50,7 +49,9 @@ class TernaryDenseTest(testing.TestCase):
         # expected output = [[2*1 + 3*0, 2*(-1) + 3*1]] = [[2, 1]]
         layer = layers.TernaryDense(2, use_bias=False)
         layer.build((None, 2))
-        layer.kernel.assign(np.array([[1.0, -1.0], [0.0, 1.0]], dtype="float32"))
+        layer.kernel.assign(
+            np.array([[1.0, -1.0], [0.0, 1.0]], dtype="float32")
+        )
         layer.threshold = 0.5  # only |w|>0.5 survive: 0.0 → 0, ±1.0 → ±1
         x = np.array([[2.0, 3.0]], dtype="float32")
         y = ops.convert_to_numpy(layer(x))
@@ -114,7 +115,7 @@ class TernaryDenseTest(testing.TestCase):
         layer.build((None, 2))
         kernel = np.array([[0.5, -0.5], [0.5, 0.5]], dtype="float32")
         layer.kernel.assign(kernel)
-        # t = 0.5 * mean(|kernel|) = 0.5 * 0.5 = 0.25; all |w|=0.5 > 0.25 → all ±1
+        # t=0.25; all |w|=0.5 > t → all ±1; beta=0.5
         # k_ternary = [[1, -1], [1, 1]]; beta = mean(|kernel|) = 0.5
         # x=[[1,1]] @ k_ternary = [[2, 0]]; scaled = [[1.0, 0.0]]
         x = np.array([[1.0, 1.0]], dtype="float32")
@@ -124,6 +125,4 @@ class TernaryDenseTest(testing.TestCase):
     def test_compute_output_shape(self):
         layer = layers.TernaryDense(10)
         self.assertEqual(layer.compute_output_shape((None, 5)), (None, 10))
-        self.assertEqual(
-            layer.compute_output_shape((2, 3, 5)), (2, 3, 10)
-        )
+        self.assertEqual(layer.compute_output_shape((2, 3, 5)), (2, 3, 10))
