@@ -359,17 +359,28 @@ def is_torch_tensor(value):
 
 
 class DistributedBatchSampler:
-    def __init__(self, batch_sampler, num_replicas, rank):
+    def __init__(self, batch_sampler, num_replicas, rank, drop_last=False):
         self.batch_sampler = batch_sampler
         self.num_replicas = num_replicas
         self.rank = rank
+        self.drop_last = drop_last
 
     def __iter__(self):
-        for i, batch in enumerate(self.batch_sampler):
-            if i % self.num_replicas == self.rank:
-                yield batch
+        if self.drop_last:
+            num_batches = len(self.batch_sampler) // self.num_replicas
+            for i, batch in enumerate(self.batch_sampler):
+                if i >= num_batches * self.num_replicas:
+                    break
+                if i % self.num_replicas == self.rank:
+                    yield batch
+        else:
+            for i, batch in enumerate(self.batch_sampler):
+                if i % self.num_replicas == self.rank:
+                    yield batch
 
     def __len__(self):
+        if self.drop_last:
+            return len(self.batch_sampler) // self.num_replicas
         return (
             len(self.batch_sampler) + self.num_replicas - 1
         ) // self.num_replicas
@@ -453,7 +464,10 @@ def _add_torch_distributed_sampler(dataloader, num_replicas, rank):
             kwargs["drop_last"] = False
         else:
             kwargs["batch_sampler"] = DistributedBatchSampler(
-                dataloader.batch_sampler, num_replicas, rank
+                dataloader.batch_sampler,
+                num_replicas,
+                rank,
+                drop_last=getattr(dataloader, "drop_last", False),
             )
     else:
         kwargs["sampler"] = torch.utils.data.distributed.DistributedSampler(
