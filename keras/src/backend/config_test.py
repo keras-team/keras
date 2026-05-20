@@ -1,10 +1,13 @@
 import os
+import shutil
+import tempfile
 
 from keras.src import backend
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.config import disable_jit_cache
 from keras.src.backend.config import enable_jit_cache
+from keras.src.backend.config import get_jit_cache_dir
 from keras.src.backend.config import is_jit_cache_enabled
 from keras.src.backend.config import keras_home
 
@@ -16,6 +19,10 @@ class JitCacheConfigTest(testing.TestCase):
             "jit_cache_dir", default=None
         )
         disable_jit_cache()
+        # Use a unique temp directory per test so parallel runs don't collide
+        # and so we leave nothing on disk on failure.
+        self.cache_dir = tempfile.mkdtemp(prefix="keras_jit_cache_test_")
+        self.addCleanup(shutil.rmtree, self.cache_dir, ignore_errors=True)
 
     def tearDown(self):
         super().tearDown()
@@ -23,31 +30,34 @@ class JitCacheConfigTest(testing.TestCase):
 
     def test_default_is_disabled(self):
         self.assertFalse(is_jit_cache_enabled())
+        self.assertIsNone(get_jit_cache_dir())
 
     def test_enable_default_path(self):
         enable_jit_cache()
-        path = is_jit_cache_enabled()
-        self.assertTrue(path)
-        self.assertEqual(path, os.path.join(keras_home(), "jit_cache"))
+        self.assertTrue(is_jit_cache_enabled())
+        self.assertEqual(
+            get_jit_cache_dir(), os.path.join(keras_home(), "jit_cache")
+        )
 
     def test_enable_custom_path(self):
-        enable_jit_cache("/tmp/keras_jit_cache_test")
-        self.assertEqual(is_jit_cache_enabled(), "/tmp/keras_jit_cache_test")
+        enable_jit_cache(self.cache_dir)
+        self.assertTrue(is_jit_cache_enabled())
+        self.assertEqual(get_jit_cache_dir(), self.cache_dir)
 
     def test_disable_after_enable(self):
-        enable_jit_cache("/tmp/keras_jit_cache_test")
+        enable_jit_cache(self.cache_dir)
         disable_jit_cache()
         self.assertFalse(is_jit_cache_enabled())
+        self.assertIsNone(get_jit_cache_dir())
 
     def test_jax_runtime_picks_up_path(self):
         # On the JAX backend, enable_jit_cache should push the path into
         # jax.config. On other backends this call is a no-op and we only
         # check the global_state stash.
-        enable_jit_cache("/tmp/keras_jit_cache_test")
+        enable_jit_cache(self.cache_dir)
         if backend.backend() == "jax":
             import jax
 
             self.assertEqual(
-                jax.config.jax_compilation_cache_dir,
-                "/tmp/keras_jit_cache_test",
+                jax.config.jax_compilation_cache_dir, self.cache_dir
             )

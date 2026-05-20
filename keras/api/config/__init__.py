@@ -20,6 +20,9 @@ from keras.src.backend.config import (
     is_flash_attention_enabled as is_flash_attention_enabled,
 )
 from keras.src.backend.config import (
+    get_jit_cache_dir as get_jit_cache_dir,
+)
+from keras.src.backend.config import (
     is_jit_cache_enabled as is_jit_cache_enabled,
 )
 from keras.src.backend.config import is_nnx_enabled as is_nnx_enabled

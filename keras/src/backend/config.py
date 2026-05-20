@@ -250,17 +250,17 @@ def enable_jit_cache(path=None):
             JAX.
 
     This is opt-in because the cache writes to disk. Only the JAX backend
-    is affected; on other backends this is a no-op.
+    is affected; on other backends this is a no-op. JAX's own thresholds
+    for what gets persisted (`min_compile_time_secs`, `min_entry_size_bytes`)
+    are left untouched; set them via `jax.config.update(...)` if needed.
 
     Example:
 
     >>> keras.config.enable_jit_cache()
-    >>> keras.config.is_jit_cache_enabled()  # doctest: +ELLIPSIS
-    '.../jit_cache'
-
-    >>> keras.config.enable_jit_cache("/tmp/my_jit_cache")
     >>> keras.config.is_jit_cache_enabled()
-    '/tmp/my_jit_cache'
+    True
+    >>> keras.config.get_jit_cache_dir()  # doctest: +ELLIPSIS
+    '.../jit_cache'
     """
     from keras.src.backend.common import global_state
 
@@ -287,7 +287,7 @@ def disable_jit_cache():
     """
     from keras.src.backend.common import global_state
 
-    global_state.set_global_attribute("jit_cache_dir", False)
+    global_state.set_global_attribute("jit_cache_dir", None)
     _apply_jit_cache(None)
 
 
@@ -296,7 +296,8 @@ def is_jit_cache_enabled():
     """Checks whether the JAX persistent JIT compilation cache is enabled.
 
     Returns:
-        The cache directory (a string) if enabled, otherwise `False`.
+        `True` if enabled, `False` otherwise. To retrieve the configured
+        cache directory, use `keras.config.get_jit_cache_dir`.
 
     Example:
 
@@ -305,14 +306,33 @@ def is_jit_cache_enabled():
 
     >>> keras.config.enable_jit_cache("/tmp/my_jit_cache")
     >>> keras.config.is_jit_cache_enabled()
+    True
+    """
+    from keras.src.backend.common import global_state
+
+    return global_state.get_global_attribute("jit_cache_dir") is not None
+
+
+@keras_export("keras.config.get_jit_cache_dir")
+def get_jit_cache_dir():
+    """Return the configured JIT compilation cache directory, if any.
+
+    Returns:
+        The cache directory path as a string, or `None` if the cache is
+        disabled.
+
+    Example:
+
+    >>> keras.config.get_jit_cache_dir()  # doctest: +SKIP
+    None
+
+    >>> keras.config.enable_jit_cache("/tmp/my_jit_cache")
+    >>> keras.config.get_jit_cache_dir()
     '/tmp/my_jit_cache'
     """
     from keras.src.backend.common import global_state
 
-    val = global_state.get_global_attribute("jit_cache_dir", default=None)
-    if val is False or val is None:
-        return False
-    return val
+    return global_state.get_global_attribute("jit_cache_dir")
 
 
 def _apply_jit_cache(path):
@@ -332,8 +352,6 @@ def _apply_jit_cache(path):
         jax.config.update("jax_compilation_cache_dir", "")
         return
     jax.config.update("jax_compilation_cache_dir", path)
-    jax.config.update("jax_persistent_cache_min_compile_time_secs", 0)
-    jax.config.update("jax_persistent_cache_min_entry_size_bytes", 0)
 
 
 @keras_export("keras.config.is_nnx_enabled")
