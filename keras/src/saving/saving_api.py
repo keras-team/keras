@@ -310,7 +310,7 @@ def load_weights(model, filepath, skip_mismatch=False, **kwargs):
             )
         with h5py.File(filepath, "r") as f:
             if "layer_names" not in f.attrs and "model_weights" in f:
-                f = f["model_weights"]
+                f = saving_lib.safe_get_h5_group(f, "model_weights")
             if by_name:
                 legacy_h5_format.load_weights_from_hdf5_group_by_name(
                     f, model, skip_mismatch
