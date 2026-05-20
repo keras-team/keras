@@ -68,6 +68,7 @@ from keras.src.layers.convolutional.separable_conv2d import (
 from keras.src.layers.core.dense import Dense as Dense
 from keras.src.layers.core.einsum_dense import EinsumDense as EinsumDense
 from keras.src.layers.core.embedding import Embedding as Embedding
+from keras.src.layers.core.ternary_dense import TernaryDense as TernaryDense
 from keras.src.layers.core.identity import Identity as Identity
 from keras.src.layers.core.input_layer import Input as Input
 from keras.src.layers.core.input_layer import InputLayer as InputLayer
