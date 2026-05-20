@@ -326,8 +326,13 @@ class Distribution:
         self._device_mesh = device_mesh
         self._batch_dim_name = batch_dim_name
         self._auto_shard_dataset = auto_shard_dataset
-        self._num_processes = distribution_lib.num_processes()
-        self._process_id = distribution_lib.process_id()
+        if distribution_lib is not None:
+            self._num_processes = distribution_lib.num_processes()
+            self._process_id = distribution_lib.process_id()
+        else:
+            self._num_processes = 1
+            self._process_id = 0
+        self._is_multi_process = self._num_processes > 1
 
     @property
     def num_processes(self):
@@ -428,21 +433,35 @@ class Distribution:
             != Distribution.distribute_tf_dataset
         ):
             return self.distribute_tf_dataset(dataset)
+
+        from keras.src.utils.module_utils import tensorflow as tf
+        from keras.src.utils.module_utils import torch
+
+        if tf.available and isinstance(dataset, tf.data.Dataset):
+            return self.distribute_tf_dataset(dataset)
+        elif torch.available and isinstance(
+            dataset, torch.utils.data.DataLoader
+        ):
+            return self.distribute_torch_dataloader(dataset)
+
         if not self._is_multi_process or not self.auto_shard_dataset:
             return dataset
 
-        # Try to distribute a global tf.data.Dataset.
-        from keras.src.utils.module_utils import tensorflow as tf
+        raise ValueError(
+            "Only `tf.data.Dataset` and `torch.utils.data.DataLoader` "
+            f"are supported for auto-sharding, got {type(dataset)}"
+        )
 
-        if not tf.available or not isinstance(dataset, tf.data.Dataset):
-            raise ValueError(
-                "Only `tf.data.Dataset` is supported for auto-sharding, "
-                f"got {type(dataset)}"
-            )
+    def distribute_tf_dataset(self, dataset):
+        """Create a distributed tf.data.Dataset."""
+        if not self._is_multi_process or not self.auto_shard_dataset:
+            return dataset
 
         from tensorflow.python.data.experimental.ops import (
             distribute as tf_data_distribute,
         )
+
+        from keras.src.utils.module_utils import tensorflow as tf
 
         global_batch_size = tf_data_distribute.compute_batch_size(dataset)
         if global_batch_size.numpy() < 0:
@@ -497,12 +516,6 @@ class Distribution:
                 index=data_shard_id,
             )
             return distributed_dataset.prefetch(tf.data.AUTOTUNE)
-
-    def distribute_tf_dataset(self, dataset):
-        """Create a distributed tf.data.Dataset.
-        Alias for `distribute_dataset`.
-        """
-        return self.distribute_dataset(dataset)
 
     def distribute_torch_dataloader(self, dataloader):
         """Create a distributed torch DataLoader from the original dataloader.
