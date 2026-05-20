@@ -77,6 +77,21 @@ class ReduceLROnPlateau(MonitorCallback):
         self.cooldown_counter = 0
         self.wait = 0
 
+    def _reduce_optimizer_lr(self, optimizer, epoch, name_suffix=""):
+        old_lr = float(backend.convert_to_numpy(optimizer.learning_rate))
+        if old_lr > np.float32(self.min_lr):
+            new_lr = old_lr * self.factor
+            new_lr = max(new_lr, self.min_lr)
+            optimizer.learning_rate = new_lr
+            if self.verbose > 0:
+                name_str = f" {name_suffix}" if name_suffix else ""
+                io_utils.print_msg(
+                    f"\nEpoch {epoch + 1}: ReduceLROnPlateau reducing"
+                    f"{name_str} learning rate to {new_lr}."
+                )
+            return True
+        return False
+
     def on_train_begin(self, logs=None):
         self._reset()
 
@@ -114,44 +129,24 @@ class ReduceLROnPlateau(MonitorCallback):
             elif not self.in_cooldown():
                 self.wait += 1
                 if self.wait >= self.patience:
+                    reduced = False
                     if hasattr(self.model.optimizer, "optimizers"):
                         for idx, opt in enumerate(
                             self.model.optimizer.optimizers
                         ):
-                            old_lr = float(
-                                backend.convert_to_numpy(opt.learning_rate)
-                            )
-                            if old_lr > np.float32(self.min_lr):
-                                new_lr = old_lr * self.factor
-                                new_lr = max(new_lr, self.min_lr)
-                                opt.learning_rate = new_lr
-                                if self.verbose > 0:
-                                    io_utils.print_msg(
-                                        f"\nEpoch {epoch + 1}: "
-                                        "ReduceLROnPlateau reducing "
-                                        f"{opt.name}{idx} learning rate "
-                                        f"to {new_lr}."
-                                    )
-                                self.cooldown_counter = self.cooldown
-                                self.wait = 0
+                            if self._reduce_optimizer_lr(
+                                opt, epoch, f"{opt.name}{idx}"
+                            ):
+                                reduced = True
                     else:
-                        old_lr = float(
-                            backend.convert_to_numpy(
-                                self.model.optimizer.learning_rate
-                            )
-                        )
-                        if old_lr > np.float32(self.min_lr):
-                            new_lr = old_lr * self.factor
-                            new_lr = max(new_lr, self.min_lr)
-                            self.model.optimizer.learning_rate = new_lr
-                            if self.verbose > 0:
-                                io_utils.print_msg(
-                                    f"\nEpoch {epoch + 1}: "
-                                    "ReduceLROnPlateau reducing "
-                                    f"learning rate to {new_lr}."
-                                )
-                            self.cooldown_counter = self.cooldown
-                            self.wait = 0
+                        if self._reduce_optimizer_lr(
+                            self.model.optimizer, epoch
+                        ):
+                            reduced = True
+
+                    if reduced:
+                        self.cooldown_counter = self.cooldown
+                        self.wait = 0
 
     def in_cooldown(self):
         return self.cooldown_counter > 0

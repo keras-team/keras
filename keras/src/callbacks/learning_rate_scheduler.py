@@ -74,11 +74,11 @@ class LearningRateScheduler(Callback):
         if hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
                 learning_rate = self._update_optimizer_lr(opt, epoch)
-            if self.verbose > 0:
-                io_utils.print_msg(
-                    f"\nEpoch {epoch + 1}: LearningRateScheduler setting "
-                    f"{opt.name}{idx} learning rate to {learning_rate}."
-                )
+                if self.verbose > 0:
+                    io_utils.print_msg(
+                        f"\nEpoch {epoch + 1}: LearningRateScheduler setting "
+                        f"{opt.name}{idx} learning rate to {learning_rate}."
+                    )
         else:
             learning_rate = self._update_optimizer_lr(
                 self.model.optimizer, epoch
