@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src import backend
+from keras.src import optimizers
 from keras.src.api_export import keras_export
 from keras.src.callbacks.callback import Callback
 from keras.src.utils import io_utils
@@ -71,7 +72,9 @@ class LearningRateScheduler(Callback):
         return learning_rate
 
     def on_epoch_begin(self, epoch, logs=None):
-        if hasattr(self.model.optimizer, "optimizers"):
+        if isinstance(
+            self.model.optimizer, optimizers.MultiOptimizer
+        ) and hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
                 learning_rate = self._update_optimizer_lr(opt, epoch)
                 if self.verbose > 0:
@@ -91,7 +94,9 @@ class LearningRateScheduler(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        if hasattr(self.model.optimizer, "optimizers"):
+        if isinstance(
+            self.model.optimizer, optimizers.MultiOptimizer
+        ) and hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
                 logs[f"learning_rate_{opt.name}{idx}"] = float(
                     backend.convert_to_numpy(opt.learning_rate)
