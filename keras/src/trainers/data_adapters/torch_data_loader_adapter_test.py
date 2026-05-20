@@ -1,7 +1,9 @@
 import math
+import os
 from unittest.mock import patch
 
 import numpy as np
+import pytest
 import tensorflow as tf
 import torch
 from absl.testing import parameterized
@@ -313,3 +315,44 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         # Check that we are getting the correct items (interleaved sharding)
         first_item = next(iter(new_dataloader))[0]
         self.assertEqual(first_item.item(), expected_rank)
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Only for torch backend",
+    )
+    def test_torch_dataloader_distribute_integration(self):
+        if backend.distribution_lib is None:
+            self.skipTest("Torch distribution_lib not implemented yet")
+
+        # Initialize torch distributed
+        if not torch.distributed.is_initialized():
+            os.environ["WORLD_SIZE"] = "1"
+            os.environ["RANK"] = "0"
+            os.environ["MASTER_ADDR"] = "localhost"
+            os.environ["MASTER_PORT"] = "12356"
+            torch.distributed.init_process_group(
+                backend="gloo",
+                rank=0,
+                world_size=1,
+            )
+
+        from keras.src.distribution import distribution_lib
+
+        dp = distribution_lib.DataParallel(devices=["cpu:0"])
+        # Force multi-process to test sampler wiring even with 1 process
+        dp._is_multi_process = True
+        with dp.scope():
+            x = torch.randn(10, 2)
+            y = torch.randn(10, 1)
+            dataset = torch.utils.data.TensorDataset(x, y)
+            dataloader = torch.utils.data.DataLoader(dataset, batch_size=2)
+
+            adapter = TorchDataLoaderAdapter(dataloader)
+            new_dataloader = adapter.get_torch_dataloader()
+
+            self.assertIsInstance(
+                new_dataloader.sampler,
+                torch.utils.data.distributed.DistributedSampler,
+            )
+            self.assertEqual(new_dataloader.sampler.num_replicas, 1)
+            self.assertEqual(new_dataloader.sampler.rank, 0)
