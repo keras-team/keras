@@ -255,7 +255,7 @@ def enable_tf32():
     """
     from keras.src.backend.common import global_state
 
-    global_state.set_global_attribute("tf32", None)
+    global_state.set_global_attribute("tf32", True)
     _refresh_backend_tf32()
 
 
@@ -287,7 +287,8 @@ def is_tf32_enabled():
     `keras.config.disable_tf32`.
 
     Returns:
-        `False` if disabled. Otherwise, it indicates that it is enabled.
+        `True` if TF32 is enabled (the default), `False` if it has been
+        explicitly disabled.
 
     Example:
 
@@ -296,7 +297,10 @@ def is_tf32_enabled():
     """
     from keras.src.backend.common import global_state
 
-    return global_state.get_global_attribute("tf32", default=None)
+    # Stored as a strict bool by enable_tf32/disable_tf32. When neither has
+    # been called, the attribute is absent and we fall back to the Keras
+    # default (True).
+    return global_state.get_global_attribute("tf32", default=True) is True
 
 
 def _refresh_backend_tf32():

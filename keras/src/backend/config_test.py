@@ -10,21 +10,22 @@ class TF32ConfigTest(testing.TestCase):
         self._tf32_was_enabled = config.is_tf32_enabled()
 
     def tearDown(self):
-        if self._tf32_was_enabled is False:
-            config.disable_tf32()
-        else:
+        if self._tf32_was_enabled:
             config.enable_tf32()
+        else:
+            config.disable_tf32()
         super().tearDown()
 
     def test_enabled_by_default(self):
-        # `is_tf32_enabled()` returns `False` only when explicitly disabled.
-        self.assertNotEqual(config.is_tf32_enabled(), False)
+        self.assertIsInstance(config.is_tf32_enabled(), bool)
+        self.assertTrue(config.is_tf32_enabled())
 
     def test_disable_then_enable(self):
         config.disable_tf32()
-        self.assertEqual(config.is_tf32_enabled(), False)
+        self.assertIsInstance(config.is_tf32_enabled(), bool)
+        self.assertFalse(config.is_tf32_enabled())
         config.enable_tf32()
-        self.assertNotEqual(config.is_tf32_enabled(), False)
+        self.assertTrue(config.is_tf32_enabled())
 
     def test_toggle_applies_to_active_backend(self):
         """Toggling the Keras flag re-applies to the active backend."""
@@ -33,8 +34,10 @@ class TF32ConfigTest(testing.TestCase):
 
             config.disable_tf32()
             self.assertEqual(torch.get_float32_matmul_precision(), "highest")
+            self.assertFalse(torch.backends.cudnn.allow_tf32)
             config.enable_tf32()
             self.assertEqual(torch.get_float32_matmul_precision(), "high")
+            self.assertTrue(torch.backends.cudnn.allow_tf32)
         elif backend.backend() == "tensorflow":
             import tensorflow as tf
 

@@ -834,21 +834,54 @@ class CustomGradientFunction(torch.autograd.Function):
         return (None,) + grads
 
 
-def _apply_tf32():
-    """Honor `keras.config.is_tf32_enabled()` for float32 matmul precision.
+_TF32_DEFAULT_WARNED = False
 
-    Torch defaults to full `float32` matmuls (`"highest"`), while JAX and
-    TF use TF32 by default. Mapping the Keras setting onto
-    `torch.set_float32_matmul_precision` keeps the Torch backend consistent
-    with the others. Applied once at import and re-applied by
-    `keras.config.enable_tf32` / `disable_tf32`.
+
+def _apply_tf32():
+    """Honor `keras.config.is_tf32_enabled()` on the Torch backend.
+
+    Torch defaults to full `float32` matmuls (`"highest"`) and to
+    `cudnn.allow_tf32 = False` for convolutions, while JAX and TF use TF32
+    by default for both. Mapping the Keras setting onto both knobs keeps
+    the Torch backend consistent with the others. Applied once at import
+    and re-applied by `keras.config.enable_tf32` / `disable_tf32`.
+
+    Emits a one-time `RuntimeWarning` when the Keras default is in effect
+    on a CUDA host, since that flips Torch's native precision behavior
+    relative to a vanilla Torch program.
     """
+    global _TF32_DEFAULT_WARNED
+    from keras.src.backend.common import global_state
     from keras.src.backend.config import is_tf32_enabled
 
-    if is_tf32_enabled() is False:
-        torch.set_float32_matmul_precision("highest")
-    else:
+    enabled = is_tf32_enabled()
+    if enabled:
         torch.set_float32_matmul_precision("high")
+        torch.backends.cudnn.allow_tf32 = True
+    else:
+        torch.set_float32_matmul_precision("highest")
+        torch.backends.cudnn.allow_tf32 = False
+
+    explicit = global_state.get_global_attribute("tf32") is not None
+    if (
+        not _TF32_DEFAULT_WARNED
+        and enabled
+        and not explicit
+        and torch.cuda.is_available()
+    ):
+        _TF32_DEFAULT_WARNED = True
+        import warnings
+
+        warnings.warn(
+            "Keras enables TensorFloat-32 (TF32) by default on the Torch "
+            "backend to match the JAX and TensorFlow defaults. float32 "
+            "matmuls and convolutions on Ampere+ GPUs now run at "
+            "tensor-core precision, which can produce small numerical "
+            "drift versus full float32. Call keras.config.disable_tf32() "
+            "to revert.",
+            category=RuntimeWarning,
+            stacklevel=2,
+        )
 
 
 _apply_tf32()
