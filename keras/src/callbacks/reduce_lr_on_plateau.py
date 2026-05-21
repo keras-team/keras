@@ -84,9 +84,10 @@ class ReduceLROnPlateau(MonitorCallback):
             new_lr = max(new_lr, self.min_lr)
             optimizer.learning_rate = new_lr
             if self.verbose > 0:
+                name_str = f" {name}" if name else ""
                 io_utils.print_msg(
-                    f"\nEpoch {epoch + 1}: ReduceLROnPlateau reducing "
-                    f"{name} learning rate to {new_lr}."
+                    f"\nEpoch {epoch + 1}: ReduceLROnPlateau reducing"
+                    f"{name_str} learning rate to {new_lr}."
                 )
             return True
         return False
