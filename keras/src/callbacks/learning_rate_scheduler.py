@@ -77,7 +77,7 @@ class LearningRateScheduler(Callback):
                 if self.verbose > 0:
                     io_utils.print_msg(
                         f"\nEpoch {epoch + 1}: LearningRateScheduler setting "
-                        f"{opt.name}_{idx} learning rate to {learning_rate}."
+                        f"{opt.name} learning rate to {learning_rate}."
                     )
         else:
             learning_rate = self._update_optimizer_lr(
@@ -93,7 +93,7 @@ class LearningRateScheduler(Callback):
         logs = logs or {}
         if hasattr(self.model.optimizer, "optimizers"):
             for idx, opt in enumerate(self.model.optimizer.optimizers):
-                logs[f"learning_rate_{opt.name}_{idx}"] = float(
+                logs[f"learning_rate_{opt.name}"] = float(
                     backend.convert_to_numpy(opt.learning_rate)
                 )
         else:

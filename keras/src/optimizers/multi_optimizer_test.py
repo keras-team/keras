@@ -439,9 +439,10 @@ class MultiOptimizerTest(testing.TestCase):
         """
         import tempfile
 
-        opt_1 = optimizers.SGD(learning_rate=0.1, name="sgd")
-        opt_2 = optimizers.SGD(learning_rate=0.01, name="sgd")
-
+        opt_1 = optimizers.SGD(learning_rate=0.1, name="SGD")
+        opt_2 = optimizers.SGD(learning_rate=0.01, name="SGD_1")
+        print(opt_1.name)
+        print(opt_2.name)
         optimizer = optimizers.MultiOptimizer(
             optimizers.OptimizerMap(
                 default_optimizer=opt_2,
@@ -470,10 +471,10 @@ class MultiOptimizerTest(testing.TestCase):
             logs = {}
             updated_logs = tb_callback._collect_learning_rate(logs)
 
-            self.assertIn("learning_rate_sgd_0", updated_logs)
-            self.assertIn("learning_rate_sgd_1", updated_logs)
-            self.assertAllClose(updated_logs["learning_rate_sgd_0"], 0.1)
-            self.assertAllClose(updated_logs["learning_rate_sgd_1"], 0.01)
+            self.assertIn("learning_rate_SGD", updated_logs)
+            self.assertIn("learning_rate_SGD_1", updated_logs)
+            self.assertAllClose(updated_logs["learning_rate_SGD"], 0.1)
+            self.assertAllClose(updated_logs["learning_rate_SGD_1"], 0.01)
 
     @pytest.mark.requires_trainable_backend
     def test_swap_ema_weights_with_multi_optimizer(self):
@@ -633,12 +634,15 @@ class MultiOptimizerTest(testing.TestCase):
         self.assertAllClose(w2.numpy(), [[1.9, 1.9]])
 
     @pytest.mark.requires_trainable_backend
-    def test_multi_optimizer_blocks_inner_loss_scale_optimizer(self):
+    def test_multi_optimizer_blocks_nested_optimizers(self):
         """Verifies MultiOptimizer raises ValueError if
-        inner optimizer is LSO."""
+        inner optimizer is LSO or MultiOptimizer."""
         opt_sgd = optimizers.SGD(learning_rate=0.1)
         # Wrapping inner SGD in LSO
         opt_lso = optimizers.LossScaleOptimizer(opt_sgd)
+
+        # Wrapping inner SGD in MultiOptimizer
+        opt_multi = optimizers.MultiOptimizer(opt_sgd)
 
         # 1. Check error during OptimizerMap setitem
         opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd)
@@ -647,18 +651,34 @@ class MultiOptimizerTest(testing.TestCase):
         ):
             opt_map[".*"] = opt_lso
 
+        with self.assertRaisesRegex(
+            ValueError, "optimizer cannot be MultiOptimizer."
+        ):
+            opt_map[".*"] = opt_multi
+
         # 2. Check error during build (in case it bypassed
         #  setitem via constructor dict)
         opt_map_direct = optimizers.OptimizerMap(default_optimizer=opt_sgd)
-        opt_map_direct._optimizer_map = {".*dense_1/.*": opt_lso}
+        opt_map_direct._optimizer_map = {
+            ".*dense_1/.*": opt_lso,
+            ".*dense_2/.*": opt_multi,
+        }
 
         multi_opt = optimizers.MultiOptimizer(opt_map_direct)
 
         with backend.name_scope("dense_1"):
-            w = backend.Variable([[1.0]], name="kernel")
+            w1 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[1.0]], name="kernel")
 
         with self.assertRaisesRegex(
             ValueError,
             "LossScaleOptimizer cannot be used inside an MultiOptimizer.",
         ):
-            multi_opt.build([w])
+            multi_opt.build([w1])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "MultiOptimizer cannot be used inside an MultiOptimizer.",
+        ):
+            multi_opt.build([w2])

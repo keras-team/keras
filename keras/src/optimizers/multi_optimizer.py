@@ -265,7 +265,7 @@ class MultiOptimizer(Optimizer):
                 )
             if isinstance(opt, MultiOptimizer):
                 raise ValueError(
-                    "MultiOptimizer cannot be nested inside an MultiOptimizer."
+                    "MultiOptimizer cannot be used inside an MultiOptimizer."
                 )
             if opt not in self._inner_optimizers:
                 opt.loss_scale_factor = self.loss_scale_factor
