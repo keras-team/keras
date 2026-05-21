@@ -138,9 +138,11 @@ Documentation and error messages are an integral part of the API. Good docs and 
 
 - **Catch user errors early and anticipate common mistakes.** Do user input validation as soon as possible. Actively keep track of common mistakes that people make (by screening GitHub and StackOverflow), and either solve them by simplifying our API, adding targeted error messages for these mistakes, or having a "solutions to common issues" page in our docs. Consider adding automated fallback behaviors (e.g. casting a wrongly-typed input) instead of raising errors, when applicable. Be nice to our users.
 - **Provide detailed feedback messages upon user error.** Error messages should be contextual, informative, and actionable. Every error message that transparently provides the user with the solution to their problem means one less support ticket, multiplied by how many times users run into the same issue. A good error message should answer:
-    - What happened, in what context?
-    - What did the software expect?
+    - What happened, in what context? (Include all relevant hyperparameters, e.g., `strides`, `padding`, `pool_size`, not just the input shape. Always include the *received* values like `original_shape` or `output_mode`).
+    - What did the software expect? (Explicitly mention the expected vs. actual path or value for complex models).
     - How can the user fix it?
+- **Use plain Python representations in error messages.** Shapes and sizes should be represented as Python tuples (e.g., `(2, 2)`) rather than raw NumPy array representations (e.g., `[2 2]`). Use `.name` attributes for objects instead of raw object strings.
+- **Explain Deserialization Requirements**: Enhance deserialization errors to explain that custom classes must be imported *before* loading to ensure decorators (like `@register_keras_serializable`) are executed.
 - **A docstring should answer the question: what is this about, and why & how should I use it?** It should assume as little context as possible, and it shouldn't mention specialized terms without first introducing them (for example, "num_blocks: Number of blocks in the kernel" is not a good argument description if this is the first time you mention "blocks" in your docstring).
 - **Show, don't tell: your documentation should not talk about how the software works, it should show how to use it.** Show code examples for end-to-end workflows; show code examples for each and every common use case and key feature of your API. **All docstrings should include code examples.**
 - **Deliberately design the user onboarding process for your feature.** How are complete newcomers going to find out the best way to solve their use case with your tool? Have an answer ready. Make sure your onboarding material closely maps to what your users care about: don't teach newcomers how your framework is implemented, teach them how they can use it to solve their own problems. After shipping a CL and writing good docstrings, make sure to create a Colab guide / tutorial showcasing the target workflow, and post it on the docs website.
@@ -203,6 +205,54 @@ y_binary = to_categorical(y_int)
 
 Alternatively, you can use the loss function `sparse_categorical_crossentropy` instead, which does expect integer targets.
 ```
+
+---
+
+## Implementation Best Practices (Multi-Backend & Symbolic Tensors)
+
+Keras supports multiple backends (JAX, TensorFlow, PyTorch) and uses symbolic execution. Follow these patterns to ensure compatibility and robustness:
+
+### Multi-Backend Compatibility
+- **Prefer `backend.convert_to_tensor` over backend-specific methods**: Use `backend.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of Keras-specific quirks (e.g., NumPy array writability for PyTorch, dtype mappings).
+- **Backend-Agnostic Shape Handling**: Prefer using `backend.shape(inputs)` (or a passed `backend_module.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
+- **Support Dynamic Dimensions**:
+    - Use `jax.export.symbolic_shape()` for JAX `compute_output_spec`.
+    - Use `x.shape.rank` instead of `x.ndim` for TensorFlow to support `tf.RaggedTensor`.
+    - Avoid Python-level integer conversions (e.g., `int(tensor)`) or static ranges in backend implementations; use `ops.arange` or similar.
+- **Backend Flags**: Use backend flags like `SUPPORTS_COMPLEX_DTYPES` to standardize support detection and allow for clean, conditional test skipping.
+- **Random Seeds**:
+    - Use `int64` for random seeds in TensorFlow to avoid automatic CPU placement of `int32` constants.
+    - Use `int64` for random seeds in Torch to correctly map the full 32-bit unsigned range (Torch lacks native `uint32`).
+
+### Optimization & Numeric Stability
+- **Fused Operations**: Use `tf.nn.bias_add` instead of `tf.add` for adding biases in TensorFlow to allow for kernel fusion.
+- **Division by Zero**: Use `ops.divide_no_nan` for mask weight calculations or any situation where a zero divisor is possible.
+- **Precision Sensitivity**: Use `float32` for LoRA weights and normalization math even in mixed-precision environments to avoid underflow/overflow.
+- **Arithmetic Masking**: Use `ops.where` or `backend.numpy.where` instead of additive arithmetic (e.g., `(1.0 - mask) * -1e-9 + inputs`) for softmax masking to avoid numerical noise issues.
+- **Fast Paths**: Optimize `tree.flatten` and `tree.map_structure` with fast paths for single, non-nested tensors to reduce layer call overhead.
+
+### API Design & Validation
+- **Early Validation**:
+    - Perform axis canonicalization (using `canonicalize_axis` or `canonicalize_axes`) early, typically in `compute_output_spec`, to catch errors during graph building. Validate axis uniqueness *after* canonicalization.
+    - Explicitly validate input channels match the kernel in `DepthwiseConv` and `SeparableConv`.
+    - Raise explicit `ValueError` if `save_weights`/`load_weights` is called on an unbuilt model.
+- **Argument Types**:
+    - Use `isinstance(x, int)` instead of `x == int(x)` for integer-only arguments to safely handle `NaN`/`Inf`.
+    - When restricting to Python integers (e.g., window lengths), also allow NumPy integer scalars (`np.int32`, `np.int64`).
+- **Sublayer Dispatch**: Invoke sublayers (e.g., in `MultiHeadAttention`) using `__call__` rather than `call()` to ensure proper dispatch (critical for quantization).
+- **Recursive Tracking**: Ensure `Metric.variables` and similar properties are recursive to correctly track state in nested models.
+
+### Serialization & Security
+- **Safe HDF5 Access**: Access HDF5 groups via centralized helpers that disallow external and soft links to prevent "shape bomb" attacks.
+- **Byte Serialization**: Use Base64 encoding for `bytes` data during model serialization to ensure safe transport.
+- **Native Dtype Initialization**: When creating a `Variable` with an array initializer, use the input's native `dtype` instead of defaulting to `backend.floatx()`.
+
+### Testing
+- **Use existing test files**: Add tests to existing test files. Prefer not to create new test files unless completely necessary.
+- **Maximize Test Coverage**: Use specific test marks (like `@pytest.mark.requires_trainable_backend`) only when strictly necessary. Ensure training-related components are tested with a full `model.fit()` loop.
+- **Verify Error Clarity**: Use `self.assertRaisesRegex` to verify that the error message contains the expected guidance.
+- **JIT Compatibility**: Always include tests for `tf.function(jit_compile=True)` when fixing backend operations.
+- **Avoid `ops.nonzero`**: Avoid using `ops.nonzero()` in metrics or operations that need to be JAX-compilable, as it returns dynamic-sized arrays.
 
 ---
 
