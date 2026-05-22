@@ -386,13 +386,27 @@ class AttentionTest(testing.TestCase):
         key = np.random.random((2, 3, 4))
         layer = layers.Attention()
         output = layer([query, value, key])
-        self.assertAllEqual(output.shape, value.shape)
-        self.assertAllEqual(
+        self.assertEqual(output.shape, value.shape)
+        self.assertEqual(
             layer.compute_output_shape(
                 input_shape=[query.shape, value.shape, key.shape]
             ),
             output.shape,
         )
+
+    def test_attention_nd_inputs(self):
+        """Test that Attention handles N-D inputs (e.g. 4D from Conv2D)."""
+        layer = layers.Attention()
+        # 4D inputs: (batch, height, width, channels)
+        query = np.random.random((2, 8, 6, 4)).astype(np.float32)
+        value = np.random.random((2, 8, 6, 4)).astype(np.float32)
+        output = layer([query, value])
+        self.assertEqual(output.shape, (2, 8, 6, 4))
+
+        # With return_attention_scores
+        output, scores = layer([query, value], return_attention_scores=True)
+        self.assertEqual(output.shape, (2, 8, 6, 4))
+        self.assertEqual(scores.shape, (2, 8, 6, 6))
 
     def test_return_attention_scores_true(self):
         """Test that the layer returns attention scores along with outputs."""
@@ -464,3 +478,25 @@ class AttentionTest(testing.TestCase):
         )
         self.assertEqual(output.shape, (None, 3, 5))  # Output shape
         self.assertEqual(attention_scores.shape, (None, 3, 4))
+
+    def test_symbolic_call_does_not_leak_return_attention_scores(self):
+        # `Attention` used to stash `return_attention_scores` on an instance
+        # flag in `call()`, so a later symbolic call that set it to `False`
+        # still returned a `(output, scores)` tuple from `compute_output_spec`
+        # and `compute_output_shape`. Both paths must trust only the explicit
+        # argument.
+        attention = layers.Attention()
+        q_eager = np.random.rand(2, 3, 5).astype("float32")
+        v_eager = np.random.rand(2, 4, 5).astype("float32")
+        attention([q_eager, v_eager], return_attention_scores=True)
+
+        x = layers.Input(shape=(3, 5))
+        y = layers.Input(shape=(4, 5))
+        output = attention([x, y])
+        self.assertNotIsInstance(output, (tuple, list))
+        self.assertEqual(output.shape, (None, 3, 5))
+
+        self.assertEqual(
+            attention.compute_output_shape([x.shape, y.shape]),
+            (None, 3, 5),
+        )

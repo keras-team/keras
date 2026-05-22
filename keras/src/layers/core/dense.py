@@ -207,8 +207,13 @@ class Dense(Layer):
 
         # Apply LoRA once at the end.
         if self.lora_enabled:
-            kernel = kernel + (self.lora_alpha / self.lora_rank) * ops.matmul(
-                self.lora_kernel_a, self.lora_kernel_b
+            kernel = ops.cast(
+                ops.add(
+                    kernel,
+                    (self.lora_alpha / self.lora_rank)
+                    * ops.matmul(self.lora_kernel_a, self.lora_kernel_b),
+                ),
+                dtype=self.compute_dtype,
             )
 
         return kernel
@@ -265,16 +270,22 @@ class Dense(Layer):
         else:
             input_dim_for_lora = self.kernel.shape[0]
 
+        # LoRA weights should be float32 to avoid the risk of underflow or
+        # overflow during fine-tuning.
+        # When deploying the model, these weights should be merged with the
+        # original kernel while maintaining the original kernel's dtype.
         self.lora_kernel_a = self.add_weight(
             name="lora_kernel_a",
             shape=(input_dim_for_lora, rank),
             initializer=initializers.get(a_initializer),
+            dtype="float32",
             regularizer=self.kernel_regularizer,
         )
         self.lora_kernel_b = self.add_weight(
             name="lora_kernel_b",
             shape=(rank, self.kernel.shape[1]),
             initializer=initializers.get(b_initializer),
+            dtype="float32",
             regularizer=self.kernel_regularizer,
         )
         self._kernel.trainable = False
@@ -810,6 +821,7 @@ class Dense(Layer):
             lora_x = ops.matmul(inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
             x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
+            x = ops.cast(x, self.compute_dtype)
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:
@@ -918,7 +930,7 @@ class Dense(Layer):
             lora_x = ops.matmul(inputs, self.lora_kernel_a)
             lora_x = ops.matmul(lora_x, self.lora_kernel_b)
             x = ops.add(x, (self.lora_alpha / self.lora_rank) * lora_x)
-
+            x = ops.cast(x, self.compute_dtype)
         if self.bias is not None:
             x = ops.add(x, self.bias)
         if self.activation is not None:

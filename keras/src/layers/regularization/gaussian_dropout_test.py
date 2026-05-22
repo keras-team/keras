@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -7,7 +6,6 @@ from keras.src import testing
 
 
 class GaussianDropoutTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_gaussian_dropout_basics(self):
         self.run_layer_test(
             layers.GaussianDropout,

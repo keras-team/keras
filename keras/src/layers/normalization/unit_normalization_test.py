@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -12,7 +11,6 @@ def squared_l2_norm(x):
 
 
 class UnitNormalizationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_un_basics(self):
         self.run_layer_test(
             layers.UnitNormalization,

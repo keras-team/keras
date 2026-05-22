@@ -32,9 +32,38 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
         return tf.math.segment_max(data, segment_ids)
     else:
         if num_segments is None:
-            unique_segment_ids, _ = tf.unique(segment_ids)
-            num_segments = tf.shape(unique_segment_ids)[0]
+            num_segments = tf.cast(tf.reduce_max(segment_ids) + 1, tf.int32)
         return tf.math.unsorted_segment_max(data, segment_ids, num_segments)
+
+
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
+        return tf.math.segment_min(data, segment_ids)
+    else:
+        if num_segments is None:
+            num_segments = tf.cast(tf.reduce_max(segment_ids) + 1, tf.int32)
+        return tf.math.unsorted_segment_min(data, segment_ids, num_segments)
+
+
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
+        return tf.math.segment_prod(data, segment_ids)
+    else:
+        if num_segments is None:
+            num_segments = tf.cast(tf.reduce_max(segment_ids) + 1, tf.int32)
+        return tf.math.unsorted_segment_prod(data, segment_ids, num_segments)
 
 
 def top_k(x, k, sorted=True):
@@ -49,16 +78,15 @@ def logsumexp(x, axis=None, keepdims=False):
     return tf.math.reduce_logsumexp(x, axis=axis, keepdims=keepdims)
 
 
-def qr(x, mode="reduced"):
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    if mode == "reduced":
-        return tf.linalg.qr(x)
-    return tf.linalg.qr(x, full_matrices=True)
+def cdist(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    if x.shape.rank < 2 or y.shape.rank < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if x.shape[-1] != y.shape[-1]:
+        raise ValueError("Last dimension of inputs to `cdist` must match")
+    diff = tf.expand_dims(x, -2) - tf.expand_dims(y, -3)
+    return tf.sqrt(tf.reduce_sum(tf.square(diff), axis=-1))
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
@@ -269,12 +297,6 @@ def erf(x):
 
 def erfinv(x):
     return tf.math.erfinv(x)
-
-
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return tf.linalg.solve(a, b)
 
 
 def logdet(x):

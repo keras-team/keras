@@ -49,13 +49,13 @@ class LearningRateScheduler(Callback):
         self.schedule = schedule
         self.verbose = verbose
 
-    def on_epoch_begin(self, epoch, logs=None):
-        if not hasattr(self.model.optimizer, "learning_rate"):
+    def _update_optimizer_lr(self, optimizer, epoch):
+        if not hasattr(optimizer, "learning_rate"):
             raise ValueError('Optimizer must have a "learning_rate" attribute.')
 
         try:  # new API
             learning_rate = float(
-                backend.convert_to_numpy(self.model.optimizer.learning_rate)
+                backend.convert_to_numpy(optimizer.learning_rate)
             )
             learning_rate = self.schedule(epoch, learning_rate)
         except TypeError:  # Support for old API for backward compatibility
@@ -67,15 +67,36 @@ class LearningRateScheduler(Callback):
                 f"Got: {learning_rate}"
             )
 
-        self.model.optimizer.learning_rate = learning_rate
-        if self.verbose > 0:
-            io_utils.print_msg(
-                f"\nEpoch {epoch + 1}: LearningRateScheduler setting learning "
-                f"rate to {learning_rate}."
+        optimizer.learning_rate = learning_rate
+        return learning_rate
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if hasattr(self.model.optimizer, "optimizers"):
+            for idx, opt in enumerate(self.model.optimizer.optimizers):
+                learning_rate = self._update_optimizer_lr(opt, epoch)
+                if self.verbose > 0:
+                    io_utils.print_msg(
+                        f"\nEpoch {epoch + 1}: LearningRateScheduler setting "
+                        f"{opt.name} learning rate to {learning_rate}."
+                    )
+        else:
+            learning_rate = self._update_optimizer_lr(
+                self.model.optimizer, epoch
             )
+            if self.verbose > 0:
+                io_utils.print_msg(
+                    f"\nEpoch {epoch + 1}: LearningRateScheduler setting "
+                    f"learning rate to {learning_rate}."
+                )
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-        logs["learning_rate"] = float(
-            backend.convert_to_numpy(self.model.optimizer.learning_rate)
-        )
+        if hasattr(self.model.optimizer, "optimizers"):
+            for idx, opt in enumerate(self.model.optimizer.optimizers):
+                logs[f"learning_rate_{opt.name}"] = float(
+                    backend.convert_to_numpy(opt.learning_rate)
+                )
+        else:
+            logs["learning_rate"] = float(
+                backend.convert_to_numpy(self.model.optimizer.learning_rate)
+            )

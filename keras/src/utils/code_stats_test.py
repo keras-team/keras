@@ -8,6 +8,7 @@ from keras.src.utils.code_stats import count_loc
 
 class TestCountLoc(test_case.TestCase):
     def setUp(self):
+        super().setUp()
         self.test_dir = self.get_temp_dir()
 
     def create_file(self, filename, content):

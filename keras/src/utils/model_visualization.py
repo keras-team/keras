@@ -203,6 +203,7 @@ def model_to_dot(
     subgraph=False,
     show_layer_activations=False,
     show_trainable=False,
+    splines="ortho",
     **kwargs,
 ):
     """Convert a Keras model to dot format.
@@ -222,6 +223,9 @@ def model_to_dot(
         show_layer_activations: Display layer activations (only for layers that
             have an `activation` property).
         show_trainable: whether to display if a layer is trainable.
+        splines: Controls how edges are drawn. Defaults to `"ortho"`
+            (right-angle lines). Other options include `"curved"`,
+            `"polyline"`, `"spline"`, and `"line"`.
 
     Returns:
         A `pydot.Dot` instance representing the Keras model or
@@ -257,7 +261,7 @@ def model_to_dot(
         dot.set("rankdir", rankdir)
         dot.set("concentrate", True)
         dot.set("dpi", dpi)
-        dot.set("splines", "ortho")
+        dot.set("splines", splines)
         dot.set_node_defaults(shape="record")
 
     if kwargs.pop("layer_range", None) is not None:
@@ -414,6 +418,7 @@ def plot_model(
     dpi=200,
     show_layer_activations=False,
     show_trainable=False,
+    splines="ortho",
     **kwargs,
 ):
     """Converts a Keras model to dot format and save to a file.
@@ -444,6 +449,9 @@ def plot_model(
         show_layer_activations: Display layer activations (only for layers that
             have an `activation` property).
         show_trainable: whether to display if a layer is trainable.
+        splines: Controls how edges are drawn. Defaults to `"ortho"`
+            (right-angle lines). Other options include `"curved"`,
+            `"polyline"`, `"spline"`, and `"line"`.
 
     Returns:
         A Jupyter notebook Image object if Jupyter is installed.
@@ -497,6 +505,7 @@ def plot_model(
         dpi=dpi,
         show_layer_activations=show_layer_activations,
         show_trainable=show_trainable,
+        splines=splines,
     )
     to_file = str(to_file)
     if dot is None:

@@ -2,6 +2,7 @@ import os
 import pathlib
 import unittest.mock as mock
 
+import h5py
 import numpy as np
 from absl import logging
 from absl.testing import parameterized
@@ -250,8 +251,8 @@ class LoadWeightsTests(test_case.TestCase):
             self.assertAllClose(
                 orig.astype("float32"),
                 loaded.astype("float32"),
-                atol=0.001,
-                rtol=0.01,
+                atol=1e-3,
+                rtol=1e-2,
             )
 
     def test_load_weights_invalid_kwargs(self):
@@ -295,6 +296,34 @@ class LoadWeightsTests(test_case.TestCase):
         model = self.get_model()
         with self.assertRaisesRegex(ValueError, "File format not supported"):
             model.load_weights("invalid_extension.pkl")
+
+    def test_load_weights_rejects_h5_external_link(self):
+        target_fpath = os.path.join(self.get_temp_dir(), "target.h5")
+        src_model = self.get_model()
+        save_model_to_hdf5(src_model, target_fpath)
+
+        attacker_fpath = os.path.join(self.get_temp_dir(), "attacker.h5")
+        with h5py.File(attacker_fpath, "w") as f:
+            f["model_weights"] = h5py.ExternalLink(
+                target_fpath, "/model_weights"
+            )
+
+        dest_model = self.get_model()
+        with self.assertRaisesRegex(ValueError, "ExternalLink"):
+            dest_model.load_weights(attacker_fpath)
+
+    def test_load_weights_rejects_h5_soft_link(self):
+        attacker_fpath = os.path.join(
+            self.get_temp_dir(), "softlink_attacker.h5"
+        )
+        with h5py.File(attacker_fpath, "w") as f:
+            real = f.create_group("real_weights")
+            real.create_dataset("inner", data=np.zeros((1,)))
+            f["model_weights"] = h5py.SoftLink("/real_weights")
+
+        dest_model = self.get_model()
+        with self.assertRaisesRegex(ValueError, "SoftLink"):
+            dest_model.load_weights(attacker_fpath)
 
     def test_load_sharded_weights(self):
         src_model = self.get_model()

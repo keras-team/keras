@@ -1,6 +1,5 @@
 # Tensorflow cpu-only version (needed for testing).
 tensorflow-cpu
-tf2onnx
 
 # Torch cpu-only version (needed for testing).
 --extra-index-url https://download.pytorch.org/whl/cpu

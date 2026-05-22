@@ -1,6 +1,7 @@
 import numpy as np
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.jax.math import fft as jax_fft
 from keras.src.backend.jax.math import fft2 as jax_fft2
 from keras.src.backend.numpy.core import convert_to_tensor
@@ -24,6 +25,10 @@ def _segment_reduction_fn(
 
     if reduction_method == np.maximum:
         result = np.ones(data_shape, dtype=valid_data.dtype) * -np.inf
+    elif reduction_method == np.minimum:
+        result = np.ones(data_shape, dtype=valid_data.dtype) * np.inf
+    elif reduction_method == np.multiply:
+        result = np.ones(data_shape, dtype=valid_data.dtype)
     else:
         result = np.zeros(data_shape, dtype=valid_data.dtype)
 
@@ -48,6 +53,18 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(
         data, segment_ids, np.maximum, num_segments, sorted
+    )
+
+
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(
+        data, segment_ids, np.minimum, num_segments, sorted
+    )
+
+
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(
+        data, segment_ids, np.multiply, num_segments, sorted
     )
 
 
@@ -78,14 +95,15 @@ def logsumexp(x, axis=None, keepdims=False):
     return scipy.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
-def qr(x, mode="reduced"):
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    return np.linalg.qr(x, mode=mode)
+def cdist(x, y):
+    x = np.asarray(x)
+    y = np.asarray(y)
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if x.shape[-1] != y.shape[-1]:
+        raise ValueError("Last dimension of inputs to `cdist` must match")
+    diff = x[..., :, None, :] - y[..., None, :, :]
+    return np.sqrt(np.sum(diff * diff, axis=-1))
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
@@ -290,17 +308,12 @@ def rsqrt(x):
 
 
 def erf(x):
-    return np.array(scipy.special.erf(x))
+    dtype = dtypes.result_type(x.dtype)
+    return scipy.special.erf(x).astype(dtype)
 
 
 def erfinv(x):
     return np.array(scipy.special.erfinv(x))
-
-
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return np.linalg.solve(a, b)
 
 
 def logdet(x):

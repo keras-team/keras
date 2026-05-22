@@ -2,8 +2,10 @@ import math
 
 import numpy as np
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import to_tuple_or_list
 
@@ -134,10 +136,12 @@ def compute_pooling_output_shape(
             np.floor((spatial_shape - pool_size) / strides) + 1
         )
         for i in range(len(output_spatial_shape)):
-            if i not in none_dims and output_spatial_shape[i] < 0:
+            if i not in none_dims and output_spatial_shape[i] <= 0:
                 raise ValueError(
-                    "Computed output size would be negative. Received: "
-                    f"`inputs.shape={input_shape}` and `pool_size={pool_size}`."
+                    "Computed output size would be zero or negative. "
+                    f"Received: `inputs.shape={input_shape}`, "
+                    f"`pool_size={pool_size}`, `strides={strides}`, "
+                    f"`padding={padding}`."
                 )
     elif padding == "same":
         output_spatial_shape = np.floor((spatial_shape - 1) / strides) + 1
@@ -282,20 +286,62 @@ def compute_matmul_output_shape(shape1, shape2):
     return tuple(output_shape)
 
 
+def validate_reshape_shape(newshape, newshape_arg_name="newshape"):
+    """Validate the `newshape` argument of `reshape`.
+
+    Each dimension that is a concrete Python int must be either non-negative
+    or `-1` (with at most one `-1`). Dynamic dimensions (e.g. backend tensor
+    scalars resolved at runtime, such as `torch.SymInt` under `torch.compile`)
+    are not validated here.
+    """
+
+    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+        return
+
+    neg_one_count = 0
+    for dim in newshape:
+        if not isinstance(dim, (int, np.integer)):
+            continue
+        if dim < -1:
+            raise ValueError(
+                f"Each dimension in `{newshape_arg_name}` must be a "
+                "non-negative integer, or `-1` for a single unknown "
+                f"dimension. Received: {newshape_arg_name}={newshape}."
+            )
+        elif dim == -1:
+            neg_one_count += 1
+    if neg_one_count > 1:
+        raise ValueError(
+            "There must be at most one unknown dimension (-1) in "
+            f"`{newshape_arg_name}`. Received: "
+            f"{newshape_arg_name}={newshape}."
+        )
+
+
 def compute_reshape_output_shape(input_shape, newshape, newshape_arg_name):
     """Converts `-1` in `newshape` to either an actual dimension or `None`.
 
     This utility does not special case the 0th dimension (batch size).
     """
-    unknown_dim_count = newshape.count(-1)
-    if unknown_dim_count > 1:
-        raise ValueError(
-            "There must be at most one unknown dimension (-1) in "
-            f"{newshape_arg_name}. Received: {newshape_arg_name}={newshape}."
-        )
+    validate_reshape_shape(newshape, newshape_arg_name)
+    # If `newshape` is a tensor, we infer the output rank based on its shape.
+    # For example, a 1D tensor of shape (4,) indicates a 4D output shape.
+    if backend.is_tensor(newshape) or isinstance(newshape, KerasTensor):
+        shape = getattr(newshape, "shape", None)
+        if shape and len(shape) == 1 and shape[0] is not None:
+            return (None,) * shape[0]
+        return (None,)
 
-    # If there is a None in input_shape, we can't infer what the -1 is
-    if None in input_shape:
+    # Normalize dimensions by replacing symbolic tensors or
+    # dynamic values with `None`.
+    newshape = tuple(
+        dim if isinstance(dim, (int, np.integer)) else None for dim in newshape
+    )
+    unknown_dim_count = newshape.count(-1)
+
+    # If there is a None in input_shape or dynamic dimensions,
+    # we can't infer what the -1 is
+    if None in input_shape or None in newshape:
         return tuple(dim if dim != -1 else None for dim in newshape)
 
     input_size = math.prod(input_shape)
@@ -344,12 +390,27 @@ def compute_transpose_output_shape(input_shape, axes):
     if axes is None:
         return tuple(input_shape[::-1])
 
-    if len(axes) != len(input_shape):
+    ndim = len(input_shape)
+    if len(axes) != ndim:
         raise ValueError(
             "axis must be a list of the same length as the input shape, "
-            f"expected {len(input_shape)}, but received {len(axes)}."
+            f"expected {ndim}, but received {len(axes)}."
         )
-    return tuple(input_shape[ax] for ax in axes)
+    normalized_axes = []
+    for ax in axes:
+        if not isinstance(ax, int) or ax < -ndim or ax >= ndim:
+            raise ValueError(
+                "Each axis in `axes` must be an integer in "
+                f"[-{ndim}, {ndim}). Received: axes={list(axes)}."
+            )
+        normalized_axes.append(ax % ndim)
+    if len(set(normalized_axes)) != ndim:
+        raise ValueError(
+            "`axes` must be a valid permutation of the input dimensions "
+            f"(no duplicates). Received: axes={list(axes)} for input of "
+            f"rank {ndim}."
+        )
+    return tuple(input_shape[ax] for ax in normalized_axes)
 
 
 def compute_take_along_axis_output_shape(input_shape, indices_shape, axis):

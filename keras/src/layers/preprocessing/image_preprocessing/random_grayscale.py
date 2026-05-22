@@ -124,9 +124,10 @@ class RandomGrayscale(BaseImagePreprocessingLayer):
         return config
 
 
-RandomGrayscale.__doc__ = RandomGrayscale.__doc__.replace(
-    "{{base_image_preprocessing_color_example}}",
-    base_image_preprocessing_color_example.replace(
-        "{LayerName}", "RandomGrayscale"
-    ),
-)
+if RandomGrayscale.__doc__ is not None:
+    RandomGrayscale.__doc__ = RandomGrayscale.__doc__.replace(
+        "{{base_image_preprocessing_color_example}}",
+        base_image_preprocessing_color_example.replace(
+            "{LayerName}", "RandomGrayscale"
+        ),
+    )

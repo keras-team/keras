@@ -35,7 +35,7 @@ class DtypesTest(test_case.TestCase):
         # exclusively enable the int64 dtype for TF. However, JAX does not
         # natively support int64, which prevents us from comparing the dtypes.
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint32",)]
-    elif backend.backend() == "openvino":
+    if not backend.SUPPORTS_COMPLEX_DTYPES:
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("complex64",)]
 
     @parameterized.named_parameters(
@@ -139,12 +139,12 @@ class DtypesTest(test_case.TestCase):
         )
 
     def test_respect_weak_type_for_complex64(self):
-        self.assertAllEqual(
+        self.assertEqual(
             dtypes._respect_weak_type("complex64", True), "complex"
         )
 
     def test_respect_weak_type_for_complex128(self):
-        self.assertAllEqual(
+        self.assertEqual(
             dtypes._respect_weak_type("complex128", True), "complex"
         )
 
@@ -201,6 +201,7 @@ class DtypesTest(test_case.TestCase):
     def test_empty_lub_in_least_upper_bound(self):
         dtype1 = "float32"
         dtype2 = "int32"
+        dtypes._least_upper_bound.cache_clear()
         with patch.dict(
             dtypes.LATTICE_UPPER_BOUNDS,
             {"float32": set(), "int32": set()},
@@ -210,6 +211,7 @@ class DtypesTest(test_case.TestCase):
                 ValueError, "no available implicit dtype promotion path"
             ):
                 dtypes._least_upper_bound(dtype1, dtype2)
+        dtypes._least_upper_bound.cache_clear()
 
     def test_valid_dtype_leading_to_single_lub_element(self):
         self.assertEqual(

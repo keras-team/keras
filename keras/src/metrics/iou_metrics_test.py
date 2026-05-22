@@ -97,6 +97,55 @@ class IoUTest(testing.TestCase):
         expected_result = (1 / (1 + 1 - 1)) / 1
         self.assertAllClose(result, expected_result, atol=1e-3)
 
+    def test_out_of_range_y_true_ignored(self):
+        # Class 2 is out of range for num_classes=2 and should
+        # be silently filtered out, leaving only (0,0).
+        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+        obj.update_state([0, 2], [0, 1])
+        # cm = [[1, 0],
+        #       [0, 0]]
+        # Only class 0 valid: iou_0 = 1/(1+1-1) = 1.0
+        self.assertAllClose(obj.result(), 1.0, atol=1e-3)
+
+    def test_out_of_range_y_pred_ignored(self):
+        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+        obj.update_state([0, 1], [0, 2])
+        # Only first pair (0,0) counts.
+        self.assertAllClose(obj.result(), 1.0, atol=1e-3)
+
+    def test_negative_y_true_ignored(self):
+        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+        obj.update_state([-1, 0], [0, 0])
+        # Only second pair (0,0) counts.
+        self.assertAllClose(obj.result(), 1.0, atol=1e-3)
+
+    def test_negative_y_pred_ignored(self):
+        obj = metrics.IoU(num_classes=2, target_class_ids=[0, 1])
+        obj.update_state([0, 1], [-1, 1])
+        # Only second pair (1,1) counts.
+        self.assertAllClose(obj.result(), 1.0, atol=1e-3)
+
+    def test_absent_class_contributes_zero(self):
+        # With num_classes=4 but only classes 0 and 1 present,
+        # classes 2 and 3 must contribute 0.0 to the mean.
+        y_true = [0, 0, 1, 1]
+        y_pred = [0, 1, 0, 1]
+
+        obj = metrics.IoU(num_classes=4, target_class_ids=[0, 1, 2, 3])
+        result = obj(y_true, y_pred)
+
+        # cm = [[1, 1, 0, 0],
+        #       [1, 1, 0, 0],
+        #       [0, 0, 0, 0],
+        #       [0, 0, 0, 0]]
+        # Classes 2 and 3 are absent: denom=0, iou=0.
+        # Only classes 0 and 1 are valid.
+        # iou_0 = 1 / (2+2-1) = 1/3
+        # iou_1 = 1 / (2+2-1) = 1/3
+        # mean = (1/3 + 1/3) / 2 = 1/3
+        expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
+        self.assertAllClose(result, expected_result, atol=1e-3)
+
     @pytest.mark.requires_trainable_backend
     def test_compilation(self):
         m_obj = metrics.MeanIoU(num_classes=2, ignore_class=0)
@@ -356,6 +405,38 @@ class MeanIoUTest(testing.TestCase):
         # sum_row = [0, 1], sum_col = [0, 1], true_positives = [0, 1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
         expected_result = (0 + 1 / (1 + 1 - 1)) / 1
+        self.assertAllClose(result, expected_result, atol=1e-3)
+
+    def test_out_of_range_ignored(self):
+        # Class 3 is out of range for num_classes=2 and should
+        # be silently filtered out.
+        m_obj = metrics.MeanIoU(num_classes=2)
+        m_obj.update_state([0, 3], [0, 1])
+        # Only first pair (0,0) counts.
+        self.assertAllClose(m_obj.result(), 1.0, atol=1e-3)
+
+    def test_negative_ignored(self):
+        m_obj = metrics.MeanIoU(num_classes=2)
+        m_obj.update_state([0, -1], [0, 1])
+        # Only first pair (0,0) counts.
+        self.assertAllClose(m_obj.result(), 1.0, atol=1e-3)
+
+    def test_absent_class_contributes_zero(self):
+        # num_classes=3 but only class 0 is present.
+        # Classes 1 and 2 must contribute 0 to the mean.
+        y_true = [0, 0, 0, 0]
+        y_pred = [0, 0, 0, 0]
+
+        m_obj = metrics.MeanIoU(num_classes=3)
+        result = m_obj(y_true, y_pred)
+
+        # cm = [[4, 0, 0],
+        #       [0, 0, 0],
+        #       [0, 0, 0]]
+        # Only class 0 is valid: iou_0 = 4/(4+4-4) = 1.0
+        # Classes 1, 2 contribute 0.0.
+        # mean = 1.0 / 1 = 1.0
+        expected_result = 1.0
         self.assertAllClose(result, expected_result, atol=1e-3)
 
     @staticmethod

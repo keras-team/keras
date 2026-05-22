@@ -12,6 +12,8 @@ from keras.src.utils import numerical_utils
 
 class ReduceLROnPlateauTest(testing.TestCase):
     def setUp(self):
+        super().setUp()
+
         (x_train, y_train), (x_test, y_test) = test_utils.get_test_data(
             train_samples=10,
             test_samples=10,

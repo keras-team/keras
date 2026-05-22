@@ -3,6 +3,10 @@ import numpy as np
 from jax import lax
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import check_conv_input_channels
+from keras.src.backend.common.backend_utils import (
+    check_conv_transpose_input_channels,
+)
 from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
@@ -664,7 +668,7 @@ def conv(
             feature_group_count=feature_group_count,
         )
     )
-    if result.size == 0:
+    if result.size == 0 and inputs.size != 0:
         raise ValueError(
             "The convolution operation resulted in an empty output. "
             "This can happen if the input is too small for the given "
@@ -683,6 +687,9 @@ def depthwise_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    check_conv_input_channels(inputs, kernel, data_format)
     num_spatial_dims = inputs.ndim - 2
     dimension_numbers = _convert_to_lax_conv_dimension_numbers(
         num_spatial_dims,
@@ -731,6 +738,10 @@ def separable_conv(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    depthwise_kernel = convert_to_tensor(depthwise_kernel)
+    pointwise_kernel = convert_to_tensor(pointwise_kernel)
+    check_conv_input_channels(inputs, depthwise_kernel, data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -759,6 +770,9 @@ def conv_transpose(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    check_conv_transpose_input_channels(inputs, kernel, data_format)
     num_spatial_dims = inputs.ndim - 2
     padding_values = compute_conv_transpose_padding_args_for_jax(
         input_shape=inputs.shape,
@@ -1197,11 +1211,9 @@ def _ctc_beam_search_decode(
     def _merge_scores(unique_inverse, scores):
         scores_max = np.max(scores)
         scores_exp = np.exp(scores - scores_max)
-        scores = np.zeros_like(scores)
-        for i, u in enumerate(unique_inverse):
-            scores[u] += scores_exp[i]
-        scores = np.log(scores) + scores_max
-        return scores
+        new_scores = np.zeros_like(scores)
+        np.add.at(new_scores, unique_inverse, scores_exp)
+        return np.log(new_scores) + scores_max
 
     def _prune_paths(paths, scores, masked):
         paths, unique_inverse = np.unique(paths, return_inverse=True, axis=0)
@@ -1486,6 +1498,63 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
 
     # ---- reshape -> (N, C*kH*kW, L) ----
     return patches.reshape(N, C * k[0] * k[1], -1)
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """NumPy implementation of Fold (col2im).
+    Combine an array of sliding local blocks into a large tensor.
+
+    Args:
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+
+    def _pair(val):
+        return (val, val) if isinstance(val, int) else val
+
+    oH, oW = _pair(output_size)
+    kH, kW = _pair(kernel_size)
+    dH, dW = _pair(dilation)
+    pH, pW = _pair(padding)
+    sH, sW = _pair(stride)
+
+    N, CKK, L = x.shape
+    C = CKK // (kH * kW)
+
+    # Number of output patches along each dimension
+    nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
+    nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
+
+    # Reshape: (N, C*kH*kW, L) -> (N, C, kH, kW, nH, nW)
+    x = np.reshape(x, (N, C, kH, kW, nH, nW))
+
+    # Padded output size
+    oH_pad = oH + 2 * pH
+    oW_pad = oW + 2 * pW
+
+    output = np.zeros((N, C, oH_pad, oW_pad), dtype=x.dtype)
+
+    for i in range(kH):
+        for j in range(kW):
+            h_start = i * dH
+            w_start = j * dW
+            h_indices = h_start + np.arange(nH) * sH
+            w_indices = w_start + np.arange(nW) * sW
+            h_ix, w_ix = np.ix_(h_indices, w_indices)
+            output[:, :, h_ix, w_ix] += x[:, :, i, j, :, :]
+
+    # Remove padding
+    if pH > 0 or pW > 0:
+        output = output[:, :, pH : oH_pad - pH, pW : oW_pad - pW]
+
+    return output
 
 
 def depth_to_space(x, block_size, data_format="channels_last"):

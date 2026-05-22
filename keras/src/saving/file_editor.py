@@ -4,7 +4,6 @@ import os.path
 import pprint
 import zipfile
 
-import h5py
 import numpy as np
 import rich.console
 
@@ -14,6 +13,7 @@ from keras.src.saving import saving_lib
 from keras.src.saving.saving_lib import H5IOStore
 from keras.src.utils import naming
 from keras.src.utils import summary_utils
+from keras.src.utils.module_utils import h5py
 
 try:
     import IPython as ipython
@@ -473,6 +473,16 @@ class KerasFileEditor:
             # IMPORTANT:
             # Never mutate inner_path; use local variable.
             current_inner_path = f"{inner_path}/{key}"
+
+            # Reject HDF5 `ExternalLink`/`SoftLink`.
+            child_class = data.get(
+                key, default=None, getclass=True, getlink=True
+            )
+            if child_class in (h5py.ExternalLink, h5py.SoftLink):
+                raise ValueError(
+                    f"Not allowed: H5 file with {child_class.__name__}"
+                )
+
             value = data[key]
 
             # ------------------------------------------------------
@@ -483,14 +493,14 @@ class KerasFileEditor:
                 if len(value) == 0:
                     continue
 
-                # Skip empty "vars" groups
-                if "vars" in value.keys() and len(value["vars"]) == 0:
-                    continue
-
                 # Recurse into "vars" subgroup when present
                 if "vars" in value.keys():
+                    vars_group = saving_lib.safe_get_h5_group(value, "vars")
+                    # Skip empty "vars" groups
+                    if len(vars_group) == 0:
+                        continue
                     result[key], metadata = self._extract_weights_from_store(
-                        value["vars"],
+                        vars_group,
                         metadata=metadata,
                         inner_path=current_inner_path,
                     )

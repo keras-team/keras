@@ -58,6 +58,13 @@ def rgb_to_grayscale(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
+    if images.shape[channels_axis] not in (1, 3):
+        raise ValueError(
+            "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+            f"Received input with shape: images.shape={images.shape}"
+        )
+    if images.shape[channels_axis] == 1:
+        return tf.identity(images)
     # Convert to floats
     original_dtype = images.dtype
     compute_dtype = backend.result_type(images.dtype, float)
@@ -1074,3 +1081,17 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    images = convert_to_tensor(images)
+    if data_format == "channels_first":
+        images = tf.transpose(images, (0, 2, 3, 1))
+
+    edges = tf.image.sobel_edges(images)
+
+    if data_format == "channels_first":
+        # (N, H, W, C, 2) -> (N, C, H, W, 2)
+        edges = tf.transpose(edges, (0, 3, 1, 2, 4))
+
+    return edges

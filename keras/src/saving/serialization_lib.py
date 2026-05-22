@@ -501,10 +501,14 @@ def deserialize_keras_object(
         config: Python dict describing the object.
         custom_objects: Python dict containing a mapping between custom
             object names the corresponding classes or functions.
-        safe_mode: Boolean, whether to disallow unsafe `lambda` deserialization.
-            When `safe_mode=False`, loading an object has the potential to
-            trigger arbitrary code execution. This argument is only
-            applicable to the Keras v3 model format. Defaults to `True`.
+        safe_mode: Boolean, defaults to False. If True, disables unsafe
+            lambda deserialization.
+
+            Note that safe_mode is designed to protect against code
+            serialized within the Keras model file being loaded. It does
+            not provide isolation from the local Python environment and
+            does not guard against modifications made outside of the
+            serialized file.
 
     Returns:
         The object described by the `config` dictionary.
@@ -756,6 +760,20 @@ def deserialize_keras_object(
     return instance
 
 
+def _assert_no_registered_name_for_builtin(full_config, name, resolved_name):
+    explicit = full_config.get("registered_name")
+    if not explicit:
+        return
+    if explicit in (name, full_config.get("class_name")):
+        return
+    raise ValueError(
+        f"`registered_name={explicit!r}` was provided in the config, but "
+        f"'{resolved_name}' resolved to a Keras built-in and does not use "
+        "registered names. Remove the `registered_name` field from the "
+        f"config. Full object config: {full_config}"
+    )
+
+
 def _retrieve_class_or_fn(
     name, registered_name, module, obj_type, full_config, custom_objects=None
 ):
@@ -788,6 +806,9 @@ def _retrieve_class_or_fn(
 
             obj = api_export.get_symbol_from_name(api_name)
             if obj is not None:
+                _assert_no_registered_name_for_builtin(
+                    full_config, name, api_name
+                )
                 return obj
 
         # Configs of Keras built-in functions do not contain identifying
@@ -798,6 +819,9 @@ def _retrieve_class_or_fn(
             for mod in BUILTIN_MODULES:
                 obj = api_export.get_symbol_from_name(f"keras.{mod}.{name}")
                 if obj is not None:
+                    _assert_no_registered_name_for_builtin(
+                        full_config, name, f"keras.{mod}.{name}"
+                    )
                     return obj
 
             # Workaround for serialization bug in Keras <= 3.6 whereby custom

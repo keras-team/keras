@@ -194,7 +194,7 @@ class ModelCheckpoint(MonitorCallback):
         self.save_weights_only = save_weights_only
         self.save_freq = save_freq
         self._batches_seen_since_last_saving = 0
-        self._last_batch_seen = 0
+        self._last_batch_seen = None
 
         if self.save_freq != "epoch" and not isinstance(self.save_freq, int):
             raise ValueError(
@@ -239,7 +239,8 @@ class ModelCheckpoint(MonitorCallback):
         """Handles batch-level saving logic, supports steps_per_execution."""
         if self.save_freq == "epoch":
             return False
-        if batch <= self._last_batch_seen:  # New epoch.
+        if self._last_batch_seen is None or batch <= self._last_batch_seen:
+            # New epoch.
             add_batches = batch + 1  # batches are zero-indexed.
         else:
             add_batches = batch - self._last_batch_seen

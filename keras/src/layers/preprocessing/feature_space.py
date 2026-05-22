@@ -1,3 +1,5 @@
+import numpy as np
+
 from keras.src import backend
 from keras.src import layers
 from keras.src import tree
@@ -755,12 +757,16 @@ class FeatureSpace(Layer):
 
         if rebatched:
             if self.output_mode == "concat":
-                assert merged_data.shape[0] == 1
+                if merged_data.shape[0] != 1:
+                    raise ValueError(
+                        "Expected rebatched data to have batch size 1. "
+                        f"Received: shape={merged_data.shape}"
+                    )
                 if (
                     backend.backend() != "tensorflow"
                     and not backend_utils.in_tf_graph()
                 ):
-                    merged_data = backend.convert_to_numpy(merged_data)
+                    merged_data = np.array(merged_data)
                 merged_data = tf.squeeze(merged_data, axis=0)
             else:
                 for name, x in merged_data.items():

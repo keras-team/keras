@@ -255,9 +255,20 @@ class RandAugment(BaseImagePreprocessingLayer):
     def transform_segmentation_masks(
         self, segmentation_masks, transformation, training=True
     ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
+        if training:
+            layer_idxes = transformation["layer_idxes"]
+            transforms = transformation["transforms"]
+            for i in range(self.num_ops):
+                for idx, (key, value) in enumerate(transforms.items()):
+                    augmentation_layer = getattr(self, key)
+                    segmentation_masks = self.backend.numpy.where(
+                        layer_idxes[i] == idx,
+                        augmentation_layer.transform_segmentation_masks(
+                            segmentation_masks, value
+                        ),
+                        segmentation_masks,
+                    )
+        return segmentation_masks
 
     def compute_output_shape(self, input_shape):
         return input_shape
@@ -274,9 +285,10 @@ class RandAugment(BaseImagePreprocessingLayer):
         return {**base_config, **config}
 
 
-RandAugment.__doc__ = RandAugment.__doc__.replace(
-    "{{base_image_preprocessing_transform_example}}",
-    base_image_preprocessing_transform_example.replace(
-        "{LayerName}", "RandAugment"
-    ),
-)
+if RandAugment.__doc__ is not None:
+    RandAugment.__doc__ = RandAugment.__doc__.replace(
+        "{{base_image_preprocessing_transform_example}}",
+        base_image_preprocessing_transform_example.replace(
+            "{LayerName}", "RandAugment"
+        ),
+    )

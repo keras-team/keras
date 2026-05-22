@@ -22,6 +22,7 @@ from keras.src.backend.config import floatx
 
 SUPPORTS_SPARSE_TENSORS = False
 SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = True
 IS_THREAD_SAFE = True
 
 # Some operators such as 'aten::_foreach_mul_.Scalar'
@@ -206,22 +207,29 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         if dtype is not None:
             x = x.to(to_torch_dtype(dtype))
         return x
-    if dtype is None:
-        if isinstance(x, bool):
-            return torch.as_tensor(x, dtype=torch.bool, device=get_device())
+    if isinstance(x, (bool, int, float, complex)):
+        if dtype is not None:
+            dt = to_torch_dtype(dtype)
+        elif isinstance(x, bool):
+            dt = torch.bool
         elif isinstance(x, int):
-            return torch.as_tensor(x, dtype=torch.int32, device=get_device())
+            dt = torch.int64 if x < -(2**31) or x >= 2**31 else torch.int32
         elif isinstance(x, float):
-            return torch.as_tensor(
-                x, dtype=to_torch_dtype(floatx()), device=get_device()
-            )
+            dt = to_torch_dtype(floatx())
+        else:
+            dt = torch.complex64
+        return torch.as_tensor(x, dtype=dt, device=get_device())
 
     # Convert to np in case of any array-like that is not list or tuple.
-    if not isinstance(x, (list, tuple)):
+    # Skip scalar Python values to avoid np.array(float) -> float64, which
+    # causes dtype issues during torch.export (constants are lifted before
+    # the cast to the requested dtype).
+    if isinstance(x, (list, tuple)):
+        if len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
+            # Handle list or tuple of torch tensors
+            return torch.stack([convert_to_tensor(x1) for x1 in x])
+    elif not isinstance(x, (bool, int, float)):
         x = np.array(x)
-    elif len(x) > 0 and any(isinstance(x1, torch.Tensor) for x1 in x):
-        # Handle list or tuple of torch tensors
-        return torch.stack([convert_to_tensor(x1) for x1 in x])
     if isinstance(x, np.ndarray):
         if x.dtype == np.uint32:
             # Torch backend does not support uint32.
@@ -468,9 +476,14 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     def _interleave(a, b, axis):
         """Given two Tensors of static shape, interleave them along axis."""
-        assert (
+        if not (
             a.shape[axis] == b.shape[axis] or a.shape[axis] == b.shape[axis] + 1
-        )
+        ):
+            raise ValueError(
+                "Shapes are incompatible for associative_scan interleaving. "
+                f"a.shape[{axis}]={a.shape[axis]}, "
+                f"b.shape[{axis}]={b.shape[axis]}"
+            )
 
         # we want to get a: [a1, a2], b: [b1, b2]
         # to a: [a1, 0, a2, 0], b: [0, b1, 0, b2]
@@ -608,32 +621,78 @@ def scatter_update(inputs, indices, updates, reduction=None):
 
 
 def slice(inputs, start_indices, shape):
-    shape_dtype = to_torch_dtype("int64")
     inputs = convert_to_tensor(inputs)
+
+    # Fast path: when both start_indices and shape are Python int sequences,
+    # build the slice objects directly. This avoids creating tensors from
+    # the indices, which would introduce data-dependent expressions that
+    # torch.export cannot trace.
+    if isinstance(start_indices, (list, tuple)) and isinstance(
+        shape, (list, tuple)
+    ):
+        if all(isinstance(s, int) for s in start_indices) and all(
+            isinstance(s, int) for s in shape
+        ):
+            slices = [
+                builtins.slice(start_index, start_index + length)
+                for start_index, length in zip(start_indices, shape)
+            ]
+            return inputs[tuple(slices)]
+
+    # Slow path: tensor-based slicing via torch.narrow for truly dynamic
+    # indices. torch.narrow is a proper ATen op that torch.export can
+    # trace, unlike Python-level iteration over tensor elements.
+    shape_dtype = to_torch_dtype("int64")
     start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     shape = convert_to_tensor(shape).to(shape_dtype)
-
-    python_slice = __builtins__["slice"]
-    slices = [
-        python_slice(start_index, start_index + length)
-        for start_index, length in zip(start_indices, shape)
-    ]
-    return inputs[slices]
+    result = inputs
+    for dim in range(start_indices.shape[0]):
+        result = torch.narrow(result, dim, start_indices[dim], shape[dim])
+    return result
 
 
 def slice_update(inputs, start_indices, updates):
-    shape_dtype = to_torch_dtype("int64")
     inputs = convert_to_tensor(inputs)
-    start_indices = convert_to_tensor(start_indices).to(shape_dtype)
     updates = convert_to_tensor(updates)
 
-    python_slice = __builtins__["slice"]
-    slices = [
-        python_slice(start_index, start_index + update_length)
-        for start_index, update_length in zip(start_indices, updates.shape)
-    ]
-    outputs = torch.clone(inputs)
-    outputs[slices] = updates
+    # Fast path: when start_indices is a Python int sequence, use it
+    # directly. This avoids creating tensors from the indices, which would
+    # introduce data-dependent expressions that torch.export cannot trace.
+    if isinstance(start_indices, (list, tuple)) and all(
+        isinstance(s, int) for s in start_indices
+    ):
+        slices = [
+            builtins.slice(start_index, start_index + update_length)
+            for start_index, update_length in zip(start_indices, updates.shape)
+        ]
+        outputs = torch.clone(inputs)
+        outputs[tuple(slices)] = updates
+        return outputs
+
+    # Slow path: tensor-based start_indices.
+    # We cannot use Python slice objects because they require scalar int
+    # bounds, and extracting scalars from traced tensors creates unbacked
+    # symbols that torch.export cannot resolve.
+    # We also cannot use `torch.narrow` (as the `slice` slow-path does)
+    # because `narrow` is read-only; for in-place updates we need
+    # `index_put_`, which is fully traceable.
+    start_indices = convert_to_tensor(start_indices, dtype="int64")
+    outputs = inputs.clone()
+    update_shape = list(updates.shape)
+    dims = len(update_shape)
+    indices_list = []
+    for dim in range(dims):
+        dim_indices = torch.arange(
+            update_shape[dim],
+            dtype=start_indices.dtype,
+            device=start_indices.device,
+        )
+        dim_indices = dim_indices + start_indices[dim]
+        indices_list.append(dim_indices)
+
+    grids = torch.meshgrid(*indices_list, indexing="ij")
+    flat_indices = [g.flatten() for g in grids]
+    outputs.index_put_(tuple(flat_indices), updates.flatten())
     return outputs
 
 
@@ -650,8 +709,8 @@ def while_loop(
     maximum_iterations=None,
 ):
     current_iter = 0
-    iteration_check = (
-        lambda iter: maximum_iterations is None or iter < maximum_iterations
+    iteration_check = lambda iter: (
+        maximum_iterations is None or iter < maximum_iterations
     )
     is_tuple = isinstance(loop_vars, (tuple, list))
     loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
@@ -685,7 +744,9 @@ def unstack(x, num=None, axis=0):
 
 
 def random_seed_dtype():
-    # uint32 doesn't exist in torch, use int32 instead.
+    # uint32 doesn't exist in torch. Seeds are conceptually uint32 values;
+    # int32 is used and the bit pattern is reinterpreted as uint32 at each
+    # call site (torch_seed_generator / torch.manual_seed) via & 0xFFFFFFFF.
     return "int32"
 
 

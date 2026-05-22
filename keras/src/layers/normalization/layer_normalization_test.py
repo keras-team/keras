@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from keras.src import backend
 from keras.src import layers
@@ -9,7 +8,6 @@ from keras.src import testing
 
 
 class LayerNormalizationTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_ln_basics(self):
         self.run_layer_test(
             layers.LayerNormalization,
@@ -133,3 +131,13 @@ class LayerNormalizationTest(testing.TestCase):
         with backend.AutocastScope("float16"):
             layer.gamma.assign(large_value)
             self.assertAllClose(layer.gamma.value, large_value)
+
+    def test_unsorted_axis(self):
+        x = np.random.randn(2, 3, 4).astype("float32")
+        layer_sorted = layers.LayerNormalization(axis=[-2, -1])
+        layer_unsorted = layers.LayerNormalization(axis=[-1, -2])
+        out_sorted = layer_sorted(x)
+        out_unsorted = layer_unsorted(x)
+        self.assertEqual(out_sorted.shape, (2, 3, 4))
+        self.assertEqual(out_unsorted.shape, (2, 3, 4))
+        self.assertAllClose(out_sorted, out_unsorted)

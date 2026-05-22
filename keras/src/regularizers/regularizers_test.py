@@ -84,14 +84,15 @@ class RegularizersTest(testing.TestCase):
         reg = regularizers.L1L2(l1=l1, l2=l2)
         config = reg.get_config()
 
-        self.assertEqual(config, {"l1": l1, "l2": l2})
+        self.assertAllClose(config["l1"], l1)
+        self.assertAllClose(config["l2"], l2)
 
         reg_from_config = regularizers.L1L2.from_config(config)
         config_from_config = reg_from_config.get_config()
 
         self.assertDictEqual(config, config_from_config)
-        self.assertEqual(reg_from_config.l1, l1)
-        self.assertEqual(reg_from_config.l2, l2)
+        self.assertAllClose(reg_from_config.l1, l1)
+        self.assertAllClose(reg_from_config.l2, l2)
 
     def test_orthogonal_regularizer_mode_validation(self):
         with self.assertRaises(ValueError) as context:
@@ -132,6 +133,79 @@ class RegularizersTest(testing.TestCase):
         self.assertAlmostEqual(config_from_config["factor"], factor, 7)
         self.assertEqual(config_from_config["mode"], mode)
 
+    def test_l1_with_zero_weights(self):
+        value = np.zeros((4, 4), dtype=np.float32)
+        x = backend.Variable(value)
+        y = regularizers.L1(0.1)(x)
+        self.assertAllClose(y, 0.0)
+
+    def test_l1_with_negative_weights(self):
+        pos_value = np.ones((4, 4), dtype=np.float32)
+        neg_value = -np.ones((4, 4), dtype=np.float32)
+        x_pos = backend.Variable(pos_value)
+        x_neg = backend.Variable(neg_value)
+        y_pos = regularizers.L1(0.1)(x_pos)
+        y_neg = regularizers.L1(0.1)(x_neg)
+        self.assertAllClose(y_pos, y_neg)
+
+    def test_l1_zero_coefficient(self):
+        value = np.random.random((4, 4)).astype(np.float32)
+        x = backend.Variable(value)
+        y = regularizers.L1(0.0)(x)
+        self.assertAllClose(y, 0.0)
+
+    def test_l2_with_zero_weights(self):
+        value = np.zeros((4, 4), dtype=np.float32)
+        x = backend.Variable(value)
+        y = regularizers.L2(0.1)(x)
+        self.assertAllClose(y, 0.0)
+
+    def test_l2_zero_coefficient(self):
+        value = np.random.random((4, 4)).astype(np.float32)
+        x = backend.Variable(value)
+        y = regularizers.L2(0.0)(x)
+        self.assertAllClose(y, 0.0)
+
+    def test_l2_is_larger_than_l1_for_large_weights(self):
+        value = np.ones((4, 4), dtype=np.float32) * 10.0
+        x = backend.Variable(value)
+        l1_val = float(backend.convert_to_numpy(regularizers.L1(1.0)(x)))
+        l2_val = float(backend.convert_to_numpy(regularizers.L2(1.0)(x)))
+        self.assertGreater(l2_val, l1_val)
+
+    def test_l2_is_smaller_than_l1_for_small_weights(self):
+        value = np.ones((4, 4), dtype=np.float32) * 0.1
+        x = backend.Variable(value)
+        l1_val = float(backend.convert_to_numpy(regularizers.L1(1.0)(x)))
+        l2_val = float(backend.convert_to_numpy(regularizers.L2(1.0)(x)))
+        self.assertLess(l2_val, l1_val)
+
+    def test_l1l2_zero_coefficients(self):
+        value = np.random.random((4, 4)).astype(np.float32)
+        x = backend.Variable(value)
+        y = regularizers.L1L2(l1=0.0, l2=0.0)(x)
+        self.assertAllClose(y, 0.0)
+
+    def test_l1l2_only_l1(self):
+        value = np.random.random((4, 4)).astype(np.float32)
+        x = backend.Variable(value)
+        y_l1l2 = regularizers.L1L2(l1=0.1, l2=0.0)(x)
+        y_l1 = regularizers.L1(0.1)(x)
+        self.assertAllClose(y_l1l2, y_l1)
+
+    def test_l1l2_only_l2(self):
+        value = np.random.random((4, 4)).astype(np.float32)
+        x = backend.Variable(value)
+        y_l1l2 = regularizers.L1L2(l1=0.0, l2=0.1)(x)
+        y_l2 = regularizers.L2(0.1)(x)
+        self.assertAllClose(y_l1l2, y_l2)
+
+    def test_l1l2_with_zero_weights(self):
+        value = np.zeros((4, 4), dtype=np.float32)
+        x = backend.Variable(value)
+        y = regularizers.L1L2(l1=0.1, l2=0.2)(x)
+        self.assertAllClose(y, 0.0)
+
 
 class ValidateFloatArgTest(testing.TestCase):
     def test_validate_float_with_valid_args(self):
@@ -165,3 +239,40 @@ class ValidateFloatArgTest(testing.TestCase):
             ValueError, "expected a non-negative float"
         ):
             validate_float_arg(-1, "test")
+
+    def test_validate_float_with_zero(self):
+        self.assertEqual(validate_float_arg(0, "test"), 0.0)
+        self.assertEqual(validate_float_arg(0.0, "test"), 0.0)
+
+    def test_validate_float_with_very_small_positive(self):
+        result = validate_float_arg(1e-10, "test")
+        self.assertAlmostEqual(result, 1e-10)
+
+    def test_validate_float_returns_float_type(self):
+        result = validate_float_arg(1, "test")
+        self.assertIsInstance(result, float)
+
+        result = validate_float_arg(1.0, "test")
+        self.assertIsInstance(result, float)
+
+    def test_validate_float_with_large_positive(self):
+        result = validate_float_arg(1e6, "test")
+        self.assertAlmostEqual(result, 1e6)
+
+    def test_validate_float_with_negative_float(self):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
+            validate_float_arg(-0.001, "test")
+
+    def test_validate_float_with_none(self):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
+            validate_float_arg(None, "test")
+
+    def test_validate_float_with_list(self):
+        with self.assertRaisesRegex(
+            ValueError, "expected a non-negative float"
+        ):
+            validate_float_arg([0.1], "test")

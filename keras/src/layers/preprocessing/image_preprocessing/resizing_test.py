@@ -27,8 +27,11 @@ class ResizingTest(testing.TestCase):
         antialias,
         data_format,
     ):
-        if interpolation == "lanczos5" and backend.backend() == "torch":
-            self.skipTest("Torch does not support lanczos.")
+        if interpolation == "lanczos5":
+            if backend.backend() == "torch":
+                self.skipTest("Torch does not support lanczos.")
+            if backend.backend() == "openvino":
+                self.skipTest("OpenVINO does not support lanczos.")
 
         crop_to_aspect_ratio, pad_to_aspect_ratio = crop_pad
         if data_format == "channels_last":
@@ -74,7 +77,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(0, 3, 1, 2)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters([("channels_first",), ("channels_last",)])
     def test_up_sampling_numeric(self, data_format):
@@ -94,7 +97,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(0, 3, 1, 2)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters([("channels_first",), ("channels_last",)])
     def test_crop_to_aspect_ratio(self, data_format):
@@ -122,7 +125,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(0, 3, 1, 2)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     @parameterized.parameters([("channels_first",), ("channels_last",)])
     def test_unbatched_image(self, data_format):
@@ -144,7 +147,7 @@ class ResizingTest(testing.TestCase):
         )
         if data_format == "channels_first":
             ref_out = ref_out.transpose(2, 0, 1)
-        self.assertAllClose(ref_out, out)
+        self.assertAllClose(out, ref_out)
 
     def test_tf_data_compatibility(self):
         if backend.config.image_data_format() == "channels_last":
@@ -181,9 +184,9 @@ class ResizingTest(testing.TestCase):
         self.assertTrue(backend.is_tensor(output))
         # Ensure the device of the data is on CPU.
         if backend.backend() == "tensorflow":
-            self.assertIn("CPU", str(output.device))
+            self.assertIn("CPU", str(output.device).upper())
         elif backend.backend() == "jax":
-            self.assertIn("CPU", str(output.device))
+            self.assertIn("CPU", str(output.device).upper())
         elif backend.backend() == "torch":
             self.assertEqual("cpu", str(output.device))
 

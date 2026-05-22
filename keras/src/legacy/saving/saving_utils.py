@@ -54,6 +54,12 @@ def model_from_config(config, custom_objects=None):
         MODULE_OBJECTS.ALL_OBJECTS["Model"] = models.Model
         MODULE_OBJECTS.ALL_OBJECTS["Sequential"] = models.Sequential
 
+    if not isinstance(config, dict) or "config" not in config:
+        raise ValueError(
+            "The provided configuration is not a valid Keras configuration. "
+            "Expected a dictionary containing a 'config' key. "
+            f"Received: config={config}"
+        )
     batch_input_shape = config["config"].pop("batch_input_shape", None)
     if batch_input_shape is not None:
         if config["class_name"] == "InputLayer":

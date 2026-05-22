@@ -12,35 +12,18 @@ from keras.src import testing
 from keras.src import tree
 from keras.src.saving import saving_lib
 from keras.src.testing.test_utils import named_product
-from keras.src.utils.module_utils import litert
 from keras.src.utils.module_utils import tensorflow
 
-# Set up LiteRT interpreter with fallback logic:
-# 1. Try AI Edge LiteRT interpreter (preferred)
-# 2. Fall back to TensorFlow Lite interpreter if AI Edge LiteRT unavailable
-AI_EDGE_LITERT_AVAILABLE = False
-LiteRTInterpreter = None
+# LiteRT tests require the AI Edge LiteRT interpreter.
+if backend.backend() != "tensorflow":
+    LiteRTInterpreter = None
+else:
+    try:
+        from ai_edge_litert.interpreter import Interpreter as LiteRTInterpreter
+    except (ImportError, OSError):
+        LiteRTInterpreter = None
 
-if backend.backend() == "tensorflow":
-    if litert.available:
-        try:
-            from ai_edge_litert.interpreter import (
-                Interpreter as LiteRTInterpreter,
-            )
-
-            AI_EDGE_LITERT_AVAILABLE = True
-        except (ImportError, OSError):
-            LiteRTInterpreter = tensorflow.lite.Interpreter
-    else:
-        LiteRTInterpreter = tensorflow.lite.Interpreter
-
-# Model types to test (LSTM only if AI Edge LiteRT is available)
 model_types = ["sequential", "functional"]
-# TODO(#21914): `"lstm"` does not work with ai-edge-litert==1.3.0.
-# Unfortunately, for TF 2.20.0, this is the only version which works. Uncomment
-# this part when we upgrade TF and ai-edge-litert.
-# if AI_EDGE_LITERT_AVAILABLE:
-#     model_types.append("lstm")
 
 
 class CustomModel(models.Model):
@@ -173,18 +156,53 @@ def _get_interpreter_outputs(interpreter):
     backend.backend() != "tensorflow",
     reason="`export_litert` currently supports the TensorFlow backend only.",
 )
-class ExportLitertTest(testing.TestCase):
+class ExportLitertBasicTest(testing.TestCase):
+    """Basic tests for LiteRT export that don't require the interpreter."""
+
+    def test_export_error_handling(self):
+        """Test error handling in export API."""
+        model = get_model("sequential")
+        dummy_input = np.random.random((3, 10)).astype(np.float32)
+        model(dummy_input)
+
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "exported_model.tflite"
+        )
+
+        # Test with invalid format
+        with self.assertRaises(ValueError):
+            model.export(temp_filepath, format="invalid_format")
+
+    def test_export_invalid_filepath(self):
+        """Test that export fails with invalid file extension."""
+        model = get_model("sequential")
+        dummy_input = np.random.random((3, 10)).astype(np.float32)
+        model(dummy_input)
+
+        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.txt")
+
+        # Should raise ValueError for wrong extension
+        with self.assertRaises(ValueError):
+            model.export(temp_filepath, format="litert")
+
+
+@pytest.mark.skipif(
+    backend.backend() != "tensorflow",
+    reason="`export_litert` currently supports the TensorFlow backend only.",
+)
+@pytest.mark.skipif(
+    LiteRTInterpreter is None,
+    reason="`ai_edge_litert` is not available.",
+)
+class ExportLitertInterpreterTest(testing.TestCase):
     """Test suite for LiteRT (TFLite) model export functionality.
 
-    Tests use AI Edge LiteRT interpreter when available, otherwise fall back
-    to TensorFlow Lite interpreter for validation.
+    Tests use AI Edge LiteRT interpreter for validation.
     """
 
     @parameterized.named_parameters(named_product(model_type=model_types))
     def test_standard_model_export(self, model_type):
         """Test exporting standard model types to LiteRT format."""
-        if model_type == "lstm" and not AI_EDGE_LITERT_AVAILABLE:
-            self.skipTest("LSTM models require AI Edge LiteRT interpreter.")
 
         temp_filepath = os.path.join(
             self.get_temp_dir(), "exported_model.tflite"
@@ -208,7 +226,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     @parameterized.named_parameters(
         named_product(struct_type=["tuple", "array", "dict"])
@@ -264,14 +282,14 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
         # Verify export still works after saving/loading via saving_lib.
         archive_path = os.path.join(self.get_temp_dir(), "revived.keras")
         saving_lib.save_model(model, archive_path)
         revived_model = saving_lib.load_model(archive_path)
         revived_output = _convert_to_numpy(revived_model(ref_input))
-        self.assertAllClose(ref_output, revived_output)
+        self.assertAllClose(revived_output, ref_output)
 
     def test_model_with_multiple_inputs(self):
         """Test exporting models with multiple inputs and batch resizing."""
@@ -300,7 +318,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
         # Test with a different batch size by resizing interpreter inputs.
         larger_x = np.concatenate([ref_input_x, ref_input_x], axis=0)
@@ -318,7 +336,7 @@ class ExportLitertTest(testing.TestCase):
         larger_output = _get_interpreter_outputs(interpreter)
         larger_ref_output = _convert_to_numpy(model([larger_x, larger_y]))
         self.assertAllClose(
-            larger_ref_output, larger_output, atol=1e-4, rtol=1e-4
+            larger_output, larger_ref_output, atol=1e-4, rtol=1e-4
         )
 
     def test_export_with_custom_input_signature(self):
@@ -402,36 +420,8 @@ class ExportLitertTest(testing.TestCase):
         input_details = interpreter.get_input_details()
         self.assertEqual(len(input_details), 1)
 
-    def test_export_error_handling(self):
-        """Test error handling in export API."""
-        model = get_model("sequential")
-        dummy_input = np.random.random((3, 10)).astype(np.float32)
-        model(dummy_input)
-
-        temp_filepath = os.path.join(
-            self.get_temp_dir(), "exported_model.tflite"
-        )
-
-        # Test with invalid format
-        with self.assertRaises(ValueError):
-            model.export(temp_filepath, format="invalid_format")
-
-    def test_export_invalid_filepath(self):
-        """Test that export fails with invalid file extension."""
-        model = get_model("sequential")
-        dummy_input = np.random.random((3, 10)).astype(np.float32)
-        model(dummy_input)
-
-        temp_filepath = os.path.join(self.get_temp_dir(), "exported_model.txt")
-
-        # Should raise ValueError for wrong extension
-        with self.assertRaises(ValueError):
-            model.export(temp_filepath, format="litert")
-
     def test_export_subclass_model(self):
         """Test exporting subclass models (uses wrapper conversion path)."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         model = get_model("subclass")
         temp_filepath = os.path.join(
@@ -453,12 +443,10 @@ class ExportLitertTest(testing.TestCase):
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_export_with_optimizations_default(self):
         """Test export with DEFAULT optimization."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         model = get_model("sequential")
         temp_filepath = os.path.join(
@@ -485,12 +473,10 @@ class ExportLitertTest(testing.TestCase):
         litert_output = _get_interpreter_outputs(interpreter)
 
         # Quantized model should be close but not exact
-        self.assertAllClose(ref_output, litert_output, atol=1e-2, rtol=1e-2)
+        self.assertAllClose(litert_output, ref_output, atol=1e-2, rtol=1e-2)
 
     def test_export_with_optimizations_sparsity(self):
         """Test export with EXPERIMENTAL_SPARSITY optimization."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         model = get_model("functional")
         temp_filepath = os.path.join(
@@ -520,8 +506,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_with_optimizations_size(self):
         """Test export with OPTIMIZE_FOR_SIZE optimization."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         model = get_model("sequential")
         temp_filepath = os.path.join(
@@ -550,8 +534,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_with_optimizations_latency(self):
         """Test export with OPTIMIZE_FOR_LATENCY optimization."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         model = get_model("functional")
         temp_filepath = os.path.join(
@@ -580,8 +562,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_with_multiple_optimizations(self):
         """Test export with multiple optimization options combined."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         model = get_model("sequential")
         temp_filepath = os.path.join(
@@ -613,8 +593,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_with_representative_dataset(self):
         """Test export with representative dataset for better quantization."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         model = get_model("functional")
         temp_filepath = os.path.join(
@@ -650,8 +628,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_with_multiple_kwargs(self):
         """Test export with multiple converter kwargs."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         # Create a larger model for quantization testing
         inputs = layers.Input(shape=(28, 28, 3))
@@ -686,8 +662,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_export_optimization_file_size_comparison(self):
         """Test that optimizations reduce file size."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         # Create a larger model to see size differences
         inputs = layers.Input(shape=(28, 28, 3))
@@ -736,8 +710,6 @@ class ExportLitertTest(testing.TestCase):
 
     def test_signature_def_with_named_model(self):
         """Test that exported models have SignatureDef with input names."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         # Build a model with explicit layer names
         inputs = layers.Input(shape=(10,), name="feature_input")
@@ -811,13 +783,11 @@ class ExportLitertTest(testing.TestCase):
         else:
             litert_output = list(sig_output.values())
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_signature_def_with_functional_model(self):
         """Test that SignatureDef preserves input/output names for
         Functional models."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         # Create a Functional model with named inputs and outputs
         inputs = layers.Input(shape=(10,), name="input_layer")
@@ -887,12 +857,10 @@ class ExportLitertTest(testing.TestCase):
         else:
             litert_output = list(sig_output.values())
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_signature_def_with_multi_input_model(self):
         """Test that SignatureDef preserves names for multi-input models."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         # Create a multi-input model
         input1 = layers.Input(shape=(10,), name="input_1")
@@ -971,12 +939,10 @@ class ExportLitertTest(testing.TestCase):
         else:
             litert_output = list(sig_output.values())
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_signature_def_with_multi_output_model(self):
         """Test that SignatureDef handles multi-output models correctly."""
-        if LiteRTInterpreter is None:
-            self.skipTest("No LiteRT interpreter available")
 
         # Create a multi-output model
         inputs = layers.Input(shape=(10,), name="input_layer")
@@ -1036,11 +1002,11 @@ class ExportLitertTest(testing.TestCase):
         sig_output_values = list(sig_output.values())
         for i, ref_out in enumerate(ref_outputs):
             self.assertAllClose(
-                ref_out, sig_output_values[i], atol=1e-4, rtol=1e-4
+                sig_output_values[i], ref_out, atol=1e-4, rtol=1e-4
             )
 
-    def test_dict_input_adapter_creation(self):
-        """Test that dict input adapter is created and works correctly."""
+    def test_dict_input_native(self):
+        """Test that dict inputs are handled natively without adapter."""
 
         # Create a model with dictionary inputs
         input1 = layers.Input(shape=(10,), name="x")
@@ -1049,11 +1015,11 @@ class ExportLitertTest(testing.TestCase):
         model = models.Model(inputs={"x": input1, "y": input2}, outputs=output)
 
         temp_filepath = os.path.join(
-            self.get_temp_dir(), "dict_adapter_model.tflite"
+            self.get_temp_dir(), "dict_native_model.tflite"
         )
 
-        # Export with verbose to verify adapter creation messages
-        model.export(temp_filepath, format="litert", verbose=True)
+        # Export the model
+        model.export(temp_filepath, format="litert")
 
         # Verify the file was created
         self.assertTrue(os.path.exists(temp_filepath))
@@ -1062,7 +1028,7 @@ class ExportLitertTest(testing.TestCase):
         interpreter = LiteRTInterpreter(model_path=temp_filepath)
         interpreter.allocate_tensors()
 
-        # Check input details - should have 2 inputs in list form
+        # Check input details - should have 2 inputs
         input_details = interpreter.get_input_details()
         self.assertEqual(len(input_details), 2)
 
@@ -1080,12 +1046,12 @@ class ExportLitertTest(testing.TestCase):
             )
         )
 
-        # Set inputs as list (adapter converts list to dict internally)
-        _set_interpreter_inputs(interpreter, [x_val, y_val])
+        # Set inputs as dict (native dict support)
+        _set_interpreter_inputs(interpreter, {"x": x_val, "y": y_val})
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_dict_input_signature_inference(self):
         """Test automatic inference of dict input signatures."""
@@ -1136,10 +1102,14 @@ class ExportLitertTest(testing.TestCase):
             self.get_temp_dir(), "dict_custom_sig_model.tflite"
         )
 
-        # Provide custom dict input signature
+        # Provide custom dict input signature with names
         input_signature = {
-            "input_x": layers.InputSpec(shape=(None, 10), dtype="float32"),
-            "input_y": layers.InputSpec(shape=(None, 10), dtype="float32"),
+            "input_x": layers.InputSpec(
+                shape=(None, 10), dtype="float32", name="input_x"
+            ),
+            "input_y": layers.InputSpec(
+                shape=(None, 10), dtype="float32", name="input_y"
+            ),
         }
 
         model.export(
@@ -1166,11 +1136,13 @@ class ExportLitertTest(testing.TestCase):
             )
         )
 
-        _set_interpreter_inputs(interpreter, [x_val, y_val])
+        _set_interpreter_inputs(
+            interpreter, {"input_x": x_val, "input_y": y_val}
+        )
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_dict_input_numerical_accuracy(self):
         """Test numerical accuracy of dict input models with complex ops."""
@@ -1213,12 +1185,14 @@ class ExportLitertTest(testing.TestCase):
 
         interpreter = LiteRTInterpreter(model_path=temp_filepath)
         interpreter.allocate_tensors()
-        _set_interpreter_inputs(interpreter, [tokens_val, mask_val])
+        _set_interpreter_inputs(
+            interpreter, {"tokens": tokens_val, "mask": mask_val}
+        )
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
         # Should have good numerical accuracy
-        self.assertAllClose(ref_output, litert_output, atol=1e-5, rtol=1e-5)
+        self.assertAllClose(litert_output, ref_output, atol=1e-5, rtol=1e-5)
 
     def test_dict_input_preserves_variable_sharing(self):
         """Test that adapter preserves variable sharing from original model."""
@@ -1270,11 +1244,13 @@ class ExportLitertTest(testing.TestCase):
             )
         )
 
-        _set_interpreter_inputs(interpreter, [a_val, b_val])
+        _set_interpreter_inputs(
+            interpreter, {"branch_a": a_val, "branch_b": b_val}
+        )
         interpreter.invoke()
         litert_output = _get_interpreter_outputs(interpreter)
 
-        self.assertAllClose(ref_output, litert_output, atol=1e-4, rtol=1e-4)
+        self.assertAllClose(litert_output, ref_output, atol=1e-4, rtol=1e-4)
 
     def test_dict_input_multi_output_model(self):
         """Test dict input model with multiple outputs exports successfully."""

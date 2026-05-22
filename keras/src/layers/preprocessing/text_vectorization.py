@@ -49,8 +49,14 @@ class TextVectorization(Layer):
        serializables (see `keras.saving.register_keras_serializable`
        for more details).
     2. When using a custom callable for `standardize`, the data received
-       by the callable will be exactly as passed to this layer. The callable
-       should return a tensor of the same shape as the input.
+       by the callable depends on the active Keras backend. With the
+       TensorFlow backend, the callable receives a `tf.Tensor` of dtype
+       `string`, so it should use `tf.strings` operations. With any other
+       backend (JAX, NumPy, PyTorch, OpenVINO) the callable receives a
+       NumPy array of unicode strings, so it should use `np.char` /
+       `np.strings` operations (or any vectorized string logic of your
+       choice). The callable should return data of the same shape as the
+       input.
     3. When using a custom callable for `split`, the data received by the
        callable will have the 1st dimension squeezed out - instead of
        `[["string to split"], ["another string to split"]]`, the Callable will
@@ -404,7 +410,8 @@ class TextVectorization(Layer):
         Arguments:
             data: The data to train on. It can be passed either as a
                 batched `tf.data.Dataset`, as a list of strings,
-                or as a NumPy array.
+                as a NumPy array, or as any iterable of batches (e.g.
+                a generator yielding batches of strings).
             steps: Integer or `None`.
                 Total number of steps (batches of samples) to process.
                 If `data` is a `tf.data.Dataset`, and `steps` is `None`,
@@ -419,11 +426,18 @@ class TextVectorization(Layer):
                 data = data.take(steps)
             for batch in data:
                 self.update_state(batch)
+        elif hasattr(data, "__iter__") and not (
+            isinstance(data, (list, tuple, np.ndarray))
+            or backend.is_tensor(data)
+            or tf.is_tensor(data)
+        ):
+            for i, batch in enumerate(data):
+                if steps is not None and i >= steps:
+                    break
+                self.update_state(batch)
         else:
             data = tf_utils.ensure_tensor(data, dtype="string")
             if data.shape.rank == 1:
-                # A plain list of strings
-                # is treated as as many documents
                 data = tf.expand_dims(data, -1)
             self.update_state(data)
         self.finalize_state()
@@ -518,64 +532,105 @@ class TextVectorization(Layer):
         """
         self._lookup_layer.set_vocabulary(vocabulary, idf_weights=idf_weights)
 
+    def _apply_standardize_with_np_arrays(self, inputs):
+        """Run a callable `standardize` on a NumPy string array.
+
+        Used on non-TensorFlow backends so the user callable receives a NumPy
+        array of unicode strings (suitable for `np.char` / `np.strings` ops)
+        rather than a `tf.EagerTensor`.
+        """
+        if isinstance(inputs, np.ndarray):
+            np_inputs = inputs
+        elif backend.is_tensor(inputs):
+            np_inputs = backend.convert_to_numpy(inputs)
+        else:
+            np_inputs = np.asarray(inputs)
+
+        if np_inputs.dtype.kind == "S":
+            np_inputs = np.char.decode(np_inputs, self._encoding)
+        elif np_inputs.dtype.kind == "O":
+            # Object arrays (e.g. from tf.string tensors) contain `bytes`.
+            np_inputs = np.char.decode(
+                np_inputs.astype(np.bytes_), self._encoding
+            )
+
+        result = self._standardize(np_inputs)
+
+        if isinstance(result, tf.Tensor):
+            return tf.cast(result, tf.string)
+        return tf.constant(np.asarray(result), dtype=tf.string)
+
     def _preprocess(self, inputs):
-        inputs = tf_utils.ensure_tensor(inputs, dtype=tf.string)
-        if self._standardize in ("lower", "lower_and_strip_punctuation"):
-            inputs = tf.strings.lower(inputs)
-        if self._standardize in (
-            "strip_punctuation",
-            "lower_and_strip_punctuation",
-        ):
-            inputs = tf.strings.regex_replace(
-                inputs, r'[!"#$%&()\*\+,-\./:;<=>?@\[\\\]^_`{|}~\']', ""
-            )
-        if callable(self._standardize):
-            inputs = self._standardize(inputs)
-
-        if self._split is not None:
-            # If we are splitting, we validate that the 1st axis is of dimension
-            # 1 and so can be squeezed out. We do this here instead of after
-            # splitting for performance reasons - it's more expensive to squeeze
-            # a ragged tensor.
-            if inputs.shape.rank > 1:
-                if inputs.shape[-1] != 1:
-                    raise ValueError(
-                        "When using `TextVectorization` to tokenize strings, "
-                        "the input rank must be 1 or the last shape dimension "
-                        f"must be 1. Received: inputs.shape={inputs.shape} "
-                        f"with rank={inputs.shape.rank}"
-                    )
-                else:
-                    inputs = tf.squeeze(inputs, axis=-1)
-            if self._split == "whitespace":
-                # This treats multiple whitespaces as one whitespace, and strips
-                # leading and trailing whitespace.
-                inputs = tf.strings.split(inputs)
-            elif self._split == "character":
-                inputs = tf.strings.unicode_split(inputs, "UTF-8")
-            elif callable(self._split):
-                inputs = self._split(inputs)
-
-        # Note that 'inputs' here can be either ragged or dense depending on the
-        # configuration choices for this Layer. The strings.ngrams op, however,
-        # does support both ragged and dense inputs.
-        if self._ngrams is not None:
-            inputs = tf.strings.ngrams(
-                inputs, ngram_width=self._ngrams, separator=" "
-            )
-        return inputs
-
-    def call(self, inputs):
         if not isinstance(
             inputs, (tf.Tensor, tf.RaggedTensor, np.ndarray, list, tuple)
-        ):
-            inputs = tf.convert_to_tensor(backend.convert_to_numpy(inputs))
+        ) and backend.is_tensor(inputs):
+            inputs = backend.convert_to_numpy(inputs)
+        with tf.device("CPU:0"):
+            if (
+                callable(self._standardize)
+                and backend.backend() != "tensorflow"
+            ):
+                # On non-TensorFlow backends, hand the user-provided callable
+                # a NumPy array of unicode strings so it can use `np.char` /
+                # `np.strings` ops rather than `tf.strings` (which would
+                # require a `tf.EagerTensor` and TF as a hard dependency
+                # outside TF backend code).
+                inputs = self._apply_standardize_with_np_arrays(inputs)
+            else:
+                inputs = tf_utils.ensure_tensor(inputs, dtype=tf.string)
+                if self._standardize in (
+                    "lower",
+                    "lower_and_strip_punctuation",
+                ):
+                    inputs = tf.strings.lower(inputs)
+                if self._standardize in (
+                    "strip_punctuation",
+                    "lower_and_strip_punctuation",
+                ):
+                    inputs = tf.strings.regex_replace(
+                        inputs,
+                        r'[!"#$%&()\*\+,-\./:;<=>?@\[\\\]^_`{|}~\']',
+                        "",
+                    )
+                if callable(self._standardize):
+                    inputs = self._standardize(inputs)
 
+            if self._split is not None:
+                # If we are splitting, we validate that the 1st axis is of
+                # dimension 1 and so can be squeezed out. We do this here
+                # instead of after splitting for performance reasons - it's
+                # more expensive to squeeze a ragged tensor.
+                if inputs.shape.rank > 1:
+                    if inputs.shape[-1] != 1:
+                        raise ValueError(
+                            "When using `TextVectorization` to tokenize "
+                            "strings, the input rank must be 1 or the last "
+                            f"shape dimension must be 1. Received: "
+                            f"inputs.shape={inputs.shape} with "
+                            f"rank={inputs.shape.rank}"
+                        )
+                    else:
+                        inputs = tf.squeeze(inputs, axis=-1)
+                if self._split == "whitespace":
+                    # This treats multiple whitespaces as one whitespace,
+                    # and strips leading and trailing whitespace.
+                    inputs = tf.strings.split(inputs)
+                elif self._split == "character":
+                    inputs = tf.strings.unicode_split(inputs, "UTF-8")
+                elif callable(self._split):
+                    inputs = self._split(inputs)
+
+            # Note that 'inputs' here can be either ragged or dense depending
+            # on the configuration choices for this Layer. The strings.ngrams
+            # op, however, does support both ragged and dense inputs.
+            if self._ngrams is not None:
+                inputs = tf.strings.ngrams(
+                    inputs, ngram_width=self._ngrams, separator=" "
+                )
+            return inputs
+
+    def call(self, inputs):
         inputs = self._preprocess(inputs)
-
-        # If we're not doing any output processing, return right away.
-        if self._output_mode is None:
-            outputs = inputs
 
         lookup_data = self._lookup_layer.call(inputs)
 

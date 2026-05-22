@@ -8,6 +8,12 @@ from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
 from keras.src.backend import config
 from keras.src.backend import standardize_data_format
+from keras.src.backend.common.backend_utils import canonicalize_axes
+from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import check_conv_input_channels
+from keras.src.backend.common.backend_utils import (
+    check_conv_transpose_input_channels,
+)
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
@@ -909,6 +915,8 @@ class Softmax(Operation):
         return backend.nn.softmax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -943,7 +951,11 @@ def softmax(x, axis=-1):
     # Don't use `backend.shape` since TensorFlow returns
     # symbolic tensors for unknown shape which can trigger
     # an error in TensorFlow graph execution.
-    if isinstance(axis, int) and x.shape[axis] == 1:
+    if (
+        isinstance(axis, int)
+        and -len(x.shape) <= axis < len(x.shape)
+        and x.shape[axis] == 1
+    ):
         warnings.warn(
             f"You are using a softmax over axis {axis} "
             f"of a tensor of shape {x.shape}. This axis "
@@ -964,8 +976,10 @@ def softmax(x, axis=-1):
         x = backend.nn.softmax(x_reshaped, axis=-1)
 
         x = backend.numpy.reshape(x, x_transposed.shape)
+        combined = [*axis_to_keep, *axis]
         x = backend.numpy.transpose(
-            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+            x,
+            axes=sorted(range(len(combined)), key=combined.__getitem__),
         )
         return x
     else:
@@ -981,6 +995,8 @@ class LogSoftmax(Operation):
         return backend.nn.log_softmax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -1025,8 +1041,10 @@ def log_softmax(x, axis=-1):
         x = backend.nn.log_softmax(x_reshaped, axis=-1)
 
         x = backend.numpy.reshape(x, x_transposed.shape)
+        combined = [*axis_to_keep, *axis]
         x = backend.numpy.transpose(
-            x, axes=list(backend.numpy.argsort([*axis_to_keep, *axis]))
+            x,
+            axes=sorted(range(len(combined)), key=combined.__getitem__),
         )
         return x
     else:
@@ -1042,6 +1060,7 @@ class Sparsemax(Operation):
         return backend.nn.sparsemax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        canonicalize_axis(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -1452,13 +1471,15 @@ class Conv(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_input_channels(inputs, kernel, data_format)
         output_shape = operation_utils.compute_conv_output_shape(
             inputs.shape,
             kernel.shape[-1],
             kernel.shape[:-2],
             self.strides,
             self.padding,
-            self.data_format,
+            data_format,
             self.dilation_rate,
         )
         return KerasTensor(output_shape, dtype=inputs.dtype)
@@ -1547,13 +1568,15 @@ class DepthwiseConv(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_input_channels(inputs, kernel, data_format)
         output_shape = operation_utils.compute_conv_output_shape(
             inputs.shape,
             kernel.shape[-1] * kernel.shape[-2],
             kernel.shape[:-2],
             self.strides,
             self.padding,
-            self.data_format,
+            data_format,
             self.dilation_rate,
         )
         return KerasTensor(output_shape, dtype=inputs.dtype)
@@ -1653,17 +1676,19 @@ class SeparableConv(Operation):
         )
 
     def compute_output_spec(self, inputs, depthwise_kernel, pointwise_kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_input_channels(inputs, depthwise_kernel, data_format)
         output_shape = list(
             depthwise_conv(
                 inputs,
                 depthwise_kernel,
                 self.strides,
                 self.padding,
-                self.data_format,
+                data_format,
                 self.dilation_rate,
             ).shape
         )
-        if self.data_format == "channels_last":
+        if data_format == "channels_last":
             output_shape[-1] = pointwise_kernel.shape[-1]
         else:
             output_shape[1] = pointwise_kernel.shape[-1]
@@ -1779,6 +1804,8 @@ class ConvTranspose(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_transpose_input_channels(inputs, kernel, data_format)
         kernel_size = kernel.shape[:-2]
         filters = kernel.shape[-2]
         output_shape = compute_conv_transpose_output_shape(
@@ -1788,7 +1815,7 @@ class ConvTranspose(Operation):
             self.strides,
             self.padding,
             self.output_padding,
-            self.data_format,
+            data_format,
             self.dilation_rate,
         )
         return KerasTensor(output_shape, dtype=inputs.dtype)
@@ -2120,16 +2147,20 @@ class SparseCategoricalCrossentropy(Operation):
                 "Received: "
                 f"output.shape={output.shape}"
             )
+        axis = canonicalize_axis(self.axis, len(output.shape))
         target_shape = target.shape
         if len(target_shape) == len(output.shape) and target_shape[-1] == 1:
             target_shape = target_shape[:-1]
-        if target_shape != output.shape[:-1]:
+        output_shape_without_class = (
+            output.shape[:axis] + output.shape[axis + 1 :]
+        )
+        if target_shape != output_shape_without_class:
             raise ValueError(
                 "Arguments `target` and `output` must have the same shape "
                 "up until the last dimension: "
                 f"target.shape={target.shape}, output.shape={output.shape}"
             )
-        return KerasTensor(output.shape[:-1], dtype=output.dtype)
+        return KerasTensor(output_shape_without_class, dtype=output.dtype)
 
 
 @keras_export(
@@ -2629,6 +2660,8 @@ class Normalize(Operation):
         self.epsilon = epsilon
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(shape=x.shape)
 
     def call(self, x):
@@ -2997,11 +3030,13 @@ def _rms_normalization(x, scale=None, axis=-1, epsilon=None):
     if scale is not None:
         scale = backend.convert_to_tensor(scale, x.dtype)
 
+    if isinstance(axis, (tuple, list)):
+        axis = sorted(axis)
     if backend.backend() == "torch" and is_continuous_axis(axis):
         import torch.nn.functional as F
 
         if isinstance(axis, (tuple, list)):
-            normalized_shape = tuple([x.shape[dim] for dim in axis])
+            normalized_shape = tuple(x.shape[dim] for dim in axis)
         else:
             normalized_shape = (x.shape[axis],)
         outputs = F.rms_norm(x, normalized_shape, scale, epsilon)
@@ -3124,6 +3159,7 @@ def _layer_normalization(
     broadcast_shape = [1] * ndims
     if isinstance(axis, int):
         axis = [axis]
+    axis = sorted(axis)
     for dim in axis:
         broadcast_shape[dim] = input_shape[dim]
 
@@ -3142,7 +3178,7 @@ def _layer_normalization(
         # when using torch backend,use kernel to improve performance
         import torch.nn.functional as F
 
-        normalized_shape = tuple([input_shape[dim] for dim in axis])
+        normalized_shape = tuple(input_shape[dim] for dim in axis)
         outputs = F.layer_norm(x, normalized_shape, gamma, beta, epsilon)
     else:
         # Calculate the mean & variance along self.axis (layer activations).
@@ -3310,6 +3346,112 @@ def _unfold(x, kernel_size, dilation=1, padding=0, stride=1):
     """Internal implementation of unfold."""
     return backend.nn.unfold(
         x,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )
+
+
+class Fold(Operation):
+    def __init__(
+        self,
+        output_size,
+        kernel_size,
+        dilation=1,
+        padding=0,
+        stride=1,
+        *,
+        name=None,
+    ):
+        super().__init__(name=name)
+        self.output_size = output_size
+        self.kernel_size = kernel_size
+        self.dilation = dilation
+        self.padding = padding
+        self.stride = stride
+
+    def compute_output_spec(self, x):
+        N, CKK, L = x.shape
+
+        def _pair(v):
+            return (v, v) if isinstance(v, int) else v
+
+        kH, kW = _pair(self.kernel_size)
+        oH, oW = _pair(self.output_size)
+
+        if CKK is not None and CKK % (kH * kW) != 0:
+            raise ValueError(
+                f"The second dimension of the input ({CKK}) must be "
+                f"divisible by kernel_size product ({kH * kW})."
+            )
+
+        C = CKK // (kH * kW) if CKK is not None else None
+        return KerasTensor(shape=(N, C, oH, oW), dtype=x.dtype)
+
+    def call(self, x):
+        return backend.nn.fold(
+            x,
+            output_size=self.output_size,
+            kernel_size=self.kernel_size,
+            dilation=self.dilation,
+            padding=self.padding,
+            stride=self.stride,
+        )
+
+
+@keras_export(["keras.ops.fold", "keras.ops.nn.fold"])
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """Combines an array of sliding local blocks into a large containing
+    tensor (reverses `unfold`).
+
+    This operation is known as **col2im** when used with convolution.
+    It takes a 3-D tensor of flattened patches and reconstructs a 4-D
+    image tensor by summing overlapping patches.
+
+    Args:
+        x: A 3-D tensor of shape `(N, C * kH * kW, L)` where `L` is
+            the total number of blocks.
+        output_size: int or tuple of two ints `(oH, oW)`, the spatial
+            shape of the output tensor.
+        kernel_size: int or tuple of two ints, the size of the sliding
+            window `(kH, kW)`.  If a single int is given, it is used
+            for both dimensions.
+        dilation: int or tuple of two ints, the spacing between kernel
+            points. Default: 1.
+        padding: int or tuple of two ints, the amount of zero-padding
+            that was applied to the input of `unfold`. Default: 0.
+        stride: int or tuple of two ints, the step size of the sliding
+            window. Default: 1.
+
+    Returns:
+        A 4-D tensor of shape `(N, C, oH, oW)`.
+
+    Example:
+
+    >>> x = keras.ops.ones((1, 2, 4, 4))
+    >>> patches = keras.ops.unfold(x, kernel_size=2, stride=2)
+    >>> patches.shape
+    (1, 8, 4)
+    >>> y = keras.ops.fold(patches, output_size=(4, 4),
+    ...     kernel_size=2, stride=2)
+    >>> y.shape
+    (1, 2, 4, 4)
+
+    """
+    input_shape = x.shape
+    ndims = len(input_shape)
+    if ndims != 3:
+        raise ValueError(
+            f"Input must be a 3D tensor. Received: input.shape={input_shape}"
+        )
+    if any_symbolic_tensors((x,)):
+        return Fold(
+            output_size, kernel_size, dilation, padding, stride
+        ).symbolic_call(x)
+    return backend.nn.fold(
+        x,
+        output_size=output_size,
         kernel_size=kernel_size,
         dilation=dilation,
         padding=padding,
