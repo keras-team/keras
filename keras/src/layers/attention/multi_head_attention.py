@@ -134,6 +134,24 @@ class MultiHeadAttention(Layer):
         seed=None,
         **kwargs,
     ):
+        if not isinstance(num_heads, int) or num_heads <= 0:
+            raise ValueError(
+                "Received an invalid value for argument `num_heads`, "
+                f"expected a positive integer. Received: num_heads={num_heads}"
+            )
+        if not isinstance(key_dim, int) or key_dim <= 0:
+            raise ValueError(
+                "Received an invalid value for argument `key_dim`, expected "
+                f"a positive integer. Received: key_dim={key_dim}"
+            )
+        if value_dim is not None and (
+            not isinstance(value_dim, int) or value_dim <= 0
+        ):
+            raise ValueError(
+                "Received an invalid value for argument `value_dim`, "
+                "expected a positive integer or `None`. Received: "
+                f"value_dim={value_dim}"
+            )
         super().__init__(**kwargs)
         self.supports_masking = True
         self._num_heads = num_heads
