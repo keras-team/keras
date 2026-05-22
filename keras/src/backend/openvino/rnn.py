@@ -830,3 +830,7 @@ def cudnn_ok(*args, **kwargs):
 
 def bidirectional_lstm(*args, **kwargs):
     raise NotImplementedError
+
+
+def bidirectional_gru(*args, **kwargs):
+    raise NotImplementedError

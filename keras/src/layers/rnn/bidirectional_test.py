@@ -1,5 +1,6 @@
 import numpy as np
 
+from keras.src import backend
 from keras.src import initializers
 from keras.src import layers
 from keras.src import testing
@@ -401,3 +402,104 @@ class SimpleRNNTest(testing.TestCase):
             fv.assign(rv.value)
 
         self.assertAllClose(ref(x), fused(x), atol=1e-5)
+
+    def test_fused_gru_eligibility(self):
+        # Shared gating (use_cudnn, dropout, mask, initial_state arity)
+        # is already exercised by test_fused_lstm_eligibility. Cover only
+        # the GRU-specific gates here.
+
+        # GRU with use_cudnn != False passes.
+        bidi = layers.Bidirectional(layers.GRU(4, use_cudnn="auto"))
+        bidi.build((None, 5, 3))
+        self.assertTrue(bidi._can_attempt_fused_gru(mask=None))
+
+        # LSTM is not eligible.
+        lstm = layers.Bidirectional(layers.LSTM(4, use_cudnn="auto"))
+        lstm.build((None, 5, 3))
+        self.assertFalse(lstm._can_attempt_fused_gru(mask=None))
+
+        # reset_after=False is incompatible with the cuDNN GRU formulation.
+        legacy = layers.Bidirectional(
+            layers.GRU(4, use_cudnn="auto", reset_after=False)
+        )
+        legacy.build((None, 5, 3))
+        self.assertFalse(legacy._can_attempt_fused_gru(mask=None))
+
+        # GRU has one state per direction (length 2), not LSTM's four.
+        wrong_state = [np.zeros((2, 4), dtype="float32")] * 4
+        self.assertFalse(
+            bidi._can_attempt_fused_gru(mask=None, initial_state=wrong_state)
+        )
+
+    def test_fused_gru_matches_unfused(self):
+        # The fused path requires backend support (torch with cuDNN today).
+        # On other backends and on CPU runners, `backend.bidirectional_gru`
+        # raises `NotImplementedError` and the layer falls back to the
+        # two-call path, so this test trivially passes. On GPU it exercises
+        # the fused dispatch and asserts numerical equivalence with the
+        # two-call reference.
+        rng = np.random.default_rng(0)
+        x = rng.standard_normal((3, 6, 4)).astype("float32")
+
+        def _build(use_cudnn):
+            layer = layers.Bidirectional(
+                layers.GRU(
+                    5,
+                    use_cudnn=use_cudnn,
+                    return_sequences=True,
+                    kernel_initializer=initializers.GlorotUniform(seed=1),
+                    recurrent_initializer=initializers.Orthogonal(seed=2),
+                )
+            )
+            layer.build(x.shape)
+            return layer
+
+        ref = _build(use_cudnn=False)
+        fused = _build(use_cudnn="auto")
+        for rv, fv in zip(ref.weights, fused.weights):
+            fv.assign(rv.value)
+
+        self.assertAllClose(ref(x), fused(x), atol=1e-5)
+
+    def test_torch_cudnn_bidirectional_gru_dispatch_fires(self):
+        # `backend.bidirectional_gru` is wrapped by a try/except in the
+        # Bidirectional layer, so a regression in the fused cuDNN call
+        # silently routes every Bidirectional(GRU) call through the
+        # two-pass fallback while every existing test still passes.
+        # Assert that `torch._VF.gru` actually fires when the layer runs
+        # against cuDNN-eligible inputs on CUDA.
+        if backend.backend() != "torch":
+            self.skipTest("Guards the torch-backend cuDNN dispatch path.")
+
+        import torch
+
+        if not torch.cuda.is_available():
+            self.skipTest("Requires a CUDA device.")
+
+        from unittest import mock
+
+        x = torch.randn(4, 6, 5, device="cuda")
+        layer = layers.Bidirectional(
+            layers.GRU(8, use_cudnn="auto", return_sequences=True)
+        )
+        layer(x)  # build on cuda
+
+        real_vf_gru = torch._VF.gru
+        calls = []
+
+        def spy(*args, **kwargs):
+            calls.append(True)
+            return real_vf_gru(*args, **kwargs)
+
+        with mock.patch.object(torch._VF, "gru", side_effect=spy):
+            _ = layer(x)
+
+        self.assertGreaterEqual(
+            len(calls),
+            1,
+            msg=(
+                "torch._VF.gru was never invoked from Bidirectional(GRU); "
+                "the fused cuDNN dispatch is silently inactive and every "
+                "call is routing through the two-pass fallback."
+            ),
+        )
