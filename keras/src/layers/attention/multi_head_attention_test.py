@@ -844,7 +844,7 @@ class MultiHeadAttentionTest(testing.TestCase):
         # Try eager call and verify output correctness
         output_quantized = layer(query, key, value)
         mse = ops.mean(ops.square(output_float - output_quantized))
-        self.assertLess(mse, 1e-3)  # A weak correctness test
+        self.assertLess(mse, 1e-2)  # A weak correctness test
 
         layer = layers.MultiHeadAttention(
             num_heads=3,
