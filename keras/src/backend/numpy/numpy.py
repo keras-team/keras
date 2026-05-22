@@ -135,6 +135,14 @@ def abs(x):
     return absolute(x)
 
 
+def fabs(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = x.astype(config.floatx())
+    return np.fabs(x)
+
+
 def all(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     return np.all(x, axis=axis, keepdims=keepdims)
