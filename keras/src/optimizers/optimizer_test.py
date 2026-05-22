@@ -429,11 +429,15 @@ class OptimizerTest(testing.TestCase):
         adam_2 = optimizers.Adam()
         sgd_1 = optimizers.SGD()
         sgd_2 = optimizers.SGD()
+        adamw_1 = optimizers.AdamW()
+        adamw_2 = optimizers.AdamW()
 
         self.assertEqual(adam_1.name, "adam")
         self.assertEqual(adam_2.name, "adam_1")
         self.assertEqual(sgd_1.name, "sgd")
         self.assertEqual(sgd_2.name, "sgd_1")
+        self.assertEqual(adamw_1.name, "adam_w")
+        self.assertEqual(adamw_2.name, "adam_w_1")
 
         # Test explicit naming
         custom_adam = optimizers.Adam(name="my_adam")
