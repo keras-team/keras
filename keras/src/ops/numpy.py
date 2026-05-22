@@ -7185,9 +7185,15 @@ def reshape(x, newshape):
     Returns:
         The reshaped tensor.
     """
-    newshape = tuple(newshape)
-    operation_utils.validate_reshape_shape(newshape)
-    if any_symbolic_tensors((x,)):
+    if not backend.is_tensor(newshape) and not isinstance(
+        newshape, KerasTensor
+    ):
+        try:
+            newshape = tuple(newshape)
+        except TypeError:
+            newshape = (newshape,)
+        operation_utils.validate_reshape_shape(newshape)
+    if any_symbolic_tensors((x, newshape)):
         return Reshape(newshape).symbolic_call(x)
     return backend.numpy.reshape(x, newshape)
 

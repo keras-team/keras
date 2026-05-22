@@ -90,6 +90,17 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, (1, 4, 4, 3))
 
+    def test_compute_pooling_output_shape_rejects_zero_output(self):
+        # pool_size > input spatial dim produces a zero-size output that the
+        # downstream model cannot use. The Conv equivalent was fixed in #22418;
+        # the pooling case should behave the same way.
+        with self.assertRaisesRegex(
+            ValueError, "Computed output size would be zero or negative"
+        ):
+            operation_utils.compute_pooling_output_shape(
+                (1, 5, 5, 3), pool_size=(20, 20), strides=(20, 20)
+            )
+
     def test_compute_conv_output_shape(self):
         input_shape = (1, 4, 4, 1)
         filters = 1
@@ -189,6 +200,22 @@ class OperationUtilsTest(testing.TestCase):
             input_shape, newshape=target_shape, newshape_arg_name="New shape"
         )
         self.assertEqual(output_shape, target_shape)
+
+    def test_compute_reshape_output_shape_symbolic_tensors(self):
+        # Entire newshape is a KerasTensor
+        input_shape = (2, 10)
+        shape_tensor = backend.KerasTensor((2,), dtype="int32")
+        output_shape = operation_utils.compute_reshape_output_shape(
+            input_shape, newshape=shape_tensor, newshape_arg_name="newshape"
+        )
+        self.assertEqual(output_shape, (None, None))
+
+        # Tuple containing a KerasTensor and -1
+        dim_tensor = backend.KerasTensor((), dtype="int32")
+        output_shape2 = operation_utils.compute_reshape_output_shape(
+            input_shape, newshape=(-1, dim_tensor), newshape_arg_name="newshape"
+        )
+        self.assertEqual(output_shape2, (None, None))
 
     def test_reduce_shape_no_axes_no_keepdims(self):
         input_shape = (1, 4, 4, 1)

@@ -4805,6 +4805,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.all(x, axis=1, keepdims=True),
         )
 
+        # Multi-axis test
+        x = np.array(
+            [[[True, True], [True, False]], [[True, True], [True, True]]]
+        )
+        self.assertAllClose(knp.all(x, axis=(0, 1)), np.all(x, axis=(0, 1)))
+        self.assertAllClose(knp.all(x, axis=(0, 2)), np.all(x, axis=(0, 2)))
+        self.assertAllClose(knp.all(x, axis=(1, 2)), np.all(x, axis=(1, 2)))
+
         self.assertAllClose(knp.All()(x), np.all(x))
         self.assertAllClose(knp.All(axis=1)(x), np.all(x, axis=1))
         self.assertAllClose(
@@ -4822,6 +4830,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.any(x, axis=1, keepdims=True),
             np.any(x, axis=1, keepdims=True),
         )
+
+        # Multi-axis test
+        x = np.array(
+            [[[True, False], [False, False]], [[False, False], [False, False]]]
+        )
+        self.assertAllClose(knp.any(x, axis=(0, 1)), np.any(x, axis=(0, 1)))
+        self.assertAllClose(knp.any(x, axis=(0, 2)), np.any(x, axis=(0, 2)))
+        self.assertAllClose(knp.any(x, axis=(1, 2)), np.any(x, axis=(1, 2)))
 
         self.assertAllClose(knp.Any()(x), np.any(x))
         self.assertAllClose(knp.Any(axis=1)(x), np.any(x, axis=1))
@@ -6100,6 +6116,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.prod(x, axis=1, keepdims=True),
         )
 
+        # Multi-axis test
+        x = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+        self.assertAllClose(knp.prod(x, axis=(0, 1)), np.prod(x, axis=(0, 1)))
+        self.assertAllClose(knp.prod(x, axis=(0, 2)), np.prod(x, axis=(0, 2)))
+        self.assertAllClose(knp.prod(x, axis=(1, 2)), np.prod(x, axis=(1, 2)))
+
         self.assertAllClose(knp.Prod()(x), np.prod(x))
         self.assertAllClose(knp.Prod(axis=1)(x), np.prod(x, axis=1))
         self.assertAllClose(
@@ -6207,6 +6229,20 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             "at most one unknown dimension.*newshape=\\(-1, -1, 5\\)",
         ):
             knp.reshape(x, (-1, -1, 5))
+
+    def test_reshape_symbolic_tensor_shape(self):
+        input_tensor = KerasTensor((None, 20))
+        shape_tensor = KerasTensor((2,), dtype="int32")
+        out = knp.reshape(input_tensor, shape_tensor)
+        self.assertEqual(out.shape, (None, None))
+
+        out2 = knp.reshape(input_tensor, (None, KerasTensor((), dtype="int32")))
+        self.assertEqual(out2.shape, (None, None))
+
+        # Only newshape is symbolic, x is a concrete array
+        out3 = knp.reshape(np.zeros((20,)), shape_tensor)
+        self.assertIsInstance(out3, KerasTensor)
+        self.assertEqual(out3.shape, (None, None))
 
     def test_roll(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])

@@ -1390,7 +1390,9 @@ def slice(inputs, start_indices, shape):
         return val
 
     for idx, length in enumerate(shape):
-        if length is not None and length >= 0:
+        if length is not None and (
+            isinstance(length, OpenVINOKerasTensor) or length >= 0
+        ):
             axes.append(idx)
             start_val = prepare_slice_index(get_ov_output(start_indices[idx]))
             stop_val = prepare_slice_index(
