@@ -5020,6 +5020,28 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.transpose(x, axes=(-4, -5, -2, -3, -1)),
         )
 
+    def test_transpose_rejects_invalid_axes(self):
+        # Use a symbolic input so the unified `ValueError` from
+        # `compute_transpose_output_spec` is exercised on every backend.
+        # The eager path delegates to the backend's own transpose
+        # (TF gets an explicit check; JAX/Torch/NumPy already raise
+        # clear errors of their own).
+        x = backend.KerasTensor((2, 3, 4))
+        with self.assertRaisesRegex(
+            ValueError, "valid permutation.*axes=\\[0, 0, 0\\]"
+        ):
+            knp.transpose(x, axes=[0, 0, 0])
+        with self.assertRaisesRegex(
+            ValueError,
+            "Each axis in `axes` must be an integer in \\[-3, 3\\)",
+        ):
+            knp.transpose(x, axes=[0, 1, 5])
+        with self.assertRaisesRegex(
+            ValueError,
+            "must be a list of the same length as the input shape",
+        ):
+            knp.transpose(x, axes=[0, 1])
+
     def test_arccos(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
         self.assertAllClose(knp.arccos(x), np.arccos(x))

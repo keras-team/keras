@@ -3498,6 +3498,16 @@ def transpose(x, axes=None):
         return output
     if axes:
         axes = tuple(canonicalize_axis(axis, len(x.shape)) for axis in axes)
+        # `tf.transpose` raises a low-level `InvalidArgumentError` for
+        # duplicate axes (e.g. "1 is missing from {0,0,0}"). The other
+        # backends already surface a clear permutation error, so only TF
+        # needs the explicit check here. JAX/Torch/NumPy validate natively.
+        if len(set(axes)) != len(axes):
+            raise ValueError(
+                "`axes` must be a valid permutation of the input dimensions "
+                f"(no duplicates). Received: axes={list(axes)} for input of "
+                f"rank {len(x.shape)}."
+            )
     return tf.transpose(x, perm=axes)
 
 
