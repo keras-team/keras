@@ -2340,14 +2340,25 @@ def sparse_categorical_crossentropy(
     array([0.0513, 2.303], dtype=float32)
     """
 
-    if len(y_true.shape) == len(y_pred.shape) and y_true.shape[-1] == 1:
-        y_true = ops.squeeze(y_true, axis=-1)
+    # Squeeze a singleton class dim on `y_true` if present. This must use the
+    # caller's `axis` (not a hardcoded `-1`), so that channels-first inputs
+    # — e.g. `y_true.shape=(B, 1, H, W)` with `axis=1` on the Torch backend —
+    # also have the singleton dim removed before backend dispatch. See
+    # https://github.com/keras-team/keras/issues/21097.
+    if len(y_true.shape) == len(y_pred.shape) and y_true.shape[axis] == 1:
+        y_true = ops.squeeze(y_true, axis=axis)
 
     if ignore_class is not None:
-        res_shape = ops.shape(y_pred)[:-1]
+        # `res_shape` is the shape of the per-element loss: `y_pred.shape`
+        # with the class axis removed.
+        class_axis = axis % len(y_pred.shape)
+        y_pred_shape = ops.shape(y_pred)
+        res_shape = tuple(
+            d for i, d in enumerate(y_pred_shape) if i != class_axis
+        )
         valid_mask = ops.not_equal(y_true, ops.cast(ignore_class, y_pred.dtype))
         y_true = ops.where(valid_mask, y_true, 0)
-        y_pred = ops.where(ops.expand_dims(valid_mask, -1), y_pred, 0)
+        y_pred = ops.where(ops.expand_dims(valid_mask, axis), y_pred, 0)
 
     res = ops.sparse_categorical_crossentropy(
         y_true,

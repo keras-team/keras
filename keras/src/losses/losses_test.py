@@ -1427,6 +1427,21 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             )
             self.assertAllClose(output, expected.sum() / 16.0)
 
+    def test_squeezes_singleton_class_dim_on_user_axis(self):
+        # Regression test for https://github.com/keras-team/keras/issues/21097.
+        # When `y_true` has a singleton class dim at the user-supplied `axis`
+        # (e.g. `(B, 1, H, W)` for channels-first with `axis=1`), it must be
+        # squeezed before backend dispatch — not just on the last axis.
+        if backend.backend() != "torch":
+            self.skipTest("Channels-first axis only supported on Torch.")
+        y_true = np.random.randint(0, 2, size=(2, 1, 4, 4)).astype("float32")
+        y_pred = np.random.random((2, 2, 4, 4)).astype("float32")
+        # Without `axis=1` this raises:
+        #   "Arguments `target` and `output` must have the same shape up
+        #    until the last dimension"
+        loss = losses.sparse_categorical_crossentropy(y_true, y_pred, axis=1)
+        self.assertEqual(loss.shape, (2, 4, 4))
+
     def test_multi_class_segmentation(self):
         y_true = np.array(
             [[0, 1, 2, 0], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 1]]
