@@ -2465,3 +2465,10 @@ def unique(
     elif return_index:
         output[1] = unique_indices
     return output[0] if len(output) == 1 else tuple(output)
+
+
+def dsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
+    return list(torch.dsplit(x, indices_or_sections))

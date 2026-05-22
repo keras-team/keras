@@ -5906,3 +5906,7 @@ def unique(
         outputs.append(OpenVINOKerasTensor(counts))
 
     return outputs[0] if len(outputs) == 1 else tuple(outputs)
+
+
+def dsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=2)

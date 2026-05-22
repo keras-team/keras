@@ -3915,3 +3915,7 @@ def unique(
         results.append(counts)
 
     return tuple(results) if len(results) > 1 else results[0]
+
+
+def dsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=2)
