@@ -198,6 +198,7 @@ from keras.src.ops.numpy import exp2 as exp2
 from keras.src.ops.numpy import expand_dims as expand_dims
 from keras.src.ops.numpy import expm1 as expm1
 from keras.src.ops.numpy import eye as eye
+from keras.src.ops.numpy import fabs as fabs
 from keras.src.ops.numpy import flip as flip
 from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud

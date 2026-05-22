@@ -1354,6 +1354,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.abs(x).shape, (None, 3))
 
+    def test_fabs(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.fabs(x).shape, (None, 3))
+
     def test_absolute(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.absolute(x).shape, (None, 3))
@@ -2430,6 +2434,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_abs(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.abs(x).shape, (2, 3))
+
+    def test_fabs(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.fabs(x).shape, (2, 3))
 
     def test_absolute(self):
         x = KerasTensor((2, 3))
@@ -4977,6 +4985,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.abs(x), np.abs(x))
 
         self.assertAllClose(knp.Abs()(x), np.abs(x))
+
+    def test_fabs(self):
+        x = np.array([[-1, 2, -3], [3, -2, 1]])
+        self.assertAllClose(knp.fabs(x), np.fabs(x))
+
+        self.assertAllClose(knp.Fabs()(x), np.fabs(x))
 
     def test_absolute(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -8512,6 +8526,23 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertEqual(
             standardize_dtype(knp.zeros([2, 3], dtype=dtype).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_fabs(self, dtype):
+        if "complex" in standardize_dtype(dtype):
+            self.skipTest("fabs does not support complex types")
+
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.fabs(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.fabs(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Fabs().symbolic_call(x).dtype),
             expected_dtype,
         )
 
