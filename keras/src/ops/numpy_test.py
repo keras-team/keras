@@ -5021,7 +5021,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         )
 
     def test_transpose_rejects_invalid_axes(self):
-        x = np.ones([2, 3, 4])
+        # Use a symbolic input so the unified `ValueError` from
+        # `compute_transpose_output_spec` is exercised on every backend.
+        # The eager path delegates to the backend's own transpose
+        # (TF gets an explicit check; JAX/Torch/NumPy already raise
+        # clear errors of their own).
+        x = backend.KerasTensor((2, 3, 4))
         with self.assertRaisesRegex(
             ValueError, "valid permutation.*axes=\\[0, 0, 0\\]"
         ):

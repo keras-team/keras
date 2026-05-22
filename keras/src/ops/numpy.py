@@ -8830,11 +8830,6 @@ def transpose(x, axes=None):
     Returns:
         `x` with its axes permuted.
     """
-    if axes is not None and hasattr(x, "shape"):
-        # Validate eagerly so all backends produce the same `ValueError` rather
-        # than backend-specific low-level errors. Symbolic inputs reach the
-        # same check via `compute_transpose_output_shape`.
-        operation_utils.compute_transpose_output_shape(x.shape, axes)
     if any_symbolic_tensors((x,)):
         return Transpose(axes=axes).symbolic_call(x)
     return backend.numpy.transpose(x, axes=axes)
