@@ -5423,9 +5423,12 @@ class Moveaxis(Operation):
         return backend.numpy.moveaxis(x, self.source, self.destination)
 
     def compute_output_spec(self, x):
+        ndim = len(x.shape)
+        sources = [canonicalize_axis(a, ndim) for a in self.source]
+        destinations = [canonicalize_axis(a, ndim) for a in self.destination]
         x_shape = list(x.shape)
-        output_shape = [-1 for _ in range(len(x.shape))]
-        for sc, dst in zip(self.source, self.destination):
+        output_shape = [-1 for _ in range(ndim)]
+        for sc, dst in zip(sources, destinations):
             output_shape[dst] = x_shape[sc]
             x_shape[sc] = -1
         i, j = 0, 0
@@ -7706,10 +7709,11 @@ class Swapaxes(Operation):
         return backend.numpy.swapaxes(x, self.axis1, self.axis2)
 
     def compute_output_spec(self, x):
+        ndim = len(x.shape)
+        ax1 = canonicalize_axis(self.axis1, ndim)
+        ax2 = canonicalize_axis(self.axis2, ndim)
         x_shape = list(x.shape)
-        tmp = x_shape[self.axis1]
-        x_shape[self.axis1] = x_shape[self.axis2]
-        x_shape[self.axis2] = tmp
+        x_shape[ax1], x_shape[ax2] = x_shape[ax2], x_shape[ax1]
         return KerasTensor(x_shape, dtype=x.dtype)
 
 
