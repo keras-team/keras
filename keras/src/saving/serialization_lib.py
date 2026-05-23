@@ -721,8 +721,10 @@ def deserialize_keras_object(
             inner_config, list
         )
         if not is_sequential_list:
+        if not is_sequential_list:
+            expected_type = "dict or list" if class_name == "Sequential" else "dict"
             raise TypeError(
-                f"Expected 'config' to be a dict for {class_name},\n"
+                f"Expected 'config' to be a {expected_type} for {class_name},\n"
                 f"instead got {type(inner_config).__name__}\n"
                 f"Full config: {config}"
             )
