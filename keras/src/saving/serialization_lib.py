@@ -715,8 +715,6 @@ def deserialize_keras_object(
             custom_objects=custom_objects,
         )
     # Below, handling of all classes.
-    if inner_config is None:
-        inner_config = {}
     if not isinstance(inner_config, dict):
         # Historical case exception : Sequential model accepts a layer list
         is_sequential_list = class_name == "Sequential" and isinstance(
