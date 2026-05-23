@@ -9839,9 +9839,9 @@ def dsplit(x, indices_or_sections):
     Args:
         x: Input tensor.
         indices_or_sections: If an integer, N, the tensor will be split into N
-            equal sections along axis 0. If a 1-D array of sorted integers,
+            equal sections along axis 2. If a 1-D array of sorted integers,
             the entries indicate indices at which the tensor will be split
-            along axis 0.
+            along axis 2.
     Returns:
         A list of sub-arrays.
 
