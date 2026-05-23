@@ -214,27 +214,7 @@ class Functional(Function, Model):
         return output_shapes
 
     def _assert_input_compatibility(self, *args):
-        inputs = args[0]
-        # When the model was built with a dict of inputs (named inputs), but
-        # receives a non-dict / non-matching-list structure, the default
-        # "expects N input(s)" message is misleading — the user typically
-        # needs to know they have to pass a dict keyed by input name. See
-        # https://github.com/keras-team/keras/issues/19127.
-        if isinstance(self._inputs_struct, dict) and not isinstance(
-            inputs, dict
-        ):
-            if not (
-                isinstance(inputs, (list, tuple))
-                and len(inputs) == len(self._inputs_struct)
-            ):
-                keys = list(self._inputs_struct.keys())
-                raise ValueError(
-                    f"Model '{self.name}' was built with named inputs and "
-                    f"expects a dict with keys {keys}, but received "
-                    f"{type(inputs).__name__}. Pass inputs as a dict, e.g. "
-                    "`model({" + ", ".join(f"'{k}': ..." for k in keys) + "})`."
-                )
-        flat_inputs = tree.flatten(inputs)
+        flat_inputs = tree.flatten(args[0])
         for x, input_tensor in zip(flat_inputs, self._inputs):
             if x is None:
                 input_layer = input_tensor._keras_history.operation
