@@ -671,8 +671,9 @@ def deserialize_keras_object(
     if tf is not None and config["class_name"] == "__typespec__":
         if not isinstance(inner_config, (tuple, list)):
             raise TypeError(
-                "Expected 'config' to be a list or a tuple for a __typespec__ class name,\n"
-                f"instead got {type(inner_config).__name__}\n"
+                "Expected 'config' to be a list or a tuple"
+                 "for a __typespec__ class name,\n"
+                f"instead got {type(inner_config)}\n"
                 f"Full config: {config}"
             )
         obj = _retrieve_class_or_fn(
@@ -702,8 +703,9 @@ def deserialize_keras_object(
         fn_name = inner_config
         if not isinstance(fn_name, str):
             raise TypeError(
-                "Expected 'config' to be a non-null str for a function classname,\n"
-                f"instead got {type(fn_name).__name__}\n"
+                "Expected 'config' to be a non-null str for"
+                "a function classname,\n"
+                f"instead got {type(fn_name)}\n"
                 f"Full config: {config}"
             )
         return _retrieve_class_or_fn(
@@ -716,16 +718,9 @@ def deserialize_keras_object(
         )
     # Below, handling of all classes.
     if not isinstance(inner_config, dict):
-        # Historical case exception : Sequential model accepts a layer list
-        is_sequential_list = class_name == "Sequential" and isinstance(
-            inner_config, list
-        )
-        if not is_sequential_list:
-        if not is_sequential_list:
-            expected_type = "dict or list" if class_name == "Sequential" else "dict"
             raise TypeError(
-                f"Expected 'config' to be a {expected_type} for {class_name},\n"
-                f"instead got {type(inner_config).__name__}\n"
+                f"Expected 'config' to be a dict for {class_name},\n"
+                f"instead got {type(inner_config)}\n"
                 f"Full config: {config}"
             )
     # First, is it a shared object?

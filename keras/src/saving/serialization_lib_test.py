@@ -465,36 +465,10 @@ class SerializationLibTest(testing.TestCase):
         }
         with self.assertRaisesRegex(
             ValueError,
-            "A Sequential model configuration "
-            "must be either a list of layers or a "
+            "A Sequential model configuration must be a "
             "dictionary containing the 'name' and 'layers' keys",
         ):
             deserialize_keras_object(serialized)
-
-    def test_config_as_list_of_layers(self):
-        """Tests serialization when sequential model config is list of
-        layers."""
-        serialized = {
-            "class_name": "Sequential",
-            "module": "keras",
-            "config": [
-                {
-                    "class_name": "Dense",
-                    "module": "keras.layers",
-                    "config": {"units": 4},
-                },
-                {
-                    "class_name": "Dense",
-                    "module": "keras.layers",
-                    "config": {"units": 2},
-                },
-            ],
-        }
-        model = deserialize_keras_object(serialized)
-        self.assertIsInstance(model, keras.Sequential)
-        self.assertLen(model.layers, 2)
-        self.assertEqual(model.layers[0].units, 4)
-        self.assertEqual(model.layers[1].units, 2)
 
     def test_malformed_layer_for_sequential_model(self):
         serialized = {
