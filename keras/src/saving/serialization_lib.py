@@ -618,7 +618,7 @@ def deserialize_keras_object(
         }
 
     class_name = config["class_name"]
-    inner_config = config["config"]
+    inner_config = config["config"] if config["config"] is not None else {}
     custom_objects = custom_objects or {}
 
     # Special cases:
