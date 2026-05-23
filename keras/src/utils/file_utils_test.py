@@ -89,15 +89,22 @@ class IsLinkInDirTest(test_case.TestCase):
             {
                 "testcase_name": "hardlink_in",
                 "is_symlink": False,
-                "name": None,
+                "name": "file.txt",
                 "linkname": "file.txt",
                 "expected": True,
             },
             {
-                "testcase_name": "hardlink_out",
+                "testcase_name": "hardlink_target_out",
                 "is_symlink": False,
-                "name": None,
+                "name": "file.txt",
                 "linkname": "../file.txt",
+                "expected": False,
+            },
+            {
+                "testcase_name": "hardlink_name_out",
+                "is_symlink": False,
+                "name": "../file.txt",
+                "linkname": "file.txt",
                 "expected": False,
             },
             {
@@ -208,6 +215,22 @@ class FilterSafePathsTest(test_case.TestCase):
             self.assertTrue(
                 members[0].issym()
             )  # Explicitly assert it's a symbolic link.
+
+    def test_hardlink_name_traversal_skipped(self):
+        """A hard link whose own name escapes base_dir is skipped."""
+        with tarfile.open(self.tar_path, "w") as tar:
+            tar.add(self.target_path, arcname="payload.txt")
+            link = tarfile.TarInfo("../../escaped_hardlink.txt")
+            link.type = tarfile.LNKTYPE
+            link.linkname = "payload.txt"
+            tar.addfile(link)
+        with tarfile.open(self.tar_path, "r") as tar:
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
+            names = [m.name for m in members]
+            self.assertIn("payload.txt", names)
+            self.assertNotIn("../../escaped_hardlink.txt", names)
 
 
 class ExtractArchiveTest(test_case.TestCase):
