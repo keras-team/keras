@@ -313,7 +313,8 @@ def erf(x):
 
 
 def erfc(x):
-    return np.array(scipy.special.erfc(x))
+    dtype = dtypes.result_type(x.dtype)
+    return scipy.special.erfc(x).astype(dtype)
 
 
 def erfinv(x):
