@@ -482,7 +482,7 @@ def deserialize_keras_object(
     ```python
     @keras.saving.register_keras_serializable(package='my_package')
     class ModifiedMeanSquaredError(keras.losses.MeanSquaredError):
-      ...
+        ...
 
     dict_structure = {
         "class_name": "ModifiedMeanSquaredError",
@@ -619,40 +619,64 @@ def deserialize_keras_object(
 
     class_name = config["class_name"]
     innerconfig = config['config']
+    if class_name == 'function':
+        if innerconfig is None or not isinstance(innerconfig, str):
+            raise TypeError(
+                f"Expected 'config' to be a non-null string for function, "
+                f"got {type(innerconfig).__name__}. "
+                f"Full config: {config}"
+            )
+    elif class_name == 'typespec':
+        if innerconfig is None or not isinstance(innerconfig, (list, tuple)):
+            raise TypeError(
+                f"Expected 'config' to be a non-null list or tuple for "
+                f"_typespec_, got {type(innerconfig).__name__}. "
+                f"Full config: {config}"
+            )
+    else:
+        if innerconfig is None:
+            innerconfig = {}
+        elif not isinstance(innerconfig, dict):
+            raise TypeError(
+                f"Expected 'config' to be a dict, got "
+                f"{type(innerconfig).__name__}. "
+                f"For class '{class_name}', pass a dict with the expected "
+                "configuration keys."
+            )
     custom_objects = custom_objects or {}
 
     # Special cases:
     if class_name == "__keras_tensor__":
         obj = backend.KerasTensor(
-            inner_config["shape"], dtype=inner_config["dtype"]
+            innerconfig["shape"], dtype=innerconfig["dtype"]
         )
-        obj._pre_serialization_keras_history = inner_config["keras_history"]
+        obj._pre_serialization_keras_history = innerconfig["keras_history"]
         return obj
 
     if class_name == "__tensor__":
         return backend.convert_to_tensor(
-            inner_config["value"], dtype=inner_config["dtype"]
+            innerconfig["value"], dtype=innerconfig["dtype"]
         )
     if class_name == "__numpy__":
-        return np.array(inner_config["value"], dtype=inner_config["dtype"])
+        return np.array(innerconfig["value"], dtype=innerconfig["dtype"])
     if config["class_name"] == "__bytes__":
-        return inner_config["value"].encode("utf-8")
+        return innerconfig["value"].encode("utf-8")
     if config["class_name"] == "__ellipsis__":
         return Ellipsis
     if config["class_name"] == "__slice__":
         return slice(
             deserialize_keras_object(
-                inner_config["start"],
+                innerconfig["start"],
                 custom_objects=custom_objects,
                 safe_mode=safe_mode,
             ),
             deserialize_keras_object(
-                inner_config["stop"],
+                innerconfig["stop"],
                 custom_objects=custom_objects,
                 safe_mode=safe_mode,
             ),
             deserialize_keras_object(
-                inner_config["step"],
+                innerconfig["step"],
                 custom_objects=custom_objects,
                 safe_mode=safe_mode,
             ),
@@ -667,7 +691,7 @@ def deserialize_keras_object(
                 "`safe_mode=False` to the loading function, or calling "
                 "`keras.config.enable_unsafe_deserialization()."
             )
-        return python_utils.func_load(inner_config["value"])
+        return python_utils.func_load(innerconfig["value"])
     if tf is not None and config["class_name"] == "__typespec__":
         obj = _retrieve_class_or_fn(
             config["spec_name"],
@@ -678,22 +702,22 @@ def deserialize_keras_object(
             custom_objects=custom_objects,
         )
         # Conversion to TensorShape and DType
-        inner_config = map(
+        innerconfig = map(
             lambda x: (
                 tf.TensorShape(x)
                 if isinstance(x, list)
                 else (getattr(tf, x) if hasattr(tf.dtypes, str(x)) else x)
             ),
-            inner_config,
+            innerconfig,
         )
-        return obj._deserialize(tuple(inner_config))
+        return obj._deserialize(tuple(innerconfig))
 
     # Below: classes and functions.
     module = config.get("module", None)
     registered_name = config.get("registered_name", class_name)
 
     if class_name == "function":
-        fn_name = inner_config
+        fn_name = innerconfig
         return _retrieve_class_or_fn(
             fn_name,
             registered_name,
@@ -734,7 +758,7 @@ def deserialize_keras_object(
     safe_mode_scope = SafeModeScope(safe_mode)
     with custom_obj_scope, safe_mode_scope:
         try:
-            instance = cls.from_config(inner_config)
+            instance = cls.from_config(innerconfig)
         except TypeError as e:
             raise TypeError(
                 f"{cls} could not be deserialized properly. Please"
