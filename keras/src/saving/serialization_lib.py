@@ -618,15 +618,15 @@ def deserialize_keras_object(
         }
 
     class_name = config["class_name"]
-    innerconfig = config['config']
-    if class_name == 'function':
+    innerconfig = config["config"]
+    if class_name == "function":
         if innerconfig is None or not isinstance(innerconfig, str):
             raise TypeError(
                 f"Expected 'config' to be a non-null string for function, "
                 f"got {type(innerconfig).__name__}. "
                 f"Full config: {config}"
             )
-    elif class_name == 'typespec':
+    elif class_name == "typespec":
         if innerconfig is None or not isinstance(innerconfig, (list, tuple)):
             raise TypeError(
                 f"Expected 'config' to be a non-null list or tuple for "
@@ -689,7 +689,7 @@ def deserialize_keras_object(
                 "it is disallowed by default. If you trust the source of the "
                 "artifact, you can override this error by passing "
                 "`safe_mode=False` to the loading function, or calling "
-                "`keras.config.enable_unsafe_deserialization()."
+                "`keras.config.enable_unsafe_deserialization()`."
             )
         return python_utils.func_load(innerconfig["value"])
     if tf is not None and config["class_name"] == "__typespec__":
