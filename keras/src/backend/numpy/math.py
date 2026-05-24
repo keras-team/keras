@@ -313,7 +313,7 @@ def erf(x):
 
 
 def erfc(x):
-    dtype = dtypes.result_type(x.dtype)
+    dtype = dtypes.result_type(x.dtype, float)
     return scipy.special.erfc(x).astype(dtype)
 
 

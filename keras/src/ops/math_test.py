@@ -1128,13 +1128,13 @@ class MathDtypeTest(testing.TestCase):
 
     @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
     def test_erfc(self, dtype):
-        import jax.lax as lax
         import jax.numpy as jnp
+        import jax.scipy.special as special
 
         x = knp.ones((1,), dtype=dtype)
         x_jax = jnp.ones((1,), dtype=dtype)
 
-        expected_dtype = standardize_dtype(lax.erfc(x_jax).dtype)
+        expected_dtype = standardize_dtype(special.erfc(x_jax).dtype)
 
         self.assertEqual(
             standardize_dtype(kmath.erfc(x).dtype),

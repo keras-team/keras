@@ -1160,7 +1160,7 @@ def erf(x):
 
 class Erfc(Operation):
     def compute_output_spec(self, x):
-        return KerasTensor(shape=x.shape, dtype=x.dtype)
+        return KerasTensor(shape=x.shape, dtype=result_type(x.dtype, float))
 
     def call(self, x):
         return backend.math.erfc(x)
