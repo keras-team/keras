@@ -1354,6 +1354,10 @@ class NumpyOneInputOpsDynamicShapeTest(testing.TestCase):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.abs(x).shape, (None, 3))
 
+    def test_fabs(self):
+        x = KerasTensor((None, 3))
+        self.assertEqual(knp.fabs(x).shape, (None, 3))
+
     def test_absolute(self):
         x = KerasTensor((None, 3))
         self.assertEqual(knp.absolute(x).shape, (None, 3))
@@ -2431,6 +2435,10 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.abs(x).shape, (2, 3))
 
+    def test_fabs(self):
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.fabs(x).shape, (2, 3))
+
     def test_absolute(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.absolute(x).shape, (2, 3))
@@ -3095,6 +3103,13 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
     def test_swapaxes(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.swapaxes(x, 0, 1).shape, (3, 2))
+
+    def test_swapaxes_and_moveaxis_reject_out_of_range_axis(self):
+        x = KerasTensor((3, 4))
+        with self.assertRaisesRegex(ValueError, "axis 5 is out of bounds"):
+            knp.swapaxes(x, axis1=5, axis2=0)
+        with self.assertRaisesRegex(ValueError, "axis 5 is out of bounds"):
+            knp.moveaxis(x, source=5, destination=0)
 
     def test_tan(self):
         x = KerasTensor((2, 3))
@@ -4805,6 +4820,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.all(x, axis=1, keepdims=True),
         )
 
+        # Multi-axis test
+        x = np.array(
+            [[[True, True], [True, False]], [[True, True], [True, True]]]
+        )
+        self.assertAllClose(knp.all(x, axis=(0, 1)), np.all(x, axis=(0, 1)))
+        self.assertAllClose(knp.all(x, axis=(0, 2)), np.all(x, axis=(0, 2)))
+        self.assertAllClose(knp.all(x, axis=(1, 2)), np.all(x, axis=(1, 2)))
+
         self.assertAllClose(knp.All()(x), np.all(x))
         self.assertAllClose(knp.All(axis=1)(x), np.all(x, axis=1))
         self.assertAllClose(
@@ -4822,6 +4845,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.any(x, axis=1, keepdims=True),
             np.any(x, axis=1, keepdims=True),
         )
+
+        # Multi-axis test
+        x = np.array(
+            [[[True, False], [False, False]], [[False, False], [False, False]]]
+        )
+        self.assertAllClose(knp.any(x, axis=(0, 1)), np.any(x, axis=(0, 1)))
+        self.assertAllClose(knp.any(x, axis=(0, 2)), np.any(x, axis=(0, 2)))
+        self.assertAllClose(knp.any(x, axis=(1, 2)), np.any(x, axis=(1, 2)))
 
         self.assertAllClose(knp.Any()(x), np.any(x))
         self.assertAllClose(knp.Any(axis=1)(x), np.any(x, axis=1))
@@ -4955,6 +4986,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
 
         self.assertAllClose(knp.Abs()(x), np.abs(x))
 
+    def test_fabs(self):
+        x = np.array([[-1, 2, -3], [3, -2, 1]])
+        self.assertAllClose(knp.fabs(x), np.fabs(x))
+
+        self.assertAllClose(knp.Fabs()(x), np.fabs(x))
+
     def test_absolute(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertAllClose(knp.absolute(x), np.absolute(x))
@@ -5003,6 +5040,28 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.Transpose(axes=(-4, -5, -2, -3, -1))(x),
             np.transpose(x, axes=(-4, -5, -2, -3, -1)),
         )
+
+    def test_transpose_rejects_invalid_axes(self):
+        # Use a symbolic input so the unified `ValueError` from
+        # `compute_transpose_output_spec` is exercised on every backend.
+        # The eager path delegates to the backend's own transpose
+        # (TF gets an explicit check; JAX/Torch/NumPy already raise
+        # clear errors of their own).
+        x = backend.KerasTensor((2, 3, 4))
+        with self.assertRaisesRegex(
+            ValueError, "valid permutation.*axes=\\[0, 0, 0\\]"
+        ):
+            knp.transpose(x, axes=[0, 0, 0])
+        with self.assertRaisesRegex(
+            ValueError,
+            "Each axis in `axes` must be an integer in \\[-3, 3\\)",
+        ):
+            knp.transpose(x, axes=[0, 1, 5])
+        with self.assertRaisesRegex(
+            ValueError,
+            "must be a list of the same length as the input shape",
+        ):
+            knp.transpose(x, axes=[0, 1])
 
     def test_arccos(self):
         x = np.array([[1, 0.5, -0.7], [0.9, 0.2, -1]])
@@ -6083,6 +6142,12 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.prod(x, axis=1, keepdims=True),
         )
 
+        # Multi-axis test
+        x = np.array([[[1, 2], [3, 4]], [[5, 6], [7, 8]]])
+        self.assertAllClose(knp.prod(x, axis=(0, 1)), np.prod(x, axis=(0, 1)))
+        self.assertAllClose(knp.prod(x, axis=(0, 2)), np.prod(x, axis=(0, 2)))
+        self.assertAllClose(knp.prod(x, axis=(1, 2)), np.prod(x, axis=(1, 2)))
+
         self.assertAllClose(knp.Prod()(x), np.prod(x))
         self.assertAllClose(knp.Prod(axis=1)(x), np.prod(x, axis=1))
         self.assertAllClose(
@@ -6190,6 +6255,20 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             "at most one unknown dimension.*newshape=\\(-1, -1, 5\\)",
         ):
             knp.reshape(x, (-1, -1, 5))
+
+    def test_reshape_symbolic_tensor_shape(self):
+        input_tensor = KerasTensor((None, 20))
+        shape_tensor = KerasTensor((2,), dtype="int32")
+        out = knp.reshape(input_tensor, shape_tensor)
+        self.assertEqual(out.shape, (None, None))
+
+        out2 = knp.reshape(input_tensor, (None, KerasTensor((), dtype="int32")))
+        self.assertEqual(out2.shape, (None, None))
+
+        # Only newshape is symbolic, x is a concrete array
+        out3 = knp.reshape(np.zeros((20,)), shape_tensor)
+        self.assertIsInstance(out3, KerasTensor)
+        self.assertEqual(out3.shape, (None, None))
 
     def test_roll(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
@@ -8447,6 +8526,23 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertEqual(
             standardize_dtype(knp.zeros([2, 3], dtype=dtype).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
+    def test_fabs(self, dtype):
+        if "complex" in standardize_dtype(dtype):
+            self.skipTest("fabs does not support complex types")
+
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+        expected_dtype = standardize_dtype(jnp.fabs(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(knp.fabs(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(knp.Fabs().symbolic_call(x).dtype),
             expected_dtype,
         )
 

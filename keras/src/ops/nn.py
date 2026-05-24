@@ -915,6 +915,8 @@ class Softmax(Operation):
         return backend.nn.softmax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -949,7 +951,11 @@ def softmax(x, axis=-1):
     # Don't use `backend.shape` since TensorFlow returns
     # symbolic tensors for unknown shape which can trigger
     # an error in TensorFlow graph execution.
-    if isinstance(axis, int) and x.shape[axis] == 1:
+    if (
+        isinstance(axis, int)
+        and -len(x.shape) <= axis < len(x.shape)
+        and x.shape[axis] == 1
+    ):
         warnings.warn(
             f"You are using a softmax over axis {axis} "
             f"of a tensor of shape {x.shape}. This axis "
@@ -2654,6 +2660,8 @@ class Normalize(Operation):
         self.epsilon = epsilon
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(shape=x.shape)
 
     def call(self, x):

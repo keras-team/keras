@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from keras.src import backend
+from keras.src import callbacks
 from keras.src import layers
 from keras.src import models
 from keras.src import optimizers
@@ -327,3 +328,357 @@ class MultiOptimizerTest(testing.TestCase):
         # other two optimizer iteration must be 2
         self.assertEqual(int(optimizer.optimizers[0].iterations), 1)
         self.assertEqual(int(optimizer.optimizers[1].iterations), 1)
+
+    @pytest.mark.requires_trainable_backend
+    def test_learning_rate_scheduler_with_multi_optimizer(self):
+        """Verifies LearningRateScheduler with MultiOptimizer.
+
+        This test ensures that when using a MultiOptimizer, the
+        LearningRateScheduler callback correctly updates the learning rate
+        of each individual sub-optimizer according to the schedule. It
+        verifies that non-linear scheduling is correctly applied to each
+        sub-optimizer's unique learning rate.
+        """
+        opt_1 = optimizers.SGD(learning_rate=0.1)
+        opt_2 = optimizers.SGD(learning_rate=0.01)
+
+        optimizer = optimizers.MultiOptimizer(
+            optimizers.OptimizerMap(
+                default_optimizer=opt_2,
+                optimizer_map={
+                    ".*dense_1/.*": opt_1,
+                },
+            )
+        )
+
+        model = models.Sequential(
+            [
+                layers.Dense(
+                    2, kernel_initializer="ones", use_bias=False, name="dense_1"
+                ),
+                layers.Dense(
+                    1, kernel_initializer="ones", use_bias=False, name="dense_2"
+                ),
+            ]
+        )
+        model.compile(loss="mse", optimizer=optimizer)
+
+        def schedule(epoch, lr):
+            return lr * 0.5
+
+        lr_scheduler = callbacks.LearningRateScheduler(schedule)
+        lr_scheduler.set_model(model)
+        lr_scheduler.on_epoch_begin(epoch=1)
+
+        self.assertAllClose(backend.convert_to_numpy(opt_1.learning_rate), 0.05)
+        self.assertAllClose(
+            backend.convert_to_numpy(opt_2.learning_rate), 0.005
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_reduce_lr_on_plateau_with_multi_optimizer(self):
+        """Verifies ReduceLROnPlateau with MultiOptimizer.
+
+        This test ensures that when using a MultiOptimizer, the
+        ReduceLROnPlateau callback triggers learning rate reduction on all
+        sub-optimizers. It verifies that the reduction factor is applied to
+        each sub-optimizer's learning rate proportionally, while the state
+        machine (patience, cooldown) is only evaluated once per epoch.
+        """
+        opt_1 = optimizers.SGD(learning_rate=0.1)
+        opt_2 = optimizers.SGD(learning_rate=0.01)
+
+        optimizer = optimizers.MultiOptimizer(
+            optimizers.OptimizerMap(
+                default_optimizer=opt_2,
+                optimizer_map={
+                    ".*dense_1/.*": opt_1,
+                },
+            )
+        )
+
+        model = models.Sequential(
+            [
+                layers.Dense(
+                    2, kernel_initializer="ones", use_bias=False, name="dense_1"
+                ),
+                layers.Dense(
+                    1, kernel_initializer="ones", use_bias=False, name="dense_2"
+                ),
+            ]
+        )
+        model.compile(loss="mse", optimizer=optimizer)
+
+        reduce_lr = callbacks.ReduceLROnPlateau(
+            monitor="val_loss", factor=0.5, patience=1
+        )
+        reduce_lr.set_model(model)
+        reduce_lr.on_train_begin()
+
+        # First epoch: set a baseline val_loss
+        reduce_lr.on_epoch_end(epoch=0, logs={"val_loss": 1.0})
+        self.assertAllClose(backend.convert_to_numpy(opt_1.learning_rate), 0.1)
+        self.assertAllClose(backend.convert_to_numpy(opt_2.learning_rate), 0.01)
+
+        # Second epoch: val_loss does not improve (plateau), exceeds patience=1
+        reduce_lr.on_epoch_end(epoch=1, logs={"val_loss": 1.0})
+        self.assertAllClose(backend.convert_to_numpy(opt_1.learning_rate), 0.05)
+        self.assertAllClose(
+            backend.convert_to_numpy(opt_2.learning_rate), 0.005
+        )
+
+    @pytest.mark.requires_trainable_backend
+    def test_tensorboard_logging_with_multi_optimizer(self):
+        """Verifies TensorBoard learning rate logging with MultiOptimizer.
+
+        This test ensures that the TensorBoard callback correctly collects
+        and logs the learning rate of each sub-optimizer in a MultiOptimizer
+        setup. It verifies that learning rates are logged under unique keys
+        like 'learning_rate_{opt_name}' and that duplicate optimizer names
+        are handled by appending a suffix.
+        """
+        import tempfile
+
+        opt_1 = optimizers.SGD(learning_rate=0.1, name="SGD")
+        opt_2 = optimizers.SGD(learning_rate=0.01, name="SGD_1")
+        print(opt_1.name)
+        print(opt_2.name)
+        optimizer = optimizers.MultiOptimizer(
+            optimizers.OptimizerMap(
+                default_optimizer=opt_2,
+                optimizer_map={
+                    ".*dense_1/.*": opt_1,
+                },
+            )
+        )
+
+        model = models.Sequential(
+            [
+                layers.Dense(
+                    2, kernel_initializer="ones", use_bias=False, name="dense_1"
+                ),
+                layers.Dense(
+                    1, kernel_initializer="ones", use_bias=False, name="dense_2"
+                ),
+            ]
+        )
+        model.compile(loss="mse", optimizer=optimizer)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tb_callback = callbacks.TensorBoard(log_dir=temp_dir)
+            tb_callback.set_model(model)
+
+            logs = {}
+            updated_logs = tb_callback._collect_learning_rate(logs)
+
+            self.assertIn("learning_rate_SGD", updated_logs)
+            self.assertIn("learning_rate_SGD_1", updated_logs)
+            self.assertAllClose(updated_logs["learning_rate_SGD"], 0.1)
+            self.assertAllClose(updated_logs["learning_rate_SGD_1"], 0.01)
+
+    @pytest.mark.requires_trainable_backend
+    def test_swap_ema_weights_with_multi_optimizer(self):
+        """Verifies SwapEMAWeights callback works with MultiOptimizer.
+
+        This test ensures that when SwapEMAWeights is used with
+        a MultiOptimizer, it correctly identifies which sub-optimizers
+        have EMA enabled, and correctly swaps only the sub-variables
+        mapped to those sub-optimizers with their respective EMA weights
+        during evaluation, restoring them afterwards.
+        """
+        opt_1 = optimizers.SGD(
+            learning_rate=0.1, use_ema=True, ema_momentum=0.9
+        )
+        opt_2 = optimizers.SGD(learning_rate=0.1, use_ema=False)
+
+        optimizer = optimizers.MultiOptimizer(
+            optimizers.OptimizerMap(
+                default_optimizer=opt_2,
+                optimizer_map={
+                    ".*dense_1/.*": opt_1,
+                },
+            )
+        )
+
+        model = models.Sequential(
+            [
+                layers.Dense(
+                    2, kernel_initializer="ones", use_bias=False, name="dense_1"
+                ),
+                layers.Dense(
+                    1, kernel_initializer="ones", use_bias=False, name="dense_2"
+                ),
+            ]
+        )
+        model.compile(loss="mse", optimizer=optimizer)
+
+        # Build variables
+        x = np.ones((1, 1)).astype("float32")
+        y = np.ones((1, 1)).astype("float32")
+        model.train_on_batch(x, y)
+
+        # Now manually set model weights to known values
+        w_dense_1_initial = np.array([[2.0, 2.0]], dtype="float32")
+        w_dense_2_initial = np.array([[3.0], [3.0]], dtype="float32")
+
+        model.layers[0].kernel.assign(w_dense_1_initial)
+        model.layers[1].kernel.assign(w_dense_2_initial)
+
+        # Set EMA weights to a different known value
+        w_dense_1_ema = np.array([[9.0, 9.0]], dtype="float32")
+        opt_1._model_variables_moving_average[0].assign(w_dense_1_ema)
+
+        # Track dense_2 weights (should not change because use_ema=False)
+        dense_2_weights_before = backend.convert_to_numpy(
+            model.layers[1].kernel
+        )
+
+        swap_callback = callbacks.SwapEMAWeights()
+        swap_callback.set_model(model)
+
+        # 1. Simulate evaluation start
+        swap_callback.on_test_begin()
+
+        # Assert dense_1 weights are swapped with EMA weights
+        dense_1_weights_during = backend.convert_to_numpy(
+            model.layers[0].kernel
+        )
+        self.assertAllClose(dense_1_weights_during, w_dense_1_ema)
+
+        # Assert opt_1 EMA variable now holds the initial model weights
+        opt_1_ema_during = backend.convert_to_numpy(
+            opt_1._model_variables_moving_average[0]
+        )
+        self.assertAllClose(opt_1_ema_during, w_dense_1_initial)
+
+        # Assert dense_2 weights are NOT swapped
+        dense_2_weights_during = backend.convert_to_numpy(
+            model.layers[1].kernel
+        )
+        self.assertAllClose(dense_2_weights_during, dense_2_weights_before)
+
+        # 2. Simulate evaluation end
+        swap_callback.on_test_end()
+
+        # Assert weights are restored
+        dense_1_weights_after = backend.convert_to_numpy(model.layers[0].kernel)
+        dense_2_weights_after = backend.convert_to_numpy(model.layers[1].kernel)
+        self.assertAllClose(dense_1_weights_after, w_dense_1_initial)
+        self.assertAllClose(dense_2_weights_after, dense_2_weights_before)
+
+        # Assert EMA weights are restored
+        opt_1_ema_after = backend.convert_to_numpy(
+            opt_1._model_variables_moving_average[0]
+        )
+        self.assertAllClose(opt_1_ema_after, w_dense_1_ema)
+
+    @pytest.mark.requires_trainable_backend
+    def test_multi_optimizer_wrapped_in_loss_scale_optimizer(self):
+        """Verifies wrapping MultiOptimizer inside LossScaleOptimizer works."""
+        opt_1 = optimizers.SGD(learning_rate=0.1)
+        opt_2 = optimizers.SGD(learning_rate=0.1)
+
+        # MultiOptimizer with initial loss scale 5.0
+        multi_opt = optimizers.MultiOptimizer(
+            optimizers.OptimizerMap(
+                default_optimizer=opt_2,
+                optimizer_map={
+                    ".*dense_1/.*": opt_1,
+                },
+            ),
+            loss_scale_factor=5.0,
+        )
+
+        # Wrap in LossScaleOptimizer with dynamic scaling (initial scale 10.0)
+        lso_opt = optimizers.LossScaleOptimizer(
+            multi_opt, initial_scale=10.0, dynamic_growth_steps=1000
+        )
+
+        with backend.name_scope("dense_1"):
+            w1 = backend.Variable([[2.0, 2.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[2.0, 2.0]], name="kernel")
+
+        lso_opt.build([w1, w2])
+
+        # 1. Verify that LSO set MultiOptimizer.loss_scale_factor to None
+        # and that it successfully propagated to sub-optimizers!
+        self.assertIsNone(multi_opt.loss_scale_factor)
+        self.assertIsNone(opt_1.loss_scale_factor)
+        self.assertIsNone(opt_2.loss_scale_factor)
+
+        # 2. Verify scale_loss uses LSO's dynamic scale (10.0)
+        loss = backend.convert_to_tensor(2.0)
+        self.assertAllClose(lso_opt.scale_loss(loss), 20.0)
+
+        # 3. Verify gradient unscaling and application
+        grads = [
+            backend.convert_to_tensor([[10.0, 10.0]]),  # for w1
+            backend.convert_to_tensor([[10.0, 10.0]]),  # for w2
+        ]
+
+        # Expected unscaled grads: 10.0 / 10.0 = 1.0
+        # Expected updates: 2.0 - lr * 1.0 = 2.0 - 0.1 * 1.0 = 1.9
+        if backend.backend() == "jax":
+            new_trainable, _ = lso_opt.stateless_apply(
+                [v.value for v in lso_opt.variables],
+                grads,
+                [w1.value, w2.value],
+            )
+            w1.assign(new_trainable[0])
+            w2.assign(new_trainable[1])
+        else:
+            lso_opt.apply(grads, [w1, w2])
+
+        self.assertAllClose(w1.numpy(), [[1.9, 1.9]])
+        self.assertAllClose(w2.numpy(), [[1.9, 1.9]])
+
+    @pytest.mark.requires_trainable_backend
+    def test_multi_optimizer_blocks_nested_optimizers(self):
+        """Verifies MultiOptimizer raises ValueError if
+        inner optimizer is LSO or MultiOptimizer."""
+        opt_sgd = optimizers.SGD(learning_rate=0.1)
+        # Wrapping inner SGD in LSO
+        opt_lso = optimizers.LossScaleOptimizer(opt_sgd)
+
+        # Wrapping inner SGD in MultiOptimizer
+        opt_multi = optimizers.MultiOptimizer(opt_sgd)
+
+        # 1. Check error during OptimizerMap setitem
+        opt_map = optimizers.OptimizerMap(default_optimizer=opt_sgd)
+        with self.assertRaisesRegex(
+            ValueError, "optimizer cannot be LossScaleOptimizer."
+        ):
+            opt_map[".*"] = opt_lso
+
+        with self.assertRaisesRegex(
+            ValueError, "optimizer cannot be MultiOptimizer."
+        ):
+            opt_map[".*"] = opt_multi
+
+        # 2. Check error during build (in case it bypassed
+        #  setitem via constructor dict)
+        opt_map_direct = optimizers.OptimizerMap(default_optimizer=opt_sgd)
+        opt_map_direct._optimizer_map = {
+            ".*dense_1/.*": opt_lso,
+            ".*dense_2/.*": opt_multi,
+        }
+
+        multi_opt = optimizers.MultiOptimizer(opt_map_direct)
+
+        with backend.name_scope("dense_1"):
+            w1 = backend.Variable([[1.0]], name="kernel")
+        with backend.name_scope("dense_2"):
+            w2 = backend.Variable([[1.0]], name="kernel")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "LossScaleOptimizer cannot be used inside an MultiOptimizer.",
+        ):
+            multi_opt.build([w1])
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "MultiOptimizer cannot be used inside an MultiOptimizer.",
+        ):
+            multi_opt.build([w2])

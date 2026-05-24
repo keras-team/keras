@@ -12,6 +12,8 @@ from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import math as kmath
+from keras.src.ops import numpy as knp
+from keras.src.testing.test_utils import named_product
 
 
 def _stft(
@@ -143,6 +145,11 @@ def _max_reduce(left, right):
 
 
 class MathOpsDynamicShapeTest(testing.TestCase):
+    def test_erf(self):
+        x = KerasTensor((None, 2, 3))
+        y = kmath.erf(x)
+        self.assertEqual(y.shape, (None, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -336,6 +343,11 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
 
 class MathOpsStaticShapeTest(testing.TestCase):
+    def test_erf(self):
+        x = KerasTensor((1, 2, 3))
+        y = kmath.erf(x)
+        self.assertEqual(y.shape, (1, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() == "jax",
@@ -1096,6 +1108,22 @@ class MathDtypeTest(testing.TestCase):
     if backend.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_erf(self, dtype):
+        import jax.lax as lax
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.erf(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(kmath.erf(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(kmath.Erf().symbolic_call(x).dtype),
+            expected_dtype,
+        )
 
 
 class ExtractSequencesOpTest(testing.TestCase):

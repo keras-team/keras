@@ -255,15 +255,22 @@ def abs(x):
     return absolute(x)
 
 
+def fabs(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = cast(x, config.floatx())
+    return torch.abs(x)
+
+
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        return cast(torch.all(x), "bool")
     axis = to_tuple_or_list(axis)
-    for a in axis:
-        # `torch.all` does not handle multiple axes.
-        x = torch.all(x, dim=a, keepdim=keepdims)
-    return cast(x, "bool")
+    if axis == () or axis == []:
+        return cast(x, "bool")
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return cast(torch.all(x, dim=axis, keepdim=keepdims), "bool")
 
 
 def angle(x):
@@ -279,13 +286,12 @@ def angle(x):
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        return cast(torch.any(x), "bool")
     axis = to_tuple_or_list(axis)
-    for a in axis:
-        # `torch.any` does not handle multiple axes.
-        x = torch.any(x, dim=a, keepdim=keepdims)
-    return cast(x, "bool")
+    if axis == () or axis == []:
+        return cast(x, "bool")
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return cast(torch.any(x, dim=axis, keepdim=keepdims), "bool")
 
 
 def amax(x, axis=None, keepdims=False):
@@ -1675,7 +1681,8 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     if axis is None:
         return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
     axis = to_tuple_or_list(axis)
-    for a in axis:
+    axis = [canonicalize_axis(a, x.ndim) for a in axis]
+    for a in sorted(axis, reverse=True):
         # `torch.prod` does not handle multiple axes.
         x = cast(
             torch.prod(
