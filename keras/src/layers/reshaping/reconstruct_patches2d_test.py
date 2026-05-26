@@ -1,8 +1,6 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
@@ -32,7 +30,9 @@ class ReconstructPatches2DTest(testing.TestCase):
         x_t = ops.convert_to_tensor(x)
         patches = ops.image.extract_patches(x_t, size=size, padding=padding)
         layer = layers.ReconstructPatches2D(
-            size=size, output_size=(H, W), padding=padding,
+            size=size,
+            output_size=(H, W),
+            padding=padding,
         )
         recon = layer(patches)
         self.assertEqual(tuple(recon.shape), x.shape)
@@ -43,13 +43,17 @@ class ReconstructPatches2DTest(testing.TestCase):
         flat = size[0] * size[1] * 3
         input_layer = layers.Input(batch_shape=(1, None, None, flat))
         recon = layers.ReconstructPatches2D(
-            size=size, output_size=(16, 16), padding="valid",
+            size=size,
+            output_size=(16, 16),
+            padding="valid",
         )(input_layer)
         self.assertEqual(recon.shape, (1, 16, 16, 3))
 
     def test_get_config(self):
         layer = layers.ReconstructPatches2D(
-            size=(3, 4), output_size=(12, 16), padding="valid",
+            size=(3, 4),
+            output_size=(12, 16),
+            padding="valid",
         )
         config = layer.get_config()
         restored = layers.ReconstructPatches2D.from_config(config)
@@ -64,5 +68,15 @@ class ReconstructPatches2DTest(testing.TestCase):
     def test_invalid_padding(self):
         with self.assertRaisesRegex(ValueError, "'same' or 'valid'"):
             layers.ReconstructPatches2D(
-                size=(2, 2), output_size=(8, 8), padding="reflect",
+                size=(2, 2),
+                output_size=(8, 8),
+                padding="reflect",
+            )
+
+    def test_channels_first_not_implemented(self):
+        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
+            layers.ReconstructPatches2D(
+                size=(2, 2),
+                output_size=(8, 8),
+                data_format="channels_first",
             )

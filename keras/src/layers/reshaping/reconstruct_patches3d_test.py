@@ -1,8 +1,6 @@
 import numpy as np
-import pytest
 from absl.testing import parameterized
 
-from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
@@ -28,12 +26,16 @@ class ReconstructPatches3DTest(testing.TestCase):
         (17, 33, 41, 3, (4, 8, 8), "same"),
         (5, 7, 11, 1, (3, 5, 7), "same"),
     )
-    def test_extract_then_reconstruct_roundtrip(self, D, H, W, C, size, padding):
+    def test_extract_then_reconstruct_roundtrip(
+        self, D, H, W, C, size, padding
+    ):
         x = _gradient_volume(D, H, W, C, batch=2)
         x_t = ops.convert_to_tensor(x)
         patches = ops.image.extract_patches(x_t, size=size, padding=padding)
         layer = layers.ReconstructPatches3D(
-            size=size, output_size=(D, H, W), padding=padding,
+            size=size,
+            output_size=(D, H, W),
+            padding=padding,
         )
         recon = layer(patches)
         self.assertEqual(tuple(recon.shape), x.shape)
@@ -45,13 +47,17 @@ class ReconstructPatches3DTest(testing.TestCase):
         flat = size[0] * size[1] * size[2] * 3  # C=3
         input_layer = layers.Input(batch_shape=(1, None, None, None, flat))
         recon = layers.ReconstructPatches3D(
-            size=size, output_size=(16, 16, 16), padding="valid",
+            size=size,
+            output_size=(16, 16, 16),
+            padding="valid",
         )(input_layer)
         self.assertEqual(recon.shape, (1, 16, 16, 16, 3))
 
     def test_get_config(self):
         layer = layers.ReconstructPatches3D(
-            size=(2, 3, 4), output_size=(10, 15, 20), padding="same",
+            size=(2, 3, 4),
+            output_size=(10, 15, 20),
+            padding="same",
         )
         config = layer.get_config()
         restored = layers.ReconstructPatches3D.from_config(config)
@@ -66,16 +72,30 @@ class ReconstructPatches3DTest(testing.TestCase):
     def test_invalid_padding(self):
         with self.assertRaisesRegex(ValueError, "'same' or 'valid'"):
             layers.ReconstructPatches3D(
-                size=(2, 2, 2), output_size=(8, 8, 8), padding="reflect",
+                size=(2, 2, 2),
+                output_size=(8, 8, 8),
+                padding="reflect",
             )
 
     def test_strides_overlap_not_implemented(self):
         x = _gradient_volume(16, 16, 16, 1, batch=1)
         patches = ops.image.extract_patches(
-            ops.convert_to_tensor(x), size=(4, 4, 4), padding="valid",
+            ops.convert_to_tensor(x),
+            size=(4, 4, 4),
+            padding="valid",
         )
         with self.assertRaisesRegex(NotImplementedError, "non-overlapping"):
             layers.ReconstructPatches3D(
-                size=(4, 4, 4), output_size=(16, 16, 16),
-                strides=(2, 2, 2), padding="valid",
+                size=(4, 4, 4),
+                output_size=(16, 16, 16),
+                strides=(2, 2, 2),
+                padding="valid",
             )(patches)
+
+    def test_channels_first_not_implemented(self):
+        with self.assertRaisesRegex(NotImplementedError, "channels_first"):
+            layers.ReconstructPatches3D(
+                size=(2, 2, 2),
+                output_size=(8, 8, 8),
+                data_format="channels_first",
+            )

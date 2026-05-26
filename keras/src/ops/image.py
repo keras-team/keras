@@ -966,8 +966,10 @@ class ReconstructPatches(Operation):
     def compute_output_spec(self, patches):
         patches_shape = list(patches.shape)
         original_ndim = len(patches_shape)
-        flat = patches_shape[-1] if self.data_format == "channels_last" else (
-            patches_shape[-4] if self.is_3d else patches_shape[-3]
+        flat = (
+            patches_shape[-1]
+            if self.data_format == "channels_last"
+            else (patches_shape[-4] if self.is_3d else patches_shape[-3])
         )
         patch_volume = 1
         for s in self.size:
@@ -1076,6 +1078,12 @@ def reconstruct_patches(
                 "Invalid `size` argument. Expected a tuple of length 2 or 3. "
                 f"Received: size={size} with length {len(size)}"
             )
+    if not isinstance(output_size, (tuple, list)):
+        raise TypeError(
+            "Invalid `output_size` argument. Expected a tuple or list. "
+            f"Received: output_size={output_size} of type "
+            f"{type(output_size).__name__}"
+        )
 
     if any_symbolic_tensors((patches,)):
         return ReconstructPatches(
@@ -1087,7 +1095,12 @@ def reconstruct_patches(
         ).symbolic_call(patches)
 
     return _reconstruct_patches(
-        patches, size, output_size, strides, padding, data_format=data_format,
+        patches,
+        size,
+        output_size,
+        strides,
+        padding,
+        data_format=data_format,
     )
 
 
@@ -1130,6 +1143,12 @@ def reconstruct_patches_3d(
     """
     if isinstance(size, int):
         size = (size, size, size)
+    if not isinstance(output_size, (tuple, list)):
+        raise TypeError(
+            "Invalid `output_size` argument. Expected a tuple or list. "
+            f"Received: output_size={output_size} of type "
+            f"{type(output_size).__name__}"
+        )
     if any_symbolic_tensors((patches,)):
         return ReconstructPatches(
             size=size,
@@ -1139,19 +1158,39 @@ def reconstruct_patches_3d(
             data_format=data_format,
         ).symbolic_call(patches)
     return _reconstruct_patches_3d(
-        patches, size, output_size, strides, padding, data_format=data_format,
+        patches,
+        size,
+        output_size,
+        strides,
+        padding,
+        data_format=data_format,
     )
 
 
 def _reconstruct_patches(
-    patches, size, output_size, strides=None, padding="valid", data_format=None,
+    patches,
+    size,
+    output_size,
+    strides=None,
+    padding="valid",
+    data_format=None,
 ):
     if not isinstance(size, int) and len(size) == 3:
         return _reconstruct_patches_3d(
-            patches, size, output_size, strides, padding, data_format,
+            patches,
+            size,
+            output_size,
+            strides,
+            padding,
+            data_format,
         )
     return _reconstruct_patches_2d(
-        patches, size, output_size, strides, padding, data_format,
+        patches,
+        size,
+        output_size,
+        strides,
+        padding,
+        data_format,
     )
 
 
@@ -1171,7 +1210,12 @@ def _validate_reconstruct_strides(size, strides, fn_name):
 
 
 def _reconstruct_patches_2d(
-    patches, size, output_size, strides=None, padding="valid", data_format=None,
+    patches,
+    size,
+    output_size,
+    strides=None,
+    padding="valid",
+    data_format=None,
 ):
     if isinstance(size, int):
         size = (size, size)
@@ -1222,6 +1266,26 @@ def _reconstruct_patches_2d(
     x = backend.numpy.reshape(x, (B, gH * pH, gW * pW, C))
 
     if padding == "same":
+        static_gH = patches.shape[1]
+        static_gW = patches.shape[2]
+        if isinstance(static_gH, int) and not (
+            static_gH * pH - pH < H <= static_gH * pH
+        ):
+            raise ValueError(
+                f"For `padding='same'`, `output_size` height ({H}) must "
+                f"be in the range ((gH-1)*pH, gH*pH], i.e. "
+                f"({static_gH * pH - pH}, {static_gH * pH}]. "
+                f"Got: gH={static_gH}, pH={pH}."
+            )
+        if isinstance(static_gW, int) and not (
+            static_gW * pW - pW < W <= static_gW * pW
+        ):
+            raise ValueError(
+                f"For `padding='same'`, `output_size` width ({W}) must "
+                f"be in the range ((gW-1)*pW, gW*pW], i.e. "
+                f"({static_gW * pW - pW}, {static_gW * pW}]. "
+                f"Got: gW={static_gW}, pW={pW}."
+            )
         pad_total_h = gH * pH - H
         pad_total_w = gW * pW - W
         begin = [0, pad_total_h // 2, pad_total_w // 2, 0]
@@ -1241,7 +1305,12 @@ def _reconstruct_patches_2d(
 
 
 def _reconstruct_patches_3d(
-    patches, size, output_size, strides=None, padding="valid", data_format=None,
+    patches,
+    size,
+    output_size,
+    strides=None,
+    padding="valid",
+    data_format=None,
 ):
     if isinstance(size, int):
         size = (size, size, size)
@@ -1293,6 +1362,36 @@ def _reconstruct_patches_3d(
     x = backend.numpy.reshape(x, (B, gD * pD, gH * pH, gW * pW, C))
 
     if padding == "same":
+        static_gD = patches.shape[1]
+        static_gH = patches.shape[2]
+        static_gW = patches.shape[3]
+        if isinstance(static_gD, int) and not (
+            static_gD * pD - pD < D <= static_gD * pD
+        ):
+            raise ValueError(
+                f"For `padding='same'`, `output_size` depth ({D}) must "
+                f"be in the range ((gD-1)*pD, gD*pD], i.e. "
+                f"({static_gD * pD - pD}, {static_gD * pD}]. "
+                f"Got: gD={static_gD}, pD={pD}."
+            )
+        if isinstance(static_gH, int) and not (
+            static_gH * pH - pH < H <= static_gH * pH
+        ):
+            raise ValueError(
+                f"For `padding='same'`, `output_size` height ({H}) must "
+                f"be in the range ((gH-1)*pH, gH*pH], i.e. "
+                f"({static_gH * pH - pH}, {static_gH * pH}]. "
+                f"Got: gH={static_gH}, pH={pH}."
+            )
+        if isinstance(static_gW, int) and not (
+            static_gW * pW - pW < W <= static_gW * pW
+        ):
+            raise ValueError(
+                f"For `padding='same'`, `output_size` width ({W}) must "
+                f"be in the range ((gW-1)*pW, gW*pW], i.e. "
+                f"({static_gW * pW - pW}, {static_gW * pW}]. "
+                f"Got: gW={static_gW}, pW={pW}."
+            )
         pad_total_d = gD * pD - D
         pad_total_h = gH * pH - H
         pad_total_w = gW * pW - W

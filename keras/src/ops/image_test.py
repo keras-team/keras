@@ -174,13 +174,19 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         # 2D: patches (None, 4, 4, 75) -> image (None, 20, 20, 3)
         patches = KerasTensor([None, 4, 4, 75])
         out = kimage.reconstruct_patches(
-            patches, size=(5, 5), output_size=(20, 20), padding="valid",
+            patches,
+            size=(5, 5),
+            output_size=(20, 20),
+            padding="valid",
         )
         self.assertEqual(out.shape, (None, 20, 20, 3))
         # Dynamic grid dims still resolve channels from flat dim.
         patches_dyn = KerasTensor([None, None, None, 75])
         out = kimage.reconstruct_patches(
-            patches_dyn, size=(5, 5), output_size=(20, 20), padding="same",
+            patches_dyn,
+            size=(5, 5),
+            output_size=(20, 20),
+            padding="same",
         )
         self.assertEqual(out.shape, (None, 20, 20, 3))
 
@@ -188,11 +194,17 @@ class ImageOpsDynamicShapeTest(testing.TestCase):
         # 3D: patches (None, 4, 4, 4, 375) -> volume (None, 20, 20, 20, 3)
         patches = KerasTensor([None, 4, 4, 4, 375])
         out = kimage.reconstruct_patches_3d(
-            patches, size=(5, 5, 5), output_size=(20, 20, 20), padding="valid",
+            patches,
+            size=(5, 5, 5),
+            output_size=(20, 20, 20),
+            padding="valid",
         )
         self.assertEqual(out.shape, (None, 20, 20, 20, 3))
         out = kimage.reconstruct_patches_3d(
-            patches, size=5, output_size=(20, 20, 20), padding="valid",
+            patches,
+            size=5,
+            output_size=(20, 20, 20),
+            padding="valid",
         )
         self.assertEqual(out.shape, (None, 20, 20, 20, 3))
 
@@ -444,7 +456,10 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         # 2D unbatched: patches (4, 4, 75) -> image (20, 20, 3)
         patches = KerasTensor([4, 4, 75])
         out = kimage.reconstruct_patches(
-            patches, size=(5, 5), output_size=(20, 20), padding="valid",
+            patches,
+            size=(5, 5),
+            output_size=(20, 20),
+            padding="valid",
         )
         self.assertEqual(out.shape, (20, 20, 3))
 
@@ -452,9 +467,50 @@ class ImageOpsStaticShapeTest(testing.TestCase):
         # 3D unbatched: patches (4, 4, 4, 375) -> volume (20, 20, 20, 3)
         patches = KerasTensor([4, 4, 4, 375])
         out = kimage.reconstruct_patches_3d(
-            patches, size=(5, 5, 5), output_size=(20, 20, 20), padding="valid",
+            patches,
+            size=(5, 5, 5),
+            output_size=(20, 20, 20),
+            padding="valid",
         )
         self.assertEqual(out.shape, (20, 20, 20, 3))
+
+    def test_reconstruct_patches_output_size_not_tuple(self):
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(TypeError, "tuple or list"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=20,
+                padding="valid",
+            )
+        patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
+        with self.assertRaisesRegex(TypeError, "tuple or list"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=20,
+                padding="valid",
+            )
+
+    def test_reconstruct_patches_output_size_out_of_range_same(self):
+        # 2D: gH=4, pH=5 → valid H range is (15, 20]. 30 is too large.
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "padding='same'.*height"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(30, 20),
+                padding="same",
+            )
+        # 3D: gD=4, pD=5 → valid D range is (15, 20]. 10 is too small.
+        patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "padding='same'.*depth"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(10, 20, 20),
+                padding="same",
+            )
 
     def test_map_coordinates(self):
         input = KerasTensor([20, 20, 3])

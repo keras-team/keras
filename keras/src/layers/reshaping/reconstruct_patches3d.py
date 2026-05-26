@@ -77,6 +77,11 @@ class ReconstructPatches3D(Layer):
         self.strides = strides
         self.padding = padding
         self.data_format = backend.standardize_data_format(data_format)
+        if self.data_format == "channels_first":
+            raise NotImplementedError(
+                "ReconstructPatches3D does not yet support "
+                "`data_format='channels_first'`."
+            )
         self.input_spec = InputSpec(ndim=5)
 
     def call(self, patches):
@@ -100,7 +105,7 @@ class ReconstructPatches3D(Layer):
             elif len(output_shape) == 4:
                 return self.output_size + (channels,)
         else:
-            flat = output_shape[-4] if len(output_shape) == 5 else output_shape[-4]
+            flat = output_shape[-4]
             patch_volume = self.size[0] * self.size[1] * self.size[2]
             channels = None if flat is None else flat // patch_volume
             if len(output_shape) == 5:

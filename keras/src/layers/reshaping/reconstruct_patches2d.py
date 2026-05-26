@@ -77,6 +77,11 @@ class ReconstructPatches2D(Layer):
         self.strides = strides
         self.padding = padding
         self.data_format = backend.standardize_data_format(data_format)
+        if self.data_format == "channels_first":
+            raise NotImplementedError(
+                "ReconstructPatches2D does not yet support "
+                "`data_format='channels_first'`."
+            )
         self.input_spec = InputSpec(ndim=4)
 
     def call(self, patches):
