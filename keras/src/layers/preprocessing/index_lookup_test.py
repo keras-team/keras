@@ -346,6 +346,7 @@ class IndexLookupLayerTest(testing.TestCase):
         backend.backend() != "tensorflow",
         reason="Sparse outputs are only supported with TensorFlow backend.",
     )
+
     def test_sparse_outputs(self):
         layer = layers.IntegerLookup(
             vocabulary=[1, 2, 3],
