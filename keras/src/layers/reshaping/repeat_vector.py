@@ -27,11 +27,15 @@ class RepeatVector(Layer):
 
     def __init__(self, n, **kwargs):
         super().__init__(**kwargs)
-        self.n = n
-        if not isinstance(n, int):
+        if not isinstance(n, int) or isinstance(n, bool):
             raise TypeError(
                 f"Expected an integer value for `n`, got {type(n)}."
             )
+        if n <= 0:
+            raise ValueError(
+                f"Argument `n` should be a positive integer. Received: n={n}"
+            )
+        self.n = n
         self.input_spec = InputSpec(ndim=2)
 
     def compute_output_shape(self, input_shape):
