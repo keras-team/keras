@@ -481,6 +481,7 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         training=None,
         return_attention_scores=False,
+        use_causal_mask=False,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -498,6 +499,11 @@ class MultiHeadAttention(Layer):
             training: Python boolean indicating whether the layer should behave
                 in training mode (adding dropout) or in inference mode (doing
                 nothing).
+            use_causal_mask: Boolean. When True and `attention_mask` is None,
+                routes through the backend's native causal kernel via
+                `dot_product_attention(is_causal=True)`. This skips
+                materializing an explicit [T, S] mask tensor and enables
+                torch's causal-only flash kernel.
 
         Returns:
           attention_output: Multi-headed outputs of attention computation.
@@ -519,6 +525,20 @@ class MultiHeadAttention(Layer):
         )
 
         if use_dot_product_attention:
+            if use_causal_mask and attention_mask is None:
+                # Skip materializing the [T, S] mask and let the backend
+                # use its native causal kernel.
+                attention_output = ops.dot_product_attention(
+                    query=query,
+                    key=key,
+                    value=value,
+                    bias=None,
+                    mask=None,
+                    scale=self._inverse_sqrt_key_dim,
+                    is_causal=True,
+                    flash_attention=self._flash_attention,
+                )
+                return attention_output, None
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
@@ -597,15 +617,33 @@ class MultiHeadAttention(Layer):
         backend.set_keras_mask(value, None)
         backend.set_keras_mask(key, None)
 
-        attention_mask = self._compute_attention_mask(
-            query,
-            value,
-            query_mask=query_mask,
-            value_mask=value_mask,
-            key_mask=key_mask,
-            attention_mask=attention_mask,
-            use_causal_mask=use_causal_mask,
+        # When causal masking is the only mask source, route through the
+        # backend's native causal kernel by passing `is_causal=True` rather
+        # than materializing a [T, S] mask tensor. Skipped when a subclass
+        # overrides `_compute_attention`, since such a subclass would
+        # receive `attention_mask=None` and silently do unmasked attention.
+        causal_only = (
+            use_causal_mask
+            and query_mask is None
+            and value_mask is None
+            and key_mask is None
+            and attention_mask is None
+            and self._sliding_window is None
+            and type(self)._compute_attention
+            is MultiHeadAttention._compute_attention
         )
+        if causal_only:
+            attention_mask = None
+        else:
+            attention_mask = self._compute_attention_mask(
+                query,
+                value,
+                query_mask=query_mask,
+                value_mask=value_mask,
+                key_mask=key_mask,
+                attention_mask=attention_mask,
+                use_causal_mask=use_causal_mask,
+            )
         #   N = `num_attention_heads`
         #   H = `size_per_head`
 
@@ -621,6 +659,11 @@ class MultiHeadAttention(Layer):
 
         # `value` = [B, S, N, H]
         value = self._value_dense(value)
+        # Only pass `use_causal_mask` when active so subclasses that override
+        # `_compute_attention` with the previous signature still work.
+        extra_attention_kwargs = (
+            {"use_causal_mask": True} if causal_only else {}
+        )
         attention_output, attention_scores = self._compute_attention(
             query,
             key,
@@ -628,6 +671,7 @@ class MultiHeadAttention(Layer):
             attention_mask,
             training,
             return_attention_scores,
+            **extra_attention_kwargs,
         )
         if self._use_gate:
             attention_output = self._output_dense(
