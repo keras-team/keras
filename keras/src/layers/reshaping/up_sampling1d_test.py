@@ -63,8 +63,13 @@ class UpSamplingTest(testing.TestCase):
     def test_upsampling_1d_with_invalid_size(self):
         # `UpSampling2D` / `UpSampling3D` already reject these; `UpSampling1D`
         # should be consistent.
-        for size in (0, -2, 2.5):
+        for size in (0, -2):
             with self.assertRaisesRegex(
                 ValueError, "should be a positive integer"
+            ):
+                layers.UpSampling1D(size=size)
+        for size in (2.5, "2", True):
+            with self.assertRaisesRegex(
+                TypeError, "Expected an integer value for `size`"
             ):
                 layers.UpSampling1D(size=size)
