@@ -3133,6 +3133,24 @@ class NumpyOneInputOpsStaticShapeTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "axis 5 is out of bounds"):
             knp.moveaxis(x, source=5, destination=0)
 
+    def test_axis_out_of_range_in_more_ops(self):
+        # Additional ops in the cross-backend axis-validation family.
+        a = KerasTensor((3, 4))
+        b = KerasTensor((3, 4))
+        idx = KerasTensor((3, 2), dtype="int32")
+        msg = "axis 10 is out of bounds"
+        with self.assertRaisesRegex(ValueError, msg):
+            knp.concatenate([a, b], axis=10)
+        with self.assertRaisesRegex(ValueError, msg):
+            knp.split(a, 2, axis=10)
+        with self.assertRaisesRegex(ValueError, msg):
+            knp.diff(a, axis=10)
+        with self.assertRaisesRegex(ValueError, msg):
+            knp.take_along_axis(a, idx, axis=10)
+        # `stack` adds a new axis, so valid range is one larger.
+        with self.assertRaisesRegex(ValueError, msg):
+            knp.stack([a, b], axis=10)
+
     def test_tan(self):
         x = KerasTensor((2, 3))
         self.assertEqual(knp.tan(x).shape, (2, 3))
