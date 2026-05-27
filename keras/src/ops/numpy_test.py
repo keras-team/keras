@@ -1198,9 +1198,20 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(knp.vdot(x, y).shape, ())
 
     def test_inner(self):
+        # `inner` sums over the last axis; output is x1.shape[:-1] +
+        # x2.shape[:-1] (matches `np.inner`), not a scalar.
         x = KerasTensor((2, 3))
         y = KerasTensor((2, 3))
-        self.assertEqual(knp.inner(x, y).shape, ())
+        self.assertEqual(knp.inner(x, y).shape, (2, 2))
+        self.assertEqual(
+            knp.inner(KerasTensor((4,)), KerasTensor((4,))).shape, ()
+        )
+        self.assertEqual(
+            knp.inner(KerasTensor((5, 3)), KerasTensor((3,))).shape, (5,)
+        )
+        # Mismatched last dimension is rejected.
+        with self.assertRaisesRegex(ValueError, "last dimension"):
+            knp.inner(KerasTensor((5, 3)), KerasTensor((4,)))
 
     def test_where(self):
         condition = KerasTensor((2, 3))
@@ -4713,6 +4724,13 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         y = np.array([4.0, 5.0, 6.0])
         self.assertAllClose(knp.inner(x, y), np.inner(x, y))
         self.assertAllClose(knp.Inner()(x, y), np.inner(x, y))
+
+        # Multi-dimensional inputs: sum over the last axis, output shape is
+        # x1.shape[:-1] + x2.shape[:-1].
+        x = np.arange(12.0).reshape(3, 4)
+        y = np.arange(20.0).reshape(5, 4)
+        self.assertAllClose(knp.inner(x, y), np.inner(x, y))
+        self.assertEqual(knp.inner(x, y).shape, (3, 5))
 
     def test_where(self):
         x = np.array([1, 2, 3])

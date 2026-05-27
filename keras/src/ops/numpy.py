@@ -8270,7 +8270,22 @@ class Inner(Operation):
             getattr(x1, "dtype", type(x1)),
             getattr(x2, "dtype", type(x2)),
         )
-        return KerasTensor([], dtype=dtype)
+        x1_shape = getattr(x1, "shape", ())
+        x2_shape = getattr(x2, "shape", ())
+        # `inner` sums over the last axis of each input, so the last
+        # dimensions must match. The output shape is the concatenation of
+        # the leading dimensions of both inputs.
+        if x1_shape and x2_shape:
+            d1 = x1_shape[-1]
+            d2 = x2_shape[-1]
+            if isinstance(d1, int) and isinstance(d2, int) and d1 != d2:
+                raise ValueError(
+                    "`inner` requires the last dimension of `x1` and `x2` "
+                    f"to match. Received: x1.shape={x1_shape}, "
+                    f"x2.shape={x2_shape}."
+                )
+        output_shape = tuple(x1_shape[:-1]) + tuple(x2_shape[:-1])
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.inner", "keras.ops.numpy.inner"])
