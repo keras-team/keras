@@ -4,6 +4,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.saving import serialization_lib
@@ -2340,14 +2341,20 @@ def sparse_categorical_crossentropy(
     array([0.0513, 2.303], dtype=float32)
     """
 
-    if len(y_true.shape) == len(y_pred.shape) and y_true.shape[-1] == 1:
-        y_true = ops.squeeze(y_true, axis=-1)
+    if len(y_true.shape) == len(y_pred.shape) and y_true.shape[axis] == 1:
+        y_true = ops.squeeze(y_true, axis=axis)
 
     if ignore_class is not None:
-        res_shape = ops.shape(y_pred)[:-1]
+        # `res_shape` is the shape of the per-element loss: `y_pred.shape`
+        # with the class axis removed.
+        class_axis = canonicalize_axis(axis, len(y_pred.shape))
+        y_pred_shape = ops.shape(y_pred)
+        res_shape = tuple(
+            d for i, d in enumerate(y_pred_shape) if i != class_axis
+        )
         valid_mask = ops.not_equal(y_true, ops.cast(ignore_class, y_pred.dtype))
         y_true = ops.where(valid_mask, y_true, 0)
-        y_pred = ops.where(ops.expand_dims(valid_mask, -1), y_pred, 0)
+        y_pred = ops.where(ops.expand_dims(valid_mask, axis), y_pred, 0)
 
     res = ops.sparse_categorical_crossentropy(
         y_true,

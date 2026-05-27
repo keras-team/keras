@@ -876,8 +876,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
 
-    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
-        target = torch.squeeze(target, dim=-1)
+    if len(target.shape) == len(output.shape) and target.shape[axis] == 1:
+        target = torch.squeeze(target, dim=axis)
 
     if len(output.shape) < 1:
         raise ValueError(
