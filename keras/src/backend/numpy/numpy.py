@@ -1782,3 +1782,8 @@ def unique(
 
     output[0] = values
     return output[0] if len(output) == 1 else tuple(output)
+
+
+def dsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return np.dsplit(x, indices_or_sections)

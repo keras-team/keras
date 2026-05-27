@@ -9866,3 +9866,53 @@ def unique(
         size=size,
         fill_value=fill_value,
     )
+
+
+class Dsplit(Operation):
+    def __init__(self, indices_or_sections, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(indices_or_sections, int):
+            indices_or_sections = tuple(indices_or_sections)
+        self.indices_or_sections = indices_or_sections
+
+    def call(self, x):
+        return backend.numpy.dsplit(x, self.indices_or_sections)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 3:
+            raise ValueError(
+                "`dsplit` only works on arrays of at least 3 dimensions. "
+                f"Received array with shape {x.shape}."
+            )
+        return _compute_split_output_spec(x, self.indices_or_sections, 2)
+
+
+@keras_export(["keras.ops.dsplit", "keras.ops.numpy.dsplit"])
+def dsplit(x, indices_or_sections):
+    """Split an array into multiple sub-arrays depth-wise.
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: If an integer, N, the tensor will be split into N
+            equal sections along axis 2. If a 1-D array of sorted integers,
+            the entries indicate indices at which the tensor will be split
+            along axis 2.
+    Returns:
+        A list of sub-arrays.
+
+    Example:
+
+    >>> x = keras.ops.arange(16.0).reshape((2, 2, 4))
+    >>> keras.ops.dsplit(x, 2)
+    [array([[[ 0.,  1.],
+            [ 4.,  5.]],
+           [[ 8.,  9.],
+            [12., 13.]]]),
+     array([[[ 2.,  3.],
+            [ 6.,  7.]],
+           [[10., 11.],
+            [14., 15.]]])]
+    """
+    if any_symbolic_tensors((x,)):
+        return Dsplit(indices_or_sections).symbolic_call(x)
+    return backend.numpy.dsplit(x, indices_or_sections)

@@ -1681,3 +1681,8 @@ def unique(
         sorted=sorted,
         fill_value=fill_value,
     )
+
+
+def dsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return jnp.dsplit(x, indices_or_sections)

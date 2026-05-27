@@ -188,6 +188,7 @@ from keras.src.ops.numpy import digitize as digitize
 from keras.src.ops.numpy import divide as divide
 from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
+from keras.src.ops.numpy import dsplit as dsplit
 from keras.src.ops.numpy import dstack as dstack
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
