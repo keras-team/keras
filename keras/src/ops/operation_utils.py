@@ -427,6 +427,10 @@ def compute_take_along_axis_output_shape(input_shape, indices_shape, axis):
             f"but receive shape {input_shape} and {indices_shape}."
         )
 
+    if axis is not None:
+        axis = canonicalize_axis(axis, len(input_shape))
+    else:
+        axis = 0
     input_shape[axis] = indices_shape[axis]
     output_shape = broadcast_shapes(input_shape, indices_shape)
     return output_shape
