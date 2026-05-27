@@ -296,6 +296,7 @@ def erf(x):
 
 
 def erfc(x):
+    x = convert_to_tensor(x)
     return tf.math.erfc(x)
 
 

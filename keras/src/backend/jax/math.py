@@ -290,6 +290,7 @@ def erf(x):
 
 
 def erfc(x):
+    x = convert_to_tensor(x)
     return jax.scipy.special.erfc(x)
 
 
