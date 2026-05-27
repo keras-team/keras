@@ -158,6 +158,17 @@ def assert_input_compatibility(input_spec, inputs, layer_name):
 
     inputs = tree.flatten(inputs)
     if len(inputs) != len(input_spec):
+        # Provide appropriate error message for dict inputs.
+        spec_names = [spec.name for spec in input_spec if spec is not None]
+        if len(spec_names) == len(input_spec) and all(spec_names):
+            raise ValueError(
+                f'Layer "{layer_name}" expects {len(input_spec)} named '
+                f"input(s) with keys {spec_names}, but it received "
+                f"{len(inputs)} input tensors. Pass inputs as a dict, e.g. "
+                "`layer({"
+                + ", ".join(f"'{n}': ..." for n in spec_names)
+                + "})`."
+            )
         raise ValueError(
             f'Layer "{layer_name}" expects {len(input_spec)} input(s),'
             f" but it received {len(inputs)} input tensors. "
