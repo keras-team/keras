@@ -261,9 +261,14 @@ def compute_matmul_output_shape(shape1, shape2):
     Returns:
         Tuple of ints: The output shape for the `matmul` operation.
     """
-    if len(shape1) == 1:
+    # Track whether each operand was 1-D before it gets promoted to 2-D
+    # below; the temporary dimension is removed from the output afterwards
+    # (matching `np.matmul`).
+    x1_is_1d = len(shape1) == 1
+    x2_is_1d = len(shape2) == 1
+    if x1_is_1d:
         shape1 = (1, shape1[0])
-    if len(shape2) == 1:
+    if x2_is_1d:
         shape2 = (shape2[0], 1)
     if (
         shape1[-1] is not None
@@ -279,9 +284,9 @@ def compute_matmul_output_shape(shape1, shape2):
     leading_shape = broadcast_shapes(shape1[:-2], shape2[:-2])
     last_2_dims_shape = [shape1[-2], shape2[-1]]
     output_shape = leading_shape + last_2_dims_shape
-    if len(shape1) == 1:
+    if x1_is_1d:
         del output_shape[-2]
-    if len(shape2) == 1:
+    if x2_is_1d:
         del output_shape[-1]
     return tuple(output_shape)
 

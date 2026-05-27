@@ -659,6 +659,24 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         y = KerasTensor((3, 2))
         self.assertEqual(knp.matmul(x, y).shape, (2, 2))
 
+        # 1-D operands: the temporary prepended/appended dim must be dropped
+        # from the output, matching `np.matmul`.
+        self.assertEqual(
+            knp.matmul(KerasTensor((4,)), KerasTensor((4,))).shape, ()
+        )
+        self.assertEqual(
+            knp.matmul(KerasTensor((4,)), KerasTensor((4, 5))).shape, (5,)
+        )
+        self.assertEqual(
+            knp.matmul(KerasTensor((3, 4)), KerasTensor((4,))).shape, (3,)
+        )
+        self.assertEqual(
+            knp.matmul(KerasTensor((4,)), KerasTensor((2, 4, 5))).shape, (2, 5)
+        )
+        self.assertEqual(
+            knp.matmul(KerasTensor((2, 3, 4)), KerasTensor((4,))).shape, (2, 3)
+        )
+
         with self.assertRaises(ValueError):
             x = KerasTensor((3, 4))
             y = KerasTensor((2, 3, 4))
