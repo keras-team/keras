@@ -1209,7 +1209,15 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
         self.assertEqual(
             knp.inner(KerasTensor((5, 3)), KerasTensor((3,))).shape, (5,)
         )
-        # Mismatched last dimension is rejected.
+        # Scalar input (empty shape) is treated as a vector by `np.inner`.
+        self.assertEqual(
+            knp.inner(KerasTensor(()), KerasTensor((3,))).shape, (3,)
+        )
+        # A dynamic last dimension skips the static match check.
+        self.assertEqual(
+            knp.inner(KerasTensor((5, None)), KerasTensor((4, 3))).shape, (5, 4)
+        )
+        # Mismatched (static) last dimension is rejected.
         with self.assertRaisesRegex(ValueError, "last dimension"):
             knp.inner(KerasTensor((5, 3)), KerasTensor((4,)))
 
