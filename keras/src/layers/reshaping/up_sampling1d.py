@@ -42,6 +42,11 @@ class UpSampling1D(Layer):
 
     def __init__(self, size=2, **kwargs):
         super().__init__(**kwargs)
+        if not isinstance(size, int) or isinstance(size, bool) or size <= 0:
+            raise ValueError(
+                "Argument `size` should be a positive integer. "
+                f"Received: size={size}"
+            )
         self.size = int(size)
         self.input_spec = InputSpec(ndim=3)
 
