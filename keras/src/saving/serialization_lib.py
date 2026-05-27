@@ -621,6 +621,22 @@ def deserialize_keras_object(
     inner_config = config["config"] or {}
     custom_objects = custom_objects or {}
 
+    # Validate inner_config for special class_names.
+    if class_name == "function":
+        if not isinstance(inner_config, str):
+            raise TypeError(
+                f"Expected 'config' to be a string for function, "
+                f"got {type(inner_config).__name__}. "
+                f"Full config: {config}"
+            )
+    elif class_name == "__typespec__":
+        if not isinstance(inner_config, (list, tuple)):
+            raise TypeError(
+                f"Expected 'config' to be a list or tuple for __typespec__, "
+                f"got {type(inner_config).__name__}. "
+                f"Full config: {config}"
+            )
+
     # Special cases:
     if class_name == "__keras_tensor__":
         obj = backend.KerasTensor(
@@ -735,7 +751,7 @@ def deserialize_keras_object(
     with custom_obj_scope, safe_mode_scope:
         try:
             instance = cls.from_config(inner_config)
-        except TypeError as e:
+        except (TypeError, AttributeError) as e:
             raise TypeError(
                 f"{cls} could not be deserialized properly. Please"
                 " ensure that components that are Python object"
