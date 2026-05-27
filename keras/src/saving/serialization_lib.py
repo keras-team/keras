@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """Object config serialization and deserialization logic."""
 
 import importlib
@@ -627,9 +629,7 @@ def deserialize_keras_object(
                 f"Full config: {config}"
             )
     elif class_name == "__typespec__":
-        if inner_config is None or not isinstance(
-            inner_config, (list, tuple)
-        ):
+        if inner_config is None or not isinstance(inner_config, (list, tuple)):
             raise TypeError(
                 f'Expected "config" to be a non-null list or tuple for '
                 f"__typespec__, got {type(inner_config).__name__}. "
