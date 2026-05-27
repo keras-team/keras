@@ -142,7 +142,6 @@ Documentation and error messages are an integral part of the API. Good docs and 
     - What did the software expect? (Explicitly mention the expected vs. actual path or value for complex models).
     - How can the user fix it?
 - **Use plain Python representations in error messages.** Shapes and sizes should be represented as Python tuples (e.g., `(2, 2)`) rather than raw NumPy array representations (e.g., `[2 2]`). Use `.name` attributes for objects instead of raw object strings.
-- **Explain Deserialization Requirements**: Enhance deserialization errors to explain that custom classes must be imported *before* loading to ensure decorators (like `@register_keras_serializable`) are executed.
 - **A docstring should answer the question: what is this about, and why & how should I use it?** It should assume as little context as possible, and it shouldn't mention specialized terms without first introducing them (for example, "num_blocks: Number of blocks in the kernel" is not a good argument description if this is the first time you mention "blocks" in your docstring).
 - **Show, don't tell: your documentation should not talk about how the software works, it should show how to use it.** Show code examples for end-to-end workflows; show code examples for each and every common use case and key feature of your API. **All docstrings should include code examples.**
 - **Deliberately design the user onboarding process for your feature.** How are complete newcomers going to find out the best way to solve their use case with your tool? Have an answer ready. Make sure your onboarding material closely maps to what your users care about: don't teach newcomers how your framework is implemented, teach them how they can use it to solve their own problems. After shipping a CL and writing good docstrings, make sure to create a Colab guide / tutorial showcasing the target workflow, and post it on the docs website.
@@ -213,50 +212,33 @@ Alternatively, you can use the loss function `sparse_categorical_crossentropy` i
 Keras supports multiple backends (JAX, TensorFlow, PyTorch) and uses symbolic execution. Follow these patterns to ensure compatibility and robustness:
 
 ### Multi-Backend Compatibility
-- **Prefer `backend.convert_to_tensor` over backend-specific methods**: Use `backend.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of Keras-specific quirks (e.g., NumPy array writability for PyTorch, dtype mappings).
+- **Prefer `backend.convert_to_tensor` over backend-specific methods**: Use `backend.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype.
 - **Backend-Agnostic Shape Handling**: Prefer using `backend.shape(inputs)` (or a passed `backend_module.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
 - **Support Dynamic Dimensions**:
-    - Use `jax.export.symbolic_shape()` for JAX `compute_output_spec`.
-    - Use `x.shape.rank` instead of `x.ndim` for TensorFlow to support `tf.RaggedTensor`.
-    - Avoid Python-level integer conversions (e.g., `int(tensor)`) or static ranges in backend implementations; use `ops.arange` or similar.
-- **Backend Flags**: Use backend flags like `SUPPORTS_COMPLEX_DTYPES` to standardize support detection and allow for clean, conditional test skipping.
-- **Random Seeds**:
-    - Use `int64` for random seeds in TensorFlow to avoid automatic CPU placement of `int32` constants.
-    - Use `int64` for random seeds in Torch to correctly map the full 32-bit unsigned range (Torch lacks native `uint32`).
+    - Use `len(shape)` or `backend.ndim(x)` to access shapes in a backend-agnostic way.
+    - Use `isinstance(d, int)` to detect that a dimension is static and not dynamic. `None` is not the only representation for dynamic dimensions.
+    - Use plain Python operators (e.g. `+`, `*`, `//`) to perform math on the dimensions of a shape, not Keras ops. This works seamlessly for static dimensions, symbolic dimensions (JAX, Torch) and tensor dimensions (TensorFlow). For instance, `math.prod(shape)` is the correct way to determine the size of an array.
 
 ### Optimization & Numeric Stability
-- **Fused Operations**: Use `tf.nn.bias_add` instead of `tf.add` for adding biases in TensorFlow to allow for kernel fusion.
 - **Division by Zero**: Use `ops.divide_no_nan` for mask weight calculations or any situation where a zero divisor is possible.
-- **Precision Sensitivity**: Use `float32` for LoRA weights and normalization math even in mixed-precision environments to avoid underflow/overflow.
-- **Arithmetic Masking**: Use `ops.where` or `backend.numpy.where` instead of additive arithmetic (e.g., `(1.0 - mask) * -1e-9 + inputs`) for softmax masking to avoid numerical noise issues.
-- **Fast Paths**: Optimize `tree.flatten` and `tree.map_structure` with fast paths for single, non-nested tensors to reduce layer call overhead.
+- **Arithmetic Masking**: Use `ops.where(x, mask, 0)` or `backend.numpy.where(x, mask, 0)` instead of multiplication `x * mask` to clear values outside of a mask to save memory on intermediary values.
 
 ### API Design & Validation
 - **Early Validation**:
-    - Perform axis canonicalization (using `canonicalize_axis` or `canonicalize_axes`) early, typically in `compute_output_spec`, to catch errors during graph building. Validate axis uniqueness *after* canonicalization.
-    - Explicitly validate input channels match the kernel in `DepthwiseConv` and `SeparableConv`.
+    - Perform axis canonicalization (using `canonicalize_axis` or `canonicalize_axes`) early to catch errors during graph building: typically in `compute_output_spec` or in the backend implementation of an op if the backend native op doesn't validate the axis. Validate axis uniqueness *after* canonicalization.
     - Raise explicit `ValueError` if `save_weights`/`load_weights` is called on an unbuilt model.
 - **Argument Types**:
-    - Use `isinstance(x, int)` instead of `x == int(x)` for integer-only arguments to safely handle `NaN`/`Inf`.
     - When restricting to Python integers (e.g., window lengths), also allow NumPy integer scalars (`np.int32`, `np.int64`).
-- **Sublayer Dispatch**: Invoke sublayers (e.g., in `MultiHeadAttention`) using `__call__` rather than `call()` to ensure proper dispatch (critical for quantization).
-- **Recursive Tracking**: Ensure `Metric.variables` and similar properties are recursive to correctly track state in nested models.
-
-### Serialization & Security
-- **Safe HDF5 Access**: Access HDF5 groups via centralized helpers that disallow external and soft links to prevent "shape bomb" attacks.
-- **Byte Serialization**: Use Base64 encoding for `bytes` data during model serialization to ensure safe transport.
-- **Native Dtype Initialization**: When creating a `Variable` with an array initializer, use the input's native `dtype` instead of defaulting to `backend.floatx()`.
 
 ### Testing
-- **Use existing test files**: Add tests to existing test files. Prefer not to create new test files unless completely necessary.
 - **Maximize Test Coverage**: Use specific test marks (like `@pytest.mark.requires_trainable_backend`) only when strictly necessary. Ensure training-related components are tested with a full `model.fit()` loop.
 - **Verify Error Clarity**: Use `self.assertRaisesRegex` to verify that the error message contains the expected guidance.
-- **JIT Compatibility**: Always include tests for `tf.function(jit_compile=True)` when fixing backend operations.
 - **Avoid `ops.nonzero`**: Avoid using `ops.nonzero()` in metrics or operations that need to be JAX-compilable, as it returns dynamic-sized arrays.
 
 ---
 
-When performing code reviews on pull requests, you must strictly adhere to the following principles in addition to the API design guidelines above:
+When performing code reviews on pull requests
+, you must strictly adhere to the following principles in addition to the API design guidelines above:
 
 1. **Question the Necessity of Changes**: Do not assume that the pull request changes are strictly necessary. Critically review the proposed changes to ensure they add real value. Point out any code that is solving a non-existent problem or adding unnecessary complexity.
 
