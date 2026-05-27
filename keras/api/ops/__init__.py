@@ -49,6 +49,7 @@ from keras.src.ops.linalg import solve_triangular as solve_triangular
 from keras.src.ops.linalg import svd as svd
 from keras.src.ops.math import cdist as cdist
 from keras.src.ops.math import erf as erf
+from keras.src.ops.math import erfc as erfc
 from keras.src.ops.math import erfinv as erfinv
 from keras.src.ops.math import extract_sequences as extract_sequences
 from keras.src.ops.math import fft as fft
