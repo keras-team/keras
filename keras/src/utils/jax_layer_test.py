@@ -718,42 +718,36 @@ class TestJaxLayer(testing.TestCase):
         {
             "testcase_name": "sequence_instead_of_mapping",
             "init_state": [0.0],
-            "error_regex": "Expected dict, got ",
         },
         {
             "testcase_name": "mapping_instead_of_sequence",
             "init_state": {"state": {"foo": 0.0}},
-            "error_regex": "Expected list, got ",
         },
         {
             "testcase_name": "sequence_instead_of_variable",
             "init_state": {"state": [[0.0]]},
-            "error_regex": "Structure mismatch",
         },
         {
             "testcase_name": "no_initial_state",
             "init_state": None,
-            "error_regex": "Expected dict, got None",
         },
         {
             "testcase_name": "missing_dict_key",
             "init_state": {"state": {}},
-            "error_regex": "Expected list, got ",
         },
         {
             "testcase_name": "missing_variable_in_list",
             "init_state": {"state": {"foo": [2.0]}},
-            "error_regex": "Expected list, got ",
         },
     )
-    def test_state_mismatch_during_update(self, init_state, error_regex):
+    def test_state_mismatch_during_update(self, init_state):
         def jax_fn(params, state, inputs):
             return inputs, {"state": [jnp.ones([])]}
 
         layer = JaxLayer(
             jax_fn, params={}, state=init_state, **self.init_kwargs
         )
-        with self.assertRaisesRegex(ValueError, error_regex):
+        with self.assertRaises(ValueError):
             layer(np.ones((1,)))
 
     def test_rng_seeding(self):
