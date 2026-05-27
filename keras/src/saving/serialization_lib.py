@@ -1,4 +1,4 @@
-'''Object config serialization and deserialization logic.'''
+"""Object config serialization and deserialization logic."""
 
 import importlib
 import inspect
@@ -53,7 +53,7 @@ class SerializableDict:
 
 
 class SafeModeScope:
-    '''''Scope to propagate safe mode flag to nested deserialization calls.'''
+    """Scope to propagate safe mode flag to nested deserialization calls."""
 
     def __init__(self, safe_mode=True):
         self.safe_mode = safe_mode
@@ -70,7 +70,7 @@ class SafeModeScope:
 
 @keras_export("keras.config.enable_unsafe_deserialization")
 def enable_unsafe_deserialization():
-    '''''Disables safe mode globally, allowing deserialization of lambdas.'''
+    """Disables safe mode globally, allowing deserialization of lambdas."""
     global_state.set_global_attribute("safe_mode_saving", False)
 
 
@@ -79,7 +79,7 @@ def in_safe_mode():
 
 
 class ObjectSharingScope:
-    '''''Scope to enable detection and reuse of previously seen objects.'''
+    """Scope to enable detection and reuse of previously seen objects."""
 
     def __enter__(self):
         global_state.set_global_attribute("shared_objects/id_to_obj_map", {})
@@ -93,7 +93,7 @@ class ObjectSharingScope:
 
 
 def get_shared_object(obj_id):
-    '''''Retrieve an object previously seen during deserialization.'''
+    """Retrieve an object previously seen during deserialization."""
     id_to_obj_map = global_state.get_global_attribute(
         "shared_objects/id_to_obj_map"
     )
@@ -102,7 +102,7 @@ def get_shared_object(obj_id):
 
 
 def record_object_after_serialization(obj, config):
-    '''''Call after serializing an object, to keep track of its config.'''
+    """Call after serializing an object, to keep track of its config."""
     if config["module"] == "__main__":
         config["module"] = None  # Ensures module is None when no module found
     id_to_config_map = global_state.get_global_attribute(
@@ -120,7 +120,7 @@ def record_object_after_serialization(obj, config):
 
 
 def record_object_after_deserialization(obj, obj_id):
-    '''''Call after deserializing an object, to keep track of it in the future.'''
+    """Call after deserializing an object, to keep track of it in the future."""
     id_to_obj_map = global_state.get_global_attribute(
         "shared_objects/id_to_obj_map"
     )
@@ -136,7 +136,7 @@ def record_object_after_deserialization(obj, obj_id):
     ]
 )
 def serialize_keras_object(obj):
-    '''''Retrieve the config dict by serializing the Keras object.
+    """Retrieve the config dict by serializing the Keras object.
 
     `serialize_keras_object()` serializes a Keras object to a python dictionary
     that represents the object, and is a reciprocal function of
@@ -149,7 +149,7 @@ def serialize_keras_object(obj):
     Returns:
         A python dict that represents the object. The python dict can be
         deserialized via `deserialize_keras_object()`.
-    '''
+    """
     if obj is None:
         return obj
 
@@ -225,7 +225,7 @@ def serialize_keras_object(obj):
             "In order to reload the object, you will have to pass "
             "`safe_mode=False` to the loading function. "
             "Please avoid using `lambda` in the "
-            "future, and use named Python functions instead. "
+            "future, and use named Python functions instead.  "
             f"This is the `lambda` being serialized: {inspect.getsource(obj)}",
             stacklevel=2,
         )
@@ -307,12 +307,12 @@ def get_build_and_compile_config(obj, config):
 
 
 def serialize_with_public_class(cls, inner_config=None):
-    '''''Serializes classes from public Keras API or object registration.
+    """Serializes classes from public Keras API or object registration.
 
     Called to check and retrieve the config of any class that has a public
     Keras API or has been registered as serializable via
     `keras.saving.register_keras_serializable()`.
-    '''
+    """
     # This gets the `keras.*` exported name, such as
     # "keras.optimizers.Adam".
     keras_api_name = api_export.get_name_from_symbol(cls)
@@ -342,13 +342,13 @@ def serialize_with_public_class(cls, inner_config=None):
 
 
 def serialize_with_public_fn(fn, config, fn_module_name=None):
-    '''''Serializes functions from public Keras API or object registration.
+    """Serializes functions from public Keras API or object registration.
 
     Called to check and retrieve the config of any function that has a public
     Keras API or has been registered as serializable via
     `keras.saving.register_keras_serializable()`. If function's module name
     is already known, returns corresponding config.
-    '''
+    """
     if fn_module_name:
         return {
             "module": fn_module_name,
@@ -378,7 +378,7 @@ def serialize_with_public_fn(fn, config, fn_module_name=None):
 
 
 def _get_class_or_fn_config(obj):
-    '''''Return the object's config depending on its type.'''
+    """Return the object's config depending on its type."""
     # Functions / lambdas:
     if isinstance(obj, types.FunctionType):
         return object_registration.get_registered_name(obj)
@@ -414,7 +414,7 @@ def serialize_dict(obj):
 def deserialize_keras_object(
     config, custom_objects=None, safe_mode=True, **kwargs
 ):
-    '''''Retrieve the object by deserializing the config dict.
+    """Retrieve the object by deserializing the config dict.
 
     The config dict is a Python dictionary that consists of a set of key-value
     pairs, and represents a Keras object, such as an `Optimizer`, `Layer`,
@@ -512,7 +512,7 @@ def deserialize_keras_object(
 
     Returns:
         The object described by the `config` dictionary.
-    '''
+    """
     safe_scope_arg = in_safe_mode()  # Enforces SafeModeScope
     safe_mode = safe_scope_arg if safe_scope_arg is not None else safe_mode
 
@@ -622,7 +622,7 @@ def deserialize_keras_object(
     if class_name == "function":
         if inner_config is None or not isinstance(inner_config, str):
             raise TypeError(
-                f"Expected "config" to be a non-null string for function, "
+                f'Expected "config" to be a non-null string for function, '
                 f"got {type(inner_config).__name__}. "
                 f"Full config: {config}"
             )
@@ -631,8 +631,8 @@ def deserialize_keras_object(
             inner_config, (list, tuple)
         ):
             raise TypeError(
-                f"Expected "config" to be a non-null list or tuple for "
-                f"_typespec_, got {type(inner_config).__name__}. "
+                f'Expected "config" to be a non-null list or tuple for '
+                f"__typespec__, got {type(inner_config).__name__}. "
                 f"Full config: {config}"
             )
     else:
@@ -640,9 +640,9 @@ def deserialize_keras_object(
             inner_config = {}
         elif not isinstance(inner_config, dict):
             raise TypeError(
-                f"Expected "config" to be a dict, got "
+                f'Expected "config" to be a dict, got '
                 f"{type(inner_config).__name__}. "
-                f"For class "{class_name}", pass a dict with the expected "
+                f'For class "{class_name}", pass a dict with the expected '
                 "configuration keys."
             )
     custom_objects = custom_objects or {}
@@ -861,7 +861,7 @@ def _retrieve_class_or_fn(
             # i.e. "name" instead of "package>name". This allows recent versions
             # of Keras to reload models saved with 3.6 and lower.
             if ">" not in name:
-                separated_name = f">{name}"
+                separated_name = f":{name}"
                 for custom_name, custom_object in custom_objects.items():
                     if custom_name.endswith(separated_name):
                         return custom_object
