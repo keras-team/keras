@@ -652,9 +652,7 @@ def deserialize_keras_object(
         obj = backend.KerasTensor(
             inner_config["shape"], dtype=inner_config["dtype"]
         )
-        obj._pre_serialization_keras_history = inner_config[
-            "keras_history"
-        ]
+        obj._pre_serialization_keras_history = inner_config["keras_history"]
         return obj
 
     if class_name == "__tensor__":
@@ -662,9 +660,7 @@ def deserialize_keras_object(
             inner_config["value"], dtype=inner_config["dtype"]
         )
     if class_name == "__numpy__":
-        return np.array(
-            inner_config["value"], dtype=inner_config["dtype"]
-        )
+        return np.array(inner_config["value"], dtype=inner_config["dtype"])
     if config["class_name"] == "__bytes__":
         return inner_config["value"].encode("utf-8")
     if config["class_name"] == "__ellipsis__":
