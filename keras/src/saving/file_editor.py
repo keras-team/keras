@@ -528,10 +528,11 @@ class KerasFileEditor:
                     f"{value.external}"
                 )
 
-            # Reject HDF5 virtual datasets, which read through to other files
-            # on access. Mirrors `saving_lib.safe_get_h5_dataset`.
             if value.is_virtual:
-                raise ValueError("Not allowed: H5 file with virtual Dataset")
+                raise ValueError(
+                    "Not allowed: H5 file with virtual Dataset at "
+                    f"{current_inner_path}"
+                )
 
             shape = value.shape
             dtype = value.dtype

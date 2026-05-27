@@ -143,24 +143,21 @@ class SavingTest(testing.TestCase):
             KerasFileEditor(attacker_fpath)
 
     def test_rejects_virtual_dataset(self):
-        target_fpath = os.path.join(
-            self.get_temp_dir(), "victim_private.weights.h5"
-        )
-        with h5py.File(target_fpath, "w") as f:
+        temp_dir = self.get_temp_dir()
+        other_fpath = os.path.join(temp_dir, "other.weights.h5")
+        with h5py.File(other_fpath, "w") as f:
             f.create_dataset("s", data=np.arange(5, dtype="float32"))
 
-        attacker_fpath = os.path.join(
-            self.get_temp_dir(), "vds_payload.weights.h5"
-        )
-        with h5py.File(attacker_fpath, "w") as f:
+        virtual_fpath = os.path.join(temp_dir, "virtual.weights.h5")
+        with h5py.File(virtual_fpath, "w") as f:
             vars_group = (
                 f.create_group("layers")
                 .create_group("dense")
                 .create_group("vars")
             )
             layout = h5py.VirtualLayout(shape=(5,), dtype="float32")
-            layout[:] = h5py.VirtualSource(target_fpath, "s", shape=(5,))
+            layout[:] = h5py.VirtualSource(other_fpath, "s", shape=(5,))
             vars_group.create_virtual_dataset("0", layout)
 
         with self.assertRaisesRegex(ValueError, "virtual"):
-            KerasFileEditor(attacker_fpath)
+            KerasFileEditor(virtual_fpath)
