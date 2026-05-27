@@ -85,9 +85,10 @@ class EarlyStopping(MonitorCallback):
         self.start_from_epoch = start_from_epoch
 
     def on_train_begin(self, logs=None):
-        # Allow instances to be re-used
+        # Allow instances to be re-used across `model.fit()` calls.
         self.wait = 0
         self.stopped_epoch = 0
+        self.best = None
         self.best_weights = None
         self.best_epoch = 0
 

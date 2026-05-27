@@ -126,6 +126,31 @@ class EarlyStoppingTest(testing.TestCase):
         )
         self.assertGreaterEqual(len(history2.epoch), patience)
 
+    def test_state_reset_across_fit_calls(self):
+        # `EarlyStopping` is reused across `model.fit()` calls, so
+        # `on_train_begin` must clear all per-run state — otherwise a stale
+        # `self.best` from the previous run causes the new model's first
+        # epoch to be compared against a meaningless best value and
+        # training stops prematurely. See
+        # https://github.com/keras-team/keras/issues/20256.
+        stopper = callbacks.EarlyStopping(monitor="loss", patience=3)
+        stopper.set_model(models.Sequential())
+        stopper.on_train_begin()
+        # Drive some state from a first run.
+        stopper.best = 0.1
+        stopper.wait = 3
+        stopper.stopped_epoch = 5
+        stopper.best_epoch = 5
+        stopper.best_weights = object()
+        # New `model.fit()` -> `on_train_begin` should clear all per-run
+        # state.
+        stopper.on_train_begin()
+        self.assertIsNone(stopper.best)
+        self.assertEqual(stopper.wait, 0)
+        self.assertEqual(stopper.stopped_epoch, 0)
+        self.assertEqual(stopper.best_epoch, 0)
+        self.assertIsNone(stopper.best_weights)
+
     @pytest.mark.requires_trainable_backend
     def test_early_stopping_with_baseline(self):
         baseline = 0.6
