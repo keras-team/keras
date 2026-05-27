@@ -65,6 +65,15 @@ class ReconstructPatches2DTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "length 2"):
             layers.ReconstructPatches2D(size=(2, 3, 4), output_size=(10, 15))
 
+    def test_int_size(self):
+        # int size is normalized to (size, size).
+        layer = layers.ReconstructPatches2D(size=4, output_size=(16, 16))
+        self.assertEqual(layer.size, (4, 4))
+
+    def test_invalid_output_size(self):
+        with self.assertRaisesRegex(ValueError, "length 2"):
+            layers.ReconstructPatches2D(size=(2, 2), output_size=(8, 8, 8))
+
     def test_invalid_padding(self):
         with self.assertRaisesRegex(ValueError, "'same' or 'valid'"):
             layers.ReconstructPatches2D(

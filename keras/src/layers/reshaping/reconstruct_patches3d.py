@@ -95,27 +95,12 @@ class ReconstructPatches3D(Layer):
         )
 
     def compute_output_shape(self, input_shape):
-        output_shape = list(input_shape)
-        if self.data_format == "channels_last":
-            flat = output_shape[-1]
-            patch_volume = self.size[0] * self.size[1] * self.size[2]
-            channels = None if flat is None else flat // patch_volume
-            if len(output_shape) == 5:
-                return (output_shape[0],) + self.output_size + (channels,)
-            elif len(output_shape) == 4:
-                return self.output_size + (channels,)
-        else:
-            flat = output_shape[-4]
-            patch_volume = self.size[0] * self.size[1] * self.size[2]
-            channels = None if flat is None else flat // patch_volume
-            if len(output_shape) == 5:
-                return (output_shape[0], channels) + self.output_size
-            elif len(output_shape) == 4:
-                return (channels,) + self.output_size
-        raise ValueError(
-            f"Unexpected patches rank for ReconstructPatches3D: "
-            f"{len(input_shape)}"
-        )
+        # `InputSpec(ndim=5)` and the `channels_first` check in `__init__`
+        # mean we always see a 5D, channels_last input here.
+        flat = input_shape[-1]
+        patch_volume = self.size[0] * self.size[1] * self.size[2]
+        channels = None if flat is None else flat // patch_volume
+        return (input_shape[0],) + self.output_size + (channels,)
 
     def get_config(self):
         config = {

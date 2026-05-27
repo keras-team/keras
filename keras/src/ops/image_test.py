@@ -502,6 +502,13 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 output_size=(30, 20),
                 padding="same",
             )
+        with self.assertRaisesRegex(ValueError, "padding='same'.*width"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(20, 30),
+                padding="same",
+            )
         # 3D: gD=4, pD=5 → valid D range is (15, 20]. 10 is too small.
         patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
         with self.assertRaisesRegex(ValueError, "padding='same'.*depth"):
@@ -510,6 +517,161 @@ class ImageOpsStaticShapeTest(testing.TestCase):
                 size=(5, 5, 5),
                 output_size=(10, 20, 20),
                 padding="same",
+            )
+        with self.assertRaisesRegex(ValueError, "padding='same'.*height"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 30, 20),
+                padding="same",
+            )
+        with self.assertRaisesRegex(ValueError, "padding='same'.*width"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 20, 30),
+                padding="same",
+            )
+
+    def test_reconstruct_patches_invalid_size_length(self):
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "length 2 or 3"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5,),
+                output_size=(20, 20),
+                padding="valid",
+            )
+
+    def test_reconstruct_patches_invalid_size_type(self):
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(TypeError, "int or a tuple"):
+            kimage.reconstruct_patches(
+                patches,
+                size="not_a_size",
+                output_size=(20, 20),
+                padding="valid",
+            )
+
+    def test_reconstruct_patches_invalid_padding(self):
+        # _reconstruct_patches_2d raises for bad padding even though the
+        # public `reconstruct_patches` op doesn't pre-validate it.
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "'same' or 'valid'"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(20, 20),
+                padding="reflect",
+            )
+        patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "'same' or 'valid'"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 20, 20),
+                padding="reflect",
+            )
+
+    def test_reconstruct_patches_invalid_output_size_length(self):
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "length 2"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(20, 20, 20),
+                padding="valid",
+            )
+        patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "length 3"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 20),
+                padding="valid",
+            )
+
+    def test_reconstruct_patches_valid_size_mismatch(self):
+        # valid padding requires grid * size == output_size.
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(19, 20),
+                padding="valid",
+            )
+        patches_3d = np.zeros((1, 4, 4, 4, 375), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "size \\* grid"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 19, 20),
+                padding="valid",
+            )
+
+    def test_reconstruct_patches_unbatched_and_int_size(self):
+        # Unbatched input (3D for 2D, 4D for 3D) exercises the squeeze path.
+        # int `size` argument exercises the int->tuple normalization.
+        patches = np.zeros((4, 4, 75), dtype="float32")
+        out = kimage.reconstruct_patches(
+            patches,
+            size=5,
+            output_size=(20, 20),
+            padding="valid",
+        )
+        self.assertEqual(tuple(out.shape), (20, 20, 3))
+        patches_3d = np.zeros((4, 4, 4, 375), dtype="float32")
+        out = kimage.reconstruct_patches_3d(
+            patches_3d,
+            size=5,
+            output_size=(20, 20, 20),
+            padding="valid",
+        )
+        self.assertEqual(tuple(out.shape), (20, 20, 20, 3))
+
+    def test_reconstruct_patches_dispatches_to_3d(self):
+        # The generic _reconstruct_patches op dispatches to the 3D path when
+        # size is a length-3 tuple, even though the public `reconstruct_patches`
+        # docstring is 2D-flavored.
+        patches = np.zeros((1, 4, 4, 4, 375), dtype="float32")
+        out = kimage.reconstruct_patches(
+            patches,
+            size=(5, 5, 5),
+            output_size=(20, 20, 20),
+            padding="valid",
+        )
+        self.assertEqual(tuple(out.shape), (1, 20, 20, 20, 3))
+
+    def test_reconstruct_patches_int_strides(self):
+        # int strides argument is broadcast to a tuple inside the validator.
+        patches = np.zeros((1, 4, 4, 75), dtype="float32")
+        out = kimage.reconstruct_patches(
+            patches,
+            size=(5, 5),
+            output_size=(20, 20),
+            strides=5,
+            padding="valid",
+        )
+        self.assertEqual(tuple(out.shape), (1, 20, 20, 3))
+
+    def test_reconstruct_patches_flat_not_divisible(self):
+        # Last dim 80 is not divisible by prod(size)=25.
+        patches = np.zeros((1, 4, 4, 80), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "not divisible"):
+            kimage.reconstruct_patches(
+                patches,
+                size=(5, 5),
+                output_size=(20, 20),
+                padding="valid",
+            )
+        patches_3d = np.zeros((1, 4, 4, 4, 400), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "not divisible"):
+            kimage.reconstruct_patches_3d(
+                patches_3d,
+                size=(5, 5, 5),
+                output_size=(20, 20, 20),
+                padding="valid",
             )
 
     def test_map_coordinates(self):
