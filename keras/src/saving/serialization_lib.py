@@ -712,9 +712,7 @@ def deserialize_keras_object(
             lambda x: (
                 tf.TensorShape(x)
                 if isinstance(x, list)
-                else (
-                    getattr(tf, x) if hasattr(tf.dtypes, str(x)) else x
-                )
+                else (getattr(tf, x) if hasattr(tf.dtypes, str(x)) else x)
             ),
             inner_config,
         )
