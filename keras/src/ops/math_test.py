@@ -150,6 +150,11 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         y = kmath.erf(x)
         self.assertEqual(y.shape, (None, 2, 3))
 
+    def test_erfc(self):
+        x = KerasTensor((None, 2, 3))
+        y = kmath.erfc(x)
+        self.assertEqual(y.shape, (None, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -346,6 +351,11 @@ class MathOpsStaticShapeTest(testing.TestCase):
     def test_erf(self):
         x = KerasTensor((1, 2, 3))
         y = kmath.erf(x)
+        self.assertEqual(y.shape, (1, 2, 3))
+
+    def test_erfc(self):
+        x = KerasTensor((1, 2, 3))
+        y = kmath.erfc(x)
         self.assertEqual(y.shape, (1, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
@@ -991,6 +1001,22 @@ class MathOpsCorrectnessTest(testing.TestCase):
         output_from_edge_erf_op = kmath.erf(edge_values)
         self.assertAllClose(output_from_edge_erf_op, expected_output, atol=1e-4)
 
+    def test_erfc_operation_basic(self):
+        sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
+
+        expected_output = scipy.special.erfc(sample_values)
+        output_from_erfc_op = kmath.erfc(sample_values)
+
+        self.assertAllClose(output_from_erfc_op, expected_output, atol=1e-4)
+
+    def test_erfc_operation_edge_cases(self):
+        edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
+        expected_output = scipy.special.erfc(edge_values)
+        output_from_edge_erfc_op = kmath.erfc(edge_values)
+        self.assertAllClose(
+            output_from_edge_erfc_op, expected_output, atol=1e-4
+        )
+
     def test_erfinv_operation_basic(self):
         # Sample values for testing
         sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
@@ -1097,6 +1123,25 @@ class MathDtypeTest(testing.TestCase):
         self.assertEqual(standardize_dtype(kmath.erf(x).dtype), expected_dtype)
         self.assertEqual(
             standardize_dtype(kmath.Erf().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_erfc(self, dtype):
+        import jax.numpy as jnp
+        import jax.scipy.special as special
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(special.erfc(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.erfc(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Erfc().symbolic_call(x).dtype),
             expected_dtype,
         )
 
