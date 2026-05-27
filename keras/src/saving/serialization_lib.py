@@ -464,12 +464,12 @@ def deserialize_keras_object(
 
     ```python
     dict_structure = {
-      "class_name": "MetricsList",
-      "config": {
-          ...
-      },
-      "module": "keras.trainers.compile_utils",
-      "registered_name": "MetricsList"
+        "class_name": "MetricsList",
+        "config": {
+            ...
+        },
+        "module": "keras.trainers.compile_utils",
+        "registered_name": "MetricsList"
     }
 
     # Returns a `MetricsList` instance identical to the original one.
