@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Object config serialization and deserialization logic."""
 
 import importlib
