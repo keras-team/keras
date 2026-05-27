@@ -15,6 +15,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src import utils
 from keras.src.backend.config import disable_flash_attention
 from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import is_flash_attention_enabled
@@ -830,6 +831,8 @@ class MultiHeadAttentionTest(testing.TestCase):
             layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
 
     def test_quantize_int8(self):
+        utils.set_random_seed(1347)
+
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
         value = np.array([[[1.0, 2.0], [3.0, 4.0]]])
