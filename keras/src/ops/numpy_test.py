@@ -6344,6 +6344,24 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.sort(x, axis=None), np.sort(x, axis=None))
         self.assertAllClose(knp.Sort(axis=None)(x), np.sort(x, axis=None))
 
+    def test_symbolic_axis_out_of_range_raises(self):
+        # All five ops should reject out-of-range axis cleanly in the symbolic
+        # path, instead of either silently returning a wrong shape or failing
+        # with a backend-specific error at eager execution time.
+        a = backend.KerasTensor((3, 4))
+        idx = backend.KerasTensor((2,), dtype="int32")
+        msg = "axis 10 is out of bounds"
+        for fn in (
+            lambda: knp.sort(a, axis=10),
+            lambda: knp.argsort(a, axis=10),
+            lambda: knp.cumsum(a, axis=10),
+            lambda: knp.cumprod(a, axis=10),
+        ):
+            with self.assertRaisesRegex(ValueError, msg):
+                fn()
+        with self.assertRaisesRegex(ValueError, "axis 5 is out of bounds"):
+            knp.take(a, idx, axis=5)
+
     def test_split(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         self.assertIsInstance(knp.split(x, 2), list)

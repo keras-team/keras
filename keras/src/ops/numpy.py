@@ -1142,6 +1142,7 @@ class Argsort(Operation):
     def compute_output_spec(self, x):
         if self.axis is None:
             return KerasTensor([int(np.prod(x.shape))], dtype="int32")
+        canonicalize_axis(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype="int32")
 
 
@@ -2401,6 +2402,7 @@ class Cumprod(Operation):
             else:
                 output_shape = (int(np.prod(x.shape)),)
         else:
+            canonicalize_axis(self.axis, len(x.shape))
             output_shape = x.shape
         output_dtype = (
             backend.standardize_dtype(x.dtype)
@@ -2447,6 +2449,7 @@ class Cumsum(Operation):
             else:
                 output_shape = (int(np.prod(x.shape)),)
         else:
+            canonicalize_axis(self.axis, len(x.shape))
             output_shape = x.shape
         output_dtype = (
             backend.standardize_dtype(x.dtype)
@@ -7549,6 +7552,7 @@ class Sort(Operation):
             else:
                 output_shape = (int(np.prod(x.shape)),)
             return KerasTensor(output_shape, x.dtype)
+        canonicalize_axis(self.axis, len(x.shape))
         return KerasTensor(x.shape, x.dtype)
 
 
@@ -7801,8 +7805,7 @@ class Take(Operation):
         if self.axis is None:
             return KerasTensor(indices_shape, dtype=x.dtype)
 
-        # make sure axis is non-negative
-        axis = len(x_shape) + self.axis if self.axis < 0 else self.axis
+        axis = canonicalize_axis(self.axis, len(x_shape))
         output_shape = x_shape[:axis] + indices_shape + x_shape[axis + 1 :]
         return KerasTensor(output_shape, dtype=x.dtype, ragged=ragged)
 
