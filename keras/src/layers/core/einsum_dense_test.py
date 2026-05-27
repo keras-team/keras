@@ -349,6 +349,26 @@ class EinsumDenseTest(testing.TestCase):
         if expected_bias_shape is not None:
             self.assertEqual(layer.bias.shape, expected_bias_shape)
 
+    def test_compute_output_shape_before_build(self):
+        # `compute_output_shape` must work without the layer being built
+        # first (it previously read `self.full_output_shape`, which only
+        # exists after `build`, and raised `AttributeError`).
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=(7,))
+        self.assertEqual(layer.compute_output_shape((None, 5)), (None, 7))
+        # And it stays consistent after the layer is built.
+        layer.build((None, 5))
+        self.assertEqual(layer.compute_output_shape((None, 5)), (None, 7))
+
+        # A higher-rank equation with an explicitly-unknown output axis;
+        # `compute_output_shape` must agree with the actual call.
+        layer = layers.EinsumDense(
+            "abc,cd->abd", output_shape=(None, 4), bias_axes="d"
+        )
+        x = layers.Input(shape=(3, 8))
+        self.assertEqual(
+            layer.compute_output_shape((None, 3, 8)), tuple(layer(x).shape)
+        )
+
     def test_einsum_dense_constraints(self):
         layer = layers.EinsumDense(
             "abc,cde->abde", (1, 3, 4), kernel_constraint="non_neg"

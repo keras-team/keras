@@ -303,8 +303,16 @@ class EinsumDense(Layer):
 
         return kernel
 
-    def compute_output_shape(self, _):
-        return self.full_output_shape
+    def compute_output_shape(self, input_shape):
+        # Derive the output shape from `input_shape` so this works before the
+        # layer is built (`self.full_output_shape` is only set in `build`).
+        _, _, full_output_shape, _, _ = _analyze_einsum_string(
+            self.equation,
+            self.bias_axes,
+            input_shape,
+            self.partial_output_shape,
+        )
+        return tuple(full_output_shape)
 
     def call(self, inputs, training=None):
         x = ops.einsum(self.equation, inputs, self.kernel)
