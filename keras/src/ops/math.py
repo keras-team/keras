@@ -1184,7 +1184,6 @@ def erfc(x):
     """
     if any_symbolic_tensors((x,)):
         return Erfc().symbolic_call(x)
-    x = backend.convert_to_tensor(x)
     return backend.math.erfc(x)
 
 
