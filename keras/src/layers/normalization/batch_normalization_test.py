@@ -371,13 +371,14 @@ class BatchNormalizationTest(testing.TestCase):
         batch_mean = np.mean(x, axis=0)
         batch_var = np.var(x, axis=0)
         batch_stddev = np.sqrt(batch_var + epsilon)
-        x_norm = (x - batch_mean) / batch_stddev
 
         # Compute r, d, and then expected output.
         r = batch_stddev / init_renorm_stddev
         d = (batch_mean - init_renorm_mean) / init_renorm_stddev
 
-        expected_output = (x_norm * r + d) * init_gamma + init_beta
+        expected_output = (
+            ((x - batch_mean) / batch_stddev) * r + d
+        ) * init_gamma + init_beta
         actual_output = layer(x, training=True)
         self.assertAllClose(actual_output, expected_output, atol=1e-5)
 
