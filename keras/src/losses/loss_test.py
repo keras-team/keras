@@ -191,6 +191,8 @@ class LossTest(testing.TestCase):
         ("ys", "ys"),
     )
     def test_rank_adjustment(self, uprank):
+        if backend.backend() == "numpy":
+            self.skipTest("Numpy backend does not support masking.")
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
         y_pred = np.array([0.1, 0.2, 0.3, 0.4])
