@@ -249,6 +249,16 @@ class HashingTest(testing.TestCase):
         ):
             _ = layers.Hashing(num_bins=1, salt=[133, 137, 177])
 
+    def test_compute_output_shape(self):
+        # `compute_output_shape` must work without building the layer first
+        # and agree with the actual call for every output mode.
+        for mode in ("int", "one_hot", "multi_hot", "count"):
+            for ishape in [(4,), (4, 1), (3, 4)]:
+                layer = layers.Hashing(num_bins=5, output_mode=mode)
+                cos = tuple(layer.compute_output_shape((None,) + ishape))
+                actual = tuple(layer(layers.Input(shape=ishape)).shape)
+                self.assertEqual(cos, actual)
+
     def test_one_hot_output(self):
         input_array = np.array([0, 1, 2, 3, 4])
 
