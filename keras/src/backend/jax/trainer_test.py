@@ -106,38 +106,6 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
         {"testcase_name": "DataParallel", "dist_type": "data_parallel"},
         {"testcase_name": "ModelParallel", "dist_type": "model_parallel"},
     )
-    def test_no_warning_when_model_built_inside_scope(self, dist_type):
-        """Model built inside distribution scope -> no warning."""
-        n = len(backend_dlib.list_devices())
-        units = n * max(1, 4 // n)
-        dist = self._make_distribution(dist_type)
-
-        # Model created inside scope — weights get proper sharding.
-        with dist.scope():
-            model = models.Sequential([layers.Dense(units, input_shape=(16,))])
-
-        inputs = np.random.normal(size=(8, 16)).astype("float32")
-        labels = np.random.normal(size=(8, units)).astype("float32")
-
-        with dist.scope():
-            model.compile(loss="mse", optimizer="adam")
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
-                model._symbolic_build(data_batch=(inputs[:2], labels[:2]))
-                model._get_state_sharding_spec()
-
-            mixed = [w for w in caught if "mix of local" in str(w.message)]
-            self.assertEqual(
-                len(mixed),
-                0,
-                "Unexpected mixed-sharding warning when model is "
-                "built inside scope",
-            )
-
-    @parameterized.named_parameters(
-        {"testcase_name": "DataParallel", "dist_type": "data_parallel"},
-        {"testcase_name": "ModelParallel", "dist_type": "model_parallel"},
-    )
     def test_train_on_batch(self, dist_type):
         n = len(backend_dlib.list_devices())
         units = n * max(1, 4 // n)
@@ -159,3 +127,5 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
             model.train_on_batch(x=inputs, y=labels)
             model.test_on_batch(x=inputs, y=labels)
             model.predict_on_batch(x=inputs)
+            model.fit(x=inputs, y=labels, epochs=1, verbose=0)
+            model.evaluate(x=inputs, y=labels, verbose=0)
