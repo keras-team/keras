@@ -93,7 +93,7 @@ class Ftrl(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="ftrl",
+        name=None,
         **kwargs,
     ):
         super().__init__(

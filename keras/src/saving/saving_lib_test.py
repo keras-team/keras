@@ -360,11 +360,15 @@ class SavingTest(testing.TestCase):
         self.assertEqual(
             config_dict["registered_name"], "my_custom_package>CustomModelX"
         )
+        # exclude optimizer name
+        del config_dict["compile_config"]["optimizer"]["config"]["name"]
+        expected_config = keras.src.saving.serialize_keras_object(
+            keras.src.optimizers.get("adam")
+        )
+        del expected_config["config"]["name"]
         self.assertEqual(
             config_dict["compile_config"]["optimizer"],
-            keras.src.saving.serialize_keras_object(
-                keras.src.optimizers.get("adam")
-            ),
+            expected_config,
         )
         self.assertEqual(
             config_dict["compile_config"]["loss"]["config"],

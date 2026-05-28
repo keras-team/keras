@@ -96,7 +96,7 @@ class Muon(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="muon",
+        name=None,
         exclude_layers=None,
         exclude_embeddings=True,
         muon_a=3.4445,

@@ -423,3 +423,31 @@ class OptimizerTest(testing.TestCase):
         ):
             optimizer.apply_gradients([(grads, v), (None, tf_v)])
             self.assertAllClose(optimizer.iterations, 2)
+
+    def test_optimizer_auto_naming(self):
+        adam_1 = optimizers.Adam()
+        adam_2 = optimizers.Adam()
+        sgd_1 = optimizers.SGD()
+        sgd_2 = optimizers.SGD()
+        adamw_1 = optimizers.AdamW()
+        adamw_2 = optimizers.AdamW()
+
+        self.assertEqual(adam_1.name, "adam")
+        self.assertEqual(adam_2.name, "adam_1")
+        self.assertEqual(sgd_1.name, "sgd")
+        self.assertEqual(sgd_2.name, "sgd_1")
+        self.assertEqual(adamw_1.name, "adam_w")
+        self.assertEqual(adamw_2.name, "adam_w_1")
+
+        # Test explicit naming
+        custom_adam = optimizers.Adam(name="my_adam")
+        self.assertEqual(custom_adam.name, "my_adam")
+
+        # Test serialization and deserialization preserves name
+        config_adam_2 = optimizers.serialize(adam_2)
+        reloaded_adam_2 = optimizers.deserialize(config_adam_2)
+        self.assertEqual(reloaded_adam_2.name, "adam_1")
+
+        config_custom = optimizers.serialize(custom_adam)
+        reloaded_custom = optimizers.deserialize(config_custom)
+        self.assertEqual(reloaded_custom.name, "my_adam")
