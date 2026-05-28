@@ -31,7 +31,7 @@ class TorchOptimizer(BaseOptimizer):
         }
 
         if cls in OPTIMIZERS:
-            return OPTIMIZERS[cls](*args, **kwargs)
+            return super().__new__(OPTIMIZERS[cls])
         return super().__new__(cls)
 
     @torch_utils.no_grad
