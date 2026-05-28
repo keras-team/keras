@@ -672,7 +672,7 @@ def deserialize_keras_object(
         if not isinstance(inner_config, (tuple, list)):
             raise TypeError(
                 "Expected 'config' to be a list or a tuple"
-                 "for a __typespec__ class name,\n"
+                "for a __typespec__ class name,\n"
                 f"instead got {type(inner_config)}\n"
                 f"Full config: {config}"
             )
@@ -718,11 +718,11 @@ def deserialize_keras_object(
         )
     # Below, handling of all classes.
     if not isinstance(inner_config, dict):
-            raise TypeError(
-                f"Expected 'config' to be a dict for {class_name},\n"
-                f"instead got {type(inner_config)}\n"
-                f"Full config: {config}"
-            )
+        raise TypeError(
+            f"Expected 'config' to be a dict for {class_name},\n"
+            f"instead got {type(inner_config)}\n"
+            f"Full config: {config}"
+        )
     # First, is it a shared object?
     if "shared_object_id" in config:
         obj = get_shared_object(config["shared_object_id"])
