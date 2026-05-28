@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src.backend import distribution_lib as backend_dlib
+from keras.src.backend.jax import trainer as jax_trainer
 from keras.src.distribution import distribution_lib
 
 
@@ -129,3 +130,26 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
             model.predict_on_batch(x=inputs)
             model.fit(x=inputs, y=labels, epochs=1, verbose=0)
             model.evaluate(x=inputs, y=labels, verbose=0)
+
+    @parameterized.named_parameters(
+        {"testcase_name": "DataParallel", "dist_type": "data_parallel"},
+        {"testcase_name": "ModelParallel", "dist_type": "model_parallel"},
+    )
+    def test_jax_epoch_iterator_with_none_elements(self, dist_type):
+        class MockDataAdapter:
+            def __init__(self):
+                self.num_batches = 1
+
+            def get_jax_iterator(self):
+                # test for None in data
+                yield (np.ones((2, 4)), None)
+
+        with self._make_distribution(dist_type).scope():
+            iterator = jax_trainer.JAXEpochIterator(x=np.ones((2, 4)))
+            iterator.data_adapter = MockDataAdapter()
+
+            epoch_iter = iterator._get_iterator()
+            batch = next(epoch_iter)
+
+        self.assertIsNone(batch[1])
+        self.assertIsNotNone(batch[0])
