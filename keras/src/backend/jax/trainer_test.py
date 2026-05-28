@@ -136,17 +136,13 @@ class JAXTrainerTest(testing.TestCase, parameterized.TestCase):
         {"testcase_name": "ModelParallel", "dist_type": "model_parallel"},
     )
     def test_jax_epoch_iterator_with_none_elements(self, dist_type):
-        class MockDataAdapter:
-            def __init__(self):
-                self.num_batches = 1
-
-            def get_jax_iterator(self):
-                # test for None in data
-                yield (np.ones((2, 4)), None)
+        def generator():
+            yield (np.ones((16, 32)), None)
 
         with self._make_distribution(dist_type).scope():
-            iterator = jax_trainer.JAXEpochIterator(x=np.ones((2, 4)))
-            iterator.data_adapter = MockDataAdapter()
+            iterator = jax_trainer.JAXEpochIterator(
+                x=generator(), steps_per_epoch=1
+            )
 
             epoch_iter = iterator._get_iterator()
             batch = next(epoch_iter)
