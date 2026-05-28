@@ -2,6 +2,7 @@ import pickle
 
 import numpy as np
 import pytest
+from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import dtype_policies
@@ -184,11 +185,12 @@ class LossTest(testing.TestCase):
         rank2_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(rank1_loss, rank2_loss)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
+    
+    @parameterized.named_parameters(
+        ("mask", "mask"),
+        ("sample_weight", "sample_weight"),
+        ("ys", "ys"),
     )
-    @pytest.mark.parametrize("uprank", ["mask", "sample_weight", "ys"])
     def test_rank_adjustment(self, uprank):
         sample_weight = np.array([0.4, 0.3, 0.2, 0.1])
         y_true = np.array([1.0, 0.0, 1.0, 0.0])
