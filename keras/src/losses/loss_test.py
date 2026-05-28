@@ -185,7 +185,6 @@ class LossTest(testing.TestCase):
         rank2_loss = loss_fn(y_true, y_pred, sample_weight=sample_weight)
         self.assertAllClose(rank1_loss, rank2_loss)
 
-    
     @parameterized.named_parameters(
         ("mask", "mask"),
         ("sample_weight", "sample_weight"),
