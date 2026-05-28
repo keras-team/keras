@@ -1068,10 +1068,13 @@ def _distribute_data(data, layouts=None):
 
     if distribution is not None:
         if layouts is None:
-            layouts = tree.map_structure(
-                lambda d: distribution.get_data_layout(d.shape),
-                data,
-            )
+
+            def get_layout(d):
+                if d is None:
+                    return None
+                return distribution.get_data_layout(d.shape)
+
+            layouts = tree.map_structure(get_layout, data)
         jax_dist_data_input = partial(
             jax_distribution_lib.distribute_data_input,
             batch_dim_name=distribution.batch_dim_name,
