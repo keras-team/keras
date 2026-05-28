@@ -66,12 +66,8 @@ def resolve_sub_path(base_dir, relative_path):
 
 def is_link_in_dir(info, base_dir):
     if info.islnk():
-        # Hard links resolve relative to the root. Both the link's own
-        # location (`info.name`) and its target (`info.linkname`) must stay
-        # within `base_dir`. The `info.name` check matches the validation
-        # already applied to regular files and symbolic links; without it a
-        # hard-link member with a traversing or absolute name is materialized
-        # outside the extraction directory.
+        # Hard links resolve relative to the root. Verify both the link
+        # location and target location.
         return (
             resolve_sub_path(base_dir, info.name) is not None
             and resolve_sub_path(base_dir, info.linkname) is not None
