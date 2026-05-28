@@ -618,7 +618,7 @@ def deserialize_keras_object(
         }
 
     class_name = config["class_name"]
-    inner_config = config["config"] or {}
+    inner_config = config["config"] if config["config"] is not None else {}
     custom_objects = custom_objects or {}
 
     # Special cases:
@@ -669,6 +669,13 @@ def deserialize_keras_object(
             )
         return python_utils.func_load(inner_config["value"])
     if tf is not None and config["class_name"] == "__typespec__":
+        if not isinstance(inner_config, (tuple, list)):
+            raise TypeError(
+                "Expected 'config' to be a list or a tuple"
+                "for a __typespec__ class name,\n"
+                f"instead got {type(inner_config)}\n"
+                f"Full config: {config}"
+            )
         obj = _retrieve_class_or_fn(
             config["spec_name"],
             config["registered_name"],
@@ -694,6 +701,13 @@ def deserialize_keras_object(
 
     if class_name == "function":
         fn_name = inner_config
+        if not isinstance(fn_name, str):
+            raise TypeError(
+                "Expected 'config' to be a non-null str for"
+                "a function classname,\n"
+                f"instead got {type(fn_name)}\n"
+                f"Full config: {config}"
+            )
         return _retrieve_class_or_fn(
             fn_name,
             registered_name,
@@ -702,8 +716,13 @@ def deserialize_keras_object(
             full_config=config,
             custom_objects=custom_objects,
         )
-
     # Below, handling of all classes.
+    if not isinstance(inner_config, dict):
+        raise TypeError(
+            f"Expected 'config' to be a dict for {class_name},\n"
+            f"instead got {type(inner_config)}\n"
+            f"Full config: {config}"
+        )
     # First, is it a shared object?
     if "shared_object_id" in config:
         obj = get_shared_object(config["shared_object_id"])
