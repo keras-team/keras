@@ -1,0 +1,513 @@
+import builtins
+import contextlib
+import functools
+
+import ml_dtypes
+import numpy as np
+import paddle
+import paddle.nn
+
+from keras.src import tree
+from keras.src.backend.common import KerasVariable
+from keras.src.backend.common import global_state
+from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.backend_utils import slice_along_axis
+from keras.src.backend.common.dtypes import result_type
+from keras.src.backend.common.keras_tensor import KerasTensor
+from keras.src.backend.common.stateless_scope import StatelessScope
+from keras.src.backend.common.stateless_scope import get_stateless_scope
+from keras.src.backend.common.stateless_scope import in_stateless_scope
+from keras.src.backend.common.symbolic_scope import SymbolicScope
+from keras.src.backend.config import floatx
+
+SUPPORTS_SPARSE_TENSORS = False
+SUPPORTS_RAGGED_TENSORS = False
+SUPPORTS_COMPLEX_DTYPES = True
+IS_THREAD_SAFE = True
+
+DEFAULT_DEVICE = "cpu"
+
+PADDLE_DTYPES = {
+    "float16": paddle.float16,
+    "float32": paddle.float32,
+    "float64": paddle.float64,
+    "uint8": paddle.uint8,
+    "uint16": paddle.int32,  # Paddle doesn't have uint16
+    "uint32": paddle.int64,  # Paddle doesn't have uint32
+    "int8": paddle.int8,
+    "int16": paddle.int16,
+    "int32": paddle.int32,
+    "int64": paddle.int64,
+    "bfloat16": paddle.bfloat16,
+    "bool": paddle.bool,
+    "complex64": paddle.complex64,
+    "complex128": paddle.complex128,
+}
+
+
+@contextlib.contextmanager
+def device_scope(device_name):
+    previous_device = global_state.get_global_attribute("paddle_device", None)
+    current_device = _parse_device_input(device_name)
+    global_state.set_global_attribute("paddle_device", current_device)
+    try:
+        yield current_device
+    finally:
+        global_state.set_global_attribute("paddle_device", previous_device)
+
+
+def get_device():
+    device = global_state.get_global_attribute("paddle_device", None)
+    if device is None:
+        return DEFAULT_DEVICE
+    return device
+
+
+def _parse_device_input(device_name):
+    if isinstance(device_name, str):
+        device_name = device_name.lower()
+        if "gpu" in device_name:
+            device_name = device_name.replace("gpu", "gpu")
+        # Paddle uses "gpu:0", "cpu" format
+        return device_name
+    raise ValueError(
+        "Invalid value for argument `device_name`. "
+        "Expected a string like 'gpu:0' or 'cpu'. "
+        f"Received: device_name='{device_name}'"
+    )
+
+
+def to_paddle_dtype(dtype):
+    standardized_dtype = PADDLE_DTYPES.get(standardize_dtype(dtype), None)
+    if standardized_dtype is None:
+        raise ValueError(f"Unsupported dtype for Paddle: {dtype}")
+    return standardized_dtype
+
+
+class Variable(KerasVariable):
+    def _initialize(self, value):
+        if isinstance(value, paddle.Tensor) and not value.stop_gradient:
+            self._value = value
+        else:
+            self._value = convert_to_tensor(value, dtype=self._dtype)
+            self._value.stop_gradient = not self.trainable
+
+    def _direct_assign(self, value):
+        self._value.set_value(value)
+
+    def _convert_to_tensor(self, value, dtype=None):
+        return convert_to_tensor(value, dtype=dtype)
+
+    def __array__(self, dtype=None):
+        value = convert_to_numpy(self.value)
+        if dtype:
+            return value.astype(dtype)
+        return value
+
+    @property
+    def value(self):
+        def maybe_use_symbolic_tensor(value):
+            return value
+
+        if in_stateless_scope():
+            scope = get_stateless_scope()
+            value = scope.get_current_value(self)
+            if value is not None:
+                value = self._maybe_autocast(value)
+                return maybe_use_symbolic_tensor(value)
+        if self._value is None:
+            value = self._maybe_autocast(
+                self._initializer(self._shape, dtype=self._dtype)
+            )
+        else:
+            value = self._maybe_autocast(self._value)
+        return maybe_use_symbolic_tensor(value)
+
+    @property
+    def trainable(self):
+        return self._trainable
+
+    @trainable.setter
+    def trainable(self, value):
+        self._trainable = value
+        if self._value is not None:
+            self._value.stop_gradient = not value
+
+
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+    if sparse:
+        raise ValueError("`sparse=True` is not supported with paddle backend")
+    if ragged:
+        raise ValueError("`ragged=True` is not supported with paddle backend")
+    if isinstance(x, Variable) or is_tensor(x):
+        if isinstance(x, Variable):
+            x = x.value
+        if dtype is not None:
+            x = x.cast(to_paddle_dtype(dtype))
+        return x
+    if isinstance(x, (bool, int, float, complex)):
+        if dtype is not None:
+            dt = to_paddle_dtype(dtype)
+        elif isinstance(x, bool):
+            dt = paddle.bool
+        elif isinstance(x, int):
+            dt = paddle.int64 if x < -(2**31) or x >= 2**31 else paddle.int32
+        elif isinstance(x, float):
+            dt = to_paddle_dtype(floatx())
+        else:
+            dt = paddle.complex64
+        return paddle.to_tensor(x, dtype=dt)
+
+    # Convert to np in case of any array-like that is not list or tuple.
+    if isinstance(x, (list, tuple)):
+        if len(x) > 0 and any(isinstance(x1, paddle.Tensor) for x1 in x):
+            return paddle.stack([convert_to_tensor(x1) for x1 in x])
+    elif not isinstance(x, (bool, int, float)):
+        x = np.array(x)
+    if isinstance(x, np.ndarray):
+        if x.dtype == np.uint32:
+            x = x.astype(np.int64)
+        if standardize_dtype(x.dtype) == "bfloat16":
+            x = x.astype(np.float32)
+            dtype = "bfloat16"
+        dtype = dtype or x.dtype
+    if dtype is None:
+        dtype = result_type(
+            *[getattr(item, "dtype", type(item)) for item in tree.flatten(x)]
+        )
+    dtype = to_paddle_dtype(dtype)
+    return paddle.to_tensor(x, dtype=dtype)
+
+
+def convert_to_numpy(x):
+    def transform(x):
+        if is_tensor(x):
+            if not x.stop_gradient:
+                x = x.detach()
+            if x.dtype == paddle.bfloat16:
+                return np.array(x.cast(paddle.float32)).astype(ml_dtypes.bfloat16)
+        return np.array(x)
+
+    if isinstance(x, (list, tuple)):
+        return np.array([transform(e) for e in x])
+    return transform(x)
+
+
+def is_tensor(x):
+    return isinstance(x, paddle.Tensor)
+
+
+def shape(x):
+    return tuple(x.shape)
+
+
+def cast(x, dtype):
+    dtype = to_paddle_dtype(dtype)
+    if isinstance(x, Variable):
+        x = x.value
+    if is_tensor(x):
+        if x.dtype == dtype:
+            return x
+        return x.cast(dtype)
+    return convert_to_tensor(x, dtype)
+
+
+def compute_output_spec(fn, *args, **kwargs):
+    def has_none_shape(x):
+        if isinstance(x, KerasTensor):
+            return None in x.shape
+        return False
+
+    def convert_keras_tensor_to_paddle(x, fill_value=None):
+        if isinstance(x, KerasTensor):
+            out_shape = list(x.shape)
+            if fill_value:
+                for i, e in enumerate(out_shape):
+                    if e is None:
+                        out_shape[i] = fill_value
+            return paddle.ones(
+                shape=out_shape,
+                dtype=to_paddle_dtype(x.dtype),
+            )
+        return x
+
+    def convert_paddle_to_keras_tensor(x):
+        if is_tensor(x):
+            return KerasTensor(x.shape, standardize_dtype(x.dtype))
+        return x
+
+    def symbolic_call(fn, args, kwargs, fill_value):
+        eager_args, eager_kwargs = tree.map_structure(
+            lambda x: convert_keras_tensor_to_paddle(x, fill_value),
+            (args, kwargs),
+        )
+        return fn(*eager_args, **eager_kwargs)
+
+    with StatelessScope(), SymbolicScope(), paddle.no_grad():
+        outputs = symbolic_call(fn, args, kwargs, fill_value=83)
+
+        none_in_shape = any(
+            builtins.map(has_none_shape, tree.flatten((args, kwargs)))
+        )
+        if none_in_shape:
+            outputs_1 = outputs
+            outputs_2 = symbolic_call(fn, args, kwargs, fill_value=89)
+
+            flat_out_1 = tree.flatten(outputs_1)
+            flat_out_2 = tree.flatten(outputs_2)
+
+            flat_out = []
+            for x1, x2 in zip(flat_out_1, flat_out_2):
+                out_shape = list(x1.shape)
+                for i, e in enumerate(x2.shape):
+                    if e != out_shape[i]:
+                        out_shape[i] = None
+                flat_out.append(KerasTensor(out_shape, standardize_dtype(x1.dtype)))
+            outputs = tree.pack_sequence_as(outputs_1, flat_out)
+
+        output_spec = tree.map_structure(convert_paddle_to_keras_tensor, outputs)
+    return output_spec
+
+
+def cond(pred, true_fn, false_fn):
+    if pred:
+        return true_fn()
+    return false_fn()
+
+
+def vectorized_map(function, elements):
+    raise NotImplementedError(
+        "`vectorized_map` is not supported with paddle backend"
+    )
+
+
+def map(f, xs):
+    def g(_, x):
+        return (), f(x)
+
+    _, ys = scan(g, (), xs)
+    return ys
+
+
+def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
+    if not callable(f):
+        raise TypeError(f"`f` should be a callable. Received: f={f}")
+    if not isinstance(unroll, bool):
+        if not isinstance(unroll, int) or unroll < 1:
+            raise ValueError(
+                "`unroll` must be an positive integer or boolean. "
+                f"Received: unroll={unroll}"
+            )
+    if xs is None and length is None:
+        raise ValueError("Got no `xs` to scan over and `length` not provided.")
+
+    input_is_sequence = tree.is_nested(xs)
+    output_is_sequence = tree.is_nested(init)
+
+    def pack_input(x):
+        return tree.pack_sequence_as(xs, x) if input_is_sequence else x[0]
+
+    def pack_output(x):
+        return tree.pack_sequence_as(init, x) if output_is_sequence else x[0]
+
+    if xs is None:
+        xs_flat = []
+        n = int(length)
+    else:
+        xs_flat = tree.flatten(xs)
+        xs_flat = [convert_to_tensor(elem) for elem in xs_flat]
+        n = int(length) if length is not None else shape(xs_flat[0])[0]
+
+    init_flat = tree.flatten(init)
+    init_flat = [convert_to_tensor(i) for i in init_flat]
+    init = pack_output(init_flat)
+    dummy_y = [paddle.zeros_like(i) for i in init_flat]
+
+    carry = init
+    ys = []
+    maybe_reversed = reversed if reverse else lambda x: x
+    for i in maybe_reversed(range(n)):
+        xs_slice = [x[i] for x in xs_flat]
+        packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
+        carry, y = f(carry, packed_xs)
+        ys.append(y if y is not None else dummy_y)
+    stacked_y = tree.map_structure(
+        lambda *ys: paddle.stack(ys), *maybe_reversed(ys)
+    )
+    return carry, stacked_y
+
+
+def associative_scan(f, elems, reverse=False, axis=0):
+    raise NotImplementedError(
+        "`associative_scan` is not supported with paddle backend"
+    )
+
+
+def scatter(indices, values, shape):
+    indices = convert_to_tensor(indices)
+    values = convert_to_tensor(values)
+    zeros = paddle.zeros(shape, dtype=values.dtype)
+
+    index_length = indices.shape[-1]
+    value_shape = shape[index_length:]
+    indices = paddle.reshape(indices, [-1, index_length])
+    values = paddle.reshape(values, [-1] + list(value_shape))
+
+    for i in range(indices.shape[0]):
+        index = indices[i]
+        zeros[tuple(index)] += values[i]
+    return zeros
+
+
+def scatter_update(inputs, indices, updates, reduction=None):
+    inputs = convert_to_tensor(inputs)
+    indices = convert_to_tensor(indices, dtype="int64")
+    updates = convert_to_tensor(updates, dtype=inputs.dtype)
+    indices = paddle.transpose(indices, [1, 0])
+    idx = tuple(indices)
+
+    outputs = inputs.clone()
+    if reduction is None:
+        outputs[idx] = updates
+    elif reduction == "add":
+        outputs = paddle.put_along_axis(outputs, indices.T, updates, axis=0)
+    elif reduction == "max":
+        indices_t = indices.T
+        for i in range(indices_t.shape[0]):
+            idx = tuple(indices_t[i])
+            outputs[idx] = paddle.maximum(outputs[idx], updates[i])
+    elif reduction == "min":
+        indices_t = indices.T
+        for i in range(indices_t.shape[0]):
+            idx = tuple(indices_t[i])
+            outputs[idx] = paddle.minimum(outputs[idx], updates[i])
+    elif reduction == "mul":
+        indices_t = indices.T
+        for i in range(indices_t.shape[0]):
+            idx = tuple(indices_t[i])
+            outputs[idx] = outputs[idx] * updates[i]
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
+    return outputs
+
+
+def slice(inputs, start_indices, shape):
+    inputs = convert_to_tensor(inputs)
+    if isinstance(start_indices, (list, tuple)) and isinstance(
+        shape, (list, tuple)
+    ):
+        if all(isinstance(s, int) for s in start_indices) and all(
+            isinstance(s, int) for s in shape
+        ):
+            slices = [
+                builtins.slice(start_index, start_index + length)
+                for start_index, length in zip(start_indices, shape)
+            ]
+            return inputs[tuple(slices)]
+
+    shape_dtype = paddle.int64
+    start_indices = convert_to_tensor(start_indices).cast(shape_dtype)
+    shape = convert_to_tensor(shape).cast(shape_dtype)
+    result = inputs
+    for dim in range(start_indices.shape[0]):
+        result = paddle.slice(
+            result,
+            axes=[dim],
+            starts=[start_indices[dim].item()],
+            ends=[start_indices[dim].item() + shape[dim].item()],
+        )
+    return result
+
+
+def slice_update(inputs, start_indices, updates):
+    inputs = convert_to_tensor(inputs)
+    updates = convert_to_tensor(updates)
+
+    if isinstance(start_indices, (list, tuple)) and all(
+        isinstance(s, int) for s in start_indices
+    ):
+        slices = [
+            builtins.slice(start_index, start_index + update_length)
+            for start_index, update_length in zip(start_indices, updates.shape)
+        ]
+        outputs = inputs.clone()
+        outputs[tuple(slices)] = updates
+        return outputs
+
+    start_indices = convert_to_tensor(start_indices, dtype="int64")
+    outputs = inputs.clone()
+    update_shape = list(updates.shape)
+    dims = len(update_shape)
+    indices_list = []
+    for dim in range(dims):
+        dim_indices = paddle.arange(
+            update_shape[dim],
+            dtype=start_indices.dtype,
+        )
+        dim_indices = dim_indices + start_indices[dim]
+        indices_list.append(dim_indices)
+
+    grids = paddle.meshgrid(*indices_list)
+    flat_indices = [g.flatten() for g in grids]
+    outputs[tuple(flat_indices)] = updates.flatten()
+    return outputs
+
+
+def switch(index, branches, *operands):
+    index = convert_to_tensor(index, "int32")
+    index = paddle.clip(index, 0, len(branches) - 1)
+    return branches[index](*operands)
+
+
+def while_loop(
+    cond,
+    body,
+    loop_vars,
+    maximum_iterations=None,
+):
+    current_iter = 0
+    iteration_check = lambda iter: (
+        maximum_iterations is None or iter < maximum_iterations
+    )
+    is_tuple = isinstance(loop_vars, (tuple, list))
+    loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
+    loop_vars = tree.map_structure(convert_to_tensor, loop_vars)
+    while cond(*loop_vars) and iteration_check(current_iter):
+        loop_vars = body(*loop_vars)
+        if not isinstance(loop_vars, (list, tuple)):
+            loop_vars = (loop_vars,)
+        loop_vars = tuple(loop_vars)
+        current_iter += 1
+    return loop_vars if is_tuple else loop_vars[0]
+
+
+def fori_loop(lower, upper, body_fun, init_val):
+    val = init_val
+    for i in range(lower, upper):
+        val = body_fun(i, val)
+    return val
+
+
+def stop_gradient(variable):
+    if isinstance(variable, Variable):
+        variable = variable.value
+    return variable.detach()
+
+
+def unstack(x, num=None, axis=0):
+    return paddle.unbind(x, axis)
+
+
+def random_seed_dtype():
+    return "int32"
+
+
+def remat(f):
+    """Implementation of rematerialization.
+
+    Args:
+        f: The function or operation to rematerialize.
+    Returns:
+        A function wrapping f that recomputes f on the backwards pass.
+    """
+    return f
