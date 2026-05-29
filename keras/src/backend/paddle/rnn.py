@@ -496,7 +496,10 @@ def _fallback_gru(
             x_z, x_r, x_h = paddle.split(x_proj[t] + bias[0], 3, axis=1)
             h_z, h_r, h_h = paddle.split(h_proj + bias[1], 3, axis=1)
         else:
-            x_z, x_r, x_h = paddle.split(x_proj[t], 3, axis=1)
+            x_input = x_proj[t]
+            if bias is not None:
+                x_input = x_input + bias
+            x_z, x_r, x_h = paddle.split(x_input, 3, axis=1)
             h_z, h_r, h_h = paddle.split(h_proj, 3, axis=1)
 
         z = recurrent_activation(x_z + h_z)

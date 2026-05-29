@@ -3,6 +3,7 @@ import builtins
 import numpy as np
 import paddle
 
+from keras.src.backend.common import standardize_dtype
 from keras.src.backend.paddle.core import convert_to_tensor
 from keras.src.backend.paddle.core import shape
 from keras.src.backend.paddle.core import to_paddle_dtype
@@ -268,10 +269,10 @@ def pad(x, pad_width, mode="constant", constant_values=0):
             pad_list.extend([left, right])
         return paddle.nn.functional.pad(x, pad_list, mode="reflect")
     elif mode == "symmetric":
-        pad_list = []
-        for left, right in reversed(pad_width):
-            pad_list.extend([left, right])
-        return paddle.nn.functional.pad(x, pad_list, mode="replicate")
+        raise NotImplementedError(
+            "Paddle backend does not support symmetric padding mode. "
+            "Supported modes: 'constant', 'reflect', 'edge'."
+        )
     elif mode == "edge":
         pad_list = []
         for left, right in reversed(pad_width):
@@ -430,19 +431,16 @@ def meshgrid(*x, indexing="xy"):
 def histogram(x, bins=10):
     x = convert_to_tensor(x)
     if isinstance(bins, int):
-        min_val = paddle.min(x)
-        max_val = paddle.max(x)
-        bin_edges = paddle.linspace(min_val, max_val, bins + 1)
+        min_val = paddle.min(x).item()
+        max_val = paddle.max(x).item()
     else:
         bin_edges = convert_to_tensor(bins)
         bins = len(bin_edges) - 1
-    hist = paddle.zeros([bins], dtype="int64")
-    for i in range(bins):
-        mask = (x >= bin_edges[i]) & (x < bin_edges[i + 1])
-        if i == bins - 1:
-            mask = mask | (x == bin_edges[i + 1])
-        hist[i] = paddle.sum(mask.cast("int64"))
-    return hist, bin_edges
+        min_val = bin_edges[0].item()
+        max_val = bin_edges[-1].item()
+    hist = paddle.histogram(x, bins=bins, min=min_val, max=max_val)
+    bin_edges = paddle.linspace(min_val, max_val, bins + 1)
+    return hist.cast("int64"), bin_edges
 
 
 def tile(x, repeats):
@@ -1052,7 +1050,7 @@ def quantile(x, q, axis=None, keepdims=False):
     else:
         q = convert_to_tensor([q], "float32")
     if axis is None:
-        n = int(np.prod(sorted_x.shape))
+        n = int(sorted_x.numel())
         indices = q * (n - 1)
         lower = indices.cast("int64")
         upper = paddle.minimum(
@@ -1184,7 +1182,7 @@ def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     # Approximate nextafter using bit manipulation
-    eps = paddle.finfo(x1.dtype).eps
+    eps = np.finfo(standardize_dtype(x1.dtype)).eps
     direction = paddle.sign(x2 - x1)
     return x1 + direction * eps
 

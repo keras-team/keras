@@ -131,7 +131,8 @@ def _overlap_sequences(x, sequence_stride):
             f"Received: sequence_stride={sequence_stride}, "
             f"x.shape[-1]={sequence_length}, x.shape[-2]={num_sequences}"
         )
-    flat_batchsize = -1 if None in batch_shape else math.prod(batch_shape)
+    any_dynamic = any(not isinstance(d, int) for d in batch_shape)
+    flat_batchsize = -1 if any_dynamic else math.prod(batch_shape)
     x = paddle.reshape(x, (flat_batchsize, num_sequences, sequence_length))
     output_size = sequence_stride * (num_sequences - 1) + sequence_length
     nstep_per_segment = 1 + (sequence_length - 1) // sequence_stride
@@ -253,7 +254,8 @@ def stft(
     *batch_shape, samples = x.shape
     if len(x.shape) > 2:
         need_unpack = True
-        flat_batchsize = -1 if None in batch_shape else math.prod(batch_shape)
+        any_dynamic = any(not isinstance(d, int) for d in batch_shape)
+        flat_batchsize = -1 if any_dynamic else math.prod(batch_shape)
         x = paddle.reshape(x, (flat_batchsize, samples))
 
     x = paddle.signal.stft(

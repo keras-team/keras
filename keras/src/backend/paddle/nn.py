@@ -317,9 +317,15 @@ def depthwise_conv(
     # Paddle depthwise: [in_channels * depth_multiplier, 1, *kernel_size]
     perm = [num_spatial, num_spatial + 1] + list(range(num_spatial))
     kernel = paddle.transpose(kernel, perm)
-    kernel = paddle.reshape(
-        kernel, [kernel.shape[0] * kernel.shape[1], 1] + list(kernel.shape[2:])
+    kernel_shape = paddle.shape(kernel)
+    new_kernel_shape = paddle.concat(
+        [
+            (kernel_shape[0] * kernel_shape[1]).reshape([1]),
+            paddle.to_tensor([1], dtype="int32"),
+            kernel_shape[2:],
+        ]
     )
+    kernel = paddle.reshape(kernel, new_kernel_shape)
 
     in_channels = inputs.shape[1]
     groups = in_channels
@@ -659,7 +665,8 @@ def ctc_decode(
             invalid_mask, paddle.to_tensor(-1, dtype="int32"), indices
         )
 
-        order = paddle.arange(max_length).unsqueeze(0).tile([batch_size, 1])
+        order = paddle.arange(max_length).unsqueeze(0)
+        order = paddle.broadcast_to(order, [batch_size, max_length])
         order = paddle.where(
             invalid_mask, paddle.to_tensor(max_length, dtype="int32"), order
         )
@@ -717,7 +724,9 @@ def dot_product_attention(
 
     if is_causal:
         seq_len = paddle.shape(query)[-2]
-        causal_mask = paddle.tril(paddle.ones([seq_len, seq_len], dtype="bool"))
+        causal_mask = paddle.tril(
+            paddle.ones([seq_len, seq_len], dtype="int32")
+        ).cast("bool")
         scores = paddle.where(
             causal_mask, scores, paddle.full_like(scores, float("-inf"))
         )

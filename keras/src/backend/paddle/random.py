@@ -17,7 +17,7 @@ def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if seed is not None:
         seed_val = draw_seed(seed)
         if isinstance(seed_val, paddle.Tensor):
-            seed_val = int(convert_to_numpy(seed_val))
+            seed_val = int(convert_to_numpy(seed_val).flat[0])
         paddle.seed(seed_val)
     return paddle.normal(mean=mean, std=stddev, shape=shape).cast(paddle_dtype)
 
@@ -28,7 +28,7 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     if seed is not None:
         seed_val = draw_seed(seed)
         if isinstance(seed_val, paddle.Tensor):
-            seed_val = int(convert_to_numpy(seed_val))
+            seed_val = int(convert_to_numpy(seed_val).flat[0])
         paddle.seed(seed_val)
     return paddle.uniform(shape=shape, min=minval, max=maxval).cast(
         paddle_dtype
@@ -51,7 +51,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if seed is not None:
         seed_val = draw_seed(seed)
         if isinstance(seed_val, paddle.Tensor):
-            seed_val = int(convert_to_numpy(seed_val))
+            seed_val = int(convert_to_numpy(seed_val).flat[0])
         paddle.seed(seed_val)
     return paddle.truncated_normal(shape=shape, mean=mean, std=stddev).cast(
         paddle_dtype
@@ -64,6 +64,11 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     inputs = convert_to_tensor(inputs)
     if noise_shape is None:
         noise_shape = paddle.shape(inputs)
+    if seed is not None:
+        seed_val = draw_seed(seed)
+        if isinstance(seed_val, paddle.Tensor):
+            seed_val = int(convert_to_numpy(seed_val).flat[0])
+        paddle.seed(seed_val)
     keep_mask = paddle.bernoulli(
         paddle.full(noise_shape, 1.0 - rate, dtype="float32")
     )
