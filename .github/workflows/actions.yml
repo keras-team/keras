@@ -69,8 +69,22 @@ jobs:
           pip install -r requirements.txt
           if [ "${{ matrix.backend }}" == "paddle" ]; then
             pip install -r requirements-paddle.txt
+            echo "Verifying paddle installation..."
+            python -c "import paddle; print(f'Paddle version: {paddle.__version__}')" || echo "WARNING: paddle import failed"
           fi
           pip install --no-deps tf_keras
+
+      - name: Verify backend import
+        if: ${{ matrix.backend == 'paddle' }}
+        run: |
+          echo "KERAS_HOME=${KERAS_HOME}"
+          python -c "
+          try:
+              from keras.src.backend.paddle import core
+              print('Paddle backend core imported successfully')
+          except Exception as e:
+              print(f'Paddle backend import failed: {type(e).__name__}: {e}')
+          " || true
 
       - name: Run Tests for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
