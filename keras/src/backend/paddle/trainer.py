@@ -6,8 +6,6 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend.paddle.core import convert_to_numpy
-from keras.src.backend.paddle.core import convert_to_tensor
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils

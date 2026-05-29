@@ -5,7 +5,6 @@ import paddle
 
 from keras.src.backend import standardize_dtype
 from keras.src.backend.paddle.core import convert_to_tensor
-from keras.src.backend.paddle.core import is_tensor
 
 
 def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
@@ -19,10 +18,16 @@ def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
         num_segments = int(paddle.max(segment_ids).item()) + 1
 
     # Replace out-of-bound indices with num_segments (extra dim)
-    segment_ids = paddle.where(segment_ids >= 0, segment_ids,
-                               paddle.full_like(segment_ids, num_segments))
-    segment_ids = paddle.where(segment_ids < num_segments, segment_ids,
-                               paddle.full_like(segment_ids, num_segments))
+    segment_ids = paddle.where(
+        segment_ids >= 0,
+        segment_ids,
+        paddle.full_like(segment_ids, num_segments),
+    )
+    segment_ids = paddle.where(
+        segment_ids < num_segments,
+        segment_ids,
+        paddle.full_like(segment_ids, num_segments),
+    )
 
     shape = (num_segments + 1,) + tuple(data.shape[1:])
 
@@ -195,7 +200,9 @@ def rfft(x, fft_length=None):
 
 def irfft(x, fft_length=None):
     complex_input = _get_complex_tensor_from_tuple(x)
-    return paddle.fft.irfft(complex_input, n=fft_length, axis=-1, norm="backward")
+    return paddle.fft.irfft(
+        complex_input, n=fft_length, axis=-1, norm="backward"
+    )
 
 
 def stft(
@@ -217,11 +224,13 @@ def stft(
     if window is not None:
         if isinstance(window, str):
             if window == "hann":
-                win = paddle.signal.get_window("hann", sequence_length,
-                                               dtype=x.dtype)
+                win = paddle.signal.get_window(
+                    "hann", sequence_length, dtype=x.dtype
+                )
             elif window == "hamming":
-                win = paddle.signal.get_window("hamming", sequence_length,
-                                               dtype=x.dtype)
+                win = paddle.signal.get_window(
+                    "hamming", sequence_length, dtype=x.dtype
+                )
             else:
                 raise ValueError(
                     "If a string is passed to `window`, it must be one of "
@@ -276,11 +285,13 @@ def istft(
     if window is not None:
         if isinstance(window, str):
             if window == "hann":
-                win = paddle.signal.get_window("hann", sequence_length,
-                                               dtype=dtype)
+                win = paddle.signal.get_window(
+                    "hann", sequence_length, dtype=dtype
+                )
             elif window == "hamming":
-                win = paddle.signal.get_window("hamming", sequence_length,
-                                               dtype=dtype)
+                win = paddle.signal.get_window(
+                    "hamming", sequence_length, dtype=dtype
+                )
             else:
                 raise ValueError(
                     "If a string is passed to `window`, it must be one of "
@@ -328,12 +339,15 @@ def istft(
         l_pad = (fft_length - sequence_length) // 2
         r_pad = fft_length - sequence_length - l_pad
         from keras.src.backend.paddle.numpy import pad as _pad
+
         win = _pad(win, [[l_pad, r_pad]], "constant")
 
         _sequence_length = sequence_length + l_pad + r_pad
         denom = paddle.square(win)
         overlaps = -(-_sequence_length // sequence_stride)
-        denom = _pad(denom, [[0, overlaps * sequence_stride - _sequence_length]])
+        denom = _pad(
+            denom, [[0, overlaps * sequence_stride - _sequence_length]]
+        )
         denom = paddle.reshape(denom, [overlaps, sequence_stride])
         denom = paddle.sum(denom, 0, keepdim=True)
         denom = paddle.tile(denom, [overlaps, 1])

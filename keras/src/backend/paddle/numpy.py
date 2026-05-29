@@ -1,10 +1,7 @@
 import numpy as np
 import paddle
 
-from keras.src.backend.paddle.core import PADDLE_DTYPES
-from keras.src.backend.paddle.core import convert_to_numpy
 from keras.src.backend.paddle.core import convert_to_tensor
-from keras.src.backend.paddle.core import is_tensor
 from keras.src.backend.paddle.core import shape
 from keras.src.backend.paddle.core import to_paddle_dtype
 
@@ -465,7 +462,7 @@ def take(x, indices, axis=None):
     indices_flat = indices.flatten().unsqueeze(1)
     result = paddle.gather(x, indices_flat, axis=axis)
     # Restore the original index shape in the result
-    new_shape = list(orig_shape) + list(x.shape[axis+1:])
+    new_shape = list(orig_shape) + list(x.shape[axis + 1 :])
     return paddle.reshape(result, new_shape)
 
 
@@ -503,7 +500,9 @@ def block_diag(inputs):
             if i == j:
                 row.append(x)
             else:
-                row.append(paddle.zeros([x.shape[0], y.shape[1]], dtype=x.dtype))
+                row.append(
+                    paddle.zeros([x.shape[0], y.shape[1]], dtype=x.dtype)
+                )
         rows.append(paddle.concat(row, axis=1))
     return paddle.concat(rows, axis=0)
 
@@ -529,11 +528,15 @@ def angle(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    return paddle.isclose(convert_to_tensor(x1), convert_to_tensor(x2), rtol=rtol, atol=atol)
+    return paddle.isclose(
+        convert_to_tensor(x1), convert_to_tensor(x2), rtol=rtol, atol=atol
+    )
 
 
 def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    return paddle.allclose(convert_to_tensor(x1), convert_to_tensor(x2), rtol=rtol, atol=atol)
+    return paddle.allclose(
+        convert_to_tensor(x1), convert_to_tensor(x2), rtol=rtol, atol=atol
+    )
 
 
 def equal(x1, x2):
@@ -636,7 +639,9 @@ def binary_crossentropy(target, output, from_logits=False):
     output = convert_to_tensor(output)
     if from_logits:
         output = paddle.nn.functional.sigmoid(output)
-    return -target * paddle.log(output + 1e-7) - (1 - target) * paddle.log(1 - output + 1e-7)
+    return -target * paddle.log(output + 1e-7) - (1 - target) * paddle.log(
+        1 - output + 1e-7
+    )
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -644,7 +649,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = convert_to_tensor(output)
     if from_logits:
         output = paddle.nn.functional.softmax(output, axis=axis)
-    return -paddle.log(paddle.gather(output, target, axis=axis).squeeze() + 1e-7)
+    return -paddle.log(
+        paddle.gather(output, target, axis=axis).squeeze() + 1e-7
+    )
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
@@ -655,7 +662,14 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     return -paddle.sum(target * paddle.log(output + 1e-7), axis=axis)
 
 
-def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+def conv(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     ndim = len(inputs.shape) - 2
@@ -673,22 +687,39 @@ def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_
     if ndim == 2:
         inputs = paddle.transpose(inputs, [0, 3, 1, 2])
         kernel = paddle.transpose(kernel, [3, 2, 0, 1])
-        out = paddle.nn.functional.conv2d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate)
+        out = paddle.nn.functional.conv2d(
+            inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate
+        )
         return paddle.transpose(out, [0, 2, 3, 1])
     elif ndim == 1:
         inputs = paddle.transpose(inputs, [0, 2, 1])
         kernel = paddle.transpose(kernel, [2, 1, 0])
-        out = paddle.nn.functional.conv1d(inputs, kernel, stride=strides[0], padding=pad, dilation=dilation_rate[0])
+        out = paddle.nn.functional.conv1d(
+            inputs,
+            kernel,
+            stride=strides[0],
+            padding=pad,
+            dilation=dilation_rate[0],
+        )
         return paddle.transpose(out, [0, 2, 1])
     elif ndim == 3:
         inputs = paddle.transpose(inputs, [0, 4, 1, 2, 3])
         kernel = paddle.transpose(kernel, [4, 3, 0, 1, 2])
-        out = paddle.nn.functional.conv3d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate)
+        out = paddle.nn.functional.conv3d(
+            inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate
+        )
         return paddle.transpose(out, [0, 2, 3, 4, 1])
     raise ValueError(f"Convolution with ndim={ndim} not supported")
 
 
-def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+def depthwise_conv(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     if isinstance(strides, int):
@@ -704,16 +735,45 @@ def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None,
     inputs = paddle.transpose(inputs, [0, 3, 1, 2])
     kernel = paddle.transpose(kernel, [3, 2, 0, 1])
     groups = inputs.shape[1]
-    out = paddle.nn.functional.conv2d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate, groups=groups)
+    out = paddle.nn.functional.conv2d(
+        inputs,
+        kernel,
+        stride=strides,
+        padding=pad,
+        dilation=dilation_rate,
+        groups=groups,
+    )
     return paddle.transpose(out, [0, 2, 3, 1])
 
 
-def separable_conv(inputs, depthwise_kernel, pointwise_kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
-    x = depthwise_conv(inputs, depthwise_kernel, strides=strides, padding=padding, dilation_rate=dilation_rate)
+def separable_conv(
+    inputs,
+    depthwise_kernel,
+    pointwise_kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
+    x = depthwise_conv(
+        inputs,
+        depthwise_kernel,
+        strides=strides,
+        padding=padding,
+        dilation_rate=dilation_rate,
+    )
     return conv(x, pointwise_kernel, strides=1, padding="valid")
 
 
-def conv_transpose(inputs, kernel, strides, padding="valid", output_padding=None, data_format=None, dilation_rate=1):
+def conv_transpose(
+    inputs,
+    kernel,
+    strides,
+    padding="valid",
+    output_padding=None,
+    data_format=None,
+    dilation_rate=1,
+):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     ndim = len(inputs.shape) - 2
@@ -728,12 +788,16 @@ def conv_transpose(inputs, kernel, strides, padding="valid", output_padding=None
     if ndim == 2:
         inputs = paddle.transpose(inputs, [0, 3, 1, 2])
         kernel = paddle.transpose(kernel, [3, 2, 0, 1])
-        out = paddle.nn.functional.conv_transpose2d(inputs, kernel, stride=strides, padding=pad)
+        out = paddle.nn.functional.conv_transpose2d(
+            inputs, kernel, stride=strides, padding=pad
+        )
         return paddle.transpose(out, [0, 2, 3, 1])
     elif ndim == 1:
         inputs = paddle.transpose(inputs, [0, 2, 1])
         kernel = paddle.transpose(kernel, [2, 1, 0])
-        out = paddle.nn.functional.conv_transpose1d(inputs, kernel, stride=strides[0], padding=pad)
+        out = paddle.nn.functional.conv_transpose1d(
+            inputs, kernel, stride=strides[0], padding=pad
+        )
         return paddle.transpose(out, [0, 2, 1])
     raise ValueError(f"Conv transpose with ndim={ndim} not supported")
 
@@ -751,7 +815,9 @@ def avg_pool(inputs, pool_size, strides, padding="valid", data_format=None):
     else:
         pad = padding
     inputs = paddle.transpose(inputs, [0, 3, 1, 2])
-    out = paddle.nn.functional.avg_pool2d(inputs, pool_size, stride=strides, padding=pad)
+    out = paddle.nn.functional.avg_pool2d(
+        inputs, pool_size, stride=strides, padding=pad
+    )
     return paddle.transpose(out, [0, 2, 3, 1])
 
 
@@ -768,7 +834,9 @@ def max_pool(inputs, pool_size, strides, padding="valid", data_format=None):
     else:
         pad = padding
     inputs = paddle.transpose(inputs, [0, 3, 1, 2])
-    out = paddle.nn.functional.max_pool2d(inputs, pool_size, stride=strides, padding=pad)
+    out = paddle.nn.functional.max_pool2d(
+        inputs, pool_size, stride=strides, padding=pad
+    )
     return paddle.transpose(out, [0, 2, 3, 1])
 
 
@@ -791,7 +859,9 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
 
 
 def average_pool(inputs, pool_size, strides, padding="valid", data_format=None):
-    return avg_pool(inputs, pool_size, strides, padding=padding, data_format=data_format)
+    return avg_pool(
+        inputs, pool_size, strides, padding=padding, data_format=data_format
+    )
 
 
 def global_average_pool(inputs, data_format=None):
@@ -815,7 +885,9 @@ def moments(inputs, axes, keepdims=False, synchronized=False):
     return mean, variance
 
 
-def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
@@ -830,7 +902,15 @@ def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilo
     return (x - mean) / paddle.sqrt(variance + epsilon) * scale + offset
 
 
-def ctc_decode(inputs, input_lengths, strategy="greedy", beam_width=100, top_paths=1, merge_repeated=False, mask_value=-1):
+def ctc_decode(
+    inputs,
+    input_lengths,
+    strategy="greedy",
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=False,
+    mask_value=-1,
+):
     inputs = convert_to_tensor(inputs)
     input_lengths = convert_to_tensor(input_lengths)
     # Greedy decode
@@ -842,10 +922,21 @@ def psnr(x1, x2, max_val):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     mse = paddle.mean(paddle.square(x1 - x2))
-    return 10.0 * paddle.log(max_val ** 2 / mse) / paddle.log(paddle.to_tensor(10.0))
+    return (
+        10.0 * paddle.log(max_val**2 / mse) / paddle.log(paddle.to_tensor(10.0))
+    )
 
 
-def dot_product_attention(query, key, value, bias=None, mask=None, scale=None, is_causal=False, flash_attention=None):
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
@@ -858,7 +949,9 @@ def dot_product_attention(query, key, value, bias=None, mask=None, scale=None, i
         scores = scores + (1 - convert_to_tensor(mask, "float32")) * (-1e9)
     if is_causal:
         seq_len = query.shape[-2]
-        causal_mask = paddle.triu(paddle.ones([seq_len, seq_len], dtype="float32"), diagonal=1)
+        causal_mask = paddle.triu(
+            paddle.ones([seq_len, seq_len], dtype="float32"), diagonal=1
+        )
         scores = scores - causal_mask * 1e9
     weights = paddle.nn.functional.softmax(scores, axis=-1)
     return paddle.matmul(weights, value)
@@ -869,9 +962,11 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     segment_ids = convert_to_tensor(segment_ids, "int64")
     if num_segments is None:
         num_segments = int(segment_ids.max().item()) + 1
-    result = paddle.zeros([num_segments] + list(data.shape[1:]), dtype=data.dtype)
+    result = paddle.zeros(
+        [num_segments] + list(data.shape[1:]), dtype=data.dtype
+    )
     for i in range(num_segments):
-        mask = (segment_ids == i)
+        mask = segment_ids == i
         if mask.any():
             result[i] = paddle.sum(data[mask], axis=0)
     return result
@@ -882,9 +977,11 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     segment_ids = convert_to_tensor(segment_ids, "int64")
     if num_segments is None:
         num_segments = int(segment_ids.max().item()) + 1
-    result = paddle.zeros([num_segments] + list(data.shape[1:]), dtype=data.dtype)
+    result = paddle.zeros(
+        [num_segments] + list(data.shape[1:]), dtype=data.dtype
+    )
     for i in range(num_segments):
-        mask = (segment_ids == i)
+        mask = segment_ids == i
         if mask.any():
             result[i] = paddle.max(data[mask], axis=0)
     return result
@@ -892,13 +989,17 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
 
 def gamma(shape, alpha, dtype=None, seed=None):
     alpha = convert_to_tensor(alpha)
-    return paddle.distribution.gamma.Gamma(alpha, paddle.ones_like(alpha)).sample(shape)
+    return paddle.distribution.gamma.Gamma(
+        alpha, paddle.ones_like(alpha)
+    ).sample(shape)
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     counts = convert_to_tensor(counts)
     probabilities = convert_to_tensor(probabilities)
-    return paddle.distribution.binomial.Binomial(counts, probabilities).sample(shape)
+    return paddle.distribution.binomial.Binomial(counts, probabilities).sample(
+        shape
+    )
 
 
 def beta(shape, alpha, beta_param, dtype=None, seed=None):
@@ -945,7 +1046,9 @@ def trunc(x):
 
 
 def inner(a, b):
-    return paddle.dot(convert_to_tensor(a).flatten(), convert_to_tensor(b).flatten())
+    return paddle.dot(
+        convert_to_tensor(a).flatten(), convert_to_tensor(b).flatten()
+    )
 
 
 def outer(a, b):
@@ -1025,15 +1128,19 @@ def fmod(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return x1 * (2.0 ** x2)
+    return x1 * (2.0**x2)
 
 
 def left_shift(x1, x2):
-    return paddle.bitwise_left_shift(convert_to_tensor(x1), convert_to_tensor(x2))
+    return paddle.bitwise_left_shift(
+        convert_to_tensor(x1), convert_to_tensor(x2)
+    )
 
 
 def right_shift(x1, x2):
-    return paddle.bitwise_right_shift(convert_to_tensor(x1), convert_to_tensor(x2))
+    return paddle.bitwise_right_shift(
+        convert_to_tensor(x1), convert_to_tensor(x2)
+    )
 
 
 def bitwise_left_shift(x1, x2):
@@ -1056,7 +1163,11 @@ def signbit(x):
 def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return paddle.where(x1 > 0, paddle.ones_like(x1), paddle.where(x1 == 0, x2, paddle.zeros_like(x1)))
+    return paddle.where(
+        x1 > 0,
+        paddle.ones_like(x1),
+        paddle.where(x1 == 0, x2, paddle.zeros_like(x1)),
+    )
 
 
 def i0(x):
@@ -1066,7 +1177,9 @@ def i0(x):
 
 def sinc(x):
     x = convert_to_tensor(x, "float32")
-    return paddle.where(x == 0, paddle.ones_like(x), paddle.sin(np.pi * x) / (np.pi * x))
+    return paddle.where(
+        x == 0, paddle.ones_like(x), paddle.sin(np.pi * x) / (np.pi * x)
+    )
 
 
 def count_nonzero(x, axis=None):
@@ -1076,25 +1189,25 @@ def count_nonzero(x, axis=None):
 
 def nanargmax(x, axis=None):
     x = convert_to_tensor(x)
-    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('-inf')), x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float("-inf")), x)
     return paddle.argmax(x, axis=axis)
 
 
 def nanargmin(x, axis=None):
     x = convert_to_tensor(x)
-    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('inf')), x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float("inf")), x)
     return paddle.argmin(x, axis=axis)
 
 
 def nanmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('-inf')), x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float("-inf")), x)
     return paddle.max(x, axis=axis, keepdim=keepdims)
 
 
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('inf')), x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float("inf")), x)
     return paddle.min(x, axis=axis, keepdim=keepdims)
 
 
@@ -1108,7 +1221,9 @@ def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     mask = ~paddle.isnan(x)
     x = paddle.where(mask, x, paddle.zeros_like(x))
-    count = paddle.sum(paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims)
+    count = paddle.sum(
+        paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims
+    )
     return paddle.sum(x, axis=axis, keepdim=keepdims) / count
 
 
@@ -1117,7 +1232,9 @@ def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
     mask = ~paddle.isnan(x)
-    count = paddle.sum(paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims)
+    count = paddle.sum(
+        paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims
+    )
     return paddle.sum((x - m) ** 2, axis=axis, keepdim=keepdims) / count
 
 
@@ -1146,7 +1263,9 @@ def nancumprod(x, axis=None):
 def select(condlist, choicelist, default=0):
     result = paddle.full_like(convert_to_tensor(choicelist[-1]), default)
     for cond, choice in reversed(zip(condlist, choicelist)):
-        result = paddle.where(convert_to_tensor(cond), convert_to_tensor(choice), result)
+        result = paddle.where(
+            convert_to_tensor(cond), convert_to_tensor(choice), result
+        )
     return result
 
 
@@ -1182,6 +1301,7 @@ def vectorize(pyfunc, **kwargs):
     @functools.wraps(pyfunc)
     def wrapper(*args):
         return pyfunc(*args)
+
     return wrapper
 
 
@@ -1222,7 +1342,7 @@ def bincount(x, weights=None, minlength=0):
     else:
         result = paddle.zeros([n], dtype=weights.dtype)
         for i in range(n):
-            mask = (x == i)
+            mask = x == i
             if mask.any():
                 result[i] = paddle.sum(weights[mask])
     return result
@@ -1237,11 +1357,21 @@ def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     if mode == "valid":
-        return paddle.nn.functional.conv1d(x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=0)
+        return paddle.nn.functional.conv1d(
+            x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=0
+        )
     elif mode == "same":
-        return paddle.nn.functional.conv1d(x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=x2.shape[0]//2)
+        return paddle.nn.functional.conv1d(
+            x1.reshape([1, 1, -1]),
+            x2.reshape([1, 1, -1]),
+            padding=x2.shape[0] // 2,
+        )
     elif mode == "full":
-        return paddle.nn.functional.conv1d(x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=x2.shape[0]-1)
+        return paddle.nn.functional.conv1d(
+            x1.reshape([1, 1, -1]),
+            x2.reshape([1, 1, -1]),
+            padding=x2.shape[0] - 1,
+        )
     raise ValueError(f"Mode {mode} not supported")
 
 
@@ -1259,9 +1389,12 @@ def median(x, axis=None, keepdims=False):
         n = sorted_x.shape[axis]
         mid = n // 2
         if n % 2 == 0:
-            result = (paddle.slice(sorted_x, [axis], [mid-1], [mid]) + paddle.slice(sorted_x, [axis], [mid], [mid+1])) / 2.0
+            result = (
+                paddle.slice(sorted_x, [axis], [mid - 1], [mid])
+                + paddle.slice(sorted_x, [axis], [mid], [mid + 1])
+            ) / 2.0
         else:
-            result = paddle.slice(sorted_x, [axis], [mid], [mid+1])
+            result = paddle.slice(sorted_x, [axis], [mid], [mid + 1])
     if keepdims:
         if axis is not None:
             result = paddle.unsqueeze(result, axis=axis)
@@ -1279,14 +1412,18 @@ def quantile(x, q, axis=None, keepdims=False):
         n = sorted_x.numel().item()
         indices = q * (n - 1)
         lower = indices.cast("int64")
-        upper = paddle.minimum(lower + 1, paddle.to_tensor(n - 1, dtype="int64"))
+        upper = paddle.minimum(
+            lower + 1, paddle.to_tensor(n - 1, dtype="int64")
+        )
         frac = indices - lower.cast("float32")
         result = sorted_x[lower] * (1 - frac) + sorted_x[upper] * frac
     else:
         n = sorted_x.shape[axis]
         indices = q * (n - 1)
         lower = indices.cast("int64")
-        upper = paddle.minimum(lower + 1, paddle.to_tensor(n - 1, dtype="int64"))
+        upper = paddle.minimum(
+            lower + 1, paddle.to_tensor(n - 1, dtype="int64")
+        )
         frac = indices - lower.cast("float32")
         lower_vals = paddle.gather(sorted_x, lower, axis=axis)
         upper_vals = paddle.gather(sorted_x, upper, axis=axis)
@@ -1336,14 +1473,18 @@ def nanquantile(x, q, axis=None, keepdims=False):
         valid_count = paddle.sum((~mask).cast("int64")).item()
         indices = q * (valid_count - 1)
         lower = indices.cast("int64")
-        upper = paddle.minimum(lower + 1, paddle.to_tensor(valid_count - 1, dtype="int64"))
+        upper = paddle.minimum(
+            lower + 1, paddle.to_tensor(valid_count - 1, dtype="int64")
+        )
         frac = indices - lower.cast("float32")
         result = sorted_x[lower] * (1 - frac) + sorted_x[upper] * frac
     else:
         valid_count = paddle.sum((~mask).cast("int64"), axis=axis)
         indices = q * (valid_count - 1)
         lower = indices.cast("int64")
-        upper = paddle.minimum(lower + 1, paddle.to_tensor(valid_count - 1, dtype="int64"))
+        upper = paddle.minimum(
+            lower + 1, paddle.to_tensor(valid_count - 1, dtype="int64")
+        )
         frac = indices - lower.cast("float32")
         lower_vals = paddle.gather(sorted_x, lower, axis=axis)
         upper_vals = paddle.gather(sorted_x, upper, axis=axis)
@@ -1375,7 +1516,7 @@ def logaddexp2(x1, x2):
 
 def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True):
     result = linspace(start, stop, num, endpoint=endpoint)
-    return base ** result
+    return base**result
 
 
 def geomspace(start, stop, num, endpoint=True, dtype=None):
@@ -1479,7 +1620,7 @@ def vstack(xs):
 
 def diagflat(x, k=0):
     x = convert_to_tensor(x).flatten()
-    n = x.shape[0]
+    x.shape[0]
     return paddle.diag(x, offset=k)
 
 
@@ -1511,9 +1652,15 @@ def average(x, axis=None, weights=None, returned=False, keepdims=False):
         result = paddle.mean(x, axis=axis, keepdim=keepdims)
     else:
         weights = convert_to_tensor(weights)
-        result = paddle.sum(x * weights, axis=axis, keepdim=keepdims) / paddle.sum(weights, axis=axis, keepdim=keepdims)
+        result = paddle.sum(
+            x * weights, axis=axis, keepdim=keepdims
+        ) / paddle.sum(weights, axis=axis, keepdim=keepdims)
     if returned:
-        weights_sum = paddle.sum(weights if weights is not None else paddle.ones_like(x), axis=axis, keepdim=keepdims)
+        weights_sum = paddle.sum(
+            weights if weights is not None else paddle.ones_like(x),
+            axis=axis,
+            keepdim=keepdims,
+        )
         return result, weights_sum
     return result
 
@@ -1608,14 +1755,20 @@ def bartlett(M):
     if M == 1:
         return paddle.ones([1])
     n = paddle.arange(M, dtype="float32")
-    return paddle.where(n <= (M - 1) / 2.0, 2 * n / (M - 1), 2 - 2 * n / (M - 1))
+    return paddle.where(
+        n <= (M - 1) / 2.0, 2 * n / (M - 1), 2 - 2 * n / (M - 1)
+    )
 
 
 def blackman(M):
     if M < 1:
         return paddle.zeros([0])
     n = paddle.arange(M, dtype="float32")
-    return 0.42 - 0.5 * paddle.cos(2 * np.pi * n / (M - 1)) + 0.08 * paddle.cos(4 * np.pi * n / (M - 1))
+    return (
+        0.42
+        - 0.5 * paddle.cos(2 * np.pi * n / (M - 1))
+        + 0.08 * paddle.cos(4 * np.pi * n / (M - 1))
+    )
 
 
 def hamming(M):
@@ -1637,7 +1790,9 @@ def kaiser(M, beta):
         return paddle.zeros([0])
     n = paddle.arange(M, dtype="float32")
     alpha = (M - 1) / 2.0
-    return paddle.i0(beta * paddle.sqrt(1 - ((n - alpha) / alpha) ** 2)) / paddle.i0(paddle.to_tensor(beta, dtype="float32"))
+    return paddle.i0(
+        beta * paddle.sqrt(1 - ((n - alpha) / alpha) ** 2)
+    ) / paddle.i0(paddle.to_tensor(beta, dtype="float32"))
 
 
 def vander(x, N=None, increasing=False):

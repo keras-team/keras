@@ -31,7 +31,9 @@ def lu_factor(a):
 
 
 def norm(x, ord=None, axis=None, keepdims=False):
-    return paddle.linalg.norm(convert_to_tensor(x), p=ord, axis=axis, keepdim=keepdims)
+    return paddle.linalg.norm(
+        convert_to_tensor(x), p=ord, axis=axis, keepdim=keepdims
+    )
 
 
 def qr(x, mode="reduced"):
@@ -53,9 +55,9 @@ def solve_triangular(a, b, lower=False):
     b = convert_to_tensor(b)
     if b.ndim == a.ndim - 1:
         b = paddle.unsqueeze(b, axis=-1)
-        return paddle.linalg.triangular_solve(
-            b, a, upper=not lower
-        ).squeeze(axis=-1)
+        return paddle.linalg.triangular_solve(b, a, upper=not lower).squeeze(
+            axis=-1
+        )
     return paddle.linalg.triangular_solve(b, a, upper=not lower)
 
 

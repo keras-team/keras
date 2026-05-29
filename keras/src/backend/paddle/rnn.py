@@ -63,7 +63,9 @@ def rnn(
             return input_t
 
         if tree.is_nested(inputs):
-            processed_input = tree.map_structure(_process_single_input_t, inputs)
+            processed_input = tree.map_structure(
+                _process_single_input_t, inputs
+            )
         else:
             processed_input = (_process_single_input_t(inputs),)
 
@@ -98,7 +100,9 @@ def rnn(
                 )
                 flat_final_states = tuple(
                     paddle.where(m, s, ps)
-                    for m, s, ps in zip(tiled_mask_t, flat_new_states, flat_states)
+                    for m, s, ps in zip(
+                        tiled_mask_t, flat_new_states, flat_states
+                    )
                 )
                 states = tree.pack_sequence_as(states, flat_final_states)
 
@@ -205,6 +209,7 @@ def rnn(
                 def masking_fn(t):
                     return rev_input_length < t
             else:
+
                 def masking_fn(t):
                     return input_length > t
 
@@ -268,6 +273,7 @@ def rnn(
                 it += 1
 
         else:
+
             def _step(t, output_ta_t, *states):
                 current_input = tuple(ta[t] for ta in input_ta)
                 current_input = tree.pack_sequence_as(inputs, current_input)
@@ -281,7 +287,9 @@ def rnn(
                 for ta, out in zip(output_ta_t, flat_output):
                     ta[ta_index_to_write] = out
 
-                new_states = tree.pack_sequence_as(initial_states, flat_new_state)
+                new_states = tree.pack_sequence_as(
+                    initial_states, flat_new_state
+                )
                 return (t + 1, output_ta_t) + tuple(new_states)
 
             it = 0

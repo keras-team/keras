@@ -1,6 +1,5 @@
 import builtins
 import contextlib
-import functools
 
 import ml_dtypes
 import numpy as np
@@ -11,7 +10,6 @@ from keras.src import tree
 from keras.src.backend.common import KerasVariable
 from keras.src.backend.common import global_state
 from keras.src.backend.common import standardize_dtype
-from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.backend.common.dtypes import result_type
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
@@ -187,7 +185,9 @@ def convert_to_numpy(x):
             if not x.stop_gradient:
                 x = x.detach()
             if x.dtype == paddle.bfloat16:
-                return np.array(x.cast(paddle.float32)).astype(ml_dtypes.bfloat16)
+                return np.array(x.cast(paddle.float32)).astype(
+                    ml_dtypes.bfloat16
+                )
         return np.array(x)
 
     if isinstance(x, (list, tuple)):
@@ -264,10 +264,14 @@ def compute_output_spec(fn, *args, **kwargs):
                 for i, e in enumerate(x2.shape):
                     if e != out_shape[i]:
                         out_shape[i] = None
-                flat_out.append(KerasTensor(out_shape, standardize_dtype(x1.dtype)))
+                flat_out.append(
+                    KerasTensor(out_shape, standardize_dtype(x1.dtype))
+                )
             outputs = tree.pack_sequence_as(outputs_1, flat_out)
 
-        output_spec = tree.map_structure(convert_paddle_to_keras_tensor, outputs)
+        output_spec = tree.map_structure(
+            convert_paddle_to_keras_tensor, outputs
+        )
     return output_spec
 
 

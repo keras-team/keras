@@ -2,9 +2,6 @@ import paddle
 import paddle.nn.functional as F
 
 from keras.src.backend.paddle.core import convert_to_tensor
-from keras.src.backend.paddle.core import is_tensor
-from keras.src.backend.paddle.core import shape
-from keras.src.backend.paddle.core import to_paddle_dtype
 
 
 def relu(x):
@@ -95,9 +92,7 @@ def soft_shrink(x, threshold=0.5):
 
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
-    return paddle.where(
-        paddle.abs(x) > threshold, x, paddle.zeros_like(x)
-    )
+    return paddle.where(paddle.abs(x) > threshold, x, paddle.zeros_like(x))
 
 
 def tanh_shrink(x):
@@ -129,12 +124,20 @@ def squareplus(x, b=4):
 
 def sparse_plus(x):
     x = convert_to_tensor(x)
-    return paddle.where(x < -1, paddle.zeros_like(x), paddle.where(x > 1, x, 0.25 * (x + 1) ** 2))
+    return paddle.where(
+        x < -1,
+        paddle.zeros_like(x),
+        paddle.where(x > 1, x, 0.25 * (x + 1) ** 2),
+    )
 
 
 def sparse_sigmoid(x):
     x = convert_to_tensor(x)
-    return paddle.where(x < -1, paddle.zeros_like(x), paddle.where(x > 1, paddle.ones_like(x), 0.5 * x + 0.5))
+    return paddle.where(
+        x < -1,
+        paddle.zeros_like(x),
+        paddle.where(x > 1, paddle.ones_like(x), 0.5 * x + 0.5),
+    )
 
 
 def glu(x, axis=-1):
@@ -200,24 +203,42 @@ def _conv_padding(padding, kernel_size, strides, dilation_rate):
     """Compute padding values for paddle conv."""
     if isinstance(padding, str):
         if padding == "valid":
-            return [0] * len(kernel_size) if isinstance(kernel_size, (list, tuple)) else [0]
+            return (
+                [0] * len(kernel_size)
+                if isinstance(kernel_size, (list, tuple))
+                else [0]
+            )
         elif padding == "same":
             # Paddle supports "same" padding directly in some cases
             return "same"
     if isinstance(padding, int):
-        return [padding] * len(kernel_size) if isinstance(kernel_size, (list, tuple)) else [padding]
+        return (
+            [padding] * len(kernel_size)
+            if isinstance(kernel_size, (list, tuple))
+            else [padding]
+        )
     return list(padding)
 
 
-def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+def conv(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
-    dilation_rate = _standardize_tuple(dilation_rate, num_spatial, "dilation_rate")
+    dilation_rate = _standardize_tuple(
+        dilation_rate, num_spatial, "dilation_rate"
+    )
 
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     # Convert to channels_first for paddle
@@ -234,26 +255,54 @@ def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_
         pad_mode = "valid"
 
     if num_spatial == 1:
-        out = F.conv1d(inputs, kernel, stride=strides[0], padding=pad_mode, dilation=dilation_rate[0])
+        out = F.conv1d(
+            inputs,
+            kernel,
+            stride=strides[0],
+            padding=pad_mode,
+            dilation=dilation_rate[0],
+        )
     elif num_spatial == 2:
-        out = F.conv2d(inputs, kernel, stride=strides, padding=pad_mode, dilation=dilation_rate)
+        out = F.conv2d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=pad_mode,
+            dilation=dilation_rate,
+        )
     elif num_spatial == 3:
-        out = F.conv3d(inputs, kernel, stride=strides, padding=pad_mode, dilation=dilation_rate)
+        out = F.conv3d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=pad_mode,
+            dilation=dilation_rate,
+        )
     else:
         raise ValueError(f"Unsupported number of spatial dims: {num_spatial}")
 
     return _to_channels_last(out, data_format)
 
 
-def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+def depthwise_conv(
+    inputs,
+    kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
-    dilation_rate = _standardize_tuple(dilation_rate, num_spatial, "dilation_rate")
+    dilation_rate = _standardize_tuple(
+        dilation_rate, num_spatial, "dilation_rate"
+    )
 
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     inputs = _to_channels_first(inputs, data_format)
@@ -262,7 +311,9 @@ def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None,
     # Paddle depthwise: [in_channels * depth_multiplier, 1, *kernel_size]
     perm = [num_spatial, num_spatial + 1] + list(range(num_spatial))
     kernel = paddle.transpose(kernel, perm)
-    kernel = paddle.reshape(kernel, [kernel.shape[0] * kernel.shape[1], 1] + list(kernel.shape[2:]))
+    kernel = paddle.reshape(
+        kernel, [kernel.shape[0] * kernel.shape[1], 1] + list(kernel.shape[2:])
+    )
 
     in_channels = inputs.shape[1]
     groups = in_channels
@@ -273,43 +324,104 @@ def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None,
         pad_mode = "valid"
 
     if num_spatial == 1:
-        out = F.conv1d(inputs, kernel.unsqueeze(0).transpose([1,0,2]).reshape([in_channels, 1, kernel.shape[-1]]),
-                       stride=strides[0], padding=pad_mode, dilation=dilation_rate[0], groups=groups)
+        out = F.conv1d(
+            inputs,
+            kernel.unsqueeze(0)
+            .transpose([1, 0, 2])
+            .reshape([in_channels, 1, kernel.shape[-1]]),
+            stride=strides[0],
+            padding=pad_mode,
+            dilation=dilation_rate[0],
+            groups=groups,
+        )
     elif num_spatial == 2:
         # Reshape kernel to [in_channels, 1, kH, kW]
-        k_reshaped = paddle.reshape(kernel, [in_channels, 1, kernel.shape[-2], kernel.shape[-1]])
-        out = F.conv2d(inputs, k_reshaped, stride=strides, padding=pad_mode,
-                       dilation=dilation_rate, groups=groups)
+        k_reshaped = paddle.reshape(
+            kernel, [in_channels, 1, kernel.shape[-2], kernel.shape[-1]]
+        )
+        out = F.conv2d(
+            inputs,
+            k_reshaped,
+            stride=strides,
+            padding=pad_mode,
+            dilation=dilation_rate,
+            groups=groups,
+        )
     elif num_spatial == 3:
-        k_reshaped = paddle.reshape(kernel, [in_channels, 1, kernel.shape[-3], kernel.shape[-2], kernel.shape[-1]])
-        out = F.conv3d(inputs, k_reshaped, stride=strides, padding=pad_mode,
-                       dilation=dilation_rate, groups=groups)
+        k_reshaped = paddle.reshape(
+            kernel,
+            [
+                in_channels,
+                1,
+                kernel.shape[-3],
+                kernel.shape[-2],
+                kernel.shape[-1],
+            ],
+        )
+        out = F.conv3d(
+            inputs,
+            k_reshaped,
+            stride=strides,
+            padding=pad_mode,
+            dilation=dilation_rate,
+            groups=groups,
+        )
     else:
         raise ValueError(f"Unsupported number of spatial dims: {num_spatial}")
 
     return _to_channels_last(out, data_format)
 
 
-def separable_conv(inputs, depthwise_kernel, pointwise_kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+def separable_conv(
+    inputs,
+    depthwise_kernel,
+    pointwise_kernel,
+    strides=1,
+    padding="valid",
+    data_format=None,
+    dilation_rate=1,
+):
     # Depthwise convolution
-    x = depthwise_conv(inputs, depthwise_kernel, strides=strides,
-                       padding=padding, data_format=data_format,
-                       dilation_rate=dilation_rate)
+    x = depthwise_conv(
+        inputs,
+        depthwise_kernel,
+        strides=strides,
+        padding=padding,
+        data_format=data_format,
+        dilation_rate=dilation_rate,
+    )
     # Pointwise convolution (1x1)
-    x = conv(x, pointwise_kernel, strides=1, padding="valid",
-             data_format=data_format, dilation_rate=1)
+    x = conv(
+        x,
+        pointwise_kernel,
+        strides=1,
+        padding="valid",
+        data_format=data_format,
+        dilation_rate=1,
+    )
     return x
 
 
-def conv_transpose(inputs, kernel, strides, padding="valid", output_padding=None, data_format=None, dilation_rate=1):
+def conv_transpose(
+    inputs,
+    kernel,
+    strides,
+    padding="valid",
+    output_padding=None,
+    data_format=None,
+    dilation_rate=1,
+):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
-    dilation_rate = _standardize_tuple(dilation_rate, num_spatial, "dilation_rate")
+    dilation_rate = _standardize_tuple(
+        dilation_rate, num_spatial, "dilation_rate"
+    )
 
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     inputs = _to_channels_first(inputs, data_format)
@@ -325,11 +437,29 @@ def conv_transpose(inputs, kernel, strides, padding="valid", output_padding=None
         pad_mode = "valid"
 
     if num_spatial == 1:
-        out = F.conv_transpose1d(inputs, kernel, stride=strides[0], padding=pad_mode, dilation=dilation_rate[0])
+        out = F.conv_transpose1d(
+            inputs,
+            kernel,
+            stride=strides[0],
+            padding=pad_mode,
+            dilation=dilation_rate[0],
+        )
     elif num_spatial == 2:
-        out = F.conv_transpose2d(inputs, kernel, stride=strides, padding=pad_mode, dilation=dilation_rate)
+        out = F.conv_transpose2d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=pad_mode,
+            dilation=dilation_rate,
+        )
     elif num_spatial == 3:
-        out = F.conv_transpose3d(inputs, kernel, stride=strides, padding=pad_mode, dilation=dilation_rate)
+        out = F.conv_transpose3d(
+            inputs,
+            kernel,
+            stride=strides,
+            padding=pad_mode,
+            dilation=dilation_rate,
+        )
     else:
         raise ValueError(f"Unsupported number of spatial dims: {num_spatial}")
 
@@ -344,6 +474,7 @@ def _pool(inputs, pool_size, strides, padding, data_format, pool_type):
     strides = _standardize_tuple(strides, num_spatial, "strides")
 
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     inputs = _to_channels_first(inputs, data_format)
@@ -359,9 +490,16 @@ def _pool(inputs, pool_size, strides, padding, data_format, pool_type):
         pool_fn = [F.avg_pool1d, F.avg_pool2d, F.avg_pool3d][num_spatial - 1]
 
     if num_spatial == 1:
-        out = pool_fn(inputs, kernel_size=pool_size[0], stride=strides[0], padding=pad_mode)
+        out = pool_fn(
+            inputs,
+            kernel_size=pool_size[0],
+            stride=strides[0],
+            padding=pad_mode,
+        )
     else:
-        out = pool_fn(inputs, kernel_size=pool_size, stride=strides, padding=pad_mode)
+        out = pool_fn(
+            inputs, kernel_size=pool_size, stride=strides, padding=pad_mode
+        )
 
     return _to_channels_last(out, data_format)
 
@@ -383,6 +521,7 @@ def adaptive_pool(inputs, output_size, data_format, pool_type):
     num_spatial = inputs.ndim - 2
 
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     inputs = _to_channels_first(inputs, data_format)
@@ -391,9 +530,17 @@ def adaptive_pool(inputs, output_size, data_format, pool_type):
         output_size = [output_size] * num_spatial
 
     if pool_type == "max":
-        pool_fn = [F.adaptive_max_pool1d, F.adaptive_max_pool2d, F.adaptive_max_pool3d][num_spatial - 1]
+        pool_fn = [
+            F.adaptive_max_pool1d,
+            F.adaptive_max_pool2d,
+            F.adaptive_max_pool3d,
+        ][num_spatial - 1]
     else:
-        pool_fn = [F.adaptive_avg_pool1d, F.adaptive_avg_pool2d, F.adaptive_avg_pool3d][num_spatial - 1]
+        pool_fn = [
+            F.adaptive_avg_pool1d,
+            F.adaptive_avg_pool2d,
+            F.adaptive_avg_pool3d,
+        ][num_spatial - 1]
 
     if num_spatial == 1:
         out = pool_fn(inputs, output_size=output_size[0])
@@ -419,6 +566,7 @@ def global_average_pool(inputs, data_format=None):
     inputs = convert_to_tensor(inputs)
 
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     if data_format == "channels_last":
@@ -435,6 +583,7 @@ def global_max_pool(inputs, data_format=None):
     inputs = convert_to_tensor(inputs)
 
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     if data_format == "channels_last":
@@ -452,7 +601,9 @@ def moments(inputs, axes, keepdims=False, synchronized=False):
     return mean, variance
 
 
-def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
+def batch_normalization(
+    x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3
+):
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
@@ -464,7 +615,15 @@ def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilo
     return x_norm
 
 
-def ctc_decode(inputs, input_lengths, strategy="greedy", beam_width=100, top_paths=1, merge_repeated=False, mask_value=-1):
+def ctc_decode(
+    inputs,
+    input_lengths,
+    strategy="greedy",
+    beam_width=100,
+    top_paths=1,
+    merge_repeated=False,
+    mask_value=-1,
+):
     inputs = convert_to_tensor(inputs)
     input_lengths = convert_to_tensor(input_lengths, dtype="int32")
     batch_size, max_length, num_classes = inputs.shape
@@ -477,19 +636,31 @@ def ctc_decode(inputs, input_lengths, strategy="greedy", beam_width=100, top_pat
         seqlen_mask = seqlen_mask >= input_lengths.unsqueeze(1)
 
         blank_idx = num_classes - 1 if mask_value == -1 else mask_value
-        indices = paddle.where(seqlen_mask, paddle.to_tensor(blank_idx, dtype="int32"), indices)
+        indices = paddle.where(
+            seqlen_mask, paddle.to_tensor(blank_idx, dtype="int32"), indices
+        )
         scores = paddle.where(seqlen_mask, paddle.zeros_like(scores), scores)
 
         if merge_repeated:
             repeat = indices[:, 1:] == indices[:, :-1]
-            repeat = F.pad(repeat.unsqueeze(0).cast("float32"), [1, 0, 0, 0]).squeeze(0).cast("bool")
-            indices = paddle.where(repeat, paddle.to_tensor(blank_idx, dtype="int32"), indices)
+            repeat = (
+                F.pad(repeat.unsqueeze(0).cast("float32"), [1, 0, 0, 0])
+                .squeeze(0)
+                .cast("bool")
+            )
+            indices = paddle.where(
+                repeat, paddle.to_tensor(blank_idx, dtype="int32"), indices
+            )
 
         invalid_mask = indices == blank_idx
-        indices = paddle.where(invalid_mask, paddle.to_tensor(-1, dtype="int32"), indices)
+        indices = paddle.where(
+            invalid_mask, paddle.to_tensor(-1, dtype="int32"), indices
+        )
 
         order = paddle.arange(max_length).unsqueeze(0).tile([batch_size, 1])
-        order = paddle.where(invalid_mask, paddle.to_tensor(max_length, dtype="int32"), order)
+        order = paddle.where(
+            invalid_mask, paddle.to_tensor(max_length, dtype="int32"), order
+        )
         order = paddle.argsort(order, axis=-1)
         indices = paddle.take_along_axis(indices, order, axis=-1)
 
@@ -505,10 +676,24 @@ def psnr(x1, x2, max_val):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     mse = paddle.mean((x1 - x2) ** 2)
-    return 10.0 * paddle.log(max_val ** 2 / (mse + 1e-10)) / paddle.log(paddle.to_tensor(10.0))
+    return (
+        10.0
+        * paddle.log(max_val**2 / (mse + 1e-10))
+        / paddle.log(paddle.to_tensor(10.0))
+    )
 
 
-def dot_product_attention(query, key, value, bias=None, mask=None, scale=None, is_causal=False, flash_attention=None, attn_logits_soft_cap=None):
+def dot_product_attention(
+    query,
+    key,
+    value,
+    bias=None,
+    mask=None,
+    scale=None,
+    is_causal=False,
+    flash_attention=None,
+    attn_logits_soft_cap=None,
+):
     query = convert_to_tensor(query)
     key = convert_to_tensor(key)
     value = convert_to_tensor(value)
@@ -519,19 +704,25 @@ def dot_product_attention(query, key, value, bias=None, mask=None, scale=None, i
     scores = paddle.matmul(query, key, transpose_y=True) * scale
 
     if attn_logits_soft_cap is not None:
-        scores = attn_logits_soft_cap * paddle.tanh(scores / attn_logits_soft_cap)
+        scores = attn_logits_soft_cap * paddle.tanh(
+            scores / attn_logits_soft_cap
+        )
 
     if bias is not None:
         scores = scores + convert_to_tensor(bias)
 
     if mask is not None:
         mask = convert_to_tensor(mask)
-        scores = paddle.where(mask == 0, paddle.full_like(scores, float('-inf')), scores)
+        scores = paddle.where(
+            mask == 0, paddle.full_like(scores, float("-inf")), scores
+        )
 
     if is_causal:
         seq_len = query.shape[-2]
         causal_mask = paddle.tril(paddle.ones([seq_len, seq_len], dtype="bool"))
-        scores = paddle.where(causal_mask, scores, paddle.full_like(scores, float('-inf')))
+        scores = paddle.where(
+            causal_mask, scores, paddle.full_like(scores, float("-inf"))
+        )
 
     weights = F.softmax(scores, axis=-1)
     return paddle.matmul(weights, value)
@@ -568,7 +759,7 @@ def ctc_loss(target, output, target_length, output_length, mask_value=0):
     output = convert_to_tensor(output, dtype="float32")
     target_length = convert_to_tensor(target_length, dtype="int64")
     output_length = convert_to_tensor(output_length, dtype="int64")
-    loss = paddle.nn.CTCLoss(blank=mask_value, reduction='none')
+    loss = paddle.nn.CTCLoss(blank=mask_value, reduction="none")
     return loss(output, target, output_length, target_length)
 
 
@@ -624,13 +815,14 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
 def depth_to_space(inputs, block_size, data_format=None):
     inputs = convert_to_tensor(inputs)
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     if data_format == "channels_last":
         inputs = paddle.transpose(inputs, [0, 3, 1, 2])
 
     b, c, h, w = inputs.shape
-    new_c = c // (block_size ** 2)
+    new_c = c // (block_size**2)
     inputs = paddle.reshape(inputs, [b, new_c, block_size, block_size, h, w])
     inputs = paddle.transpose(inputs, [0, 1, 4, 2, 5, 3])
     out = paddle.reshape(inputs, [b, new_c, h * block_size, w * block_size])
@@ -643,6 +835,7 @@ def depth_to_space(inputs, block_size, data_format=None):
 def space_to_depth(inputs, block_size, data_format=None):
     inputs = convert_to_tensor(inputs)
     from keras.src.backend.config import standardize_data_format
+
     data_format = standardize_data_format(data_format)
 
     if data_format == "channels_last":
@@ -651,8 +844,10 @@ def space_to_depth(inputs, block_size, data_format=None):
     b, c, h, w = inputs.shape
     new_h = h // block_size
     new_w = w // block_size
-    new_c = c * (block_size ** 2)
-    inputs = paddle.reshape(inputs, [b, c, new_h, block_size, new_w, block_size])
+    new_c = c * (block_size**2)
+    inputs = paddle.reshape(
+        inputs, [b, c, new_h, block_size, new_w, block_size]
+    )
     inputs = paddle.transpose(inputs, [0, 3, 5, 1, 2, 4])
     out = paddle.reshape(inputs, [b, new_c, new_h, new_w])
 

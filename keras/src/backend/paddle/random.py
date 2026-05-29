@@ -40,9 +40,7 @@ def categorical(logits, num_samples, dtype="int64", seed=None):
 
 
 def randint(shape, minval, maxval, dtype="int32", seed=None):
-    raise NotImplementedError(
-        "`randint` is not supported with paddle backend"
-    )
+    raise NotImplementedError("`randint` is not supported with paddle backend")
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -87,21 +85,15 @@ def shuffle(x, axis=0):
 
 
 def gamma(shape, alpha, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`gamma` is not supported with paddle backend"
-    )
+    raise NotImplementedError("`gamma` is not supported with paddle backend")
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`binomial` is not supported with paddle backend"
-    )
+    raise NotImplementedError("`binomial` is not supported with paddle backend")
 
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`beta` is not supported with paddle backend"
-    )
+    raise NotImplementedError("`beta` is not supported with paddle backend")
 
 
 def seed_generator():

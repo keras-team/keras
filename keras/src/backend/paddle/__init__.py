@@ -8,7 +8,7 @@ from keras.src.backend.paddle import math
 from keras.src.backend.paddle import nn
 from keras.src.backend.paddle import numpy
 from keras.src.backend.paddle import random
-from keras.src.backend.paddle import rnn
+from keras.src.backend.paddle import rnn as rnn_module
 from keras.src.backend.paddle.core import IS_THREAD_SAFE
 from keras.src.backend.paddle.core import SUPPORTS_COMPLEX_DTYPES
 from keras.src.backend.paddle.core import SUPPORTS_RAGGED_TENSORS

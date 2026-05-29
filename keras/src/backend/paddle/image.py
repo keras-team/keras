@@ -2,7 +2,6 @@ import paddle
 import paddle.nn.functional as F
 
 from keras.src.backend.paddle.core import convert_to_tensor
-from keras.src.backend.paddle.core import is_tensor
 
 
 def rgb_to_grayscale(image, data_format="channels_last"):
