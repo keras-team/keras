@@ -411,7 +411,14 @@ def take(x, indices, axis=None):
     indices = convert_to_tensor(indices, dtype="int64")
     if axis is None:
         return paddle.gather(x.flatten(), indices.flatten())
-    return paddle.gather(x, indices, axis=axis)
+    # Paddle's gather requires indices to be 1D or have last dim == 1
+    # Reshape indices to work with paddle.gather
+    orig_shape = indices.shape
+    indices_flat = indices.flatten().unsqueeze(1)
+    result = paddle.gather(x, indices_flat, axis=axis)
+    # Restore the original index shape in the result
+    new_shape = list(orig_shape) + list(x.shape[axis+1:])
+    return paddle.reshape(result, new_shape)
 
 
 def take_along_axis(x, indices, axis=None):
@@ -697,3 +704,538 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
     raise NotImplementedError(
         "`beta` is not supported with paddle backend"
     )
+
+
+# --- Additional ops needed for layers/models ---
+
+
+def matmul(x1, x2):
+    return paddle.matmul(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def copy(x):
+    return convert_to_tensor(x).clone()
+
+
+def broadcast_to(x, shape):
+    return paddle.broadcast_to(convert_to_tensor(x), shape)
+
+
+def array(x, dtype=None):
+    if dtype is not None:
+        return convert_to_tensor(x, dtype=dtype)
+    return convert_to_tensor(x)
+
+
+def ndim(x):
+    return len(convert_to_tensor(x).shape)
+
+
+def size(x):
+    return convert_to_tensor(x).size
+
+
+def ravel(x):
+    return paddle.flatten(convert_to_tensor(x))
+
+
+def trunc(x):
+    return paddle.trunc(convert_to_tensor(x))
+
+
+def inner(a, b):
+    return paddle.dot(convert_to_tensor(a).flatten(), convert_to_tensor(b).flatten())
+
+
+def outer(a, b):
+    a = convert_to_tensor(a).flatten()
+    b = convert_to_tensor(b).flatten()
+    return paddle.mm(a.unsqueeze(1), b.unsqueeze(0))
+
+
+def reciprocal(x):
+    return paddle.reciprocal(convert_to_tensor(x))
+
+
+def cos(x):
+    return paddle.cos(convert_to_tensor(x))
+
+
+def sin(x):
+    return paddle.sin(convert_to_tensor(x))
+
+
+def tan(x):
+    return paddle.tan(convert_to_tensor(x))
+
+
+def cosh(x):
+    return paddle.cosh(convert_to_tensor(x))
+
+
+def sinh(x):
+    return paddle.sinh(convert_to_tensor(x))
+
+
+def arccos(x):
+    return paddle.acos(convert_to_tensor(x))
+
+
+def arcsin(x):
+    return paddle.asin(convert_to_tensor(x))
+
+
+def arctan(x):
+    return paddle.atan(convert_to_tensor(x))
+
+
+def arctan2(x1, x2):
+    return paddle.atan2(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def arccosh(x):
+    return paddle.acosh(convert_to_tensor(x))
+
+
+def arcsinh(x):
+    return paddle.asinh(convert_to_tensor(x))
+
+
+def arctanh(x):
+    return paddle.atanh(convert_to_tensor(x))
+
+
+def deg2rad(x):
+    return paddle.deg2rad(convert_to_tensor(x))
+
+
+def rad2deg(x):
+    return paddle.rad2deg(convert_to_tensor(x))
+
+
+def hypot(x1, x2):
+    return paddle.hypot(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def fmod(x1, x2):
+    return paddle.mod(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return x1 * (2.0 ** x2)
+
+
+def left_shift(x1, x2):
+    return paddle.bitwise_left_shift(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def right_shift(x1, x2):
+    return paddle.bitwise_right_shift(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def bitwise_left_shift(x1, x2):
+    return left_shift(x1, x2)
+
+
+def bitwise_right_shift(x1, x2):
+    return right_shift(x1, x2)
+
+
+def bitwise_invert(x):
+    return paddle.bitwise_not(convert_to_tensor(x))
+
+
+def signbit(x):
+    x = convert_to_tensor(x)
+    return paddle.sign(x) < 0
+
+
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return paddle.where(x1 > 0, paddle.ones_like(x1), paddle.where(x1 == 0, x2, paddle.zeros_like(x1)))
+
+
+def i0(x):
+    x = convert_to_tensor(x, "float32")
+    return paddle.i0(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x, "float32")
+    return paddle.where(x == 0, paddle.ones_like(x), paddle.sin(np.pi * x) / (np.pi * x))
+
+
+def count_nonzero(x, axis=None):
+    x = convert_to_tensor(x)
+    return paddle.sum(paddle.cast(x != 0, "int32"), axis=axis)
+
+
+def nanargmax(x, axis=None):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('-inf')), x)
+    return paddle.argmax(x, axis=axis)
+
+
+def nanargmin(x, axis=None):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('inf')), x)
+    return paddle.argmin(x, axis=axis)
+
+
+def nanmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('-inf')), x)
+    return paddle.max(x, axis=axis, keepdim=keepdims)
+
+
+def nanmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.full_like(x, float('inf')), x)
+    return paddle.min(x, axis=axis, keepdim=keepdims)
+
+
+def nansum(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
+    return paddle.sum(x, axis=axis, keepdim=keepdims)
+
+
+def nanmean(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    mask = ~paddle.isnan(x)
+    x = paddle.where(mask, x, paddle.zeros_like(x))
+    count = paddle.sum(paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims)
+    return paddle.sum(x, axis=axis, keepdim=keepdims) / count
+
+
+def nanvar(x, axis=None, keepdims=False):
+    m = nanmean(x, axis=axis, keepdims=True)
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
+    mask = ~paddle.isnan(x)
+    count = paddle.sum(paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims)
+    return paddle.sum((x - m) ** 2, axis=axis, keepdim=keepdims) / count
+
+
+def nanstd(x, axis=None, keepdims=False):
+    return paddle.sqrt(nanvar(x, axis=axis, keepdims=keepdims))
+
+
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.ones_like(x), x)
+    return paddle.prod(x, axis=axis, keepdim=keepdims)
+
+
+def nancumsum(x, axis=None):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
+    return paddle.cumsum(x, axis=axis)
+
+
+def nancumprod(x, axis=None):
+    x = convert_to_tensor(x)
+    x = paddle.where(paddle.isnan(x), paddle.ones_like(x), x)
+    return paddle.cumprod(x, axis=axis)
+
+
+def select(condlist, choicelist, default=0):
+    result = paddle.full_like(convert_to_tensor(choicelist[-1]), default)
+    for cond, choice in reversed(zip(condlist, choicelist)):
+        result = paddle.where(convert_to_tensor(cond), convert_to_tensor(choice), result)
+    return result
+
+
+def unique(x, **kwargs):
+    raise NotImplementedError("`unique` is not supported with paddle backend")
+
+
+def unravel_index(indices, shape):
+    raise NotImplementedError(
+        "`unravel_index` is not supported with paddle backend"
+    )
+
+
+def kron(a, b):
+    return paddle.kron(convert_to_tensor(a), convert_to_tensor(b))
+
+
+def vdot(a, b):
+    a = convert_to_tensor(a).flatten()
+    b = convert_to_tensor(b).flatten()
+    if a.is_complex():
+        return paddle.dot(a.conj(), b)
+    return paddle.dot(a, b)
+
+
+def vectorize(pyfunc, **kwargs):
+    import functools
+
+    @functools.wraps(pyfunc)
+    def wrapper(*args):
+        return pyfunc(*args)
+    return wrapper
+
+
+def view(x, dtype):
+    raise NotImplementedError("`view` is not supported with paddle backend")
+
+
+def diff(x, n=1, axis=-1, prepend=None, append=None):
+    x = convert_to_tensor(x)
+    if prepend is not None:
+        prepend = convert_to_tensor(prepend)
+        x = paddle.concat([prepend, x], axis=axis)
+    if append is not None:
+        append = convert_to_tensor(append)
+        x = paddle.concat([x, append], axis=axis)
+    for _ in range(n):
+        x = paddle.diff(x, axis=axis)
+    return x
+
+
+def digitize(x, bins):
+    raise NotImplementedError(
+        "`digitize` is not supported with paddle backend"
+    )
+
+
+def bincount(x, weights=None, minlength=0):
+    raise NotImplementedError(
+        "`bincount` is not supported with paddle backend"
+    )
+
+
+def corrcoef(x):
+    raise NotImplementedError(
+        "`corrcoef` is not supported with paddle backend"
+    )
+
+
+def correlate(x1, x2, mode="valid"):
+    raise NotImplementedError(
+        "`correlate` is not supported with paddle backend"
+    )
+
+
+def median(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`median` is not supported with paddle backend"
+    )
+
+
+def quantile(x, q, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`quantile` is not supported with paddle backend"
+    )
+
+
+def percentile(x, q, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`percentile` is not supported with paddle backend"
+    )
+
+
+def nanmedian(x, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanmedian` is not supported with paddle backend"
+    )
+
+
+def nanquantile(x, q, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanquantile` is not supported with paddle backend"
+    )
+
+
+def nanpercentile(x, q, axis=None, keepdims=False):
+    raise NotImplementedError(
+        "`nanpercentile` is not supported with paddle backend"
+    )
+
+
+def ptp(x, axis=None):
+    x = convert_to_tensor(x)
+    return paddle.max(x, axis=axis) - paddle.min(x, axis=axis)
+
+
+def logaddexp(x1, x2):
+    return paddle.logaddexp(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return paddle.logaddexp(x1 * np.log(2), x2 * np.log(2)) / np.log(2)
+
+
+def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True):
+    result = linspace(start, stop, num, endpoint=endpoint)
+    return base ** result
+
+
+def geomspace(start, stop, num, endpoint=True, dtype=None):
+    raise NotImplementedError(
+        "`geomspace` is not supported with paddle backend"
+    )
+
+
+def empty(shape, dtype="float32"):
+    return zeros(shape, dtype=dtype)
+
+
+def empty_like(x, dtype=None):
+    return zeros_like(x, dtype=dtype)
+
+
+def nextafter(x1, x2):
+    raise NotImplementedError(
+        "`nextafter` is not supported with paddle backend"
+    )
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    return paddle.isreal(x)
+
+
+def isin(elements, test_elements, assume_unique=False, invert=False):
+    raise NotImplementedError(
+        "`isin` is not supported with paddle backend"
+    )
+
+
+def nonzero(x):
+    x = convert_to_tensor(x)
+    indices = paddle.nonzero(x)
+    return tuple(indices.T)
+
+
+def array_split(x, indices_or_sections, axis=0):
+    raise NotImplementedError(
+        "`array_split` is not supported with paddle backend"
+    )
+
+
+def dsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=2)
+
+
+def hsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=1)
+
+
+def vsplit(x, indices_or_sections):
+    return split(x, indices_or_sections, axis=0)
+
+
+def dstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    xs = [paddle.unsqueeze(x, axis=2) if len(x.shape) < 3 else x for x in xs]
+    return paddle.concat(xs, axis=2)
+
+
+def hstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    if len(xs[0].shape) == 1:
+        return paddle.concat(xs, axis=0)
+    return paddle.concat(xs, axis=1)
+
+
+def vstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    return paddle.concat(xs, axis=0)
+
+
+def diagflat(x, k=0):
+    x = convert_to_tensor(x).flatten()
+    n = x.shape[0]
+    return paddle.diag(x, offset=k)
+
+
+def fliplr(x):
+    return paddle.flip(convert_to_tensor(x), axis=[1])
+
+
+def flipud(x):
+    return paddle.flip(convert_to_tensor(x), axis=[0])
+
+
+def rot90(x, k=1, axes=(0, 1)):
+    raise NotImplementedError(
+        "`rot90` is not supported with paddle backend"
+    )
+
+
+def average(x, axis=None, weights=None, returned=False, keepdims=False):
+    x = convert_to_tensor(x)
+    if weights is None:
+        result = paddle.mean(x, axis=axis, keepdim=keepdims)
+    else:
+        weights = convert_to_tensor(weights)
+        result = paddle.sum(x * weights, axis=axis, keepdim=keepdims) / paddle.sum(weights, axis=axis, keepdim=keepdims)
+    if returned:
+        weights_sum = paddle.sum(weights if weights is not None else paddle.ones_like(x), axis=axis, keepdim=keepdims)
+        return result, weights_sum
+    return result
+
+
+def cbrt(x):
+    return paddle.pow(convert_to_tensor(x, "float32"), 1.0 / 3.0)
+
+
+def exp2(x):
+    return paddle.pow(2.0, convert_to_tensor(x, "float32"))
+
+
+def divide_no_nan(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return paddle.where(x2 == 0, paddle.zeros_like(x1), x1 / x2)
+
+
+def slogdet(x):
+    raise NotImplementedError(
+        "`slogdet` is not supported with paddle backend"
+    )
+
+
+def argpartition(x, kth, axis=-1):
+    raise NotImplementedError(
+        "`argpartition` is not supported with paddle backend"
+    )
+
+
+def gcd(x1, x2):
+    return paddle.gcd(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def lcm(x1, x2):
+    return paddle.lcm(convert_to_tensor(x1), convert_to_tensor(x2))
+
+
+def max(x, axis=None, keepdims=False, initial=None):
+    x = convert_to_tensor(x)
+    result = paddle.max(x, axis=axis, keepdim=keepdims)
+    if initial is not None:
+        result = paddle.maximum(result, convert_to_tensor(initial))
+    return result
+
+
+def min(x, axis=None, keepdims=False, initial=None):
+    x = convert_to_tensor(x)
+    result = paddle.min(x, axis=axis, keepdim=keepdims)
+    if initial is not None:
+        result = paddle.minimum(result, convert_to_tensor(initial))
+    return result
+
+
+def amin(x, axis=None, keepdims=False, initial=None):
+    return min(x, axis=axis, keepdims=keepdims, initial=initial)
+
+
+def amax(x, axis=None, keepdims=False, initial=None):
+    return max(x, axis=axis, keepdims=keepdims, initial=initial)
