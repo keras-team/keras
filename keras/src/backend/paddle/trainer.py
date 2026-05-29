@@ -90,6 +90,7 @@ class PaddleTrainer(base_trainer.Trainer):
 
         def one_step_on_data(data):
             data = data[0]
+            data = tree.map_structure(backend.convert_to_tensor, data)
             return self.train_step(data)
 
         self.train_function = one_step_on_data
@@ -100,6 +101,7 @@ class PaddleTrainer(base_trainer.Trainer):
 
         def one_step_on_data(data):
             data = data[0]
+            data = tree.map_structure(backend.convert_to_tensor, data)
             with paddle.no_grad():
                 return self.test_step(data)
 
@@ -111,6 +113,7 @@ class PaddleTrainer(base_trainer.Trainer):
 
         def one_step_on_data(data):
             data = data[0]
+            data = tree.map_structure(backend.convert_to_tensor, data)
             with paddle.no_grad():
                 return self.predict_step(data)
 

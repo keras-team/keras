@@ -284,6 +284,8 @@ def compute_output_spec(fn, *args, **kwargs):
 
 
 def cond(pred, true_fn, false_fn):
+    if is_tensor(pred):
+        pred = bool(pred.item())
     if pred:
         return true_fn()
     return false_fn()
@@ -495,7 +497,14 @@ def while_loop(
     is_tuple = isinstance(loop_vars, (tuple, list))
     loop_vars = tuple(loop_vars) if is_tuple else (loop_vars,)
     loop_vars = tree.map_structure(convert_to_tensor, loop_vars)
-    while cond(*loop_vars) and iteration_check(current_iter):
+
+    def get_cond_val(vars):
+        val = cond(*vars)
+        if is_tensor(val):
+            return bool(val.item())
+        return bool(val)
+
+    while get_cond_val(loop_vars) and iteration_check(current_iter):
         loop_vars = body(*loop_vars)
         if not isinstance(loop_vars, (list, tuple)):
             loop_vars = (loop_vars,)

@@ -1,6 +1,5 @@
 import math
 
-import numpy as np
 import paddle
 
 from keras.src.backend import standardize_dtype
@@ -8,12 +7,11 @@ from keras.src.backend.paddle.core import convert_to_tensor
 
 
 def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
-    num_repeats = int(np.prod([d for d in data.shape[1:] if d is not None]))
-    segment_ids = (
-        paddle.repeat_interleave(segment_ids, num_repeats)
-        .reshape(data.shape)
-        .cast("int64")
-    )
+    segment_ids = convert_to_tensor(segment_ids, dtype="int64")
+    rank_diff = data.ndim - segment_ids.ndim
+    for _ in range(rank_diff):
+        segment_ids = segment_ids.unsqueeze(-1)
+    segment_ids = paddle.broadcast_to(segment_ids, data.shape).cast("int64")
     if num_segments is None:
         num_segments = int(paddle.max(segment_ids).item()) + 1
 

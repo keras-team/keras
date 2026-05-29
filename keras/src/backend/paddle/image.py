@@ -28,6 +28,10 @@ def resize(
     data_format="channels_last",
 ):
     image = convert_to_tensor(image, "float32")
+    has_batch = image.ndim == 4
+    if not has_batch:
+        image = paddle.unsqueeze(image, axis=0)
+
     if data_format == "channels_last":
         image = paddle.transpose(image, [0, 3, 1, 2])
 
@@ -36,6 +40,9 @@ def resize(
 
     if data_format == "channels_last":
         out = paddle.transpose(out, [0, 2, 3, 1])
+
+    if not has_batch:
+        out = paddle.squeeze(out, axis=0)
     return out
 
 

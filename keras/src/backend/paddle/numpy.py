@@ -461,11 +461,11 @@ def take(x, indices, axis=None):
     # Paddle's gather requires indices to be 1D or have last dim == 1
     # Reshape indices to work with paddle.gather
     axis = axis + x.ndim if axis < 0 else axis
-    orig_shape = paddle.shape(indices)
     indices_flat = indices.flatten()
     result = paddle.gather(x, indices_flat, axis=axis)
-    x_shape = paddle.shape(x)
-    new_shape = paddle.concat([x_shape[:axis], orig_shape, x_shape[axis + 1 :]])
+    new_shape = (
+        list(x.shape[:axis]) + list(indices.shape) + list(x.shape[axis + 1 :])
+    )
     return paddle.reshape(result, new_shape)
 
 
