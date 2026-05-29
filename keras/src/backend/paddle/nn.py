@@ -107,7 +107,7 @@ def sparsemax(x, axis=-1):
     logits = convert_to_tensor(x)
     logits_sorted, _ = paddle.sort(logits, axis=axis, descending=True)
     logits_cumsum = paddle.cumsum(logits_sorted, axis=axis)
-    r = paddle.arange(1, logits.shape[axis] + 1, dtype=logits.dtype)
+    r = paddle.arange(1, paddle.shape(logits)[axis] + 1, dtype=logits.dtype)
     r_shape = [1] * len(logits.shape)
     r_shape[axis] = -1
     r = paddle.reshape(r, r_shape)
@@ -155,7 +155,9 @@ def threshold(x, threshold_value, value):
 
 def multi_hot(x, num_classes, axis=-1, dtype="float32"):
     x = convert_to_tensor(x)
-    reduction_axis = 1 if len(x.shape) > 1 else 0
+    reduction_axis = [i for i in range(x.ndim) if i != (axis % x.ndim)]
+    if not reduction_axis:
+        reduction_axis = 0
     outputs = paddle.amax(
         one_hot(x.cast("int32"), num_classes, axis=axis, dtype=dtype),
         axis=reduction_axis,
@@ -733,7 +735,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target)
     output = convert_to_tensor(output)
     if from_logits:
-        output = F.softmax(output, axis=axis)
+        return F.cross_entropy(
+            output, target, soft_label=True, reduction="none", axis=axis
+        )
     return -paddle.sum(target * paddle.log(output + 1e-7), axis=axis)
 
 
@@ -741,7 +745,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype="int64")
     output = convert_to_tensor(output)
     if from_logits:
-        output = F.softmax(output, axis=axis)
+        return F.cross_entropy(
+            output, target, soft_label=False, reduction="none", axis=axis
+        )
     target = target.unsqueeze(axis)
     probs = paddle.take_along_axis(output, target, axis=axis).squeeze(axis=axis)
     return -paddle.log(probs + 1e-7)

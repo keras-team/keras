@@ -8,7 +8,7 @@ from keras.src.backend.paddle.core import convert_to_tensor
 
 
 def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
-    num_repeats = int(np.prod(data.shape[1:]))
+    num_repeats = int(np.prod([d for d in data.shape[1:] if d is not None]))
     segment_ids = (
         paddle.repeat_interleave(segment_ids, num_repeats)
         .reshape(data.shape)
@@ -133,7 +133,7 @@ def _overlap_sequences(x, sequence_stride):
             f"Received: sequence_stride={sequence_stride}, "
             f"x.shape[-1]={sequence_length}, x.shape[-2]={num_sequences}"
         )
-    flat_batchsize = math.prod(batch_shape)
+    flat_batchsize = -1 if None in batch_shape else math.prod(batch_shape)
     x = paddle.reshape(x, (flat_batchsize, num_sequences, sequence_length))
     output_size = sequence_stride * (num_sequences - 1) + sequence_length
     nstep_per_segment = 1 + (sequence_length - 1) // sequence_stride
@@ -255,7 +255,7 @@ def stft(
     *batch_shape, samples = x.shape
     if len(x.shape) > 2:
         need_unpack = True
-        flat_batchsize = math.prod(batch_shape)
+        flat_batchsize = -1 if None in batch_shape else math.prod(batch_shape)
         x = paddle.reshape(x, (flat_batchsize, samples))
 
     x = paddle.signal.stft(
@@ -315,9 +315,12 @@ def istft(
         *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
         if len(complex_input.shape) > 3:
             need_unpack = True
-            flat_batchsize = math.prod(batch_shape)
+            flat_batchsize = (
+                -1 if None in batch_shape else math.prod(batch_shape)
+            )
             complex_input = paddle.reshape(
-                complex_input, (flat_batchsize, num_sequences, fft_unique_bins)
+                complex_input,
+                (flat_batchsize, num_sequences, fft_unique_bins),
             )
         complex_input = paddle.transpose(complex_input, [0, 2, 1])
         x = paddle.signal.istft(

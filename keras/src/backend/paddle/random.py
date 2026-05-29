@@ -63,7 +63,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
         return inputs
     inputs = convert_to_tensor(inputs)
     if noise_shape is None:
-        noise_shape = inputs.shape
+        noise_shape = paddle.shape(inputs)
     keep_mask = paddle.bernoulli(
         paddle.full(noise_shape, 1.0 - rate, dtype="float32")
     )
