@@ -158,7 +158,9 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
 
     # Convert to np in case of any array-like that is not list or tuple.
     if isinstance(x, (list, tuple)):
-        if len(x) > 0 and any(isinstance(x1, paddle.Tensor) for x1 in x):
+        if len(x) > 0 and any(
+            is_tensor(x1) or isinstance(x1, Variable) for x1 in x
+        ):
             return paddle.stack([convert_to_tensor(x1) for x1 in x])
     elif not isinstance(x, (bool, int, float)):
         x = np.array(x)
@@ -220,11 +222,14 @@ def compute_output_spec(fn, *args, **kwargs):
 
     def convert_keras_tensor_to_paddle(x, fill_value=None):
         if isinstance(x, KerasTensor):
-            out_shape = list(x.shape)
-            if fill_value:
-                for i, e in enumerate(out_shape):
-                    if e is None:
-                        out_shape[i] = fill_value
+            if x.shape is None:
+                out_shape = [fill_value or 1]
+            else:
+                out_shape = list(x.shape)
+                if fill_value:
+                    for i, e in enumerate(out_shape):
+                        if e is None:
+                            out_shape[i] = fill_value
             return paddle.ones(
                 shape=out_shape,
                 dtype=to_paddle_dtype(x.dtype),
@@ -364,28 +369,27 @@ def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices, dtype="int64")
     updates = convert_to_tensor(updates, dtype=inputs.dtype)
-    indices = paddle.transpose(indices, [1, 0])
-    idx = tuple(indices)
+    indices_t = paddle.transpose(indices, [1, 0])
 
     outputs = inputs.clone()
     if reduction is None:
+        idx = tuple(indices_t)
         outputs[idx] = updates
     elif reduction == "add":
-        outputs = paddle.put_along_axis(outputs, indices.T, updates, axis=0)
+        for i in range(indices.shape[0]):
+            idx = tuple(indices_t[j][i] for j in range(indices_t.shape[0]))
+            outputs[idx] = outputs[idx] + updates[i]
     elif reduction == "max":
-        indices_t = indices.T
-        for i in range(indices_t.shape[0]):
-            idx = tuple(indices_t[i])
+        for i in range(indices.shape[0]):
+            idx = tuple(indices_t[j][i] for j in range(indices_t.shape[0]))
             outputs[idx] = paddle.maximum(outputs[idx], updates[i])
     elif reduction == "min":
-        indices_t = indices.T
-        for i in range(indices_t.shape[0]):
-            idx = tuple(indices_t[i])
+        for i in range(indices.shape[0]):
+            idx = tuple(indices_t[j][i] for j in range(indices_t.shape[0]))
             outputs[idx] = paddle.minimum(outputs[idx], updates[i])
     elif reduction == "mul":
-        indices_t = indices.T
-        for i in range(indices_t.shape[0]):
-            idx = tuple(indices_t[i])
+        for i in range(indices.shape[0]):
+            idx = tuple(indices_t[j][i] for j in range(indices_t.shape[0]))
             outputs[idx] = outputs[idx] * updates[i]
     else:
         raise ValueError(f"Unsupported reduction: {reduction}")
@@ -414,8 +418,8 @@ def slice(inputs, start_indices, shape):
         result = paddle.slice(
             result,
             axes=[dim],
-            starts=[start_indices[dim].item()],
-            ends=[start_indices[dim].item() + shape[dim].item()],
+            starts=start_indices[dim],
+            ends=start_indices[dim] + shape[dim],
         )
     return result
 
@@ -436,6 +440,19 @@ def slice_update(inputs, start_indices, updates):
         return outputs
 
     start_indices = convert_to_tensor(start_indices, dtype="int64")
+    if hasattr(start_indices, "tolist"):
+        try:
+            start_indices_list = start_indices.tolist()
+            if all(isinstance(s, int) for s in start_indices_list):
+                slices = [
+                    builtins.slice(s, s + u)
+                    for s, u in zip(start_indices_list, updates.shape)
+                ]
+                outputs = inputs.clone()
+                outputs[tuple(slices)] = updates
+                return outputs
+        except Exception:
+            pass
     outputs = inputs.clone()
     update_shape = list(updates.shape)
     dims = len(update_shape)

@@ -31,8 +31,7 @@ class PaddleTrainer(base_trainer.Trainer):
 
         # Zero gradients on all trainable weights
         for v in self.trainable_weights:
-            if v.value.grad is not None:
-                v.value.grad = None
+            v.value.clear_gradient()
 
         loss = self._compute_loss(
             x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=True

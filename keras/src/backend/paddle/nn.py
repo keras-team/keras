@@ -254,7 +254,9 @@ def conv(
     if padding == "same":
         pad_mode = "same"
     else:
-        pad_mode = "valid"
+        pad_mode = _conv_padding(
+            padding, kernel.shape[2:], strides, dilation_rate
+        )
 
     if num_spatial == 1:
         out = F.conv1d(
@@ -323,7 +325,9 @@ def depthwise_conv(
     if padding == "same":
         pad_mode = "same"
     else:
-        pad_mode = "valid"
+        pad_mode = _conv_padding(
+            padding, kernel.shape[2:], strides, dilation_rate
+        )
 
     if num_spatial == 1:
         out = F.conv1d(
@@ -436,7 +440,9 @@ def conv_transpose(
     if padding == "same":
         pad_mode = "same"
     else:
-        pad_mode = "valid"
+        pad_mode = _conv_padding(
+            padding, kernel.shape[2:], strides, dilation_rate
+        )
 
     if num_spatial == 1:
         out = F.conv_transpose1d(
@@ -759,8 +765,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = convert_to_tensor(output)
     if from_logits:
         output = F.softmax(output, axis=axis)
-    target = target.unsqueeze(axis=-1)
-    probs = paddle.squeeze(paddle.gather(output, target, axis=axis), axis=-1)
+    target = target.unsqueeze(axis)
+    probs = paddle.take_along_axis(output, target, axis=axis).squeeze(axis=axis)
     return -paddle.log(probs + 1e-7)
 
 
