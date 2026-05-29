@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [tensorflow, jax, torch, numpy, openvino]
+        backend: [tensorflow, jax, torch, numpy, openvino, paddle]
         nnx_enabled: [false]
         include:
           - backend: jax
@@ -67,6 +67,9 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
+          if [ "${{ matrix.backend }}" == "paddle" ]; then
+            pip install -r requirements-paddle.txt
+          fi
           pip install --no-deps tf_keras
 
       - name: Run Tests for applications
