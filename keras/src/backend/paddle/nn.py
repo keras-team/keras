@@ -332,41 +332,25 @@ def depthwise_conv(
     if num_spatial == 1:
         out = F.conv1d(
             inputs,
-            kernel.unsqueeze(0)
-            .transpose([1, 0, 2])
-            .reshape([in_channels, 1, kernel.shape[-1]]),
+            kernel,
             stride=strides[0],
             padding=pad_mode,
             dilation=dilation_rate[0],
             groups=groups,
         )
     elif num_spatial == 2:
-        # Reshape kernel to [in_channels, 1, kH, kW]
-        k_reshaped = paddle.reshape(
-            kernel, [in_channels, 1, kernel.shape[-2], kernel.shape[-1]]
-        )
         out = F.conv2d(
             inputs,
-            k_reshaped,
+            kernel,
             stride=strides,
             padding=pad_mode,
             dilation=dilation_rate,
             groups=groups,
         )
     elif num_spatial == 3:
-        k_reshaped = paddle.reshape(
-            kernel,
-            [
-                in_channels,
-                1,
-                kernel.shape[-3],
-                kernel.shape[-2],
-                kernel.shape[-1],
-            ],
-        )
         out = F.conv3d(
             inputs,
-            k_reshaped,
+            kernel,
             stride=strides,
             padding=pad_mode,
             dilation=dilation_rate,
@@ -659,11 +643,8 @@ def ctc_decode(
 
         if merge_repeated:
             repeat = indices[:, 1:] == indices[:, :-1]
-            repeat = (
-                F.pad(repeat.unsqueeze(0).cast("float32"), [1, 0, 0, 0])
-                .squeeze(0)
-                .cast("bool")
-            )
+            zeros = paddle.zeros([batch_size, 1], dtype="bool")
+            repeat = paddle.concat([zeros, repeat], axis=1)
             indices = paddle.where(
                 repeat, paddle.to_tensor(blank_idx, dtype="int32"), indices
             )

@@ -48,24 +48,14 @@ def randint(shape, minval, maxval, dtype="int32", seed=None):
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     paddle_dtype = to_paddle_dtype(dtype)
-    seed = draw_seed(seed)
-    if isinstance(seed, paddle.Tensor):
-        seed = convert_to_numpy(seed)
-    rng = np.random.default_rng(seed)
-
-    lower_bound = mean - 2 * stddev
-    upper_bound = mean + 2 * stddev
-
-    flat_shape = np.prod(shape)
-    random_numbers = np.empty(0)
-
-    while random_numbers.shape[0] < flat_shape:
-        batch = rng.normal(loc=mean, scale=stddev, size=flat_shape)
-        valid = batch[(batch >= lower_bound) & (batch <= upper_bound)]
-        random_numbers = np.append(random_numbers, valid)
-
-    np_array_res = random_numbers[:flat_shape].astype(dtype).reshape(shape)
-    return paddle.to_tensor(np_array_res, dtype=paddle_dtype)
+    if seed is not None:
+        seed_val = draw_seed(seed)
+        if isinstance(seed_val, paddle.Tensor):
+            seed_val = int(convert_to_numpy(seed_val))
+        paddle.seed(seed_val)
+    return paddle.truncated_normal(shape=shape, mean=mean, std=stddev).cast(
+        paddle_dtype
+    )
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):

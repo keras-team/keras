@@ -200,7 +200,7 @@ def is_tensor(x):
 
 
 def shape(x):
-    return tuple(x.shape)
+    return tuple(d if d >= 0 else None for d in x.shape)
 
 
 def cast(x, dtype):
@@ -369,17 +369,16 @@ def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices, dtype="int64")
     updates = convert_to_tensor(updates, dtype=inputs.dtype)
-    indices_t = paddle.transpose(indices, [1, 0])
 
-    outputs = inputs.clone()
     if reduction is None:
-        idx = tuple(indices_t)
-        outputs[idx] = updates
+        current_values = paddle.gather_nd(inputs, indices)
+        return paddle.scatter_nd_add(inputs, indices, updates - current_values)
     elif reduction == "add":
-        for i in range(indices.shape[0]):
-            idx = tuple(indices_t[j][i] for j in range(indices_t.shape[0]))
-            outputs[idx] = outputs[idx] + updates[i]
-    elif reduction == "max":
+        return paddle.scatter_nd_add(inputs, indices, updates)
+
+    indices_t = paddle.transpose(indices, [1, 0])
+    outputs = inputs.clone()
+    if reduction == "max":
         for i in range(indices.shape[0]):
             idx = tuple(indices_t[j][i] for j in range(indices_t.shape[0]))
             outputs[idx] = paddle.maximum(outputs[idx], updates[i])
@@ -413,15 +412,13 @@ def slice(inputs, start_indices, shape):
     shape_dtype = paddle.int64
     start_indices = convert_to_tensor(start_indices).cast(shape_dtype)
     shape = convert_to_tensor(shape).cast(shape_dtype)
-    result = inputs
-    for dim in range(start_indices.shape[0]):
-        result = paddle.slice(
-            result,
-            axes=[dim],
-            starts=start_indices[dim],
-            ends=start_indices[dim] + shape[dim],
-        )
-    return result
+    axes = list(range(int(start_indices.shape[0])))
+    return paddle.slice(
+        inputs,
+        axes=axes,
+        starts=start_indices,
+        ends=start_indices + shape,
+    )
 
 
 def slice_update(inputs, start_indices, updates):
@@ -467,8 +464,11 @@ def slice_update(inputs, start_indices, updates):
 
     grids = paddle.meshgrid(*indices_list)
     flat_indices = [g.flatten() for g in grids]
-    outputs[tuple(flat_indices)] = updates.flatten()
-    return outputs
+    indices = paddle.stack(flat_indices, axis=-1)
+    current_values = paddle.gather_nd(inputs, indices)
+    return paddle.scatter_nd_add(
+        inputs, indices, updates.flatten() - current_values
+    )
 
 
 def switch(index, branches, *operands):
