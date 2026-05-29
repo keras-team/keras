@@ -14,5 +14,5 @@ preferred-citation:
     - family-names: Chollet
       given-names: François
     - name: "others"
-  year: 2015
+  date-released: 2015-03-27
   url: "https://keras.io"
