@@ -1044,7 +1044,9 @@ def median(x, axis=None, keepdims=False):
 
 def quantile(x, q, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    sorted_x = paddle.sort(x, axis=axis)
+    if axis is None:
+        x = x.flatten()
+    sorted_x = paddle.sort(x, axis=axis if axis is not None else -1)
     if isinstance(q, (list, tuple)):
         q = convert_to_tensor(q, "float32")
     else:

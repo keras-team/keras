@@ -716,7 +716,7 @@ def dot_product_attention(
         )
 
     if is_causal:
-        seq_len = query.shape[-2]
+        seq_len = paddle.shape(query)[-2]
         causal_mask = paddle.tril(paddle.ones([seq_len, seq_len], dtype="bool"))
         scores = paddle.where(
             causal_mask, scores, paddle.full_like(scores, float("-inf"))

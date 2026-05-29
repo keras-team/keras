@@ -162,7 +162,9 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             is_tensor(item) or isinstance(item, Variable)
             for item in tree.flatten(x)
         ):
-            return paddle.stack([convert_to_tensor(x1) for x1 in x])
+            return paddle.stack(
+                [convert_to_tensor(x1, dtype=dtype) for x1 in x]
+            )
     elif not isinstance(x, (bool, int, float)):
         x = np.array(x)
     if isinstance(x, np.ndarray):

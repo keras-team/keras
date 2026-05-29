@@ -95,7 +95,7 @@ def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets).cast("int64")
     targets = targets.unsqueeze(1)
     predictions = convert_to_tensor(predictions)
-    topk_values = paddle.topk(predictions, k)
+    topk_values = paddle.topk(predictions, k)[0]
     targets_values = paddle.take_along_axis(predictions, targets, axis=-1)
     mask = targets_values >= topk_values
     return paddle.any(mask, axis=-1)
@@ -421,5 +421,9 @@ def cdist(x, y):
     x_norm = paddle.sum(x * x, axis=-1, keepdim=True)
     y_norm = paddle.sum(y * y, axis=-1, keepdim=True)
     xy = paddle.matmul(x, y, transpose_y=True)
-    dist_sq = x_norm - 2 * xy + y_norm.transpose([0, 2, 1])
+    y_norm_t = paddle.transpose(
+        y_norm,
+        list(range(y_norm.ndim - 2)) + [y_norm.ndim - 1, y_norm.ndim - 2],
+    )
+    dist_sq = x_norm - 2 * xy + y_norm_t
     return paddle.sqrt(paddle.clip(dist_sq, min=0.0))
