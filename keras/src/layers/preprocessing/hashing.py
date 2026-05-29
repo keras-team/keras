@@ -209,6 +209,15 @@ class Hashing(Layer):
         self._allow_non_tensor_positional_args = True
         self.supports_jit = False
 
+    def compute_output_shape(self, input_shape):
+        if self.output_mode == "int":
+            return tuple(input_shape)
+        # `one_hot`, `multi_hot` and `count` encode the last (sample) axis
+        # into a `num_bins`-sized axis.
+        if len(input_shape) == 0:
+            return (self.num_bins,)
+        return tuple(input_shape[:-1]) + (self.num_bins,)
+
     def call(self, inputs):
         from keras.src.backend import tensorflow as tf_backend
 
