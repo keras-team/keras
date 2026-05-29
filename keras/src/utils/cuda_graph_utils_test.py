@@ -31,12 +31,26 @@ class CudaGraphUtilsTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, "torch.Tensor"):
             cuda_graph(lambda x: x, sample_input=[1.0, 2.0, 3.0])
 
-    @pytest.mark.skipif(not _torch_cuda_available(), reason="Requires CUDA.")
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Requires the torch backend.",
+    )
     def test_cpu_tensor_raises(self):
+        # A CPU tensor fails the device check whether or not CUDA is
+        # present, so this runs on CPU-only torch as well.
         import torch
 
         with self.assertRaisesRegex(ValueError, "CUDA device"):
             cuda_graph(lambda x: x, sample_input=torch.zeros(2, 3))
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Requires the torch backend.",
+    )
+    def test_empty_sample_input_raises(self):
+        for empty in ([], {}, ()):
+            with self.assertRaisesRegex(ValueError, "at least one"):
+                cuda_graph(lambda x: x, sample_input=empty)
 
     @pytest.mark.skipif(not _torch_cuda_available(), reason="Requires CUDA.")
     def test_replay_matches_eager(self):
