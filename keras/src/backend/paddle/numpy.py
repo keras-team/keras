@@ -91,6 +91,10 @@ def pow(x1, x2):
     return paddle.pow(convert_to_tensor(x1), convert_to_tensor(x2))
 
 
+def power(x1, x2):
+    return pow(x1, x2)
+
+
 def maximum(x1, x2):
     return paddle.maximum(convert_to_tensor(x1), convert_to_tensor(x2))
 
