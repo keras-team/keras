@@ -69,15 +69,21 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
-    raise NotImplementedError(
-        "`dropout` is not supported with paddle backend"
+    if rate == 0:
+        return inputs
+    inputs = convert_to_tensor(inputs)
+    if noise_shape is None:
+        noise_shape = inputs.shape
+    keep_mask = paddle.bernoulli(
+        paddle.full(noise_shape, 1.0 - rate, dtype="float32")
     )
+    return inputs * keep_mask / (1.0 - rate)
 
 
 def shuffle(x, axis=0):
-    raise NotImplementedError(
-        "`shuffle` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    indices = paddle.randperm(x.shape[axis])
+    return paddle.index_select(x, indices, axis=axis)
 
 
 def gamma(shape, alpha, dtype=None, seed=None):
