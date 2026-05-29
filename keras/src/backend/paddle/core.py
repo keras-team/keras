@@ -159,7 +159,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     # Convert to np in case of any array-like that is not list or tuple.
     if isinstance(x, (list, tuple)):
         if len(x) > 0 and any(
-            is_tensor(x1) or isinstance(x1, Variable) for x1 in x
+            is_tensor(item) or isinstance(item, Variable)
+            for item in tree.flatten(x)
         ):
             return paddle.stack([convert_to_tensor(x1) for x1 in x])
     elif not isinstance(x, (bool, int, float)):
@@ -191,6 +192,8 @@ def convert_to_numpy(x):
         return np.array(x)
 
     if isinstance(x, (list, tuple)):
+        if tree.is_nested(x):
+            return tree.map_structure(transform, x)
         return np.array([transform(e) for e in x])
     return transform(x)
 
@@ -437,7 +440,7 @@ def slice_update(inputs, start_indices, updates):
         return outputs
 
     start_indices = convert_to_tensor(start_indices, dtype="int64")
-    if hasattr(start_indices, "tolist"):
+    if hasattr(start_indices, "tolist") and not is_tensor(start_indices):
         try:
             start_indices_list = start_indices.tolist()
             if all(isinstance(s, int) for s in start_indices_list):

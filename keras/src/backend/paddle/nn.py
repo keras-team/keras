@@ -628,7 +628,10 @@ def ctc_decode(
 ):
     inputs = convert_to_tensor(inputs)
     input_lengths = convert_to_tensor(input_lengths, dtype="int32")
-    batch_size, max_length, num_classes = inputs.shape
+    inputs_shape = paddle.shape(inputs)
+    batch_size = inputs_shape[0]
+    max_length = inputs_shape[1]
+    num_classes = inputs.shape[2]
 
     if strategy == "greedy":
         indices = paddle.argmax(inputs, axis=-1).cast("int32")

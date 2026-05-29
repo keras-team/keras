@@ -461,12 +461,11 @@ def take(x, indices, axis=None):
     # Paddle's gather requires indices to be 1D or have last dim == 1
     # Reshape indices to work with paddle.gather
     axis = axis + x.ndim if axis < 0 else axis
-    orig_shape = indices.shape
+    orig_shape = paddle.shape(indices)
     indices_flat = indices.flatten()
     result = paddle.gather(x, indices_flat, axis=axis)
-    new_shape = (
-        list(x.shape[:axis]) + list(orig_shape) + list(x.shape[axis + 1 :])
-    )
+    x_shape = paddle.shape(x)
+    new_shape = paddle.concat([x_shape[:axis], orig_shape, x_shape[axis + 1 :]])
     return paddle.reshape(result, new_shape)
 
 
@@ -634,15 +633,11 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     data = convert_to_tensor(data)
     segment_ids = convert_to_tensor(segment_ids, "int64")
     if num_segments is None:
-        num_segments = int(segment_ids.max().item()) + 1
-    result = paddle.zeros(
+        num_segments = paddle.max(segment_ids) + 1
+    zeros = paddle.zeros(
         [num_segments] + list(data.shape[1:]), dtype=data.dtype
     )
-    for i in range(num_segments):
-        mask = segment_ids == i
-        if mask.any():
-            result[i] = paddle.sum(data[mask], axis=0)
-    return result
+    return paddle.scatter_nd_add(zeros, segment_ids.unsqueeze(-1), data)
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
@@ -1004,9 +999,7 @@ def bincount(x, weights=None, minlength=0):
     x = convert_to_tensor(x, "int64")
     if weights is not None:
         weights = convert_to_tensor(weights)
-    n = int(x.max().item()) + 1
-    if n < minlength:
-        n = minlength
+    n = paddle.maximum(x.max() + 1, paddle.to_tensor(minlength, dtype="int64"))
     if weights is None:
         ones = paddle.ones([x.shape[0]], dtype="int64")
         return paddle.scatter_nd_add(
