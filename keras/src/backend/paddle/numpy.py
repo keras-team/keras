@@ -162,19 +162,31 @@ def where(condition, x1, x2):
 
 
 def mean(x, axis=None, keepdims=False):
-    return paddle.mean(convert_to_tensor(x), axis=axis, keepdim=keepdims)
+    x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return x.clone()
+    return paddle.mean(x, axis=axis, keepdim=keepdims)
 
 
 def variance(x, axis=None, keepdims=False):
-    return paddle.var(convert_to_tensor(x), axis=axis, keepdim=keepdims)
+    x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return paddle.zeros_like(x)
+    return paddle.var(x, axis=axis, keepdim=keepdims)
 
 
 def std(x, axis=None, keepdims=False):
-    return paddle.std(convert_to_tensor(x), axis=axis, keepdim=keepdims)
+    x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return paddle.zeros_like(x)
+    return paddle.std(x, axis=axis, keepdim=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
-    return paddle.sum(convert_to_tensor(x), axis=axis, keepdim=keepdims)
+    x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return x.clone()
+    return paddle.sum(x, axis=axis, keepdim=keepdims)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -182,6 +194,8 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         x = convert_to_tensor(x, dtype=dtype)
     else:
         x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return x.clone()
     return paddle.prod(x, axis=axis, keepdim=keepdims)
 
 
@@ -309,7 +323,10 @@ def moveaxis(x, source, destination):
 
 
 def transpose(x, axes=None):
-    return paddle.transpose(convert_to_tensor(x), axes)
+    x = convert_to_tensor(x)
+    if axes is None:
+        axes = list(range(len(x.shape)))[::-1]
+    return paddle.transpose(x, axes)
 
 
 def squeeze(x, axis=None):
