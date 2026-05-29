@@ -47,12 +47,14 @@ PADDLE_DTYPES = {
 
 @contextlib.contextmanager
 def device_scope(device_name):
-    previous_device = global_state.get_global_attribute("paddle_device", None)
+    previous_device = paddle.get_device()
     current_device = _parse_device_input(device_name)
+    paddle.set_device(current_device)
     global_state.set_global_attribute("paddle_device", current_device)
     try:
         yield current_device
     finally:
+        paddle.set_device(previous_device)
         global_state.set_global_attribute("paddle_device", previous_device)
 
 
@@ -448,7 +450,7 @@ def slice_update(inputs, start_indices, updates):
         return outputs
 
     start_indices = convert_to_tensor(start_indices, dtype="int64")
-    if hasattr(start_indices, "tolist") and not is_tensor(start_indices):
+    if hasattr(start_indices, "tolist"):
         try:
             start_indices_list = start_indices.tolist()
             if all(isinstance(s, int) for s in start_indices_list):

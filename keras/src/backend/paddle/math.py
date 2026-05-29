@@ -8,51 +8,37 @@ from keras.src.backend.paddle.core import convert_to_tensor
 
 def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
     segment_ids = convert_to_tensor(segment_ids, dtype="int64")
-    rank_diff = data.ndim - segment_ids.ndim
-    for _ in range(rank_diff):
-        segment_ids = segment_ids.unsqueeze(-1)
-    segment_ids = paddle.broadcast_to(segment_ids, data.shape).cast("int64")
     if num_segments is None:
         num_segments = int(paddle.max(segment_ids).item()) + 1
 
-    # Replace out-of-bound indices with num_segments (extra dim)
-    segment_ids = paddle.where(
-        segment_ids >= 0,
-        segment_ids,
-        paddle.full_like(segment_ids, num_segments),
-    )
-    segment_ids = paddle.where(
-        segment_ids < num_segments,
-        segment_ids,
-        paddle.full_like(segment_ids, num_segments),
-    )
-
-    shape = (num_segments + 1,) + tuple(data.shape[1:])
-
     if reduction == "amax":
-        result = paddle.full(shape, -float("Inf"), dtype="float32")
+        reduce_op = lambda x: paddle.max(x, axis=0)
+        initial_value = -float("Inf")
     elif reduction == "amin":
-        result = paddle.full(shape, float("Inf"), dtype="float32")
+        reduce_op = lambda x: paddle.min(x, axis=0)
+        initial_value = float("Inf")
     elif reduction == "prod":
-        result = paddle.ones(shape, dtype="float32")
+        reduce_op = lambda x: paddle.prod(x, axis=0)
+        initial_value = 1.0
     else:
-        result = paddle.zeros(shape, dtype="float32")
+        reduce_op = lambda x: paddle.sum(x, axis=0)
+        initial_value = 0.0
 
-    # Manual scatter_reduce using a loop (paddle doesn't have scatter_reduce)
     data_f = data.cast("float32")
-    for i in range(data_f.shape[0]):
-        idx = segment_ids[i].reshape([])
-        if reduction == "sum":
-            result[idx] = result[idx] + data_f[i]
-        elif reduction == "amax":
-            result[idx] = paddle.maximum(result[idx], data_f[i])
-        elif reduction == "amin":
-            result[idx] = paddle.minimum(result[idx], data_f[i])
-        elif reduction == "prod":
-            result[idx] = result[idx] * data_f[i]
+    flat_data = data_f.reshape([-1] + list(data.shape[1:]))
+    flat_ids = segment_ids.flatten()
 
-    result = result[:-1]
-    return result.cast(data.dtype)
+    outputs = []
+    for i in range(num_segments):
+        mask = flat_ids == i
+        if paddle.any(mask).item():
+            outputs.append(reduce_op(flat_data[mask]))
+        else:
+            outputs.append(
+                paddle.full(data.shape[1:], initial_value, dtype="float32")
+            )
+
+    return paddle.stack(outputs, axis=0).cast(data.dtype)
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):

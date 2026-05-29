@@ -418,6 +418,12 @@ def conv_transpose(
         dilation_rate, num_spatial, "dilation_rate"
     )
 
+    if output_padding is None:
+        output_padding = 0
+    output_padding = _standardize_tuple(
+        output_padding, num_spatial, "output_padding"
+    )
+
     from keras.src.backend.config import standardize_data_format
 
     data_format = standardize_data_format(data_format)
@@ -442,6 +448,7 @@ def conv_transpose(
             kernel,
             stride=strides[0],
             padding=pad_mode,
+            output_padding=output_padding[0],
             dilation=dilation_rate[0],
         )
     elif num_spatial == 2:
@@ -450,6 +457,7 @@ def conv_transpose(
             kernel,
             stride=strides,
             padding=pad_mode,
+            output_padding=output_padding,
             dilation=dilation_rate,
         )
     elif num_spatial == 3:
@@ -458,6 +466,7 @@ def conv_transpose(
             kernel,
             stride=strides,
             padding=pad_mode,
+            output_padding=output_padding,
             dilation=dilation_rate,
         )
     else:
