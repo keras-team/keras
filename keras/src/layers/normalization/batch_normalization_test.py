@@ -8,6 +8,7 @@ from keras.src import layers
 from keras.src import ops
 from keras.src import random
 from keras.src import testing
+from keras.src import utils
 from keras.src.losses import MeanSquaredError
 from keras.src.models import Model
 
@@ -325,6 +326,8 @@ class BatchNormalizationTest(testing.TestCase):
         self.assertAllClose(out, out_renorm, atol=1e-5, rtol=1e-5)
 
     def test_renorm_correctness(self):
+        utils.set_random_seed(1337)
+
         epsilon = 1e-3
         momentum = 0.9
         renorm_momentum = 0.8
