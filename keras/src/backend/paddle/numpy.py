@@ -199,12 +199,12 @@ def cumprod(x, axis=None):
     return paddle.cumprod(convert_to_tensor(x), axis=axis)
 
 
-def argmax(x, axis=None):
-    return paddle.argmax(convert_to_tensor(x), axis=axis)
+def argmax(x, axis=None, keepdims=False):
+    return paddle.argmax(convert_to_tensor(x), axis=axis, keepdim=keepdims)
 
 
-def argmin(x, axis=None):
-    return paddle.argmin(convert_to_tensor(x), axis=axis)
+def argmin(x, axis=None, keepdims=False):
+    return paddle.argmin(convert_to_tensor(x), axis=axis, keepdim=keepdims)
 
 
 def argsort(x, axis=-1):
