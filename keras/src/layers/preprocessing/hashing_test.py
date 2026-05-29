@@ -10,6 +10,7 @@ from keras.src import layers
 from keras.src import models
 from keras.src import testing
 from keras.src.saving import load_model
+from keras.src.testing.test_utils import named_product
 
 
 class ArrayLike:
@@ -249,15 +250,19 @@ class HashingTest(testing.TestCase):
         ):
             _ = layers.Hashing(num_bins=1, salt=[133, 137, 177])
 
-    def test_compute_output_shape(self):
+    @parameterized.named_parameters(
+        named_product(
+            mode=("int", "one_hot", "multi_hot", "count"),
+            input_shape=((4,), (4, 1), (3, 4)),
+        )
+    )
+    def test_compute_output_shape(self, mode, input_shape):
         # `compute_output_shape` must work without building the layer first
         # and agree with the actual call for every output mode.
-        for mode in ("int", "one_hot", "multi_hot", "count"):
-            for ishape in [(4,), (4, 1), (3, 4)]:
-                layer = layers.Hashing(num_bins=5, output_mode=mode)
-                cos = tuple(layer.compute_output_shape((None,) + ishape))
-                actual = tuple(layer(layers.Input(shape=ishape)).shape)
-                self.assertEqual(cos, actual)
+        layer = layers.Hashing(num_bins=5, output_mode=mode)
+        cos = tuple(layer.compute_output_shape((None,) + input_shape))
+        actual = tuple(layer(layers.Input(shape=input_shape)).shape)
+        self.assertEqual(cos, actual)
 
     def test_one_hot_output(self):
         input_array = np.array([0, 1, 2, 3, 4])
