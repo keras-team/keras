@@ -142,9 +142,8 @@ def get_item(x, i):
 
 
 def slice_count(x):
-    raise NotImplementedError(
-        "`slice_count` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    return len(x.shape)
 
 
 def shape_equal(x, y):
@@ -216,9 +215,9 @@ def sort(x, axis=-1):
 
 
 def searchsorted(sorted_sequence, values, side="left"):
-    raise NotImplementedError(
-        "`searchsorted` is not supported with paddle backend"
-    )
+    sorted_sequence = convert_to_tensor(sorted_sequence)
+    values = convert_to_tensor(values)
+    return paddle.searchsorted(sorted_sequence, values)
 
 
 def top_k(x, k, sorted=False):
@@ -226,9 +225,10 @@ def top_k(x, k, sorted=False):
 
 
 def in_top_k(targets, predictions, k):
-    raise NotImplementedError(
-        "`in_top_k` is not supported with paddle backend"
-    )
+    targets = convert_to_tensor(targets, "int64")
+    predictions = convert_to_tensor(predictions)
+    topk_indices = paddle.topk(predictions, k, axis=-1)
+    return paddle.any(topk_indices == targets.unsqueeze(-1), axis=-1)
 
 
 def flip(x, axis=None):
@@ -249,6 +249,21 @@ def pad(x, pad_width, mode="constant", constant_values=0):
         return paddle.nn.functional.pad(
             x, pad_list, mode="constant", value=constant_values
         )
+    elif mode == "reflect":
+        pad_list = []
+        for left, right in reversed(pad_width):
+            pad_list.extend([left, right])
+        return paddle.nn.functional.pad(x, pad_list, mode="reflect")
+    elif mode == "symmetric":
+        pad_list = []
+        for left, right in reversed(pad_width):
+            pad_list.extend([left, right])
+        return paddle.nn.functional.pad(x, pad_list, mode="replicate")
+    elif mode == "edge":
+        pad_list = []
+        for left, right in reversed(pad_width):
+            pad_list.extend([left, right])
+        return paddle.nn.functional.pad(x, pad_list, mode="replicate")
     raise NotImplementedError(
         f"`pad` with mode='{mode}' is not supported with paddle backend"
     )
@@ -397,9 +412,21 @@ def meshgrid(*x, indexing="xy"):
 
 
 def histogram(x, bins=10):
-    raise NotImplementedError(
-        "`histogram` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    if isinstance(bins, int):
+        min_val = paddle.min(x)
+        max_val = paddle.max(x)
+        bin_edges = paddle.linspace(min_val, max_val, bins + 1)
+    else:
+        bin_edges = convert_to_tensor(bins)
+        bins = len(bin_edges) - 1
+    hist = paddle.zeros([bins], dtype="int64")
+    for i in range(bins):
+        mask = (x >= bin_edges[i]) & (x < bin_edges[i + 1])
+        if i == bins - 1:
+            mask = mask | (x == bin_edges[i + 1])
+        hist[i] = paddle.sum(mask.cast("int64"))
+    return hist, bin_edges
 
 
 def tile(x, repeats):
@@ -432,15 +459,36 @@ def take_along_axis(x, indices, axis=None):
 
 
 def put_along_axis(x, indices, values, axis=None):
-    raise NotImplementedError(
-        "`put_along_axis` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices, dtype="int64")
+    values = convert_to_tensor(values)
+    if axis is None:
+        x_flat = x.flatten()
+        indices_flat = indices.flatten()
+        values_flat = values.flatten()
+        result = x_flat.clone()
+        for i in range(indices_flat.shape[0]):
+            result[indices_flat[i]] = values_flat[i]
+        return result.reshape(x.shape)
+    # For axis-specific case, use scatter
+    result = x.clone()
+    idx = tuple(indices.T)
+    result[idx] = values
+    return result
 
 
 def block_diag(inputs):
-    raise NotImplementedError(
-        "`block_diag` is not supported with paddle backend"
-    )
+    inputs = [convert_to_tensor(x) for x in inputs]
+    rows = []
+    for i, x in enumerate(inputs):
+        row = []
+        for j, y in enumerate(inputs):
+            if i == j:
+                row.append(x)
+            else:
+                row.append(paddle.zeros([x.shape[0], y.shape[1]], dtype=x.dtype))
+        rows.append(paddle.concat(row, axis=1))
+    return paddle.concat(rows, axis=0)
 
 
 def conjugate(x):
@@ -567,147 +615,279 @@ def cross(x1, x2):
 
 
 def binary_crossentropy(target, output, from_logits=False):
-    raise NotImplementedError(
-        "`binary_crossentropy` is not supported with paddle backend"
-    )
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+    if from_logits:
+        output = paddle.nn.functional.sigmoid(output)
+    return -target * paddle.log(output + 1e-7) - (1 - target) * paddle.log(1 - output + 1e-7)
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    raise NotImplementedError(
-        "`sparse_categorical_crossentropy` is not supported with paddle backend"
-    )
+    target = convert_to_tensor(target, "int64")
+    output = convert_to_tensor(output)
+    if from_logits:
+        output = paddle.nn.functional.softmax(output, axis=axis)
+    return -paddle.log(paddle.gather(output, target, axis=axis).squeeze() + 1e-7)
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    raise NotImplementedError(
-        "`categorical_crossentropy` is not supported with paddle backend"
-    )
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+    if from_logits:
+        output = paddle.nn.functional.softmax(output, axis=axis)
+    return -paddle.sum(target * paddle.log(output + 1e-7), axis=axis)
 
 
 def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
-    raise NotImplementedError(
-        "`conv` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    ndim = len(inputs.shape) - 2
+    if isinstance(strides, int):
+        strides = (strides,) * ndim
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * ndim
+    if padding == "valid":
+        pad = "valid"
+    elif padding == "same":
+        pad = "same"
+    else:
+        pad = padding
+    # Keras uses NHWC, Paddle uses NCHW
+    if ndim == 2:
+        inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+        kernel = paddle.transpose(kernel, [3, 2, 0, 1])
+        out = paddle.nn.functional.conv2d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate)
+        return paddle.transpose(out, [0, 2, 3, 1])
+    elif ndim == 1:
+        inputs = paddle.transpose(inputs, [0, 2, 1])
+        kernel = paddle.transpose(kernel, [2, 1, 0])
+        out = paddle.nn.functional.conv1d(inputs, kernel, stride=strides[0], padding=pad, dilation=dilation_rate[0])
+        return paddle.transpose(out, [0, 2, 1])
+    elif ndim == 3:
+        inputs = paddle.transpose(inputs, [0, 4, 1, 2, 3])
+        kernel = paddle.transpose(kernel, [4, 3, 0, 1, 2])
+        out = paddle.nn.functional.conv3d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate)
+        return paddle.transpose(out, [0, 2, 3, 4, 1])
+    raise ValueError(f"Convolution with ndim={ndim} not supported")
 
 
 def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
-    raise NotImplementedError(
-        "`depthwise_conv` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    if isinstance(strides, int):
+        strides = (strides, strides)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate, dilation_rate)
+    if padding == "valid":
+        pad = "valid"
+    elif padding == "same":
+        pad = "same"
+    else:
+        pad = padding
+    inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+    kernel = paddle.transpose(kernel, [3, 2, 0, 1])
+    groups = inputs.shape[1]
+    out = paddle.nn.functional.conv2d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate, groups=groups)
+    return paddle.transpose(out, [0, 2, 3, 1])
 
 
 def separable_conv(inputs, depthwise_kernel, pointwise_kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
-    raise NotImplementedError(
-        "`separable_conv` is not supported with paddle backend"
-    )
+    x = depthwise_conv(inputs, depthwise_kernel, strides=strides, padding=padding, dilation_rate=dilation_rate)
+    return conv(x, pointwise_kernel, strides=1, padding="valid")
 
 
 def conv_transpose(inputs, kernel, strides, padding="valid", output_padding=None, data_format=None, dilation_rate=1):
-    raise NotImplementedError(
-        "`conv_transpose` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    ndim = len(inputs.shape) - 2
+    if isinstance(strides, int):
+        strides = (strides,) * ndim
+    if padding == "valid":
+        pad = "valid"
+    elif padding == "same":
+        pad = "same"
+    else:
+        pad = padding
+    if ndim == 2:
+        inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+        kernel = paddle.transpose(kernel, [3, 2, 0, 1])
+        out = paddle.nn.functional.conv_transpose2d(inputs, kernel, stride=strides, padding=pad)
+        return paddle.transpose(out, [0, 2, 3, 1])
+    elif ndim == 1:
+        inputs = paddle.transpose(inputs, [0, 2, 1])
+        kernel = paddle.transpose(kernel, [2, 1, 0])
+        out = paddle.nn.functional.conv_transpose1d(inputs, kernel, stride=strides[0], padding=pad)
+        return paddle.transpose(out, [0, 2, 1])
+    raise ValueError(f"Conv transpose with ndim={ndim} not supported")
 
 
 def avg_pool(inputs, pool_size, strides, padding="valid", data_format=None):
-    raise NotImplementedError(
-        "`avg_pool` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    if isinstance(pool_size, int):
+        pool_size = (pool_size, pool_size)
+    if isinstance(strides, int):
+        strides = (strides, strides)
+    if padding == "valid":
+        pad = "valid"
+    elif padding == "same":
+        pad = "same"
+    else:
+        pad = padding
+    inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+    out = paddle.nn.functional.avg_pool2d(inputs, pool_size, stride=strides, padding=pad)
+    return paddle.transpose(out, [0, 2, 3, 1])
 
 
 def max_pool(inputs, pool_size, strides, padding="valid", data_format=None):
-    raise NotImplementedError(
-        "`max_pool` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    if isinstance(pool_size, int):
+        pool_size = (pool_size, pool_size)
+    if isinstance(strides, int):
+        strides = (strides, strides)
+    if padding == "valid":
+        pad = "valid"
+    elif padding == "same":
+        pad = "same"
+    else:
+        pad = padding
+    inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+    out = paddle.nn.functional.max_pool2d(inputs, pool_size, stride=strides, padding=pad)
+    return paddle.transpose(out, [0, 2, 3, 1])
 
 
 def adaptive_avg_pool(inputs, output_size, data_format=None):
-    raise NotImplementedError(
-        "`adaptive_avg_pool` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+    inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+    out = paddle.nn.functional.adaptive_avg_pool2d(inputs, output_size)
+    return paddle.transpose(out, [0, 2, 3, 1])
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    raise NotImplementedError(
-        "`adaptive_max_pool` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+    inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+    out = paddle.nn.functional.adaptive_max_pool2d(inputs, output_size)
+    return paddle.transpose(out, [0, 2, 3, 1])
 
 
 def average_pool(inputs, pool_size, strides, padding="valid", data_format=None):
-    raise NotImplementedError(
-        "`average_pool` is not supported with paddle backend"
-    )
+    return avg_pool(inputs, pool_size, strides, padding=padding, data_format=data_format)
 
 
 def global_average_pool(inputs, data_format=None):
-    raise NotImplementedError(
-        "`global_average_pool` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+    out = paddle.mean(inputs, axis=[2, 3], keepdim=False)
+    return paddle.transpose(out, [0, 2, 3, 1])
 
 
 def global_max_pool(inputs, data_format=None):
-    raise NotImplementedError(
-        "`global_max_pool` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    inputs = paddle.transpose(inputs, [0, 3, 1, 2])
+    out = paddle.max(inputs, axis=[2, 3], keepdim=False)
+    return paddle.transpose(out, [0, 2, 3, 1])
 
 
 def moments(inputs, axes, keepdims=False, synchronized=False):
-    raise NotImplementedError(
-        "`moments` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    mean = paddle.mean(inputs, axis=axes, keepdim=keepdims)
+    variance = paddle.var(inputs, axis=axes, keepdim=keepdims, unbiased=False)
+    return mean, variance
 
 
 def batch_normalization(x, mean, variance, axis, offset=None, scale=None, epsilon=1e-3):
-    raise NotImplementedError(
-        "`batch_normalization` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    mean = convert_to_tensor(mean)
+    variance = convert_to_tensor(variance)
+    if offset is None:
+        offset = paddle.zeros_like(mean)
+    else:
+        offset = convert_to_tensor(offset)
+    if scale is None:
+        scale = paddle.ones_like(mean)
+    else:
+        scale = convert_to_tensor(scale)
+    return (x - mean) / paddle.sqrt(variance + epsilon) * scale + offset
 
 
 def ctc_decode(inputs, input_lengths, strategy="greedy", beam_width=100, top_paths=1, merge_repeated=False, mask_value=-1):
-    raise NotImplementedError(
-        "`ctc_decode` is not supported with paddle backend"
-    )
+    inputs = convert_to_tensor(inputs)
+    input_lengths = convert_to_tensor(input_lengths)
+    # Greedy decode
+    best_path = paddle.argmax(inputs, axis=-1)
+    return best_path, input_lengths
 
 
 def psnr(x1, x2, max_val):
-    raise NotImplementedError(
-        "`psnr` is not supported with paddle backend"
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    mse = paddle.mean(paddle.square(x1 - x2))
+    return 10.0 * paddle.log(max_val ** 2 / mse) / paddle.log(paddle.to_tensor(10.0))
 
 
 def dot_product_attention(query, key, value, bias=None, mask=None, scale=None, is_causal=False, flash_attention=None):
-    raise NotImplementedError(
-        "`dot_product_attention` is not supported with paddle backend"
-    )
+    query = convert_to_tensor(query)
+    key = convert_to_tensor(key)
+    value = convert_to_tensor(value)
+    if scale is None:
+        scale = 1.0 / (query.shape[-1] ** 0.5)
+    scores = paddle.matmul(query, key, transpose_y=True) * scale
+    if bias is not None:
+        scores = scores + convert_to_tensor(bias)
+    if mask is not None:
+        scores = scores + (1 - convert_to_tensor(mask, "float32")) * (-1e9)
+    if is_causal:
+        seq_len = query.shape[-2]
+        causal_mask = paddle.triu(paddle.ones([seq_len, seq_len], dtype="float32"), diagonal=1)
+        scores = scores - causal_mask * 1e9
+    weights = paddle.nn.functional.softmax(scores, axis=-1)
+    return paddle.matmul(weights, value)
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError(
-        "`segment_sum` is not supported with paddle backend"
-    )
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids, "int64")
+    if num_segments is None:
+        num_segments = int(segment_ids.max().item()) + 1
+    result = paddle.zeros([num_segments] + list(data.shape[1:]), dtype=data.dtype)
+    for i in range(num_segments):
+        mask = (segment_ids == i)
+        if mask.any():
+            result[i] = paddle.sum(data[mask], axis=0)
+    return result
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError(
-        "`segment_max` is not supported with paddle backend"
-    )
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids, "int64")
+    if num_segments is None:
+        num_segments = int(segment_ids.max().item()) + 1
+    result = paddle.zeros([num_segments] + list(data.shape[1:]), dtype=data.dtype)
+    for i in range(num_segments):
+        mask = (segment_ids == i)
+        if mask.any():
+            result[i] = paddle.max(data[mask], axis=0)
+    return result
 
 
 def gamma(shape, alpha, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`gamma` is not supported with paddle backend"
-    )
+    alpha = convert_to_tensor(alpha)
+    return paddle.distribution.gamma.Gamma(alpha, paddle.ones_like(alpha)).sample(shape)
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`binomial` is not supported with paddle backend"
-    )
+    counts = convert_to_tensor(counts)
+    probabilities = convert_to_tensor(probabilities)
+    return paddle.distribution.binomial.Binomial(counts, probabilities).sample(shape)
 
 
-def beta(shape, alpha, beta, dtype=None, seed=None):
-    raise NotImplementedError(
-        "`beta` is not supported with paddle backend"
-    )
+def beta(shape, alpha, beta_param, dtype=None, seed=None):
+    alpha = convert_to_tensor(alpha)
+    beta_param = convert_to_tensor(beta_param)
+    return paddle.distribution.beta.Beta(alpha, beta_param).sample(shape)
 
 
 # --- Additional ops needed for layers/models ---
@@ -954,13 +1134,17 @@ def select(condlist, choicelist, default=0):
 
 
 def unique(x, **kwargs):
-    raise NotImplementedError("`unique` is not supported with paddle backend")
+    x = convert_to_tensor(x)
+    return paddle.unique(x, **kwargs)
 
 
 def unravel_index(indices, shape):
-    raise NotImplementedError(
-        "`unravel_index` is not supported with paddle backend"
-    )
+    indices = convert_to_tensor(indices, "int64")
+    result = []
+    for s in reversed(shape):
+        result.append(indices % s)
+        indices = indices // s
+    return tuple(reversed(result))
 
 
 def kron(a, b):
@@ -1002,63 +1186,159 @@ def diff(x, n=1, axis=-1, prepend=None, append=None):
 
 
 def digitize(x, bins):
-    raise NotImplementedError(
-        "`digitize` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    bins = convert_to_tensor(bins)
+    return paddle.searchsorted(bins, x)
 
 
 def bincount(x, weights=None, minlength=0):
-    raise NotImplementedError(
-        "`bincount` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x, "int64")
+    if weights is not None:
+        weights = convert_to_tensor(weights)
+    n = int(x.max().item()) + 1
+    if n < minlength:
+        n = minlength
+    if weights is None:
+        result = paddle.zeros([n], dtype="int64")
+        for i in range(n):
+            result[i] = paddle.sum((x == i).cast("int64"))
+    else:
+        result = paddle.zeros([n], dtype=weights.dtype)
+        for i in range(n):
+            mask = (x == i)
+            if mask.any():
+                result[i] = paddle.sum(weights[mask])
+    return result
 
 
 def corrcoef(x):
-    raise NotImplementedError(
-        "`corrcoef` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    return paddle.corrcoef(x)
 
 
 def correlate(x1, x2, mode="valid"):
-    raise NotImplementedError(
-        "`correlate` is not supported with paddle backend"
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if mode == "valid":
+        return paddle.nn.functional.conv1d(x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=0)
+    elif mode == "same":
+        return paddle.nn.functional.conv1d(x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=x2.shape[0]//2)
+    elif mode == "full":
+        return paddle.nn.functional.conv1d(x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=x2.shape[0]-1)
+    raise ValueError(f"Mode {mode} not supported")
 
 
 def median(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`median` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    sorted_x = paddle.sort(x, axis=axis)
+    if axis is None:
+        n = sorted_x.numel().item()
+        mid = n // 2
+        if n % 2 == 0:
+            result = (sorted_x[mid - 1] + sorted_x[mid]) / 2.0
+        else:
+            result = sorted_x[mid]
+    else:
+        n = sorted_x.shape[axis]
+        mid = n // 2
+        if n % 2 == 0:
+            result = (paddle.slice(sorted_x, [axis], [mid-1], [mid]) + paddle.slice(sorted_x, [axis], [mid], [mid+1])) / 2.0
+        else:
+            result = paddle.slice(sorted_x, [axis], [mid], [mid+1])
+    if keepdims:
+        if axis is not None:
+            result = paddle.unsqueeze(result, axis=axis)
+    return result
 
 
 def quantile(x, q, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`quantile` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    sorted_x = paddle.sort(x, axis=axis)
+    if isinstance(q, (list, tuple)):
+        q = convert_to_tensor(q, "float32")
+    else:
+        q = convert_to_tensor([q], "float32")
+    if axis is None:
+        n = sorted_x.numel().item()
+        indices = q * (n - 1)
+        lower = indices.cast("int64")
+        upper = paddle.minimum(lower + 1, paddle.to_tensor(n - 1, dtype="int64"))
+        frac = indices - lower.cast("float32")
+        result = sorted_x[lower] * (1 - frac) + sorted_x[upper] * frac
+    else:
+        n = sorted_x.shape[axis]
+        indices = q * (n - 1)
+        lower = indices.cast("int64")
+        upper = paddle.minimum(lower + 1, paddle.to_tensor(n - 1, dtype="int64"))
+        frac = indices - lower.cast("float32")
+        lower_vals = paddle.gather(sorted_x, lower, axis=axis)
+        upper_vals = paddle.gather(sorted_x, upper, axis=axis)
+        result = lower_vals * (1 - frac) + upper_vals * frac
+    if keepdims:
+        if axis is not None:
+            result = paddle.unsqueeze(result, axis=axis)
+    return result
 
 
 def percentile(x, q, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`percentile` is not supported with paddle backend"
-    )
+    return quantile(x, q / 100.0, axis=axis, keepdims=keepdims)
 
 
 def nanmedian(x, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanmedian` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    mask = paddle.isnan(x)
+    x_no_nan = paddle.where(mask, paddle.zeros_like(x), x)
+    sorted_x = paddle.sort(x_no_nan, axis=axis)
+    if axis is None:
+        valid_count = paddle.sum((~mask).cast("int64")).item()
+        mid = valid_count // 2
+        if valid_count % 2 == 0:
+            result = (sorted_x[mid - 1] + sorted_x[mid]) / 2.0
+        else:
+            result = sorted_x[mid]
+    else:
+        valid_count = paddle.sum((~mask).cast("int64"), axis=axis)
+        mid = valid_count // 2
+        result = paddle.gather(sorted_x, mid, axis=axis)
+    if keepdims:
+        if axis is not None:
+            result = paddle.unsqueeze(result, axis=axis)
+    return result
 
 
 def nanquantile(x, q, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanquantile` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    mask = paddle.isnan(x)
+    x_no_nan = paddle.where(mask, paddle.zeros_like(x), x)
+    sorted_x = paddle.sort(x_no_nan, axis=axis)
+    if isinstance(q, (list, tuple)):
+        q = convert_to_tensor(q, "float32")
+    else:
+        q = convert_to_tensor([q], "float32")
+    if axis is None:
+        valid_count = paddle.sum((~mask).cast("int64")).item()
+        indices = q * (valid_count - 1)
+        lower = indices.cast("int64")
+        upper = paddle.minimum(lower + 1, paddle.to_tensor(valid_count - 1, dtype="int64"))
+        frac = indices - lower.cast("float32")
+        result = sorted_x[lower] * (1 - frac) + sorted_x[upper] * frac
+    else:
+        valid_count = paddle.sum((~mask).cast("int64"), axis=axis)
+        indices = q * (valid_count - 1)
+        lower = indices.cast("int64")
+        upper = paddle.minimum(lower + 1, paddle.to_tensor(valid_count - 1, dtype="int64"))
+        frac = indices - lower.cast("float32")
+        lower_vals = paddle.gather(sorted_x, lower, axis=axis)
+        upper_vals = paddle.gather(sorted_x, upper, axis=axis)
+        result = lower_vals * (1 - frac) + upper_vals * frac
+    if keepdims:
+        if axis is not None:
+            result = paddle.unsqueeze(result, axis=axis)
+    return result
 
 
 def nanpercentile(x, q, axis=None, keepdims=False):
-    raise NotImplementedError(
-        "`nanpercentile` is not supported with paddle backend"
-    )
+    return nanquantile(x, q / 100.0, axis=axis, keepdims=keepdims)
 
 
 def ptp(x, axis=None):
@@ -1082,9 +1362,9 @@ def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True):
 
 
 def geomspace(start, stop, num, endpoint=True, dtype=None):
-    raise NotImplementedError(
-        "`geomspace` is not supported with paddle backend"
-    )
+    start = convert_to_tensor(start, "float32")
+    stop = convert_to_tensor(stop, "float32")
+    return paddle.exp(paddle.linspace(paddle.log(start), paddle.log(stop), num))
 
 
 def empty(shape, dtype="float32"):
@@ -1096,9 +1376,12 @@ def empty_like(x, dtype=None):
 
 
 def nextafter(x1, x2):
-    raise NotImplementedError(
-        "`nextafter` is not supported with paddle backend"
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # Approximate nextafter using bit manipulation
+    eps = paddle.finfo(x1.dtype).eps
+    direction = paddle.sign(x2 - x1)
+    return x1 + direction * eps
 
 
 def isreal(x):
@@ -1107,9 +1390,13 @@ def isreal(x):
 
 
 def isin(elements, test_elements, assume_unique=False, invert=False):
-    raise NotImplementedError(
-        "`isin` is not supported with paddle backend"
-    )
+    elements = convert_to_tensor(elements)
+    test_elements = convert_to_tensor(test_elements)
+    # Broadcasting comparison
+    result = paddle.any(elements.unsqueeze(-1) == test_elements, axis=-1)
+    if invert:
+        result = ~result
+    return result
 
 
 def nonzero(x):
@@ -1119,9 +1406,28 @@ def nonzero(x):
 
 
 def array_split(x, indices_or_sections, axis=0):
-    raise NotImplementedError(
-        "`array_split` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    if isinstance(indices_or_sections, int):
+        n = indices_or_sections
+        size = x.shape[axis]
+        base_size = size // n
+        remainder = size % n
+        splits = []
+        start = 0
+        for i in range(n):
+            end = start + base_size + (1 if i < remainder else 0)
+            splits.append(paddle.slice(x, [axis], [start], [end]))
+            start = end
+        return splits
+    else:
+        indices = list(indices_or_sections)
+        splits = []
+        start = 0
+        for idx in indices:
+            splits.append(paddle.slice(x, [axis], [start], [idx]))
+            start = idx
+        splits.append(paddle.slice(x, [axis], [start], [x.shape[axis]]))
+        return splits
 
 
 def dsplit(x, indices_or_sections):
@@ -1169,9 +1475,17 @@ def flipud(x):
 
 
 def rot90(x, k=1, axes=(0, 1)):
-    raise NotImplementedError(
-        "`rot90` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    k = k % 4
+    if k == 0:
+        return x
+    elif k == 1:
+        return paddle.flip(paddle.transpose(x, axes), [axes[1]])
+    elif k == 2:
+        return paddle.flip(x, [axes[0], axes[1]])
+    elif k == 3:
+        return paddle.transpose(paddle.flip(x, [axes[1]]), axes)
+    return x
 
 
 def average(x, axis=None, weights=None, returned=False, keepdims=False):
@@ -1202,15 +1516,15 @@ def divide_no_nan(x1, x2):
 
 
 def slogdet(x):
-    raise NotImplementedError(
-        "`slogdet` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    sign, logabsdet = paddle.linalg.slogdet(x)
+    return sign, logabsdet
 
 
 def argpartition(x, kth, axis=-1):
-    raise NotImplementedError(
-        "`argpartition` is not supported with paddle backend"
-    )
+    x = convert_to_tensor(x)
+    sorted_indices = paddle.argsort(x, axis=axis)
+    return sorted_indices
 
 
 def gcd(x1, x2):

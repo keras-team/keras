@@ -40,6 +40,8 @@ PADDLE_DTYPES = {
     "int64": paddle.int64,
     "bfloat16": paddle.bfloat16,
     "bool": paddle.bool,
+    "float8_e4m3fn": paddle.float8_e4m3fn,
+    "float8_e5m2": paddle.float8_e5m2,
     "complex64": paddle.complex64,
     "complex128": paddle.complex128,
 }

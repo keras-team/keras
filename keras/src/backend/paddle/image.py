@@ -1,13 +1,20 @@
 import paddle
+import paddle.nn.functional as F
 
 from keras.src.backend.paddle.core import convert_to_tensor
 from keras.src.backend.paddle.core import is_tensor
 
 
 def rgb_to_grayscale(image, data_format="channels_last"):
-    raise NotImplementedError(
-        "`rgb_to_grayscale` is not supported with paddle backend"
-    )
+    image = convert_to_tensor(image, "float32")
+    if data_format == "channels_last":
+        r, g, b = image[..., 0], image[..., 1], image[..., 2]
+    else:
+        r, g, b = image[:, 0], image[:, 1], image[:, 2]
+    gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
+    if data_format == "channels_last":
+        return gray.unsqueeze(-1)
+    return gray.unsqueeze(1)
 
 
 def resize(
@@ -21,9 +28,16 @@ def resize(
     fill_value=0.0,
     data_format="channels_last",
 ):
-    raise NotImplementedError(
-        "`resize` is not supported with paddle backend"
-    )
+    image = convert_to_tensor(image, "float32")
+    if data_format == "channels_last":
+        image = paddle.transpose(image, [0, 3, 1, 2])
+
+    mode = "bilinear" if interpolation == "bilinear" else "nearest"
+    out = F.interpolate(image, size=size, mode=mode, align_corners=False)
+
+    if data_format == "channels_last":
+        out = paddle.transpose(out, [0, 2, 3, 1])
+    return out
 
 
 def affine_transform(
