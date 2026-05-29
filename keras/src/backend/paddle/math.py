@@ -415,5 +415,8 @@ def cdist(x, y):
         raise ValueError("`cdist` inputs must have rank >= 2")
     if x.shape[-1] != y.shape[-1]:
         raise ValueError("Last dimension of inputs to `cdist` must match")
-    diff = x.unsqueeze(-2) - y.unsqueeze(-3)
-    return paddle.sqrt(paddle.sum(diff * diff, axis=-1))
+    x_norm = paddle.sum(x * x, axis=-1, keepdim=True)
+    y_norm = paddle.sum(y * y, axis=-1, keepdim=True)
+    xy = paddle.matmul(x, y, transpose_y=True)
+    dist_sq = x_norm - 2 * xy + y_norm.transpose([0, 2, 1])
+    return paddle.sqrt(paddle.clip(dist_sq, min=0.0))

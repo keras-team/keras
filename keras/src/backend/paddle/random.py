@@ -14,23 +14,25 @@ from keras.src.random.seed_generator import make_default_seed
 def normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     paddle_dtype = to_paddle_dtype(dtype)
-    seed = draw_seed(seed)
-    if isinstance(seed, paddle.Tensor):
-        seed = convert_to_numpy(seed)
-    rng = np.random.default_rng(seed)
-    data = rng.normal(size=shape, loc=mean, scale=stddev).astype(dtype)
-    return paddle.to_tensor(data, dtype=paddle_dtype)
+    if seed is not None:
+        seed_val = draw_seed(seed)
+        if isinstance(seed_val, paddle.Tensor):
+            seed_val = int(convert_to_numpy(seed_val))
+        paddle.seed(seed_val)
+    return paddle.normal(mean=mean, std=stddev, shape=shape).cast(paddle_dtype)
 
 
 def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     dtype = dtype or floatx()
     paddle_dtype = to_paddle_dtype(dtype)
-    seed = draw_seed(seed)
-    if isinstance(seed, paddle.Tensor):
-        seed = convert_to_numpy(seed)
-    rng = np.random.default_rng(seed)
-    data = rng.uniform(size=shape, low=minval, high=maxval).astype(dtype)
-    return paddle.to_tensor(data, dtype=paddle_dtype)
+    if seed is not None:
+        seed_val = draw_seed(seed)
+        if isinstance(seed_val, paddle.Tensor):
+            seed_val = int(convert_to_numpy(seed_val))
+        paddle.seed(seed_val)
+    return paddle.uniform(shape=shape, min=minval, max=maxval).cast(
+        paddle_dtype
+    )
 
 
 def categorical(logits, num_samples, dtype="int64", seed=None):

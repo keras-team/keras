@@ -1057,7 +1057,7 @@ def quantile(x, q, axis=None, keepdims=False):
     else:
         q = convert_to_tensor([q], "float32")
     if axis is None:
-        n = sorted_x.numel().item()
+        n = int(np.prod(sorted_x.shape))
         indices = q * (n - 1)
         lower = indices.cast("int64")
         upper = paddle.minimum(
@@ -1201,7 +1201,7 @@ def isreal(x):
 
 def isin(elements, test_elements, assume_unique=False, invert=False):
     elements = convert_to_tensor(elements)
-    test_elements = convert_to_tensor(test_elements)
+    test_elements = convert_to_tensor(test_elements).flatten()
     # Broadcasting comparison
     result = paddle.any(elements.unsqueeze(-1) == test_elements, axis=-1)
     if invert:
@@ -1272,7 +1272,6 @@ def vstack(xs):
 
 def diagflat(x, k=0):
     x = convert_to_tensor(x).flatten()
-    x.shape[0]
     return paddle.diag(x, offset=k)
 
 
@@ -1328,7 +1327,8 @@ def exp2(x):
 def divide_no_nan(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    return paddle.where(x2 == 0, paddle.zeros_like(x1), x1 / x2)
+    safe_x2 = paddle.where(x2 == 0, paddle.ones_like(x2), x2)
+    return paddle.where(x2 == 0, paddle.zeros_like(x1), x1 / safe_x2)
 
 
 def slogdet(x):

@@ -692,11 +692,7 @@ def psnr(x1, x2, max_val):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     mse = paddle.mean((x1 - x2) ** 2)
-    return (
-        10.0
-        * paddle.log(max_val**2 / (mse + 1e-10))
-        / paddle.log(paddle.to_tensor(10.0))
-    )
+    return 10.0 * paddle.log10(max_val**2 / (mse + 1e-10))
 
 
 def dot_product_attention(
