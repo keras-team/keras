@@ -184,10 +184,7 @@ class EinsumDense(Layer):
             input_shape,
             self.partial_output_shape,
         )
-        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
-            shape_data
-        )
-        self.full_output_shape = tuple(full_output_shape)
+        kernel_shape, bias_shape, _, input_axes, output_axes = shape_data
         self.input_spec = InputSpec(ndim=len(input_shape))
 
         kernel_initializer = self.kernel_initializer
@@ -303,8 +300,14 @@ class EinsumDense(Layer):
 
         return kernel
 
-    def compute_output_shape(self, _):
-        return self.full_output_shape
+    def compute_output_shape(self, input_shape):
+        _, _, full_output_shape, _, _ = _analyze_einsum_string(
+            self.equation,
+            self.bias_axes,
+            input_shape,
+            self.partial_output_shape,
+        )
+        return tuple(full_output_shape)
 
     def call(self, inputs, training=None):
         x = ops.einsum(self.equation, inputs, self.kernel)
