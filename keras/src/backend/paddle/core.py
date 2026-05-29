@@ -268,6 +268,9 @@ def compute_output_spec(fn, *args, **kwargs):
 
             flat_out = []
             for x1, x2 in zip(flat_out_1, flat_out_2):
+                if not is_tensor(x1):
+                    flat_out.append(x1)
+                    continue
                 out_shape = list(x1.shape)
                 for i, e in enumerate(x2.shape):
                     if e != out_shape[i]:
@@ -347,9 +350,10 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
         packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
         carry, y = f(carry, packed_xs)
         ys.append(y if y is not None else dummy_y)
-    stacked_y = tree.map_structure(
-        lambda *ys: paddle.stack(ys), *maybe_reversed(ys)
-    )
+    ordered_ys = list(maybe_reversed(ys))
+    flat_ys = [tree.flatten(y) for y in ordered_ys]
+    flat_stacked = [paddle.stack(tensors) for tensors in zip(*flat_ys)]
+    stacked_y = tree.pack_sequence_as(ordered_ys[0], flat_stacked)
     return carry, stacked_y
 
 

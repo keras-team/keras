@@ -1050,7 +1050,7 @@ def quantile(x, q, axis=None, keepdims=False):
     else:
         q = convert_to_tensor([q], "float32")
     if axis is None:
-        n = int(sorted_x.numel())
+        n = int(sorted_x.size)
         indices = q * (n - 1)
         lower = indices.cast("int64")
         upper = paddle.minimum(
@@ -1086,8 +1086,11 @@ def percentile(x, q, axis=None, keepdims=False):
 def nanmedian(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     mask = paddle.isnan(x)
+    if axis is None:
+        x = x.flatten()
+        mask = mask.flatten()
     x_no_nan = paddle.where(mask, paddle.zeros_like(x), x)
-    sorted_x = paddle.sort(x_no_nan, axis=axis)
+    sorted_x = paddle.sort(x_no_nan, axis=axis if axis is not None else -1)
     if axis is None:
         valid_count = paddle.sum((~mask).cast("int64")).item()
         mid = valid_count // 2
@@ -1108,8 +1111,11 @@ def nanmedian(x, axis=None, keepdims=False):
 def nanquantile(x, q, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     mask = paddle.isnan(x)
+    if axis is None:
+        x = x.flatten()
+        mask = mask.flatten()
     x_no_nan = paddle.where(mask, paddle.zeros_like(x), x)
-    sorted_x = paddle.sort(x_no_nan, axis=axis)
+    sorted_x = paddle.sort(x_no_nan, axis=axis if axis is not None else -1)
     if isinstance(q, (list, tuple)):
         q = convert_to_tensor(q, "float32")
     else:

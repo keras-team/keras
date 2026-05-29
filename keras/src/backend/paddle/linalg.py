@@ -55,10 +55,10 @@ def solve_triangular(a, b, lower=False):
     b = convert_to_tensor(b)
     if b.ndim == a.ndim - 1:
         b = paddle.unsqueeze(b, axis=-1)
-        return paddle.linalg.triangular_solve(b, a, upper=not lower).squeeze(
+        return paddle.linalg.triangular_solve(a, b, upper=not lower).squeeze(
             axis=-1
         )
-    return paddle.linalg.triangular_solve(b, a, upper=not lower)
+    return paddle.linalg.triangular_solve(a, b, upper=not lower)
 
 
 def svd(x, full_matrices=True, compute_uv=True):

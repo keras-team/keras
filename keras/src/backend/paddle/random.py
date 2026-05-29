@@ -69,6 +69,8 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
         if isinstance(seed_val, paddle.Tensor):
             seed_val = int(convert_to_numpy(seed_val).flat[0])
         paddle.seed(seed_val)
+    if rate == 1.0:
+        return paddle.zeros_like(inputs)
     keep_mask = paddle.bernoulli(
         paddle.full(noise_shape, 1.0 - rate, dtype="float32")
     )

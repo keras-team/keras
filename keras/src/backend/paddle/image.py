@@ -35,7 +35,14 @@ def resize(
     if data_format == "channels_last":
         image = paddle.transpose(image, [0, 3, 1, 2])
 
-    mode = "bilinear" if interpolation == "bilinear" else "nearest"
+    if interpolation == "bilinear":
+        mode = "bilinear"
+    elif interpolation == "nearest":
+        mode = "nearest"
+    elif interpolation == "bicubic":
+        mode = "bicubic"
+    else:
+        raise ValueError(f"Unsupported interpolation: {interpolation}")
     out = F.interpolate(image, size=size, mode=mode, align_corners=False)
 
     if data_format == "channels_last":
