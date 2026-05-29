@@ -223,12 +223,8 @@ def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_
     # Convert to channels_first for paddle
     inputs = _to_channels_first(inputs, data_format)
 
-    # Kernel: Keras uses [spatial_dims, in_channels/groups, out_channels]
-    # Paddle uses [out_channels, in_channels/groups, *spatial_dims]
-    # Transpose kernel: move last dim to first, and shift spatial dims
-    kernel = paddle.transpose(kernel, list(range(1, num_spatial + 1)) + [0] + list(range(num_spatial + 1, kernel.ndim)))
-    # Actually, Keras kernel is [*kernel_size, in_channels, out_channels]
-    # Paddle kernel is [out_channels, in_channels, *kernel_size]
+    # Kernel: Keras [*kernel_size, in_channels, out_channels]
+    # Paddle: [out_channels, in_channels, *kernel_size]
     perm = [num_spatial + 1, num_spatial] + list(range(num_spatial))
     kernel = paddle.transpose(kernel, perm)
 
@@ -260,12 +256,13 @@ def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None,
     from keras.src.backend.config import standardize_data_format
     data_format = standardize_data_format(data_format)
 
-    check_conv_input_channels(inputs, kernel, data_format)
     inputs = _to_channels_first(inputs, data_format)
 
     # Kernel: Keras [kernel_size..., in_channels, depth_multiplier]
-    # Reshape to [in_channels * depth_multiplier, 1, *kernel_size]
-    kernel = paddle.reshape(kernel, [kernel.shape[-2] * kernel.shape[-1]] + list(kernel.shape[:-2]))
+    # Paddle depthwise: [in_channels * depth_multiplier, 1, *kernel_size]
+    perm = [num_spatial, num_spatial + 1] + list(range(num_spatial))
+    kernel = paddle.transpose(kernel, perm)
+    kernel = paddle.reshape(kernel, [kernel.shape[0] * kernel.shape[1], 1] + list(kernel.shape[2:]))
 
     in_channels = inputs.shape[1]
     groups = in_channels
@@ -408,6 +405,10 @@ def adaptive_pool(inputs, output_size, data_format, pool_type):
 
 def adaptive_avg_pool(inputs, output_size, data_format=None):
     return adaptive_pool(inputs, output_size, data_format, "avg")
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    return adaptive_avg_pool(inputs, output_size, data_format)
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
