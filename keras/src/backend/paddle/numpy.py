@@ -1243,3 +1243,78 @@ def amin(x, axis=None, keepdims=False, initial=None):
 
 def amax(x, axis=None, keepdims=False, initial=None):
     return max(x, axis=axis, keepdims=keepdims, initial=initial)
+
+
+def var(x, axis=None, keepdims=False):
+    return paddle.var(convert_to_tensor(x), axis=axis, keepdim=keepdims)
+
+
+def tanh(x):
+    return paddle.tanh(convert_to_tensor(x))
+
+
+def fabs(x):
+    return paddle.abs(convert_to_tensor(x))
+
+
+def diag(x, k=0):
+    return paddle.diag(convert_to_tensor(x), offset=k)
+
+
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    if x is not None:
+        x = convert_to_tensor(x)
+        dx_tensor = x[..., 1:] - x[..., :-1]
+        avg = (y[..., 1:] + y[..., :-1]) / 2.0
+        return paddle.sum(avg * dx_tensor, axis=axis)
+    return paddle.sum(y * dx, axis=axis)
+
+
+def bartlett(M):
+    if M < 1:
+        return paddle.zeros([0])
+    if M == 1:
+        return paddle.ones([1])
+    n = paddle.arange(M, dtype="float32")
+    return paddle.where(n <= (M - 1) / 2.0, 2 * n / (M - 1), 2 - 2 * n / (M - 1))
+
+
+def blackman(M):
+    if M < 1:
+        return paddle.zeros([0])
+    n = paddle.arange(M, dtype="float32")
+    return 0.42 - 0.5 * paddle.cos(2 * np.pi * n / (M - 1)) + 0.08 * paddle.cos(4 * np.pi * n / (M - 1))
+
+
+def hamming(M):
+    if M < 1:
+        return paddle.zeros([0])
+    n = paddle.arange(M, dtype="float32")
+    return 0.54 - 0.46 * paddle.cos(2 * np.pi * n / (M - 1))
+
+
+def hanning(M):
+    if M < 1:
+        return paddle.zeros([0])
+    n = paddle.arange(M, dtype="float32")
+    return 0.5 - 0.5 * paddle.cos(2 * np.pi * n / (M - 1))
+
+
+def kaiser(M, beta):
+    if M < 1:
+        return paddle.zeros([0])
+    n = paddle.arange(M, dtype="float32")
+    alpha = (M - 1) / 2.0
+    return paddle.i0(beta * paddle.sqrt(1 - ((n - alpha) / alpha) ** 2)) / paddle.i0(paddle.to_tensor(beta, dtype="float32"))
+
+
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    if N is None:
+        N = x.shape[0]
+    if not increasing:
+        powers = paddle.arange(N - 1, -1, -1, dtype="float32")
+    else:
+        powers = paddle.arange(0, N, dtype="float32")
+    return x.unsqueeze(1) ** powers.unsqueeze(0)

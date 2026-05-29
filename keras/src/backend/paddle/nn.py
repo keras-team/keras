@@ -266,3 +266,205 @@ def dot_product_attention(query, key, value, bias=None, mask=None, scale=None, i
 
     weights = F.softmax(scores, axis=-1)
     return paddle.matmul(weights, value)
+
+
+def conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    ndim = len(inputs.shape) - 2
+    if isinstance(strides, int):
+        strides = (strides,) * ndim
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * ndim
+
+    if padding == "valid":
+        pad = "valid"
+    elif padding == "same":
+        pad = "same"
+    else:
+        pad = padding
+
+    if ndim == 1:
+        return F.conv1d(inputs, kernel, stride=strides[0], padding=pad, dilation=dilation_rate[0])
+    elif ndim == 2:
+        return F.conv2d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate)
+    elif ndim == 3:
+        return F.conv3d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate)
+    raise ValueError(f"Unsupported ndim: {ndim}")
+
+
+def depthwise_conv(inputs, kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    if isinstance(strides, int):
+        strides = (strides, strides)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate, dilation_rate)
+    if padding == "valid":
+        pad = "valid"
+    elif padding == "same":
+        pad = "same"
+    else:
+        pad = padding
+    groups = inputs.shape[1]
+    return F.conv2d(inputs, kernel, stride=strides, padding=pad, dilation=dilation_rate, groups=groups)
+
+
+def separable_conv(inputs, depthwise_kernel, pointwise_kernel, strides=1, padding="valid", data_format=None, dilation_rate=1):
+    x = depthwise_conv(inputs, depthwise_kernel, strides=strides, padding=padding, dilation_rate=dilation_rate)
+    return conv(x, pointwise_kernel, strides=1, padding="valid")
+
+
+def conv_transpose(inputs, kernel, strides, padding="valid", output_padding=None, data_format=None, dilation_rate=1):
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    ndim = len(inputs.shape) - 2
+    if isinstance(strides, int):
+        strides = (strides,) * ndim
+
+    if ndim == 1:
+        return F.conv_transpose1d(inputs, kernel, stride=strides[0], padding=padding)
+    elif ndim == 2:
+        return F.conv_transpose2d(inputs, kernel, stride=strides, padding=padding)
+    elif ndim == 3:
+        return F.conv_transpose3d(inputs, kernel, stride=strides, padding=padding)
+    raise ValueError(f"Unsupported ndim: {ndim}")
+
+
+def avg_pool(inputs, pool_size, strides, padding="valid", data_format=None):
+    inputs = convert_to_tensor(inputs)
+    ndim = len(inputs.shape) - 2
+    if isinstance(pool_size, int):
+        pool_size = (pool_size,) * ndim
+    if isinstance(strides, int):
+        strides = (strides,) * ndim
+    if ndim == 1:
+        return F.avg_pool1d(inputs, pool_size[0], stride=strides[0], padding=padding)
+    elif ndim == 2:
+        return F.avg_pool2d(inputs, pool_size, stride=strides, padding=padding)
+    elif ndim == 3:
+        return F.avg_pool3d(inputs, pool_size, stride=strides, padding=padding)
+    raise ValueError(f"Unsupported ndim: {ndim}")
+
+
+def max_pool(inputs, pool_size, strides, padding="valid", data_format=None):
+    inputs = convert_to_tensor(inputs)
+    ndim = len(inputs.shape) - 2
+    if isinstance(pool_size, int):
+        pool_size = (pool_size,) * ndim
+    if isinstance(strides, int):
+        strides = (strides,) * ndim
+    if ndim == 1:
+        return F.max_pool1d(inputs, pool_size[0], stride=strides[0], padding=padding)
+    elif ndim == 2:
+        return F.max_pool2d(inputs, pool_size, stride=strides, padding=padding)
+    elif ndim == 3:
+        return F.max_pool3d(inputs, pool_size, stride=strides, padding=padding)
+    raise ValueError(f"Unsupported ndim: {ndim}")
+
+
+def adaptive_avg_pool(inputs, output_size, data_format=None):
+    inputs = convert_to_tensor(inputs)
+    ndim = len(inputs.shape) - 2
+    if ndim == 1:
+        return F.adaptive_avg_pool1d(inputs, output_size)
+    elif ndim == 2:
+        return F.adaptive_avg_pool2d(inputs, output_size)
+    elif ndim == 3:
+        return F.adaptive_avg_pool3d(inputs, output_size)
+    raise ValueError(f"Unsupported ndim: {ndim}")
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    return adaptive_avg_pool(inputs, output_size, data_format=data_format)
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    inputs = convert_to_tensor(inputs)
+    ndim = len(inputs.shape) - 2
+    if ndim == 1:
+        return F.adaptive_max_pool1d(inputs, output_size)
+    elif ndim == 2:
+        return F.adaptive_max_pool2d(inputs, output_size)
+    elif ndim == 3:
+        return F.adaptive_max_pool3d(inputs, output_size)
+    raise ValueError(f"Unsupported ndim: {ndim}")
+
+
+def average_pool(inputs, pool_size, strides, padding="valid", data_format=None):
+    return avg_pool(inputs, pool_size, strides, padding=padding, data_format=data_format)
+
+
+def global_average_pool(inputs, data_format=None):
+    inputs = convert_to_tensor(inputs)
+    axes = list(range(2, len(inputs.shape)))
+    return paddle.mean(inputs, axis=axes)
+
+
+def global_max_pool(inputs, data_format=None):
+    inputs = convert_to_tensor(inputs)
+    axes = list(range(2, len(inputs.shape)))
+    return paddle.max(inputs, axis=axes)
+
+
+def binary_crossentropy(target, output, from_logits=False):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+    if from_logits:
+        output = F.sigmoid(output)
+    return F.binary_cross_entropy(output, target)
+
+
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    target = convert_to_tensor(target)
+    output = convert_to_tensor(output)
+    if from_logits:
+        output = F.softmax(output, axis=axis)
+    return -paddle.sum(target * paddle.log(output + 1e-7), axis=axis)
+
+
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    target = convert_to_tensor(target, dtype="int64")
+    output = convert_to_tensor(output)
+    if from_logits:
+        output = F.softmax(output, axis=axis)
+    # Gather the probabilities at the target indices
+    target_one_hot = F.one_hot(target, output.shape[axis])
+    return -paddle.sum(target_one_hot * paddle.log(output + 1e-7), axis=axis)
+
+
+def ctc_loss(target, output, target_length, output_length, mask_value=0):
+    raise NotImplementedError("`ctc_loss` is not supported with paddle backend")
+
+
+def ctc_decode(inputs, input_lengths, strategy="greedy", beam_width=100, top_paths=1, merge_repeated=False, mask_value=-1):
+    raise NotImplementedError(
+        "`ctc_decode` is not supported with paddle backend"
+    )
+
+
+def psnr(x1, x2, max_val):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    mse = paddle.mean((x1 - x2) ** 2)
+    return 10.0 * paddle.log(max_val ** 2 / mse) / paddle.log(paddle.to_tensor(10.0))
+
+
+def fold(x, output_shape, kernel_size, strides=1, padding="valid", dilation_rate=1, data_format=None):
+    raise NotImplementedError("`fold` is not supported with paddle backend")
+
+
+def unfold(x, kernel_size, strides=1, padding="valid", dilation_rate=1, data_format=None):
+    raise NotImplementedError("`unfold` is not supported with paddle backend")
+
+
+def depth_to_space(inputs, block_size, data_format=None):
+    raise NotImplementedError(
+        "`depth_to_space` is not supported with paddle backend"
+    )
+
+
+def space_to_depth(inputs, block_size, data_format=None):
+    raise NotImplementedError(
+        "`space_to_depth` is not supported with paddle backend"
+    )

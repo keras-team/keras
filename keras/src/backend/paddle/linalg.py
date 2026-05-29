@@ -1,23 +1,27 @@
+import paddle
+
+from keras.src.backend.paddle.core import convert_to_tensor
+
+
 def cholesky(a):
-    raise NotImplementedError(
-        "`cholesky` is not supported with paddle backend"
-    )
+    return paddle.linalg.cholesky(convert_to_tensor(a))
 
 
 def det(a):
-    raise NotImplementedError("`det` is not supported with paddle backend")
+    return paddle.linalg.det(convert_to_tensor(a))
 
 
 def eig(a):
-    raise NotImplementedError("`eig` is not supported with paddle backend")
+    return paddle.linalg.eig(convert_to_tensor(a))
 
 
 def eigh(a):
-    raise NotImplementedError("`eigh` is not supported with paddle backend")
+    w, v = paddle.linalg.eigh(convert_to_tensor(a))
+    return w, v
 
 
 def inv(a):
-    raise NotImplementedError("`inv` is not supported with paddle backend")
+    return paddle.linalg.inv(convert_to_tensor(a))
 
 
 def lu_factor(a):
@@ -27,28 +31,43 @@ def lu_factor(a):
 
 
 def norm(x, ord=None, axis=None, keepdims=False):
-    raise NotImplementedError("`norm` is not supported with paddle backend")
+    return paddle.linalg.norm(convert_to_tensor(x), p=ord, axis=axis, keepdim=keepdims)
 
 
 def qr(x, mode="reduced"):
-    raise NotImplementedError("`qr` is not supported with paddle backend")
+    if mode not in {"reduced", "complete"}:
+        raise ValueError(
+            "`mode` argument value not supported. "
+            "Expected one of {'reduced', 'complete'}. "
+            f"Received: mode={mode}"
+        )
+    return paddle.linalg.qr(convert_to_tensor(x), mode=mode)
 
 
 def solve(a, b):
-    raise NotImplementedError("`solve` is not supported with paddle backend")
+    return paddle.linalg.solve(convert_to_tensor(a), convert_to_tensor(b))
 
 
 def solve_triangular(a, b, lower=False):
-    raise NotImplementedError(
-        "`solve_triangular` is not supported with paddle backend"
-    )
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    if b.ndim == a.ndim - 1:
+        b = paddle.unsqueeze(b, axis=-1)
+        return paddle.linalg.triangular_solve(
+            b, a, upper=not lower
+        ).squeeze(axis=-1)
+    return paddle.linalg.triangular_solve(b, a, upper=not lower)
 
 
 def svd(x, full_matrices=True, compute_uv=True):
-    raise NotImplementedError("`svd` is not supported with paddle backend")
+    x = convert_to_tensor(x)
+    if not compute_uv:
+        return paddle.linalg.svdvals(x)
+    return paddle.linalg.svd(x, full_matrices=full_matrices)
 
 
 def lstsq(a, b, rcond=None):
-    raise NotImplementedError(
-        "`lstsq` is not supported with paddle backend"
-    )
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    result = paddle.linalg.lstsq(a, b, rcond=rcond)
+    return result[0]
