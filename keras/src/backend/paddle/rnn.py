@@ -171,7 +171,7 @@ def rnn(
                 out_list.extend([[]] * (output_ta_size - len(out)))
             output_ta.append(out_list)
 
-        time = paddle.to_tensor(0, dtype="int32")
+        time = 0
 
         if input_length is None:
             max_iterations = time_steps_t

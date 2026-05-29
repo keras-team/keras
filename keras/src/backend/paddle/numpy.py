@@ -241,7 +241,7 @@ def top_k(x, k, sorted=False):
 def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets, "int64")
     predictions = convert_to_tensor(predictions)
-    topk_indices = paddle.topk(predictions, k, axis=-1)
+    topk_indices = paddle.topk(predictions, k, axis=-1)[1]
     return paddle.any(topk_indices == targets.unsqueeze(-1), axis=-1)
 
 
