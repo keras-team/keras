@@ -68,7 +68,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           if [ "${{ matrix.backend }}" == "paddle" ]; then
-            pip install -r requirements-paddle.txt
+            pip install paddlepaddle==3.3.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
             echo "Verifying paddle installation..."
             python -c "import paddle; print(f'Paddle version: {paddle.__version__}')" || echo "WARNING: paddle import failed"
           fi
