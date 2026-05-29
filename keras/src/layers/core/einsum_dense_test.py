@@ -350,9 +350,7 @@ class EinsumDenseTest(testing.TestCase):
             self.assertEqual(layer.bias.shape, expected_bias_shape)
 
     def test_compute_output_shape_before_build(self):
-        # `compute_output_shape` must work without the layer being built
-        # first (it previously read `self.full_output_shape`, which only
-        # exists after `build`, and raised `AttributeError`).
+        # `compute_output_shape` must work without the layer being built first.
         layer = layers.EinsumDense("ab,bc->ac", output_shape=(7,))
         self.assertEqual(layer.compute_output_shape((None, 5)), (None, 7))
         # And it stays consistent after the layer is built.
