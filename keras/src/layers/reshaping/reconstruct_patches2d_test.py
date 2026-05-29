@@ -1,6 +1,7 @@
 import numpy as np
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import layers
 from keras.src import ops
 from keras.src import testing
@@ -16,6 +17,18 @@ def _gradient_image(H, W, C=1, batch=1):
 
 
 class ReconstructPatches2DTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        # The layer only supports channels_last; pin it so the suite is
+        # independent of the backend's default image_data_format (the torch
+        # CI config defaults to channels_first).
+        self._original_data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self._original_data_format)
+
     @parameterized.parameters(
         # (H, W, C, size, padding)
         (64, 64, 1, (8, 8), "valid"),
