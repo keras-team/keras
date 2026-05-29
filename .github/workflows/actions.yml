@@ -73,6 +73,9 @@ jobs:
             python -c "import paddle; print(f'Paddle version: {paddle.__version__}')" || echo "WARNING: paddle import failed"
           fi
           pip install --no-deps tf_keras
+          # Install local keras to override the PyPI version pulled by
+          # tensorflow/torch/jax dependencies, so tests run against PR code.
+          pip install -e . --no-deps
 
       - name: Verify backend import
         if: ${{ matrix.backend == 'paddle' }}
