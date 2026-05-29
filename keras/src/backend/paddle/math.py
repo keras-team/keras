@@ -59,8 +59,13 @@ def _segment_reduction_fn(data, segment_ids, reduction, num_segments):
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
     data = convert_to_tensor(data)
-    segment_ids = convert_to_tensor(segment_ids)
-    return _segment_reduction_fn(data, segment_ids, "sum", num_segments)
+    segment_ids = convert_to_tensor(segment_ids, dtype="int64")
+    if num_segments is None:
+        num_segments = int(paddle.max(segment_ids).item()) + 1
+    zeros = paddle.zeros(
+        [num_segments] + list(data.shape[1:]), dtype=data.dtype
+    )
+    return paddle.scatter_nd_add(zeros, segment_ids.unsqueeze(-1), data)
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):

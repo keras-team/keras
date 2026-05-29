@@ -78,7 +78,11 @@ def hard_tanh(x):
 
 
 def one_hot(x, num_classes, axis=-1, dtype="float32"):
-    return F.one_hot(convert_to_tensor(x, dtype="int64"), num_classes)
+    x = convert_to_tensor(x, dtype="int64")
+    out = F.one_hot(x, num_classes)
+    if axis != -1 and axis != out.ndim - 1:
+        out = paddle.moveaxis(out, -1, axis)
+    return paddle.cast(out, dtype)
 
 
 def log_softmax(x, axis=-1):
@@ -109,10 +113,8 @@ def sparsemax(x, axis=-1):
     r = paddle.reshape(r, r_shape)
     support = logits_sorted - (logits_cumsum - 1) / r > 0
     k = paddle.sum(support.cast("int32"), axis=axis, keepdim=True)
-    logits_cumsum_safe = paddle.where(
-        support, logits_cumsum, paddle.to_tensor(0.0, dtype=logits.dtype)
-    )
-    tau = (paddle.sum(logits_cumsum_safe, axis=axis, keepdim=True) - 1) / k
+    sum_selected = paddle.take_along_axis(logits_cumsum, k - 1, axis=axis)
+    tau = (sum_selected - 1) / k.cast(logits.dtype)
     output = paddle.clip(logits - tau, min=0.0)
     return output
 
@@ -607,11 +609,19 @@ def batch_normalization(
     x = convert_to_tensor(x)
     mean = convert_to_tensor(mean)
     variance = convert_to_tensor(variance)
+
+    ndim = x.ndim
+    axis = axis + ndim if axis < 0 else axis
+    shape = [1] * ndim
+    shape[axis] = -1
+
+    mean = paddle.reshape(mean, shape)
+    variance = paddle.reshape(variance, shape)
     x_norm = (x - mean) / paddle.sqrt(variance + epsilon)
     if scale is not None:
-        x_norm = x_norm * convert_to_tensor(scale)
+        x_norm = x_norm * paddle.reshape(convert_to_tensor(scale), shape)
     if offset is not None:
-        x_norm = x_norm + convert_to_tensor(offset)
+        x_norm = x_norm + paddle.reshape(convert_to_tensor(offset), shape)
     return x_norm
 
 
@@ -749,9 +759,9 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output = convert_to_tensor(output)
     if from_logits:
         output = F.softmax(output, axis=axis)
-    # Gather the probabilities at the target indices
-    target_one_hot = F.one_hot(target, output.shape[axis])
-    return -paddle.sum(target_one_hot * paddle.log(output + 1e-7), axis=axis)
+    target = target.unsqueeze(axis=-1)
+    probs = paddle.squeeze(paddle.gather(output, target, axis=axis), axis=-1)
+    return -paddle.log(probs + 1e-7)
 
 
 def ctc_loss(target, output, target_length, output_length, mask_value=0):

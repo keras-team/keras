@@ -1,3 +1,5 @@
+import builtins
+
 import numpy as np
 import paddle
 
@@ -458,11 +460,13 @@ def take(x, indices, axis=None):
         return paddle.gather(x.flatten(), indices.flatten())
     # Paddle's gather requires indices to be 1D or have last dim == 1
     # Reshape indices to work with paddle.gather
+    axis = axis + x.ndim if axis < 0 else axis
     orig_shape = indices.shape
-    indices_flat = indices.flatten().unsqueeze(1)
+    indices_flat = indices.flatten()
     result = paddle.gather(x, indices_flat, axis=axis)
-    # Restore the original index shape in the result
-    new_shape = list(orig_shape) + list(x.shape[axis + 1 :])
+    new_shape = (
+        list(x.shape[:axis]) + list(orig_shape) + list(x.shape[axis + 1 :])
+    )
     return paddle.reshape(result, new_shape)
 
 
@@ -475,20 +479,12 @@ def take_along_axis(x, indices, axis=None):
 def put_along_axis(x, indices, values, axis=None):
     x = convert_to_tensor(x)
     indices = convert_to_tensor(indices, dtype="int64")
-    values = convert_to_tensor(values)
+    values = convert_to_tensor(values, dtype=x.dtype)
     if axis is None:
-        x_flat = x.flatten()
-        indices_flat = indices.flatten()
-        values_flat = values.flatten()
-        result = x_flat.clone()
-        for i in range(indices_flat.shape[0]):
-            result[indices_flat[i]] = values_flat[i]
-        return result.reshape(x.shape)
-    # For axis-specific case, use scatter
-    result = x.clone()
-    idx = tuple(indices.T)
-    result[idx] = values
-    return result
+        return paddle.put_along_axis(
+            x.flatten(), indices.flatten(), values.flatten(), axis=0
+        ).reshape(x.shape)
+    return paddle.put_along_axis(x, indices, values, axis=axis)
 
 
 def block_diag(inputs):
@@ -1228,14 +1224,13 @@ def nanmean(x, axis=None, keepdims=False):
 
 
 def nanvar(x, axis=None, keepdims=False):
-    m = nanmean(x, axis=axis, keepdims=True)
     x = convert_to_tensor(x)
-    x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
     mask = ~paddle.isnan(x)
-    count = paddle.sum(
-        paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims
-    )
-    return paddle.sum((x - m) ** 2, axis=axis, keepdim=keepdims) / count
+    m = nanmean(x, axis=axis, keepdims=True)
+    x = paddle.where(mask, x, paddle.zeros_like(x))
+    diff = (x - m) * mask.cast(x.dtype)
+    count = paddle.sum(mask.cast("float32"), axis=axis, keepdim=True)
+    return paddle.sum(diff**2, axis=axis, keepdim=keepdims) / count
 
 
 def nanstd(x, axis=None, keepdims=False):
@@ -1336,16 +1331,13 @@ def bincount(x, weights=None, minlength=0):
     if n < minlength:
         n = minlength
     if weights is None:
-        result = paddle.zeros([n], dtype="int64")
-        for i in range(n):
-            result[i] = paddle.sum((x == i).cast("int64"))
-    else:
-        result = paddle.zeros([n], dtype=weights.dtype)
-        for i in range(n):
-            mask = x == i
-            if mask.any():
-                result[i] = paddle.sum(weights[mask])
-    return result
+        ones = paddle.ones([x.shape[0]], dtype="int64")
+        return paddle.scatter_nd_add(
+            paddle.zeros([n], dtype="int64"), x.unsqueeze(-1), ones
+        )
+    return paddle.scatter_nd_add(
+        paddle.zeros([n], dtype=weights.dtype), x.unsqueeze(-1), weights
+    )
 
 
 def corrcoef(x):
@@ -1377,28 +1369,7 @@ def correlate(x1, x2, mode="valid"):
 
 def median(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    sorted_x = paddle.sort(x, axis=axis)
-    if axis is None:
-        n = sorted_x.numel().item()
-        mid = n // 2
-        if n % 2 == 0:
-            result = (sorted_x[mid - 1] + sorted_x[mid]) / 2.0
-        else:
-            result = sorted_x[mid]
-    else:
-        n = sorted_x.shape[axis]
-        mid = n // 2
-        if n % 2 == 0:
-            result = (
-                paddle.slice(sorted_x, [axis], [mid - 1], [mid])
-                + paddle.slice(sorted_x, [axis], [mid], [mid + 1])
-            ) / 2.0
-        else:
-            result = paddle.slice(sorted_x, [axis], [mid], [mid + 1])
-    if keepdims:
-        if axis is not None:
-            result = paddle.unsqueeze(result, axis=axis)
-    return result
+    return paddle.median(x, axis=axis, keepdim=keepdims)
 
 
 def quantile(x, q, axis=None, keepdims=False):
@@ -1425,6 +1396,10 @@ def quantile(x, q, axis=None, keepdims=False):
             lower + 1, paddle.to_tensor(n - 1, dtype="int64")
         )
         frac = indices - lower.cast("float32")
+        if axis is not None:
+            frac_shape = [1] * sorted_x.ndim
+            frac_shape[axis] = -1
+            frac = paddle.reshape(frac, frac_shape)
         lower_vals = paddle.gather(sorted_x, lower, axis=axis)
         upper_vals = paddle.gather(sorted_x, upper, axis=axis)
         result = lower_vals * (1 - frac) + upper_vals * frac
@@ -1746,7 +1721,15 @@ def trapezoid(y, x=None, dx=1.0, axis=-1):
         dx_tensor = x[..., 1:] - x[..., :-1]
         avg = (y[..., 1:] + y[..., :-1]) / 2.0
         return paddle.sum(avg * dx_tensor, axis=axis)
-    return paddle.sum(y * dx, axis=axis)
+
+    ndim = y.ndim
+    axis = axis + ndim if axis < 0 else axis
+    slice_left = [builtins.slice(None)] * ndim
+    slice_left[axis] = builtins.slice(None, -1)
+    slice_right = [builtins.slice(None)] * ndim
+    slice_right[axis] = builtins.slice(1, None)
+    avg = (y[tuple(slice_right)] + y[tuple(slice_left)]) / 2.0
+    return paddle.sum(avg * dx, axis=axis)
 
 
 def bartlett(M):

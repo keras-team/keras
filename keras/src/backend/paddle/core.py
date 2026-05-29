@@ -66,8 +66,6 @@ def get_device():
 def _parse_device_input(device_name):
     if isinstance(device_name, str):
         device_name = device_name.lower()
-        if "gpu" in device_name:
-            device_name = device_name.replace("gpu", "gpu")
         # Paddle uses "gpu:0", "cpu" format
         return device_name
     raise ValueError(
@@ -359,10 +357,7 @@ def scatter(indices, values, shape):
     indices = paddle.reshape(indices, [-1, index_length])
     values = paddle.reshape(values, [-1] + list(value_shape))
 
-    for i in range(indices.shape[0]):
-        index = indices[i]
-        zeros[tuple(index)] += values[i]
-    return zeros
+    return paddle.scatter_nd_add(zeros, indices, values)
 
 
 def scatter_update(inputs, indices, updates, reduction=None):
