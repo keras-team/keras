@@ -49,6 +49,8 @@ PADDLE_DTYPES = {
 _logical_dtypes = weakref.WeakValueDictionary()
 # Dtypes that Paddle maps to different physical dtypes
 _MAPPED_DTYPES = {"uint16", "uint32"}
+# Track tensors created from Python scalars (weak types in JAX sense)
+_weak_tensors = set()
 
 
 def _maybe_track_dtype(tensor, logical_dtype):
@@ -172,7 +174,9 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             dt = to_paddle_dtype(floatx())
         else:
             dt = paddle.complex64
-        return paddle.to_tensor(x, dtype=dt)
+        t = paddle.to_tensor(x, dtype=dt)
+        _weak_tensors.add(id(t))
+        return t
 
     # Convert to np in case of any array-like that is not list or tuple.
     if isinstance(x, (list, tuple)):

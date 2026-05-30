@@ -7,6 +7,7 @@ from keras.src.backend.common import standardize_dtype
 from keras.src.backend.paddle.core import convert_to_tensor
 from keras.src.backend.paddle.core import shape
 from keras.src.backend.paddle.core import to_paddle_dtype
+from keras.src.backend.paddle.core import _weak_tensors
 
 
 def _promote_dtypes(x1, x2):
@@ -14,6 +15,8 @@ def _promote_dtypes(x1, x2):
 
     Matches Keras/JAX behavior: when mixing float and int/bool types,
     promote to the float type (not widen to float64).
+    Python scalars are treated as "weak" types (JAX semantics):
+    int8 + python_int → int8, int8 + python_float → float32.
     """
     dt1 = standardize_dtype(x1.dtype)
     dt2 = standardize_dtype(x2.dtype)
@@ -21,13 +24,30 @@ def _promote_dtypes(x1, x2):
         return x1, x2
     float_types = {"float16", "float32", "float64", "bfloat16"}
     complex_types = {"complex64", "complex128"}
-    numeric_types = float_types | complex_types
-    is_n1 = dt1 in numeric_types
-    is_n2 = dt2 in numeric_types
-    if is_n1 and not is_n2:
-        common_dtype = dt1
-    elif is_n2 and not is_n1:
+    int_types = {
+        "bool", "int8", "int16", "int32", "int64",
+        "uint8", "uint16", "uint32", "uint64",
+    }
+    is_f1 = dt1 in float_types
+    is_f2 = dt2 in float_types
+    is_c1 = dt1 in complex_types
+    is_c2 = dt2 in complex_types
+    is_i1 = dt1 in int_types
+    is_i2 = dt2 in int_types
+    # Weak type: Python scalar converted to default dtype
+    w1 = id(x1) in _weak_tensors
+    w2 = id(x2) in _weak_tensors
+    # If weak type is same category as the other, defer to the other
+    if w1 and not w2 and ((is_f1 and is_f2) or (is_i1 and is_i2)):
         common_dtype = dt2
+    elif w2 and not w1 and ((is_f1 and is_f2) or (is_i1 and is_i2)):
+        common_dtype = dt1
+    elif is_f1 and not is_f2:
+        common_dtype = dt1
+    elif is_f2 and not is_f1:
+        common_dtype = dt2
+    elif (is_c1 or is_c2) and not (is_c1 and is_c2):
+        common_dtype = dt1 if is_c1 else dt2
     else:
         try:
             common = np.result_type(
@@ -35,13 +55,13 @@ def _promote_dtypes(x1, x2):
             )
             common_dtype = standardize_dtype(common)
         except (TypeError, np.exceptions.DTypePromotionError):
-            # bfloat16 is not a numpy dtype — promote to float32
             common_dtype = "float32"
     if dt1 != common_dtype:
         x1 = paddle.cast(x1, to_paddle_dtype(common_dtype))
     if dt2 != common_dtype:
         x2 = paddle.cast(x2, to_paddle_dtype(common_dtype))
     return x1, x2
+
 
 
 def add(x1, x2):
@@ -492,7 +512,7 @@ def eye(N, M=None, k=0, dtype="float32"):
     return paddle.eye(N, M, dtype=dtype)
 
 
-def linspace(start, stop, num, dtype=None, endpoint=True, retstep=False):
+def linspace(start, stop, num, dtype=None, endpoint=True, retstep=False, axis=0):
     if dtype is not None:
         dtype = to_paddle_dtype(dtype)
     result = paddle.linspace(start, stop, num, dtype=dtype)
