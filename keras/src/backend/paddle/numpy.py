@@ -89,8 +89,7 @@ def _promote_dtypes(x1, x2):
 def _binary_op_with_dtype(op, x1, x2):
     """Run a binary op with _promote_dtypes and cast result back if needed.
 
-    Handles float16/bfloat16 CPU upcasting: if the promoted dtype would be
-    float16/bfloat16, compute in float32 and cast back.
+    Handles float16/bfloat16 CPU upcasting.
     """
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -308,30 +307,16 @@ def where(condition, x1, x2):
     if x1 is not None and x2 is not None:
         x1 = convert_to_tensor(x1)
         x2 = convert_to_tensor(x2)
-        dt1 = standardize_dtype(x1.dtype)
-        dt2 = standardize_dtype(x2.dtype)
-        w1 = id(x1) in _weak_tensors
-        w2 = id(x2) in _weak_tensors
-        # Weak type defers to strong type
-        if w1 and not w2:
-            target_dtype = dt2
-        elif w2 and not w1:
-            target_dtype = dt1
-        else:
-            # Both strong types - use _promote_dtypes
-            x1, x2 = _promote_dtypes(x1, x2)
-            target_dtype = standardize_dtype(x1.dtype)
-        # Cast unsupported types for CPU computation
-        compute_dtype = target_dtype
-        if target_dtype in ("int8", "int16", "uint8", "bool"):
-            compute_dtype = "int32"
-        elif target_dtype in ("float16", "bfloat16"):
-            compute_dtype = "float32"
-        x1_c = x1.cast(to_paddle_dtype(compute_dtype))
-        x2_c = x2.cast(to_paddle_dtype(compute_dtype))
-        result = paddle.where(condition, x1_c, x2_c)
-        if compute_dtype != target_dtype:
-            result = result.cast(to_paddle_dtype(target_dtype))
+        x1, x2 = _promote_dtypes(x1, x2)
+        # Cast unsupported int/bool types for CPU
+        orig_dtype = x1.dtype
+        dt = standardize_dtype(x1.dtype)
+        if dt in ("int8", "int16", "uint8", "bool"):
+            x1 = x1.cast("int32")
+            x2 = x2.cast("int32")
+        result = paddle.where(condition, x1, x2)
+        if result.dtype != orig_dtype:
+            result = result.cast(orig_dtype)
         return result
     return paddle.where(condition)
 
