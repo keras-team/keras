@@ -89,7 +89,6 @@ def _binary_op_with_dtype(op, x1, x2):
 
     Handles float16/bfloat16 CPU upcasting: if the promoted dtype would be
     float16/bfloat16, compute in float32 and cast back.
-    Only casts back when ALL non-weak inputs are float16/bfloat16.
     """
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
@@ -98,8 +97,12 @@ def _binary_op_with_dtype(op, x1, x2):
     w1 = id(x1) in _weak_tensors
     w2 = id(x2) in _weak_tensors
     low_precision = {"float16", "bfloat16"}
+    float_types = {"float16", "float32", "float64", "bfloat16"}
+    int_types = {
+        "bool", "int8", "int16", "int32", "int64",
+        "uint8", "uint16", "uint32", "uint64",
+    }
     # Determine if result should be low precision
-    # Only when all non-weak inputs are low precision
     target = None
     if w1 and not w2:
         if dt2 in low_precision:
@@ -108,12 +111,13 @@ def _binary_op_with_dtype(op, x1, x2):
         if dt1 in low_precision:
             target = dt1
     elif not w1 and not w2:
-        if dt1 in low_precision and dt2 in low_precision:
+        # float + int → float wins; float16 + int → float16
+        if dt1 in low_precision and dt2 in int_types:
+            target = dt1
+        elif dt2 in low_precision and dt1 in int_types:
+            target = dt2
+        elif dt1 in low_precision and dt2 in low_precision:
             target = dt1 if dt1 == dt2 else None
-        elif dt1 in low_precision and dt2 not in low_precision:
-            target = None  # wider type wins
-        elif dt2 in low_precision and dt1 not in low_precision:
-            target = None  # wider type wins
     x1, x2 = _promote_dtypes(x1, x2)
     result = op(x1, x2)
     if target in low_precision:
