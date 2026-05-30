@@ -1471,11 +1471,12 @@ def median(x, axis=None, keepdims=False):
 def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q, "float32")
-    # Cast to float for quantile computation
     if not standardize_dtype(x.dtype) in _FLOAT_TYPES:
         x = x.cast("float32")
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
+    if isinstance(axis, tuple):
+        axis = list(axis)
     return paddle.quantile(
         x, q, axis=axis, keepdim=keepdims, interpolation=method
     )
