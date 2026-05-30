@@ -696,6 +696,8 @@ def full(shape, fill_value, dtype=None):
 def full_like(x, fill_value, dtype=None):
     if dtype is not None:
         dtype = to_paddle_dtype(dtype)
+    if isinstance(fill_value, np.ndarray):
+        fill_value = fill_value.item()
     return paddle.full_like(convert_to_tensor(x), fill_value, dtype=dtype)
 
 
@@ -862,7 +864,7 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         x1 = x1.cast("float32")
     if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
         x2 = x2.cast("float32")
-    return paddle.isclose(x1, x2, rtol=rtol, atol=atol)
+    return paddle.isclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
 def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -872,7 +874,7 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
         x1 = x1.cast("float32")
     if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
         x2 = x2.cast("float32")
-    return paddle.allclose(x1, x2, rtol=rtol, atol=atol)
+    return paddle.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
 def equal(x1, x2):
