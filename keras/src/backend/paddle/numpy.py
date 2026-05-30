@@ -9,20 +9,59 @@ from keras.src.backend.paddle.core import shape
 from keras.src.backend.paddle.core import to_paddle_dtype
 
 
+def _promote_dtypes(x1, x2):
+    """Cast two tensors to a common dtype for cross-type operations.
+
+    Matches Keras/JAX behavior: when mixing float and int/bool types,
+    promote to the float type (not widen to float64).
+    """
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    if dt1 == dt2:
+        return x1, x2
+    float_types = {"float16", "float32", "float64", "bfloat16"}
+    is_f1 = dt1 in float_types
+    is_f2 = dt2 in float_types
+    if is_f1 and not is_f2:
+        common_dtype = dt1
+    elif is_f2 and not is_f1:
+        common_dtype = dt2
+    else:
+        common = np.result_type(np.zeros(1, dtype=dt1), np.zeros(1, dtype=dt2))
+        common_dtype = standardize_dtype(common)
+    if dt1 != common_dtype:
+        x1 = paddle.cast(x1, to_paddle_dtype(common_dtype))
+    if dt2 != common_dtype:
+        x2 = paddle.cast(x2, to_paddle_dtype(common_dtype))
+    return x1, x2
+
+
 def add(x1, x2):
-    return paddle.add(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.add(x1, x2)
 
 
 def subtract(x1, x2):
-    return paddle.subtract(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.subtract(x1, x2)
 
 
 def multiply(x1, x2):
-    return paddle.multiply(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.multiply(x1, x2)
 
 
 def divide(x1, x2):
-    return paddle.divide(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.divide(x1, x2)
 
 
 def true_divide(x1, x2):
@@ -32,11 +71,17 @@ def true_divide(x1, x2):
 
 
 def floor_divide(x1, x2):
-    return paddle.floor_divide(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.floor_divide(x1, x2)
 
 
 def mod(x1, x2):
-    return paddle.remainder(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.remainder(x1, x2)
 
 
 def negative(x):
@@ -92,15 +137,24 @@ def pow(x1, x2):
 
 
 def power(x1, x2):
-    return pow(x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.pow(x1, x2)
 
 
 def maximum(x1, x2):
-    return paddle.maximum(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.maximum(x1, x2)
 
 
 def minimum(x1, x2):
-    return paddle.minimum(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.minimum(x1, x2)
 
 
 def round(x, decimals=0):
@@ -157,6 +211,7 @@ def where(condition, x1, x2):
     if x1 is not None and x2 is not None:
         x1 = convert_to_tensor(x1)
         x2 = convert_to_tensor(x2)
+        x1, x2 = _promote_dtypes(x1, x2)
         return paddle.where(condition, x1, x2)
     return paddle.where(condition)
 
@@ -204,12 +259,26 @@ def logsumexp(x, axis=None, keepdims=False):
     return paddle.logsumexp(x, axis=axis, keepdim=keepdims)
 
 
-def cumsum(x, axis=None):
-    return paddle.cumsum(convert_to_tensor(x), axis=axis)
+def cumsum(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    if axis is None:
+        x = x.flatten()
+        axis = 0
+    dtype = standardize_dtype(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return paddle.cast(paddle.cumsum(x, axis=axis, dtype=x.dtype), dtype)
 
 
-def cumprod(x, axis=None):
-    return paddle.cumprod(convert_to_tensor(x), axis=axis)
+def cumprod(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    if axis is None:
+        x = x.flatten()
+        axis = 0
+    dtype = standardize_dtype(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    return paddle.cast(paddle.cumprod(x, axis=axis, dtype=x.dtype), dtype)
 
 
 def argmax(x, axis=None, keepdims=False):
@@ -221,11 +290,19 @@ def argmin(x, axis=None, keepdims=False):
 
 
 def argsort(x, axis=-1):
-    return paddle.argsort(convert_to_tensor(x), axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        axis = -1
+        x = x.reshape([-1])
+    return paddle.argsort(x, axis=axis)
 
 
 def sort(x, axis=-1):
-    return paddle.sort(convert_to_tensor(x), axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        x = x.flatten()
+        axis = 0
+    return paddle.sort(x, axis=axis)
 
 
 def searchsorted(sorted_sequence, values, side="left"):
@@ -246,7 +323,10 @@ def in_top_k(targets, predictions, k):
 
 
 def flip(x, axis=None):
-    return paddle.flip(convert_to_tensor(x), axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        axis = list(range(x.ndim))
+    return paddle.flip(x, axis=axis)
 
 
 def roll(x, shift, axis=None):
@@ -533,27 +613,45 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 
 def equal(x1, x2):
-    return paddle.equal(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.equal(x1, x2)
 
 
 def not_equal(x1, x2):
-    return paddle.not_equal(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.not_equal(x1, x2)
 
 
 def greater(x1, x2):
-    return paddle.greater_than(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.greater_than(x1, x2)
 
 
 def greater_equal(x1, x2):
-    return paddle.greater_equal(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.greater_equal(x1, x2)
 
 
 def less(x1, x2):
-    return paddle.less_than(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.less_than(x1, x2)
 
 
 def less_equal(x1, x2):
-    return paddle.less_equal(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.less_equal(x1, x2)
 
 
 def all(x, axis=None, keepdims=False):
@@ -565,11 +663,17 @@ def any(x, axis=None, keepdims=False):
 
 
 def logical_and(x1, x2):
-    return paddle.logical_and(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.logical_and(x1, x2)
 
 
 def logical_or(x1, x2):
-    return paddle.logical_or(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.logical_or(x1, x2)
 
 
 def logical_not(x):
@@ -577,19 +681,31 @@ def logical_not(x):
 
 
 def logical_xor(x1, x2):
-    return paddle.logical_xor(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.logical_xor(x1, x2)
 
 
 def bitwise_and(x1, x2):
-    return paddle.bitwise_and(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.bitwise_and(x1, x2)
 
 
 def bitwise_or(x1, x2):
-    return paddle.bitwise_or(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.bitwise_or(x1, x2)
 
 
 def bitwise_xor(x1, x2):
-    return paddle.bitwise_xor(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.bitwise_xor(x1, x2)
 
 
 def bitwise_not(x):
@@ -678,7 +794,10 @@ def beta(shape, alpha, beta_param, dtype=None, seed=None):
 
 
 def matmul(x1, x2):
-    return paddle.matmul(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.matmul(x1, x2)
 
 
 def copy(x):

@@ -1,0 +1,6 @@
+# Paddle CPU does not support float16 for most ops
+ExtractPatches3DTest::test_extract_patches_3d_with_dilation_float16_channels_last
+ExtractPatches3DTest::test_extract_patches_3d_with_dilation_float16_channels_first
+# Paddle CPU does not support bfloat16 for activation ops
+NNOpsDtypeTest::test_relu6_bfloat16
+NNOpsDtypeTest::test_relu6_float16

@@ -52,6 +52,21 @@ def pytest_collection_modifyitems(config, items):
                 line.strip() for line in openvino_skipped_tests if line.strip()
             ]
 
+    paddle_skipped_tests = []
+    if backend() == "paddle":
+        import os
+
+        excluded_file = os.path.join(
+            "keras", "src", "backend", "paddle", "excluded_concrete_tests.txt"
+        )
+        if os.path.exists(excluded_file):
+            with open(excluded_file, "r") as file:
+                paddle_skipped_tests = [
+                    line.strip()
+                    for line in file.readlines()
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+
     if backend() == "jax":
         import jax
 
@@ -82,6 +97,15 @@ def pytest_collection_modifyitems(config, items):
                     skip_if_backend(
                         "openvino",
                         "Not supported operation by openvino backend",
+                    )
+                )
+        for skipped_test in paddle_skipped_tests:
+            if skipped_test in item.nodeid:
+                item.add_marker(
+                    skip_if_backend(
+                        "paddle",
+                        "Not supported by paddle backend "
+                        "(CPU dtype limitation)",
                     )
                 )
 
