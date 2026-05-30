@@ -17,7 +17,13 @@ def sigmoid(x):
 
 
 def softmax(x, axis=-1):
-    return F.softmax(convert_to_tensor(x), axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        shape = x.shape
+        x = x.flatten()
+        x = F.softmax(x, axis=0)
+        return x.reshape(shape)
+    return F.softmax(x, axis=axis)
 
 
 def softplus(x):
