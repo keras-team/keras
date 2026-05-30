@@ -139,6 +139,44 @@ def _unary_op(op, x):
     return result
 
 
+_CPU_UNSUPPORTED_INT = {"int8", "int16", "uint8", "bool"}
+
+
+def _binary_op_with_int(op, x1, x2):
+    """Run a binary op with full CPU dtype support (float16 + int types)."""
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    w1 = id(x1) in _weak_tensors
+    w2 = id(x2) in _weak_tensors
+    # Determine target dtype
+    if w1 and not w2:
+        target = dt2
+    elif w2 and not w1:
+        target = dt1
+    else:
+        try:
+            common = np.result_type(
+                np.zeros(1, dtype=dt1), np.zeros(1, dtype=dt2)
+            )
+            target = standardize_dtype(common)
+        except (TypeError, np.exceptions.DTypePromotionError):
+            target = "float32"
+    # Cast unsupported types
+    if dt1 in _CPU_UNSUPPORTED_INT or dt1 in ("float16", "bfloat16"):
+        cast_to = "float32" if dt1 in ("float16", "bfloat16") else "int32"
+        x1 = x1.cast(cast_to)
+    if dt2 in _CPU_UNSUPPORTED_INT or dt2 in ("float16", "bfloat16"):
+        cast_to = "float32" if dt2 in ("float16", "bfloat16") else "int32"
+        x2 = x2.cast(cast_to)
+    result = op(x1, x2)
+    result_dtype = standardize_dtype(result.dtype)
+    if target != result_dtype:
+        result = result.cast(to_paddle_dtype(target))
+    return result
+
+
 def add(x1, x2):
     return _binary_op_with_dtype(paddle.add, x1, x2)
 
