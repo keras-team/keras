@@ -991,6 +991,10 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     if axis is not None:
         x1 = paddle.moveaxis(x1, axisa, axis)
         x2 = paddle.moveaxis(x2, axisb, axis)
+    # Broadcast to same shape (paddle.cross doesn't support broadcasting)
+    target_shape = paddle.broadcast_shape(x1.shape, x2.shape)
+    x1 = paddle.broadcast_to(x1, target_shape)
+    x2 = paddle.broadcast_to(x2, target_shape)
     result = paddle.cross(x1, x2, axis=axisc if axis is not None else axisa)
     if dt1 in ("float16", "bfloat16"):
         result = result.cast(to_paddle_dtype(dt1))
