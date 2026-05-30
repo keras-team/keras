@@ -1128,6 +1128,7 @@ def signbit(x):
 def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
     return paddle.where(
         x1 > 0,
         paddle.ones_like(x1),
@@ -1196,6 +1197,8 @@ def nanmean(x, axis=None, keepdims=False):
 
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if not standardize_dtype(x.dtype) in _FLOAT_TYPES:
+        x = x.cast("float32")
     mask = ~paddle.isnan(x)
     m = nanmean(x, axis=axis, keepdims=True)
     x = paddle.where(mask, x, paddle.zeros_like(x))
@@ -1689,11 +1692,37 @@ def argpartition(x, kth, axis=-1):
 
 
 def gcd(x1, x2):
-    return paddle.gcd(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # Cast to same int type for gcd
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    if dt1 != dt2:
+        # Use the wider type
+        int_order = {"bool": 0, "int8": 1, "int16": 2, "int32": 3, "int64": 4,
+                     "uint8": 1, "uint16": 2, "uint32": 3}
+        w1 = int_order.get(dt1, 3)
+        w2 = int_order.get(dt2, 3)
+        target = dt1 if w1 >= w2 else dt2
+        x1 = x1.cast(to_paddle_dtype(target))
+        x2 = x2.cast(to_paddle_dtype(target))
+    return paddle.gcd(x1, x2)
 
 
 def lcm(x1, x2):
-    return paddle.lcm(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    if dt1 != dt2:
+        int_order = {"bool": 0, "int8": 1, "int16": 2, "int32": 3, "int64": 4,
+                     "uint8": 1, "uint16": 2, "uint32": 3}
+        w1 = int_order.get(dt1, 3)
+        w2 = int_order.get(dt2, 3)
+        target = dt1 if w1 >= w2 else dt2
+        x1 = x1.cast(to_paddle_dtype(target))
+        x2 = x2.cast(to_paddle_dtype(target))
+    return paddle.lcm(x1, x2)
 
 
 def max(x, axis=None, keepdims=False, initial=None):
