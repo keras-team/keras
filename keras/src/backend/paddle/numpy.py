@@ -306,9 +306,33 @@ def shape_equal(x, y):
 def where(condition, x1, x2):
     condition = convert_to_tensor(condition, dtype="bool")
     if x1 is not None and x2 is not None:
-        return _binary_op_with_dtype(
-            lambda a, b: paddle.where(condition, a, b), x1, x2
-        )
+        x1 = convert_to_tensor(x1)
+        x2 = convert_to_tensor(x2)
+        dt1 = standardize_dtype(x1.dtype)
+        dt2 = standardize_dtype(x2.dtype)
+        w1 = id(x1) in _weak_tensors
+        w2 = id(x2) in _weak_tensors
+        # Weak type defers to strong type
+        if w1 and not w2:
+            target_dtype = dt2
+        elif w2 and not w1:
+            target_dtype = dt1
+        else:
+            # Both strong types - use _promote_dtypes
+            x1, x2 = _promote_dtypes(x1, x2)
+            target_dtype = standardize_dtype(x1.dtype)
+        # Cast unsupported types for CPU computation
+        compute_dtype = target_dtype
+        if target_dtype in ("int8", "int16", "uint8", "bool"):
+            compute_dtype = "int32"
+        elif target_dtype in ("float16", "bfloat16"):
+            compute_dtype = "float32"
+        x1_c = x1.cast(to_paddle_dtype(compute_dtype))
+        x2_c = x2.cast(to_paddle_dtype(compute_dtype))
+        result = paddle.where(condition, x1_c, x2_c)
+        if compute_dtype != target_dtype:
+            result = result.cast(to_paddle_dtype(target_dtype))
+        return result
     return paddle.where(condition)
 
 
