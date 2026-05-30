@@ -431,10 +431,43 @@ def _model_from_config(config_json, custom_objects, compile, safe_mode):
     return model
 
 
+# Guard against ZIP "decompression bomb" archive members (CWE-409): a member
+# can store almost nothing on disk yet declare an enormous uncompressed size,
+# forcing a huge allocation when it is read into memory. Keras writes archive
+# members uncompressed (stored, ratio ~1:1) and DEFLATE cannot exceed ~1032:1,
+# so a member that both exceeds the floor and expands to more than
+# `_ZIP_MEMBER_MAX_EXPANSION`x its on-disk size is a bomb, not a genuine
+# artifact (this leaves ample headroom for an incidentally recompressed file).
+# The 4 GiB floor matches the HDF5 dataset guard for CVE-2026-0897.
+_ZIP_MEMBER_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
+_ZIP_MEMBER_MAX_EXPANSION = 100
+
+
+def _reject_zip_bomb(archive, name):
+    """Raise if a ZIP member is a decompression bomb (see CWE-409)."""
+    info = archive.getinfo(name)
+    if (
+        info.file_size > _ZIP_MEMBER_BOMB_FLOOR_BYTES
+        and info.file_size > _ZIP_MEMBER_MAX_EXPANSION * info.compress_size
+    ):
+        raise ValueError(
+            f"Not allowed: ZIP member '{name}' declares "
+            f"{readable_memory_size(info.file_size)} but only "
+            f"{readable_memory_size(info.compress_size)} are stored on disk; "
+            "refusing to load a potential decompression bomb."
+        )
+
+
+def _safe_zip_read(archive, name):
+    """Read a ZIP member into memory, rejecting bombs (see CWE-409)."""
+    _reject_zip_bomb(archive, name)
+    with archive.open(name, "r") as f:
+        return f.read()
+
+
 def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     with zipfile.ZipFile(fileobj, "r") as zf:
-        with zf.open(_CONFIG_FILENAME, "r") as f:
-            config_json = f.read()
+        config_json = _safe_zip_read(zf, _CONFIG_FILENAME)
 
         model = _model_from_config(
             config_json, custom_objects, compile, safe_mode
@@ -446,6 +479,12 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
+                # Reject a decompression-bomb weights member up front, outside
+                # the try/except below: the bare `except` falls back to reading
+                # the weights on the fly, so a check inside it would be
+                # swallowed and the bomb still read. Checking here covers the
+                # in-memory, extract-to-disk, and on-the-fly paths at once.
+                _reject_zip_bomb(zf, _VARS_FNAME_H5)
                 try:
                     if is_memory_sufficient(model):
                         # Load the entire file into memory if the system memory
@@ -1388,7 +1427,7 @@ class ShardedH5IOStore(H5IOStore):
         else:
             if self.archive:
                 self.sharding_config = json.loads(
-                    self.archive.open(str(self.path), "r").read()
+                    _safe_zip_read(self.archive, str(self.path))
                 )
             else:
                 with open(self.path, "r") as map_file:
