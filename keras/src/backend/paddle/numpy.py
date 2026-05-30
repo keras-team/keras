@@ -11,6 +11,8 @@ from keras.src.backend.paddle.core import _weak_tensors
 
 
 _CPU_UNSUPPORTED_DTYPES = {paddle.float16, paddle.bfloat16}
+_FLOAT_TYPES = {"float16", "float32", "float64", "bfloat16",
+                "float8_e4m3fn", "float8_e5m2"}
 
 
 def _maybe_upcast(x):
@@ -1086,7 +1088,9 @@ def ldexp(x1, x2):
     x2 = convert_to_tensor(x2)
     dt1 = standardize_dtype(x1.dtype)
     x1, x2 = _promote_dtypes(x1, x2)
-    result = x1 * (2.0**x2)
+    result = x1 * paddle.pow(
+        paddle.to_tensor(2.0, dtype=x1.dtype), x2
+    )
     if dt1 in ("float16", "bfloat16"):
         result = result.cast(to_paddle_dtype(dt1))
     return result
@@ -1180,6 +1184,8 @@ def nansum(x, axis=None, keepdims=False):
 
 def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if not standardize_dtype(x.dtype) in _FLOAT_TYPES:
+        x = x.cast("float32")
     mask = ~paddle.isnan(x)
     x = paddle.where(mask, x, paddle.zeros_like(x))
     count = paddle.sum(
@@ -1366,6 +1372,10 @@ def correlate(x1, x2, mode="valid"):
 
 def median(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if not standardize_dtype(x.dtype) in _FLOAT_TYPES:
+        x = x.cast("float32")
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
     return paddle.median(x, axis=axis, keepdim=keepdims)
 
 
@@ -1373,8 +1383,9 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     q = convert_to_tensor(q, "float32")
     # Cast to float for quantile computation
-    std = standardize_dtype(x.dtype)
-    if std not in ("float16", "bfloat16", "float32", "float64"):
+    if not standardize_dtype(x.dtype) in _FLOAT_TYPES:
+        x = x.cast("float32")
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
     return paddle.quantile(
         x, q, axis=axis, keepdim=keepdims, interpolation=method
@@ -1412,6 +1423,8 @@ def nanmedian(x, axis=None, keepdims=False):
 
 def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
+    if not standardize_dtype(x.dtype) in _FLOAT_TYPES:
+        x = x.cast("float32")
     mask = paddle.isnan(x)
     if axis is None:
         x = x.flatten()
@@ -1496,10 +1509,19 @@ def empty_like(x, dtype=None):
 def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    # Cast to float for computation
+    orig_dtype = x1.dtype
+    if not standardize_dtype(x1.dtype) in _FLOAT_TYPES:
+        x1 = x1.cast("float32")
+        x2 = x2.cast("float32")
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+        x2 = x2.cast("float32")
     # Approximate nextafter using bit manipulation
     eps = np.finfo(standardize_dtype(x1.dtype)).eps
     direction = paddle.sign(x2 - x1)
-    return x1 + direction * eps
+    result = x1 + direction * eps
+    return result.cast(orig_dtype)
 
 
 def isreal(x):
@@ -1649,6 +1671,7 @@ def exp2(x):
 def divide_no_nan(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
     safe_x2 = paddle.where(x2 == 0, paddle.ones_like(x2), x2)
     return paddle.where(x2 == 0, paddle.zeros_like(x1), x1 / safe_x2)
 
