@@ -62,6 +62,15 @@ def _maybe_track_dtype(tensor, logical_dtype):
         _logical_dtypes[id(tensor)] = std
 
 
+def paddle_standardize_dtype(dtype):
+    """standardize_dtype that checks paddle's logical dtype tracking."""
+    # Check if this dtype object belongs to a tensor with a tracked logical dtype
+    tid = getattr(dtype, "_paddle_tensor_id", None)
+    if tid is not None and tid in _logical_dtypes:
+        return _logical_dtypes[tid]
+    return standardize_dtype(dtype)
+
+
 @contextlib.contextmanager
 def device_scope(device_name):
     previous_device = paddle.get_device()

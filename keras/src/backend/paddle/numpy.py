@@ -1425,6 +1425,7 @@ def isreal(x):
 def isin(elements, test_elements, assume_unique=False, invert=False):
     elements = convert_to_tensor(elements)
     test_elements = convert_to_tensor(test_elements).flatten()
+    elements, test_elements = _promote_dtypes(elements, test_elements)
     # Broadcasting comparison
     result = paddle.any(elements.unsqueeze(-1) == test_elements, axis=-1)
     if invert:
@@ -1535,6 +1536,7 @@ def average(x, axis=None, weights=None, returned=False, keepdims=False):
         result = paddle.mean(x, axis=axis, keepdim=keepdims)
     else:
         weights = convert_to_tensor(weights)
+        x, weights = _promote_dtypes(x, weights)
         result = paddle.sum(
             x * weights, axis=axis, keepdim=keepdims
         ) / paddle.sum(weights, axis=axis, keepdim=keepdims)
@@ -1695,4 +1697,5 @@ def vander(x, N=None, increasing=False):
         powers = paddle.arange(N - 1, -1, -1, dtype="float32")
     else:
         powers = paddle.arange(0, N, dtype="float32")
+    x, powers = _promote_dtypes(x, powers)
     return x.unsqueeze(1) ** powers.unsqueeze(0)
