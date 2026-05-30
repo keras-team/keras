@@ -99,12 +99,11 @@ def _binary_op_with_dtype(op, x1, x2):
     w1 = id(x1) in _weak_tensors
     w2 = id(x2) in _weak_tensors
     low_precision = {"float16", "bfloat16"}
-    float_types = {"float16", "float32", "float64", "bfloat16"}
     int_types = {
         "bool", "int8", "int16", "int32", "int64",
         "uint8", "uint16", "uint32", "uint64",
     }
-    # Determine if result should be low precision
+    # Determine if result should be low precision float
     target = None
     if w1 and not w2:
         if dt2 in low_precision:
@@ -113,7 +112,6 @@ def _binary_op_with_dtype(op, x1, x2):
         if dt1 in low_precision:
             target = dt1
     elif not w1 and not w2:
-        # float + int → float wins; float16 + int → float16
         if dt1 in low_precision and dt2 in int_types:
             target = dt1
         elif dt2 in low_precision and dt1 in int_types:
@@ -1520,7 +1518,8 @@ def logaddexp2(x1, x2):
 
 def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True, axis=0):
     result = linspace(start, stop, num, endpoint=endpoint, dtype=dtype)
-    return base**result
+    base_t = paddle.to_tensor(base, dtype=result.dtype)
+    return paddle.pow(base_t, result)
 
 
 def geomspace(start, stop, num, endpoint=True, dtype=None, axis=0):
@@ -1530,7 +1529,11 @@ def geomspace(start, stop, num, endpoint=True, dtype=None, axis=0):
         paddle.linspace(paddle.log(start), paddle.log(stop), num)
     )
     if dtype is not None:
-        result = result.cast(to_paddle_dtype(dtype))
+        target_dtype = to_paddle_dtype(dtype)
+        if target_dtype in _CPU_UNSUPPORTED_DTYPES:
+            result = result.cast(target_dtype)
+        else:
+            result = result.cast(target_dtype)
     return result
 
 
