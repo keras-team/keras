@@ -1186,7 +1186,14 @@ def hypot(x1, x2):
 
 
 def fmod(x1, x2):
-    return paddle.mod(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # numpy.fmod uses truncation division, not floor division
+    # Cast to float for division, then cast back
+    orig_dtype = x1.dtype
+    x1f = x1.cast("float64")
+    x2f = x2.cast("float64")
+    return (x1f - paddle.trunc(x1f / x2f) * x2f).cast(orig_dtype)
 
 
 def ldexp(x1, x2):
