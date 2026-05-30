@@ -495,32 +495,40 @@ def roll(x, shift, axis=None):
 
 def pad(x, pad_width, mode="constant", constant_values=0):
     x = convert_to_tensor(x)
+    orig_dtype = x.dtype
+    # Cast unsupported dtypes for CPU
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    elif standardize_dtype(x.dtype) in ("int8", "uint8", "bool"):
+        x = x.cast("int32")
+    pad_list = []
+    for left, right in reversed(pad_width):
+        pad_list.extend([left, right])
     if mode == "constant":
-        # paddle.nn.functional.pad expects padding in reverse order
-        pad_list = []
-        for left, right in reversed(pad_width):
-            pad_list.extend([left, right])
-        return paddle.nn.functional.pad(
+        if constant_values is None:
+            constant_values = 0
+        result = paddle.nn.functional.pad(
             x, pad_list, mode="constant", value=constant_values
         )
     elif mode == "reflect":
-        pad_list = []
-        for left, right in reversed(pad_width):
-            pad_list.extend([left, right])
-        return paddle.nn.functional.pad(x, pad_list, mode="reflect")
+        # paddle only supports reflect for 3D with exactly 6 padding values
+        # Use numpy for general case
+        x_np = x.numpy()
+        pad_width_np = [(int(l), int(r)) for l, r in pad_width]
+        result_np = np.pad(x_np, pad_width_np, mode="reflect")
+        result = paddle.to_tensor(result_np, dtype=x.dtype)
     elif mode == "symmetric":
-        raise NotImplementedError(
-            "Paddle backend does not support symmetric padding mode. "
-            "Supported modes: 'constant', 'reflect', 'edge'."
-        )
+        x_np = x.numpy()
+        pad_width_np = [(int(l), int(r)) for l, r in pad_width]
+        result_np = np.pad(x_np, pad_width_np, mode="symmetric")
+        result = paddle.to_tensor(result_np, dtype=x.dtype)
     elif mode == "edge":
-        pad_list = []
-        for left, right in reversed(pad_width):
-            pad_list.extend([left, right])
-        return paddle.nn.functional.pad(x, pad_list, mode="replicate")
-    raise NotImplementedError(
-        f"`pad` with mode='{mode}' is not supported with paddle backend"
-    )
+        result = paddle.nn.functional.pad(x, pad_list, mode="replicate")
+    else:
+        raise NotImplementedError(
+            f"`pad` with mode='{mode}' is not supported with paddle backend"
+        )
+    return result.cast(orig_dtype)
 
 
 def _promote_dtypes_list(tensors):
