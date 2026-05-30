@@ -20,15 +20,23 @@ def _promote_dtypes(x1, x2):
     if dt1 == dt2:
         return x1, x2
     float_types = {"float16", "float32", "float64", "bfloat16"}
-    is_f1 = dt1 in float_types
-    is_f2 = dt2 in float_types
-    if is_f1 and not is_f2:
+    complex_types = {"complex64", "complex128"}
+    numeric_types = float_types | complex_types
+    is_n1 = dt1 in numeric_types
+    is_n2 = dt2 in numeric_types
+    if is_n1 and not is_n2:
         common_dtype = dt1
-    elif is_f2 and not is_f1:
+    elif is_n2 and not is_n1:
         common_dtype = dt2
     else:
-        common = np.result_type(np.zeros(1, dtype=dt1), np.zeros(1, dtype=dt2))
-        common_dtype = standardize_dtype(common)
+        try:
+            common = np.result_type(
+                np.zeros(1, dtype=dt1), np.zeros(1, dtype=dt2)
+            )
+            common_dtype = standardize_dtype(common)
+        except (TypeError, np.exceptions.DTypePromotionError):
+            # bfloat16 is not a numpy dtype — promote to float32
+            common_dtype = "float32"
     if dt1 != common_dtype:
         x1 = paddle.cast(x1, to_paddle_dtype(common_dtype))
     if dt2 != common_dtype:
@@ -294,7 +302,12 @@ def argsort(x, axis=-1):
     if axis is None:
         axis = -1
         x = x.reshape([-1])
-    return paddle.argsort(x, axis=axis)
+    orig_dtype = x.dtype
+    # Paddle CPU does not support argsort for bool/int8
+    if orig_dtype in (paddle.bool, paddle.int8):
+        x = x.cast(paddle.int32)
+    # Paddle returns int64, but JAX returns int32 — match JAX
+    return paddle.argsort(x, axis=axis).cast(paddle.int32)
 
 
 def sort(x, axis=-1):
@@ -302,13 +315,27 @@ def sort(x, axis=-1):
     if axis is None:
         x = x.flatten()
         axis = 0
-    return paddle.sort(x, axis=axis)
+    orig_dtype = x.dtype
+    # Paddle CPU does not support argsort (used internally by sort) for bool/int8
+    if orig_dtype in (paddle.bool, paddle.int8):
+        x = x.cast(paddle.int32)
+    result = paddle.sort(x, axis=axis)
+    if orig_dtype != result.dtype:
+        result = result.cast(orig_dtype)
+    return result
 
 
 def searchsorted(sorted_sequence, values, side="left"):
     sorted_sequence = convert_to_tensor(sorted_sequence)
     values = convert_to_tensor(values)
-    return paddle.searchsorted(sorted_sequence, values)
+    # Paddle CPU searchsorted only supports float32/float64/int32/int64
+    _supported = {paddle.float32, paddle.float64, paddle.int32, paddle.int64}
+    if sorted_sequence.dtype not in _supported:
+        sorted_sequence = sorted_sequence.cast(paddle.float32)
+    if values.dtype not in _supported:
+        values = values.cast(paddle.float32)
+    # Paddle returns int64, but JAX/NumPy return int32 — match them
+    return paddle.searchsorted(sorted_sequence, values).cast(paddle.int32)
 
 
 def top_k(x, k, sorted=False):
@@ -326,7 +353,18 @@ def flip(x, axis=None):
     x = convert_to_tensor(x)
     if axis is None:
         axis = list(range(x.ndim))
-    return paddle.flip(x, axis=axis)
+    orig_dtype = x.dtype
+    # Paddle CPU does not support flip for many dtypes — cast to float32/int32
+    _float_unsupported = {paddle.float16, paddle.bfloat16}
+    _int_unsupported = {paddle.int8, paddle.int16, paddle.uint8}
+    if orig_dtype in _float_unsupported:
+        x = x.cast(paddle.float32)
+    elif orig_dtype in _int_unsupported:
+        x = x.cast(paddle.int32)
+    result = paddle.flip(x, axis=axis)
+    if result.dtype != orig_dtype:
+        result = result.cast(orig_dtype)
+    return result
 
 
 def roll(x, shift, axis=None):
