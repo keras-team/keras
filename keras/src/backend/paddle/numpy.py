@@ -1573,8 +1573,11 @@ def logaddexp2(x1, x2):
 
 def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True, axis=0):
     result = linspace(start, stop, num, endpoint=endpoint, dtype=dtype)
+    orig_dtype = result.dtype
+    if result.dtype in _CPU_UNSUPPORTED_DTYPES:
+        result = result.cast("float32")
     base_t = paddle.to_tensor(base, dtype=result.dtype)
-    return paddle.pow(base_t, result)
+    return paddle.pow(base_t, result).cast(orig_dtype)
 
 
 def geomspace(start, stop, num, endpoint=True, dtype=None, axis=0):
