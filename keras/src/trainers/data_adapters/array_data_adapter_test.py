@@ -321,13 +321,13 @@ class TestArrayDataAdapter(testing.TestCase):
     @parameterized.named_parameters(
         ("dataparallel", "dp", 4, 1, (4,), 4, 1),
         ("modelparallel", "mp", 8, 5, (2, 4), 2, 1),
-        ("modelparallel_large_mesh", "mp", 4, 2, (8, 2), 4, 2),
+        ("modelparallel_large_mesh", "mp", 4, 2, (8, 2), 8, 2),
     )
     @patch("torch.distributed.get_world_size")
     @patch("torch.distributed.get_rank")
     @patch("keras.src.distribution.distribution_lib.distribution_lib")
     @patch("keras.src.distribution.distribution_lib.distribution")
-    def test_sharding(
+    def test_sharding_torch(
         self,
         dist_type,
         world_size,
@@ -369,13 +369,137 @@ class TestArrayDataAdapter(testing.TestCase):
         new_dataloader = adapter.get_torch_dataloader()
 
         self.assertIsInstance(
-            new_dataloader.batch_sampler.sampler,
-            torch.utils.data.distributed.DistributedSampler,
+            new_dataloader.batch_sampler,
+            array_data_adapter.data_adapter_utils.DistributedBatchSampler,
         )
         self.assertEqual(
-            new_dataloader.batch_sampler.sampler.num_replicas,
+            new_dataloader.batch_sampler.num_replicas,
             expected_num_replicas,
         )
-        self.assertEqual(
-            new_dataloader.batch_sampler.sampler.rank, expected_rank
+        self.assertEqual(new_dataloader.batch_sampler.rank, expected_rank)
+
+    @parameterized.named_parameters(
+        ("rank0", 0),
+        ("rank1", 1),
+    )
+    @patch("keras.src.distribution.distribution_lib.distribution_lib")
+    @patch("keras.src.distribution.distribution_lib.distribution")
+    def test_sharding_numpy(
+        self, rank, mock_distribution, mock_backend_dist_lib
+    ):
+        world_size = 2
+        mock_backend_dist_lib.num_processes.return_value = world_size
+        mock_backend_dist_lib.process_id.return_value = rank
+
+        dist = dist_lib.DataParallel(devices=["cpu:0"] * world_size)
+        dist.auto_shard_dataset = True
+        mock_distribution.return_value = dist
+
+        x = np.arange(100).reshape((50, 2))
+        y = np.arange(50).reshape((50, 1))
+        # 50 samples, batch_size=10 -> 5 batches
+        # rank 0 should get batches 0, 2, 4
+        # rank 1 should get batches 1, 3
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, y, batch_size=10, shuffle=False
         )
+
+        self.assertEqual(adapter._num_processes, 2)
+        self.assertEqual(adapter._process_id, rank)
+
+        it = adapter.get_numpy_iterator()
+        batches = list(it)
+
+        if rank == 0:
+            self.assertEqual(len(batches), 3)
+            # Batch 0: samples 0-9
+            self.assertAllClose(
+                batches[0][1], np.arange(0, 10).reshape((10, 1))
+            )
+            # Batch 2: samples 20-29
+            self.assertAllClose(
+                batches[1][1], np.arange(20, 30).reshape((10, 1))
+            )
+            # Batch 4: samples 40-49
+            self.assertAllClose(
+                batches[2][1], np.arange(40, 50).reshape((10, 1))
+            )
+        else:
+            self.assertEqual(len(batches), 2)
+            # Batch 1: samples 10-19
+            self.assertAllClose(
+                batches[0][1], np.arange(10, 20).reshape((10, 1))
+            )
+            # Batch 3: samples 30-39
+            self.assertAllClose(
+                batches[1][1], np.arange(30, 40).reshape((10, 1))
+            )
+
+    @parameterized.named_parameters(
+        ("rank0", 0),
+        ("rank1", 1),
+    )
+    @patch("keras.src.distribution.distribution_lib.distribution_lib")
+    @patch("keras.src.distribution.distribution_lib.distribution")
+    def test_sharding_jax(self, rank, mock_distribution, mock_backend_dist_lib):
+        world_size = 2
+        mock_backend_dist_lib.num_processes.return_value = world_size
+        mock_backend_dist_lib.process_id.return_value = rank
+
+        dist = dist_lib.DataParallel(devices=["cpu:0"] * world_size)
+        dist.auto_shard_dataset = True
+        mock_distribution.return_value = dist
+
+        x = np.arange(100).reshape((50, 2))
+        y = np.arange(50).reshape((50, 1))
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, y, batch_size=10, shuffle=False
+        )
+
+        it = adapter.get_jax_iterator()
+        batches = list(it)
+
+        if rank == 0:
+            self.assertEqual(len(batches), 3)
+        else:
+            self.assertEqual(len(batches), 2)
+
+    def test_deterministic_shuffle(self):
+        x = np.arange(100).reshape((50, 2)).astype("float32")
+        y = np.arange(50).reshape((50, 1)).astype("float32")
+
+        def get_order(it):
+            order = []
+            for batch in it:
+                bx = batch[0]
+                bx = backend.convert_to_numpy(bx)
+                order.extend(bx[:, 0].tolist())
+            return order
+
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, y, batch_size=10, shuffle=True
+        )
+
+        # We test both the numpy iterator and the native iterator
+        it_methods = ["get_numpy_iterator"]
+        backend_it_method = {
+            "tensorflow": "get_tf_dataset",
+            "jax": "get_jax_iterator",
+            "torch": "get_torch_dataloader",
+        }.get(backend.backend())
+        if backend_it_method:
+            it_methods.append(backend_it_method)
+
+        for it_method in it_methods:
+            it_fn = getattr(adapter, it_method)
+            # Same epoch should have same shuffle
+            adapter._epoch = 1
+            order1 = get_order(it_fn())
+            adapter._epoch = 1
+            order2 = get_order(it_fn())
+            self.assertAllClose(order1, order2)
+
+            # Different epochs should have different shuffle
+            adapter._epoch = 2
+            order3 = get_order(it_fn())
+            self.assertNotAllClose(order1, order3)
