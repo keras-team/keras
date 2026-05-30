@@ -1,5 +1,6 @@
 import builtins
 import contextlib
+import weakref
 
 import ml_dtypes
 import numpy as np
@@ -43,6 +44,20 @@ PADDLE_DTYPES = {
     "complex64": paddle.complex64,
     "complex128": paddle.complex128,
 }
+
+# Track logical dtypes for uint16/uint32 which Paddle maps to int32/int64
+_logical_dtypes = weakref.WeakValueDictionary()
+# Dtypes that Paddle maps to different physical dtypes
+_MAPPED_DTYPES = {"uint16", "uint32"}
+
+
+def _maybe_track_dtype(tensor, logical_dtype):
+    """Store the logical dtype if it differs from the physical paddle dtype."""
+    if logical_dtype is None:
+        return
+    std = standardize_dtype(logical_dtype)
+    if std in _MAPPED_DTYPES:
+        _logical_dtypes[id(tensor)] = std
 
 
 @contextlib.contextmanager
@@ -144,6 +159,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
             x = x.value
         if dtype is not None:
             x = x.cast(to_paddle_dtype(dtype))
+        _maybe_track_dtype(x, dtype)
         return x
     if isinstance(x, (bool, int, float, complex)):
         if dtype is not None:
@@ -297,9 +313,17 @@ def cond(pred, true_fn, false_fn):
 
 
 def vectorized_map(function, elements):
-    raise NotImplementedError(
-        "`vectorized_map` is not supported with paddle backend"
-    )
+    # Simple fallback for paddle: map over the first (batch) dimension
+    if isinstance(elements, (list, tuple)):
+        batch_size = elements[0].shape[0]
+        results = [
+            function(tuple(e[i] for e in elements))
+            for i in range(batch_size)
+        ]
+    else:
+        batch_size = elements.shape[0]
+        results = [function(elements[i]) for i in range(batch_size)]
+    return paddle.stack(results)
 
 
 def map(f, xs):

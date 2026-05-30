@@ -1441,15 +1441,24 @@ def flipud(x):
 
 def rot90(x, k=1, axes=(0, 1)):
     x = convert_to_tensor(x)
+    if x.ndim < 2:
+        raise ValueError(
+            f"rot90 requires at least 2 dimensions, got {x.ndim}"
+        )
+    if axes[0] == axes[1] or axes[0] % x.ndim == axes[1] % x.ndim:
+        raise ValueError("axes must be different")
     k = k % 4
     if k == 0:
         return x
-    elif k == 1:
-        return paddle.flip(paddle.transpose(x, axes), [axes[1]])
+    # Build the permutation that swaps axes[0] and axes[1]
+    perm = list(range(x.ndim))
+    perm[axes[0]], perm[axes[1]] = axes[1], axes[0]
+    if k == 1:
+        return paddle.transpose(paddle.flip(x, [axes[1]]), perm)
     elif k == 2:
         return paddle.flip(x, [axes[0], axes[1]])
     elif k == 3:
-        return paddle.transpose(paddle.flip(x, [axes[1]]), axes)
+        return paddle.transpose(paddle.flip(x, [axes[0]]), perm)
     return x
 
 
