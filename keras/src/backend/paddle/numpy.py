@@ -10,6 +10,23 @@ from keras.src.backend.paddle.core import to_paddle_dtype
 from keras.src.backend.paddle.core import _weak_tensors
 
 
+_CPU_UNSUPPORTED_DTYPES = {paddle.float16, paddle.bfloat16}
+
+
+def _maybe_upcast(x):
+    """Cast float16/bfloat16 to float32 on CPU for ops that don't support them."""
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        return x.cast("float32"), True
+    return x, False
+
+
+def _maybe_downcast(result, needs_downcast, original_dtype):
+    """Cast result back to original dtype if it was upcast."""
+    if needs_downcast:
+        return result.cast(original_dtype)
+    return result
+
+
 def _promote_dtypes(x1, x2):
     """Cast two tensors to a common dtype for cross-type operations.
 
@@ -60,36 +77,79 @@ def _promote_dtypes(x1, x2):
         x1 = paddle.cast(x1, to_paddle_dtype(common_dtype))
     if dt2 != common_dtype:
         x2 = paddle.cast(x2, to_paddle_dtype(common_dtype))
+    # CPU doesn't support float16/bfloat16 for most ops
+    if common_dtype in ("float16", "bfloat16"):
+        x1 = x1.cast("float32")
+        x2 = x2.cast("float32")
     return x1, x2
 
 
+def _binary_op_with_dtype(op, x1, x2):
+    """Run a binary op with _promote_dtypes and cast result back if needed.
 
-def add(x1, x2):
+    Handles float16/bfloat16 CPU upcasting: if the promoted dtype would be
+    float16/bfloat16, compute in float32 and cast back.
+    Only casts back when ALL non-weak inputs are float16/bfloat16.
+    """
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    w1 = id(x1) in _weak_tensors
+    w2 = id(x2) in _weak_tensors
+    low_precision = {"float16", "bfloat16"}
+    # Determine if result should be low precision
+    # Only when all non-weak inputs are low precision
+    target = None
+    if w1 and not w2:
+        if dt2 in low_precision:
+            target = dt2
+    elif w2 and not w1:
+        if dt1 in low_precision:
+            target = dt1
+    elif not w1 and not w2:
+        if dt1 in low_precision and dt2 in low_precision:
+            target = dt1 if dt1 == dt2 else None
+        elif dt1 in low_precision and dt2 not in low_precision:
+            target = None  # wider type wins
+        elif dt2 in low_precision and dt1 not in low_precision:
+            target = None  # wider type wins
     x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.add(x1, x2)
+    result = op(x1, x2)
+    if target in low_precision:
+        result_dtype = standardize_dtype(result.dtype)
+        if result_dtype != target:
+            result = result.cast(to_paddle_dtype(target))
+    return result
+
+
+def _unary_op(op, x):
+    """Run a unary op with float16/bfloat16 CPU upcasting."""
+    x = convert_to_tensor(x)
+    orig_dtype = x.dtype
+    needs_cast = x.dtype in _CPU_UNSUPPORTED_DTYPES
+    if needs_cast:
+        x = x.cast("float32")
+    result = op(x)
+    if needs_cast:
+        result = result.cast(orig_dtype)
+    return result
+
+
+def add(x1, x2):
+    return _binary_op_with_dtype(paddle.add, x1, x2)
 
 
 def subtract(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.subtract(x1, x2)
+    return _binary_op_with_dtype(paddle.subtract, x1, x2)
 
 
 def multiply(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.multiply(x1, x2)
+    return _binary_op_with_dtype(paddle.multiply, x1, x2)
 
 
 def divide(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.divide(x1, x2)
+    return _binary_op_with_dtype(paddle.divide, x1, x2)
 
 
 def true_divide(x1, x2):
@@ -99,25 +159,19 @@ def true_divide(x1, x2):
 
 
 def floor_divide(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.floor_divide(x1, x2)
+    return _binary_op_with_dtype(paddle.floor_divide, x1, x2)
 
 
 def mod(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.remainder(x1, x2)
+    return _binary_op_with_dtype(paddle.remainder, x1, x2)
 
 
 def negative(x):
-    return paddle.neg(convert_to_tensor(x))
+    return _unary_op(paddle.neg, x)
 
 
 def abs(x):
-    return paddle.abs(convert_to_tensor(x))
+    return _unary_op(paddle.abs, x)
 
 
 def absolute(x):
@@ -125,72 +179,65 @@ def absolute(x):
 
 
 def sign(x):
-    return paddle.sign(convert_to_tensor(x))
+    return _unary_op(paddle.sign, x)
 
 
 def log(x):
-    return paddle.log(convert_to_tensor(x))
+    return _unary_op(paddle.log, x)
 
 
 def log2(x):
-    return paddle.log2(convert_to_tensor(x))
+    return _unary_op(paddle.log2, x)
 
 
 def log10(x):
-    return paddle.log10(convert_to_tensor(x))
+    return _unary_op(paddle.log10, x)
 
 
 def log1p(x):
-    return paddle.log1p(convert_to_tensor(x))
+    return _unary_op(paddle.log1p, x)
 
 
 def exp(x):
-    return paddle.exp(convert_to_tensor(x))
+    return _unary_op(paddle.exp, x)
 
 
 def expm1(x):
-    return paddle.expm1(convert_to_tensor(x))
+    return _unary_op(paddle.expm1, x)
 
 
 def sqrt(x):
-    return paddle.sqrt(convert_to_tensor(x))
+    return _unary_op(paddle.sqrt, x)
 
 
 def square(x):
-    return paddle.square(convert_to_tensor(x))
+    return _unary_op(paddle.square, x)
 
 
 def pow(x1, x2):
-    return paddle.pow(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return _binary_op_with_dtype(paddle.pow, x1, x2)
 
 
 def power(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.pow(x1, x2)
+    return _binary_op_with_dtype(paddle.pow, x1, x2)
 
 
 def maximum(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.maximum(x1, x2)
+    return _binary_op_with_dtype(paddle.maximum, x1, x2)
 
 
 def minimum(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.minimum(x1, x2)
+    return _binary_op_with_dtype(paddle.minimum, x1, x2)
 
 
 def round(x, decimals=0):
-    return paddle.round(convert_to_tensor(x))
+    return _unary_op(lambda t: paddle.round(t), x)
 
 
 def clip(x, x_min, x_max):
-    return paddle.clip(convert_to_tensor(x), x_min, x_max)
+    return _unary_op(lambda t: paddle.clip(t, x_min, x_max), x)
 
 
 def clip_by_value(x, clip_value_min, clip_value_max):
@@ -198,25 +245,21 @@ def clip_by_value(x, clip_value_min, clip_value_max):
 
 
 def floor(x):
-    return paddle.floor(convert_to_tensor(x))
+    return _unary_op(paddle.floor, x)
 
 
 def ceil(x):
-    return paddle.ceil(convert_to_tensor(x))
+    return _unary_op(paddle.ceil, x)
 
 
 def dot(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
-    x, y = _promote_dtypes(x, y)
-    return paddle.dot(x, y)
+    return _binary_op_with_dtype(paddle.dot, x, y)
 
 
 def tensordot(x1, x2, axes=2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.tensordot(x1, x2, axes)
+    return _binary_op_with_dtype(
+        lambda a, b: paddle.tensordot(a, b, axes), x1, x2
+    )
 
 
 def einsum(subscripts, *operands, **kwargs):
@@ -243,10 +286,9 @@ def shape_equal(x, y):
 def where(condition, x1, x2):
     condition = convert_to_tensor(condition, dtype="bool")
     if x1 is not None and x2 is not None:
-        x1 = convert_to_tensor(x1)
-        x2 = convert_to_tensor(x2)
-        x1, x2 = _promote_dtypes(x1, x2)
-        return paddle.where(condition, x1, x2)
+        return _binary_op_with_dtype(
+            lambda a, b: paddle.where(condition, a, b), x1, x2
+        )
     return paddle.where(condition)
 
 
@@ -254,21 +296,33 @@ def mean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
         return x.clone()
-    return paddle.mean(x, axis=axis, keepdim=keepdims)
+    orig_dtype = x.dtype
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    result = paddle.mean(x, axis=axis, keepdim=keepdims)
+    return result.cast(orig_dtype)
 
 
 def variance(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
         return paddle.zeros_like(x)
-    return paddle.var(x, axis=axis, keepdim=keepdims)
+    orig_dtype = x.dtype
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    result = paddle.var(x, axis=axis, keepdim=keepdims)
+    return result.cast(orig_dtype)
 
 
 def std(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
         return paddle.zeros_like(x)
-    return paddle.std(x, axis=axis, keepdim=keepdims)
+    orig_dtype = x.dtype
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    result = paddle.std(x, axis=axis, keepdim=keepdims)
+    return result.cast(orig_dtype)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -515,7 +569,11 @@ def eye(N, M=None, k=0, dtype="float32"):
 def linspace(start, stop, num, dtype=None, endpoint=True, retstep=False, axis=0):
     if dtype is not None:
         dtype = to_paddle_dtype(dtype)
-    result = paddle.linspace(start, stop, num, dtype=dtype)
+    needs_downcast = dtype in _CPU_UNSUPPORTED_DTYPES
+    compute_dtype = paddle.float32 if needs_downcast else dtype
+    result = paddle.linspace(start, stop, num, dtype=compute_dtype)
+    if needs_downcast:
+        result = result.cast(dtype)
     if retstep:
         step = (stop - start) / max(num - 1 if endpoint else num, 1)
         return result, step
@@ -596,19 +654,17 @@ def meshgrid(*x, indexing="xy"):
     return paddle.meshgrid(*x)
 
 
-def histogram(x, bins=10):
+def histogram(x, bins=10, range=None):
     x = convert_to_tensor(x)
-    if isinstance(bins, int):
-        min_val = paddle.min(x).item()
-        max_val = paddle.max(x).item()
+    x_np = x.numpy()
+    if range is not None:
+        hist, bin_edges = np.histogram(x_np, bins=bins, range=range)
     else:
-        bin_edges = convert_to_tensor(bins)
-        bins = len(bin_edges) - 1
-        min_val = bin_edges[0].item()
-        max_val = bin_edges[-1].item()
-    hist = paddle.histogram(x, bins=bins, min=min_val, max=max_val)
-    bin_edges = paddle.linspace(min_val, max_val, bins + 1)
-    return hist.cast("int64"), bin_edges
+        hist, bin_edges = np.histogram(x_np, bins=bins)
+    return (
+        paddle.to_tensor(hist, dtype="int64"),
+        paddle.to_tensor(bin_edges, dtype=x.dtype),
+    )
 
 
 def tile(x, repeats):
@@ -701,45 +757,27 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 
 def equal(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.equal(x1, x2)
+    return _binary_op_with_dtype(paddle.equal, x1, x2)
 
 
 def not_equal(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.not_equal(x1, x2)
+    return _binary_op_with_dtype(paddle.not_equal, x1, x2)
 
 
 def greater(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.greater_than(x1, x2)
+    return _binary_op_with_dtype(paddle.greater_than, x1, x2)
 
 
 def greater_equal(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.greater_equal(x1, x2)
+    return _binary_op_with_dtype(paddle.greater_equal, x1, x2)
 
 
 def less(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.less_than(x1, x2)
+    return _binary_op_with_dtype(paddle.less_than, x1, x2)
 
 
 def less_equal(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.less_equal(x1, x2)
+    return _binary_op_with_dtype(paddle.less_equal, x1, x2)
 
 
 def all(x, axis=None, keepdims=False):
@@ -751,17 +789,11 @@ def any(x, axis=None, keepdims=False):
 
 
 def logical_and(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.logical_and(x1, x2)
+    return _binary_op_with_dtype(paddle.logical_and, x1, x2)
 
 
 def logical_or(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.logical_or(x1, x2)
+    return _binary_op_with_dtype(paddle.logical_or, x1, x2)
 
 
 def logical_not(x):
@@ -769,31 +801,19 @@ def logical_not(x):
 
 
 def logical_xor(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.logical_xor(x1, x2)
+    return _binary_op_with_dtype(paddle.logical_xor, x1, x2)
 
 
 def bitwise_and(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.bitwise_and(x1, x2)
+    return _binary_op_with_dtype(paddle.bitwise_and, x1, x2)
 
 
 def bitwise_or(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.bitwise_or(x1, x2)
+    return _binary_op_with_dtype(paddle.bitwise_or, x1, x2)
 
 
 def bitwise_xor(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.bitwise_xor(x1, x2)
+    return _binary_op_with_dtype(paddle.bitwise_xor, x1, x2)
 
 
 def bitwise_not(x):
@@ -822,19 +842,23 @@ def isposinf(x):
     return paddle.logical_and(paddle.isinf(x), x > 0)
 
 
-def nan_to_num(x):
+def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
-    return paddle.nan_to_num(x)
+    return paddle.nan_to_num(x, nan=nan, posinf=posinf, neginf=neginf)
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dt1 = standardize_dtype(x1.dtype)
     x1, x2 = _promote_dtypes(x1, x2)
     if axis is not None:
         x1 = paddle.moveaxis(x1, axisa, axis)
         x2 = paddle.moveaxis(x2, axisb, axis)
-    return paddle.cross(x1, x2, axis=axisc if axis is not None else axisa)
+    result = paddle.cross(x1, x2, axis=axisc if axis is not None else axisa)
+    if dt1 in ("float16", "bfloat16"):
+        result = result.cast(to_paddle_dtype(dt1))
+    return result
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
@@ -888,10 +912,7 @@ def beta(shape, alpha, beta_param, dtype=None, seed=None):
 
 
 def matmul(x1, x2):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.matmul(x1, x2)
+    return _binary_op_with_dtype(paddle.matmul, x1, x2)
 
 
 def copy(x):
@@ -921,85 +942,93 @@ def ravel(x):
 
 
 def trunc(x):
-    return paddle.trunc(convert_to_tensor(x))
+    return _unary_op(paddle.trunc, x)
 
 
 def inner(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
+    dt1 = standardize_dtype(a.dtype)
     a, b = _promote_dtypes(a, b)
-    return paddle.dot(a.flatten(), b.flatten())
+    result = paddle.dot(a.flatten(), b.flatten())
+    if dt1 in ("float16", "bfloat16"):
+        result = result.cast(to_paddle_dtype(dt1))
+    return result
 
 
 def outer(a, b):
     a = convert_to_tensor(a).flatten()
     b = convert_to_tensor(b).flatten()
+    dt1 = standardize_dtype(a.dtype)
     a, b = _promote_dtypes(a, b)
-    return paddle.mm(a.unsqueeze(1), b.unsqueeze(0))
+    result = paddle.mm(a.unsqueeze(1), b.unsqueeze(0))
+    if dt1 in ("float16", "bfloat16"):
+        result = result.cast(to_paddle_dtype(dt1))
+    return result
 
 
 def reciprocal(x):
-    return paddle.reciprocal(convert_to_tensor(x))
+    return _unary_op(paddle.reciprocal, x)
 
 
 def cos(x):
-    return paddle.cos(convert_to_tensor(x))
+    return _unary_op(paddle.cos, x)
 
 
 def sin(x):
-    return paddle.sin(convert_to_tensor(x))
+    return _unary_op(paddle.sin, x)
 
 
 def tan(x):
-    return paddle.tan(convert_to_tensor(x))
+    return _unary_op(paddle.tan, x)
 
 
 def cosh(x):
-    return paddle.cosh(convert_to_tensor(x))
+    return _unary_op(paddle.cosh, x)
 
 
 def sinh(x):
-    return paddle.sinh(convert_to_tensor(x))
+    return _unary_op(paddle.sinh, x)
 
 
 def arccos(x):
-    return paddle.acos(convert_to_tensor(x))
+    return _unary_op(paddle.acos, x)
 
 
 def arcsin(x):
-    return paddle.asin(convert_to_tensor(x))
+    return _unary_op(paddle.asin, x)
 
 
 def arctan(x):
-    return paddle.atan(convert_to_tensor(x))
+    return _unary_op(paddle.atan, x)
 
 
 def arctan2(x1, x2):
-    return paddle.atan2(convert_to_tensor(x1), convert_to_tensor(x2))
+    return _binary_op_with_dtype(paddle.atan2, x1, x2)
 
 
 def arccosh(x):
-    return paddle.acosh(convert_to_tensor(x))
+    return _unary_op(paddle.acosh, x)
 
 
 def arcsinh(x):
-    return paddle.asinh(convert_to_tensor(x))
+    return _unary_op(paddle.asinh, x)
 
 
 def arctanh(x):
-    return paddle.atanh(convert_to_tensor(x))
+    return _unary_op(paddle.atanh, x)
 
 
 def deg2rad(x):
-    return paddle.deg2rad(convert_to_tensor(x))
+    return _unary_op(paddle.deg2rad, x)
 
 
 def rad2deg(x):
-    return paddle.rad2deg(convert_to_tensor(x))
+    return _unary_op(paddle.rad2deg, x)
 
 
 def hypot(x1, x2):
-    return paddle.hypot(convert_to_tensor(x1), convert_to_tensor(x2))
+    return _binary_op_with_dtype(paddle.hypot, x1, x2)
 
 
 def fmod(x1, x2):
@@ -1009,8 +1038,12 @@ def fmod(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dt1 = standardize_dtype(x1.dtype)
     x1, x2 = _promote_dtypes(x1, x2)
-    return x1 * (2.0**x2)
+    result = x1 * (2.0**x2)
+    if dt1 in ("float16", "bfloat16"):
+        result = result.cast(to_paddle_dtype(dt1))
+    return result
 
 
 def left_shift(x1, x2):
@@ -1069,16 +1102,16 @@ def count_nonzero(x, axis=None):
     return paddle.sum(paddle.cast(x != 0, "int32"), axis=axis)
 
 
-def nanargmax(x, axis=None):
+def nanargmax(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     x = paddle.where(paddle.isnan(x), paddle.full_like(x, float("-inf")), x)
-    return paddle.argmax(x, axis=axis)
+    return paddle.argmax(x, axis=axis, keepdim=keepdims)
 
 
-def nanargmin(x, axis=None):
+def nanargmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     x = paddle.where(paddle.isnan(x), paddle.full_like(x, float("inf")), x)
-    return paddle.argmin(x, axis=axis)
+    return paddle.argmin(x, axis=axis, keepdim=keepdims)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1129,16 +1162,22 @@ def nanprod(x, axis=None, keepdims=False):
     return paddle.prod(x, axis=axis, keepdim=keepdims)
 
 
-def nancumsum(x, axis=None):
+def nancumsum(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
-    return paddle.cumsum(x, axis=axis)
+    result = paddle.cumsum(x, axis=axis)
+    if dtype is not None:
+        result = result.cast(to_paddle_dtype(dtype))
+    return result
 
 
-def nancumprod(x, axis=None):
+def nancumprod(x, axis=None, dtype=None):
     x = convert_to_tensor(x)
     x = paddle.where(paddle.isnan(x), paddle.ones_like(x), x)
-    return paddle.cumprod(x, axis=axis)
+    result = paddle.cumprod(x, axis=axis)
+    if dtype is not None:
+        result = result.cast(to_paddle_dtype(dtype))
+    return result
 
 
 def select(condlist, choicelist, default=0):
@@ -1167,8 +1206,12 @@ def unravel_index(indices, shape):
 def kron(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
+    dt1 = standardize_dtype(a.dtype)
     a, b = _promote_dtypes(a, b)
-    return paddle.kron(a, b)
+    result = paddle.kron(a, b)
+    if dt1 in ("float16", "bfloat16"):
+        result = result.cast(to_paddle_dtype(dt1))
+    return result
 
 
 def vdot(a, b):
@@ -1189,8 +1232,11 @@ def vectorize(pyfunc, **kwargs):
     return wrapper
 
 
-def view(x, dtype):
-    raise NotImplementedError("`view` is not supported with paddle backend")
+def view(x, dtype=None):
+    x = convert_to_tensor(x)
+    if dtype is None:
+        return x
+    return x.view(dtype=to_paddle_dtype(dtype))
 
 
 def diff(x, n=1, axis=-1, prepend=None, append=None):
@@ -1212,7 +1258,9 @@ def digitize(x, bins):
     return paddle.searchsorted(bins, x)
 
 
-def bincount(x, weights=None, minlength=0):
+def bincount(x, weights=None, minlength=0, sparse=False):
+    if sparse:
+        raise ValueError("Unsupported value `sparse=True` with paddle backend")
     x = convert_to_tensor(x, "int64")
     if weights is not None:
         weights = convert_to_tensor(weights)
@@ -1229,7 +1277,23 @@ def bincount(x, weights=None, minlength=0):
 
 def corrcoef(x):
     x = convert_to_tensor(x)
-    return paddle.corrcoef(x)
+    std = standardize_dtype(x.dtype)
+    if std == "bool":
+        x = x.cast("float32")
+    elif std == "int64":
+        x = x.cast("float64")
+    # Flatten to 2D if needed
+    if x.ndim < 2:
+        x = x.unsqueeze(0)
+    # Center the data
+    x = x - x.mean(axis=1, keepdim=True)
+    # Compute covariance
+    n = x.shape[1]
+    c = paddle.matmul(x, x.t()) / n
+    # Compute correlation
+    d = paddle.diag(c).clip(min=1e-12).sqrt()
+    c = c / (d.unsqueeze(1) * d.unsqueeze(0))
+    return c
 
 
 def correlate(x1, x2, mode="valid"):
@@ -1259,47 +1323,20 @@ def median(x, axis=None, keepdims=False):
     return paddle.median(x, axis=axis, keepdim=keepdims)
 
 
-def quantile(x, q, axis=None, keepdims=False):
+def quantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        x = x.flatten()
-    sorted_x = paddle.sort(x, axis=axis if axis is not None else -1)
-    if isinstance(q, (list, tuple)):
-        q = convert_to_tensor(q, "float32")
-    else:
-        q = convert_to_tensor([q], "float32")
-    if axis is None:
-        n = int(sorted_x.size)
-        indices = q * (n - 1)
-        lower = indices.cast("int64")
-        upper = paddle.minimum(
-            lower + 1, paddle.to_tensor(n - 1, dtype="int64")
-        )
-        frac = indices - lower.cast("float32")
-        result = sorted_x[lower] * (1 - frac) + sorted_x[upper] * frac
-    else:
-        n = sorted_x.shape[axis]
-        indices = q * (n - 1)
-        lower = indices.cast("int64")
-        upper = paddle.minimum(
-            lower + 1, paddle.to_tensor(n - 1, dtype="int64")
-        )
-        frac = indices - lower.cast("float32")
-        if axis is not None:
-            frac_shape = [1] * sorted_x.ndim
-            frac_shape[axis] = -1
-            frac = paddle.reshape(frac, frac_shape)
-        lower_vals = paddle.gather(sorted_x, lower, axis=axis)
-        upper_vals = paddle.gather(sorted_x, upper, axis=axis)
-        result = lower_vals * (1 - frac) + upper_vals * frac
-    if keepdims:
-        if axis is not None:
-            result = paddle.unsqueeze(result, axis=axis)
-    return result
+    q = convert_to_tensor(q, "float32")
+    # Cast to float for quantile computation
+    std = standardize_dtype(x.dtype)
+    if std not in ("float16", "bfloat16", "float32", "float64"):
+        x = x.cast("float32")
+    return paddle.quantile(
+        x, q, axis=axis, keepdim=keepdims, interpolation=method
+    )
 
 
-def percentile(x, q, axis=None, keepdims=False):
-    return quantile(x, q / 100.0, axis=axis, keepdims=keepdims)
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    return quantile(x, q / 100.0, axis=axis, method=method, keepdims=keepdims)
 
 
 def nanmedian(x, axis=None, keepdims=False):
@@ -1327,7 +1364,7 @@ def nanmedian(x, axis=None, keepdims=False):
     return result
 
 
-def nanquantile(x, q, axis=None, keepdims=False):
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     x = convert_to_tensor(x)
     mask = paddle.isnan(x)
     if axis is None:
@@ -1365,13 +1402,15 @@ def nanquantile(x, q, axis=None, keepdims=False):
     return result
 
 
-def nanpercentile(x, q, axis=None, keepdims=False):
-    return nanquantile(x, q / 100.0, axis=axis, keepdims=keepdims)
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    return nanquantile(x, q / 100.0, axis=axis, method=method, keepdims=keepdims)
 
 
-def ptp(x, axis=None):
+def ptp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    return paddle.max(x, axis=axis) - paddle.min(x, axis=axis)
+    return paddle.max(x, axis=axis, keepdim=keepdims) - paddle.min(
+        x, axis=axis, keepdim=keepdims
+    )
 
 
 def logaddexp(x1, x2):
@@ -1478,12 +1517,14 @@ def vsplit(x, indices_or_sections):
 
 def dstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
+    xs = _promote_dtypes_list(xs)
     xs = [paddle.unsqueeze(x, axis=2) if len(x.shape) < 3 else x for x in xs]
     return paddle.concat(xs, axis=2)
 
 
 def hstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
+    xs = _promote_dtypes_list(xs)
     if len(xs[0].shape) == 1:
         return paddle.concat(xs, axis=0)
     return paddle.concat(xs, axis=1)
@@ -1491,6 +1532,7 @@ def hstack(xs):
 
 def vstack(xs):
     xs = [convert_to_tensor(x) for x in xs]
+    xs = _promote_dtypes_list(xs)
     return paddle.concat(xs, axis=0)
 
 
