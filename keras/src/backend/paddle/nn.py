@@ -240,6 +240,13 @@ def conv(
 ):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
+    orig_dtype = inputs.dtype
+    # Cast unsupported dtypes for CPU
+    _unsupported = {paddle.float16, paddle.bfloat16, paddle.int64, paddle.int32,
+                    paddle.int16, paddle.int8, paddle.uint8, paddle.bool}
+    if inputs.dtype in _unsupported:
+        inputs = inputs.cast("float32")
+        kernel = kernel.cast("float32")
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
@@ -293,7 +300,10 @@ def conv(
     else:
         raise ValueError(f"Unsupported number of spatial dims: {num_spatial}")
 
-    return _to_channels_last(out, data_format)
+    out = _to_channels_last(out, data_format)
+    if out.dtype != orig_dtype:
+        out = out.cast(orig_dtype)
+    return out
 
 
 def depthwise_conv(
@@ -417,6 +427,12 @@ def conv_transpose(
 ):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
+    orig_dtype = inputs.dtype
+    _unsupported = {paddle.float16, paddle.bfloat16, paddle.int64, paddle.int32,
+                    paddle.int16, paddle.int8, paddle.uint8, paddle.bool}
+    if inputs.dtype in _unsupported:
+        inputs = inputs.cast("float32")
+        kernel = kernel.cast("float32")
     num_spatial = inputs.ndim - 2
 
     strides = _standardize_tuple(strides, num_spatial, "strides")
