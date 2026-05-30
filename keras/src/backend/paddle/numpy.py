@@ -1416,7 +1416,8 @@ def diff(x, n=1, axis=-1, prepend=None, append=None):
 def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
-    return paddle.searchsorted(bins, x)
+    # numpy.digitize is equivalent to searchsorted with side='right'
+    return paddle.searchsorted(bins, x, right=True)
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
