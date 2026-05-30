@@ -343,7 +343,11 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
         return x.clone()
-    return paddle.prod(x, axis=axis, keepdim=keepdims)
+    orig_dtype = x.dtype
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    result = paddle.prod(x, axis=axis, keepdim=keepdims)
+    return result.cast(orig_dtype)
 
 
 def logsumexp(x, axis=None, keepdims=False):
@@ -359,7 +363,11 @@ def cumsum(x, axis=None, dtype=None):
     dtype = standardize_dtype(dtype or x.dtype)
     if dtype == "bool":
         dtype = "int32"
-    return paddle.cast(paddle.cumsum(x, axis=axis, dtype=x.dtype), dtype)
+    orig_dtype = x.dtype
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    result = paddle.cumsum(x, axis=axis, dtype=x.dtype)
+    return paddle.cast(result, dtype)
 
 
 def cumprod(x, axis=None, dtype=None):
@@ -370,15 +378,25 @@ def cumprod(x, axis=None, dtype=None):
     dtype = standardize_dtype(dtype or x.dtype)
     if dtype == "bool":
         dtype = "int32"
-    return paddle.cast(paddle.cumprod(x, dim=axis, dtype=x.dtype), dtype)
+    orig_dtype = x.dtype
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    result = paddle.cumprod(x, dim=axis, dtype=x.dtype)
+    return paddle.cast(result, dtype)
 
 
 def argmax(x, axis=None, keepdims=False):
-    return paddle.argmax(convert_to_tensor(x), axis=axis, keepdim=keepdims)
+    x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    return paddle.argmax(x, axis=axis, keepdim=keepdims)
 
 
 def argmin(x, axis=None, keepdims=False):
-    return paddle.argmin(convert_to_tensor(x), axis=axis, keepdim=keepdims)
+    x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    return paddle.argmin(x, axis=axis, keepdim=keepdims)
 
 
 def argsort(x, axis=-1):
@@ -452,7 +470,11 @@ def flip(x, axis=None):
 
 
 def roll(x, shift, axis=None):
-    return paddle.roll(convert_to_tensor(x), shift, axis=axis)
+    x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        orig_dtype = x.dtype
+        return paddle.roll(x.cast("float32"), shift, axis=axis).cast(orig_dtype)
+    return paddle.roll(x, shift, axis=axis)
 
 
 def pad(x, pad_width, mode="constant", constant_values=0):
@@ -638,11 +660,19 @@ def tri(N, M=None, k=0, dtype="float32"):
 
 
 def tril(x, k=0):
-    return paddle.tril(convert_to_tensor(x), diagonal=k)
+    x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        orig_dtype = x.dtype
+        return paddle.tril(x.cast("float32"), diagonal=k).cast(orig_dtype)
+    return paddle.tril(x, diagonal=k)
 
 
 def triu(x, k=0):
-    return paddle.triu(convert_to_tensor(x), diagonal=k)
+    x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        orig_dtype = x.dtype
+        return paddle.triu(x.cast("float32"), diagonal=k).cast(orig_dtype)
+    return paddle.triu(x, diagonal=k)
 
 
 def diagonal(x, offset=0, axis1=0, axis2=1):
@@ -696,9 +726,13 @@ def take(x, indices, axis=None):
 
 
 def take_along_axis(x, indices, axis=None):
-    return paddle.take_along_axis(
-        convert_to_tensor(x), convert_to_tensor(indices, dtype="int64"), axis
-    )
+    x = convert_to_tensor(x)
+    indices = convert_to_tensor(indices, dtype="int64")
+    orig_dtype = x.dtype
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    result = paddle.take_along_axis(x, indices, axis)
+    return result.cast(orig_dtype)
 
 
 def put_along_axis(x, indices, values, axis=None):
@@ -749,15 +783,23 @@ def angle(x):
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    return paddle.isclose(
-        convert_to_tensor(x1), convert_to_tensor(x2), rtol=rtol, atol=atol
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    return paddle.isclose(x1, x2, rtol=rtol, atol=atol)
 
 
 def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
-    return paddle.allclose(
-        convert_to_tensor(x1), convert_to_tensor(x2), rtol=rtol, atol=atol
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    return paddle.allclose(x1, x2, rtol=rtol, atol=atol)
 
 
 def equal(x1, x2):
@@ -1633,6 +1675,13 @@ def lcm(x1, x2):
 
 def max(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        orig_dtype = x.dtype
+        x = x.cast("float32")
+        result = paddle.max(x, axis=axis, keepdim=keepdims)
+        if initial is not None:
+            result = paddle.maximum(result, convert_to_tensor(initial))
+        return result.cast(orig_dtype)
     result = paddle.max(x, axis=axis, keepdim=keepdims)
     if initial is not None:
         result = paddle.maximum(result, convert_to_tensor(initial))
@@ -1641,6 +1690,13 @@ def max(x, axis=None, keepdims=False, initial=None):
 
 def min(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        orig_dtype = x.dtype
+        x = x.cast("float32")
+        result = paddle.min(x, axis=axis, keepdim=keepdims)
+        if initial is not None:
+            result = paddle.minimum(result, convert_to_tensor(initial))
+        return result.cast(orig_dtype)
     result = paddle.min(x, axis=axis, keepdim=keepdims)
     if initial is not None:
         result = paddle.minimum(result, convert_to_tensor(initial))
@@ -1668,7 +1724,11 @@ def fabs(x):
 
 
 def diag(x, k=0):
-    return paddle.diag(convert_to_tensor(x), offset=k)
+    x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        orig_dtype = x.dtype
+        return paddle.diag(x.cast("float32"), offset=k).cast(orig_dtype)
+    return paddle.diag(x, offset=k)
 
 
 def trapezoid(y, x=None, dx=1.0, axis=-1):
