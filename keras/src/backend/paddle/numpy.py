@@ -697,7 +697,7 @@ def full_like(x, fill_value, dtype=None):
     if dtype is not None:
         dtype = to_paddle_dtype(dtype)
     if isinstance(fill_value, np.ndarray):
-        fill_value = fill_value.item()
+        fill_value = fill_value.flat[0]
     return paddle.full_like(convert_to_tensor(x), fill_value, dtype=dtype)
 
 
@@ -1086,7 +1086,15 @@ def inner(a, b):
     b = convert_to_tensor(b)
     dt1 = standardize_dtype(a.dtype)
     a, b = _promote_dtypes(a, b)
-    result = paddle.dot(a.flatten(), b.flatten())
+    # inner product: sum over last axis
+    # output shape: a.shape[:-1] + b.shape[:-1]
+    if a.ndim == 1 and b.ndim == 1:
+        result = paddle.dot(a, b)
+    else:
+        # Reshape: a -> [..., 1, K], b -> [1, ..., K], then multiply and sum
+        a_expanded = a.reshape(list(a.shape[:-1]) + [1] + [a.shape[-1]])
+        b_expanded = b.reshape([1] * (a.ndim - 1) + list(b.shape))
+        result = paddle.sum(a_expanded * b_expanded, axis=-1)
     if dt1 in ("float16", "bfloat16"):
         result = result.cast(to_paddle_dtype(dt1))
     return result
@@ -1784,6 +1792,9 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x)
+    if axis is None:
+        x = x.flatten()
+        axis = 0
     sorted_indices = paddle.argsort(x, axis=axis)
     return sorted_indices
 
