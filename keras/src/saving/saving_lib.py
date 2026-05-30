@@ -1101,7 +1101,7 @@ def safe_get_h5_group(parent, name):
 # above this floor, we require it to stay within `_H5_DATASET_MAX_EXPANSION` of
 # the bytes actually stored on disk. Genuine arrays (even compressed) satisfy
 # this; shape/decompression bombs, which store next to nothing, do not.
-_H5_DATASET_BOMB_FLOOR_BYTES = 1 << 30  # 1 GiB
+_H5_DATASET_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
 _H5_DATASET_MAX_EXPANSION = 1000
 
 
@@ -1141,8 +1141,9 @@ def safe_get_h5_dataset(group, name):
         and declared_bytes > _H5_DATASET_MAX_EXPANSION * stored_bytes
     ):
         raise ValueError(
-            f"Not allowed: H5 dataset '{name}' declares {declared_bytes} "
-            f"bytes but only {stored_bytes} bytes are stored on disk; "
+            f"Not allowed: H5 dataset '{name}' declares "
+            f"{readable_memory_size(declared_bytes)} but only "
+            f"{readable_memory_size(stored_bytes)} are stored on disk; "
             "refusing to load a potential decompression/shape bomb."
         )
     return dataset

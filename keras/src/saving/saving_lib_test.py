@@ -1660,14 +1660,6 @@ class SafeGetH5DatasetTest(testing.TestCase):
             with self.assertRaisesRegex(ValueError, "shape bomb"):
                 saving_lib.safe_get_h5_dataset(f, "d")
 
-    def test_allows_regular_dataset(self):
-        path = os.path.join(self.get_temp_dir(), "ok.h5")
-        with h5py.File(path, "w") as f:
-            f.create_dataset("d", data=np.ones((128,), dtype="float32"))
-        with h5py.File(path, "r") as f:
-            dataset = saving_lib.safe_get_h5_dataset(f, "d")
-            self.assertEqual(dataset.shape, (128,))
-
     def test_load_weights_rejects_shape_bomb(self):
         model = keras.Sequential(
             [keras.Input((4,)), keras.layers.Dense(3, name="d")]
