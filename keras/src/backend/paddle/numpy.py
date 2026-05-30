@@ -186,11 +186,17 @@ def ceil(x):
 
 
 def dot(x, y):
-    return paddle.dot(convert_to_tensor(x), convert_to_tensor(y))
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    x, y = _promote_dtypes(x, y)
+    return paddle.dot(x, y)
 
 
 def tensordot(x1, x2, axes=2):
-    return paddle.tensordot(convert_to_tensor(x1), convert_to_tensor(x2), axes)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.tensordot(x1, x2, axes)
 
 
 def einsum(subscripts, *operands, **kwargs):
@@ -286,7 +292,7 @@ def cumprod(x, axis=None, dtype=None):
     dtype = standardize_dtype(dtype or x.dtype)
     if dtype == "bool":
         dtype = "int32"
-    return paddle.cast(paddle.cumprod(x, axis=axis, dtype=x.dtype), dtype)
+    return paddle.cast(paddle.cumprod(x, dim=axis, dtype=x.dtype), dtype)
 
 
 def argmax(x, axis=None, keepdims=False):
@@ -401,14 +407,33 @@ def pad(x, pad_width, mode="constant", constant_values=0):
     )
 
 
+def _promote_dtypes_list(tensors):
+    """Promote a list of tensors to a common dtype."""
+    if len(tensors) <= 1:
+        return tensors
+    result = [tensors[0]]
+    for t in tensors[1:]:
+        _, promoted = _promote_dtypes(result[0], t)
+        result.append(promoted)
+    common = result[0]
+    for i, t in enumerate(result):
+        if t.dtype != common.dtype:
+            result[i] = t.cast(common.dtype)
+    if tensors[0].dtype != common.dtype:
+        result[0] = tensors[0].cast(common.dtype)
+    return result
+
+
 def concatenate(xs, axis=0):
     xs = [convert_to_tensor(x) for x in xs]
+    xs = _promote_dtypes_list(xs)
     return paddle.concat(xs, axis=axis)
 
 
 def append(x, values, axis=None):
     x = convert_to_tensor(x)
     values = convert_to_tensor(values)
+    x, values = _promote_dtypes(x, values)
     if axis is None:
         return paddle.concat([x.flatten(), values.flatten()])
     return paddle.concat([x, values], axis=axis)
@@ -416,6 +441,7 @@ def append(x, values, axis=None):
 
 def stack(x, axis=0):
     x = [convert_to_tensor(xi) for xi in x]
+    x = _promote_dtypes_list(x)
     return paddle.stack(x, axis=axis)
 
 
@@ -466,10 +492,14 @@ def eye(N, M=None, k=0, dtype="float32"):
     return paddle.eye(N, M, dtype=dtype)
 
 
-def linspace(start, stop, num, dtype=None, endpoint=True):
+def linspace(start, stop, num, dtype=None, endpoint=True, retstep=False):
     if dtype is not None:
         dtype = to_paddle_dtype(dtype)
-    return paddle.linspace(start, stop, num, dtype=dtype)
+    result = paddle.linspace(start, stop, num, dtype=dtype)
+    if retstep:
+        step = (stop - start) / max(num - 1 if endpoint else num, 1)
+        return result, step
+    return result
 
 
 def arange(start, stop=None, step=1, dtype=None):
@@ -777,8 +807,14 @@ def nan_to_num(x):
     return paddle.nan_to_num(x)
 
 
-def cross(x1, x2):
-    return paddle.cross(convert_to_tensor(x1), convert_to_tensor(x2))
+def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
+    if axis is not None:
+        x1 = paddle.moveaxis(x1, axisa, axis)
+        x2 = paddle.moveaxis(x2, axisb, axis)
+    return paddle.cross(x1, x2, axis=axisc if axis is not None else axisa)
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
@@ -869,14 +905,16 @@ def trunc(x):
 
 
 def inner(a, b):
-    return paddle.dot(
-        convert_to_tensor(a).flatten(), convert_to_tensor(b).flatten()
-    )
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    a, b = _promote_dtypes(a, b)
+    return paddle.dot(a.flatten(), b.flatten())
 
 
 def outer(a, b):
     a = convert_to_tensor(a).flatten()
     b = convert_to_tensor(b).flatten()
+    a, b = _promote_dtypes(a, b)
     return paddle.mm(a.unsqueeze(1), b.unsqueeze(0))
 
 
@@ -951,6 +989,7 @@ def fmod(x1, x2):
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    x1, x2 = _promote_dtypes(x1, x2)
     return x1 * (2.0**x2)
 
 
@@ -1106,7 +1145,10 @@ def unravel_index(indices, shape):
 
 
 def kron(a, b):
-    return paddle.kron(convert_to_tensor(a), convert_to_tensor(b))
+    a = convert_to_tensor(a)
+    b = convert_to_tensor(b)
+    a, b = _promote_dtypes(a, b)
+    return paddle.kron(a, b)
 
 
 def vdot(a, b):
@@ -1322,15 +1364,20 @@ def logaddexp2(x1, x2):
     return paddle.logaddexp(x1 * np.log(2), x2 * np.log(2)) / np.log(2)
 
 
-def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True):
-    result = linspace(start, stop, num, endpoint=endpoint)
+def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True, axis=0):
+    result = linspace(start, stop, num, endpoint=endpoint, dtype=dtype)
     return base**result
 
 
-def geomspace(start, stop, num, endpoint=True, dtype=None):
+def geomspace(start, stop, num, endpoint=True, dtype=None, axis=0):
     start = convert_to_tensor(start, "float32")
     stop = convert_to_tensor(stop, "float32")
-    return paddle.exp(paddle.linspace(paddle.log(start), paddle.log(stop), num))
+    result = paddle.exp(
+        paddle.linspace(paddle.log(start), paddle.log(stop), num)
+    )
+    if dtype is not None:
+        result = result.cast(to_paddle_dtype(dtype))
+    return result
 
 
 def empty(shape, dtype="float32"):
