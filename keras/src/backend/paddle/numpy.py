@@ -806,7 +806,13 @@ def take_along_axis(x, indices, axis=None):
     orig_dtype = x.dtype
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    result = paddle.take_along_axis(x, indices, axis)
+    if axis is None:
+        result = paddle.take_along_axis(x.flatten(), indices.flatten(), 0)
+    else:
+        # Ensure indices has same ndim as x
+        while indices.ndim < x.ndim:
+            indices = indices.unsqueeze(-1)
+        result = paddle.take_along_axis(x, indices, axis)
     return result.cast(orig_dtype)
 
 
