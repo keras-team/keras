@@ -305,19 +305,16 @@ def tensordot(x1, x2, axes=2):
 
 def einsum(subscripts, *operands, **kwargs):
     operands = [convert_to_tensor(x) for x in operands]
-    # Cast unsupported dtypes to float32/int32
+    # Cast unsupported dtypes to float32 (einsum only supports float on CPU)
     needs_cast = False
     cast_dtype = None
     for i, op in enumerate(operands):
         dt = standardize_dtype(op.dtype)
-        if dt in ("float16", "bfloat16"):
+        if dt not in ("float32", "float64", "complex64", "complex128"):
             operands[i] = op.cast("float32")
             needs_cast = True
-            cast_dtype = to_paddle_dtype(dt)
-        elif dt in ("int8", "int16", "uint8", "bool"):
-            operands[i] = op.cast("int32")
-            needs_cast = True
-            cast_dtype = to_paddle_dtype(dt)
+            if cast_dtype is None:
+                cast_dtype = to_paddle_dtype(dt)
     result = paddle.einsum(subscripts, *operands)
     if needs_cast and cast_dtype is not None:
         result = result.cast(cast_dtype)
