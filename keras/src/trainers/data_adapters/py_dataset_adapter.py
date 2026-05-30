@@ -203,7 +203,6 @@ class PyDatasetAdapter(DataAdapter):
         x,
         class_weight=None,
         shuffle=False,
-        distribution=None,
     ):
         from keras.src.distribution import distribution_lib
 
@@ -215,7 +214,7 @@ class PyDatasetAdapter(DataAdapter):
         self._within_epoch = False
         self._epoch = 0
 
-        dist = distribution or distribution_lib.distribution()
+        dist = distribution_lib.distribution()
         self._num_processes = 1
         self._process_id = 0
         if dist is not None and getattr(dist, "auto_shard_dataset", False):
@@ -275,13 +274,8 @@ class PyDatasetAdapter(DataAdapter):
         if self.shuffle:
             random.Random(self._epoch).shuffle(indices)
 
-        num_batches_per_rank = (
-            num_batches + self._num_processes - 1
-        ) // self._num_processes
-        for i in range(num_batches_per_rank):
-            idx = i * self._num_processes + self._process_id
-            if idx < num_batches:
-                yield self._standardize_batch(self.py_dataset[indices[idx]])
+        for i in range(self._process_id, num_batches, self._num_processes):
+            yield self._standardize_batch(self.py_dataset[indices[i]])
 
     def _infinite_enqueuer_generator(self):
         self.enqueuer.start(self._epoch)
@@ -615,10 +609,8 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
         if self.py_dataset.num_batches is None:
             # For infinite datasets, `self.indices` is created here once for all
             # so that subsequent runs resume from where they stopped.
-            self.indices = (
-                i
-                for i in itertools.count()
-                if i % self._num_processes == self._process_id
+            self.indices = itertools.count(
+                start=self._process_id, step=self._num_processes
             )
 
     def _get_executor_init(self, workers):
@@ -657,16 +649,14 @@ class OrderedEnqueuer(PyDatasetEnqueuer):
                     random.Random(self.epoch).shuffle(indices)
 
                 if self._num_processes > 1:
-                    num_batches = len(indices)
-                    num_batches_per_rank = (
-                        num_batches + self._num_processes - 1
-                    ) // self._num_processes
-                    sharded_indices = []
-                    for i in range(num_batches_per_rank):
-                        idx = i * self._num_processes + self._process_id
-                        if idx < num_batches:
-                            sharded_indices.append(indices[idx])
-                    indices = sharded_indices
+                    indices = [
+                        indices[i]
+                        for i in range(
+                            self._process_id,
+                            len(indices),
+                            self._num_processes,
+                        )
+                    ]
                 self.indices = iter(indices)
             self._send_py_dataset()  # Share the initial py_dataset
 
