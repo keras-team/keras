@@ -328,7 +328,13 @@ def ceil(x):
 
 
 def dot(x, y):
-    return _binary_op_with_int(paddle.dot, x, y)
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    # paddle.dot only supports 1D tensors
+    if x.ndim <= 1 and y.ndim <= 1:
+        return _binary_op_with_int(paddle.dot, x, y)
+    # For multi-dimensional inputs, use matmul
+    return matmul(x, y)
 
 
 def tensordot(x1, x2, axes=2):
@@ -582,8 +588,11 @@ def searchsorted(sorted_sequence, values, side="left"):
         sorted_sequence = sorted_sequence.cast(paddle.float32)
     if values.dtype not in _supported:
         values = values.cast(paddle.float32)
+    right = side == "right"
     # Paddle returns int64, but JAX/NumPy return int32 — match them
-    return paddle.searchsorted(sorted_sequence, values).cast(paddle.int32)
+    return paddle.searchsorted(sorted_sequence, values, right=right).cast(
+        paddle.int32
+    )
 
 
 def top_k(x, k, sorted=False):
@@ -1016,11 +1025,17 @@ def imag(x):
 
 def angle(x):
     x = convert_to_tensor(x)
+    orig_dtype = x.dtype
     if not standardize_dtype(x.dtype) in _FLOAT_TYPES:
         x = x.cast("float32")
+    needs_cast = False
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    return paddle.angle(x)
+        needs_cast = True
+    result = paddle.angle(x)
+    if needs_cast:
+        result = result.cast(orig_dtype)
+    return result
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -1665,7 +1680,7 @@ def digitize(x, bins):
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
     # numpy.digitize is equivalent to searchsorted with side='right'
-    return paddle.searchsorted(bins, x, right=True)
+    return searchsorted(bins, x, side="right")
 
 
 def bincount(x, weights=None, minlength=0, sparse=False):
