@@ -1074,28 +1074,40 @@ def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     return paddle.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
+def _comparison_op(op, x1, x2):
+    """Run a comparison op with CPU dtype handling."""
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    x1, x2 = _promote_dtypes(x1, x2)
+    return op(x1, x2)
+
+
 def equal(x1, x2):
-    return _binary_op_with_dtype(paddle.equal, x1, x2)
+    return _comparison_op(paddle.equal, x1, x2)
 
 
 def not_equal(x1, x2):
-    return _binary_op_with_dtype(paddle.not_equal, x1, x2)
+    return _comparison_op(paddle.not_equal, x1, x2)
 
 
 def greater(x1, x2):
-    return _binary_op_with_dtype(paddle.greater_than, x1, x2)
+    return _comparison_op(paddle.greater_than, x1, x2)
 
 
 def greater_equal(x1, x2):
-    return _binary_op_with_dtype(paddle.greater_equal, x1, x2)
+    return _comparison_op(paddle.greater_equal, x1, x2)
 
 
 def less(x1, x2):
-    return _binary_op_with_dtype(paddle.less_than, x1, x2)
+    return _comparison_op(paddle.less_than, x1, x2)
 
 
 def less_equal(x1, x2):
-    return _binary_op_with_dtype(paddle.less_equal, x1, x2)
+    return _comparison_op(paddle.less_equal, x1, x2)
 
 
 def all(x, axis=None, keepdims=False):
@@ -1117,11 +1129,25 @@ def any(x, axis=None, keepdims=False):
 
 
 def logical_and(x1, x2):
-    return _binary_op_with_dtype(paddle.logical_and, x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.logical_and(x1, x2)
 
 
 def logical_or(x1, x2):
-    return _binary_op_with_dtype(paddle.logical_or, x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.logical_or(x1, x2)
 
 
 def logical_not(x):
@@ -1134,7 +1160,14 @@ def logical_not(x):
 
 
 def logical_xor(x1, x2):
-    return _binary_op_with_dtype(paddle.logical_xor, x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.logical_xor(x1, x2)
 
 
 def bitwise_and(x1, x2):
@@ -1403,31 +1436,52 @@ def fmod(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     # numpy.fmod uses truncation division, not floor division
-    # Cast to float for division, then cast back
-    orig_dtype = x1.dtype
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    w1 = id(x1) in _weak_tensors
+    w2 = id(x2) in _weak_tensors
+    # Determine target dtype
+    float_types = {"float16", "float32", "float64", "bfloat16"}
+    if w1 and not w2:
+        target = dt2
+    elif w2 and not w1:
+        target = dt1
+    elif dt1 in float_types and dt2 in float_types:
+        target = dt1 if dt1 == dt2 else "float32"
+    elif dt1 in float_types:
+        target = dt1
+    elif dt2 in float_types:
+        target = dt2
+    elif dt1 == dt2:
+        target = dt1
+    else:
+        target = "float32"
+    # Cast to float64 for computation
     x1f = x1.cast("float64")
     x2f = x2.cast("float64")
-    return (x1f - paddle.trunc(x1f / x2f) * x2f).cast(orig_dtype)
+    result = (x1f - paddle.trunc(x1f / x2f) * x2f)
+    return result.cast(to_paddle_dtype(target))
 
 
 def ldexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     dt1 = standardize_dtype(x1.dtype)
-    x1, x2 = _promote_dtypes(x1, x2)
-    promoted_dt = standardize_dtype(x1.dtype)
-    needs_upcast = promoted_dt in _CPU_UNSUPPORTED_INT
-    if needs_upcast:
-        x1 = x1.cast("int32")
-        x2 = x2.cast("int32")
-    result = x1 * paddle.pow(
-        paddle.to_tensor(2.0, dtype=x1.dtype), x2
-    )
-    if needs_upcast:
-        result = result.cast(to_paddle_dtype(promoted_dt))
-    if dt1 in ("float16", "bfloat16"):
-        result = result.cast(to_paddle_dtype(dt1))
-    return result
+    float_types = {"float16", "float32", "float64", "bfloat16"}
+    int_types = {
+        "bool", "int8", "int16", "int32", "int64",
+        "uint8", "uint16", "uint32",
+    }
+    # Determine target dtype
+    if dt1 in float_types:
+        target = dt1
+    else:
+        # JAX ldexp always returns float32 for int inputs
+        target = "float32"
+    x1 = x1.cast("float32")
+    x2 = x2.cast("float32")
+    result = x1 * paddle.pow(paddle.to_tensor(2.0, dtype="float32"), x2)
+    return result.cast(to_paddle_dtype(target))
 
 
 def left_shift(x1, x2):
@@ -1895,19 +1949,26 @@ def empty_like(x, dtype=None):
 def nextafter(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    # Determine target dtype (nextafter always returns float)
+    float_types = {"float16", "float32", "float64", "bfloat16"}
+    if dt1 in float_types and dt2 in float_types:
+        target = dt1 if dt1 == dt2 else "float32"
+    elif dt1 in float_types:
+        target = dt1
+    elif dt2 in float_types:
+        target = dt2
+    else:
+        target = "float32"
     # Cast to float for computation
-    orig_dtype = x1.dtype
-    if not standardize_dtype(x1.dtype) in _FLOAT_TYPES:
-        x1 = x1.cast("float32")
-        x2 = x2.cast("float32")
-    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x1 = x1.cast("float32")
-        x2 = x2.cast("float32")
+    x1 = x1.cast("float32")
+    x2 = x2.cast("float32")
     # Approximate nextafter using bit manipulation
-    eps = np.finfo(standardize_dtype(x1.dtype)).eps
+    eps = np.finfo(np.float32).eps
     direction = paddle.sign(x2 - x1)
     result = x1 + direction * eps
-    return result.cast(orig_dtype)
+    return result.cast(to_paddle_dtype(target))
 
 
 def isreal(x):
