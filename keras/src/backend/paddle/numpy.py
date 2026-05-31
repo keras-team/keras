@@ -1567,7 +1567,26 @@ def signbit(x):
 def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    target, x1, x2 = _cpu_binary_target(x1, x2)
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    float_types = {"float16", "float32", "float64", "bfloat16"}
+    # JAX heaviside returns float32 for int inputs
+    if dt1 in float_types:
+        target = dt1
+    elif dt2 in float_types:
+        target = dt2
+    else:
+        target = "float32"
+    # CPU cast
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    if standardize_dtype(x1.dtype) in _CPU_UNSUPPORTED_INT:
+        x1 = x1.cast("int32")
+    if standardize_dtype(x2.dtype) in _CPU_UNSUPPORTED_INT:
+        x2 = x2.cast("int32")
+    x1, x2 = _promote_dtypes(x1, x2)
     result = paddle.where(
         x1 > 0,
         paddle.ones_like(x1),
