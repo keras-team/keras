@@ -380,6 +380,9 @@ def dot(x, y):
     x = convert_to_tensor(x)
     y = convert_to_tensor(y)
     # paddle.dot only supports 1D tensors
+    # Scalar case: use element-wise multiply
+    if x.ndim == 0 or y.ndim == 0:
+        return multiply(x, y)
     if x.ndim <= 1 and y.ndim <= 1:
         return _binary_op_with_int(paddle.dot, x, y)
     # For multi-dimensional inputs, use matmul
