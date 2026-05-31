@@ -4,3 +4,9 @@ ExtractPatches3DTest::test_extract_patches_3d_with_dilation_float16_channels_fir
 # Paddle CPU does not support bfloat16 for activation ops
 NNOpsDtypeTest::test_relu6_bfloat16
 NNOpsDtypeTest::test_relu6_float16
+# Paddle does not support uint32 dtype - uint8 sum/prod/trace returns int64
+NumpyDtypeTest::test_sum_uint8
+NumpyDtypeTest::test_trace_uint8
+NumpyDtypeTest::test_prod_uint8
+NumpyDtypeTest::test_nansum_uint8
+NumpyDtypeTest::test_nanprod_uint8
