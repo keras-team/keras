@@ -3021,14 +3021,19 @@ def vander(x, N=None, increasing=False):
         x = x.cast("int32")
     elif x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
+    elif orig_dtype in _CPU_UNSUPPORTED_INT:
+        x = x.cast("int32")
     if N is None:
         N = x.shape[0]
+    # Use int32 for arange (CPU doesn't support int8/int16/uint8)
+    arange_dtype = x.dtype if x.dtype not in _CPU_UNSUPPORTED_DTYPES else paddle.int32
     if not increasing:
-        powers = paddle.arange(N - 1, -1, -1, dtype=x.dtype)
+        powers = paddle.arange(N - 1, -1, -1, dtype=arange_dtype)
     else:
-        powers = paddle.arange(0, N, dtype=x.dtype)
+        powers = paddle.arange(0, N, dtype=arange_dtype)
     result = x.unsqueeze(1) ** powers.unsqueeze(0)
     # Cast back to original dtype if needed
-    if result.dtype != x.dtype:
-        result = result.cast(x.dtype)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != orig_dtype:
+        result = result.cast(to_paddle_dtype(orig_dtype))
     return result
