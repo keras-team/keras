@@ -345,19 +345,21 @@ def tensordot(x1, x2, axes=2):
 
 def einsum(subscripts, *operands, **kwargs):
     operands = [convert_to_tensor(x) for x in operands]
+    # Determine target dtype using promotion
+    if len(operands) >= 2:
+        x1, x2 = _promote_dtypes(operands[0], operands[1])
+        target = standardize_dtype(x1.dtype)
+    else:
+        target = standardize_dtype(operands[0].dtype)
     # Cast unsupported dtypes to float32 (einsum only supports float on CPU)
-    needs_cast = False
-    cast_dtype = None
     for i, op in enumerate(operands):
         dt = standardize_dtype(op.dtype)
         if dt not in ("float32", "float64", "complex64", "complex128"):
             operands[i] = op.cast("float32")
-            needs_cast = True
-            if cast_dtype is None:
-                cast_dtype = to_paddle_dtype(dt)
     result = paddle.einsum(subscripts, *operands)
-    if needs_cast and cast_dtype is not None:
-        result = result.cast(cast_dtype)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
     return result
 
 
@@ -1516,6 +1518,10 @@ def signbit(x):
 def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
     x1, x2 = _promote_dtypes(x1, x2)
     return paddle.where(
         x1 > 0,
@@ -1690,6 +1696,11 @@ def kron(a, b):
 def vdot(a, b):
     a = convert_to_tensor(a).flatten()
     b = convert_to_tensor(b).flatten()
+    if a.dtype in _CPU_UNSUPPORTED_DTYPES:
+        a = a.cast("float32")
+    if b.dtype in _CPU_UNSUPPORTED_DTYPES:
+        b = b.cast("float32")
+    a, b = _promote_dtypes(a, b)
     if a.is_complex():
         return paddle.dot(a.conj(), b)
     return paddle.dot(a, b)
@@ -1780,23 +1791,31 @@ def corrcoef(x):
 def correlate(x1, x2, mode="valid"):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    orig_dtype = x1.dtype
+    # conv1d only supports float32/float64
+    if x1.dtype not in (paddle.float32, paddle.float64):
+        x1 = x1.cast("float32")
+    if x2.dtype not in (paddle.float32, paddle.float64):
+        x2 = x2.cast("float32")
     if mode == "valid":
-        return paddle.nn.functional.conv1d(
+        result = paddle.nn.functional.conv1d(
             x1.reshape([1, 1, -1]), x2.reshape([1, 1, -1]), padding=0
         )
     elif mode == "same":
-        return paddle.nn.functional.conv1d(
+        result = paddle.nn.functional.conv1d(
             x1.reshape([1, 1, -1]),
             x2.reshape([1, 1, -1]),
             padding=x2.shape[0] // 2,
         )
     elif mode == "full":
-        return paddle.nn.functional.conv1d(
+        result = paddle.nn.functional.conv1d(
             x1.reshape([1, 1, -1]),
             x2.reshape([1, 1, -1]),
             padding=x2.shape[0] - 1,
         )
-    raise ValueError(f"Mode {mode} not supported")
+    else:
+        raise ValueError(f"Mode {mode} not supported")
+    return result.cast(orig_dtype)
 
 
 def median(x, axis=None, keepdims=False):
@@ -1905,12 +1924,24 @@ def ptp(x, axis=None, keepdims=False):
 
 
 def logaddexp(x1, x2):
-    return paddle.logaddexp(convert_to_tensor(x1), convert_to_tensor(x2))
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    x1, x2 = _promote_dtypes(x1, x2)
+    return paddle.logaddexp(x1, x2)
 
 
 def logaddexp2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    x1, x2 = _promote_dtypes(x1, x2)
     return paddle.logaddexp(x1 * np.log(2), x2 * np.log(2)) / np.log(2)
 
 
