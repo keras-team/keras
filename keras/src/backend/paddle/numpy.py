@@ -1546,15 +1546,25 @@ def ldexp(x1, x2):
 
 
 def left_shift(x1, x2):
-    return paddle.bitwise_left_shift(
-        convert_to_tensor(x1), convert_to_tensor(x2)
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    target, x1, x2 = _cpu_binary_target(x1, x2)
+    result = paddle.bitwise_left_shift(x1, x2)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
+    return result
 
 
 def right_shift(x1, x2):
-    return paddle.bitwise_right_shift(
-        convert_to_tensor(x1), convert_to_tensor(x2)
-    )
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    target, x1, x2 = _cpu_binary_target(x1, x2)
+    result = paddle.bitwise_right_shift(x1, x2)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
+    return result
 
 
 def bitwise_left_shift(x1, x2):
@@ -1566,7 +1576,7 @@ def bitwise_right_shift(x1, x2):
 
 
 def bitwise_invert(x):
-    return paddle.bitwise_not(convert_to_tensor(x))
+    return _unary_op(paddle.bitwise_not, x)
 
 
 def signbit(x):
