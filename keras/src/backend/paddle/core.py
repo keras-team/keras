@@ -184,7 +184,9 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         else:
             dt = paddle.complex64
         t = paddle.to_tensor(x, dtype=dt)
-        _weak_tensors.add(id(t))
+        # Only mark as weak when no explicit dtype was provided
+        if dtype is None:
+            _weak_tensors.add(id(t))
         return t
 
     # Convert to np in case of any array-like that is not list or tuple.

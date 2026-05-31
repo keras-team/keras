@@ -1646,6 +1646,10 @@ def bitwise_invert(x):
 
 def signbit(x):
     x = convert_to_tensor(x)
+    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
+        x = x.cast("int32")
     return paddle.sign(x) < 0
 
 
@@ -1682,7 +1686,7 @@ def sinc(x):
 
 def count_nonzero(x, axis=None):
     x = convert_to_tensor(x)
-    return paddle.sum(paddle.cast(x != 0, "int32"), axis=axis)
+    return paddle.sum(paddle.cast(x != 0, "int32"), axis=axis).cast("int32")
 
 
 def nanargmax(x, axis=None, keepdims=False):
@@ -2187,7 +2191,8 @@ def nonzero(x):
     elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
         x = x.cast("int32")
     indices = paddle.nonzero(x)
-    return tuple(indices.T)
+    # JAX returns int32 indices, paddle returns int64
+    return tuple(idx.cast("int32") for idx in indices.T)
 
 
 def array_split(x, indices_or_sections, axis=0):
@@ -2348,7 +2353,7 @@ def exp2(x):
         x = x.cast("float32")
     elif x.dtype not in (paddle.float32, paddle.float64):
         x = x.cast("float32")
-    result = paddle.pow(2.0, x)
+    result = paddle.pow(paddle.to_tensor(2.0, dtype=x.dtype), x)
     if result.dtype != orig_dtype:
         result = result.cast(orig_dtype)
     return result
