@@ -148,6 +148,55 @@ def _unary_op(op, x):
 _CPU_UNSUPPORTED_INT = {"int8", "int16", "uint8", "bool"}
 
 
+def _cpu_binary_target(x1, x2):
+    """Compute target dtype from original types before CPU casting.
+
+    Returns (target_dtype_string, x1_cast, x2_cast) where x1_cast and x2_cast
+    are the CPU-compatible versions of x1 and x2.
+    """
+    dt1 = standardize_dtype(x1.dtype)
+    dt2 = standardize_dtype(x2.dtype)
+    w1 = id(x1) in _weak_tensors
+    w2 = id(x2) in _weak_tensors
+    float_types = {"float16", "float32", "float64", "bfloat16"}
+    int_types = {
+        "bool", "int8", "int16", "int32", "int64",
+        "uint8", "uint16", "uint32", "uint64",
+    }
+    is_f1 = dt1 in float_types
+    is_f2 = dt2 in float_types
+    is_i1 = dt1 in int_types
+    is_i2 = dt2 in int_types
+    # Determine target using same logic as _promote_dtypes
+    if w1 and not w2 and ((is_f1 and is_f2) or (is_i1 and is_i2)):
+        target = "int32" if dt2 == "bool" and is_i1 else dt2
+    elif w2 and not w1 and ((is_f1 and is_f2) or (is_i1 and is_i2)):
+        target = "int32" if dt1 == "bool" and is_i2 else dt1
+    elif is_f1 and not is_f2:
+        target = dt1
+    elif is_f2 and not is_f1:
+        target = dt2
+    elif dt1 == dt2:
+        target = dt1
+    else:
+        try:
+            common = np.result_type(np.zeros(1, dtype=dt1), np.zeros(1, dtype=dt2))
+            target = standardize_dtype(common)
+        except (TypeError, np.exceptions.DTypePromotionError):
+            target = "float32"
+    # CPU cast
+    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x1 = x1.cast("float32")
+    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x2 = x2.cast("float32")
+    if standardize_dtype(x1.dtype) in _CPU_UNSUPPORTED_INT:
+        x1 = x1.cast("int32")
+    if standardize_dtype(x2.dtype) in _CPU_UNSUPPORTED_INT:
+        x2 = x2.cast("int32")
+    x1, x2 = _promote_dtypes(x1, x2)
+    return target, x1, x2
+
+
 def _binary_op_with_int(op, x1, x2, bool_to_int32=False):
     """Run a binary op with full CPU dtype support (float16 + int types).
 
@@ -1518,16 +1567,16 @@ def signbit(x):
 def heaviside(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x1 = x1.cast("float32")
-    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x2 = x2.cast("float32")
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.where(
+    target, x1, x2 = _cpu_binary_target(x1, x2)
+    result = paddle.where(
         x1 > 0,
         paddle.ones_like(x1),
         paddle.where(x1 == 0, x2, paddle.zeros_like(x1)),
     )
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
+    return result
 
 
 def i0(x):
@@ -1696,14 +1745,15 @@ def kron(a, b):
 def vdot(a, b):
     a = convert_to_tensor(a).flatten()
     b = convert_to_tensor(b).flatten()
-    if a.dtype in _CPU_UNSUPPORTED_DTYPES:
-        a = a.cast("float32")
-    if b.dtype in _CPU_UNSUPPORTED_DTYPES:
-        b = b.cast("float32")
-    a, b = _promote_dtypes(a, b)
+    target, a, b = _cpu_binary_target(a, b)
     if a.is_complex():
-        return paddle.dot(a.conj(), b)
-    return paddle.dot(a, b)
+        result = paddle.dot(a.conj(), b)
+    else:
+        result = paddle.dot(a, b)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
+    return result
 
 
 def vectorize(pyfunc, **kwargs):
@@ -1926,23 +1976,23 @@ def ptp(x, axis=None, keepdims=False):
 def logaddexp(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x1 = x1.cast("float32")
-    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x2 = x2.cast("float32")
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.logaddexp(x1, x2)
+    target, x1, x2 = _cpu_binary_target(x1, x2)
+    result = paddle.logaddexp(x1, x2)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
+    return result
 
 
 def logaddexp2(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    if x1.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x1 = x1.cast("float32")
-    if x2.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x2 = x2.cast("float32")
-    x1, x2 = _promote_dtypes(x1, x2)
-    return paddle.logaddexp(x1 * np.log(2), x2 * np.log(2)) / np.log(2)
+    target, x1, x2 = _cpu_binary_target(x1, x2)
+    result = paddle.logaddexp(x1 * np.log(2), x2 * np.log(2)) / np.log(2)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
+    return result
 
 
 def logspace(start, stop, num, base=10.0, dtype=None, endpoint=True, axis=0):
