@@ -1293,8 +1293,7 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    dt1 = standardize_dtype(x1.dtype)
-    x1, x2 = _promote_dtypes(x1, x2)
+    target, x1, x2 = _cpu_binary_target(x1, x2)
     if axis is not None:
         x1 = paddle.moveaxis(x1, axisa, axis)
         x2 = paddle.moveaxis(x2, axisb, axis)
@@ -1303,8 +1302,9 @@ def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
     x1 = paddle.broadcast_to(x1, target_shape)
     x2 = paddle.broadcast_to(x2, target_shape)
     result = paddle.cross(x1, x2, axis=axisc if axis is not None else axisa)
-    if dt1 in ("float16", "bfloat16"):
-        result = result.cast(to_paddle_dtype(dt1))
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
     return result
 
 
@@ -1395,8 +1395,7 @@ def trunc(x):
 def inner(a, b):
     a = convert_to_tensor(a)
     b = convert_to_tensor(b)
-    dt1 = standardize_dtype(a.dtype)
-    a, b = _promote_dtypes(a, b)
+    target, a, b = _cpu_binary_target(a, b)
     # inner product: sum over last axis
     # output shape: a.shape[:-1] + b.shape[:-1]
     if a.ndim == 1 and b.ndim == 1:
@@ -1406,19 +1405,20 @@ def inner(a, b):
         a_expanded = a.reshape(list(a.shape[:-1]) + [1] + [a.shape[-1]])
         b_expanded = b.reshape([1] * (a.ndim - 1) + list(b.shape))
         result = paddle.sum(a_expanded * b_expanded, axis=-1)
-    if dt1 in ("float16", "bfloat16"):
-        result = result.cast(to_paddle_dtype(dt1))
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
     return result
 
 
 def outer(a, b):
     a = convert_to_tensor(a).flatten()
     b = convert_to_tensor(b).flatten()
-    dt1 = standardize_dtype(a.dtype)
-    a, b = _promote_dtypes(a, b)
+    target, a, b = _cpu_binary_target(a, b)
     result = paddle.mm(a.unsqueeze(1), b.unsqueeze(0))
-    if dt1 in ("float16", "bfloat16"):
-        result = result.cast(to_paddle_dtype(dt1))
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
     return result
 
 
@@ -1459,7 +1459,14 @@ def arctan(x):
 
 
 def arctan2(x1, x2):
-    return _binary_op_with_dtype(paddle.atan2, x1, x2)
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    target, x1, x2 = _cpu_binary_target(x1, x2)
+    result = paddle.atan2(x1, x2)
+    result_dt = standardize_dtype(result.dtype)
+    if result_dt != target:
+        result = result.cast(to_paddle_dtype(target))
+    return result
 
 
 def arccosh(x):
