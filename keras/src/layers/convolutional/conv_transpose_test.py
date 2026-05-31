@@ -500,6 +500,24 @@ class ConvTransposeBasicTest(testing.TestCase):
             supports_masking=False,
         )
 
+    def test_output_padding_serialization(self):
+        # `output_padding` was previously dropped from `get_config`, so a
+        # round-trip silently reset it to `None` and changed the output shape.
+        for layer_cls, input_shape in [
+            (layers.Conv1DTranspose, (1, 8, 3)),
+            (layers.Conv2DTranspose, (1, 5, 5, 3)),
+            (layers.Conv3DTranspose, (1, 5, 5, 5, 3)),
+        ]:
+            layer = layer_cls(2, 3, strides=2, output_padding=1)
+            config = layer.get_config()
+            self.assertIn("output_padding", config)
+            revived = layer_cls.from_config(config)
+            self.assertEqual(layer.output_padding, revived.output_padding)
+            self.assertEqual(
+                layer.compute_output_shape(input_shape),
+                revived.compute_output_shape(input_shape),
+            )
+
     def test_bad_init_args(self):
         # `filters` is not positive.
         with self.assertRaisesRegex(
