@@ -421,11 +421,11 @@ def clip_by_value(x, clip_value_min, clip_value_max):
 
 
 def floor(x):
-    return _unary_op(paddle.floor, x)
+    return _unary_math_op(paddle.floor, x)
 
 
 def ceil(x):
-    return _unary_op(paddle.ceil, x)
+    return _unary_math_op(paddle.ceil, x)
 
 
 def dot(x, y):
@@ -539,46 +539,87 @@ def mean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
         return x.clone()
-    orig_dtype = x.dtype
+    orig_dtype = standardize_dtype(x.dtype)
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    if standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
+    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
         x = x.cast("int32")
+    # JAX returns float32 for int/bool inputs, float64 for float64
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     result = paddle.mean(x, axis=axis, keepdim=keepdims)
-    return result.cast(orig_dtype)
+    if orig_dtype in int_types:
+        # Cast to float32 for int inputs (matching JAX behavior)
+        if result.dtype != paddle.float32:
+            result = result.cast("float32")
+    return result
 
 
 def variance(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
-        return paddle.zeros_like(x)
-    orig_dtype = x.dtype
+        return paddle.zeros_like(x, dtype="float32")
+    orig_dtype = standardize_dtype(x.dtype)
+    # Cast to float for computation (variance of ints is float)
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
-        x = x.cast("int32")
+    elif orig_dtype in int_types or orig_dtype in _CPU_UNSUPPORTED_INT:
+        x = x.cast("float32")
     result = paddle.var(x, axis=axis, keepdim=keepdims)
-    return result.cast(orig_dtype)
+    # JAX returns float32 for int/bool inputs, float64 for float64
+    if orig_dtype in int_types and standardize_dtype(result.dtype) != "float32":
+        result = result.cast("float32")
+    return result
 
 
 def std(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
-        return paddle.zeros_like(x)
-    orig_dtype = x.dtype
+        return paddle.zeros_like(x, dtype="float32")
+    orig_dtype = standardize_dtype(x.dtype)
+    # Cast to float for computation (std of ints is float)
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
-        x = x.cast("int32")
+    elif orig_dtype in int_types or orig_dtype in _CPU_UNSUPPORTED_INT:
+        x = x.cast("float32")
     result = paddle.std(x, axis=axis, keepdim=keepdims)
-    return result.cast(orig_dtype)
+    # JAX returns float32 for int/bool inputs, float64 for float64
+    if orig_dtype in int_types and standardize_dtype(result.dtype) != "float32":
+        result = result.cast("float32")
+    return result
 
 
 def sum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
         return x.clone()
-    return paddle.sum(x, axis=axis, keepdim=keepdims)
+    orig_dtype = standardize_dtype(x.dtype)
+    # Paddle preserves small int types (int8, int16, uint8, bool) for sum,
+    # but JAX promotes them to int32/uint32. Also, Paddle promotes int32 to
+    # int64 for sum, but JAX keeps it as int32.
+    needs_cast_back = False
+    target_dtype = None
+    if orig_dtype in ("int8", "int16"):
+        x = x.cast("int32")
+        target_dtype = "int32"
+    elif orig_dtype == "uint8":
+        x = x.cast("int32")
+        target_dtype = "uint32"
+    elif orig_dtype == "bool":
+        x = x.cast("int32")
+        target_dtype = "int32"
+    elif orig_dtype == "int32":
+        # Paddle promotes int32 to int64 for sum, but JAX keeps int32
+        needs_cast_back = True
+        target_dtype = "int32"
+    result = paddle.sum(x, axis=axis, keepdim=keepdims)
+    if target_dtype and standardize_dtype(result.dtype) != target_dtype:
+        result = result.cast(to_paddle_dtype(target_dtype))
+    return result
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -588,13 +629,19 @@ def prod(x, axis=None, keepdims=False, dtype=None):
         x = convert_to_tensor(x)
     if isinstance(axis, tuple) and len(axis) == 0:
         return x.clone()
-    orig_dtype = x.dtype
-    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x = x.cast("float32")
-    if standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
+    orig_dtype = standardize_dtype(x.dtype)
+    # For int/bool types, cast to int32 for computation (matching JAX without x64)
+    # Paddle preserves int32 for prod, matching JAX behavior
+    needs_cast = False
+    if orig_dtype in ("int8", "int16", "uint8", "bool"):
         x = x.cast("int32")
+        needs_cast = True
+    elif x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
     result = paddle.prod(x, axis=axis, keepdim=keepdims)
-    return result.cast(orig_dtype)
+    # For small ints cast to int32, paddle.prod returns int32 (matching JAX)
+    # No need to cast back - int32 is the expected result
+    return result
 
 
 def logsumexp(x, axis=None, keepdims=False):
@@ -758,7 +805,7 @@ def pad(x, pad_width, mode="constant", constant_values=0):
     elif standardize_dtype(x.dtype) in ("int8", "int16", "uint8", "bool"):
         x = x.cast("int32")
     pad_list = []
-    for left, right in reversed(pad_width):
+    for left, right in pad_width:
         pad_list.extend([left, right])
     if mode == "constant":
         if constant_values is None:
@@ -859,10 +906,29 @@ def swapaxes(x, axis1, axis2):
 
 
 def moveaxis(x, source, destination):
-    perm = list(range(len(shape(x))))
-    dim = perm.pop(source)
-    perm.insert(destination, dim)
-    return paddle.transpose(convert_to_tensor(x), perm)
+    x = convert_to_tensor(x)
+    ndim = x.ndim
+    # Handle tuple/list source and destination
+    if isinstance(source, (list, tuple)):
+        source = list(source)
+    else:
+        source = [source]
+    if isinstance(destination, (list, tuple)):
+        destination = list(destination)
+    else:
+        destination = [destination]
+    # Normalize negative indices
+    source = [s + ndim if s < 0 else s for s in source]
+    destination = [d + ndim if d < 0 else d for d in destination]
+    # Build permutation
+    perm = list(range(ndim))
+    # Remove sources in reverse order of their position to keep indices valid
+    for s in sorted(source, reverse=True):
+        perm.pop(s)
+    # Insert destinations
+    for d, s in sorted(zip(destination, source)):
+        perm.insert(d, s)
+    return paddle.transpose(x, perm)
 
 
 def transpose(x, axes=None):
@@ -900,12 +966,28 @@ def linspace(start, stop, num, dtype=None, endpoint=True, retstep=False, axis=0)
     if dtype is not None:
         dtype = to_paddle_dtype(dtype)
     needs_downcast = dtype in _CPU_UNSUPPORTED_DTYPES
-    compute_dtype = paddle.float32 if needs_downcast else dtype
-    result = paddle.linspace(start, stop, num, dtype=compute_dtype)
+    compute_dtype = paddle.float32 if needs_downcast else (dtype if dtype is not None else paddle.float32)
+    # Always convert to float for computation
+    start_t = paddle.to_tensor(start, dtype=compute_dtype)
+    stop_t = paddle.to_tensor(stop, dtype=compute_dtype)
+    is_scalar = start_t.ndim == 0 and stop_t.ndim == 0
+    if endpoint and is_scalar:
+        result = paddle.linspace(start_t.item(), stop_t.item(), num, dtype=compute_dtype)
+    else:
+        # For endpoint=False or array start/stop, compute manually
+        denom = (num - 1) if endpoint else num
+        if denom == 0:
+            denom = 1
+        step_val = (stop_t - start_t) / denom
+        indices = paddle.arange(num, dtype=compute_dtype)
+        if is_scalar:
+            result = start_t + indices * step_val
+        else:
+            result = start_t.unsqueeze(-1) + indices * step_val.unsqueeze(-1)
     if needs_downcast:
         result = result.cast(dtype)
     if retstep:
-        step = (stop - start) / max(num - 1 if endpoint else num, 1)
+        step = (stop_t - start_t) / max(num - 1 if endpoint else num, 1)
         return result, step
     return result
 
@@ -1035,7 +1117,7 @@ def meshgrid(*x, indexing="xy"):
         elif standardize_dtype(t.dtype) in _CPU_UNSUPPORTED_INT:
             x[i] = t.cast("int32")
             needs_cast = True
-    result = paddle.meshgrid(*x)
+    result = paddle.meshgrid(*x, indexing=indexing)
     if needs_cast and orig_dtype is not None:
         result = [r.cast(orig_dtype) for r in result]
     return result
@@ -1255,6 +1337,8 @@ def less_equal(x1, x2):
 
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return x.clone()
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
     elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
@@ -1264,6 +1348,8 @@ def all(x, axis=None, keepdims=False):
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return x.clone()
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
     elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
@@ -1730,6 +1816,9 @@ def sinc(x):
 
 def count_nonzero(x, axis=None):
     x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        # axis=() means no reduction, return per-element nonzero count
+        return paddle.cast(x != 0, "int32")
     return paddle.sum(paddle.cast(x != 0, "int32"), axis=axis).cast("int32")
 
 
@@ -1797,28 +1886,41 @@ def nanmin(x, axis=None, keepdims=False):
 
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    orig_dtype = x.dtype
-    needs_cast = False
-    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x = x.cast("float32")
-        needs_cast = True
-    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
-        x = x.cast("int32")
-        needs_cast = True
+    orig_dtype = standardize_dtype(x.dtype)
+    # Replace NaN with 0 for float types
     if standardize_dtype(x.dtype) in _FLOAT_TYPES:
         x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
+    # JAX promotes small ints to int32/uint32 for nansum (same as sum)
+    target_dtype = None
+    if orig_dtype in ("int8", "int16"):
+        x = x.cast("int32")
+        target_dtype = "int32"
+    elif orig_dtype == "uint8":
+        x = x.cast("int32")
+        target_dtype = "uint32"
+    elif orig_dtype == "bool":
+        x = x.cast("int32")
+        target_dtype = "int32"
+    elif orig_dtype == "int32":
+        target_dtype = "int32"
+    elif x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    elif orig_dtype in _CPU_UNSUPPORTED_INT:
+        x = x.cast("int32")
     result = paddle.sum(x, axis=axis, keepdim=keepdims)
-    if needs_cast:
-        result = result.cast(orig_dtype)
+    if target_dtype and standardize_dtype(result.dtype) != target_dtype:
+        result = result.cast(to_paddle_dtype(target_dtype))
     return result
 
 
 def nanmean(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    orig_dtype = x.dtype
+    orig_dtype = standardize_dtype(x.dtype)
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    elif not standardize_dtype(x.dtype) in _FLOAT_TYPES:
+    elif orig_dtype in int_types:
         x = x.cast("float32")
     mask = ~paddle.isnan(x)
     x = paddle.where(mask, x, paddle.zeros_like(x))
@@ -1826,17 +1928,18 @@ def nanmean(x, axis=None, keepdims=False):
         paddle.cast(mask, "float32"), axis=axis, keepdim=keepdims
     )
     result = paddle.sum(x, axis=axis, keepdim=keepdims) / count
-    if result.dtype != orig_dtype:
-        result = result.cast(orig_dtype)
+    # JAX returns float32 for int/bool inputs (already handled by casting above)
     return result
 
 
 def nanvar(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    orig_dtype = x.dtype
+    orig_dtype = standardize_dtype(x.dtype)
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    elif not standardize_dtype(x.dtype) in _FLOAT_TYPES:
+    elif orig_dtype in int_types:
         x = x.cast("float32")
     mask = ~paddle.isnan(x)
     m = nanmean(x, axis=axis, keepdims=True)
@@ -1844,8 +1947,7 @@ def nanvar(x, axis=None, keepdims=False):
     diff = (x - m) * mask.cast(x.dtype)
     count = paddle.sum(mask.cast("float32"), axis=axis, keepdim=True)
     result = paddle.sum(diff**2, axis=axis, keepdim=keepdims) / count
-    if result.dtype != orig_dtype:
-        result = result.cast(orig_dtype)
+    # JAX returns float32 for int/bool inputs (already handled by casting above)
     return result
 
 
@@ -1855,19 +1957,18 @@ def nanstd(x, axis=None, keepdims=False):
 
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    orig_dtype = x.dtype
-    needs_cast = False
-    if x.dtype in _CPU_UNSUPPORTED_DTYPES:
-        x = x.cast("float32")
-        needs_cast = True
-    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
-        x = x.cast("int32")
-        needs_cast = True
+    orig_dtype = standardize_dtype(x.dtype)
+    # Replace NaN with 1 for float types
     if standardize_dtype(x.dtype) in _FLOAT_TYPES:
         x = paddle.where(paddle.isnan(x), paddle.ones_like(x), x)
+    # For int/bool types, cast to int32 for computation (matching JAX without x64)
+    if orig_dtype in ("int8", "int16", "uint8", "bool"):
+        x = x.cast("int32")
+    elif x.dtype in _CPU_UNSUPPORTED_DTYPES:
+        x = x.cast("float32")
+    elif orig_dtype in _CPU_UNSUPPORTED_INT:
+        x = x.cast("int32")
     result = paddle.prod(x, axis=axis, keepdim=keepdims)
-    if needs_cast:
-        result = result.cast(orig_dtype)
     return result
 
 
@@ -2036,9 +2137,11 @@ def bincount(x, weights=None, minlength=0, sparse=False):
     n = paddle.maximum(x.max() + 1, paddle.to_tensor(minlength, dtype="int64"))
     if weights is None:
         ones = paddle.ones([x.shape[0]], dtype="int64")
-        return paddle.scatter_nd_add(
+        result = paddle.scatter_nd_add(
             paddle.zeros([n], dtype="int64"), x.unsqueeze(-1), ones
         )
+        # JAX returns int32 for unweighted bincount
+        return result.cast("int32")
     orig_w_dtype = weights.dtype
     needs_cast = False
     if weights.dtype in _CPU_UNSUPPORTED_DTYPES:
@@ -2265,7 +2368,15 @@ def logaddexp2(x1, x2):
     int_types = {"bool", "int8", "int16", "int32", "int64", "uint8", "uint16", "uint32"}
     if target in int_types:
         target = "float32"
-    result = paddle.logaddexp(x1, x2) / paddle.log(paddle.to_tensor(2.0, dtype=x1.dtype))
+    # Ensure float computation
+    if standardize_dtype(x1.dtype) in int_types:
+        x1 = x1.cast("float32")
+        x2 = x2.cast("float32")
+    # logaddexp2(x1, x2) = log2(2^x1 + 2^x2)
+    # = log(e^(x1*ln2) + e^(x2*ln2)) / ln2
+    # = logaddexp(x1*ln2, x2*ln2) / ln2
+    ln2 = paddle.to_tensor(0.6931471805599453, dtype="float32")
+    result = paddle.logaddexp(x1 * ln2, x2 * ln2) / ln2
     result_dt = standardize_dtype(result.dtype)
     if result_dt != target:
         result = result.cast(to_paddle_dtype(target))
@@ -2455,6 +2566,10 @@ def rot90(x, k=1, axes=(0, 1)):
 
 def average(x, axis=None, weights=None, returned=False, keepdims=False):
     x = convert_to_tensor(x)
+    if isinstance(axis, tuple) and len(axis) == 0:
+        if returned:
+            return x.clone(), paddle.ones_like(x)
+        return x.clone()
     if weights is None:
         result = paddle.mean(x, axis=axis, keepdim=keepdims)
     else:
@@ -2489,31 +2604,33 @@ def average(x, axis=None, weights=None, returned=False, keepdims=False):
 
 def cbrt(x):
     x = convert_to_tensor(x)
-    orig_dtype = x.dtype
+    orig_dtype = standardize_dtype(x.dtype)
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
+    elif orig_dtype in int_types:
         x = x.cast("float32")
     elif x.dtype not in (paddle.float32, paddle.float64):
         x = x.cast("float32")
     result = paddle.pow(x, 1.0 / 3.0)
-    if result.dtype != orig_dtype:
-        result = result.cast(orig_dtype)
+    # JAX returns float32 for int inputs (don't cast back to int)
     return result
 
 
 def exp2(x):
     x = convert_to_tensor(x)
-    orig_dtype = x.dtype
+    orig_dtype = standardize_dtype(x.dtype)
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
+    elif orig_dtype in int_types:
         x = x.cast("float32")
     elif x.dtype not in (paddle.float32, paddle.float64):
         x = x.cast("float32")
     result = paddle.pow(paddle.to_tensor(2.0, dtype=x.dtype), x)
-    if result.dtype != orig_dtype:
-        result = result.cast(orig_dtype)
+    # JAX returns float32 for int inputs (don't cast back to int)
     return result
 
 
@@ -2647,12 +2764,19 @@ def amax(x, axis=None, keepdims=False, initial=None):
 
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    orig_dtype = x.dtype
+    if isinstance(axis, tuple) and len(axis) == 0:
+        return paddle.zeros_like(x, dtype="float32")
+    orig_dtype = standardize_dtype(x.dtype)
+    int_types = {"bool", "int8", "int16", "int32", "int64",
+                 "uint8", "uint16", "uint32", "uint64"}
     if x.dtype in _CPU_UNSUPPORTED_DTYPES:
         x = x.cast("float32")
-    elif standardize_dtype(x.dtype) in _CPU_UNSUPPORTED_INT:
-        x = x.cast("int32")
-    return paddle.var(x, axis=axis, keepdim=keepdims).cast(orig_dtype)
+    elif orig_dtype in int_types or orig_dtype in _CPU_UNSUPPORTED_INT:
+        x = x.cast("float32")
+    result = paddle.var(x, axis=axis, keepdim=keepdims)
+    if orig_dtype in int_types and standardize_dtype(result.dtype) != "float32":
+        result = result.cast("float32")
+    return result
 
 
 def tanh(x):
