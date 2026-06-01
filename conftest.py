@@ -80,7 +80,6 @@ def pytest_collection_modifyitems(config, items):
             "layers/preprocessing/",
             "trainers/data_adapters/",
             "trainers/epoch_iterator_test.py",
-            "trainers/trainer_test.py",
             "utils/jax_layer_test.py",
             "ops/image_test.py",
         ]
