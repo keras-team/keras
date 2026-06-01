@@ -2,7 +2,6 @@ import paddle
 import paddle.nn.functional as F
 
 from keras.src.backend.paddle.core import convert_to_tensor
-from keras.src.backend.paddle.core import standardize_dtype
 
 
 def relu(x):
@@ -256,8 +255,16 @@ def conv(
     kernel = convert_to_tensor(kernel)
     orig_dtype = inputs.dtype
     # Cast unsupported dtypes for CPU
-    _unsupported = {paddle.float16, paddle.bfloat16, paddle.int64, paddle.int32,
-                    paddle.int16, paddle.int8, paddle.uint8, paddle.bool}
+    _unsupported = {
+        paddle.float16,
+        paddle.bfloat16,
+        paddle.int64,
+        paddle.int32,
+        paddle.int16,
+        paddle.int8,
+        paddle.uint8,
+        paddle.bool,
+    }
     if inputs.dtype in _unsupported:
         inputs = inputs.cast("float32")
         kernel = kernel.cast("float32")
@@ -441,9 +448,16 @@ def conv_transpose(
 ):
     inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
-    orig_dtype = inputs.dtype
-    _unsupported = {paddle.float16, paddle.bfloat16, paddle.int64, paddle.int32,
-                    paddle.int16, paddle.int8, paddle.uint8, paddle.bool}
+    _unsupported = {
+        paddle.float16,
+        paddle.bfloat16,
+        paddle.int64,
+        paddle.int32,
+        paddle.int16,
+        paddle.int8,
+        paddle.uint8,
+        paddle.bool,
+    }
     if inputs.dtype in _unsupported:
         inputs = inputs.cast("float32")
         kernel = kernel.cast("float32")

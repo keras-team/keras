@@ -64,7 +64,7 @@ def _maybe_track_dtype(tensor, logical_dtype):
 
 def paddle_standardize_dtype(dtype):
     """standardize_dtype that checks paddle's logical dtype tracking."""
-    # Check if this dtype object belongs to a tensor with a tracked logical dtype
+    # Check if this dtype belongs to a tensor with a tracked logical dtype
     tid = getattr(dtype, "_paddle_tensor_id", None)
     if tid is not None and tid in _logical_dtypes:
         return _logical_dtypes[tid]
@@ -332,8 +332,7 @@ def vectorized_map(function, elements):
     if isinstance(elements, (list, tuple)):
         batch_size = elements[0].shape[0]
         results = [
-            function(tuple(e[i] for e in elements))
-            for i in range(batch_size)
+            function(tuple(e[i] for e in elements)) for i in range(batch_size)
         ]
     else:
         batch_size = elements.shape[0]

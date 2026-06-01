@@ -960,7 +960,16 @@ class VariableOpsDTypeTest(test_case.TestCase):
         ALL_DTYPES = [
             x
             for x in ALL_DTYPES
-            if x not in ("uint8", "uint16", "uint32", "int8", "int16", "float16", "bfloat16")
+            if x
+            not in (
+                "uint8",
+                "uint16",
+                "uint32",
+                "int8",
+                "int16",
+                "float16",
+                "bfloat16",
+            )
         ]
         INT_DTYPES = [
             x
