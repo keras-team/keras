@@ -215,19 +215,16 @@ def irfft(x, fft_length=None):
 
 
 def _get_window(name, length, dtype):
-    """Generate window tensor (paddle doesn't have get_window)."""
-    import numpy as np
+    """Generate window tensor using paddle.audio."""
+    from paddle.audio.functional import get_window
 
-    if name == "hann":
-        w = 0.5 * (1 - np.cos(2 * np.pi * np.arange(length) / length))
-    elif name == "hamming":
-        w = 0.54 - 0.46 * np.cos(2 * np.pi * np.arange(length) / length)
-    else:
+    try:
+        return get_window(name, length, dtype=dtype)
+    except (ValueError, RuntimeError):
         raise ValueError(
             "If a string is passed to `window`, it must be one of "
             f'`"hann"`, `"hamming"`. Received: window={name}'
         )
-    return paddle.to_tensor(w, dtype=dtype)
 
 
 def stft(
