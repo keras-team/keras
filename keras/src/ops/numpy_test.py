@@ -6028,6 +6028,18 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             np.median(x, axis=1, keepdims=True),
         )
 
+        # Even-length reductions must average the two middle values. The
+        # torch backend previously returned the lower one (e.g. 2.0 instead
+        # of 2.5 for `[1, 2, 3, 4]`).
+        x_even = np.array([[1, 2, 3, 4], [10, 20, 30, 40]]).astype("float32")
+        self.assertAllClose(knp.median(x_even), np.median(x_even))
+        self.assertAllClose(
+            knp.median(x_even, axis=0), np.median(x_even, axis=0)
+        )
+        self.assertAllClose(
+            knp.median(x_even, axis=1), np.median(x_even, axis=1)
+        )
+
         self.assertAllClose(knp.Median()(x), np.median(x))
         self.assertAllClose(knp.Median(axis=1)(x), np.median(x, axis=1))
         self.assertAllClose(
