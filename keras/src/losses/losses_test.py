@@ -1183,7 +1183,7 @@ class CategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose((0.001822, 0.000459, 0.169846), loss)
+        self.assertAllClose(loss, (0.001822, 0.000459, 0.169846))
 
     def test_label_smoothing(self):
         logits = np.array([[100.0, -100.0, -100.0]])
@@ -1308,7 +1308,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose((0.001822, 0.000459, 0.169846), loss)
+        self.assertAllClose(loss, (0.001822, 0.000459, 0.169846))
 
     def test_ignore_class(self):
         y_true = np.array([[-1, 2]])
@@ -1317,7 +1317,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, ignore_class=-1, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose([[0.0, 1.480129]], loss)
+        self.assertAllClose(loss, [[0.0, 1.480129]])
 
         y_true = np.array([[[-1], [2]]])
         logits = np.array([[[0.854, 0.698, 0.598], [0.088, 0.86, 0.018]]])
@@ -1325,7 +1325,7 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
             from_logits=True, ignore_class=-1, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose([[0.0, 1.480129]], loss)
+        self.assertAllClose(loss, [[0.0, 1.480129]])
 
     def test_binary_segmentation(self):
         y_true = np.array(
@@ -1426,6 +1426,16 @@ class SparseCategoricalCrossentropyTest(testing.TestCase):
                 y_true, y_pred_reshaped
             )
             self.assertAllClose(output, expected.sum() / 16.0)
+
+    @pytest.mark.skipif(
+        backend.backend() != "torch",
+        reason="Channels-first axis only supported on Torch.",
+    )
+    def test_squeezes_singleton_class_dim_on_user_axis(self):
+        y_true = np.random.randint(0, 2, size=(2, 1, 4, 4)).astype("float32")
+        y_pred = np.random.random((2, 2, 4, 4)).astype("float32")
+        loss = losses.sparse_categorical_crossentropy(y_true, y_pred, axis=1)
+        self.assertEqual(loss.shape, (2, 4, 4))
 
     def test_multi_class_segmentation(self):
         y_true = np.array(
@@ -1815,10 +1825,7 @@ class CategoricalFocalCrossentropyTest(testing.TestCase):
             from_logits=True, reduction=None
         )
         loss = cce_obj(y_true, logits)
-        self.assertAllClose(
-            (1.5096224e-09, 2.4136547e-11, 1.0360638e-03),
-            loss,
-        )
+        self.assertAllClose(loss, (1.5096224e-09, 2.4136547e-11, 1.0360638e-03))
 
     def test_label_smoothing(self):
         logits = np.array([[4.9, -0.5, 2.05]])

@@ -46,7 +46,7 @@ class DensifyBoundingBoxesTest(test_case.TestCase):
             [2, -1, -1],
         ]
         self.assertAllClose(densified_boxes, expected_boxes)
-        self.assertAllEqual(densified_labels, expected_labels)
+        self.assertAllClose(densified_labels, expected_labels)
 
     def test_densify_ragged_bounding_boxes_unbatched(self):
         ragged_boxes = tf.ragged.constant(
@@ -72,4 +72,4 @@ class DensifyBoundingBoxesTest(test_case.TestCase):
         ]
         expected_labels = [[0], [1], [-1], [-1]]
         self.assertAllClose(densified_boxes, expected_boxes)
-        self.assertAllEqual(densified_labels, expected_labels)
+        self.assertAllClose(densified_labels, expected_labels)

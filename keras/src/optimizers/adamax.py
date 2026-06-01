@@ -65,7 +65,7 @@ class Adamax(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="adamax",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -141,6 +141,7 @@ class Adamax(optimizer.Optimizer):
         return config
 
 
-Adamax.__doc__ = Adamax.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adamax.__doc__ is not None:
+    Adamax.__doc__ = Adamax.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

@@ -665,8 +665,8 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             filepath: `str` or `pathlib.Path` object. The path to save the
                 artifact.
             format: `str`. The export format. Supported values:
-                `"tf_saved_model"`, `"onnx"`, `"openvino"`, and `"litert"`.
-                Defaults to `"tf_saved_model"`.
+                `"tf_saved_model"`, `"onnx"`, `"openvino"`, `"litert"`,
+                and `"torch"`. Defaults to `"tf_saved_model"`.
             verbose: `bool`. Whether to print a message during export. Defaults
                 to `None`, which uses the default value set by different
                 backends and formats.
@@ -675,6 +675,12 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                 `tf.TensorSpec`, `backend.KerasTensor`, or backend tensor. If
                 not provided, it will be automatically computed. Defaults to
                 `None`.
+                Note: With `format="litert"` and the PyTorch backend, dynamic
+                input shapes are not supported. Any dynamic dimensions (i.e.,
+                `None` in input shapes) will be automatically replaced with `1`
+                during export, which may cause runtime failures for other
+                shapes. You must explicitly pass a fixed static
+                `input_signature` matching your maximum runtime shape.
             **kwargs: Additional keyword arguments.
                 - `is_static`: Optional `bool`. Specific to the JAX backend and
                     `format="tf_saved_model"`. Indicates whether `fn` is static.
@@ -691,11 +697,31 @@ class Model(Trainer, base_trainer.Trainer, Layer):
                     An integer value that specifies the ONNX opset version.
                 - LiteRT-specific options: Optional keyword arguments specific
                     to `format="litert"`. These are passed directly to the
-                    TensorFlow Lite converter and include options like
-                    `optimizations`, `representative_dataset`,
-                    `experimental_new_quantizer`, `allow_custom_ops`,
-                    `enable_select_tf_ops`, etc. See TensorFlow Lite
-                    documentation for all available options.
+                    TensorFlow Lite converter on the TensorFlow backend and
+                    include options like `optimizations`,
+                    `representative_dataset`, `experimental_new_quantizer`,
+                    `allow_custom_ops`, `enable_select_tf_ops`, etc. On the
+                    PyTorch backend, LiteRT export accepts `optimizations`
+                    plus the installed `litert_torch.convert()` keyword
+                    arguments such as `strict_export`, `dynamic_shapes` (note
+                    that standard ops do not support dynamic shapes, as noted
+                    below), `lightweight_conversion`, `enable_x64`,
+                    `runtime_constant_folding`, and `quant_config`.
+                - PyTorch export options: Optional keyword arguments specific
+                    to `format="torch"`. These are passed directly to
+                    `torch.export.export` and include `strict`,
+                    `dynamic_shapes`,
+                    `prefer_deferred_runtime_asserts_over_guards`, and
+                    `preserve_module_call_signature`.
+
+        **Note on LiteRT (TFLite) Export with PyTorch Backend:**
+        With the PyTorch backend, LiteRT export (`format="litert"`) does not
+        support dynamic input shapes. If no static signature is provided,
+        any dynamic dimensions (represented as `None`) are automatically
+        replaced with `1` during export. This can lead to runtime failures
+        for other shapes. You must explicitly specify a fixed static
+        `input_signature` (matching your maximum runtime dimensions) and pad
+        your inputs to this static shape at runtime.
 
         **Note:** This feature is currently supported only with TensorFlow, JAX
         and Torch backends.
@@ -748,22 +774,51 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             interpreter.get_output_details()[0]['index']
         )
         ```
+
+        Here's how to export a PyTorch ExportedProgram for inference.
+
+        ```python
+        # Export the model as a PyTorch ExportedProgram artifact
+        model.export("path/to/model.pt2", format="torch")
+
+        # Load the artifact in a different process/environment
+        import torch
+        loaded_program = torch.export.load("path/to/model.pt2")
+        predictions = loaded_program.module()(input_tensor)
+        ```
         """
         from keras.src.export import export_litert
         from keras.src.export import export_onnx
         from keras.src.export import export_openvino
         from keras.src.export import export_saved_model
+        from keras.src.export import export_torch
 
-        available_formats = ("tf_saved_model", "onnx", "openvino", "litert")
+        available_formats = (
+            "tf_saved_model",
+            "onnx",
+            "openvino",
+            "litert",
+            "torch",
+        )
         if format not in available_formats:
             raise ValueError(
                 f"Unrecognized format={format}. Supported formats are: "
                 f"{list(available_formats)}."
             )
 
-        # Check if LiteRT export is available (requires TensorFlow backend)
-        if format == "litert" and backend.backend() != "tensorflow":
-            raise ImportError("LiteRT export requires TensorFlow backend.")
+        # Check if LiteRT export is available (requires TensorFlow or
+        # PyTorch backend)
+        if format == "litert" and backend.backend() not in (
+            "tensorflow",
+            "torch",
+        ):
+            raise ValueError(
+                "LiteRT export requires TensorFlow or PyTorch backend."
+            )
+
+        # Check if Torch export is available (requires PyTorch backend)
+        if format == "torch" and backend.backend() != "torch":
+            raise ValueError("Torch export requires PyTorch backend.")
 
         if format == "tf_saved_model":
             export_saved_model(
@@ -793,6 +848,15 @@ class Model(Trainer, base_trainer.Trainer, Layer):
             export_litert(
                 self,
                 filepath,
+                verbose=verbose,
+                input_signature=input_signature,
+                **kwargs,
+            )
+        elif format == "torch":
+            export_torch(
+                self,
+                filepath,
+                verbose=verbose,
                 input_signature=input_signature,
                 **kwargs,
             )

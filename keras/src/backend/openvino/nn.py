@@ -1,10 +1,16 @@
+import numpy as np
 import openvino.opset15 as ov_opset
 from openvino import Type
 
+import keras.src.backend.openvino.numpy as onp
 from keras.src import backend
+from keras.src.backend.common.backend_utils import (
+    _get_output_shape_given_tf_padding,
+)
 from keras.src.backend.openvino.core import OPENVINO_DTYPES
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import get_ov_output
+from keras.src.backend.openvino.core import ov_to_keras_type
 
 
 def relu(x):
@@ -129,11 +135,8 @@ def hard_sigmoid(x):
 
 
 def hard_silu(x):
-    hard_sigmoid_output = get_ov_output(hard_sigmoid(x))
     x = get_ov_output(x)
-    return OpenVINOKerasTensor(
-        ov_opset.multiply(x, hard_sigmoid_output).output(0)
-    )
+    return OpenVINOKerasTensor(ov_opset.hswish(x).output(0))
 
 
 def elu(x, alpha=1.0):
@@ -158,6 +161,16 @@ def gelu(x, approximate=True):
     return OpenVINOKerasTensor(ov_opset.gelu(x, approximate_mode).output(0))
 
 
+def glu(x, axis=-1):
+    x = get_ov_output(x)
+    half_splits = onp.split(x, 2, axis=axis)
+    x1 = get_ov_output(half_splits[0])
+    x2 = get_ov_output(half_splits[1])
+    sig_x2 = ov_opset.sigmoid(x2).output(0)
+    result = ov_opset.multiply(x1, sig_x2)
+    return OpenVINOKerasTensor(result.output(0))
+
+
 def softmax(x, axis=-1):
     x = get_ov_output(x)
     if axis is None:
@@ -168,20 +181,101 @@ def softmax(x, axis=-1):
         return OpenVINOKerasTensor(
             ov_opset.reshape(softmax_x, x_shape, False).output(0)
         )
+    if isinstance(axis, (tuple, list)):
+        if not axis:
+            return OpenVINOKerasTensor(x)
+        axes_const = ov_opset.constant(sorted(axis), Type.i32).output(0)
+        x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
+        exp_x = ov_opset.exp(ov_opset.subtract(x, x_max).output(0)).output(0)
+        sum_exp = ov_opset.reduce_sum(exp_x, axes_const, True).output(0)
+        return OpenVINOKerasTensor(ov_opset.divide(exp_x, sum_exp).output(0))
     return OpenVINOKerasTensor(ov_opset.softmax(x, axis).output(0))
 
 
 def log_softmax(x, axis=-1):
     x = get_ov_output(x)
+    if isinstance(axis, (tuple, list)) and not axis:
+        return OpenVINOKerasTensor(x)
     if axis is None:
-        x_shape = ov_opset.shape_of(x)
+        restore_shape = ov_opset.shape_of(x)
         flatten_shape = ov_opset.constant([-1], Type.i32).output(0)
-        flatten_x = ov_opset.reshape(x, flatten_shape, False).output(0)
-        log_softmax_x = ov_opset.log_softmax(flatten_x, 0).output(0)
-        return OpenVINOKerasTensor(
-            ov_opset.reshape(log_softmax_x, x_shape, False).output(0)
-        )
+        x = ov_opset.reshape(x, flatten_shape, False).output(0)
+        result = ov_opset.log_softmax(x, 0).output(0)
+        result = ov_opset.reshape(result, restore_shape, False).output(0)
+        return OpenVINOKerasTensor(result)
+    if isinstance(axis, (tuple, list)):
+        axes = sorted(axis)
+        axes_const = ov_opset.constant(axes, Type.i32).output(0)
+        x_max = ov_opset.reduce_max(x, axes_const, True).output(0)
+        x_shifted = ov_opset.subtract(x, x_max).output(0)
+        sum_exp = ov_opset.reduce_sum(
+            ov_opset.exp(x_shifted).output(0), axes_const, True
+        ).output(0)
+        result = ov_opset.subtract(
+            x_shifted, ov_opset.log(sum_exp).output(0)
+        ).output(0)
+        return OpenVINOKerasTensor(result)
     return OpenVINOKerasTensor(ov_opset.log_softmax(x, axis).output(0))
+
+
+def sparsemax(x, axis=-1):
+    x = get_ov_output(x)
+    et = x.get_element_type()
+    rank = x.get_partial_shape().rank.get_length()
+    if axis < 0:
+        axis = rank + axis
+
+    neg_x = ov_opset.negative(x).output(0)
+    logits_sorted = ov_opset.negative(
+        get_ov_output(onp.sort(neg_x, axis=axis))
+    ).output(0)
+
+    axis_scalar = ov_opset.constant(axis, Type.i32).output(0)
+    logits_cumsum = ov_opset.cumsum(logits_sorted, axis_scalar).output(0)
+
+    dim_size = x.get_partial_shape()[axis].get_length()
+    r = ov_opset.convert(
+        ov_opset.range(
+            ov_opset.constant(1, Type.i32).output(0),
+            ov_opset.constant(dim_size + 1, Type.i32).output(0),
+            ov_opset.constant(1, Type.i32).output(0),
+            output_type=Type.i32,
+        ).output(0),
+        et,
+    ).output(0)
+    r_shape = [1] * rank
+    r_shape[axis] = -1
+    r = ov_opset.reshape(
+        r, ov_opset.constant(r_shape, Type.i32).output(0), False
+    ).output(0)
+
+    one = get_ov_output(1.0, et)
+    zero_fp = get_ov_output(0.0, et)
+    support = ov_opset.greater(
+        ov_opset.subtract(
+            logits_sorted,
+            ov_opset.divide(
+                ov_opset.subtract(logits_cumsum, one).output(0), r
+            ).output(0),
+        ).output(0),
+        zero_fp,
+    ).output(0)
+
+    axis_1d = ov_opset.constant([axis], Type.i32).output(0)
+    k = ov_opset.reduce_sum(
+        ov_opset.convert(support, et).output(0), axis_1d, True
+    ).output(0)
+    sum_safe = ov_opset.reduce_sum(
+        ov_opset.select(support, logits_cumsum, zero_fp).output(0),
+        axis_1d,
+        True,
+    ).output(0)
+    tau = ov_opset.divide(ov_opset.subtract(sum_safe, one).output(0), k).output(
+        0
+    )
+    return OpenVINOKerasTensor(
+        ov_opset.maximum(ov_opset.subtract(x, tau).output(0), zero_fp).output(0)
+    )
 
 
 def squareplus(x, b=4):
@@ -266,14 +360,150 @@ def average_pool(
     )
 
 
+def _compute_adaptive_gather_indices(
+    input_dim, output_size, small_window, big_window
+):
+    """Compute gather indices for the two-pool gather method."""
+    window_starts = np.floor(
+        np.arange(output_size) * input_dim / output_size
+    ).astype(np.int32)
+    window_ends = np.minimum(
+        np.ceil(np.arange(1, output_size + 1) * input_dim / output_size).astype(
+            np.int32
+        ),
+        input_dim,
+    )
+    window_starts = np.minimum(window_starts, input_dim - 1)
+    window_sizes = window_ends - window_starts
+    small_pool_len = max(1, input_dim - small_window + 1)
+    return np.where(
+        window_sizes == big_window,
+        window_starts + small_pool_len,
+        window_starts,
+    ).tolist()
+
+
+def _adaptive_pool_ov(
+    inputs, output_size, pool_type, data_format, num_spatial_dims
+):
+    """Shared OpenVINO implementation for adaptive average/max pooling.
+
+    Uses the two-pool gather method: for each spatial axis independently,
+    apply pooling with the small and big kernel sizes (stride=1, VALID),
+    concatenate the results, then gather the correct output positions.
+    """
+    if isinstance(output_size, int):
+        output_size = (output_size,) * num_spatial_dims
+
+    data_format = backend.standardize_data_format(data_format)
+    inputs = get_ov_output(inputs)
+
+    current = _adjust_input(inputs, num_spatial_dims, data_format)
+
+    for spatial_idx in range(num_spatial_dims):
+        gather_axis = 2 + spatial_idx
+        current_ps = current.get_partial_shape()
+        input_dim = current_ps[gather_axis].get_length()
+        output_dim = output_size[spatial_idx]
+
+        if input_dim == output_dim:
+            continue
+
+        small_w = int(np.ceil(input_dim / output_dim))
+        big_w = small_w + 1
+        gather_indices = _compute_adaptive_gather_indices(
+            input_dim, output_dim, small_w, big_w
+        )
+
+        strides = [1] * num_spatial_dims
+
+        small_kernel = [1] * num_spatial_dims
+        small_kernel[spatial_idx] = small_w
+
+        if pool_type == "avg":
+            small_pool = ov_opset.avg_pool(
+                current,
+                strides=strides,
+                pads_begin=[],
+                pads_end=[],
+                kernel_shape=small_kernel,
+                exclude_pad=True,
+                auto_pad="VALID",
+            ).output(0)
+        else:
+            small_pool = ov_opset.max_pool(
+                current,
+                strides=strides,
+                dilations=[1] * num_spatial_dims,
+                pads_begin=[],
+                pads_end=[],
+                kernel_shape=small_kernel,
+                auto_pad="VALID",
+            ).output(0)
+
+        if big_w <= input_dim:
+            big_kernel = [1] * num_spatial_dims
+            big_kernel[spatial_idx] = big_w
+
+            if pool_type == "avg":
+                big_pool = ov_opset.avg_pool(
+                    current,
+                    strides=strides,
+                    pads_begin=[],
+                    pads_end=[],
+                    kernel_shape=big_kernel,
+                    exclude_pad=True,
+                    auto_pad="VALID",
+                ).output(0)
+            else:
+                big_pool = ov_opset.max_pool(
+                    current,
+                    strides=strides,
+                    dilations=[1] * num_spatial_dims,
+                    pads_begin=[],
+                    pads_end=[],
+                    kernel_shape=big_kernel,
+                    auto_pad="VALID",
+                ).output(0)
+
+            combined = ov_opset.concat(
+                [small_pool, big_pool], gather_axis
+            ).output(0)
+        else:
+            # big_w > input_dim: the big pool produces no outputs and all
+            # gather indices come from the small pool, so skip the big pool.
+            combined = small_pool
+
+        indices_node = ov_opset.constant(gather_indices, Type.i32).output(0)
+        axis_node = ov_opset.constant(gather_axis, Type.i32).output(0)
+        current = ov_opset.gather(combined, indices_node, axis_node).output(0)
+
+    result = _adjust_outputs(current, num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(result)
+
+
 def adaptive_average_pool(inputs, output_size, data_format=None):
-    """Adaptive average pooling - OpenVINO backend not yet supported."""
-    raise NotImplementedError("Adaptive pooling not implemented for OpenVINO.")
+    inputs_ov = get_ov_output(inputs)
+    num_spatial_dims = inputs_ov.get_partial_shape().rank.get_length() - 2
+    if num_spatial_dims not in (1, 2, 3):
+        raise ValueError(
+            "adaptive_average_pool supports 1D, 2D, or 3D inputs only."
+        )
+    return _adaptive_pool_ov(
+        inputs, output_size, "avg", data_format, num_spatial_dims
+    )
 
 
 def adaptive_max_pool(inputs, output_size, data_format=None):
-    """Adaptive max pooling - OpenVINO backend not yet supported."""
-    raise NotImplementedError("Adaptive pooling not implemented for OpenVINO.")
+    inputs_ov = get_ov_output(inputs)
+    num_spatial_dims = inputs_ov.get_partial_shape().rank.get_length() - 2
+    if num_spatial_dims not in (1, 2, 3):
+        raise ValueError(
+            "adaptive_max_pool supports 1D, 2D, or 3D inputs only."
+        )
+    return _adaptive_pool_ov(
+        inputs, output_size, "max", data_format, num_spatial_dims
+    )
 
 
 def _pool(
@@ -489,10 +719,6 @@ def depthwise_conv(
     data_format = backend.standardize_data_format(data_format)
     num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
 
-    assert data_format == "channels_last", (
-        "`depthwise_conv` is supported only for channels_last data_format"
-    )
-
     strides = _adjust_strides_dilation(strides, num_spatial_dims)
     dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
     pad_mode, pads_begin, pads_end = _adjust_padding(padding)
@@ -520,8 +746,22 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError(
-        "`separable_conv` is not supported with openvino backend"
+    data_format = backend.standardize_data_format(data_format)
+    depthwise_conv_output = depthwise_conv(
+        inputs,
+        depthwise_kernel,
+        strides,
+        padding,
+        data_format,
+        dilation_rate,
+    )
+    return conv(
+        depthwise_conv_output,
+        pointwise_kernel,
+        strides=1,
+        padding="valid",
+        data_format=data_format,
+        dilation_rate=dilation_rate,
     )
 
 
@@ -534,9 +774,70 @@ def conv_transpose(
     data_format=None,
     dilation_rate=1,
 ):
-    raise NotImplementedError(
-        "`conv_transpose` is not supported with openvino backend"
+    inputs = get_ov_output(inputs)
+    kernel = get_ov_output(kernel)
+
+    data_format = backend.standardize_data_format(data_format)
+    num_spatial_dims = inputs.get_partial_shape().rank.get_length() - 2
+
+    strides = _adjust_strides_dilation(strides, num_spatial_dims)
+    dilation_rate = _adjust_strides_dilation(dilation_rate, num_spatial_dims)
+
+    # Convert to channels-first (NCHW) layout
+    inputs = _adjust_input(inputs, num_spatial_dims, data_format)
+    # Rearrange kernel from Keras (*kernel, C_out, C_in)
+    # to OpenVINO format (C_in, C_out, *kernel)
+    kernel = _adjust_kernel(kernel, num_spatial_dims)
+
+    # inputs: (N, C_in, *spatial), kernel: (C_in, C_out, *kernel_size)
+    input_pshape = inputs.get_partial_shape()
+    kernel_pshape = kernel.get_partial_shape()
+
+    spatial_output_shape = []
+    all_static = True
+    for i in range(num_spatial_dims):
+        in_dim = input_pshape[2 + i]
+        k_dim = kernel_pshape[2 + i]
+        s = strides[i]
+        d = dilation_rate[i]
+        op_i = (
+            output_padding
+            if output_padding is None or isinstance(output_padding, int)
+            else output_padding[i]
+        )
+        if in_dim.is_static and k_dim.is_static:
+            out_dim = _get_output_shape_given_tf_padding(
+                input_size=in_dim.get_length(),
+                kernel_size=k_dim.get_length(),
+                strides=s,
+                padding=padding,
+                output_padding=op_i,
+                dilation_rate=d,
+            )
+            spatial_output_shape.append(out_dim)
+        else:
+            all_static = False
+            break
+
+    pad_mode = "SAME_LOWER" if padding.lower() == "same" else "VALID"
+
+    if all_static:
+        output_shape_node = ov_opset.constant(
+            spatial_output_shape, Type.i64
+        ).output(0)
+    else:
+        output_shape_node = None
+
+    conv_t = ov_opset.convolution_backprop_data(
+        inputs,
+        kernel,
+        strides=strides,
+        output_shape=output_shape_node,
+        dilations=dilation_rate,
+        auto_pad=pad_mode,
     )
+    result = _adjust_outputs(conv_t.output(0), num_spatial_dims, data_format)
+    return OpenVINOKerasTensor(result)
 
 
 def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
@@ -603,6 +904,9 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = get_ov_output(target)
+    # one_hot requires integer indices
+    # cast unconditionally, matching JAX/TF/Torch
+    target = ov_opset.convert(target, Type.i64).output(0)
     output = get_ov_output(output)
 
     if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
@@ -654,6 +958,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 def binary_crossentropy(target, output, from_logits=False):
     target = get_ov_output(target)
     output = get_ov_output(output)
+    if target.get_element_type() != output.get_element_type():
+        output = ov_opset.convert(output, target.get_element_type()).output(0)
 
     if target.shape != output.shape:
         raise ValueError(
@@ -663,7 +969,18 @@ def binary_crossentropy(target, output, from_logits=False):
         )
 
     if from_logits:
-        output = ov_opset.sigmoid(output).output(0)
+        one = ov_opset.constant(1, target.get_element_type()).output(0)
+        neg_output = ov_opset.negative(output).output(0)
+        one_minus_target = ov_opset.subtract(one, target).output(0)
+        bce = ov_opset.add(
+            ov_opset.multiply(
+                target, ov_opset.softplus(neg_output).output(0)
+            ).output(0),
+            ov_opset.multiply(
+                one_minus_target, ov_opset.softplus(output).output(0)
+            ).output(0),
+        ).output(0)
+        return OpenVINOKerasTensor(bce)
 
     output = ov_opset.clamp(
         output, min_value=backend.epsilon(), max_value=1 - backend.epsilon()
@@ -684,19 +1001,28 @@ def binary_crossentropy(target, output, from_logits=False):
 
 def moments(x, axes, keepdims=False, synchronized=False):
     x = get_ov_output(x)
-    axes = ov_opset.constant(axes, Type.i32).output(0)
-    # The variance is computed using $Var = E[|x|^2] - |E[x]|^2$, It is faster
-    # but less numerically stable.
-    mean = ov_opset.reduce_mean(x, axes, keepdims).output(0)
+    ori_type = x.get_element_type()
+    if ori_type == Type.f16:
+        x = ov_opset.convert(x, Type.f32).output(0)
+    axes_c = ov_opset.constant(axes, Type.i32).output(0)
     const_two = ov_opset.constant(2, x.get_element_type()).output(0)
-    squared_x = ov_opset.power(x, const_two).output(0)
-    squared_mean = ov_opset.power(mean, const_two).output(0)
-    squared_x_mean = ov_opset.reduce_mean(squared_x, axes, keepdims)
-    mean = OpenVINOKerasTensor(mean)
-    variance = OpenVINOKerasTensor(
-        ov_opset.subtract(squared_x_mean, squared_mean).output(0)
-    )
-    return mean, variance
+    mean = ov_opset.reduce_mean(x, axes_c, keepdims).output(0)
+    squared_x_mean = ov_opset.reduce_mean(
+        ov_opset.power(x, const_two).output(0), axes_c, keepdims
+    ).output(0)
+    variance = ov_opset.subtract(
+        squared_x_mean, ov_opset.power(mean, const_two).output(0)
+    ).output(0)
+    if ori_type == Type.f16:
+        fp16_max = float(np.finfo(np.float16).max)
+        fp16_min = float(np.finfo(np.float16).min)
+        mean = ov_opset.convert(
+            ov_opset.clamp(mean, fp16_min, fp16_max).output(0), Type.f16
+        ).output(0)
+        variance = ov_opset.convert(
+            ov_opset.clamp(variance, 0.0, fp16_max).output(0), Type.f16
+        ).output(0)
+    return OpenVINOKerasTensor(mean), OpenVINOKerasTensor(variance)
 
 
 def batch_normalization(
@@ -747,11 +1073,97 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     output = get_ov_output(output)
     target_length = get_ov_output(target_length)
     output_length = get_ov_output(output_length)
+    # OpenVINO CTCLoss expects integer labels.
+    target = ov_opset.convert(target, Type.i32).output(0)
     ctc_loss_ = ov_opset.ctc_loss(
         output, output_length, target, target_length, blank_index=mask_index
     )
     ctc_loss_ = ov_opset.convert(ctc_loss_, OPENVINO_DTYPES[backend.floatx()])
     return OpenVINOKerasTensor(ctc_loss_.output(0))
+
+
+def _ctc_greedy_decode(
+    inputs,
+    sequence_lengths,
+    merge_repeated=True,
+    mask_index=0,
+):
+    inputs = get_ov_output(inputs)
+    sequence_lengths = ov_opset.convert(
+        get_ov_output(sequence_lengths), Type.i32
+    ).output(0)
+
+    dtype = backend.result_type(
+        ov_to_keras_type(inputs.get_element_type()), "float32"
+    )
+    ov_dtype = OPENVINO_DTYPES[dtype]
+    inputs = ov_opset.convert(inputs, ov_dtype).output(0)
+
+    blank_index = ov_opset.convert(get_ov_output(mask_index), Type.i32).output(
+        0
+    )
+    decoded = ov_opset.ctc_greedy_decoder_seq_len(
+        inputs,
+        sequence_lengths,
+        blank_index,
+        merge_repeated=merge_repeated,
+    )
+    decoded_dense = decoded.output(0)
+    decoded_dense = ov_opset.unsqueeze(
+        decoded_dense, ov_opset.constant([0], Type.i32).output(0)
+    ).output(0)
+
+    class_axis = ov_opset.constant([2], Type.i32).output(0)
+    timestep_max = ov_opset.reduce_max(inputs, class_axis, False).output(0)
+    shape = ov_opset.shape_of(inputs).output(0)
+    time_dim = ov_opset.gather(
+        shape,
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant(0, Type.i32).output(0),
+    ).output(0)
+    time_dim = ov_opset.squeeze(
+        time_dim, ov_opset.constant([0], Type.i32).output(0)
+    ).output(0)
+    time_range = ov_opset.range(
+        ov_opset.constant(0, Type.i32).output(0),
+        time_dim,
+        ov_opset.constant(1, Type.i32).output(0),
+        output_type=Type.i32,
+    ).output(0)
+    time_range = ov_opset.unsqueeze(
+        time_range, ov_opset.constant([0], Type.i32).output(0)
+    ).output(0)
+    seq_len = ov_opset.unsqueeze(
+        sequence_lengths, ov_opset.constant([1], Type.i32).output(0)
+    ).output(0)
+    valid_mask = ov_opset.less(time_range, seq_len).output(0)
+    zeros = ov_opset.constant(0.0, ov_dtype).output(0)
+    timestep_max = ov_opset.select(valid_mask, timestep_max, zeros).output(0)
+    score = ov_opset.reduce_sum(
+        timestep_max,
+        ov_opset.constant([1], Type.i32).output(0),
+        False,
+    ).output(0)
+    score = ov_opset.negative(score).output(0)
+    score = ov_opset.unsqueeze(
+        score, ov_opset.constant([1], Type.i32).output(0)
+    ).output(0)
+
+    return OpenVINOKerasTensor(decoded_dense), OpenVINOKerasTensor(score)
+
+
+def _ctc_beam_search_decode(
+    inputs,
+    sequence_lengths,
+    beam_width=100,
+    top_paths=1,
+    mask_index=0,
+):
+    raise NotImplementedError(
+        "OpenVINO CTC beam-search decode is not yet supported. "
+        "The current Keras beam-search algorithm requires path dedup/merge "
+        "via `unique`, and OpenVINO backend `unique` is not implemented yet."
+    )
 
 
 def ctc_decode(
@@ -763,8 +1175,24 @@ def ctc_decode(
     merge_repeated=True,
     mask_index=0,
 ):
-    raise NotImplementedError(
-        "`ctc_decode` is not supported with openvino backend"
+    if strategy not in ("greedy", "beam_search"):
+        raise ValueError(
+            f"Invalid strategy {strategy}. Supported values are "
+            "'greedy' and 'beam_search'."
+        )
+    if strategy == "greedy":
+        return _ctc_greedy_decode(
+            inputs,
+            sequence_lengths,
+            merge_repeated=merge_repeated,
+            mask_index=mask_index,
+        )
+    return _ctc_beam_search_decode(
+        inputs,
+        sequence_lengths,
+        beam_width=beam_width,
+        top_paths=top_paths,
+        mask_index=mask_index,
     )
 
 
@@ -803,16 +1231,6 @@ def dot_product_attention(
     flash_attention=None,
     attn_logits_soft_cap=None,
 ):
-    if bias is not None:
-        raise NotImplementedError(
-            "`dot_product_attention` with `bias` is not supported "
-            "with openvino backend"
-        )
-    if flash_attention:
-        raise NotImplementedError(
-            "`dot_product_attention` with `flash_attention` is not supported "
-            "with openvino backend"
-        )
     if attn_logits_soft_cap is not None:
         raise NotImplementedError(
             "`dot_product_attention` with `attn_logits_soft_cap` is not "
@@ -833,6 +1251,28 @@ def dot_product_attention(
     key = ov_opset.transpose(key, axes_const)
     value = ov_opset.transpose(value, axes_const)
     mask = get_ov_output(mask) if mask is not None else None
+    if bias is not None:
+        bias = get_ov_output(bias)
+        if bias.get_element_type() != query.get_element_type():
+            bias = ov_opset.convert(bias, query.get_element_type()).output(0)
+        if mask is not None:
+            if mask.get_element_type() == Type.boolean:
+                query_dtype = ov_to_keras_type(query.get_element_type())
+                min_val = (
+                    np.finfo(np.float16).min
+                    if query_dtype == "float16"
+                    else np.finfo(np.float32).min
+                )
+                large_neg = ov_opset.constant(
+                    min_val, query.get_element_type()
+                ).output(0)
+                zero = ov_opset.constant(0.0, query.get_element_type()).output(
+                    0
+                )
+                mask = ov_opset.select(mask, zero, large_neg).output(0)
+            mask = ov_opset.add(mask, bias).output(0)
+        else:
+            mask = bias
     scale = (
         get_ov_output(scale, query.get_element_type())
         if scale is not None
@@ -846,7 +1286,60 @@ def dot_product_attention(
 
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
-    raise NotImplementedError("`unfold` is not supported with openvino backend")
+    def _pair(x):
+        return (x, x) if isinstance(x, int) else x
+
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, H, W = input.shape
+
+    # ---- padding ----
+    if any(_ > 0 for _ in p):
+        input = onp.pad(input, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])))
+
+    # ---- extract patches ----
+    patches = ov_opset.extract_image_patches(
+        image=input,
+        sizes=[k[0], k[1]],
+        strides=[s[0], s[1]],
+        rates=[d[0], d[1]],
+        auto_pad="VALID",
+    )  # (N, kH*kW*C, nH, nW)
+    N, D, nH, nW = patches.shape
+    patches = ov_opset.reshape(patches, [N, k[0], k[1], C, nH, nW], False)
+    patches = ov_opset.transpose(
+        patches, [0, 3, 1, 2, 4, 5]
+    )  # (N, C, kH, kW, nH, nW)
+    patches = ov_opset.reshape(patches, [N, C * k[0] * k[1], nH * nW], False)
+    return OpenVINOKerasTensor(patches.output(0))
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    def _pair(val):
+        return (val, val) if isinstance(val, int) else val
+
+    oH, oW = _pair(output_size)
+    kH, kW = _pair(kernel_size)
+    dH, dW = _pair(dilation)
+    pH, pW = _pair(padding)
+    sH, sW = _pair(stride)
+
+    x = get_ov_output(x)
+    output_size_node = ov_opset.constant([oH, oW], Type.i64).output(0)
+    kernel_size_node = ov_opset.constant([kH, kW], Type.i64).output(0)
+    result = ov_opset.col2im(
+        x,
+        output_size_node,
+        kernel_size_node,
+        strides=[sH, sW],
+        dilations=[dH, dW],
+        pads_begin=[pH, pW],
+        pads_end=[pH, pW],
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def depth_to_space(x, block_size, data_format="channels_last"):

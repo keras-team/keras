@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from collections import namedtuple
 
 from keras.src import losses as losses_module
@@ -8,6 +9,7 @@ from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.losses import loss as loss_module
 from keras.src.utils.naming import get_object_name
 from keras.src.utils.tracking import Tracker
+from keras.src.utils.tracking import no_automatic_dependency_tracking
 
 
 class MetricsList(metrics_module.Metric):
@@ -35,16 +37,6 @@ class MetricsList(metrics_module.Metric):
         raise NotImplementedError
 
 
-def is_function_like(value):
-    if value is None:
-        return True
-    if isinstance(value, str):
-        return True
-    if callable(value):
-        return True
-    return False
-
-
 def is_binary_or_sparse_categorical(y_true, y_pred):
     y_t_rank = len(y_true.shape)
     y_p_rank = len(y_pred.shape)
@@ -60,7 +52,7 @@ def is_binary_or_sparse_categorical(y_true, y_pred):
 
 def get_metric(identifier, y_true, y_pred):
     if identifier is None:
-        return None  # Ok to have no metric for an output.
+        raise ValueError("Expected metric, received `None`")
 
     # Convenience feature for selecting b/t binary, categorical,
     # and sparse categorical.
@@ -93,6 +85,20 @@ def get_metric(identifier, y_true, y_pred):
     return metric_obj
 
 
+def get_metrics_list(metrics, y_true, y_pred, output_name=None):
+    if metrics is None:
+        return None
+    if isinstance(metrics, (list, tuple)):
+        return MetricsList(
+            [get_metric(m, y_true, y_pred) for m in metrics],
+            output_name=output_name,
+        )
+    else:
+        return MetricsList(
+            [get_metric(metrics, y_true, y_pred)], output_name=output_name
+        )
+
+
 def get_loss(identifier, y_true, y_pred):
     if identifier is None:
         return None  # Ok to have no loss for an output.
@@ -122,6 +128,7 @@ def get_loss(identifier, y_true, y_pred):
 
 
 class CompileMetrics(metrics_module.Metric):
+    @no_automatic_dependency_tracking
     def __init__(
         self,
         metrics,
@@ -148,7 +155,6 @@ class CompileMetrics(metrics_module.Metric):
         self.built = False
         self.name = "compile_metrics"
         self.output_names = output_names
-        self._resolved_output_names = None
 
     @property
     def metrics(self):
@@ -175,162 +181,164 @@ class CompileMetrics(metrics_module.Metric):
         return vars
 
     def build(self, y_true, y_pred):
-        num_outputs = 1  # default
-        # Resolve output names. If y_pred is a dict, prefer its keys.
-        if isinstance(y_pred, dict):
-            keys = sorted(list(y_pred.keys()))
-            if self.output_names and set(self.output_names) == set(keys):
-                # If there is a perfect match, use the user-provided order.
+        num_outputs = len(tree.flatten(y_pred))
+        # By "flat" we mean not deeply nested, like a single list or dict.
+        y_pred_is_flat = tree.is_nested(y_pred) and len(y_pred) == num_outputs
+
+        # When outputs is a dict, prefer those keys over the ouput names.
+        if y_pred_is_flat and isinstance(y_pred, dict):
+            if self.output_names and set(y_pred.keys()) == set(
+                self.output_names
+            ):
+                # If there is a perfect match, use the model output order.
                 output_names = self.output_names
+            elif isinstance(y_pred, OrderedDict):
+                output_names = list(y_pred.keys())
             else:
-                output_names = keys
-        elif self.output_names:
-            output_names = self.output_names
-        elif isinstance(y_pred, (list, tuple)):
-            num_outputs = len(y_pred)
-            if all(hasattr(x, "_keras_history") for x in y_pred):
-                output_names = [x._keras_history.operation.name for x in y_pred]
-            else:
-                output_names = None
+                output_names = sorted(list(y_pred.keys()))
         else:
-            output_names = None
-        self._resolved_output_names = output_names
-        if output_names:
-            num_outputs = len(output_names)
+            output_names = self.output_names
 
-        y_pred = self._flatten_y(y_pred)
-        y_true = self._flatten_y(y_true)
+        # `self._resolved_output_names` is for `_flatten_y`. It can only be
+        # used if `y_pred` is not deeply nested and is useless for 1 output.
+        if num_outputs > 1 and y_pred_is_flat:
+            self._resolved_output_names = output_names
+        else:
+            self._resolved_output_names = None
 
-        metrics = self._user_metrics
-        weighted_metrics = self._user_weighted_metrics
+        # We still pass `output_names` even if they are not used for
+        # `self._resolved_output_names` in order to name metrics.
         self._flat_metrics = self._build_metrics_set(
-            metrics,
+            self._user_metrics,
             num_outputs,
             output_names,
             y_true,
             y_pred,
+            y_pred_is_flat,
             argument_name="metrics",
         )
         self._flat_weighted_metrics = self._build_metrics_set(
-            weighted_metrics,
+            self._user_weighted_metrics,
             num_outputs,
             output_names,
             y_true,
             y_pred,
+            y_pred_is_flat,
             argument_name="weighted_metrics",
         )
         self.built = True
 
     def _build_metrics_set(
-        self, metrics, num_outputs, output_names, y_true, y_pred, argument_name
+        self,
+        metrics,
+        num_outputs,
+        output_names,
+        y_true,
+        y_pred,
+        y_pred_is_flat,
+        argument_name,
     ):
-        flat_metrics = []
-        if isinstance(metrics, dict):
-            for name in metrics.keys():
-                if name not in output_names:
-                    raise ValueError(
-                        f"In the dict argument `{argument_name}`, key "
-                        f"'{name}' does not correspond to any model "
-                        f"output. Received:\n{argument_name}={metrics}"
-                    )
+        if not metrics:
+            return [None] * num_outputs
+
         if num_outputs == 1:
-            if not metrics:
-                flat_metrics.append(None)
-            else:
-                if isinstance(metrics, dict):
-                    metrics = tree.flatten(metrics)
-                if not isinstance(metrics, list):
-                    metrics = [metrics]
-                if not all(is_function_like(m) for m in metrics):
-                    raise ValueError(
-                        f"Expected all entries in the `{argument_name}` list "
-                        f"to be metric objects. Received instead:\n"
-                        f"{argument_name}={metrics}"
-                    )
-                flat_metrics.append(
-                    MetricsList(
-                        [
-                            get_metric(m, y_true[0], y_pred[0])
-                            for m in metrics
-                            if m is not None
-                        ]
-                    )
+            # Single output, all metrics apply to it, don't use `output_names`.
+            return [
+                get_metrics_list(
+                    tree.flatten(metrics),
+                    tree.flatten(y_true)[0],
+                    tree.flatten(y_pred)[0],
+                    None,
                 )
-        else:
-            if isinstance(metrics, (list, tuple)):
-                if len(metrics) != len(y_pred):
-                    raise ValueError(
-                        "For a model with multiple outputs, "
-                        f"when providing the `{argument_name}` argument as a "
-                        "list, it should have as many entries as the model has "
-                        f"outputs. Received:\n{argument_name}={metrics}\nof "
-                        f"length {len(metrics)} whereas the model has "
-                        f"{len(y_pred)} outputs."
+            ]
+
+        flat_metrics = None
+        if y_pred_is_flat:
+            if (
+                isinstance(metrics, (list, tuple))
+                and len(metrics) == num_outputs
+            ):
+                # `metrics` is a list with one entry per output.
+                flat_metrics = metrics
+
+            elif (
+                output_names
+                and isinstance(metrics, dict)
+                and len(metrics) <= num_outputs
+                and set(metrics.keys()) <= set(output_names)
+            ):
+                # Flatten `metrics` with the correct flattening order.
+                flat_metrics = [
+                    metrics[name] if name in metrics else None
+                    for name in output_names
+                ]
+
+        # Flat case: one list or dict of metrics.
+        if flat_metrics is not None:
+            try:
+                return [
+                    get_metrics_list(m, yt, yp, n)
+                    for m, yt, yp, n in zip(
+                        flat_metrics,
+                        self._flatten_y(y_true),
+                        self._flatten_y(y_pred),
+                        output_names if output_names else [None] * num_outputs,
                     )
-                for idx, (mls, yt, yp) in enumerate(
-                    zip(metrics, y_true, y_pred)
-                ):
-                    if not isinstance(mls, list):
-                        mls = [mls]
-                    name = output_names[idx] if output_names else None
-                    if not all(is_function_like(e) for e in mls):
-                        raise ValueError(
-                            f"All entries in the sublists of the "
-                            f"`{argument_name}` list should be metric objects. "
-                            f"Found the following sublist with unknown "
-                            f"types: {mls}"
-                        )
-                    flat_metrics.append(
-                        MetricsList(
-                            [
-                                get_metric(m, yt, yp)
-                                for m in mls
-                                if m is not None
-                            ],
-                            output_name=name,
-                        )
-                    )
-            elif isinstance(metrics, dict):
-                if output_names is None:
-                    raise ValueError(
-                        f"Argument `{argument_name}` can only be provided as a "
-                        "dict when the model also returns a dict of outputs. "
-                        f"Received {argument_name}={metrics}"
-                    )
-                for name in metrics.keys():
-                    if not isinstance(metrics[name], list):
-                        metrics[name] = [metrics[name]]
-                    if not all(is_function_like(e) for e in metrics[name]):
-                        raise ValueError(
-                            f"All entries in the sublists of the "
-                            f"`{argument_name}` dict should be metric objects. "
-                            f"At key '{name}', found the following sublist "
-                            f"with unknown types: {metrics[name]}"
-                        )
-                for name, yt, yp in zip(output_names, y_true, y_pred):
-                    if name in metrics:
-                        flat_metrics.append(
-                            MetricsList(
-                                [
-                                    get_metric(m, yt, yp)
-                                    for m in metrics[name]
-                                    if m is not None
-                                ],
-                                output_name=name,
-                            )
-                        )
-                    else:
-                        flat_metrics.append(None)
-        return flat_metrics
+                ]
+            except ValueError as e:
+                raise ValueError(
+                    f"{e}\nReceived: {argument_name}={metrics}"
+                ) from e
+
+        try:
+            # Deeply nested case: `metrics` must have the structure of `y_pred`,
+            # `y_pred` and `y_true` must also have the same nested structure.
+            # Note that the tree API wants exact matches, lists and tuples are
+            # not considered equivalent, so we have to turn them all to tuples.
+            tuples_y_pred = tree.lists_to_tuples(y_pred)
+
+            # `output_names` came from the model and is a flattened version of
+            # the output structure using the `y_pred` flattening order.
+            output_names_struct = tree.pack_sequence_as(
+                tuples_y_pred,
+                output_names if output_names else [None] * num_outputs,
+            )
+            return tree.flatten(
+                tree.map_structure_up_to(
+                    tuples_y_pred,
+                    get_metrics_list,
+                    tree.lists_to_tuples(metrics),
+                    tree.lists_to_tuples(y_true),
+                    tuples_y_pred,
+                    output_names_struct,
+                )
+            )
+        except (ValueError, TypeError) as e:
+            # A ValueError from `get_metrics_list` or a ValueError / TypeError
+            # from `tree.map_structure_up_to` for mismatched structures.
+            # The use of `self.output_names` instead of `output_names` is
+            # intentional; we want the true output names, the output keys will
+            # be shown as part of printing `y_pred`.
+            if self.output_names:
+                raise ValueError(
+                    f"{e}\nInvalid `{argument_name}`. `{argument_name}` should "
+                    "contain metrics objects and either be a dict or a list "
+                    "matching the output names of the functional model "
+                    f"{self.output_names} or match the output structure of "
+                    f"the model: {tree.map_structure(lambda _: 'X', y_pred)}.\n"
+                    f"Received: {argument_name}={metrics}"
+                ) from e
+            else:
+                raise ValueError(
+                    f"{e}\nInvalid `{argument_name}`. `{argument_name}` should "
+                    "contain metrics objects and match the output structure of "
+                    f"the model: {tree.map_structure(lambda _: 'X', y_pred)}.\n"
+                    f"Received: {argument_name}={metrics}"
+                ) from e
 
     def _flatten_y(self, y):
-        names = self._resolved_output_names
-        if isinstance(y, dict) and names:
-            result = []
-            for name in names:
-                if name in y:
-                    result.append(y[name])
-            return result
+        if isinstance(y, dict) and self._resolved_output_names is not None:
+            return [y[name] for name in self._resolved_output_names]
         return tree.flatten(y)
 
     def update_state(self, y_true, y_pred, sample_weight=None):
@@ -763,7 +771,13 @@ class CompileLoss(losses_module.Loss):
                             for i, loss in enumerate(flat_loss)
                             if loss is not None
                         ]
-                        assert len(flat_y_true) == len(flat_loss_non_nones)
+                        if len(flat_y_true) != len(flat_loss_non_nones):
+                            raise ValueError(
+                                "Internal error: the number of values in "
+                                f"`y_true` ({len(flat_y_true)}) must match the "
+                                "number of non-None values in `loss` "
+                                f"({len(flat_loss_non_nones)})."
+                            )
                         y_true = [None] * len(flat_loss)
                         for y_t, (i, loss) in zip(
                             flat_y_true, flat_loss_non_nones

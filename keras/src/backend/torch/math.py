@@ -19,7 +19,7 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
         .view(*data.shape)
         .type(torch.int64)
     )
-    num_segments = num_segments or len(torch.unique(segment_ids))
+    num_segments = num_segments or torch.max(segment_ids) + 1
 
     # .scatter_add does not support -1 in the indices.
     # Add all out-of-bound indices value to an extra dimension after
@@ -36,6 +36,10 @@ def _segment_reduction_fn(data, segment_ids, reduction_method, num_segments):
 
     if reduction_method == "amax":
         result = torch.ones(*shape, device=get_device()) * -float("Inf")
+    elif reduction_method == "amin":
+        result = torch.ones(*shape, device=get_device()) * float("Inf")
+    elif reduction_method == "prod":
+        result = torch.ones(*shape, device=get_device())
     else:
         result = torch.zeros(*shape, device=get_device())
 
@@ -61,6 +65,18 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(data, segment_ids, "amax", num_segments)
 
 
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+    return _segment_reduction_fn(data, segment_ids, "amin", num_segments)
+
+
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    data = convert_to_tensor(data)
+    segment_ids = convert_to_tensor(segment_ids)
+    return _segment_reduction_fn(data, segment_ids, "prod", num_segments)
+
+
 def top_k(x, k, sorted=True):
     x = convert_to_tensor(x)
     return torch.topk(x, k, sorted=sorted)
@@ -82,16 +98,16 @@ def logsumexp(x, axis=None, keepdims=False):
     return torch.logsumexp(x, dim=axis, keepdim=keepdims)
 
 
-def qr(x, mode="reduced"):
+def cdist(x, y):
     x = convert_to_tensor(x)
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    x = convert_to_tensor(x)
-    return torch.linalg.qr(x, mode=mode)
+    y = convert_to_tensor(y)
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if x.shape[-1] != y.shape[-1]:
+        raise ValueError("Last dimension of inputs to `cdist` must match")
+    # torch.cdist exists but does NOT broadcast batch dims the same way
+    diff = x.unsqueeze(-2) - y.unsqueeze(-3)
+    return torch.sqrt(torch.sum(diff * diff, dim=-1))
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
@@ -390,15 +406,14 @@ def erf(x):
     return torch.erf(x)
 
 
+def erfc(x):
+    x = convert_to_tensor(x)
+    return torch.erfc(x)
+
+
 def erfinv(x):
     x = convert_to_tensor(x)
     return torch.erfinv(x)
-
-
-def solve(a, b):
-    a = convert_to_tensor(a)
-    b = convert_to_tensor(b)
-    return torch.linalg.solve(a, b)
 
 
 def logdet(x):

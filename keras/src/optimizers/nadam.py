@@ -51,7 +51,7 @@ class Nadam(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="nadam",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -158,6 +158,7 @@ class Nadam(optimizer.Optimizer):
         return config
 
 
-Nadam.__doc__ = Nadam.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Nadam.__doc__ is not None:
+    Nadam.__doc__ = Nadam.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

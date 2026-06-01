@@ -52,6 +52,12 @@ class MultiHeadAttention(Layer):
             feature dim (the query input's last dimension).
         attention_axes: axes over which the attention is applied. `None` means
             attention over all axes, but batch, heads, and features.
+        sliding_window: Optional positive integer. If set, restricts each
+            query position to attend only to key positions within
+            `sliding_window - 1` of itself (a symmetric band). Composes
+            naturally with `use_causal_mask=True` to give the causal
+            sliding window used by Mistral, Llama-3 long-context, and
+            Phi-3. Defaults to `None` (full attention).
         flash_attention: If `None`, the layer attempts to use flash
             attention for faster and more memory-efficient attention
             computations when possible. This behavior can be configured using
@@ -64,6 +70,12 @@ class MultiHeadAttention(Layer):
         activity_regularizer: Regularizer for dense layer activity.
         kernel_constraint: Constraint for dense layer kernels.
         bias_constraint: Constraint for dense layer kernels.
+        use_gate: Boolean, whether to apply a gated attention mechanism.
+            When True, an additional gating branch is added based on the
+            (Gated Attention for Large Language Models)[https://arxiv.org/abs/2505.06708].
+            It applies a sigmoid-activated linear projection to the query
+            which then gates the attention output. This helps improve training
+            stability and eliminates "attention sinks".
         seed: Optional integer to seed the dropout layer.
 
     Call arguments:
@@ -109,6 +121,7 @@ class MultiHeadAttention(Layer):
         use_bias=True,
         output_shape=None,
         attention_axes=None,
+        sliding_window=None,
         flash_attention=None,
         kernel_initializer="glorot_uniform",
         bias_initializer="zeros",
@@ -117,9 +130,28 @@ class MultiHeadAttention(Layer):
         activity_regularizer=None,
         kernel_constraint=None,
         bias_constraint=None,
+        use_gate=False,
         seed=None,
         **kwargs,
     ):
+        if not isinstance(num_heads, int) or num_heads <= 0:
+            raise ValueError(
+                "Received an invalid value for argument `num_heads`, "
+                f"expected a positive integer. Received: num_heads={num_heads}"
+            )
+        if not isinstance(key_dim, int) or key_dim <= 0:
+            raise ValueError(
+                "Received an invalid value for argument `key_dim`, expected "
+                f"a positive integer. Received: key_dim={key_dim}"
+            )
+        if value_dim is not None and (
+            not isinstance(value_dim, int) or value_dim <= 0
+        ):
+            raise ValueError(
+                "Received an invalid value for argument `value_dim`, "
+                "expected a positive integer or `None`. Received: "
+                f"value_dim={value_dim}"
+            )
         super().__init__(**kwargs)
         self.supports_masking = True
         self._num_heads = num_heads
@@ -127,6 +159,7 @@ class MultiHeadAttention(Layer):
         self._value_dim = value_dim if value_dim else key_dim
         self._dropout = dropout
         self._use_bias = use_bias
+        self._use_gate = use_gate
         if output_shape:
             if isinstance(output_shape, int):
                 output_shape = (output_shape,)
@@ -155,6 +188,14 @@ class MultiHeadAttention(Layer):
                 f"Received: attention_axes={attention_axes}"
             )
         self._attention_axes = attention_axes
+        if sliding_window is not None and (
+            not isinstance(sliding_window, int) or sliding_window <= 0
+        ):
+            raise ValueError(
+                "`sliding_window` must be `None` or a positive integer. "
+                f"Received: sliding_window={sliding_window}"
+            )
+        self._sliding_window = sliding_window
         self.seed = seed
 
         self._inverse_sqrt_key_dim = 1.0 / math.sqrt(float(self._key_dim))
@@ -201,8 +242,10 @@ class MultiHeadAttention(Layer):
             "value_dim": self._value_dim,
             "dropout": self._dropout,
             "use_bias": self._use_bias,
+            "use_gate": self._use_gate,
             "output_shape": self._output_shape,
             "attention_axes": self._attention_axes,
+            "sliding_window": self._sliding_window,
             "kernel_initializer": initializers.serialize(
                 self._kernel_initializer
             ),
@@ -271,6 +314,23 @@ class MultiHeadAttention(Layer):
             **self._get_common_kwargs_for_sublayer(),
         )
         self._key_dense.build(key_shape)
+        if self._use_gate:
+            query_einsum_equation, query_bias_axes, query_output_rank = (
+                _build_proj_equation(
+                    query_rank - 1, bound_dims=1, output_dims=2
+                )
+            )
+            self._gate_dense = EinsumDense(
+                query_einsum_equation,
+                output_shape=_get_output_shape(
+                    query_output_rank - 1, [self._num_heads, self._value_dim]
+                ),
+                bias_axes=query_bias_axes if self._use_bias else None,
+                activation="sigmoid",
+                name="gate",
+                **self._get_common_kwargs_for_sublayer(),
+            )
+            self._gate_dense.build(query_shape)
         einsum_equation, bias_axes, output_rank = _build_proj_equation(
             value_rank - 1, bound_dims=1, output_dims=2
         )
@@ -421,6 +481,7 @@ class MultiHeadAttention(Layer):
         attention_mask=None,
         training=None,
         return_attention_scores=False,
+        use_causal_mask=False,
     ):
         """Applies Dot-product attention with query, key, value tensors.
 
@@ -438,6 +499,11 @@ class MultiHeadAttention(Layer):
             training: Python boolean indicating whether the layer should behave
                 in training mode (adding dropout) or in inference mode (doing
                 nothing).
+            use_causal_mask: Boolean. When True and `attention_mask` is None,
+                routes through the backend's native causal kernel via
+                `dot_product_attention(is_causal=True)`. This skips
+                materializing an explicit [T, S] mask tensor and enables
+                torch's causal-only flash kernel.
 
         Returns:
           attention_output: Multi-headed outputs of attention computation.
@@ -459,6 +525,20 @@ class MultiHeadAttention(Layer):
         )
 
         if use_dot_product_attention:
+            if use_causal_mask and attention_mask is None:
+                # Skip materializing the [T, S] mask and let the backend
+                # use its native causal kernel.
+                attention_output = ops.dot_product_attention(
+                    query=query,
+                    key=key,
+                    value=value,
+                    bias=None,
+                    mask=None,
+                    scale=self._inverse_sqrt_key_dim,
+                    is_causal=True,
+                    flash_attention=self._flash_attention,
+                )
+                return attention_output, None
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
@@ -537,17 +617,39 @@ class MultiHeadAttention(Layer):
         backend.set_keras_mask(value, None)
         backend.set_keras_mask(key, None)
 
-        attention_mask = self._compute_attention_mask(
-            query,
-            value,
-            query_mask=query_mask,
-            value_mask=value_mask,
-            key_mask=key_mask,
-            attention_mask=attention_mask,
-            use_causal_mask=use_causal_mask,
+        # When causal masking is the only mask source, route through the
+        # backend's native causal kernel by passing `is_causal=True` rather
+        # than materializing a [T, S] mask tensor. Skipped when a subclass
+        # overrides `_compute_attention`, since such a subclass would
+        # receive `attention_mask=None` and silently do unmasked attention.
+        causal_only = (
+            use_causal_mask
+            and query_mask is None
+            and value_mask is None
+            and key_mask is None
+            and attention_mask is None
+            and self._sliding_window is None
+            and type(self)._compute_attention
+            is MultiHeadAttention._compute_attention
         )
+        if causal_only:
+            attention_mask = None
+        else:
+            attention_mask = self._compute_attention_mask(
+                query,
+                value,
+                query_mask=query_mask,
+                value_mask=value_mask,
+                key_mask=key_mask,
+                attention_mask=attention_mask,
+                use_causal_mask=use_causal_mask,
+            )
         #   N = `num_attention_heads`
         #   H = `size_per_head`
+
+        # `gate` = [B, T, N, H]
+        if self._use_gate:
+            gate = self._gate_dense(query)
 
         # `query` = [B, T, N, H]
         query = self._query_dense(query)
@@ -557,6 +659,11 @@ class MultiHeadAttention(Layer):
 
         # `value` = [B, S, N, H]
         value = self._value_dense(value)
+        # Only pass `use_causal_mask` when active so subclasses that override
+        # `_compute_attention` with the previous signature still work.
+        extra_attention_kwargs = (
+            {"use_causal_mask": True} if causal_only else {}
+        )
         attention_output, attention_scores = self._compute_attention(
             query,
             key,
@@ -564,8 +671,14 @@ class MultiHeadAttention(Layer):
             attention_mask,
             training,
             return_attention_scores,
+            **extra_attention_kwargs,
         )
-        attention_output = self._output_dense(attention_output)
+        if self._use_gate:
+            attention_output = self._output_dense(
+                ops.multiply(attention_output, gate)
+            )
+        else:
+            attention_output = self._output_dense(attention_output)
 
         # Set mask on output if needed
         if query_mask is not None:
@@ -634,6 +747,10 @@ class MultiHeadAttention(Layer):
             # the shape of the causal mask is [1, T, S]
             mask = self._compute_causal_mask(query, value)
             auto_mask = mask if auto_mask is None else auto_mask & mask
+        if self._sliding_window is not None:
+            # the shape of the sliding window mask is [1, T, S]
+            mask = self._compute_sliding_window_mask(query, value)
+            auto_mask = mask if auto_mask is None else auto_mask & mask
 
         if attention_mask is not None:
             attention_mask = ops.cast(attention_mask, "bool")
@@ -674,6 +791,25 @@ class MultiHeadAttention(Layer):
         row_index = ops.cumsum(ones_mask, axis=-2)
         col_index = ops.cumsum(ones_mask, axis=-1)
         return ops.greater_equal(row_index, col_index)
+
+    def _compute_sliding_window_mask(self, query, value=None):
+        """Computes a banded sliding-window mask of shape `(1, T, S)`.
+
+        Returns a symmetric band where each query position attends to keys
+        within `self._sliding_window - 1` positions on either side. When
+        ANDed with a causal mask, this yields the canonical causal
+        sliding-window pattern used by Mistral, Llama-3 long-context, and
+        Phi-3.
+        """
+        q_seq_length = ops.shape(query)[1]
+        v_seq_length = q_seq_length if value is None else ops.shape(value)[1]
+        row_index = ops.reshape(
+            ops.arange(q_seq_length, dtype="int32"), (1, q_seq_length, 1)
+        )
+        col_index = ops.reshape(
+            ops.arange(v_seq_length, dtype="int32"), (1, 1, v_seq_length)
+        )
+        return ops.less(ops.abs(row_index - col_index), self._sliding_window)
 
     def compute_output_shape(
         self,

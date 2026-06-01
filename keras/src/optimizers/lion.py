@@ -55,7 +55,7 @@ class Lion(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="lion",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -131,6 +131,7 @@ class Lion(optimizer.Optimizer):
         return config
 
 
-Lion.__doc__ = Lion.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Lion.__doc__ is not None:
+    Lion.__doc__ = Lion.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

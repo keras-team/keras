@@ -74,19 +74,19 @@ class TestCompileMetrics(testing.TestCase):
             ],
         )
         # Test symbolic build
-        y_true = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
-        y_pred = [backend.KerasTensor((3, 4)), backend.KerasTensor((3, 4))]
+        y_true = [backend.KerasTensor((3, 2)), backend.KerasTensor((3, 3))]
+        y_pred = [backend.KerasTensor((3, 2)), backend.KerasTensor((3, 3))]
         compile_metrics.build(y_true, y_pred)
         self.assertEqual(len(compile_metrics.metrics), 8)
 
         # Test eager build
         y_true = [
             np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-            np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+            np.array([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]),
         ]
         y_pred = [
             np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]]),
-            np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]]),
+            np.array([[0.4, 0.1, 0.3], [0.2, 0.6, 0.4], [0.6, 0.1, 0.8]]),
         ]
         sample_weight = np.array([1, 0.0, 1])
         compile_metrics.build(y_true, y_pred)
@@ -98,7 +98,7 @@ class TestCompileMetrics(testing.TestCase):
         )
         y_pred = [
             np.array([[0.3, 0.2], [0.1, 0.4], [0.2, 0.3]]),
-            np.array([[0.3, 0.2], [0.1, 0.4], [0.2, 0.3]]),
+            np.array([[0.3, 0.2, 0.1], [0.5, 0.4, 0.6], [0.1, 0.8, 0.7]]),
         ]
         compile_metrics.update_state(
             y_true, y_pred, sample_weight=sample_weight
@@ -141,22 +141,26 @@ class TestCompileMetrics(testing.TestCase):
         )
         # Test symbolic build
         y_true = {
-            "output_1": backend.KerasTensor((3, 4)),
-            "output_2": backend.KerasTensor((3, 4)),
+            "output_1": backend.KerasTensor((3, 2)),
+            "output_2": backend.KerasTensor((3, 3)),
         }
         y_pred = {
-            "output_1": backend.KerasTensor((3, 4)),
-            "output_2": backend.KerasTensor((3, 4)),
+            "output_1": backend.KerasTensor((3, 2)),
+            "output_2": backend.KerasTensor((3, 3)),
         }
         compile_metrics.build(y_true, y_pred)
         # Test eager build
         y_true = {
             "output_1": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
-            "output_2": np.array([[0.1, 0.2], [0.3, 0.4], [0.5, 0.6]]),
+            "output_2": np.array(
+                [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]
+            ),
         }
         y_pred = {
             "output_1": np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]]),
-            "output_2": np.array([[0.4, 0.1], [0.2, 0.6], [0.6, 0.1]]),
+            "output_2": np.array(
+                [[0.4, 0.1, 0.3], [0.2, 0.6, 0.4], [0.6, 0.1, 0.8]]
+            ),
         }
         sample_weight = np.array([1, 0.0, 1])
         compile_metrics.build(y_true, y_pred)
@@ -167,7 +171,9 @@ class TestCompileMetrics(testing.TestCase):
         )
         y_pred = {
             "output_1": np.array([[0.3, 0.2], [0.1, 0.4], [0.2, 0.3]]),
-            "output_2": np.array([[0.3, 0.2], [0.1, 0.4], [0.2, 0.3]]),
+            "output_2": np.array(
+                [[0.3, 0.2, 0.1], [0.5, 0.4, 0.6], [0.1, 0.8, 0.7]]
+            ),
         }
         compile_metrics.update_state(
             y_true, y_pred, sample_weight=sample_weight
@@ -181,17 +187,17 @@ class TestCompileMetrics(testing.TestCase):
         # m.update_state(y_true, y_pred2, sample_weight=weight)
         # m.result().numpy()
         self.assertAllClose(result["output_1_mean_squared_error"], 0.055833336)
-        self.assertAllClose(result["output_2_mean_squared_error"], 0.055833336)
+        self.assertAllClose(result["output_2_mean_squared_error"], 0.066666667)
         self.assertAllClose(result["output_1_mse"], 0.055833336)
-        self.assertAllClose(result["output_2_mse"], 0.055833336)
+        self.assertAllClose(result["output_2_mse"], 0.066666667)
         self.assertAllClose(
             result["output_1_weighted_mean_squared_error"], 0.0725
         )
         self.assertAllClose(
-            result["output_2_weighted_mean_squared_error"], 0.0725
+            result["output_2_weighted_mean_squared_error"], 0.090833336
         )
         self.assertAllClose(result["output_1_weighted_mse"], 0.0725)
-        self.assertAllClose(result["output_2_weighted_mse"], 0.0725)
+        self.assertAllClose(result["output_2_weighted_mse"], 0.090833336)
 
         compile_metrics.reset_state()
         result = compile_metrics.result()
@@ -232,12 +238,165 @@ class TestCompileMetrics(testing.TestCase):
         compile_metrics.update_state(y_true, y_pred, sample_weight=None)
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-        self.assertEqual(len(result), 1)
-        self.assertTrue("my_custom_metric" in result)
+        self.assertEqual(list(result.keys()), ["my_custom_metric"])
+
+    def test_list_outputs_dict_labels_uses_output_names(self):
+        """Tests that when output_names match the metrics dict keys, but the
+        predictions are a flat list, the output_names are used, and the labels
+        work even if they are a different structure from the predictions
+        (list vs. dict)."""
+
+        # output_names represent internal op names that do not match the dict
+        # keys of the output map.
+        compile_metrics = CompileMetrics(
+            metrics={
+                "b": metrics_module.MeanSquaredError(),
+                "a": metrics_module.MeanSquaredError(),
+            },
+            weighted_metrics=None,
+            output_names=["b", "a"],
+        )
+
+        # Symbolic build with dict outputs keyed by user-facing names.
+        y_true = {
+            "b": backend.KerasTensor((3, 5)),
+            "a": backend.KerasTensor((3, 2)),
+        }
+        y_pred = [
+            backend.KerasTensor((3, 5)),
+            backend.KerasTensor((3, 2)),
+        ]
+
+        compile_metrics.build(y_true, y_pred)
+
+        # Make the two outputs produce different MSEs to verify mapping.
+        y_true = {
+            "b": np.zeros((3, 5), dtype="float32"),
+            "a": np.zeros((3, 2), dtype="float32"),
+        }
+        y_pred = [
+            # MSE(a) = 0.0
+            np.zeros((3, 5), dtype="float32"),
+            # MSE(b) = 1.0
+            np.ones((3, 2), dtype="float32"),
+        ]
+        compile_metrics.update_state(y_true, y_pred)
+
+        result = compile_metrics.result()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(
+            list(result.keys()),
+            ["b_mean_squared_error", "a_mean_squared_error"],
+        )
+        self.assertAllClose(result["b_mean_squared_error"], 0.0)
+        self.assertAllClose(result["a_mean_squared_error"], 1.0)
+
+    def test_dict_outputs_output_names_ordering(self):
+        """Tests that when the metrics are not declared in the same order as
+        the output names, they are remapped correctly."""
+
+        # Put metrics in the wrong order to check the reordering happened.
+        compile_metrics = CompileMetrics(
+            metrics={
+                "a": metrics_module.MeanAbsolutePercentageError(),
+                "b": metrics_module.MeanSquaredError(),
+            },
+            weighted_metrics=None,
+            output_names=["b", "a"],
+        )
+
+        # Symbolic build with dict outputs keyed by user-facing names.
+        y_true = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 2)),
+        }
+        y_pred = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 2)),
+        }
+
+        compile_metrics.build(y_true, y_pred)
+
+        # Make the two outputs produce different metric values to verify the
+        # order of metrics. In both cases the difference is 1, but MSE and MAPE
+        # will have different values.
+        y_true = {
+            "a": np.ones((3, 2), dtype="float32"),
+            "b": np.ones((3, 2), dtype="float32"),
+        }
+        y_pred = {
+            # MSE(a) = 1.0
+            "a": np.full((3, 2), 2.0, dtype="float32"),
+            # MAPE(b) = 100.0
+            "b": np.zeros((3, 2), dtype="float32"),
+        }
+        compile_metrics.update_state(y_true, y_pred)
+
+        result = compile_metrics.result()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(
+            list(result.keys()),
+            [
+                "b_mean_squared_error",
+                "a_mean_absolute_percentage_error",
+            ],
+        )
+        self.assertAllClose(result["a_mean_absolute_percentage_error"], 100.0)
+        self.assertAllClose(result["b_mean_squared_error"], 1.0)
+
+    def test_dict_outputs_outputs_ordering(self):
+        """Tests that when the metrics are not declared in the same order as
+        the keys in the output dict, they are remapped correctly."""
+
+        # Put metrics in the wrong order to check the reordering happened.
+        compile_metrics = CompileMetrics(
+            metrics={
+                "b": metrics_module.MeanAbsolutePercentageError(),
+                "a": metrics_module.MeanSquaredError(),
+            },
+            weighted_metrics=None,
+            output_names=["dense_1", "dense_2"],
+        )
+
+        # Symbolic build with dict outputs keyed by user-facing names.
+        y_true = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 5)),
+        }
+        y_pred = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 5)),
+        }
+
+        compile_metrics.build(y_true, y_pred)
+
+        # Make the two outputs produce different metric values to verify the
+        # order of metrics. In both cases the difference is 1, but MSE and MAPE
+        # will have different values.
+        y_true = {
+            "a": np.ones((3, 2), dtype="float32"),
+            "b": np.ones((3, 5), dtype="float32"),
+        }
+        y_pred = {
+            # MSE(a) = 1.0
+            "a": np.full((3, 2), 2.0, dtype="float32"),
+            # MAPE(b) = 100.0
+            "b": np.zeros((3, 5), dtype="float32"),
+        }
+        compile_metrics.update_state(y_true, y_pred)
+
+        result = compile_metrics.result()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(
+            list(result.keys()),
+            ["a_mean_squared_error", "b_mean_absolute_percentage_error"],
+        )
+        self.assertAllClose(result["a_mean_squared_error"], 1.0)
+        self.assertAllClose(result["b_mean_absolute_percentage_error"], 100.0)
 
     def test_dict_outputs_ignore_mismatched_output_names(self):
-        """Tests that when output_names does not match dict keys, the correct
-        keys are used."""
+        """Tests that when output_names does not match dict keys, the keys from
+        the output dict are used."""
 
         # output_names represent internal op names that do not match dict keys.
         compile_metrics = CompileMetrics(
@@ -252,11 +411,11 @@ class TestCompileMetrics(testing.TestCase):
         # Symbolic build with dict outputs keyed by user-facing names.
         y_true = {
             "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 5)),
         }
         y_pred = {
             "a": backend.KerasTensor((3, 2)),
-            "b": backend.KerasTensor((3, 2)),
+            "b": backend.KerasTensor((3, 5)),
         }
 
         # The build method should correctly map metrics for outputs 'a' and 'b',
@@ -266,25 +425,109 @@ class TestCompileMetrics(testing.TestCase):
         # Make the two outputs produce different MSEs to verify mapping.
         y_true = {
             "a": np.zeros((3, 2), dtype="float32"),
-            "b": np.zeros((3, 2), dtype="float32"),
+            "b": np.zeros((3, 5), dtype="float32"),
         }
         y_pred = {
             # MSE(a) = 0.0
             "a": np.zeros((3, 2), dtype="float32"),
             # MSE(b) = 1.0
-            "b": np.ones((3, 2), dtype="float32"),
+            "b": np.ones((3, 5), dtype="float32"),
         }
         compile_metrics.update_state(y_true, y_pred)
 
         result = compile_metrics.result()
         self.assertIsInstance(result, dict)
-
-        # Should expose metrics under the dict keys ('a', 'b'),
-        # and not the internal names.
-        self.assertIn("a_mean_squared_error", result)
-        self.assertIn("b_mean_squared_error", result)
+        self.assertEqual(
+            list(result.keys()),
+            ["a_mean_squared_error", "b_mean_squared_error"],
+        )
         self.assertAllClose(result["a_mean_squared_error"], 0.0)
-        self.assertAllClose(result["b_mean_squared_error"], 1.0, atol=1e-6)
+        self.assertAllClose(result["b_mean_squared_error"], 1.0)
+
+    @parameterized.parameters(False, True)
+    def test_deeply_nested_outputs_and_metrics(self, output_names):
+        """Tests that when the outputs are deeply nested, we can declare the
+        metrics with the same deeply nested structure."""
+
+        compile_metrics = CompileMetrics(
+            metrics={
+                "a": metrics_module.MeanSquaredError(name="mse_a"),
+                "b": {
+                    "c": metrics_module.MeanSquaredError(name="mse_c"),
+                    "d": [
+                        metrics_module.MeanSquaredError(name="mse_d1"),
+                        metrics_module.MeanSquaredError(name="mse_d2"),
+                    ],
+                },
+            },
+            weighted_metrics=None,
+            output_names=["dense", "dense_1", "dense_2", "dense_3"]
+            if output_names
+            else None,
+        )
+
+        y_true = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": {
+                "c": backend.KerasTensor((3, 5)),
+                "d": [backend.KerasTensor((3, 7)), backend.KerasTensor((3, 9))],
+            },
+        }
+        y_pred = {
+            "a": backend.KerasTensor((3, 2)),
+            "b": {
+                "c": backend.KerasTensor((3, 5)),
+                "d": [backend.KerasTensor((3, 7)), backend.KerasTensor((3, 9))],
+            },
+        }
+
+        # The build method should correctly map deeply nested metrics.
+        compile_metrics.build(y_true, y_pred)
+
+        # Make the three outputs produce different MSEs to verify mapping.
+        y_true = {
+            "a": np.zeros((3, 2), dtype="float32"),
+            "b": {
+                "c": np.zeros((3, 5), dtype="float32"),
+                "d": [
+                    np.zeros((3, 7), dtype="float32"),
+                    np.zeros((3, 9), dtype="float32"),
+                ],
+            },
+        }
+        y_pred = {
+            # MSE(a) = 0.0
+            "a": np.zeros((3, 2), dtype="float32"),
+            "b": {
+                # MSE(c) = 1.0
+                "c": np.ones((3, 5), dtype="float32"),
+                "d": [
+                    # MSE(d1) = 4.0
+                    np.full((3, 7), 2.0, dtype="float32"),
+                    # MSE(d2) = 9.0
+                    np.full((3, 9), 3.0, dtype="float32"),
+                ],
+            },
+        }
+        compile_metrics.update_state(y_true, y_pred)
+
+        if output_names:
+            expected_keys = [
+                "dense_mse_a",
+                "dense_1_mse_c",
+                "dense_2_mse_d1",
+                "dense_3_mse_d2",
+            ]
+        else:
+            expected_keys = ["mse_a", "mse_c", "mse_d1", "mse_d2"]
+
+        result = compile_metrics.result()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(list(result.keys()), expected_keys)
+        self.assertAllClose(result[expected_keys[0]], 0.0)
+        self.assertAllClose(result[expected_keys[1]], 1.0)
+        self.assertAllClose(result[expected_keys[2]], 4.0)
+        self.assertAllClose(result[expected_keys[3]], 9.0)
 
 
 class TestCompileLoss(testing.TestCase):

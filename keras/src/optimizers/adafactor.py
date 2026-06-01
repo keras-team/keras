@@ -58,7 +58,7 @@ class Adafactor(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="adafactor",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -228,6 +228,7 @@ class Adafactor(optimizer.Optimizer):
         return config
 
 
-Adafactor.__doc__ = Adafactor.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adafactor.__doc__ is not None:
+    Adafactor.__doc__ = Adafactor.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

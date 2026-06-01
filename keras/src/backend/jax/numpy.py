@@ -288,6 +288,11 @@ def abs(x):
     return absolute(x)
 
 
+def fabs(x):
+    x = convert_to_tensor(x)
+    return jnp.fabs(x)
+
+
 def all(x, axis=None, keepdims=False):
     return jnp.all(x, axis=axis, keepdims=keepdims)
 
@@ -644,6 +649,11 @@ def deg2rad(x):
     return jnp.deg2rad(x)
 
 
+def rad2deg(x):
+    x = convert_to_tensor(x)
+    return jnp.rad2deg(x)
+
+
 def diag(x, k=0):
     x = convert_to_tensor(x)
     return jnp.diag(x, k=k)
@@ -748,6 +758,16 @@ def flip(x, axis=None):
     return jnp.flip(x, axis=axis)
 
 
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return jnp.fliplr(x)
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return jnp.flipud(x)
+
+
 @sparse.elementwise_unary(linear=False)
 def floor(x):
     x = convert_to_tensor(x)
@@ -772,6 +792,12 @@ def gcd(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     return jnp.gcd(x1, x2)
+
+
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    return jnp.geomspace(
+        start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
+    )
 
 
 def greater(x1, x2):
@@ -804,6 +830,17 @@ def identity(n, dtype=None):
 def imag(x):
     x = convert_to_tensor(x)
     return jnp.imag(x)
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ["int64", "float64"]:
+        dtype = "float64"
+    elif dtype not in ["bfloat16", "float16"]:
+        dtype = config.floatx()
+    x = cast(x, dtype)
+    return jnp.i0(x)
 
 
 def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
@@ -1033,8 +1070,34 @@ def mod(x1, x2):
     return jnp.mod(x1, x2)
 
 
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.fmod(x1, x2)
+
+
 def moveaxis(x, source, destination):
     return jnp.moveaxis(x, source=source, destination=destination)
+
+
+def nanargmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanargmax(x, axis=axis, keepdims=keepdims)
+
+
+def nanargmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanargmin(x, axis=axis, keepdims=keepdims)
+
+
+def nancumsum(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    return jnp.nancumsum(x, axis=axis, dtype=dtype)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    return jnp.nancumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):
@@ -1047,14 +1110,31 @@ def nanmean(x, axis=None, keepdims=False):
     return jnp.nanmean(x, axis=axis, keepdims=keepdims)
 
 
+def nanmedian(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    return jnp.nanmedian(x, axis=axis, keepdims=keepdims)
+
+
 def nanmin(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanmin(x, axis=axis, keepdims=keepdims)
 
 
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.nanpercentile(x, q, axis=axis, method=method, keepdims=keepdims)
+
+
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return jnp.nanprod(x, axis=axis, keepdims=keepdims)
+
+
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.nanquantile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
 def nanstd(x, axis=None, keepdims=False):
@@ -1115,6 +1195,12 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["constant_values"] = constant_values
     return jnp.pad(x, pad_width, mode=mode, **kwargs)
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    return jnp.percentile(x, q, axis=axis, method=method, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False, dtype=None):
@@ -1221,6 +1307,16 @@ def sin(x):
         dtype = dtypes.result_type(x.dtype, float)
     x = cast(x, dtype)
     return jnp.sin(x)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = cast(x, dtype)
+    return jnp.sinc(x)
 
 
 @sparse.elementwise_unary(linear=False)
@@ -1553,8 +1649,40 @@ def slogdet(x):
 
 
 def argpartition(x, kth, axis=-1):
-    return jnp.argpartition(x, kth, axis)
+    if axis is None:
+        x = jnp.reshape(x, (-1,))
+        return jnp.argpartition(x, kth, axis=0)
+
+    return jnp.argpartition(x, kth, axis=axis)
 
 
 def histogram(x, bins=10, range=None):
     return jnp.histogram(x, bins=bins, range=range)
+
+
+def unique(
+    x,
+    sorted=True,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    return jnp.unique(
+        x,
+        return_index=return_index,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        equal_nan=False,
+        size=size,
+        sorted=sorted,
+        fill_value=fill_value,
+    )
+
+
+def dsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return jnp.dsplit(x, indices_or_sections)

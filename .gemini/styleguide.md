@@ -138,9 +138,10 @@ Documentation and error messages are an integral part of the API. Good docs and 
 
 - **Catch user errors early and anticipate common mistakes.** Do user input validation as soon as possible. Actively keep track of common mistakes that people make (by screening GitHub and StackOverflow), and either solve them by simplifying our API, adding targeted error messages for these mistakes, or having a "solutions to common issues" page in our docs. Consider adding automated fallback behaviors (e.g. casting a wrongly-typed input) instead of raising errors, when applicable. Be nice to our users.
 - **Provide detailed feedback messages upon user error.** Error messages should be contextual, informative, and actionable. Every error message that transparently provides the user with the solution to their problem means one less support ticket, multiplied by how many times users run into the same issue. A good error message should answer:
-    - What happened, in what context?
-    - What did the software expect?
+    - What happened, in what context? (Include all relevant hyperparameters, e.g., `strides`, `padding`, `pool_size`, not just the input shape. Always include the *received* values like `original_shape` or `output_mode`).
+    - What did the software expect? (Explicitly mention the expected vs. actual path or value for complex models).
     - How can the user fix it?
+- **Use plain Python representations in error messages.** Shapes and sizes should be represented as Python tuples (e.g., `(2, 2)`) rather than raw NumPy array representations (e.g., `[2 2]`). Use `.name` attributes for objects instead of raw object strings.
 - **A docstring should answer the question: what is this about, and why & how should I use it?** It should assume as little context as possible, and it shouldn't mention specialized terms without first introducing them (for example, "num_blocks: Number of blocks in the kernel" is not a good argument description if this is the first time you mention "blocks" in your docstring).
 - **Show, don't tell: your documentation should not talk about how the software works, it should show how to use it.** Show code examples for end-to-end workflows; show code examples for each and every common use case and key feature of your API. **All docstrings should include code examples.**
 - **Deliberately design the user onboarding process for your feature.** How are complete newcomers going to find out the best way to solve their use case with your tool? Have an answer ready. Make sure your onboarding material closely maps to what your users care about: don't teach newcomers how your framework is implemented, teach them how they can use it to solve their own problems. After shipping a CL and writing good docstrings, make sure to create a Colab guide / tutorial showcasing the target workflow, and post it on the docs website.
@@ -203,3 +204,43 @@ y_binary = to_categorical(y_int)
 
 Alternatively, you can use the loss function `sparse_categorical_crossentropy` instead, which does expect integer targets.
 ```
+
+---
+
+## Implementation Best Practices (Multi-Backend & Symbolic Tensors)
+
+Keras supports multiple backends (JAX, TensorFlow, PyTorch) and uses symbolic execution. Follow these patterns to ensure compatibility and robustness:
+
+### Multi-Backend Compatibility
+
+- **Prefer `backend.convert_to_tensor` over backend-specific methods**: Use `backend.convert_to_tensor(x)` instead of direct calls like `torch.as_tensor(x)`. This ensures proper handling of various input types, including Keras objects such as variables, and consistent detection of the dtype.
+- **Backend-Agnostic Shape Handling**: Prefer using `backend.shape(inputs)` (or a passed `backend_module.shape(inputs)`) over the `.shape` property. This ensures consistency across JAX, TF, and Torch, especially for symbolic tensors.
+- **Support Dynamic Dimensions**:
+    - Use `len(shape)` or `backend.ndim(x)` to access shapes in a backend-agnostic way.
+    - Use `isinstance(d, int)` to detect that a dimension is static and not dynamic. `None` is not the only representation for dynamic dimensions.
+    - Use plain Python operators (e.g. `+`, `*`, `//`) to perform math on the dimensions of a shape, not Keras ops. This works seamlessly for static dimensions, symbolic dimensions (JAX, Torch) and tensor dimensions (TensorFlow). For instance, `math.prod(shape)` is the correct way to determine the size of an array.
+
+### Optimization & Numeric Stability
+
+- **Division by Zero**: Use `ops.divide_no_nan` for mask weight calculations or any situation where a zero divisor is possible.
+- **Arithmetic Masking**: Use `ops.where(x, mask, 0)` or `backend.numpy.where(x, mask, 0)` instead of multiplication `x * mask` to clear values outside of a mask to save memory on intermediary values.
+
+### API Design & Validation
+
+- **Early Validation**: Perform axis canonicalization (using `canonicalize_axis` or `canonicalize_axes`) early to catch errors during graph building: typically in `compute_output_spec` or in the backend implementation of an op if the backend native op doesn't validate the axis. Validate axis uniqueness *after* canonicalization.
+
+### Testing
+
+- **Maximize Test Coverage**: Use specific test marks (like `@pytest.mark.requires_trainable_backend`) only when strictly necessary. Ensure training-related components are tested with a full `model.fit()` loop.
+- **Verify Error Clarity**: Use `self.assertRaisesRegex` to verify that the error message contains the expected guidance.
+- **Avoid Dynamic Shapes**: In layers, metrics, and losses avoid operations that have an output with a dynamic shape where possible as they are not compilable with JAX. This includes `ops.nonzero`, `ops.unique` without a `size`.
+
+---
+
+When performing code reviews on pull requests, you must strictly adhere to the following principles in addition to the API design guidelines above:
+
+1. **Question the Necessity of Changes**: Do not assume that the pull request changes are strictly necessary. Critically review the proposed changes to ensure they add real value. Point out any code that is solving a non-existent problem or adding unnecessary complexity.
+2. **Call out "AI Slop"**: Actively look for and identify "AI slop"—generic, overly verbose, or hallucinated code that lacks context or violates best practices. If you suspect the code is AI slop, explicitly call it out.
+3. **Poke Holes in the Implementation**: Your goal is to critically test the logic. Actively search for and point out failing edge cases, race conditions, or unhandled exceptions in the implementation.
+4. **Demand Robustness**: Do not accept fragile code. If the proposed code is not robust enough or lacks proper error handling, explicitly tell the author why the current approach is brittle and what must be done to reinforce it.
+5. **Respect Existing Repo Patterns**: Before suggesting review comments (like asking users to add boilerplate or specific patterns), actively check for existing design patterns across the repository. Do not suggest adding useless code or structures that contradict or fall outside the established Keras repo coding style.

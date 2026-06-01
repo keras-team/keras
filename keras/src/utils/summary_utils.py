@@ -111,8 +111,9 @@ def format_layer_shape(layer):
                 )
         except NotImplementedError:
             return "?"
-    if len(output_shapes) == 1:
-        return output_shapes[0]
+    flat_output_shapes = tree.flatten(output_shapes)
+    if len(flat_output_shapes) == 1:
+        return flat_output_shapes[0]
     out = str(output_shapes)
     out = out.replace("'", "")
     return out

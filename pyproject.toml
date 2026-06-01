@@ -57,6 +57,7 @@ select = [
     "E",  # pycodestyle error
     "F",  # Pyflakes
     "I",  # isort
+    "S101",  # flake8-bandit / use of assert detected
 ]
 ignore = [
     "E722",  # do not use bare 'except'
@@ -68,7 +69,8 @@ ignore = [
 "**/__init__.py" = ["E501", "F401"]  # lines too long; imported but unused
 "**/random.py" = ["F401"]  # imported but unused
 "examples/*" = ["I", "E"]
-"guides/*" = ["I", "E", "F"]
+"guides/*" = ["I", "E", "F", "S"]
+"integration_tests/*" = ["S101"]  # use of assert detected
 
 [tool.ruff.lint.isort]
 force-single-line = true
@@ -99,6 +101,7 @@ exclude_lines = [
 ]
 omit = [
     "*/*_test.py",
+    "keras/api/*",
     "keras/src/legacy/*",
 ]
 
@@ -106,6 +109,6 @@ omit = [
 branch = true
 omit = [
     "*/*_test.py",
+    "keras/api/*",
     "keras/src/legacy/*",
 ]
-

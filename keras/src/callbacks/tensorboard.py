@@ -510,9 +510,19 @@ class TensorBoard(Callback):
         self._is_tracing = False
 
     def _collect_learning_rate(self, logs):
-        if isinstance(self.model.optimizer, Optimizer):
+        optimizer = self.model.optimizer
+        # Handles the case when the optimizer is wrapped by LossScaleOptimizer
+        if hasattr(optimizer, "inner_optimizer"):
+            optimizer = optimizer.inner_optimizer
+
+        if hasattr(optimizer, "optimizers"):
+            for idx, opt in enumerate(optimizer.optimizers):
+                logs[f"learning_rate_{opt.name}"] = float(
+                    ops.convert_to_numpy(opt.learning_rate)
+                )
+        elif isinstance(optimizer, Optimizer):
             logs["learning_rate"] = float(
-                ops.convert_to_numpy(self.model.optimizer.learning_rate)
+                ops.convert_to_numpy(optimizer.learning_rate)
             )
         return logs
 
@@ -560,7 +570,7 @@ class TensorBoard(Callback):
         with self._train_writer.as_default():
             for layer in self.model.layers:
                 for weight in layer.weights:
-                    weight_name = weight.name.replace(":", "_")
+                    weight_name = weight.path.replace(":", "_")
                     # Add a suffix to prevent summary tag name collision.
                     histogram_weight_name = f"{weight_name}/histogram"
                     self.summary.histogram(

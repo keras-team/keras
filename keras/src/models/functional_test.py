@@ -22,7 +22,6 @@ from keras.src.models.model import model_from_json
 
 
 class FunctionalTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_basic_flow_multi_input(self):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
         input_b = Input(shape=(3,), batch_size=2, name="input_b")
@@ -48,7 +47,6 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
-    @pytest.mark.requires_trainable_backend
     def test_scalar_input(self):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
         input_b = Input(shape=(), batch_size=2, name="input_b")
@@ -60,7 +58,6 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertAllClose(out_val, np.ones((2, 3)))
 
-    @pytest.mark.requires_trainable_backend
     def test_mutable_state(self):
         inputs = Input(shape=(3,), batch_size=2, name="input")
         x = layers.Dense(5)(inputs)
@@ -70,7 +67,6 @@ class FunctionalTest(testing.TestCase):
         # Most useful for functional subclasses.
         model.extra_layer = layers.Dense(5)
 
-    @pytest.mark.requires_trainable_backend
     def test_basic_flow_multi_output(self):
         inputs = Input(shape=(3,), batch_size=2, name="input")
         x = layers.Dense(5)(inputs)
@@ -93,7 +89,6 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(out_val[0].shape, (2, 4))
         self.assertEqual(out_val[1].shape, (2, 5))
 
-    @pytest.mark.requires_trainable_backend
     def test_basic_flow_dict_io(self):
         input_a = Input(shape=(3,), batch_size=2, name="a")
         input_b = Input(shape=(3,), batch_size=2, name="b")
@@ -139,7 +134,6 @@ class FunctionalTest(testing.TestCase):
         y = model(x)
         self.assertEqual(y.shape, (2, 3, 4))
 
-    @pytest.mark.requires_trainable_backend
     def test_named_input_dict_io(self):
         # Single input
         input_a = Input(shape=(3,), batch_size=2, name="a")
@@ -220,7 +214,6 @@ class FunctionalTest(testing.TestCase):
             }
             out_val = model(in_val)
 
-    @pytest.mark.requires_trainable_backend
     def test_input_dict_with_extra_field(self):
         input_a = Input(shape=(3,), batch_size=2, name="a")
         x = input_a * 5
@@ -296,7 +289,6 @@ class FunctionalTest(testing.TestCase):
         self.assertIsInstance(model.input, KerasTensor)
         self.assertEqual(model.input_shape, (None, 1024, 4))
 
-    @pytest.mark.requires_trainable_backend
     def test_layer_getters(self):
         # Test mixing ops and layers
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
@@ -314,11 +306,12 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(model.get_layer(index=3).name, "dense_2")
         self.assertEqual(model.get_layer(name="dense_1").name, "dense_1")
 
-    @pytest.mark.requires_trainable_backend
     def test_training_arg(self):
+        test_obj = self
+
         class Canary(layers.Layer):
             def call(self, x, training=False):
-                assert training
+                test_obj.assertTrue(training)
                 return x
 
             def compute_output_spec(self, x, training=False):
@@ -333,7 +326,6 @@ class FunctionalTest(testing.TestCase):
         # TODO
         pass
 
-    @pytest.mark.requires_trainable_backend
     def test_passing_inputs_by_name(self):
         input_a = Input(shape=(3,), batch_size=2, name="input_a")
         input_b = Input(shape=(3,), batch_size=2, name="input_b")
@@ -357,7 +349,6 @@ class FunctionalTest(testing.TestCase):
         out_val = model(in_val)
         self.assertEqual(out_val.shape, (2, 4))
 
-    @pytest.mark.requires_trainable_backend
     def test_rank_standardization(self):
         # Downranking
         inputs = Input(shape=(3,), batch_size=2)
@@ -373,7 +364,6 @@ class FunctionalTest(testing.TestCase):
         out_val = model(np.random.random((2, 3)))
         self.assertEqual(out_val.shape, (2, 3, 3))
 
-    @pytest.mark.requires_trainable_backend
     def test_rank_standardization_failure(self):
         # Simple input and rank too high
         inputs = Input(shape=(3,), name="foo")
@@ -391,7 +381,6 @@ class FunctionalTest(testing.TestCase):
         ):
             model(np.random.random(()))
 
-    @pytest.mark.requires_trainable_backend
     def test_dtype_standardization(self):
         float_input = Input(shape=(2,), dtype="float16")
         int_input = Input(shape=(2,), dtype="int32")
@@ -403,7 +392,6 @@ class FunctionalTest(testing.TestCase):
         self.assertEqual(backend.standardize_dtype(float_data.dtype), "float16")
         self.assertEqual(backend.standardize_dtype(int_data.dtype), "int32")
 
-    @pytest.mark.requires_trainable_backend
     def test_serialization(self):
         # Test basic model
         inputs = Input(shape=(3,), batch_size=2)
@@ -461,7 +449,6 @@ class FunctionalTest(testing.TestCase):
         model = Functional({"a": input_a, "b": input_b}, output_a)
         self.run_class_serialization_test(model)
 
-    @pytest.mark.requires_trainable_backend
     def test_bad_input_spec(self):
         # Single input
         inputs = Input(shape=(4,))
@@ -471,7 +458,7 @@ class FunctionalTest(testing.TestCase):
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
         ):
             model(np.zeros((2, 3)))
-        with self.assertRaisesRegex(ValueError, "expects 1 input"):
+        with self.assertRaisesRegex(ValueError, r"expects 1 .*input"):
             model([np.zeros((2, 4)), np.zeros((2, 4))])
 
         # List input
@@ -480,7 +467,7 @@ class FunctionalTest(testing.TestCase):
         x = input_a + input_b
         outputs = layers.Dense(2)(x)
         model = Functional([input_a, input_b], outputs)
-        with self.assertRaisesRegex(ValueError, "expects 2 input"):
+        with self.assertRaisesRegex(ValueError, r"expects 2 .*input"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
@@ -489,14 +476,13 @@ class FunctionalTest(testing.TestCase):
 
         # Dict input
         model = Functional({"a": input_a, "b": input_b}, outputs)
-        with self.assertRaisesRegex(ValueError, "expects 2 input"):
+        with self.assertRaisesRegex(ValueError, r"named input\(s\) with keys"):
             model(np.zeros((2, 3)))
         with self.assertRaisesRegex(
             ValueError, r"expected shape=\(None, 4\), found shape=\(2, 3\)"
         ):
             model({"a": np.zeros((2, 3)), "b": np.zeros((2, 4))})
 
-    @pytest.mark.requires_trainable_backend
     def test_manual_input_spec(self):
         inputs = Input(shape=(None, 3))
         outputs = layers.Dense(2)(inputs)
@@ -687,6 +673,62 @@ class FunctionalTest(testing.TestCase):
         ):
             Model(i1, {"output1": o1, "output2": o2})
 
+    def test_required_input_none_raises(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2", optional=False)
+        outputs = OptionalInputLayer()(i1, i2)
+        model = Model({"input1": i1, "input2": i2}, outputs)
+
+        # Passing None for a required input must raise
+        with self.assertRaisesRegex(ValueError, "not optional"):
+            model({"input1": np.ones((2, 2)), "input2": None})
+
+    def test_optional_and_required_mixed_structures(self):
+        class OptionalInputLayer(layers.Layer):
+            def call(self, x, y=None):
+                if y is not None:
+                    return x + y
+                return x
+
+            def compute_output_shape(self, x_shape):
+                return x_shape
+
+        i1 = Input((2,), name="input1")
+        i2 = Input((2,), name="input2", optional=True)
+        outputs = OptionalInputLayer()(i1, i2)
+        model = Model({"input1": i1, "input2": i2}, outputs)
+
+        # List structure
+        out_list = model([np.ones((2, 2)), None])
+        self.assertAllClose(out_list, np.ones((2, 2)))
+
+        # Dict structure
+        out_dict = model({"input1": np.ones((2, 2)), "input2": None})
+        self.assertAllClose(out_dict, np.ones((2, 2)))
+
+    @pytest.mark.requires_trainable_backend
+    def test_required_none_raises_in_fit(self):
+        # Small trainable model where input is required. fit should error
+        x = layers.Input((3,), name="x")
+        y = layers.Dense(1)(x)
+        model = Model(x, y)
+        model.compile(optimizer="sgd", loss="mse")
+
+        y_data = np.ones((4, 1))
+
+        # Passing None for required input should raise during fit
+        with self.assertRaisesRegex(ValueError, "not optional"):
+            model.fit([None], y_data, epochs=1)
+
     def test_warning_for_mismatched_inputs_structure(self):
         def is_input_warning(w):
             return str(w.message).startswith(
@@ -857,3 +899,63 @@ class FunctionalTest(testing.TestCase):
             self.assertIsInstance(model.operations[1], layers.Dense)
         finally:
             dtype_policy.set_dtype_policy(original_dtype_policy)
+
+    def test_invalid_config_deserialization_loop(self):
+        config = {
+            "name": "infinite_loop_model",
+            "layers": [
+                {
+                    "class_name": "InputLayer",
+                    "name": "input_1",
+                    "config": {
+                        "batch_input_shape": [None, 10],
+                        "dtype": "float32",
+                        "name": "input_1",
+                    },
+                    "inbound_nodes": [],
+                },
+                {
+                    "class_name": "Dense",
+                    "name": "node_a",
+                    "config": {"units": 10, "name": "node_a"},
+                    "inbound_nodes": [[["node_b", 0, 0, {}]]],
+                },
+                {
+                    "class_name": "Dense",
+                    "name": "node_b",
+                    "config": {"units": 10, "name": "node_b"},
+                    "inbound_nodes": [[["node_a", 0, 0, {}]]],
+                },
+            ],
+            "input_layers": [["input_1", 0, 0]],
+            "output_layers": [["node_b", 0, 0]],
+        }
+        with self.assertRaisesRegex(ValueError, "loop"):
+            Functional.from_config(config)
+
+    def test_invalid_config_deserialization_missing_node(self):
+        config = {
+            "name": "infinite_loop_model",
+            "layers": [
+                {
+                    "class_name": "InputLayer",
+                    "name": "input_1",
+                    "config": {
+                        "batch_input_shape": [None, 10],
+                        "dtype": "float32",
+                        "name": "input_1",
+                    },
+                    "inbound_nodes": [],
+                },
+                {
+                    "class_name": "Dense",
+                    "name": "node_a",
+                    "config": {"units": 10, "name": "node_a"},
+                    "inbound_nodes": [[["node_b", 0, 0, {}]]],
+                },
+            ],
+            "input_layers": [["input_1", 0, 0]],
+            "output_layers": [["node_a", 0, 0]],
+        }
+        with self.assertRaisesRegex(ValueError, "Missing node: node_b"):
+            Functional.from_config(config)

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tensorflow import data as tf_data
 
 from keras.src import backend
@@ -9,7 +8,6 @@ from keras.src.backend import convert_to_tensor
 
 
 class RandomGaussianBlurTest(testing.TestCase):
-    @pytest.mark.requires_trainable_backend
     def test_layer(self):
         self.run_layer_test(
             layers.RandomGaussianBlur,
@@ -77,8 +75,8 @@ class RandomGaussianBlurTest(testing.TestCase):
         output = layer.transform_images(inputs, transformation)
 
         self.assertAllClose(
-            expected_output,
             output,
+            expected_output,
             atol=1e-4,
             rtol=1e-4,
             tpu_atol=1e-2,

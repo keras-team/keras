@@ -151,8 +151,9 @@ class LayerNormalization(Layer):
         self.autocast = False
 
     def build(self, input_shape):
-        if isinstance(self.axis, list):
-            shape = tuple([input_shape[dim] for dim in self.axis])
+        if isinstance(self.axis, (list, tuple)):
+            self.axis = sorted(self.axis)
+            shape = tuple(input_shape[dim] for dim in self.axis)
         else:
             shape = (input_shape[self.axis],)
             self.axis = [self.axis]

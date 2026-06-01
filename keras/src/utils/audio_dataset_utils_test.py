@@ -134,12 +134,12 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         dataset = audio_dataset_utils.audio_dataset_from_directory(
             directory, batch_size=8, output_sequence_length=30, label_mode="int"
         )
-        test_case = self
+        test_obj = self
 
         @tf.function
         def symbolic_fn(ds):
             for x, _ in ds.take(1):
-                test_case.assertListEqual(x.shape.as_list(), [None, 30, None])
+                test_obj.assertListEqual(x.shape.as_list(), [None, 30, None])
 
         symbolic_fn(dataset)
 

@@ -100,7 +100,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
     _FACTOR_VALIDATION_ERROR = (
         "The `height_factor` and `width_factor` arguments "
         "should be a number (or a list of two numbers) "
-        "in the range [-1.0, 1.0]. "
+        "in the range (-1.0, 1.0]. "
     )
     _SUPPORTED_FILL_MODE = ("reflect", "wrap", "constant", "nearest")
     _SUPPORTED_INTERPOLATION = ("nearest", "bilinear")
@@ -167,17 +167,14 @@ class RandomZoom(BaseImagePreprocessingLayer):
         return lower, upper
 
     def _check_factor_range(self, input_number):
-        if input_number > 1.0 or input_number < -1.0:
+        if input_number > 1.0 or input_number <= -1.0:
             raise ValueError(
                 self._FACTOR_VALIDATION_ERROR
                 + f"Received: input_number={input_number}"
             )
 
-    def transform_images(self, images, transformation, training=True):
-        images = self.backend.cast(images, self.compute_dtype)
-        if training:
-            return self._zoom_inputs(images, transformation)
-        return images
+    def _transform_images(self, images, transformation, interpolation):
+        return self._zoom_inputs(images, transformation, interpolation)
 
     def transform_labels(self, labels, transformation, training=True):
         return labels
@@ -301,13 +298,6 @@ class RandomZoom(BaseImagePreprocessingLayer):
 
         return bounding_boxes
 
-    def transform_segmentation_masks(
-        self, segmentation_masks, transformation, training=True
-    ):
-        return self.transform_images(
-            segmentation_masks, transformation, training=training
-        )
-
     def get_random_transformation(self, data, training=True, seed=None):
         if not training:
             return None
@@ -350,7 +340,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
             "input_shape": images_shape,
         }
 
-    def _zoom_inputs(self, inputs, transformation):
+    def _zoom_inputs(self, inputs, transformation, interpolation):
         if transformation is None:
             return inputs
 
@@ -376,7 +366,7 @@ class RandomZoom(BaseImagePreprocessingLayer):
         outputs = self.backend.image.affine_transform(
             inputs,
             transform=self._get_zoom_matrix(zooms, height, width),
-            interpolation=self.interpolation,
+            interpolation=interpolation,
             fill_mode=self.fill_mode,
             fill_value=self.fill_value,
             data_format=self.data_format,

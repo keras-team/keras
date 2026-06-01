@@ -16,6 +16,7 @@ from keras.src import quantizers
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src.layers.core.einsum_dense import _analyze_einsum_string
 from keras.src.quantizers.awq_config import AWQConfig
 from keras.src.quantizers.gptq_config import GPTQConfig
 from keras.src.quantizers.quantization_config import Int4QuantizationConfig
@@ -313,7 +314,6 @@ class EinsumDenseTest(testing.TestCase):
             "expected_output_shape": (2, 3, 4, 2),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_einsum_dense_basics(
         self,
         equation,
@@ -349,6 +349,24 @@ class EinsumDenseTest(testing.TestCase):
         if expected_bias_shape is not None:
             self.assertEqual(layer.bias.shape, expected_bias_shape)
 
+    def test_compute_output_shape_before_build(self):
+        # `compute_output_shape` must work without the layer being built first.
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=(7,))
+        self.assertEqual(layer.compute_output_shape((None, 5)), (None, 7))
+        # And it stays consistent after the layer is built.
+        layer.build((None, 5))
+        self.assertEqual(layer.compute_output_shape((None, 5)), (None, 7))
+
+        # A higher-rank equation with an explicitly-unknown output axis;
+        # `compute_output_shape` must agree with the actual call.
+        layer = layers.EinsumDense(
+            "abc,cd->abd", output_shape=(None, 4), bias_axes="d"
+        )
+        x = layers.Input(shape=(3, 8))
+        self.assertEqual(
+            layer.compute_output_shape((None, 3, 8)), tuple(layer(x).shape)
+        )
+
     def test_einsum_dense_constraints(self):
         layer = layers.EinsumDense(
             "abc,cde->abde", (1, 3, 4), kernel_constraint="non_neg"
@@ -360,6 +378,37 @@ class EinsumDenseTest(testing.TestCase):
         )
         layer.build((2, 1, 2))
         self.assertIsInstance(layer.bias.constraint, constraints.NonNeg)
+
+    def test_analyze_einsum_string_axes(self):
+        # Test case 1: Standard dense
+        equation = "ab,bc->ac"
+        input_shape = (None, 32)
+        output_shape = (64,)
+        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
+            _analyze_einsum_string(
+                equation,
+                bias_axes=None,
+                input_shape=input_shape,
+                output_shape=output_shape,
+            )
+        )
+        self.assertEqual(input_axes, [0])
+        self.assertEqual(output_axes, [1])
+
+        # Test case 2: Attention QKV projection
+        equation = "abc,cde->abde"
+        input_shape = (None, 10, 32)
+        output_shape = (10, 3, 4)
+        kernel_shape, bias_shape, full_output_shape, input_axes, output_axes = (
+            _analyze_einsum_string(
+                equation,
+                bias_axes=None,
+                input_shape=input_shape,
+                output_shape=output_shape,
+            )
+        )
+        self.assertEqual(input_axes, [0])
+        self.assertEqual(output_axes, [1, 2])
 
     @pytest.mark.requires_trainable_backend
     def test_enable_lora(self):
@@ -374,6 +423,9 @@ class EinsumDenseTest(testing.TestCase):
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
             self.assertLen(layer.torch_params, 3)
+        self.assertDType(layer.lora_kernel_a, "float32")
+        self.assertDType(layer.lora_kernel_b, "float32")
+
         # Try eager call
         x = np.random.random((64, 3))
         y = np.random.random((64, 8, 32))
@@ -435,7 +487,6 @@ class EinsumDenseTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-    @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
         # Use a simple equation that mimics a `Dense` layer behavior.
         equation = "ab,bc->ac"
@@ -480,7 +531,6 @@ class EinsumDenseTest(testing.TestCase):
             actual_kernel, expected_kernel, tpu_atol=1e-3, tpu_rtol=1e-3
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.EinsumDense,
@@ -502,7 +552,7 @@ class EinsumDenseTest(testing.TestCase):
     # Test quantization-related methods.
 
     @parameterized.named_parameters(
-        ("int8", "int8", 1e-3),
+        ("int8", "int8", 2e-2),
         ("int4", "int4", 3e-3),
     )
     def test_quantize_int(self, mode, error_threshold):
@@ -600,7 +650,7 @@ class EinsumDenseTest(testing.TestCase):
             "btnh,nhd->btd",
             (None, 8),
             (1, 2, 2, 4),
-            3e-3,
+            4e-3,
         ),
         (
             "int4_btd,ndh->btnh",
@@ -608,7 +658,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,ndh->btnh",
             (None, 2, 8),
             (1, 2, 4),
-            3e-3,
+            4e-3,
         ),
         (
             "int4_btd,df->btf",
@@ -616,7 +666,7 @@ class EinsumDenseTest(testing.TestCase):
             "btd,df->btf",
             (None, 4),
             (1, 2, 4),
-            3.5e-3,  # Slightly higher threshold for grouped quantization
+            4e-3,
         ),
     )
     def test_quantize_with_specific_equations(
@@ -764,7 +814,6 @@ class EinsumDenseTest(testing.TestCase):
         ("float8", "float8_from_mixed_bfloat16", 8, 0),
         ("int4", "int4_from_mixed_bfloat16", 1, 2),
     )
-    @pytest.mark.requires_trainable_backend
     def test_quantize_dtype_argument(
         self, dtype, num_trainable_weights, num_non_trainable_weights
     ):

@@ -162,3 +162,39 @@ class FunctionTest(testing.TestCase):
             ValueError, "Output .* is not connected to `inputs`"
         ):
             _ = Model(model_1(Input(shape=(6,))), model_2(Input(shape=(3,))))
+
+    def test_function_with_intermediate_tensor_input(self):
+        """Function with intermediate tensor as input should exclude
+        operations that produce those tensors."""
+        x = Input(batch_shape=(), name="x")
+        y = x**2
+        z = y + 1
+        fn = function.Function(y, z)
+
+        # The power operation produces `y` but is outside the graph
+        # boundary. Only the add operation should be included.
+        op_names = [op.name for op in fn.operations]
+        self.assertNotIn("power", op_names)
+        self.assertIn("add", op_names)
+
+        # Verify the function computes correctly (input is y, output is y+1)
+        result = fn(np.array(3.0))
+        self.assertAllClose(result, np.array(4.0))  # 3 + 1 = 4
+
+    def test_function_with_intermediate_tensor_input_chain(self):
+        """Function with intermediate tensor input from a longer chain."""
+        x = Input(batch_shape=(None, 3), name="x")
+        a = x * 2
+        b = a + 1
+        c = b**2
+        fn = function.Function(b, c)
+
+        op_names = [op.name for op in fn.operations]
+        # Only the power op (producing c from b) should be in the graph.
+        # multiply and add that produce a and b are outside.
+        self.assertNotIn("multiply", op_names)
+        self.assertNotIn("add", op_names)
+        self.assertIn("power", op_names)
+
+        result = fn(np.ones((2, 3)) * 3)
+        self.assertAllClose(result, np.ones((2, 3)) * 9)  # 3^2 = 9

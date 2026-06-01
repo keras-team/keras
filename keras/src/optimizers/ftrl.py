@@ -93,7 +93,7 @@ class Ftrl(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="ftrl",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -234,6 +234,7 @@ class Ftrl(optimizer.Optimizer):
         return config
 
 
-Ftrl.__doc__ = Ftrl.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Ftrl.__doc__ is not None:
+    Ftrl.__doc__ = Ftrl.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

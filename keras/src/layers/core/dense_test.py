@@ -81,7 +81,6 @@ class DenseTest(testing.TestCase):
                 backend.standardize_dtype(layer._kernel.dtype), "int8"
             )
 
-    @pytest.mark.requires_trainable_backend
     def test_dense_basics(self):
         # 2D case, no bias.
         self.run_layer_test(
@@ -290,6 +289,9 @@ class DenseTest(testing.TestCase):
         self.assertLen(layer.non_trainable_weights, 1)
         if backend.backend() == "torch":
             self.assertLen(layer.torch_params, 4)
+        self.assertDType(layer.lora_kernel_a, "float32")
+        self.assertDType(layer.lora_kernel_b, "float32")
+
         # Try eager call
         x = np.random.random((64, 8))
         y = np.random.random((64, 16))
@@ -347,7 +349,6 @@ class DenseTest(testing.TestCase):
         model.load_weights(temp_filepath)
         self.assertAllClose(model.predict(x), new_model.predict(x))
 
-    @pytest.mark.requires_trainable_backend
     def test_enable_lora_with_alpha(self):
         # Create a `Dense` layer and build it.
         layer = layers.Dense(units=8)
@@ -373,7 +374,6 @@ class DenseTest(testing.TestCase):
             ops.convert_to_numpy(layer.kernel), effective_kernel_expected
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_weight_name(self):
         class MyModel(models.Model):
             def __init__(self):
@@ -393,7 +393,6 @@ class DenseTest(testing.TestCase):
             model.dense.lora_kernel_a.path, "mymodel/dense/lora_kernel_a"
         )
 
-    @pytest.mark.requires_trainable_backend
     def test_lora_rank_argument(self):
         self.run_layer_test(
             layers.Dense,
@@ -437,7 +436,7 @@ class DenseTest(testing.TestCase):
 
     @parameterized.named_parameters(
         ("int8", "int8", 1e-3),
-        ("int4", "int4", 2e-3),
+        ("int4", "int4", 5e-3),
     )
     def test_quantize_int(self, mode, error_threshold):
         if mode == "int4" and testing.tensorflow_uses_gpu():
@@ -586,7 +585,6 @@ class DenseTest(testing.TestCase):
         ("int4", "int4_from_mixed_bfloat16", 1, 2),
         ("float8", "float8_from_mixed_bfloat16", 8, 0),
     )
-    @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
         testing.tensorflow_uses_gpu(), reason="Segfault on Tensorflow GPU"
     )

@@ -6,9 +6,6 @@ from keras.src import backend
 from keras.src import layers
 from keras.src import testing
 from keras.src.backend.common.backend_utils import (
-    _convert_conv_transpose_padding_args_from_keras_to_torch,
-)
-from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
 from keras.src.backend.common.backend_utils import (
@@ -286,6 +283,7 @@ def np_conv3d_transpose(
     return output
 
 
+@pytest.mark.skipif(testing.jax_uses_tpu(), reason="Crashes with JAX on TPU")
 class ConvTransposeBasicTest(testing.TestCase):
     @parameterized.parameters(
         {
@@ -322,7 +320,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (2, 16, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv1d_transpose_basic(
         self,
         filters,
@@ -400,7 +397,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (1, 224, 224, 2),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv2d_transpose_basic(
         self,
         filters,
@@ -473,7 +469,6 @@ class ConvTransposeBasicTest(testing.TestCase):
             "output_shape": (2, 16, 9, 17, 6),
         },
     )
-    @pytest.mark.requires_trainable_backend
     def test_conv3d_transpose_basic(
         self,
         filters,
@@ -574,6 +569,30 @@ class ConvTransposeBasicTest(testing.TestCase):
         ):
             layers.Conv2DTranspose(
                 filters=2, kernel_size=(2, 2), strides=2, dilation_rate=(2, 1)
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv1DTranspose(
+                filters=2, kernel_size=2, strides=2, output_padding=2
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv2DTranspose(
+                filters=16, kernel_size=3, strides=[1, 1], output_padding=1
+            )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "`output_padding` must be strictly less than `strides`",
+        ):
+            layers.Conv3DTranspose(
+                filters=8, kernel_size=3, strides=1, output_padding=1
             )
 
 
@@ -860,51 +879,9 @@ class ConvTransposeCorrectnessTest(testing.TestCase):
         kc_layer.build(input_shape=input_shape)
         kc_layer.kernel.assign(kernel_weights)
 
-        # Special cases for Torch
-        if backend.backend() == "torch":
-            # Args that cause output_padding >= strides
-            # are clamped with a warning.
-            if (kernel_size, strides, padding, output_padding) in [
-                (2, 1, "same", None),
-                (4, 1, "same", None),
-            ]:
-                clamped_output_padding = strides - 1  # usually 0 when stride=1
-                expected_res = np_conv1d_transpose(
-                    x=input,
-                    kernel_weights=kernel_weights,
-                    bias_weights=np.zeros(shape=(1,)),
-                    strides=strides,
-                    padding=padding,
-                    output_padding=clamped_output_padding,
-                    data_format=backend.config.image_data_format(),
-                    dilation_rate=1,
-                )
-                with pytest.warns(UserWarning):
-                    kc_res = kc_layer(input)
-                self.assertAllClose(expected_res, kc_res, atol=1e-5)
-                return
-
-            # torch_padding > 0 and torch_output_padding > 0 case
-            # Torch output differs from TF.
-            (
-                torch_padding,
-                torch_output_padding,
-            ) = _convert_conv_transpose_padding_args_from_keras_to_torch(
-                kernel_size=kernel_size,
-                stride=strides,
-                dilation_rate=1,
-                padding=padding,
-                output_padding=output_padding,
-            )
-            if torch_padding > 0 and torch_output_padding > 0:
-                with pytest.raises(AssertionError):
-                    kc_res = kc_layer(input)
-                    self.assertAllClose(expected_res, kc_res, atol=1e-5)
-                return
-
         # Compare results
         kc_res = kc_layer(input)
-        self.assertAllClose(expected_res, kc_res, atol=1e-5)
+        self.assertAllClose(kc_res, expected_res, atol=1e-5)
 
     @parameterized.product(
         kernel_size=list(range(1, 5)),

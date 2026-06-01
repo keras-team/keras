@@ -119,7 +119,7 @@ class Progbar:
             else:
                 message += "\n"
 
-            if self.target is not None:
+            if self.target is not None and self.target > 0:
                 numdigits = int(math.log10(self.target)) + 1
                 bar = (f"%{numdigits}d/%d") % (current, self.target)
                 bar = f"\x1b[1m{bar}\x1b[0m "
@@ -138,7 +138,7 @@ class Progbar:
             message += bar
 
             # Add ETA if applicable
-            if self.target is not None and not finalize:
+            if self.target is not None and self.target > 0 and not finalize:
                 eta = time_per_unit * (self.target - current)
                 if eta > 3600:
                     eta_format = "%d:%02d:%02d" % (
@@ -186,7 +186,7 @@ class Progbar:
             message = ""
 
         elif self.verbose == 2:
-            if finalize:
+            if finalize and self.target is not None and self.target > 0:
                 numdigits = int(math.log10(self.target)) + 1
                 count = f"%{numdigits}d/%d" % (current, self.target)
                 info = f"{count} - {now - self._start:.0f}s"

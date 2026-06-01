@@ -935,14 +935,8 @@ def EfficientNetV2(
         num_channels = input_shape[bn_axis - 1]
         if name.split("-")[-1].startswith("b") and num_channels == 3:
             x = layers.Rescaling(scale=1.0 / 255)(x)
-            if backend.image_data_format() == "channels_first":
-                mean = [[[[0.485]], [[0.456]], [[0.406]]]]  # shape [1,3,1,1]
-                variance = [
-                    [[[0.229**2]], [[0.224**2]], [[0.225**2]]]
-                ]  # shape [1,3,1,1]
-            else:
-                mean = [0.485, 0.456, 0.406]
-                variance = [0.229**2, 0.224**2, 0.225**2]
+            mean = [0.485, 0.456, 0.406]
+            variance = [0.229**2, 0.224**2, 0.225**2]
             x = layers.Normalization(
                 mean=mean,
                 variance=variance,
@@ -980,7 +974,11 @@ def EfficientNetV2(
     blocks = float(sum(args["num_repeat"] for args in blocks_args))
 
     for i, args in enumerate(blocks_args):
-        assert args["num_repeat"] > 0
+        if args["num_repeat"] <= 0:
+            raise ValueError(
+                f"The number of repeats in `EfficientNetV2` must be > 0. "
+                f"Received: num_repeat={args['num_repeat']}"
+            )
 
         # Update block input and output filters based on depth multiplier.
         args["input_filters"] = round_filters(

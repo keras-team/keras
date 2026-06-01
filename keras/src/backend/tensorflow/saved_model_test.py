@@ -254,7 +254,7 @@ class SavedModelTest(testing.TestCase):
         tf.saved_model.save(model, path)
         restored_model = tf.saved_model.load(path)
         output = restored_model.call(*inp)
-        self.assertAllClose(expected, output, rtol=1e-4, atol=1e-4)
+        self.assertAllClose(output, expected, rtol=1e-4, atol=1e-4)
 
     def test_list_trackable_children_tracking(self):
         @object_registration.register_keras_serializable(package="my_package")
@@ -282,10 +282,10 @@ class SavedModelTest(testing.TestCase):
         tf.saved_model.save(model, path)
         restored_model = tf.saved_model.load(path)
         self.assertAllClose(
-            expected,
             restored_model.signatures["serving_default"](
                 tf.convert_to_tensor(inp, dtype=tf.float32)
             )["output_0"],
+            expected,
             rtol=1e-4,
             atol=1e-4,
         )
@@ -316,10 +316,10 @@ class SavedModelTest(testing.TestCase):
         tf.saved_model.save(model, path)
         restored_model = tf.saved_model.load(path)
         self.assertAllClose(
-            expected,
             restored_model.signatures["serving_default"](
                 tf.convert_to_tensor(inp, dtype=tf.float32)
             )["output_0"],
+            expected,
             rtol=1e-4,
             atol=1e-4,
         )

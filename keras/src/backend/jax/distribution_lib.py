@@ -40,26 +40,6 @@ def get_device_count(device_type=None):
     return jax.device_count(device_type)
 
 
-def distribute_variable(value, layout):
-    """Create a distributed variable for JAX.
-
-    Since JAX doesn't have a variable class, this will just return a `jax.Array`
-    with the corresponding layout/sharding specified.
-
-    Note that this function should be used in eager context, not in jitted
-    function.
-
-    Args:
-        value: the initial value of the variable.
-        layout: `TensorLayout` for the created variable, or a
-            JAX-supported layout instance (e.g. `jax.sharding.Sharding`).
-
-    Returns:
-        jax.Array which is the distributed variable.
-    """
-    return distribute_tensor(value, layout)
-
-
 def distribute_tensor(tensor, layout):
     """Distribute the tensor based on the layout.
 
@@ -80,9 +60,7 @@ def distribute_tensor(tensor, layout):
     if isinstance(layout, TensorLayout):
         layout = layout.backend_layout
 
-    # TODO(scottzhu): This might not be a cheap check, we should consider
-    # have some proper JAX API for doing this check.
-    if jax_utils.is_in_jax_tracing_scope():
+    if jax_utils.is_in_jax_tracing_scope(tensor):
         return jax.lax.with_sharding_constraint(tensor, layout)
 
     # Skip relayout if unnecessary.

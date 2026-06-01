@@ -12,6 +12,7 @@ from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from keras.src.utils.python_utils import pythonify_logs
 
 
 class OpenVINOTrainer(base_trainer.Trainer):
@@ -29,21 +30,54 @@ class OpenVINOTrainer(base_trainer.Trainer):
             return x[0]
         return x
 
-    def test_step(self, data):
-        raise NotImplementedError(
-            "`test_step` is not supported with openvino backend"
+    def _unpack_inference_outputs(self, all_outputs):
+        """Split raw inference outputs into main outputs and apply masks."""
+        main_outputs = all_outputs[: self._n_main_outputs]
+        y_pred = self._unpack_singleton(
+            tree.pack_sequence_as(self.struct_outputs, main_outputs)
         )
+        if self._output_mask_indices:
+            flat_y_pred = tree.flatten(y_pred)
+            for out_idx, mask_idx in self._output_mask_indices.items():
+                backend.set_keras_mask(
+                    flat_y_pred[out_idx], all_outputs[mask_idx]
+                )
+        return y_pred
+
+    def test_step(self, data):
+        x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if not base_trainer.model_supports_jit(self):
+            if self._call_has_training_arg:
+                y_pred = self(x, training=False)
+            else:
+                y_pred = self(x)
+            y_pred = tree.map_structure(backend.convert_to_numpy, y_pred)
+        else:
+            ov_compiled_model = self._get_compiled_model(x)
+            flatten_x = tree.flatten(x)
+            ov_result = ov_compiled_model(flatten_x)
+            y_pred = self._unpack_inference_outputs(ov_result.to_tuple())
+        loss = self._compute_loss(
+            x=x, y=y, y_pred=y_pred, sample_weight=sample_weight, training=False
+        )
+        loss = backend.convert_to_numpy(loss)
+        self._loss_tracker.update_state(
+            loss, sample_weight=tree.flatten(x)[0].shape[0]
+        )
+        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
+        if not base_trainer.model_supports_jit(self):
+            if self._call_has_training_arg:
+                y_pred = self(x, training=False)
+            else:
+                y_pred = self(x)
+            return tree.map_structure(backend.convert_to_numpy, y_pred)
         ov_compiled_model = self._get_compiled_model(x)
         flatten_x = tree.flatten(x)
-        y_pred = ov_compiled_model(flatten_x)
-        # recover structure of the model output
-        y_pred = self._unpack_singleton(
-            tree.pack_sequence_as(self.struct_outputs, y_pred.to_tuple())
-        )
-        return y_pred
+        ov_result = ov_compiled_model(flatten_x)
+        return self._unpack_inference_outputs(ov_result.to_tuple())
 
     def make_test_function(self, force=False):
         if self.test_function is not None and not force:
@@ -76,9 +110,13 @@ class OpenVINOTrainer(base_trainer.Trainer):
             for elem_name, elem in data.items():
                 param_elem = self._parameterize_data(elem)
                 parametrize_data[elem_name] = param_elem
+        elif isinstance(data, OpenVINOKerasTensor):
+            parametrize_data = data
         elif isinstance(data, np.ndarray) or np.isscalar(data):
             ov_type = OPENVINO_DTYPES[str(data.dtype)]
             ov_shape = list(data.shape)
+            if len(ov_shape) > 0:
+                ov_shape[0] = -1
             param = ov_opset.parameter(shape=ov_shape, dtype=ov_type)
             parametrize_data = OpenVINOKerasTensor(param.output(0))
         elif isinstance(data, int):
@@ -88,13 +126,25 @@ class OpenVINOTrainer(base_trainer.Trainer):
             param = ov_opset.parameter(shape=[], dtype=ov.Type.f32)
             parametrize_data = OpenVINOKerasTensor(param.output(0))
         else:
-            raise "Unknown type of input data {}".format(type(data))
+            raise ValueError(f"Unknown type of input data {type(data)}")
         return parametrize_data
 
+    def _get_data_shapes(self, data):
+        shapes = []
+        for x in tree.flatten(data):
+            if isinstance(x, np.ndarray):
+                shape = (-1,) + x.shape[1:] if x.ndim > 0 else x.shape
+                shapes.append(shape)
+            else:
+                shapes.append(None)
+        return shapes
+
     def _get_compiled_model(self, data):
+        current_shapes = self._get_data_shapes(data)
         if (
             self.ov_compiled_model is not None
             and get_device() == self.ov_device
+            and getattr(self, "ov_input_shapes", None) == current_shapes
         ):
             return self.ov_compiled_model
 
@@ -104,19 +154,35 @@ class OpenVINOTrainer(base_trainer.Trainer):
         # prepare parameterized input
         self.struct_params = self._parameterize_data(data)
         # construct OpenVINO graph during calling Keras Model
-        self.struct_outputs = self(self.struct_params)
+        if self._call_has_training_arg:
+            self.struct_outputs = self(self.struct_params, training=False)
+        else:
+            self.struct_outputs = self(self.struct_params)
 
         parameters = []
         for p in tree.flatten(self.struct_params):
             parameters.append(p.output.get_node())
         results = []
-        for r in tree.flatten(self.struct_outputs):
+        flat_struct_outputs = tree.flatten(self.struct_outputs)
+        for r in flat_struct_outputs:
             results.append(ov_opset.result(r.output))
+
+        self._n_main_outputs = len(results)
+
+        # Include mask tensors as extra outputs so they are evaluated
+        # during inference and can be propagated to y_pred.
+        self._output_mask_indices = {}
+        for i, out in enumerate(flat_struct_outputs):
+            mask = backend.get_keras_mask(out)
+            if mask is not None and isinstance(mask, OpenVINOKerasTensor):
+                self._output_mask_indices[i] = len(results)
+                results.append(ov_opset.result(mask.output))
 
         # prepare compiled model from scratch
         ov_model = ov.Model(results=results, parameters=parameters)
         self.ov_compiled_model = ov.compile_model(ov_model, get_device())
         self.ov_device = get_device()
+        self.ov_input_shapes = current_shapes
         return self.ov_compiled_model
 
     def make_predict_function(self, force=False):
@@ -236,9 +302,50 @@ class OpenVINOTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
-        raise NotImplementedError(
-            "`evaluate` is not supported with openvino backend"
-        )
+        use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
+        if kwargs:
+            raise ValueError(f"Arguments not recognized: {kwargs}")
+
+        if use_cached_eval_dataset:
+            epoch_iterator = self._eval_epoch_iterator
+        else:
+            epoch_iterator = EpochIterator(
+                x=x,
+                y=y,
+                sample_weight=sample_weight,
+                batch_size=batch_size,
+                steps_per_epoch=steps,
+                shuffle=False,
+                steps_per_execution=self.steps_per_execution,
+            )
+
+        if not isinstance(callbacks, callbacks_module.CallbackList):
+            callbacks = callbacks_module.CallbackList(
+                callbacks,
+                add_progbar=verbose != 0,
+                verbose=verbose,
+                epochs=1,
+                steps=epoch_iterator.num_batches,
+                model=self,
+            )
+
+        self.make_test_function()
+        self.stop_evaluating = False
+        callbacks.on_test_begin()
+        logs = {}
+        self.reset_metrics()
+        for begin_step, end_step, data in epoch_iterator:
+            callbacks.on_test_batch_begin(begin_step)
+            logs = self.test_function(data)
+            callbacks.on_test_batch_end(end_step, logs)
+            if self.stop_evaluating:
+                break
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
+        callbacks.on_test_end(logs)
+
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
 
     def train_on_batch(
         self,
@@ -259,9 +366,14 @@ class OpenVINOTrainer(base_trainer.Trainer):
         sample_weight=None,
         return_dict=False,
     ):
-        raise NotImplementedError(
-            "`test_on_batch` is not supported with openvino backend"
-        )
+        self._assert_compile_called("test_on_batch")
+        self.make_test_function()
+        self.reset_metrics()
+        logs = self.test_function([(x, y, sample_weight)])
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
+        if return_dict:
+            return logs
+        return self._flatten_metrics_in_order(logs)
 
     def predict_on_batch(self, x):
         self.make_predict_function()

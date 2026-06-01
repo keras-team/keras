@@ -124,7 +124,7 @@ class NonNeg(Constraint):
 
     def __call__(self, w):
         w = backend.convert_to_tensor(w)
-        return ops.multiply(w, ops.greater_equal(w, 0.0))
+        return ops.maximum(w, 0)
 
 
 @keras_export(["keras.constraints.UnitNorm", "keras.constraints.unit_norm"])

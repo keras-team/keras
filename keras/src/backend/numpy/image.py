@@ -53,6 +53,13 @@ def rgb_to_grayscale(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
+    if images.shape[channels_axis] not in (1, 3):
+        raise ValueError(
+            "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+            f"Received input with shape: images.shape={images.shape}"
+        )
+    if images.shape[channels_axis] == 1:
+        return images.copy()
     # Convert to floats
     original_dtype = images.dtype
     compute_dtype = backend.result_type(images.dtype, float)
@@ -1203,3 +1210,27 @@ def scale_and_translate(
         kernel,
         antialias,
     )
+
+
+def sobel_edges(images, data_format=None):
+    from scipy import ndimage
+
+    images = convert_to_tensor(images)
+    if data_format == "channels_first":
+        images = np.transpose(images, (0, 2, 3, 1))
+
+    batch, height, width, channels = images.shape
+
+    # Output shape: (batch, height, width, channels, 2)
+    edges = np.zeros((batch, height, width, channels, 2), dtype=images.dtype)
+
+    for b in range(batch):
+        for c in range(channels):
+            # axis=0 is vertical (y), axis=1 is horizontal (x)
+            edges[b, :, :, c, 0] = ndimage.sobel(images[b, :, :, c], axis=0)
+            edges[b, :, :, c, 1] = ndimage.sobel(images[b, :, :, c], axis=1)
+
+    if data_format == "channels_first":
+        edges = np.transpose(edges, (0, 3, 1, 2, 4))
+
+    return edges

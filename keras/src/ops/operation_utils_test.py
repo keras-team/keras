@@ -90,6 +90,17 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, (1, 4, 4, 3))
 
+    def test_compute_pooling_output_shape_rejects_zero_output(self):
+        # pool_size > input spatial dim produces a zero-size output that the
+        # downstream model cannot use. The Conv equivalent was fixed in #22418;
+        # the pooling case should behave the same way.
+        with self.assertRaisesRegex(
+            ValueError, "Computed output size would be zero or negative"
+        ):
+            operation_utils.compute_pooling_output_shape(
+                (1, 5, 5, 3), pool_size=(20, 20), strides=(20, 20)
+            )
+
     def test_compute_conv_output_shape(self):
         input_shape = (1, 4, 4, 1)
         filters = 1
@@ -152,6 +163,36 @@ class OperationUtilsTest(testing.TestCase):
         )
         self.assertEqual(output_shape, (1, 4, 4, 3))
 
+    def test_validate_reshape_shape_rejects_invalid(self):
+        with self.assertRaisesRegex(ValueError, "non-negative integer"):
+            operation_utils.validate_reshape_shape((-2, 5))
+        with self.assertRaisesRegex(
+            ValueError, "at most one unknown dimension"
+        ):
+            operation_utils.validate_reshape_shape((-1, -1, 5))
+
+    def test_validate_reshape_shape_accepts_dynamic_dims(self):
+        # Non-int dimensions (e.g. backend tensor scalars such as
+        # ``torch.SymInt`` produced by ``ops.shape(x)`` under
+        # ``torch.compile``) must pass through without raising, even when
+        # mixed with a single ``-1`` sentinel. This is the path
+        # ``GroupNormalization._reshape_into_groups`` exercises and that
+        # previously crashed dynamo tracing (see fix for #22868).
+        class DynamicDim:
+            """Stand-in for a non-int dynamic shape value."""
+
+        d = DynamicDim()
+        # Mixed int / -1 / dynamic — must not raise.
+        operation_utils.validate_reshape_shape((-1, 32, d, d))
+        operation_utils.validate_reshape_shape((d, d, d))
+        operation_utils.validate_reshape_shape((d, -1, d, 8))
+        # A second ``-1`` sentinel mixed with dynamic dims is still
+        # rejected — dynamic dims do not absorb the ``-1`` count.
+        with self.assertRaisesRegex(
+            ValueError, "at most one unknown dimension"
+        ):
+            operation_utils.validate_reshape_shape((d, -1, d, -1, 4))
+
     def test_compute_reshape_output_shape(self):
         input_shape = (1, 4, 4, 1)
         target_shape = (16, 1)
@@ -159,6 +200,22 @@ class OperationUtilsTest(testing.TestCase):
             input_shape, newshape=target_shape, newshape_arg_name="New shape"
         )
         self.assertEqual(output_shape, target_shape)
+
+    def test_compute_reshape_output_shape_symbolic_tensors(self):
+        # Entire newshape is a KerasTensor
+        input_shape = (2, 10)
+        shape_tensor = backend.KerasTensor((2,), dtype="int32")
+        output_shape = operation_utils.compute_reshape_output_shape(
+            input_shape, newshape=shape_tensor, newshape_arg_name="newshape"
+        )
+        self.assertEqual(output_shape, (None, None))
+
+        # Tuple containing a KerasTensor and -1
+        dim_tensor = backend.KerasTensor((), dtype="int32")
+        output_shape2 = operation_utils.compute_reshape_output_shape(
+            input_shape, newshape=(-1, dim_tensor), newshape_arg_name="newshape"
+        )
+        self.assertEqual(output_shape2, (None, None))
 
     def test_reduce_shape_no_axes_no_keepdims(self):
         input_shape = (1, 4, 4, 1)

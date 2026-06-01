@@ -23,6 +23,7 @@ from keras.src.backend.torch import nn
 from keras.src.backend.torch import numpy
 from keras.src.backend.torch import random
 from keras.src.backend.torch.core import IS_THREAD_SAFE
+from keras.src.backend.torch.core import SUPPORTS_COMPLEX_DTYPES
 from keras.src.backend.torch.core import SUPPORTS_RAGGED_TENSORS
 from keras.src.backend.torch.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.torch.core import Variable
@@ -39,6 +40,8 @@ from keras.src.backend.torch.core import shape
 from keras.src.backend.torch.core import stop_gradient
 from keras.src.backend.torch.core import to_torch_dtype
 from keras.src.backend.torch.core import vectorized_map
+from keras.src.backend.torch.rnn import bidirectional_gru
+from keras.src.backend.torch.rnn import bidirectional_lstm
 from keras.src.backend.torch.rnn import cudnn_ok
 from keras.src.backend.torch.rnn import gru
 from keras.src.backend.torch.rnn import lstm

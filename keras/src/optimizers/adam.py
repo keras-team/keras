@@ -56,7 +56,7 @@ class Adam(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="adam",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -149,6 +149,7 @@ class Adam(optimizer.Optimizer):
         return config
 
 
-Adam.__doc__ = Adam.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adam.__doc__ is not None:
+    Adam.__doc__ = Adam.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

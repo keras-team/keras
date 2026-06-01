@@ -202,10 +202,6 @@ class GrainDatasetAdapter(DataAdapter):
         )
 
     @property
-    def builtin_prefetch(self):
-        return True
-
-    @property
     def num_batches(self):
         return None
 

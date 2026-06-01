@@ -118,7 +118,8 @@ class BoundingBox:
             )
 
         ops = self.backend
-        boxes, labels = bounding_boxes["boxes"], bounding_boxes["labels"]
+        boxes = bounding_boxes["boxes"]
+        labels = bounding_boxes.get("labels", None)
         if width is not None:
             width = ops.cast(width, boxes.dtype)
         if height is not None:
@@ -132,9 +133,10 @@ class BoundingBox:
             y2 = ops.numpy.clip(y2, 0, height)
             boxes = ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
-            areas = self._compute_area(boxes)
-            areas = ops.numpy.squeeze(areas, axis=-1)
-            labels = ops.numpy.where(areas > 0, labels, -1)
+            if labels is not None:
+                areas = self._compute_area(boxes)
+                areas = ops.numpy.squeeze(areas, axis=-1)
+                labels = ops.numpy.where(areas > 0, labels, -1)
         elif bounding_box_format == "rel_xyxy":
             x1, y1, x2, y2 = ops.numpy.split(boxes, 4, axis=-1)
             x1 = ops.numpy.clip(x1, 0.0, 1.0)
@@ -143,13 +145,15 @@ class BoundingBox:
             y2 = ops.numpy.clip(y2, 0.0, 1.0)
             boxes = ops.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
-            areas = self._compute_area(boxes)
-            areas = ops.numpy.squeeze(areas, axis=-1)
-            labels = ops.numpy.where(areas > 0, labels, -1)
+            if labels is not None:
+                areas = self._compute_area(boxes)
+                areas = ops.numpy.squeeze(areas, axis=-1)
+                labels = ops.numpy.where(areas > 0, labels, -1)
 
         result = bounding_boxes.copy()
         result["boxes"] = boxes
-        result["labels"] = labels
+        if labels is not None:
+            result["labels"] = labels
         return result
 
     def affine(
@@ -314,10 +318,10 @@ class BoundingBox:
         rel_cx, rel_cy, rel_w, rel_h = ops.numpy.split(boxes, 4, axis=-1)
         half_rel_w = rel_w / 2.0
         half_rel_h = rel_h / 2.0
-        x1 = (rel_cx - half_rel_w) * height
-        y1 = (rel_cy - half_rel_h) * width
-        x2 = (rel_cx + half_rel_w) * height
-        y2 = (rel_cy + half_rel_h) * width
+        x1 = (rel_cx - half_rel_w) * width
+        y1 = (rel_cy - half_rel_h) * height
+        x2 = (rel_cx + half_rel_w) * width
+        y2 = (rel_cy + half_rel_h) * height
         return self.backend.numpy.concatenate([x1, y1, x2, y2], axis=-1)
 
     def _xyxy_to_yxyx(self, boxes, height=None, width=None):

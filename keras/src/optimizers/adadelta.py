@@ -51,7 +51,7 @@ class Adadelta(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="adadelta",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -130,6 +130,7 @@ class Adadelta(optimizer.Optimizer):
         return config
 
 
-Adadelta.__doc__ = Adadelta.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if Adadelta.__doc__ is not None:
+    Adadelta.__doc__ = Adadelta.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

@@ -69,7 +69,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="schedule_free_adamw",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -193,6 +193,7 @@ class ScheduleFreeAdamW(optimizer.Optimizer):
         return config
 
 
-ScheduleFreeAdamW.__doc__ = ScheduleFreeAdamW.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if ScheduleFreeAdamW.__doc__ is not None:
+    ScheduleFreeAdamW.__doc__ = ScheduleFreeAdamW.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

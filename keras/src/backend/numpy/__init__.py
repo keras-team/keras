@@ -7,6 +7,7 @@ from keras.src.backend.numpy import nn
 from keras.src.backend.numpy import numpy
 from keras.src.backend.numpy import random
 from keras.src.backend.numpy.core import IS_THREAD_SAFE
+from keras.src.backend.numpy.core import SUPPORTS_COMPLEX_DTYPES
 from keras.src.backend.numpy.core import SUPPORTS_RAGGED_TENSORS
 from keras.src.backend.numpy.core import SUPPORTS_SPARSE_TENSORS
 from keras.src.backend.numpy.core import Variable
@@ -20,6 +21,8 @@ from keras.src.backend.numpy.core import is_tensor
 from keras.src.backend.numpy.core import random_seed_dtype
 from keras.src.backend.numpy.core import shape
 from keras.src.backend.numpy.core import vectorized_map
+from keras.src.backend.numpy.rnn import bidirectional_gru
+from keras.src.backend.numpy.rnn import bidirectional_lstm
 from keras.src.backend.numpy.rnn import cudnn_ok
 from keras.src.backend.numpy.rnn import gru
 from keras.src.backend.numpy.rnn import lstm

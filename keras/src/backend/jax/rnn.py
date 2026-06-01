@@ -211,15 +211,333 @@ def rnn(
     return last_output, outputs, new_states
 
 
-def cudnn_ok(*args, **kwargs):
-    return False
+def _is_gpu_available():
+    import jax
+
+    return jax.default_backend() == "gpu"
 
 
-def lstm(*args, **kwargs):
-    raise NotImplementedError
+def cudnn_ok(
+    activation,
+    recurrent_activation,
+    unroll,
+    use_bias=True,
+):
+    from keras.src import activations
+    from keras.src import ops
+
+    return (
+        activation in (activations.tanh, jnp.tanh, ops.tanh)
+        and recurrent_activation in (activations.sigmoid, ops.sigmoid)
+        and not unroll
+        and use_bias
+        and _is_gpu_available()
+    )
 
 
-def gru(*args, **kwargs):
+def lstm(
+    inputs,
+    initial_state_h,
+    initial_state_c,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+):
+    # Masking is not supported by the cuDNN path; fall back to the
+    # generic RNN loop which handles masking correctly.
+    if mask is not None:
+        raise NotImplementedError
+
+    if not cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=bias is not None,
+    ):
+        raise NotImplementedError
+
+    try:
+        from jax.experimental.rnn import lstm as jax_lstm
+    except ImportError as e:
+        raise NotImplementedError(
+            f"jax.experimental.rnn unavailable: {e}"
+        ) from e
+
+    input_size = kernel.shape[0]
+    hidden_size = recurrent_kernel.shape[0]
+    batch_size = inputs.shape[0]
+
+    # Transpose Keras kernels to cuDNN layout and flatten.
+    # Gate order [i, f, c, o] matches cuDNN [i, f, g, o].
+    W_ih = jnp.asarray(kernel).T
+    W_hh = jnp.asarray(recurrent_kernel).T
+
+    if bias is not None:
+        b_ih = jnp.asarray(bias)
+    else:
+        b_ih = jnp.zeros(4 * hidden_size)
+    b_hh = jnp.zeros_like(b_ih)
+
+    # cuDNN flat weight order: [W_ih, W_hh, b_ih, b_hh]
+    weights = jnp.concatenate(
+        [W_ih.ravel(), W_hh.ravel(), b_ih.ravel(), b_hh.ravel()]
+    )
+
+    # cuDNN expects (num_layers * num_directions, batch, hidden)
+    h_0 = jnp.asarray(initial_state_h)
+    c_0 = jnp.asarray(initial_state_c)
+    if h_0.ndim == 2:
+        h_0 = h_0[jnp.newaxis]
+        c_0 = c_0[jnp.newaxis]
+
+    if go_backwards:
+        inputs = jnp.flip(inputs, axis=1)
+
+    seq_lengths = jnp.full((batch_size,), inputs.shape[1], dtype=jnp.int32)
+
+    try:
+        y, h_n, c_n = jax_lstm(
+            inputs,
+            h_0,
+            c_0,
+            weights,
+            seq_lengths,
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=1,
+            dropout=0.0,
+            bidirectional=False,
+        )
+    except (RuntimeError, TypeError, ValueError) as e:
+        raise NotImplementedError(f"cuDNN LSTM failed: {e}") from e
+
+    # y: (batch, seq_len, hidden), h_n/c_n: (1, batch, hidden)
+    h_n = h_n.squeeze(0)
+    c_n = c_n.squeeze(0)
+    last_output = y[:, -1]
+
+    if not return_sequences:
+        outputs = last_output[:, jnp.newaxis, :]
+    else:
+        outputs = y
+
+    if go_backwards and return_sequences:
+        outputs = jnp.flip(outputs, axis=1)
+
+    return last_output, outputs, [h_n, c_n]
+
+
+def bidirectional_lstm(
+    inputs,
+    fwd_initial_state_h,
+    fwd_initial_state_c,
+    bwd_initial_state_h,
+    bwd_initial_state_c,
+    mask,
+    fwd_kernel,
+    fwd_recurrent_kernel,
+    fwd_bias,
+    bwd_kernel,
+    bwd_recurrent_kernel,
+    bwd_bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    unroll=False,
+):
+    """Fused bidirectional cuDNN LSTM.
+
+    Runs forward and backward LSTM passes in a single
+    `jax.experimental.rnn.lstm(..., bidirectional=True)` call instead of
+    invoking the unidirectional cuDNN path twice. Returns outputs in
+    original time order for both directions, ready for the caller's
+    `merge_mode` to consume directly.
+    """
+    if mask is not None:
+        raise NotImplementedError
+    if not cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=fwd_bias is not None and bwd_bias is not None,
+    ):
+        raise NotImplementedError
+
+    try:
+        from jax.experimental.rnn import lstm as jax_lstm
+    except ImportError as e:
+        raise NotImplementedError(
+            f"jax.experimental.rnn unavailable: {e}"
+        ) from e
+
+    input_size = fwd_kernel.shape[0]
+    hidden_size = fwd_recurrent_kernel.shape[0]
+    batch_size = inputs.shape[0]
+
+    def _pack_matrices(kernel, recurrent_kernel):
+        # Transpose Keras kernels to cuDNN layout and flatten.
+        # Gate order [i, f, c, o] matches cuDNN [i, f, g, o].
+        W_ih = jnp.asarray(kernel).T
+        W_hh = jnp.asarray(recurrent_kernel).T
+        return jnp.concatenate([W_ih.ravel(), W_hh.ravel()])
+
+    def _pack_biases(bias):
+        if bias is not None:
+            b_ih = jnp.asarray(bias)
+        else:
+            b_ih = jnp.zeros(4 * hidden_size)
+        b_hh = jnp.zeros_like(b_ih)
+        return jnp.concatenate([b_ih.ravel(), b_hh.ravel()])
+
+    # `jax.experimental.rnn` lays the bidirectional flat blob out as all
+    # matrices first across both pseudo-layers, then all biases. See
+    # `_get_params_shapes_in_lstm` in jax/experimental/rnn.py.
+    weights = jnp.concatenate(
+        [
+            _pack_matrices(fwd_kernel, fwd_recurrent_kernel),
+            _pack_matrices(bwd_kernel, bwd_recurrent_kernel),
+            _pack_biases(fwd_bias),
+            _pack_biases(bwd_bias),
+        ]
+    )
+
+    # cuDNN expects (num_layers * num_directions, batch, hidden).
+    h_0 = jnp.stack(
+        [jnp.asarray(fwd_initial_state_h), jnp.asarray(bwd_initial_state_h)],
+        axis=0,
+    )
+    c_0 = jnp.stack(
+        [jnp.asarray(fwd_initial_state_c), jnp.asarray(bwd_initial_state_c)],
+        axis=0,
+    )
+
+    seq_lengths = jnp.full((batch_size,), inputs.shape[1], dtype=jnp.int32)
+
+    try:
+        y, h_n, c_n = jax_lstm(
+            inputs,
+            h_0,
+            c_0,
+            weights,
+            seq_lengths,
+            input_size=input_size,
+            hidden_size=hidden_size,
+            num_layers=1,
+            dropout=0.0,
+            bidirectional=True,
+        )
+    except (RuntimeError, TypeError, ValueError) as e:
+        raise NotImplementedError(
+            f"cuDNN bidirectional LSTM failed: {e}"
+        ) from e
+
+    # cuDNN returns y of shape (batch, seq_len, num_directions * hidden).
+    # The forward half is in original time order (h after seeing
+    # inputs[..., :t]). The backward half is also in original time order
+    # (h after seeing inputs[..., t:] in reverse), so no flip is needed.
+    y_fwd = y[..., :hidden_size]
+    y_bwd = y[..., hidden_size:]
+
+    # Final states: index 0 is forward, index 1 is backward.
+    fwd_h_n, bwd_h_n = h_n[0], h_n[1]
+    fwd_c_n, bwd_c_n = c_n[0], c_n[1]
+
+    # Forward "last" output is the last timestep of the forward sweep;
+    # backward "last" output is the first timestep in original order
+    # (i.e. the result after the full reverse sweep).
+    fwd_last = y_fwd[:, -1]
+    bwd_last = y_bwd[:, 0]
+
+    if return_sequences:
+        fwd_outputs = y_fwd
+        bwd_outputs = y_bwd
+    else:
+        fwd_outputs = fwd_last[:, jnp.newaxis, :]
+        bwd_outputs = bwd_last[:, jnp.newaxis, :]
+
+    return (
+        (fwd_last, fwd_outputs, [fwd_h_n, fwd_c_n]),
+        (bwd_last, bwd_outputs, [bwd_h_n, bwd_c_n]),
+    )
+
+
+def gru(
+    inputs,
+    initial_state,
+    mask,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    go_backwards=False,
+    unroll=False,
+    reset_after=True,
+):
+    if not reset_after or unroll or mask is not None:
+        raise NotImplementedError
+
+    hidden_size = recurrent_kernel.shape[0]
+
+    kernel = jnp.asarray(kernel)
+    recurrent_kernel = jnp.asarray(recurrent_kernel)
+
+    if bias is not None:
+        bias = jnp.asarray(bias)
+        input_bias = bias[0]
+        recurrent_bias = bias[1]
+    else:
+        input_bias = jnp.zeros(3 * hidden_size)
+        recurrent_bias = jnp.zeros(3 * hidden_size)
+
+    inputs = jnp.asarray(inputs)
+    h_0 = jnp.asarray(initial_state)
+
+    if go_backwards:
+        inputs = jnp.flip(inputs, axis=1)
+
+    # Precompute input projections for all timesteps at once.
+    # One (batch, seq_len, input_size) @ (input_size, 3*hidden) matmul
+    # instead of T separate per-step matmuls.
+    x_all = jnp.matmul(inputs, kernel) + input_bias
+    x_all = jnp.swapaxes(x_all, 0, 1)
+
+    def step(h, x_t):
+        h_all = jnp.matmul(h, recurrent_kernel) + recurrent_bias
+
+        x_z, x_r, x_h = jnp.split(x_t, 3, axis=-1)
+        h_z, h_r, h_h = jnp.split(h_all, 3, axis=-1)
+
+        z = recurrent_activation(x_z + h_z)
+        r = recurrent_activation(x_r + h_r)
+        hh = activation(x_h + r * h_h)
+
+        h_new = z * h + (1 - z) * hh
+        return h_new, h_new
+
+    h_last, outputs = lax.scan(step, h_0, x_all)
+
+    outputs = jnp.swapaxes(outputs, 0, 1)
+    last_output = h_last
+
+    if not return_sequences:
+        outputs = last_output[:, jnp.newaxis, :]
+
+    return last_output, outputs, [h_last]
+
+
+def bidirectional_gru(*args, **kwargs):
+    # `jax.experimental.rnn` exposes a cuDNN `lstm` but no `gru`. There is
+    # no fused bidirectional GRU primitive on JAX, so we fall through to
+    # the layer-level two-pass path. That path is already JIT compiled and
+    # is the best we can do here.
     raise NotImplementedError
 
 

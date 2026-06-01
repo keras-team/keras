@@ -125,6 +125,13 @@ class StringLookup(IndexLookup):
             instead of a dense `Tensor`. Defaults to `False`.
         encoding: Optional. The text encoding to use to interpret the input
             strings. Defaults to `"utf-8"`.
+        salt: Only valid when `num_oov_indices > 1`. If passed, the hash
+            function used for OOV bucket assignment will be SipHash64,
+            with these values used as an additional input (known as a
+            "salt" in cryptography).
+            Can be a tuple or list of 2 integers, or a single integer
+            (which is used for both key components). If `None` (default),
+            FarmHash64 is used. Defaults to `None`.
 
     Examples:
 
@@ -306,6 +313,7 @@ class StringLookup(IndexLookup):
         sparse=False,
         encoding="utf-8",
         name=None,
+        salt=None,
         **kwargs,
     ):
         if not tf.available:
@@ -330,6 +338,7 @@ class StringLookup(IndexLookup):
             pad_to_max_tokens=pad_to_max_tokens,
             sparse=sparse,
             name=name,
+            salt=salt,
             vocabulary_dtype="string",
             **kwargs,
         )

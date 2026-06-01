@@ -66,7 +66,7 @@ class RMSprop(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="rmsprop",
+        name=None,
         **kwargs,
     ):
         super().__init__(
@@ -167,6 +167,7 @@ class RMSprop(optimizer.Optimizer):
         return config
 
 
-RMSprop.__doc__ = RMSprop.__doc__.replace(
-    "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
-)
+if RMSprop.__doc__ is not None:
+    RMSprop.__doc__ = RMSprop.__doc__.replace(
+        "{{base_optimizer_keyword_args}}", optimizer.base_optimizer_keyword_args
+    )

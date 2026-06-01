@@ -2,8 +2,12 @@ import torch
 import torch.nn.functional as tnn
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_padding_args_for_torch,
+    check_conv_transpose_input_channels,
+)
+from keras.src.backend.common.backend_utils import (
+    compute_conv_transpose_output_crops_for_torch,
 )
 from keras.src.backend.torch.core import cast
 from keras.src.backend.torch.core import convert_to_tensor
@@ -283,13 +287,17 @@ def _transpose_spatial_inputs(inputs):
     """Transpose inputs from channels_last to channels_first format."""
     # Torch pooling does not support `channels_last` format, so
     # we need to transpose to `channels_first` format.
+    # After permute, the tensor may be non-contiguous which causes
+    # failures in view-based ops (e.g., conv2d, torch.export) that
+    # require contiguous memory. Adding .contiguous() ensures
+    # compatible memory layout.
     ndim = inputs.ndim - 2
     if ndim == 1:  # 1D case
-        return torch.permute(inputs, (0, 2, 1))
+        return torch.permute(inputs, (0, 2, 1)).contiguous()
     elif ndim == 2:  # 2D case
-        return torch.permute(inputs, (0, 3, 1, 2))
+        return torch.permute(inputs, (0, 3, 1, 2)).contiguous()
     elif ndim == 3:  # 3D case
-        return torch.permute(inputs, (0, 4, 1, 2, 3))
+        return torch.permute(inputs, (0, 4, 1, 2, 3)).contiguous()
     raise ValueError(
         "Inputs must have ndim=3, 4 or 5, "
         "corresponding to 1D, 2D and 3D inputs. "
@@ -320,6 +328,21 @@ def _transpose_conv_kernel(kernel):
     elif num_spatial_dims == 3:
         kernel = torch.permute(kernel, (4, 3, 0, 1, 2))
     return kernel
+
+
+def _get_channels_last_memory_format(ndim):
+    if ndim == 4:
+        return torch.channels_last
+    elif ndim == 5:
+        return torch.channels_last_3d
+    return None
+
+
+def _maybe_convert_to_channels_last(tensor):
+    mem_fmt = _get_channels_last_memory_format(tensor.ndim)
+    if mem_fmt is not None and not tensor.is_contiguous(memory_format=mem_fmt):
+        return tensor.contiguous(memory_format=mem_fmt)
+    return tensor
 
 
 def max_pool(
@@ -566,6 +589,10 @@ def conv(
 
     kernel = _transpose_conv_kernel(kernel)
 
+    if data_format == "channels_last":
+        inputs = _maybe_convert_to_channels_last(inputs)
+        kernel = _maybe_convert_to_channels_last(kernel)
+
     # calc. groups snippet
     in_channels = inputs.shape[1]
     kernel_in_channels = kernel.shape[1]
@@ -637,7 +664,10 @@ def depthwise_conv(
     data_format=None,
     dilation_rate=1,
 ):
+    data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
+    check_conv_input_channels(inputs, kernel, data_format)
     kernel = torch.reshape(
         kernel, kernel.shape[:-2] + (1, kernel.shape[-2] * kernel.shape[-1])
     )
@@ -653,6 +683,11 @@ def separable_conv(
     data_format=None,
     dilation_rate=1,
 ):
+    data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    depthwise_kernel = convert_to_tensor(depthwise_kernel)
+    pointwise_kernel = convert_to_tensor(pointwise_kernel)
+    check_conv_input_channels(inputs, depthwise_kernel, data_format)
     depthwise_conv_output = depthwise_conv(
         inputs,
         depthwise_kernel,
@@ -686,10 +721,16 @@ def conv_transpose(
     strides = standardize_tuple(strides, num_spatial_dims, "strides")
 
     data_format = backend.standardize_data_format(data_format)
-    (
-        torch_padding,
-        torch_output_padding,
-    ) = compute_conv_transpose_padding_args_for_torch(
+    check_conv_transpose_input_channels(inputs, kernel, data_format)
+
+    # Torch's `conv_transpose*d` only takes a symmetric `padding` plus a
+    # right-side `output_padding`, which cannot reproduce the asymmetric
+    # padding Keras's "same" mode requires when stride > 1 with an odd
+    # kernel. We call torch with `padding=0, output_padding=0` (giving the
+    # largest "natural" output) and asymmetrically slice the spatial dims to
+    # the same window JAX would compute. Negative crops mean we extend with
+    # zero-padding to match JAX's left/right pad semantics.
+    crops = compute_conv_transpose_output_crops_for_torch(
         input_shape=inputs.shape,
         kernel_shape=kernel.shape,
         strides=strides,
@@ -697,21 +738,22 @@ def conv_transpose(
         output_padding=output_padding,
         dilation_rate=dilation_rate,
     )
+
     if data_format == "channels_last":
         inputs = _transpose_spatial_inputs(inputs)
     # Transpose kernel from keras format to torch format.
     kernel = _transpose_conv_kernel(kernel)
-    kernel_spatial_shape = kernel.shape[2:]
+
     if isinstance(dilation_rate, int):
-        dilation_rate = [dilation_rate] * len(kernel_spatial_shape)
+        dilation_rate = [dilation_rate] * num_spatial_dims
 
     if num_spatial_dims == 1:
         outputs = tnn.conv_transpose1d(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=0,
+            output_padding=0,
             dilation=dilation_rate,
         )
     elif num_spatial_dims == 2:
@@ -719,8 +761,8 @@ def conv_transpose(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=0,
+            output_padding=0,
             dilation=dilation_rate,
         )
     elif num_spatial_dims == 3:
@@ -728,8 +770,8 @@ def conv_transpose(
             inputs,
             kernel,
             stride=strides,
-            padding=torch_padding,
-            output_padding=torch_output_padding,
+            padding=0,
+            output_padding=0,
             dilation=dilation_rate,
         )
     else:
@@ -738,6 +780,29 @@ def conv_transpose(
             "corresponding to 1D, 2D and 3D inputs. Received input "
             f"shape: {inputs.shape}."
         )
+
+    # Apply asymmetric crop (or zero-pad if a crop amount is negative) to
+    # each spatial dim. `outputs` is NCHW-style here; spatial dims start at
+    # axis 2.
+    slices = [slice(None), slice(None)]
+    needs_zero_pad = any(cl < 0 or cr < 0 for cl, cr in crops)
+    for crop_left, crop_right in crops:
+        start = max(0, crop_left)
+        end = -crop_right if crop_right > 0 else None
+        slices.append(slice(start, end))
+    outputs = outputs[tuple(slices)]
+    if needs_zero_pad:
+        # torch's F.pad takes pads in REVERSE spatial order: last dim first.
+        pads = []
+        for crop_left, crop_right in reversed(crops):
+            pads.extend(
+                [
+                    -crop_left if crop_left < 0 else 0,
+                    -crop_right if crop_right < 0 else 0,
+                ]
+            )
+        outputs = tnn.pad(outputs, pads)
+
     if data_format == "channels_last":
         outputs = _transpose_spatial_outputs(outputs)
     return outputs
@@ -811,8 +876,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
 
-    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
-        target = torch.squeeze(target, dim=-1)
+    if len(target.shape) == len(output.shape) and target.shape[axis] == 1:
+        target = torch.squeeze(target, dim=axis)
 
     if len(output.shape) < 1:
         raise ValueError(
@@ -1035,6 +1100,231 @@ def _ctc_greedy_decode(
     return indices, scores
 
 
+# Knuth's multiplicative hash constant. Used as the polynomial base in
+# `_unique_padded`; int64 overflow during exponentiation is intentional
+# since we only need a deterministic path -> hash mapping.
+_KNUTH_HASH_CONSTANT = 2654435769
+
+
+def _unique_padded(paths, size, pad):
+    """Hash-based row-dedup, padded to a fixed leading size with `pad` rows.
+
+    Mirrors `jax.numpy.unique(..., size=size, fill_value=pad, axis=0,
+    return_inverse=True)` in observable behavior: the unique rows come
+    first, followed by `(size - n_unique)` rows filled with `pad`, and
+    `inverse` maps each input row to its index in the unique output.
+
+    Internally avoids `torch.unique(dim=0)` (which sorts the full row
+    tensor every call and dominates beam-search runtime) by hashing each
+    path to int64 and deduplicating along that 1D axis. Collisions are
+    detected by an explicit row-equality check on adjacent same-hash
+    entries, so correctness does not rely on a collision-free hash.
+    """
+    n, t = paths.shape
+    device = paths.device
+
+    # Polynomial hash. Shift values to non-negative so all-`pad` rows
+    # don't collapse to zero. Adjacent same-hash rows are verified for
+    # equality below, so collisions stay correct.
+    p = paths.to(torch.int64) + 1
+    powers = _KNUTH_HASH_CONSTANT ** torch.arange(
+        t, dtype=torch.int64, device=device
+    )
+    hashes = (p * powers).sum(dim=1)
+
+    order = torch.argsort(hashes, stable=True)
+    sorted_paths = paths[order]
+    sorted_hashes = hashes[order]
+
+    adj_hash_eq = sorted_hashes[1:] == sorted_hashes[:-1]
+    adj_row_eq = (sorted_paths[1:] == sorted_paths[:-1]).all(dim=1)
+    is_dup = adj_hash_eq & adj_row_eq
+    is_first = torch.cat(
+        [torch.ones(1, dtype=torch.bool, device=device), ~is_dup]
+    )
+
+    cum_first = torch.cumsum(is_first.to(torch.int64), dim=0) - 1
+    inverse = torch.empty(n, dtype=torch.int64, device=device)
+    inverse[order] = cum_first
+
+    unique = sorted_paths[is_first]
+    n_unique = unique.shape[0]
+    if n_unique < size:
+        pad_rows = torch.full(
+            (size - n_unique, t),
+            pad,
+            dtype=unique.dtype,
+            device=device,
+        )
+        unique = torch.cat([unique, pad_rows], dim=0)
+    return unique, inverse
+
+
+def _merge_scores(inverse, scores, num_uniques):
+    """Log-space scatter-add of `scores` into `num_uniques` buckets."""
+    scores_max = scores.max()
+    scores_exp = torch.exp(scores - scores_max)
+    out = torch.zeros(num_uniques, dtype=scores.dtype, device=scores.device)
+    out.scatter_add_(0, inverse, scores_exp)
+    return torch.log(out) + scores_max
+
+
+def _ctc_beam_search_decode(
+    inputs,
+    sequence_lengths,
+    beam_width=100,
+    top_paths=1,
+    mask_index=None,
+):
+    """Beam search CTC decoding for the torch backend.
+
+    Direct port of `keras/src/backend/jax/nn.py::_ctc_beam_search_decode`.
+    The semantics (tie-breaking, log-space score merging, blank/emit
+    score tracks) match the JAX reference implementation; correctness is
+    prioritized over throughput, so the batch dimension is iterated in
+    Python rather than vmapped.
+    """
+    inputs = convert_to_tensor(inputs)
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
+
+    batch_size, max_seq_len, num_classes = inputs.shape
+    inputs = tnn.log_softmax(inputs, dim=-1)
+
+    if mask_index is None:
+        mask_index = num_classes - 1
+
+    # Tie-breaking: jnp.argsort doesn't accept an `order` parameter, so
+    # the JAX impl flips classes so the desired ordering falls out of the
+    # default ascending argsort. We mirror that here for parity.
+    inputs = torch.flip(inputs, dims=[2])
+    mask_index = num_classes - mask_index - 1
+
+    _pad = -1
+    device = inputs.device
+
+    # Precompute per-batch seqlen masks on CPU so the inner loop avoids
+    # a GPU->CPU sync on every timestep.
+    seqlen_cpu = sequence_lengths.detach().cpu().tolist()
+    num_init_paths = min(num_classes, beam_width)
+
+    paths_per_batch = []
+    scores_per_batch = []
+    for b in range(batch_size):
+        x = inputs[b]
+        seq_len_b = int(seqlen_cpu[b])
+
+        init_paths = torch.full(
+            (2 * beam_width, max_seq_len),
+            _pad,
+            dtype=torch.int32,
+            device=device,
+        )
+
+        max_classes = torch.argsort(x[0], stable=True)[-num_init_paths:]
+        init_classes = torch.where(
+            max_classes == mask_index, _pad, max_classes.to(torch.int32)
+        )
+        init_paths[:num_init_paths, 0] = init_classes
+
+        init_scores = torch.full(
+            (2 * beam_width,),
+            float("-inf"),
+            dtype=inputs.dtype,
+            device=device,
+        )
+        init_scores[:num_init_paths] = x[0, max_classes]
+
+        paths = init_paths
+        scores = init_scores
+        masked = paths[:, 0] == _pad
+
+        # Only iterate timesteps within this sequence's length.
+        for t in range(1, seq_len_b):
+            paths, scores, masked = _ctc_beam_extend(
+                paths, scores, masked, x[t], num_classes, mask_index, _pad
+            )
+            paths, scores, masked = _ctc_beam_prune(
+                paths, scores, masked, num_classes, beam_width, _pad
+            )
+
+        # Final dedup + top_paths selection.
+        paths_unique, inverse = _unique_padded(
+            paths, size=2 * num_classes * beam_width, pad=_pad
+        )
+        scores = _merge_scores(inverse, scores, paths_unique.shape[0])
+
+        top_indices = torch.argsort(scores, stable=True)[-top_paths:].flip(0)
+        paths_per_batch.append(paths_unique[top_indices])
+        scores_per_batch.append(scores[top_indices])
+
+    paths = torch.stack(paths_per_batch, dim=0)
+    scores = torch.stack(scores_per_batch, dim=0)
+
+    # Convert classes back from the flipped representation.
+    paths = torch.where(paths == _pad, _pad, num_classes - paths - 1)
+    paths = paths.permute(1, 0, 2)
+    return paths, scores
+
+
+def _ctc_beam_extend(paths, scores, masked, x, num_classes, mask_index, _pad):
+    """Extend each beam with every possible class for a single timestep."""
+    paths = paths.repeat_interleave(num_classes, dim=0)
+    scores = scores.repeat_interleave(num_classes)
+    masked = masked.repeat_interleave(num_classes)
+
+    is_pad = paths == _pad
+    path_tail_index = is_pad.to(torch.int32).argmax(dim=1)
+    arange = torch.arange(paths.shape[0], device=paths.device)
+    path_tails = paths[arange, path_tail_index - 1]
+    path_tails = torch.where(path_tail_index == 0, _pad, path_tails)
+
+    classes = torch.arange(num_classes, device=paths.device, dtype=paths.dtype)
+    classes = classes.clone()
+    classes[mask_index] = _pad
+    classes = classes.repeat(paths.shape[0] // num_classes)
+
+    prev_masked = masked
+    masked = classes == _pad
+
+    masked_repeat = (~prev_masked) & (path_tails == classes)
+    classes = torch.where(masked_repeat, _pad, classes)
+    paths[arange, path_tail_index] = classes
+
+    scores = scores + x.repeat(paths.shape[0] // num_classes)
+    return paths, scores, masked
+
+
+def _ctc_beam_prune(paths, scores, masked, num_classes, beam_width, _pad):
+    """Dedup + score-merge + keep top `beam_width` (emit, blank) tracks."""
+    paths_unique, inverse = _unique_padded(
+        paths, size=2 * num_classes * beam_width, pad=_pad
+    )
+
+    emit_scores = torch.where(masked, float("-inf"), scores)
+    mask_scores = torch.where(masked, scores, float("-inf"))
+
+    n_uniques = paths_unique.shape[0]
+    emit_scores = _merge_scores(inverse, emit_scores, n_uniques)
+    mask_scores = _merge_scores(inverse, mask_scores, n_uniques)
+
+    total_scores = torch.logaddexp(emit_scores, mask_scores)
+    top_indices = torch.argsort(total_scores, stable=True)[-beam_width:]
+
+    paths_top = paths_unique[top_indices]
+    emit_scores_top = emit_scores[top_indices]
+    mask_scores_top = mask_scores[top_indices]
+
+    paths = paths_top.repeat(2, 1)
+    scores = torch.cat([emit_scores_top, mask_scores_top])
+    masked_out = torch.cat(
+        [
+            torch.zeros(beam_width, dtype=torch.bool, device=paths.device),
+            torch.ones(beam_width, dtype=torch.bool, device=paths.device),
+        ]
+    )
+    return paths, scores, masked_out
+
+
 def ctc_decode(
     inputs,
     sequence_lengths,
@@ -1056,9 +1346,12 @@ def ctc_decode(
             mask_index=mask_index,
         )
     elif strategy == "beam_search":
-        raise NotImplementedError(
-            "Torch backend doesn't yet support the beam search strategy for CTC"
-            "decoding."
+        return _ctc_beam_search_decode(
+            inputs,
+            sequence_lengths,
+            beam_width=beam_width,
+            top_paths=top_paths,
+            mask_index=mask_index,
         )
     else:
         raise ValueError(
@@ -1232,6 +1525,31 @@ def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     """
     return tnn.unfold(
         input,
+        kernel_size=kernel_size,
+        dilation=dilation,
+        padding=padding,
+        stride=stride,
+    )
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    """Native PyTorch implementation of Fold.
+    Combine an array of sliding local blocks into a large tensor (col2im).
+
+    Args:
+        x: 3-D tensor, shape (N, C*kH*kW, L)  **required**.
+        output_size: int or (oH, oW)
+        kernel_size: int or (kH, kW)
+        dilation: int or (dH, dW), default 1
+        padding: int or (pH, pW), default 0
+        stride: int or (sH, sW), default 1
+
+    Returns:
+        4-D tensor, shape (N, C, oH, oW)
+    """
+    return tnn.fold(
+        x,
+        output_size=output_size,
         kernel_size=kernel_size,
         dilation=dilation,
         padding=padding,
