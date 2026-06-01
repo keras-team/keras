@@ -142,3 +142,65 @@ NNOpsDtypeTest::test_ctc_loss_bfloat16
 NNOpsDtypeTest::test_ctc_loss_float16
 NNOpsDtypeTest::test_ctc_loss_float32
 NNOpsCorrectnessTest::test_ctc_loss
+VariableOpsDTypeTest::test_add_('complex64', none)
+VariableOpsDTypeTest::test_add_('float32', 'complex64')
+VariableOpsDTypeTest::test_matmul_('complex64', none)
+VariableOpsDTypeTest::test_matmul_('float32', 'complex64')
+VariableOpsDTypeTest::test_matmul_('int32', 'complex64')
+VariableOpsDTypeTest::test_mul_('complex64', none)
+VariableOpsDTypeTest::test_mul_('float32', 'complex64')
+VariableOpsDTypeTest::test_mul_('int32', 'complex64')
+VariableOpsDTypeTest::test_pow_('complex64', none)
+VariableOpsDTypeTest::test_pow_('float32', 'complex64')
+VariableOpsDTypeTest::test_pow_('int32', 'complex64')
+VariableOpsDTypeTest::test_sub_('complex64', none)
+VariableOpsDTypeTest::test_sub_('float32', 'complex64')
+VariableOpsDTypeTest::test_sub_('int32', 'complex64')
+VariablePropertiesTest::test_standardize_dtype_float8_e4m3fn
+VariablePropertiesTest::test_standardize_dtype_float8_e5m2
+VariablePropertiesTest::test_standardize_dtype_uint16
+VariablePropertiesTest::test_standardize_dtype_uint32
+VariablePropertiesTest::test_standardize_dtype_uint64
+ExtractSequencesOpTest::test_extract_sequences_call
+MathDtypeTest::test_erf_bfloat16
+MathDtypeTest::test_erfc_bfloat16
+MathOpsCorrectnessTest::test_erfinv_operation_basic
+MathOpsCorrectnessTest::test_erfinv_operation_dtype
+MathOpsCorrectnessTest::test_erfinv_operation_edge_cases
+MathOpsCorrectnessTest::test_extract_sequences
+MathOpsCorrectnessTest::test_istft0
+MathOpsCorrectnessTest::test_istft1
+MathOpsCorrectnessTest::test_istft2
+MathOpsCorrectnessTest::test_istft3
+MathOpsCorrectnessTest::test_istft4
+MathOpsCorrectnessTest::test_istft5
+MathOpsCorrectnessTest::test_istft6
+MathOpsCorrectnessTest::test_segment_reduce_explicit_num_segments0
+MathOpsCorrectnessTest::test_stft0
+MathOpsCorrectnessTest::test_stft1
+MathOpsCorrectnessTest::test_stft2
+MathOpsCorrectnessTest::test_stft3
+MathOpsCorrectnessTest::test_stft4
+MathOpsCorrectnessTest::test_stft5
+MathOpsCorrectnessTest::test_stft6
+PrecisionAtRecallTest::test_unweighted_all_correct
+PrecisionAtRecallTest::test_unweighted_class_id
+PrecisionAtRecallTest::test_unweighted_high_recall
+PrecisionAtRecallTest::test_unweighted_low_recall
+PrecisionAtRecallTest::test_weighted0
+PrecisionAtRecallTest::test_weighted1
+PrecisionAtRecallTest::test_weighted2
+RecallAtPrecisionTest::test_unweighted_all_correct
+SensitivityAtSpecificityTest::test_handles_sas_metrics
+SensitivityAtSpecificityTest::test_unweighted_all_correct
+SensitivityAtSpecificityTest::test_unweighted_class_id
+SensitivityAtSpecificityTest::test_weighted0
+SensitivityAtSpecificityTest::test_weighted1
+SensitivityAtSpecificityTest::test_weighted2
+SpecificityAtSensitivityTest::test_unweighted_all_correct
+SpecificityAtSensitivityTest::test_unweighted_class_id
+SpecificityAtSensitivityTest::test_unweighted_high_sensitivity
+SpecificityAtSensitivityTest::test_unweighted_low_sensitivity
+SpecificityAtSensitivityTest::test_weighted0
+SpecificityAtSensitivityTest::test_weighted1
+SpecificityAtSensitivityTest::test_weighted2
