@@ -96,9 +96,28 @@ def qr(x, mode="reduced"):
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
-    raise NotImplementedError(
-        "`extract_sequences` is not supported with paddle backend"
+    x = convert_to_tensor(x)
+    *batch_shape, signal_length = x.shape
+    need_squeeze = False
+    if not batch_shape:
+        x = x.unsqueeze(0)
+        need_squeeze = True
+    elif len(batch_shape) > 1:
+        any_dynamic = any(not isinstance(d, int) for d in batch_shape)
+        flat = -1 if any_dynamic else math.prod(batch_shape)
+        x = x.reshape([flat, signal_length])
+    # frame returns [batch, frame_length, num_frames]
+    x = paddle.signal.frame(
+        x, frame_length=sequence_length, hop_length=sequence_stride
     )
+    # transpose to [batch, num_frames, frame_length]
+    x = paddle.transpose(x, [0, 2, 1])
+    num_frames = x.shape[1]
+    if need_squeeze:
+        x = x.squeeze(0)
+    elif len(batch_shape) > 1:
+        x = x.reshape([*batch_shape, num_frames, sequence_length])
+    return x
 
 
 def _overlap_sequences(x, sequence_stride):
@@ -195,6 +214,22 @@ def irfft(x, fft_length=None):
     )
 
 
+def _get_window(name, length, dtype):
+    """Generate window tensor (paddle doesn't have get_window)."""
+    import numpy as np
+
+    if name == "hann":
+        w = 0.5 * (1 - np.cos(2 * np.pi * np.arange(length) / length))
+    elif name == "hamming":
+        w = 0.54 - 0.46 * np.cos(2 * np.pi * np.arange(length) / length)
+    else:
+        raise ValueError(
+            "If a string is passed to `window`, it must be one of "
+            f'`"hann"`, `"hamming"`. Received: window={name}'
+        )
+    return paddle.to_tensor(w, dtype=dtype)
+
+
 def stft(
     x, sequence_length, sequence_stride, fft_length, window="hann", center=True
 ):
@@ -213,19 +248,7 @@ def stft(
 
     if window is not None:
         if isinstance(window, str):
-            if window == "hann":
-                win = paddle.signal.get_window(
-                    "hann", sequence_length, dtype=x.dtype
-                )
-            elif window == "hamming":
-                win = paddle.signal.get_window(
-                    "hamming", sequence_length, dtype=x.dtype
-                )
-            else:
-                raise ValueError(
-                    "If a string is passed to `window`, it must be one of "
-                    f'`"hann"`, `"hamming"`. Received: window={window}'
-                )
+            win = _get_window(window, sequence_length, x.dtype)
         else:
             win = convert_to_tensor(window, dtype=x.dtype)
         if len(win.shape) != 1 or win.shape[-1] != sequence_length:
@@ -251,7 +274,6 @@ def stft(
         win_length=sequence_length,
         window=win,
         center=center,
-        return_complex=True,
     )
     if need_unpack:
         fft_unique_bins, num_sequences = x.shape[-2:]
@@ -275,19 +297,7 @@ def istft(
     win = None
     if window is not None:
         if isinstance(window, str):
-            if window == "hann":
-                win = paddle.signal.get_window(
-                    "hann", sequence_length, dtype=dtype
-                )
-            elif window == "hamming":
-                win = paddle.signal.get_window(
-                    "hamming", sequence_length, dtype=dtype
-                )
-            else:
-                raise ValueError(
-                    "If a string is passed to `window`, it must be one of "
-                    f'`"hann"`, `"hamming"`. Received: window={window}'
-                )
+            win = _get_window(window, sequence_length, dtype)
         else:
             win = convert_to_tensor(window, dtype=dtype)
         if len(win.shape) != 1 or win.shape[-1] != sequence_length:
@@ -297,6 +307,11 @@ def istft(
             )
 
     if sequence_length == fft_length and center is True and win is not None:
+        # Ensure 3D input: (batch, num_sequences, fft_unique_bins)
+        squeeze_batch = False
+        if complex_input.ndim == 2:
+            complex_input = complex_input.unsqueeze(0)
+            squeeze_batch = True
         need_unpack = False
         *batch_shape, num_sequences, fft_unique_bins = complex_input.shape
         if len(complex_input.shape) > 3:
@@ -317,11 +332,12 @@ def istft(
             window=win,
             center=center,
             length=length,
-            return_complex=False,
         )
         if need_unpack:
             samples = x.shape[-1]
             x = paddle.reshape(x, (*batch_shape, samples))
+        if squeeze_batch:
+            x = x.squeeze(0)
         return x
 
     # Custom implementation with irfft and _overlap_sequences

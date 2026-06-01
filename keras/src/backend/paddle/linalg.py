@@ -94,3 +94,15 @@ def lstsq(a, b, rcond=None):
     b = convert_to_tensor(b)
     result = paddle.linalg.lstsq(a, b, rcond=rcond)
     return result[0]
+
+
+def jvp(fun, primals, tangents, has_aux=False):
+    eps = 1e-5
+    if has_aux:
+        out_pos, aux = fun(*[p + eps * t for p, t in zip(primals, tangents)])
+        out_neg, _ = fun(*[p - eps * t for p, t in zip(primals, tangents)])
+        jvp_out = (out_pos - out_neg) / (2 * eps)
+        return jvp_out, aux
+    out_pos = fun(*[p + eps * t for p, t in zip(primals, tangents)])
+    out_neg = fun(*[p - eps * t for p, t in zip(primals, tangents)])
+    return (out_pos - out_neg) / (2 * eps)
