@@ -785,6 +785,7 @@ def binary_crossentropy(target, output, from_logits=False):
     output = convert_to_tensor(output)
     if from_logits:
         output = F.sigmoid(output)
+    output = paddle.clip(output, min=1e-7, max=1 - 1e-7)
     return F.binary_cross_entropy(output, target)
 
 

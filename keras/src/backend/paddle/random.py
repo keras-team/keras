@@ -36,13 +36,26 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
-    raise NotImplementedError(
-        "`categorical` is not supported with paddle backend"
+    logits = convert_to_tensor(logits)
+    if seed is not None:
+        seed_val = draw_seed(seed)
+        if isinstance(seed_val, paddle.Tensor):
+            seed_val = int(convert_to_numpy(seed_val).flat[0])
+        paddle.seed(seed_val)
+    probs = paddle.nn.functional.softmax(logits, axis=-1)
+    return paddle.multinomial(probs, num_samples=num_samples).cast(
+        to_paddle_dtype(dtype)
     )
 
 
 def randint(shape, minval, maxval, dtype="int32", seed=None):
-    raise NotImplementedError("`randint` is not supported with paddle backend")
+    if seed is not None:
+        seed_val = draw_seed(seed)
+        if isinstance(seed_val, paddle.Tensor):
+            seed_val = int(convert_to_numpy(seed_val).flat[0])
+        paddle.seed(seed_val)
+    paddle_dtype = to_paddle_dtype(dtype)
+    return paddle.randint(minval, maxval, shape=shape, dtype=paddle_dtype)
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -53,9 +66,11 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
         if isinstance(seed_val, paddle.Tensor):
             seed_val = int(convert_to_numpy(seed_val).flat[0])
         paddle.seed(seed_val)
-    return paddle.truncated_normal(shape=shape, mean=mean, std=stddev).cast(
-        paddle_dtype
-    )
+    from scipy.stats import truncnorm
+
+    a, b = -2.0, 2.0
+    values = truncnorm.rvs(a, b, loc=mean, scale=stddev, size=shape)
+    return paddle.to_tensor(values, dtype=paddle_dtype)
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
