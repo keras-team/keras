@@ -89,15 +89,22 @@ class IsLinkInDirTest(test_case.TestCase):
             {
                 "testcase_name": "hardlink_in",
                 "is_symlink": False,
-                "name": None,
+                "name": "file.txt",
                 "linkname": "file.txt",
                 "expected": True,
             },
             {
-                "testcase_name": "hardlink_out",
+                "testcase_name": "hardlink_target_out",
                 "is_symlink": False,
-                "name": None,
+                "name": "file.txt",
                 "linkname": "../file.txt",
+                "expected": False,
+            },
+            {
+                "testcase_name": "hardlink_name_out",
+                "is_symlink": False,
+                "name": "../file.txt",
+                "linkname": "file.txt",
                 "expected": False,
             },
             {
