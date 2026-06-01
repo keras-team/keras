@@ -391,7 +391,17 @@ def erfc(x):
 
 def erfinv(x):
     x = convert_to_tensor(x)
-    return paddle.erfinv(x)
+    result = paddle.erfinv(x)
+    # paddle returns ±inf for |x|>=1, JAX returns nan for |x|>1, ±inf for ±1
+    gt_mask = x > 1.0
+    lt_mask = x < -1.0
+    result = paddle.where(
+        gt_mask, paddle.full_like(result, float("nan")), result
+    )
+    result = paddle.where(
+        lt_mask, paddle.full_like(result, float("nan")), result
+    )
+    return result
 
 
 def logdet(x):
