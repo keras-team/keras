@@ -1642,6 +1642,79 @@ class SavingH5IOStoreTest(testing.TestCase):
         store.close()
 
 
+class SafeZipReadTest(testing.TestCase):
+    def _zip_with_member(self, name, data, compression=zipfile.ZIP_DEFLATED):
+        path = os.path.join(self.get_temp_dir(), "a.zip")
+        with zipfile.ZipFile(path, "w", compression=compression) as zf:
+            zf.writestr(name, data)
+        return path
+
+    def test_rejects_decompression_bomb(self):
+        # Highly compressible member: large declared size, ~nothing on disk.
+        path = self._zip_with_member("config.json", b"A" * 100_000)
+        with (
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64),
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_MAX_EXPANSION", 10),
+        ):
+            with zipfile.ZipFile(path, "r") as zf:
+                with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                    saving_lib._safe_zip_read(zf, "config.json")
+
+    def test_allows_incompressible_member(self):
+        # Stored (uncompressed) member: declared size == stored size.
+        data = os.urandom(100_000)
+        path = self._zip_with_member("w", data, compression=zipfile.ZIP_STORED)
+        with mock.patch.object(saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64):
+            with zipfile.ZipFile(path, "r") as zf:
+                self.assertEqual(saving_lib._safe_zip_read(zf, "w"), data)
+
+    def test_load_model_rejects_bomb_config(self):
+        # End-to-end: a tiny `.keras` whose config.json decompresses huge is
+        # rejected before the read allocates, with safe_mode=True.
+        path = os.path.join(self.get_temp_dir(), "bomb.keras")
+        payload = b'{"x":"' + b" " * 200_000 + b'"}'
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("metadata.json", b'{"keras_version":"3"}')
+            zf.writestr("config.json", payload)
+        self.assertLess(os.path.getsize(path), 1 << 16)  # tiny file on disk
+        with (
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64),
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_MAX_EXPANSION", 10),
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib.load_model(path)
+
+    def test_load_model_rejects_bomb_weights(self):
+        # A bomb `model.weights.h5` member must be rejected up front, before the
+        # in-memory / extract-to-disk / on-the-fly read paths (and not swallowed
+        # by the on-the-fly fallback's bare `except`).
+        import keras
+
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        good = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(good)
+        with zipfile.ZipFile(good) as zf:
+            cfg = zf.read("config.json")
+            meta = zf.read("metadata.json")
+
+        evil = os.path.join(self.get_temp_dir(), "evil.keras")
+        with zipfile.ZipFile(
+            evil, "w"
+        ) as zf:  # config/metadata stored (ratio 1)
+            zf.writestr("metadata.json", meta)
+            zf.writestr("config.json", cfg)
+            info = zipfile.ZipInfo("model.weights.h5")
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(info, b"\x00" * 200_000)  # deflated bomb member
+
+        with (
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64),
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_MAX_EXPANSION", 10),
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib.load_model(evil)
+
+
 class SafeGetH5DatasetTest(testing.TestCase):
     def _shape_bomb_file(self):
         """An HDF5 file with a dataset declaring ~8 PiB but storing ~nothing."""
