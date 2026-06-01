@@ -10,3 +10,135 @@ NumpyDtypeTest::test_trace_uint8
 NumpyDtypeTest::test_prod_uint8
 NumpyDtypeTest::test_nansum_uint8
 NumpyDtypeTest::test_nanprod_uint8
+# Paddle cross does not support broadcasting
+NumpyTwoInputOpsCorrectnessTest::test_cross
+# Paddle isclose requires same-dimension inputs
+NumpyTwoInputOpsCorrectnessTest::test_isclose
+# Paddle linspace IndexError with 0D tensor axis
+NumpyTwoInputOpsCorrectnessTest::test_linspace
+# Paddle does not support tuple/list axis for max/min/amin/amax
+NumpyOneInputOpsCorrectnessTest::test_amax
+NumpyOneInputOpsCorrectnessTest::test_amin
+NumpyOneInputOpsCorrectnessTest::test_max
+NumpyOneInputOpsCorrectnessTest::test_min
+# Paddle median only supports int axis, not tuple
+NumpyOneInputOpsCorrectnessTest::test_median
+# Paddle unique does not support fill_value
+NumpyOneInputOpsCorrectnessTest::test_unique
+# Paddle eye does not raise TypeError for float arguments
+NumpyArrayCreateOpsCorrectnessTest::test_eye_raises_error_with_floats
+NNOpsBehaviorTest::test_depth_to_space
+NNOpsBehaviorTest::test_depth_to_space_space_to_depth_roundtrip
+NNOpsBehaviorTest::test_invalid_strategy_ctc_decode
+NNOpsCorrectnessTest::test_binary_crossentropy
+NNOpsCorrectnessTest::test_categorical_crossentropy
+NNOpsCorrectnessTest::test_conv_1d3
+NNOpsCorrectnessTest::test_conv_2d_group_20
+NNOpsCorrectnessTest::test_conv_2d_group_21
+NNOpsCorrectnessTest::test_conv_2d_group_22
+NNOpsCorrectnessTest::test_conv_2d_group_23
+NNOpsCorrectnessTest::test_ctc_decode
+NNOpsCorrectnessTest::test_depthwise_conv_2d11
+NNOpsCorrectnessTest::test_depthwise_conv_2d3
+NNOpsCorrectnessTest::test_depthwise_conv_2d7
+NNOpsCorrectnessTest::test_dot_product_attention_none_1.0_(none, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_none_1.0_(none, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_none_1.0_(none, false)_true
+NNOpsCorrectnessTest::test_dot_product_attention_none_1.0_(none, true)_true
+NNOpsCorrectnessTest::test_dot_product_attention_none_1.0_(true, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_none_1.0_(true, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_none_1.0_(true, false)_true
+NNOpsCorrectnessTest::test_dot_product_attention_none_none_(none, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_none_none_(none, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_none_none_(none, false)_true
+NNOpsCorrectnessTest::test_dot_product_attention_none_none_(none, true)_true
+NNOpsCorrectnessTest::test_dot_product_attention_none_none_(true, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_none_none_(true, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_none_none_(true, false)_true
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(none, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(none, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(none, false)_true
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(none, true)_false
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(none, true)_none
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(none, true)_true
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(true, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(true, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_true_1.0_(true, false)_true
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(none, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(none, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(none, false)_true
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(none, true)_false
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(none, true)_none
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(none, true)_true
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(true, false)_false
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(true, false)_none
+NNOpsCorrectnessTest::test_dot_product_attention_true_none_(true, false)_true
+NNOpsCorrectnessTest::test_moments
+NNOpsCorrectnessTest::test_multi_hot_dense
+NNOpsCorrectnessTest::test_one_hot_dense
+NNOpsCorrectnessTest::test_psnr
+NNOpsCorrectnessTest::test_separable_conv_2d3
+NNOpsCorrectnessTest::test_separable_conv_2d7
+NNOpsDtypeTest::test_celu_bfloat16
+NNOpsDtypeTest::test_celu_float16
+NNOpsDtypeTest::test_ctc_decode_bfloat16
+NNOpsDtypeTest::test_ctc_decode_float16
+NNOpsDtypeTest::test_ctc_decode_float32
+NNOpsDtypeTest::test_dot_product_attention_('bfloat16', 'bfloat16')
+NNOpsDtypeTest::test_dot_product_attention_('bfloat16', 'float16')
+NNOpsDtypeTest::test_dot_product_attention_('bfloat16', 'float32')
+NNOpsDtypeTest::test_dot_product_attention_('float16', 'float16')
+NNOpsDtypeTest::test_dot_product_attention_('float16', 'float32')
+NNOpsDtypeTest::test_elu_bfloat16
+NNOpsDtypeTest::test_elu_float16
+NNOpsDtypeTest::test_gelu_bfloat16
+NNOpsDtypeTest::test_gelu_float16
+NNOpsDtypeTest::test_glu_bfloat16
+NNOpsDtypeTest::test_glu_float16
+NNOpsDtypeTest::test_hard_shrink_bfloat16
+NNOpsDtypeTest::test_hard_shrink_float16
+NNOpsDtypeTest::test_hard_sigmoid_bfloat16
+NNOpsDtypeTest::test_hard_sigmoid_float16
+NNOpsDtypeTest::test_hard_silu_bfloat16
+NNOpsDtypeTest::test_hard_silu_float16
+NNOpsDtypeTest::test_hard_tanh_bfloat16
+NNOpsDtypeTest::test_hard_tanh_float16
+NNOpsDtypeTest::test_leaky_relu_bfloat16
+NNOpsDtypeTest::test_leaky_relu_float16
+NNOpsDtypeTest::test_log_sigmoid_bfloat16
+NNOpsDtypeTest::test_log_sigmoid_float16
+NNOpsDtypeTest::test_log_softmax_bfloat16
+NNOpsDtypeTest::test_log_softmax_float16
+NNOpsDtypeTest::test_polar_bfloat16
+NNOpsDtypeTest::test_polar_float16
+NNOpsDtypeTest::test_relu_bfloat16
+NNOpsDtypeTest::test_relu_float16
+NNOpsDtypeTest::test_selu_bfloat16
+NNOpsDtypeTest::test_selu_float16
+NNOpsDtypeTest::test_sigmoid_bfloat16
+NNOpsDtypeTest::test_sigmoid_float16
+NNOpsDtypeTest::test_silu_bfloat16
+NNOpsDtypeTest::test_silu_float16
+NNOpsDtypeTest::test_soft_shrink_bfloat16
+NNOpsDtypeTest::test_soft_shrink_float16
+NNOpsDtypeTest::test_softmax_bfloat16
+NNOpsDtypeTest::test_softmax_float16
+NNOpsDtypeTest::test_softplus_bfloat16
+NNOpsDtypeTest::test_softplus_float16
+NNOpsDtypeTest::test_softsign_bfloat16
+NNOpsDtypeTest::test_softsign_float16
+NNOpsDtypeTest::test_sparse_plus_bfloat16
+NNOpsDtypeTest::test_sparse_plus_float16
+NNOpsDtypeTest::test_sparse_sigmoid_bfloat16
+NNOpsDtypeTest::test_sparse_sigmoid_float16
+NNOpsDtypeTest::test_squareplus_bfloat16
+NNOpsDtypeTest::test_squareplus_float16
+NNOpsDtypeTest::test_tanh_shrink_bfloat16
+NNOpsDtypeTest::test_tanh_shrink_float16
+NNOpsDtypeTest::test_threshold_bfloat16
+NNOpsDtypeTest::test_threshold_float16
+NNOpsDynamicShapeTest::test_multi_hot_dtype_bool_false
+NNOpsDtypeTest::test_ctc_loss_bfloat16
+NNOpsDtypeTest::test_ctc_loss_float16
+NNOpsDtypeTest::test_ctc_loss_float32
+NNOpsCorrectnessTest::test_ctc_loss

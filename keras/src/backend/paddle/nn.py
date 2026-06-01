@@ -2,6 +2,7 @@ import paddle
 import paddle.nn.functional as F
 
 from keras.src.backend.paddle.core import convert_to_tensor
+from keras.src.backend.paddle.core import standardize_dtype
 
 
 def relu(x):
@@ -83,16 +84,29 @@ def hard_tanh(x):
     return F.hardtanh(convert_to_tensor(x))
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32"):
+def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x, dtype="int64")
     out = F.one_hot(x, num_classes)
     if axis != -1 and axis != out.ndim - 1:
         out = paddle.moveaxis(out, -1, axis)
+    if sparse:
+        import scipy.sparse as sp
+
+        out_np = out.numpy()
+        return sp.csr_matrix(out_np.reshape(-1, num_classes)).reshape(
+            out_np.shape
+        )
     return paddle.cast(out, dtype)
 
 
 def log_softmax(x, axis=-1):
-    return F.log_softmax(convert_to_tensor(x), axis=axis)
+    x = convert_to_tensor(x)
+    if axis is None:
+        shape = x.shape
+        x = x.flatten()
+        r = F.log_softmax(x, axis=0)
+        return r.reshape(shape)
+    return F.log_softmax(x, axis=axis)
 
 
 def soft_shrink(x, threshold=0.5):
@@ -111,7 +125,7 @@ def tanh_shrink(x):
 
 def sparsemax(x, axis=-1):
     logits = convert_to_tensor(x)
-    logits_sorted, _ = paddle.sort(logits, axis=axis, descending=True)
+    logits_sorted = paddle.sort(logits, axis=axis, descending=True)
     logits_cumsum = paddle.cumsum(logits_sorted, axis=axis)
     r = paddle.arange(1, paddle.shape(logits)[axis] + 1, dtype=logits.dtype)
     r_shape = [1] * len(logits.shape)
@@ -159,7 +173,7 @@ def threshold(x, threshold_value, value):
     return paddle.where(x > threshold_value, x, paddle.full_like(x, value))
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32"):
+def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
     x = convert_to_tensor(x)
     reduction_axis = [i for i in range(x.ndim) if i != (axis % x.ndim)]
     if not reduction_axis:
@@ -337,7 +351,7 @@ def depthwise_conv(
     new_kernel_shape = paddle.concat(
         [
             (kernel_shape[0] * kernel_shape[1]).reshape([1]),
-            paddle.to_tensor([1], dtype="int32"),
+            paddle.to_tensor([1], dtype=kernel_shape.dtype),
             kernel_shape[2:],
         ]
     )
@@ -465,7 +479,7 @@ def conv_transpose(
         )
 
     if num_spatial == 1:
-        out = F.conv_transpose1d(
+        out = F.conv1d_transpose(
             inputs,
             kernel,
             stride=strides[0],
@@ -474,7 +488,7 @@ def conv_transpose(
             dilation=dilation_rate[0],
         )
     elif num_spatial == 2:
-        out = F.conv_transpose2d(
+        out = F.conv2d_transpose(
             inputs,
             kernel,
             stride=strides,
@@ -483,7 +497,7 @@ def conv_transpose(
             dilation=dilation_rate,
         )
     elif num_spatial == 3:
-        out = F.conv_transpose3d(
+        out = F.conv3d_transpose(
             inputs,
             kernel,
             stride=strides,
@@ -656,15 +670,15 @@ def batch_normalization(
 
 def ctc_decode(
     inputs,
-    input_lengths,
+    sequence_lengths,
     strategy="greedy",
     beam_width=100,
     top_paths=1,
-    merge_repeated=False,
-    mask_value=-1,
+    merge_repeated=True,
+    mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    input_lengths = convert_to_tensor(input_lengths, dtype="int32")
+    sequence_lengths = convert_to_tensor(sequence_lengths, dtype="int32")
     inputs_shape = paddle.shape(inputs)
     batch_size = inputs_shape[0]
     max_length = inputs_shape[1]
@@ -675,9 +689,9 @@ def ctc_decode(
         scores = paddle.max(inputs, axis=-1)
 
         seqlen_mask = paddle.arange(max_length).unsqueeze(0)
-        seqlen_mask = seqlen_mask >= input_lengths.unsqueeze(1)
+        seqlen_mask = seqlen_mask >= sequence_lengths.unsqueeze(1)
 
-        blank_idx = num_classes - 1 if mask_value == -1 else mask_value
+        blank_idx = num_classes - 1 if mask_index == -1 else mask_index
         indices = paddle.where(
             seqlen_mask, paddle.to_tensor(blank_idx, dtype="int32"), indices
         )

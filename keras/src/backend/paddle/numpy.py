@@ -52,8 +52,8 @@ def _get_promoted_dtype(x1, x2):
     is_c2 = dt2 in complex_types
     is_i1 = dt1 in int_types
     is_i2 = dt2 in int_types
-    w1 = id(x1) in _weak_tensors
-    w2 = id(x2) in _weak_tensors
+    w1 = x1 in _weak_tensors
+    w2 = x2 in _weak_tensors
     if w1 and not w2 and ((is_f1 and is_f2) or (is_i1 and is_i2)):
         return "int32" if dt2 == "bool" and is_i1 else dt2
     elif w2 and not w1 and ((is_f1 and is_f2) or (is_i1 and is_i2)):
@@ -111,8 +111,8 @@ def _binary_op_with_dtype(op, x1, x2):
     x2 = convert_to_tensor(x2)
     dt1 = standardize_dtype(x1.dtype)
     dt2 = standardize_dtype(x2.dtype)
-    w1 = id(x1) in _weak_tensors
-    w2 = id(x2) in _weak_tensors
+    w1 = x1 in _weak_tensors
+    w2 = x2 in _weak_tensors
     low_precision = {"float16", "bfloat16"}
     int_types = {
         "bool", "int8", "int16", "int32", "int64",
@@ -188,8 +188,8 @@ def _cpu_binary_target(x1, x2):
     """
     dt1 = standardize_dtype(x1.dtype)
     dt2 = standardize_dtype(x2.dtype)
-    w1 = id(x1) in _weak_tensors
-    w2 = id(x2) in _weak_tensors
+    w1 = x1 in _weak_tensors
+    w2 = x2 in _weak_tensors
     float_types = {"float16", "float32", "float64", "bfloat16"}
     int_types = {
         "bool", "int8", "int16", "int32", "int64",
@@ -243,8 +243,8 @@ def _binary_op_with_int(op, x1, x2, bool_to_int32=False):
     x2 = convert_to_tensor(x2)
     dt1 = standardize_dtype(x1.dtype)
     dt2 = standardize_dtype(x2.dtype)
-    w1 = id(x1) in _weak_tensors
-    w2 = id(x2) in _weak_tensors
+    w1 = x1 in _weak_tensors
+    w2 = x2 in _weak_tensors
     float_types = {"float16", "float32", "float64", "bfloat16"}
     int_types = {
         "bool", "int8", "int16", "int32", "int64",
@@ -476,6 +476,12 @@ def einsum(subscripts, *operands, **kwargs):
         target = _get_promoted_dtype(operands[0], operands[1])
     else:
         target = standardize_dtype(operands[0].dtype)
+    # einsum with int8+int8 widens to int32 (JAX behavior, multiply+sum overflow)
+    if len(operands) >= 2:
+        dt1 = standardize_dtype(operands[0].dtype)
+        dt2 = standardize_dtype(operands[1].dtype)
+        if dt1 == "int8" and dt2 == "int8":
+            target = "int32"
     # Cast unsupported dtypes to float32 (einsum only supports float on CPU)
     for i, op in enumerate(operands):
         dt = standardize_dtype(op.dtype)
@@ -511,8 +517,8 @@ def where(condition, x1, x2):
         x2 = convert_to_tensor(x2)
         dt1 = standardize_dtype(x1.dtype)
         dt2 = standardize_dtype(x2.dtype)
-        w1 = id(x1) in _weak_tensors
-        w2 = id(x2) in _weak_tensors
+        w1 = x1 in _weak_tensors
+        w2 = x2 in _weak_tensors
         low_precision = {"float16", "bfloat16"}
         int_types = {
             "bool", "int8", "int16", "int32", "int64",
@@ -1708,6 +1714,12 @@ def beta(shape, alpha, beta_param, dtype=None, seed=None):
 
 
 def matmul(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    # matmul involves multiply+sum, int8 results widen to int32 (JAX behavior)
+    if standardize_dtype(x1.dtype) == "int8" and standardize_dtype(x2.dtype) == "int8":
+        x1 = x1.cast("int32")
+        x2 = x2.cast("int32")
     return _binary_op_with_int(paddle.matmul, x1, x2)
 
 
@@ -2240,7 +2252,7 @@ def nancumsum(x, axis=None, dtype=None):
     x = paddle.where(paddle.isnan(x), paddle.zeros_like(x), x)
     result = paddle.cumsum(x, axis=axis)
     # Cast int64 back to int32 if needed
-    if standardize_dtype(result.dtype) == "int64" and orig_std in ("int32",):
+    if standardize_dtype(result.dtype) == "int64" and orig_std in ("int32", "bool"):
         result = result.cast("int32")
     if dtype is not None:
         result = result.cast(to_paddle_dtype(dtype))
@@ -2267,7 +2279,7 @@ def nancumprod(x, axis=None, dtype=None):
     x = paddle.where(paddle.isnan(x), paddle.ones_like(x), x)
     result = paddle.cumprod(x, dim=axis)
     # Cast int64 back to int32 if needed
-    if standardize_dtype(result.dtype) == "int64" and orig_std in ("int32",):
+    if standardize_dtype(result.dtype) == "int64" and orig_std in ("int32", "bool"):
         result = result.cast("int32")
     if dtype is not None:
         result = result.cast(to_paddle_dtype(dtype))
