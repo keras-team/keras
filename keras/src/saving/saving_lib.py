@@ -1094,6 +1094,17 @@ def safe_get_h5_group(parent, name):
     return group
 
 
+# Guard against HDF5 "shape bomb" datasets: a dataset can declare an enormous
+# shape while storing almost nothing on disk (e.g. chunked + gzip-compressed
+# with only a fill value), which forces a huge allocation when it is read into
+# memory (CWE-789 / CWE-409). For datasets whose declared in-memory size is
+# above this floor, we require it to stay within `_H5_DATASET_MAX_EXPANSION` of
+# the bytes actually stored on disk. Genuine arrays (even compressed) satisfy
+# this; shape/decompression bombs, which store next to nothing, do not.
+_H5_DATASET_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
+_H5_DATASET_MAX_EXPANSION = 1000
+
+
 def safe_get_h5_dataset(group, name):
     """Retrieve a Dataset within a given Group.
 
@@ -1123,6 +1134,18 @@ def safe_get_h5_dataset(group, name):
         )
     if dataset.is_virtual:
         raise ValueError("Not allowed: H5 file with virtual Dataset")
+    declared_bytes = math.prod(dataset.shape) * dataset.dtype.itemsize
+    stored_bytes = dataset.id.get_storage_size()
+    if (
+        declared_bytes > _H5_DATASET_BOMB_FLOOR_BYTES
+        and declared_bytes > _H5_DATASET_MAX_EXPANSION * stored_bytes
+    ):
+        raise ValueError(
+            f"Not allowed: H5 dataset '{name}' declares "
+            f"{readable_memory_size(declared_bytes)} but only "
+            f"{readable_memory_size(stored_bytes)} are stored on disk; "
+            "refusing to load a potential decompression/shape bomb."
+        )
     return dataset
 
 
