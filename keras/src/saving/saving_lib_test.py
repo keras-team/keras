@@ -1769,3 +1769,36 @@ class SafeGetH5DatasetTest(testing.TestCase):
         )
         with self.assertRaises(ValueError):
             reloaded.load_weights(good_path)
+
+
+class SavingNpzIOStoreTest(testing.TestCase):
+    def _write_npz_member(self, path, name, shape, descr="<f8", data=b""):
+        """Write an npz `name` member declaring `shape` but storing no `data`.
+
+        Used to craft a member whose `.npy` header declares a huge array while
+        almost nothing is stored on disk (a shape/decompression bomb).
+        """
+        header = BytesIO()
+        np.lib.format.write_array_header_1_0(
+            header,
+            {"descr": descr, "fortran_order": False, "shape": shape},
+        )
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(f"{name}.npy", header.getvalue() + data)
+
+    def test_npz_io_store_rejects_shape_bomb(self):
+        # Member declares an 8 PiB array but stores only its header.
+        temp_filepath = os.path.join(self.get_temp_dir(), "bomb.npz")
+        self._write_npz_member(temp_filepath, "w", shape=(2**50,))
+        store = saving_lib.NpzIOStore(temp_filepath, mode="r")
+        with self.assertRaisesRegex(
+            ValueError, r"Refusing to load npz weight 'w'"
+        ):
+            store.get("w")
+
+    def test_npz_io_store_loads_normal_array(self):
+        temp_filepath = os.path.join(self.get_temp_dir(), "store.npz")
+        a = np.arange(6, dtype="float32").reshape(2, 3)
+        np.savez(temp_filepath, w=a)
+        store = saving_lib.NpzIOStore(temp_filepath, mode="r")
+        self.assertAllClose(store.get("w"), a.tolist())
