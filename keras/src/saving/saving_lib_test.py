@@ -8,6 +8,7 @@ from io import BytesIO
 from pathlib import Path
 from unittest import mock
 
+import h5py
 import numpy as np
 import pytest
 from absl.testing import parameterized
@@ -1712,3 +1713,59 @@ class SafeZipReadTest(testing.TestCase):
         ):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
+
+
+class SafeGetH5DatasetTest(testing.TestCase):
+    def _shape_bomb_file(self):
+        """An HDF5 file with a dataset declaring ~8 PiB but storing ~nothing."""
+        path = os.path.join(self.get_temp_dir(), "bomb.h5")
+        with h5py.File(path, "w") as f:
+            f.create_dataset(
+                "d",
+                shape=(2**50,),
+                dtype="float64",
+                chunks=(1024,),
+                compression="gzip",
+                fillvalue=0.0,
+            )
+        return path
+
+    def test_rejects_shape_bomb(self):
+        path = self._shape_bomb_file()
+        self.assertLess(os.path.getsize(path), 1 << 20)  # tiny file on disk
+        with h5py.File(path, "r") as f:
+            with self.assertRaisesRegex(ValueError, "shape bomb"):
+                saving_lib.safe_get_h5_dataset(f, "d")
+
+    def test_load_weights_rejects_shape_bomb(self):
+        model = keras.Sequential(
+            [keras.Input((4,)), keras.layers.Dense(3, name="d")]
+        )
+        good_path = os.path.join(self.get_temp_dir(), "good.weights.h5")
+        model.save_weights(good_path)
+
+        # Replace a real weight dataset with a shape bomb at the same path.
+        datasets = []
+        with h5py.File(good_path, "r") as f:
+
+            def collect(name, obj):
+                if isinstance(obj, h5py.Dataset) and "/vars/" in "/" + name:
+                    datasets.append(name)
+
+            f.visititems(collect)
+        with h5py.File(good_path, "r+") as f:
+            del f[datasets[0]]
+            f.create_dataset(
+                datasets[0],
+                shape=(2**50,),
+                dtype="float64",
+                chunks=(1024,),
+                compression="gzip",
+                fillvalue=0.0,
+            )
+
+        reloaded = keras.Sequential(
+            [keras.Input((4,)), keras.layers.Dense(3, name="d")]
+        )
+        with self.assertRaises(ValueError):
+            reloaded.load_weights(good_path)
