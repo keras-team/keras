@@ -46,7 +46,7 @@ PADDLE_DTYPES = {
 }
 
 # Track logical dtypes for uint16/uint32 which Paddle maps to int32/int64
-_logical_dtypes = weakref.WeakValueDictionary()
+_logical_dtypes = {}
 # Dtypes that Paddle maps to different physical dtypes
 _MAPPED_DTYPES = {"uint16", "uint32"}
 # Track tensors created from Python scalars (weak types in JAX sense)
