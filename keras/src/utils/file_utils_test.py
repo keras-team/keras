@@ -215,6 +215,20 @@ class FilterSafePathsTest(test_case.TestCase):
                 members[0].issym()
             )  # Explicitly assert it's a symbolic link.
 
+    def test_file_routed_through_symlink_is_rejected(self):
+        """A member routed through an in-bounds symlink via `..` is rejected."""
+        os.symlink(".", os.path.join(self.base_dir, "link"))
+        with tarfile.open(self.tar_path, "w") as tar:
+            tar.add(
+                self.target_path,
+                arcname=os.path.join("link", "..", "escaped.txt"),
+            )
+        with tarfile.open(self.tar_path, "r") as tar:
+            members = list(
+                file_utils.filter_safe_tarinfos(tar.getmembers(), self.base_dir)
+            )
+            self.assertEqual(members, [])
+
 
 class ExtractArchiveTest(test_case.TestCase):
     def setUp(self):

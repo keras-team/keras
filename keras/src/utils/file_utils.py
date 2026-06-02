@@ -41,7 +41,7 @@ def path_to_string(path):
 
 
 def resolve_path(path):
-    return os.path.realpath(os.path.abspath(path))
+    return os.path.realpath(path)
 
 
 def resolve_sub_path(base_dir, relative_path):
