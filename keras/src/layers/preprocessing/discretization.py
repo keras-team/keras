@@ -333,9 +333,9 @@ def summarize(values, epsilon):
     elements = np.size(values)
     num_buckets = 1.0 / epsilon
     increment = elements / num_buckets
-    start = max(increment, 1)
-    step = start
-    boundaries = values[int(start) - 1 :: int(step)]
+    step = max(increment, 1)
+    start = step - 1
+    boundaries = values[int(start) :: int(step)]
     weights = np.ones_like(boundaries)
     weights = weights * step
     return np.stack([boundaries, weights])
