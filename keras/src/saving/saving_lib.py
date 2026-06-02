@@ -1082,10 +1082,31 @@ class DiskIOStore:
                 ).replace("\\", "/")
                 file_utils.makedirs(self.working_dir)
 
+    def _full_path(self, path):
+        """Resolve `path` under the working dir, rejecting traversal."""
+        # Normalize separators first so a `\\` cannot bypass the check below.
+        path = path.replace("\\", "/")
+        if file_utils.is_remote_path(self.working_dir):
+            # `resolve_path` (realpath/abspath) would corrupt a remote prefix
+            # such as `gs://bucket`, so validate remote paths by string.
+            if path.startswith("/") or "://" in path or ".." in path.split("/"):
+                raise ValueError(
+                    f"Invalid asset path: '{path}' escapes the asset directory."
+                )
+            return file_utils.join(self.working_dir, path).replace("\\", "/")
+        resolved = file_utils.resolve_sub_path(
+            file_utils.resolve_path(self.working_dir), path
+        )
+        if resolved is None:
+            raise ValueError(
+                f"Invalid asset path: '{path}' escapes the asset directory."
+            )
+        return resolved.replace("\\", "/")
+
     def make(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path).replace("\\", "/")
+        path = self._full_path(path)
         if not file_utils.exists(path):
             file_utils.makedirs(path)
         return path
@@ -1093,16 +1114,19 @@ class DiskIOStore:
     def get(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path).replace("\\", "/")
+        path = self._full_path(path)
         if file_utils.exists(path):
             return path
         return None
 
     def has_path(self, path):
         """Return True if `path` exists on disk under the store's root."""
-        return file_utils.exists(
-            file_utils.join(self.working_dir, path).replace("\\", "/")
-        )
+        if not path:
+            return file_utils.exists(self.working_dir)
+        try:
+            return file_utils.exists(self._full_path(path))
+        except ValueError:
+            return False
 
     def close(self):
         if self.mode == "w" and self.archive:

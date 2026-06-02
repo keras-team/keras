@@ -1771,6 +1771,46 @@ class SafeGetH5DatasetTest(testing.TestCase):
             reloaded.load_weights(good_path)
 
 
+class SavingDiskIOStoreTest(testing.TestCase):
+    def test_disk_io_store_rejects_path_traversal(self):
+        store = saving_lib.DiskIOStore("assets", archive=None, mode="w")
+        working_dir = os.path.realpath(store.working_dir)
+        for bad in ["../escape", os.path.join("a", "..", "..", "escape"), ".."]:
+            with self.assertRaisesRegex(ValueError, "Invalid asset path"):
+                store.make(bad)
+            with self.assertRaisesRegex(ValueError, "Invalid asset path"):
+                store.get(bad)
+            self.assertFalse(store.has_path(bad))
+        # Nothing was created outside the working directory.
+        self.assertFalse(
+            os.path.exists(os.path.join(os.path.dirname(working_dir), "escape"))
+        )
+        # Normal nested asset paths still work.
+        made = store.make(os.path.join("layers", "dense"))
+        self.assertTrue(os.path.isdir(made))
+        self.assertTrue(os.path.realpath(made).startswith(working_dir + os.sep))
+        self.assertIsNotNone(store.get(os.path.join("layers", "dense")))
+        store.close()
+
+    def test_disk_io_store_rejects_backslash_traversal(self):
+        store = saving_lib.DiskIOStore("assets", archive=None, mode="w")
+        for bad in ["..\\escape", "a\\..\\..\\escape"]:
+            with self.assertRaisesRegex(ValueError, "Invalid asset path"):
+                store.make(bad)
+        store.close()
+
+    def test_disk_io_store_remote_working_dir_is_preserved(self):
+        store = saving_lib.DiskIOStore(
+            "gs://bucket/model", archive=None, mode="r"
+        )
+        resolved = store._full_path(os.path.join("layers", "dense"))
+        self.assertTrue(resolved.startswith("gs://bucket/model/"))
+        self.assertTrue(resolved.endswith("layers/dense"))
+        for bad in ["../escape", "/abs", os.path.join("x", "..", "..", "y")]:
+            with self.assertRaisesRegex(ValueError, "Invalid asset path"):
+                store._full_path(bad)
+
+
 class SavingNpzIOStoreTest(testing.TestCase):
     def _write_npz_member(self, path, name, shape, descr="<f8", data=b""):
         """Write an npz `name` member declaring `shape` but storing no `data`.
