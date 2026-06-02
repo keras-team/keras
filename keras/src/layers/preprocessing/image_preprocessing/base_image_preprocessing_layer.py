@@ -256,6 +256,7 @@ class BaseImagePreprocessingLayer(DataLayer):
 
     def get_config(self):
         config = super().get_config()
+        config.update({"data_format": self.data_format})
         if self.bounding_box_format is not None:
             config.update(
                 {
