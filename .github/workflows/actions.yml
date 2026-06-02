@@ -77,7 +77,7 @@ jobs:
 
       - name: Upload Coverage for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v5
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.applications,keras.applications-${{ matrix.backend }}
@@ -93,7 +93,7 @@ jobs:
 
       - name: Upload Coverage for wrappers
         if: ${{ steps.filter.outputs.wrappers == 'true' && matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v5
         with:
           env_vars: PYTHON,KERAS_HOME
           flags: keras.wrappers,keras.wrappers-${{ matrix.backend }}
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload Coverage
         if: ${{ matrix.nnx_enabled == false }}
-        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v5
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v5
         with:
           env_vars: PYTHON,KERAS_HOME,KERAS_NNX_ENABLED
           flags: keras,keras-cpu,keras-${{ matrix.backend }}${{ matrix.nnx_enabled == 'true' && '-nnx' || '' }}
