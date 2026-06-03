@@ -1994,6 +1994,181 @@ class NNOpsCorrectnessTest(testing.TestCase):
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
 
+    @parameterized.product(
+        padding=("valid", "same"),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_depthwise_conv_2d_stride_dilation(self, padding, data_format):
+        # Regression coverage for #22515: on the TF backend, strides > 1
+        # together with dilation_rate > 1 is computed via a decomposition.
+        # Exercise both data formats so the channels_first transpose path in
+        # that decomposition is covered, not just the default layout.
+        strides, dilation_rate = 2, (2, 2)
+        if data_format == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
+        kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
+
+        outputs = knn.depthwise_conv(
+            inputs_2d,
+            kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected = np_depthwise_conv2d(
+            inputs_2d,
+            kernel,
+            bias_weights=np.zeros((6,)),
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @parameterized.product(
+        padding=("valid", "same"),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_separable_conv_2d_stride_dilation(self, padding, data_format):
+        # Regression coverage for #22515, separable variant, both layouts.
+        strides, dilation_rate = 2, (2, 2)
+        if data_format == "channels_last":
+            input_shape = (2, 10, 10, 3)
+        else:
+            input_shape = (2, 3, 10, 10)
+        inputs_2d = np.arange(600, dtype=float).reshape(input_shape)
+        depthwise_kernel = np.arange(24, dtype=float).reshape([2, 2, 3, 2])
+        pointwise_kernel = np.arange(72, dtype=float).reshape([1, 1, 6, 12])
+
+        outputs = knn.separable_conv(
+            inputs_2d,
+            depthwise_kernel,
+            pointwise_kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected_depthwise = np_depthwise_conv2d(
+            inputs_2d,
+            depthwise_kernel,
+            np.zeros(6),
+            strides=strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected = np_conv2d(
+            expected_depthwise,
+            pointwise_kernel,
+            np.zeros(6 * 12),
+            strides=1,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+            groups=1,
+        )
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @parameterized.product(
+        padding=("valid", "same"),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_depthwise_conv_1d_stride_dilation(self, padding, data_format):
+        # Regression coverage for #22515, 1D variant. The TF decomposition
+        # lifts 1D to 2D internally; validate against the trusted 2D
+        # reference lifted the same way (singleton height axis).
+        strides, dilation_rate = 2, 2
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs_1d = np.arange(60, dtype=float).reshape(input_shape)
+        kernel = np.arange(12, dtype=float).reshape([2, 3, 2])
+        if data_format == "channels_last":
+            x2d = inputs_1d[:, None, :, :]
+            squeeze_axis = 1
+        else:
+            x2d = inputs_1d[:, :, None, :]
+            squeeze_axis = 2
+
+        outputs = knn.depthwise_conv(
+            inputs_1d,
+            kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected_2d = np_depthwise_conv2d(
+            x2d,
+            kernel[None],
+            bias_weights=np.zeros((6,)),
+            strides=(1, strides),
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=(1, dilation_rate),
+        )
+        expected = np.squeeze(expected_2d, axis=squeeze_axis)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @parameterized.product(
+        padding=("valid", "same"),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_separable_conv_1d_stride_dilation(self, padding, data_format):
+        # Regression coverage for #22515, 1D separable variant.
+        strides, dilation_rate = 2, 2
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs_1d = np.arange(60, dtype=float).reshape(input_shape)
+        depthwise_kernel = np.arange(12, dtype=float).reshape([2, 3, 2])
+        pointwise_kernel = np.arange(72, dtype=float).reshape([1, 6, 12])
+        if data_format == "channels_last":
+            x2d = inputs_1d[:, None, :, :]
+            squeeze_axis = 1
+        else:
+            x2d = inputs_1d[:, :, None, :]
+            squeeze_axis = 2
+
+        outputs = knn.separable_conv(
+            inputs_1d,
+            depthwise_kernel,
+            pointwise_kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected_dw_2d = np_depthwise_conv2d(
+            x2d,
+            depthwise_kernel[None],
+            np.zeros((6,)),
+            strides=(1, strides),
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=(1, dilation_rate),
+        )
+        expected_dw = np.squeeze(expected_dw_2d, axis=squeeze_axis)
+        expected = np_conv1d(
+            expected_dw,
+            pointwise_kernel,
+            np.zeros(12),
+            strides=1,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=1,
+            groups=1,
+        )
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
     @parameterized.product(padding=("valid", "same"))
     def test_conv_transpose_1d(self, padding):
         if backend.config.image_data_format() == "channels_last":
