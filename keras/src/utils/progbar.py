@@ -44,11 +44,11 @@ class Progbar:
     ):
         if stateful_metrics is not None and stateless_metrics is not None:
             raise ValueError(
-                "Only one off `stateful_metrics` metrics or "
-                "`stateless_metrics` must be provided. `stateful_metrics` is "
-                "used to have metrics be stateless by default with an "
-                "exclusion list. `stateless_metrics` is used to have metrics "
-                "be statefull by default with an exclusion list."
+                "Only one of `stateful_metrics` or `stateless_metrics` "
+                "can be provided. `stateful_metrics` is used to make metrics "
+                "stateless by default (with an exclusion list), while "
+                "`stateless_metrics` is used to make metrics stateful by "
+                "default (with an exclusion list)."
             )
         self.target = target
         self.width = width
