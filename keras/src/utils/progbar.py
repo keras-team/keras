@@ -105,10 +105,9 @@ class Progbar:
             if k not in self._values_order:
                 self._values_order.append(k)
 
-            stateless = False
             if self.stateful_metrics is not None:
                 stateless = k not in self.stateful_metrics
-            if self.stateless_metrics is not None:
+            else:
                 stateless = k in self.stateless_metrics
 
             if stateless:
