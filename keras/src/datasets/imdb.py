@@ -73,7 +73,9 @@ def load_data(
     Words that were not seen in the training set but are in the test set
     have simply been skipped.
     """
-    origin_folder = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
+    origin_folder = (
+        "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
+    )
     path = get_file(
         fname=path,
         origin=f"{origin_folder}imdb.npz",
@@ -125,7 +127,10 @@ def load_data(
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
+        xs = [
+            [w if (skip_top <= w < num_words) else oov_char for w in x]
+            for x in xs
+        ]
     else:
         xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
@@ -171,7 +176,9 @@ def get_word_index(path="imdb_word_index.json"):
     decoded_sequence = " ".join(inverted_word_index[i] for i in x_train[0])
     ```
     """
-    origin_folder = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
+    origin_folder = (
+        "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
+    )
     path = get_file(
         fname=path,
         origin=f"{origin_folder}imdb_word_index.json",

@@ -47,7 +47,9 @@ def load_data(path="boston_housing.npz", test_split=0.2, seed=113):
             f"Invalid `test_split` argument: {test_split}. "
             "It must be between 0 and 1 (exclusive of 1)."
         )
-    origin_folder = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
+    origin_folder = (
+        "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
+    )
     path = get_file(
         path,
         origin=f"{origin_folder}boston_housing.npz",
