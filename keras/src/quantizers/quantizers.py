@@ -900,6 +900,141 @@ def unpack_int4(packed, orig_len, axis=0, dtype="int8"):
     return unpacked
 
 
+@keras_export("keras.quantizers.pack_ternary")
+def pack_ternary(arr, axis=0):
+    """Pack a ternary tensor into a `uint8` tensor at ~1.6 bits per value.
+
+    The input values must be in `{-1, 0, +1}`. Five ternary values (trits) are
+    packed into a single `uint8` byte using base-3 encoding, which is exact
+    because `3 ** 5 == 243 <= 256`. This is the information-theoretic floor for
+    ternary weights (`log2(3) ~= 1.58` bits/value) and is strictly denser than
+    any integer format: ~2.5x denser than int4 and ~5x denser than int8, with
+    no loss (the stored values are exactly the original `{-1, 0, +1}`).
+
+    Each trit `t` is shifted to an unsigned digit `d = t + 1` in `{0, 1, 2}`.
+    Five consecutive digits `d0..d4` along `axis` are then combined into one
+    byte as `d0 + 3*d1 + 9*d2 + 27*d3 + 81*d4` (max value `242`). If the axis
+    length is not a multiple of 5 it is padded with zero-trits, which are
+    removed on unpacking.
+
+    Args:
+        arr: A tensor whose values are in `{-1, 0, +1}` (any numeric dtype;
+            values are rounded to the nearest integer before packing).
+        axis: The axis along which to pack the tensor. Defaults to 0.
+
+    Returns:
+        tuple: A tuple `(packed, packed_shape, orig_len)` where `packed` is the
+            packed `uint8` tensor, `packed_shape` is its shape, and `orig_len`
+            is the original (unpadded) length of `axis`, needed by
+            `unpack_ternary` to strip padding.
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_ternary, unpack_ternary
+    >>> original = np.array(
+    ...     [[1, -1], [0, 1], [-1, 0], [1, 1], [0, -1], [1, 0]], dtype="int8"
+    ... )  # shape (6, 2)
+    # Axis 0 has length 6, padded to 10; packed shape is (ceil(6/5), 2) = (2, 2)
+    >>> packed, packed_shape, orig_len = pack_ternary(original, axis=0)
+    >>> unpacked = unpack_ternary(packed, orig_len, axis=0)
+    >>> np.allclose(original, unpacked)
+    True
+    ```
+    """
+    arr_np = ops.convert_to_numpy(arr)
+    rank = len(arr_np.shape)
+    if axis < 0:
+        axis += rank
+
+    # Move the pack axis to the front for uniform handling.
+    arr_np = np.moveaxis(arr_np, axis, 0)
+
+    # Pad the front axis to a multiple of 5 with zero-trits (harmless: they
+    # contribute nothing to the matmul and are stripped on unpack).
+    n = arr_np.shape[0]
+    pad = (-n) % 5
+    if pad:
+        pad_shape = (pad,) + arr_np.shape[1:]
+        arr_np = np.concatenate(
+            [arr_np, np.zeros(pad_shape, dtype=arr_np.dtype)], axis=0
+        )
+
+    # Map {-1, 0, +1} -> digits {0, 1, 2} and combine groups of 5 in base 3.
+    digits = np.round(arr_np).astype(np.int32) + 1
+    groups = digits.reshape((-1, 5) + digits.shape[1:])
+    place = np.array([1, 3, 9, 27, 81], dtype=np.int32).reshape(
+        (1, 5) + (1,) * (digits.ndim - 1)
+    )
+    packed_np = np.sum(groups * place, axis=1).astype(np.uint8)
+
+    # Move the pack axis back to its original position.
+    packed_np = np.moveaxis(packed_np, 0, axis)
+
+    packed = ops.convert_to_tensor(packed_np)
+    return packed, tuple(packed_np.shape), n
+
+
+@keras_export("keras.quantizers.unpack_ternary")
+def unpack_ternary(packed, orig_len, axis=0):
+    """Unpack a base-3 packed `uint8` tensor back to ternary `{-1, 0, +1}`.
+
+    This reverses `pack_ternary`, restoring an `int8` tensor whose values are
+    in `{-1, 0, +1}`. The original axis order is preserved and any padding
+    added during packing is removed.
+
+    Args:
+        packed: A `uint8` tensor produced by `pack_ternary`, with five trits
+            encoded in each byte along `axis`.
+        orig_len: The original (unpadded) length of the packed axis, used to
+            strip padding.
+        axis: The axis along which the tensor was packed. Defaults to 0.
+
+    Returns:
+        An `int8` tensor with values in `{-1, 0, +1}` and the original
+        (unpacked) shape along `axis`.
+
+    Example:
+
+    ```python
+    >>> import numpy as np
+    >>> from keras.quantizers import pack_ternary, unpack_ternary
+    >>> original = np.array([[1, -1, 0, 1, 0, -1]], dtype="int8")  # (1, 6)
+    >>> packed, packed_shape, orig_len = pack_ternary(original, axis=1)
+    >>> unpacked = unpack_ternary(packed, orig_len, axis=1)
+    >>> np.allclose(original, unpacked)
+    True
+    ```
+    """
+    rank = getattr(packed.shape, "rank", None) or len(packed.shape)
+    if axis < 0:
+        axis += rank
+
+    # Move the pack axis to the front, recover the five base-3 digits, then
+    # interleave them back along that axis.
+    perm = [axis] + [i for i in range(rank) if i != axis]
+    inv_perm = [perm.index(i) for i in range(rank)]
+    transposed = ops.transpose(packed, perm)
+    codes = ops.cast(transposed, "int32")
+
+    digits = []
+    for place in (1, 3, 9, 27, 81):
+        digit = ops.mod(ops.floor_divide(codes, place), 3)
+        digits.append(ops.subtract(digit, 1))  # {0, 1, 2} -> {-1, 0, +1}
+
+    # Interleave d0..d4 along the front axis and reshape: byte j holds trits
+    # [5*j, 5*j + 4], so the stacked order reproduces the original sequence.
+    stacked = ops.stack(digits, axis=1)
+    unpacked = ops.reshape(stacked, (-1,) + tuple(ops.shape(transposed)[1:]))
+
+    # Strip padding and restore the original layout.
+    unpacked = unpacked[:orig_len, ...]
+    unpacked = ops.cast(unpacked, "int8")
+    unpacked = ops.transpose(unpacked, inv_perm)
+    return unpacked
+
+
 class GPTQQuantizer(Quantizer):
     """A class that handles the quantization of weights using GPTQ method.
 

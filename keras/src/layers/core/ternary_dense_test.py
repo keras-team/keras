@@ -1,7 +1,12 @@
+import os
+
 import numpy as np
 
+from keras.src import backend
 from keras.src import layers
+from keras.src import models
 from keras.src import ops
+from keras.src import saving
 from keras.src import testing
 
 
@@ -126,3 +131,109 @@ class TernaryDenseTest(testing.TestCase):
         layer = layers.TernaryDense(10)
         self.assertEqual(layer.compute_output_shape((None, 5)), (None, 10))
         self.assertEqual(layer.compute_output_shape((2, 3, 5)), (2, 3, 10))
+
+    # Quantization: real ternary export + inference.
+
+    def test_quantize_matches_float_forward(self):
+        # Freezing the ternary kernel must not change the layer's outputs:
+        # the packed kernel holds exactly the values the float path produces.
+        layer = layers.TernaryDense(16)
+        layer.build((None, 11))
+        x = np.random.rand(4, 11).astype("float32")
+        y_float = layer(x)
+
+        layer.quantize("ternary")
+        self.assertEqual(layer.quantization_mode, "ternary")
+        # The float kernel is gone; only the packed kernel + scale remain.
+        self.assertFalse(hasattr(layer, "kernel"))
+        self.assertEqual(
+            backend.standardize_dtype(layer._packed_kernel.dtype), "uint8"
+        )
+
+        y_quantized = layer(x)
+        self.assertAllClose(y_float, y_quantized)
+
+    def test_quantize_fixed_threshold_matches_float_forward(self):
+        # Fixed-threshold mode applies no beta rescaling (scale == 1.0).
+        layer = layers.TernaryDense(8, threshold=0.02, use_bias=False)
+        layer.build((None, 9))
+        x = np.random.rand(3, 9).astype("float32")
+        y_float = layer(x)
+
+        layer.quantize("ternary")
+        self.assertAllClose(ops.convert_to_numpy(layer.kernel_scale), 1.0)
+        self.assertAllClose(y_float, layer(x))
+
+    def test_quantized_kernel_is_packed_at_floor(self):
+        # input_dim=40 -> ceil(40/5)=8 packed rows; 8 bytes encode 40 trits.
+        layer = layers.TernaryDense(32)
+        layer.build((None, 40))
+        layer.quantize("ternary")
+
+        self.assertEqual(tuple(layer._packed_kernel.shape), (8, 32))
+
+        n_weights = 40 * 32
+        n_bytes = 8 * 32
+        bits_per_weight = 8 * n_bytes / n_weights
+        self.assertEqual(bits_per_weight, 1.6)
+        # Strictly denser than int4 (would need n_weights / 2 bytes).
+        self.assertLess(n_bytes, n_weights // 2)
+
+    def test_quantized_model_save_load(self):
+        layer = layers.TernaryDense(16)
+        layer.build((None, 8))
+        x = np.random.random((2, 8))
+        y_float = layer(x)
+        layer.quantize("ternary")
+        y_quantized = layer(x)
+        self.assertAllClose(y_float, y_quantized)
+
+        # Full model save / load round-trip.
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_ternary_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertEqual(new_model.layers[0].quantization_mode, "ternary")
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        # Weights-only save / load round-trip.
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "quantized_ternary_model.weights.h5"
+        )
+        model.save_weights(temp_filepath)
+        new_model = models.Sequential([layers.TernaryDense(16)])
+        new_model.build((None, 8))
+        new_model.quantize("ternary")
+        new_model.load_weights(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    def test_model_quantize_ternary(self):
+        model = models.Sequential([layers.TernaryDense(8)])
+        model.build((None, 6))
+        x = np.random.rand(3, 6).astype("float32")
+        y_float = model.predict(x)
+        model.quantize("ternary")
+        self.assertEqual(model.layers[0].quantization_mode, "ternary")
+        self.assertAllClose(y_float, model.predict(x))
+
+    def test_quantize_unbuilt_raises(self):
+        layer = layers.TernaryDense(4)
+        with self.assertRaisesRegex(
+            ValueError, "Cannot quantize a layer that isn't yet built."
+        ):
+            layer.quantize("ternary")
+
+    def test_quantize_twice_raises(self):
+        layer = layers.TernaryDense(4)
+        layer.build((None, 6))
+        layer.quantize("ternary")
+        with self.assertRaisesRegex(ValueError, "already quantized"):
+            layer.quantize("ternary")
+
+    def test_quantize_invalid_mode_raises(self):
+        layer = layers.TernaryDense(4)
+        layer.build((None, 6))
+        with self.assertRaises(NotImplementedError):
+            layer.quantize("int8")

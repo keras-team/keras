@@ -2,6 +2,7 @@ from keras.src import activations
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
+from keras.src import quantizers
 from keras.src import regularizers
 from keras.src.api_export import keras_export
 from keras.src.layers.input_spec import InputSpec
@@ -30,6 +31,14 @@ class TernaryDense(Layer):
     mean(|kernel|)` per forward pass (both per the BitNet b1.58 §3.1 spec).
     Gradients flow through the quantization step via a Straight-Through
     Estimator (STE), keeping the underlying float kernel trainable.
+
+    For export and inference, call `layer.quantize("ternary")` after training.
+    This replaces the float kernel with a packed representation that stores the
+    `{-1, 0, +1}` weights at the information-theoretic floor of `log2(3) ~=
+    1.58` bits/value: five trits are packed into each byte, since
+    `3 ** 5 == 243 <= 256`. The result is ~1.6 bits/weight on disk, denser than
+    int4 (4 bits) or int8 (8 bits) can express, and lossless (the exact
+    ternary values are recovered). Inference then runs from the packed kernel.
 
     Args:
         units: Positive integer, dimensionality of the output space.
@@ -68,6 +77,15 @@ class TernaryDense(Layer):
     >>> layer = keras.layers.TernaryDense(64)
     >>> inputs = np.random.rand(4, 32).astype("float32")
     >>> outputs = layer(inputs)
+    >>> outputs.shape
+    (4, 64)
+
+    Quantize for export and inference (kernel stored at ~1.6 bits/value):
+
+    >>> layer = keras.layers.TernaryDense(64)
+    >>> _ = layer(np.random.rand(4, 32).astype("float32"))
+    >>> layer.quantize("ternary")
+    >>> outputs = layer(np.random.rand(4, 32).astype("float32"))
     >>> outputs.shape
     (4, 64)
     """
@@ -120,13 +138,18 @@ class TernaryDense(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
-        self.kernel = self.add_weight(
-            name="kernel",
-            shape=(input_dim, self.units),
-            initializer=self.kernel_initializer,
-            regularizer=self.kernel_regularizer,
-            constraint=self.kernel_constraint,
-        )
+        kernel_shape = (input_dim, self.units)
+        if self.quantization_mode:
+            # Packed kernel + scale are created here; the float `kernel` is not.
+            self.quantized_build(kernel_shape, mode=self.quantization_mode)
+        else:
+            self.kernel = self.add_weight(
+                name="kernel",
+                shape=kernel_shape,
+                initializer=self.kernel_initializer,
+                regularizer=self.kernel_regularizer,
+                constraint=self.kernel_constraint,
+            )
         if self.use_bias:
             self.bias = self.add_weight(
                 name="bias",
@@ -160,6 +183,133 @@ class TernaryDense(Layer):
         if self.activation is not None:
             x = self.activation(x)
         return x
+
+    # Quantization: real ternary export + inference.
+    #
+    # During training the float `kernel` is kept and ternarized on the fly
+    # (the `call` path above). `quantize("ternary")` freezes that result into a
+    # packed representation: the `{-1, 0, +1}` kernel is stored at the
+    # information-theoretic floor of ~1.6 bits/value (five trits per byte,
+    # `3 ** 5 == 243 <= 256`), denser than int4 or int8 can express. Inference
+    # then runs from the packed kernel via `_ternary_call`.
+
+    def quantized_build(self, kernel_shape, mode):
+        if mode == "ternary":
+            self._ternary_build(kernel_shape)
+        else:
+            raise self._quantization_mode_error(mode)
+        self._is_quantized = True
+
+    def _ternary_build(self, kernel_shape):
+        input_dim, units = kernel_shape
+        # Five trits per byte -> ceil(input_dim / 5) packed rows.
+        packed_rows = (input_dim + 4) // 5
+        self._packed_kernel = self.add_weight(
+            name="kernel",
+            shape=(packed_rows, units),
+            initializer="zeros",
+            dtype="uint8",
+            trainable=False,
+        )
+        # Scalar BitNet b1.58 scale (beta); 1.0 in fixed-threshold mode.
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=(),
+            initializer="ones",
+            trainable=False,
+        )
+        self._orig_input_dim = input_dim
+
+    def _ternary_call(self, inputs):
+        kernel = quantizers.unpack_ternary(
+            self._packed_kernel, self._orig_input_dim, axis=0
+        )
+        kernel = ops.cast(kernel, self.compute_dtype)
+        x = ops.matmul(inputs, kernel)
+        x = ops.multiply(x, ops.cast(self.kernel_scale, self.compute_dtype))
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
+
+    def quantize(self, mode="ternary", type_check=True, config=None):
+        # Prevent quantization of subclasses with a different kernel layout.
+        if type_check and type(self) is not TernaryDense:
+            raise self._not_implemented_error(self.quantize)
+        if mode != "ternary":
+            raise self._quantization_mode_error(mode)
+
+        kernel_shape = self.kernel.shape
+        # Hard ternary values in {-1, 0, +1}. This is exactly the forward value
+        # of the straight-through kernel used in training, so freezing it does
+        # not change the layer's outputs.
+        kernel_ternary = ops.convert_to_numpy(self._ternary_kernel())
+        if self.threshold is None:
+            beta = float(ops.convert_to_numpy(ops.mean(ops.abs(self.kernel))))
+        else:
+            beta = 1.0
+        packed_kernel, _, _ = quantizers.pack_ternary(kernel_ternary, axis=0)
+
+        del self.kernel
+        self.quantized_build(kernel_shape, mode=mode)
+        self._packed_kernel.assign(packed_kernel)
+        self.kernel_scale.assign(beta)
+
+        # Switch to a ternary dtype policy so future calls take the packed path.
+        if self.dtype_policy.quantization_mode is None:
+            from keras.src import dtype_policies
+
+            policy = dtype_policies.get(
+                f"ternary_from_{self.dtype_policy.name}"
+            )
+            self.dtype_policy = policy
+
+    @property
+    def variable_serialization_spec(self):
+        """Maps each quantization mode to its ordered variable names."""
+        return {
+            None: ["kernel", "bias"],
+            "ternary": ["kernel", "bias", "kernel_scale"],
+        }
+
+    def _serialization_targets(self, mode):
+        return {
+            "kernel": (
+                self._packed_kernel if mode == "ternary" else self.kernel
+            ),
+            "bias": self.bias,
+            "kernel_scale": getattr(self, "kernel_scale", None),
+        }
+
+    def save_own_variables(self, store):
+        if not self.built:
+            return
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+        targets = self._serialization_targets(mode)
+        idx = 0
+        for name in self.variable_serialization_spec[mode]:
+            if name == "bias" and self.bias is None:
+                continue
+            store[str(idx)] = targets[name]
+            idx += 1
+
+    def load_own_variables(self, store):
+        self._check_load_own_variables(store)
+        if not self.built:
+            return
+        mode = self.quantization_mode
+        if mode not in self.variable_serialization_spec:
+            raise self._quantization_mode_error(mode)
+        targets = self._serialization_targets(mode)
+        idx = 0
+        for name in self.variable_serialization_spec[mode]:
+            if name == "bias" and self.bias is None:
+                continue
+            targets[name].assign(store[str(idx)])
+            idx += 1
 
     def compute_output_shape(self, input_shape):
         output_shape = list(input_shape)
