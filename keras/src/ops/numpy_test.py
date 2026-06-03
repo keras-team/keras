@@ -328,6 +328,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.maximum(x, y).shape, (2, 3))
 
+    def test_fmax(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.fmax(x, y).shape, (2, 3))
+
     def test_minimum(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -1041,6 +1046,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.maximum(x, y)
+
+    def test_fmax(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.fmax(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.fmax(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
+            knp.fmax(x, y)
 
     def test_minimum(self):
         x = KerasTensor((2, 3))
@@ -4163,6 +4181,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Maximum()(x, y), np.maximum(x, y))
         self.assertAllClose(knp.Maximum()(x, 1), np.maximum(x, 1))
         self.assertAllClose(knp.Maximum()(1, x), np.maximum(1, x))
+
+    def test_fmax(self):
+        x = np.array([[1.0, np.nan], [3.0, 4.0]])
+        y = np.array([[5.0, 6.0], [np.nan, 8.0]])
+        self.assertAllClose(knp.fmax(x, y), np.fmax(x, y))
+        self.assertAllClose(knp.fmax(x, 1.0), np.fmax(x, 1.0))
+        self.assertAllClose(knp.fmax(1.0, x), np.fmax(1.0, x))
+
+        self.assertAllClose(knp.Fmax()(x, y), np.fmax(x, y))
+        self.assertAllClose(knp.Fmax()(x, 1.0), np.fmax(x, 1.0))
+        self.assertAllClose(knp.Fmax()(1.0, x), np.fmax(1.0, x))
 
     def test_minimum(self):
         x = np.array([[1, 2], [3, 4]])
@@ -10691,6 +10720,27 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertDType(knp.maximum(x, 1.0), expected_dtype)
         self.assertDType(knp.Maximum().symbolic_call(x, 1.0), expected_dtype)
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_fmax(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.fmax(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.fmax(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Fmax().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(named_product(dtype=ALL_DTYPES))
     def test_median(self, dtype):

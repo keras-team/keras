@@ -1031,6 +1031,12 @@ def maximum(x1, x2):
     return jnp.maximum(x1, x2)
 
 
+def fmax(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.fmax(x1, x2)
+
+
 def median(x, axis=None, keepdims=False):
     # axis of jnp.median must be hashable
     if isinstance(axis, list):
