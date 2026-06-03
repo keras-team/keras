@@ -40,7 +40,7 @@ class ProgbarTest(testing.TestCase):
         pb.update(0, finalize=True)
 
     def test_stateful_stateless_raises(self):
-        with self.assertRaisesRegex(ValueError, "Only one off"):
+        with self.assertRaisesRegex(ValueError, "Only one of"):
             progbar.Progbar(target=1, stateful_metrics=[], stateless_metrics=[])
 
     @parameterized.named_parameters(
