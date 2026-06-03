@@ -81,6 +81,7 @@ from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
+from keras.src.ops.numpy import fmax as fmax
 from keras.src.ops.numpy import fmod as fmod
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like
