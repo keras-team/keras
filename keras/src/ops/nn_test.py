@@ -1924,14 +1924,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         dilation_rate=(1, (2, 2)),
     )
     def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == (2, 2)
-            and dilation_rate == (2, 2)
-        ):
-            # This case is not supported by the TF backend.
-            return
-        print(strides, padding, dilation_rate)
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
@@ -1963,13 +1955,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         dilation_rate=(1, (2, 2)),
     )
     def test_separable_conv_2d(self, strides, padding, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 2)
-        ):
-            # This case is not supported by the TF backend.
-            return
         # Test 2D conv.
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 3)
