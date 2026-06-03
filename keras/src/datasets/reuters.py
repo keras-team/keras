@@ -82,9 +82,7 @@ def load_data(
     Words that were not seen in the training set but are in the test set
     have simply been skipped.
     """
-    origin_folder = (
-        "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
-    )
+    origin_folder = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
     path = get_file(
         fname=path,
         origin=f"{origin_folder}reuters.npz",
@@ -116,10 +114,7 @@ def load_data(
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [
-            [w if skip_top <= w < num_words else oov_char for w in x]
-            for x in xs
-        ]
+        xs = [[w if skip_top <= w < num_words else oov_char for w in x] for x in xs]
     else:
         xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
@@ -151,9 +146,7 @@ def get_word_index(path="reuters_word_index.json"):
         The word index dictionary. Keys are word strings, values are their
         index.
     """
-    origin_folder = (
-        "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
-    )
+    origin_folder = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
     path = get_file(
         path,
         origin=f"{origin_folder}reuters_word_index.json",

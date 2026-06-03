@@ -7,9 +7,7 @@ from keras.src.utils.file_utils import get_file
 
 
 @keras_export("keras.datasets.california_housing.load_data")
-def load_data(
-    version="large", path="california_housing.npz", test_split=0.2, seed=113
-):
+def load_data(version="large", path="california_housing.npz", test_split=0.2, seed=113):
     """Loads the California Housing dataset.
 
     This dataset was obtained from the [StatLib repository](
@@ -72,9 +70,7 @@ def load_data(
             f"Invalid `test_split` argument: {test_split}. "
             "It must be between 0 and 1 (exclusive of 1)."
         )
-    origin_folder = (
-        "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
-    )
+    origin_folder = "https://storage.googleapis.com/tensorflow/tf-keras-datasets/"
     path = get_file(
         path,
         origin=f"{origin_folder}california_housing.npz",
@@ -82,7 +78,7 @@ def load_data(
             "1a2e3a52e0398de6463aebe6f4a8da34fb21fbb6b934cf88c3425e766f2a1a6f"
         ),
     )
-    with np.load(path, allow_pickle=True) as f:
+    with np.load(path, allow_pickle=False) as f:
         x = f["x"]
         y = f["y"]
 
