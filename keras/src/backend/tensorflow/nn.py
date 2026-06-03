@@ -857,16 +857,14 @@ def _pad_same_spatial_channels_last(
     # Emulate `padding="same"` with explicit padding so the conv can run as
     # `padding="valid"`. Matches TF SAME: extra padding goes after (bottom).
     spatial_shape = tf.shape(inputs, out_type=tf.int32)[1:-1]
-    strides = tf.cast(tf.convert_to_tensor(strides), tf.int32)
-    dilation_rate = tf.cast(tf.convert_to_tensor(dilation_rate), tf.int32)
 
     paddings = [tf.constant([0, 0], dtype=tf.int32)]
     for i, k in enumerate(kernel_size):
         n = spatial_shape[i]
         s = strides[i]
         d = dilation_rate[i]
-        effective_kernel_size = (int(k) - 1) * d + 1
-        out_size = tf.math.floordiv(n + s - 1, s)
+        effective_kernel_size = (k - 1) * d + 1
+        out_size = (n + s - 1) // s
         total_pad = tf.maximum(
             (out_size - 1) * s + effective_kernel_size - n, 0
         )
@@ -876,19 +874,6 @@ def _pad_same_spatial_channels_last(
     paddings.append(tf.constant([0, 0], dtype=tf.int32))
 
     return tf.pad(inputs, tf.stack(paddings))
-
-
-def _spatial_strided_slice_channels_last(outputs, strides):
-    # Subsample a stride-1 conv output to emulate a strided conv (exact for the
-    # valid-padded dilated conv used in the decomposition).
-    rank = len(outputs.shape)
-    begin = tf.zeros((rank,), dtype=tf.int32)
-    end = tf.shape(outputs, out_type=tf.int32)
-    strides = tf.cast(tf.convert_to_tensor(strides), tf.int32)
-    slice_strides = tf.concat(
-        [tf.ones((1,), tf.int32), strides, tf.ones((1,), tf.int32)], axis=0
-    )
-    return tf.strided_slice(outputs, begin, end, slice_strides)
 
 
 def _depthwise_conv_stride_dilation_decomposition(
@@ -939,7 +924,7 @@ def _depthwise_conv_stride_dilation_decomposition(
         data_format="NHWC",
         dilations=spatial_dilation_rate,
     )
-    outputs = _spatial_strided_slice_channels_last(outputs, spatial_strides)
+    outputs = outputs[:, :: spatial_strides[0], :: spatial_strides[1], :]
 
     if pointwise_kernel is not None:
         outputs = tf.nn.conv2d(
