@@ -120,20 +120,23 @@ class SaveModelTests(test_case.TestCase):
     def test_objects_to_skip_recurses_unflattened_attributes(self):
         class Backbone(Model):
             def __init__(self):
-                self.encoder = layers.Dense(4, name="encoder")
+                encoder = layers.Dense(4, name="encoder")
+                inputs = layers.Input((3,))
+                outputs = encoder(inputs)
+                super().__init__(inputs, outputs)
+                self.encoder = encoder
                 # This layer is owned by the backbone, but it is not part of
                 # the backbone Functional graph.
-                self.decoder = layers.Dense(2, name="decoder")
-                inputs = layers.Input((3,))
-                outputs = self.encoder(inputs)
-                super().__init__(inputs, outputs)
+                object.__setattr__(
+                    self, "decoder", layers.Dense(2, name="decoder")
+                )
 
         class Task(Model):
             def __init__(self, backbone):
-                self.backbone = backbone
                 inputs = backbone.input
                 outputs = backbone.decoder(backbone(inputs))
                 super().__init__(inputs, outputs)
+                self.backbone = backbone
 
         legacy_task = Task(Backbone())
         legacy_task(np.ones((1, 3)))
