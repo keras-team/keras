@@ -134,6 +134,17 @@ class Trainer:
                 For `torch` backend, `"auto"` will default to eager
                 execution and `jit_compile=True` will run with `torch.compile`
                 with the `"inductor"` backend.
+                On the JAX backend, compilation happens on the first step and
+                can take several seconds. JAX can persist the compiled result
+                to disk and reuse it across runs and processes, so the same
+                model only pays that cost once. Enable it before the first
+                step with:
+                ```python
+                import jax
+                jax.config.update("jax_compilation_cache_dir", "/path/to/cache")
+                ```
+                See the JAX persistent compilation cache docs for the
+                available thresholds.
             auto_scale_loss: Bool. If `True` and the model dtype policy is
                 `"mixed_float16"`, the passed optimizer will be automatically
                 wrapped in a `LossScaleOptimizer`, which will dynamically
