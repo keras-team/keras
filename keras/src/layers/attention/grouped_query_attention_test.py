@@ -461,6 +461,45 @@ class GroupedQueryAttentionTest(testing.TestCase):
         self.assertEqual(tuple(out1.shape), (2, 5, 16))
         self.assertAllClose(out1, out2, atol=1e-5)
 
+    @parameterized.named_parameters(
+        ("scores_only", 0.0, True),
+        ("dropout_only", 0.1, False),
+        ("dropout_and_scores", 0.1, True),
+    )
+    def test_causal_only_masks_when_fused_path_disabled(
+        self, dropout, return_attention_scores
+    ):
+        # dropout>0 and return_attention_scores=True both disable the fused
+        # is_causal kernel and send us down the manual softmax path. That path
+        # has to apply the causal mask too, or future keys leak in. See #22910.
+        t = 6
+        future = np.triu(np.ones((t, t)), k=1).astype(bool)
+        x = np.random.RandomState(0).randn(1, t, 16).astype("float32")
+        layer = layers.GroupedQueryAttention(
+            head_dim=4,
+            num_query_heads=4,
+            num_key_value_heads=2,
+            dropout=dropout,
+        )
+
+        if return_attention_scores:
+            # No weight should land on a strictly-future key.
+            _, scores = layer(
+                x,
+                x,
+                use_causal_mask=True,
+                return_attention_scores=True,
+                training=False,
+            )
+            leak = backend.convert_to_numpy(scores)[..., future].sum()
+            self.assertLess(leak, 1e-6)
+        else:
+            # use_causal_mask should match passing the same mask explicitly.
+            out_causal = layer(x, x, use_causal_mask=True, training=False)
+            explicit = (~future)[None]
+            out_explicit = layer(x, x, attention_mask=explicit, training=False)
+            self.assertAllClose(out_causal, out_explicit, atol=1e-5)
+
     def test_sliding_window_validation(self):
         with self.assertRaisesRegex(ValueError, "sliding_window"):
             layers.GroupedQueryAttention(

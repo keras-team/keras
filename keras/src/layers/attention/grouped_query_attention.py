@@ -518,7 +518,12 @@ class GroupedQueryAttention(Layer):
             return attention_output, None
 
         # Default behavior without flash attention, with explicit attention
-        # scores
+        # scores. We skipped the fused is_causal kernel above, so build the
+        # causal mask here. `call` drops attention_mask when causal is the
+        # only mask source, expecting that kernel to run, and this path never
+        # sees the is_causal flag otherwise.
+        if use_causal_mask and attention_mask is None:
+            attention_mask = self._compute_causal_mask(query, value)
         query = ops.multiply(
             query, ops.cast(self._inverse_sqrt_head_dim, query.dtype)
         )
