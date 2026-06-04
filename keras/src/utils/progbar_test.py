@@ -1,3 +1,6 @@
+import contextlib
+import io
+
 import numpy as np
 from absl.testing import parameterized
 
@@ -35,3 +38,33 @@ class ProgbarTest(testing.TestCase):
     def test_zero_target(self, verbose):
         pb = progbar.Progbar(target=0, verbose=verbose)
         pb.update(0, finalize=True)
+
+    def test_stateful_stateless_raises(self):
+        with self.assertRaisesRegex(ValueError, "Only one of"):
+            progbar.Progbar(target=1, stateful_metrics=[], stateless_metrics=[])
+
+    @parameterized.named_parameters(
+        [
+            ("all_stateless", [], None, "1."),
+            ("one_stateless", ["value"], None, "2."),
+            ("all_stateful", None, [], "2."),
+            ("one_stateful", None, ["value"], "1."),
+        ]
+    )
+    def test_stateful_stateless_output(
+        self, stateful_metrics, stateless_metrics, expected_output
+    ):
+        captured = io.StringIO()
+        pb = progbar.Progbar(
+            target=3,
+            stateful_metrics=stateful_metrics,
+            stateless_metrics=stateless_metrics,
+            interval=0.0,
+            verbose=1,
+        )
+
+        pb.update(1, values=[("value", 0.0)])
+        with contextlib.redirect_stdout(captured):
+            pb.update(2, values=[("value", 2.0)])
+
+        self.assertIn(f"value: {expected_output}", captured.getvalue())
