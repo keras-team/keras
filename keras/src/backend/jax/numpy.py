@@ -1070,6 +1070,12 @@ def minimum(x1, x2):
     return jnp.minimum(x1, x2)
 
 
+def fmin(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return jnp.fmin(x1, x2)
+
+
 def mod(x1, x2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
