@@ -528,12 +528,6 @@ class KerasFileEditor:
                     f"{value.external}"
                 )
 
-            if value.is_virtual:
-                raise ValueError(
-                    "Not allowed: H5 file with virtual Dataset at "
-                    f"{current_inner_path}"
-                )
-
             shape = value.shape
             dtype = value.dtype
 

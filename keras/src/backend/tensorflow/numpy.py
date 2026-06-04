@@ -2170,32 +2170,6 @@ def maximum(x1, x2):
     return tf.maximum(x1, x2)
 
 
-def fmax(x1, x2):
-    if not isinstance(x1, (int, float)):
-        x1 = convert_to_tensor(x1)
-    if not isinstance(x2, (int, float)):
-        x2 = convert_to_tensor(x2)
-    dtype = dtypes.result_type(
-        getattr(x1, "dtype", type(x1)),
-        getattr(x2, "dtype", type(x2)),
-    )
-    x1 = convert_to_tensor(x1, dtype)
-    x2 = convert_to_tensor(x2, dtype)
-
-    if "float" not in standardize_dtype(dtype):
-        return tf.maximum(x1, x2)
-
-    nan_x1 = tf.math.is_nan(x1)
-    nan_x2 = tf.math.is_nan(x2)
-
-    res = tf.maximum(x1, x2)
-
-    res = tf.where(tf.logical_and(nan_x1, tf.logical_not(nan_x2)), x2, res)
-
-    res = tf.where(tf.logical_and(nan_x2, tf.logical_not(nan_x1)), x1, res)
-    return res
-
-
 def median(x, axis=None, keepdims=False):
     return quantile(x, 0.5, axis=axis, keepdims=keepdims)
 
@@ -3174,20 +3148,8 @@ def tensordot(x1, x2, axes=2):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
     result_dtype = dtypes.result_type(x1.dtype, x2.dtype)
-
-    if result_dtype in [
-        "int32",
-        "int64",
-        "float16",
-        "float32",
-        "float64",
-        "bfloat16",
-        "complex64",
-        "complex128",
-    ]:
-        compute_dtype = result_dtype
-    else:
-        compute_dtype = dtypes.result_type(result_dtype, float)
+    # TODO: tf.tensordot only supports float types
+    compute_dtype = dtypes.result_type(result_dtype, float)
     x1 = tf.cast(x1, compute_dtype)
     x2 = tf.cast(x2, compute_dtype)
     return tf.cast(tf.tensordot(x1, x2, axes=axes), dtype=result_dtype)
@@ -3972,7 +3934,3 @@ def unique(
         results.append(counts)
 
     return tuple(results) if len(results) > 1 else results[0]
-
-
-def dsplit(x, indices_or_sections):
-    return split(x, indices_or_sections, axis=2)

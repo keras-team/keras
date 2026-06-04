@@ -400,67 +400,6 @@ class GroupedQueryAttentionTest(testing.TestCase):
                 else:
                     self.assertEqual(scores[i, j], 0.0)
 
-    def test_causal_only_fast_path(self):
-        # When `use_causal_mask=True` is the only mask source, the layer
-        # should route through `dot_product_attention(is_causal=True)` and
-        # not materialize a [T, S] mask. The output must match the explicit
-        # mask path.
-        layer = layers.GroupedQueryAttention(
-            head_dim=4, num_query_heads=4, num_key_value_heads=2
-        )
-        x = np.random.RandomState(0).randn(2, 5, 16).astype("float32")
-        _ = layer(x, x, use_causal_mask=True)
-        fast = layer(x, x, use_causal_mask=True)
-
-        t = x.shape[1]
-        causal = np.tril(np.ones((1, t, t), dtype="bool"))
-        slow = layer(x, x, attention_mask=causal)
-
-        self.assertAllClose(fast, slow, atol=1e-5)
-
-    def test_causal_only_skipped_for_subclass(self):
-        # A subclass with the previous _compute_attention signature must
-        # still receive the explicit causal mask, not None.
-        seen = {}
-
-        class Sub(layers.GroupedQueryAttention):
-            def _compute_attention(
-                self, query, key, value, attention_mask=None, training=None
-            ):
-                seen["mask_is_none"] = attention_mask is None
-                return super()._compute_attention(
-                    query, key, value, attention_mask, training
-                )
-
-        layer = Sub(head_dim=4, num_query_heads=4, num_key_value_heads=2)
-        x = np.random.RandomState(0).randn(2, 5, 16).astype("float32")
-        _ = layer(x, x, use_causal_mask=True)
-        self.assertFalse(seen["mask_is_none"])
-
-    def test_causal_only_with_other_mask_falls_back(self):
-        # If any other mask is also present, the is_causal=True shortcut
-        # must not be taken since SDPA rejects mask + is_causal together.
-        # A regression that silently kept the shortcut would also drop the
-        # extra mask entirely, so compare against the explicit merged-mask
-        # path to prove `extra_mask` is honored.
-        layer = layers.GroupedQueryAttention(
-            head_dim=4, num_query_heads=4, num_key_value_heads=2
-        )
-        x = np.random.RandomState(0).randn(2, 5, 16).astype("float32")
-        # Build once so both calls share weights.
-        layer.build(query_shape=x.shape, value_shape=x.shape)
-
-        # Non-trivial extra mask: query position 2 must not attend to key 3.
-        extra_mask = np.ones((2, 5, 5), dtype="bool")
-        extra_mask[:, 2, 3] = False
-        causal = np.tril(np.ones((5, 5), dtype="bool"))
-        merged = extra_mask & causal
-
-        out1 = layer(x, x, attention_mask=extra_mask, use_causal_mask=True)
-        out2 = layer(x, x, attention_mask=merged, use_causal_mask=False)
-        self.assertEqual(tuple(out1.shape), (2, 5, 16))
-        self.assertAllClose(out1, out2, atol=1e-5)
-
     def test_sliding_window_validation(self):
         with self.assertRaisesRegex(ValueError, "sliding_window"):
             layers.GroupedQueryAttention(

@@ -86,9 +86,7 @@ def build_orbax_abstract_pytree(checkpoint_path, ref_state=None):
 
     import jax
 
-    pytree_meta = ocp.pytree_metadata(
-        checkpoint_path, checkpointable_name="pytree"
-    ).metadata
+    pytree_meta = ocp.pytree_metadata(checkpoint_path).metadata
 
     def _to_abstract(meta, ref=None):
         """Convert metadata leaf to `jax.ShapeDtypeStruct` with sharding."""

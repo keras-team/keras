@@ -20,7 +20,7 @@ class CenterCrop(BaseImagePreprocessingLayer):
     so as to return the largest possible window in the image that matches
     the target aspect ratio.
 
-    Input pixel values can be of any range (e.g. `[0., 1.)` or `[0, 255]`).
+    Input pixel values can be of any range (e.g. `[0., 1.]` or `[0, 255]`).
 
     Input shape:
         3D (unbatched) or 4D (batched) tensor with shape:
@@ -50,6 +50,14 @@ class CenterCrop(BaseImagePreprocessingLayer):
             `image_data_format` value found in your Keras config file at
             `~/.keras/keras.json`. If you never set it, then it will be
             `"channels_last"`.
+
+    Example:
+
+    >>> import numpy as np
+    >>> from keras import layers
+    >>> x = np.random.randint(0, 255, size=(2, 32, 32, 3), dtype=np.uint8)
+    >>> layer = layers.CenterCrop(height=16, width=16)
+    >>> y = layer(x)
     """
 
     _USE_BASE_FACTOR = False

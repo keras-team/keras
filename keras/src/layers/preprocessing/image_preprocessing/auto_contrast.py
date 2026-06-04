@@ -26,6 +26,14 @@ class AutoContrast(BaseImagePreprocessingLayer):
             This is typically either `(0, 1)` or `(0, 255)` depending
             on how your preprocessing pipeline is set up.
             Defaults to `(0, 255)`.
+
+    Example:
+
+    >>> import numpy as np
+    >>> from keras import layers
+    >>> x = np.random.randint(0, 255, size=(2, 32, 32, 3), dtype=np.uint8)
+    >>> layer = layers.AutoContrast(value_range=(0, 255))
+    >>> y = layer(x)
     """
 
     _USE_BASE_FACTOR = False

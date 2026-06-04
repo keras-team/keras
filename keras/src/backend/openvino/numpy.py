@@ -2917,24 +2917,6 @@ def maximum(x1, x2):
     return OpenVINOKerasTensor(ov_opset.maximum(x1, x2).output(0))
 
 
-def fmax(x1, x2):
-    x1, x2 = _promote_binary_op_types(x1, x2)
-    x1, x2 = _align_operand_types(x1, x2, "fmax()")
-    x_type = x1.get_element_type()
-
-    if x_type.is_integral() or x_type == Type.boolean:
-        return OpenVINOKerasTensor(ov_opset.maximum(x1, x2).output(0))
-
-    nan_x1 = ov_opset.is_nan(x1)
-    nan_x2 = ov_opset.is_nan(x2)
-
-    res = ov_opset.maximum(x1, x2)
-    res = ov_opset.select(nan_x2, x1, res)
-    res = ov_opset.select(nan_x1, x2, res)
-
-    return OpenVINOKerasTensor(res.output(0))
-
-
 def median(x, axis=None, keepdims=False):
     x = get_ov_output(x)
     x_shape = x.get_partial_shape()
@@ -5935,7 +5917,3 @@ def unique(
         outputs.append(OpenVINOKerasTensor(counts))
 
     return outputs[0] if len(outputs) == 1 else tuple(outputs)
-
-
-def dsplit(x, indices_or_sections):
-    return split(x, indices_or_sections, axis=2)

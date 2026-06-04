@@ -271,33 +271,15 @@ class GroupedQueryAttention(Layer):
         if key is None:
             key = value
 
-        # When causal masking is the only mask source, route through the
-        # backend's native causal kernel by passing `is_causal=True` rather
-        # than materializing a [T, S] mask tensor. Skipped when a subclass
-        # overrides `_compute_attention`, since such a subclass would
-        # receive `attention_mask=None` and silently do unmasked attention.
-        causal_only = (
-            use_causal_mask
-            and query_mask is None
-            and value_mask is None
-            and key_mask is None
-            and attention_mask is None
-            and self.sliding_window is None
-            and type(self)._compute_attention
-            is GroupedQueryAttention._compute_attention
+        attention_mask = self._compute_attention_mask(
+            query,
+            value,
+            query_mask=query_mask,
+            value_mask=value_mask,
+            key_mask=key_mask,
+            attention_mask=attention_mask,
+            use_causal_mask=use_causal_mask,
         )
-        if causal_only:
-            attention_mask = None
-        else:
-            attention_mask = self._compute_attention_mask(
-                query,
-                value,
-                query_mask=query_mask,
-                value_mask=value_mask,
-                key_mask=key_mask,
-                attention_mask=attention_mask,
-                use_causal_mask=use_causal_mask,
-            )
         if self.use_gate:
             gate = self._gate_dense(query)
         query = self._query_dense(query)
@@ -311,16 +293,12 @@ class GroupedQueryAttention(Layer):
             value, self.num_repeats, axis=2
         )  # (batch_dim, source_seq_len, query_heads, head_dim)
 
-        extra_attention_kwargs = (
-            {"use_causal_mask": True} if causal_only else {}
-        )
         output, scores = self._compute_attention(
             query,
             key,
             value,
             attention_mask=attention_mask,
             training=training,
-            **extra_attention_kwargs,
         )
         # (batch_dim, target_seq_len, feature_dim)
         if self.use_gate:
@@ -453,13 +431,7 @@ class GroupedQueryAttention(Layer):
         return ops.less(ops.abs(row_index - col_index), self.sliding_window)
 
     def _compute_attention(
-        self,
-        query,
-        key,
-        value,
-        attention_mask=None,
-        training=None,
-        use_causal_mask=False,
+        self, query, key, value, attention_mask=None, training=None
     ):
         # Check for flash attention constraints
         if self._flash_attention and self._return_attention_scores:
@@ -477,20 +449,6 @@ class GroupedQueryAttention(Layer):
         )
 
         if use_dot_product_attention:
-            if use_causal_mask and attention_mask is None:
-                # Skip materializing the [T, S] mask and let the backend
-                # use its native causal kernel.
-                attention_output = ops.dot_product_attention(
-                    query=query,
-                    key=key,
-                    value=value,
-                    bias=None,
-                    mask=None,
-                    scale=self._inverse_sqrt_head_dim,
-                    is_causal=True,
-                    flash_attention=self._flash_attention,
-                )
-                return attention_output, None
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,

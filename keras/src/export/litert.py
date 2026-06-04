@@ -26,12 +26,6 @@ def export_litert(
         filepath: The path to save the exported artifact.
         input_signature: Optional input signature specification. If
             `None`, it will be inferred.
-            Note: With the PyTorch backend, dynamic input shapes are not
-            supported. Any dynamic dimensions (represented as `None`) will
-            be automatically replaced with `1` during export, which may
-            cause runtime failures for other shapes. You must explicitly
-            pass a fixed static `input_signature` matching your maximum
-            runtime shape.
         **kwargs: Additional keyword arguments passed to the exporter.
     """
     filepath = str(filepath)

@@ -919,10 +919,6 @@ def erf(x):
     return OpenVINOKerasTensor(erf)
 
 
-def erfc(x):
-    raise NotImplementedError("`erfc` is not supported with openvino backend")
-
-
 def erfinv(x):
     # TODO: Float64 infinity values are clamped on CPU backend,
     # breaking erfinv(±1) = ±inf

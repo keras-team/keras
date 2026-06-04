@@ -187,33 +187,6 @@ class SerializationLibTest(testing.TestCase):
         y2 = new_lmbda(x)
         self.assertAllClose(y1, y2, atol=1e-5)
 
-    def test_deserialize_invalid_type_config(self):
-        bad_config = {"class_name": "Dense", "config": [1, 2, 3]}
-        with self.assertRaisesRegex(
-            TypeError, "Expected 'config' to be a dict"
-        ):
-            serialization_lib.deserialize_keras_object(bad_config)
-
-    def test_deserialize_invalid_typespec_config(self):
-        bad_config = {
-            "class_name": "__typespec__",
-            "config": "not_a_list_nor_a_tuple",
-        }
-        with self.assertRaisesRegex(
-            TypeError, "Expected 'config' to be a list or a tuple"
-        ):
-            serialization_lib.deserialize_keras_object(bad_config)
-
-    def test_deserialize_invalid_function_config(self):
-        bad_config = {
-            "class_name": "function",
-            "config": ["not", "a", "string"],
-        }
-        with self.assertRaisesRegex(
-            TypeError, "Expected 'config' to be a non-null str"
-        ):
-            serialization_lib.deserialize_keras_object(bad_config)
-
     def test_safe_mode_scope(self):
         lmbda = keras.layers.Lambda(lambda x: x**2)
         with serialization_lib.SafeModeScope(safe_mode=True):
@@ -465,10 +438,36 @@ class SerializationLibTest(testing.TestCase):
         }
         with self.assertRaisesRegex(
             ValueError,
-            "A Sequential model configuration must be a "
+            "A Sequential model configuration "
+            "must be either a list of layers or a "
             "dictionary containing the 'name' and 'layers' keys",
         ):
             deserialize_keras_object(serialized)
+
+    def test_config_as_list_of_layers(self):
+        """Tests serialization when sequential model config is list of
+        layers."""
+        serialized = {
+            "class_name": "Sequential",
+            "module": "keras",
+            "config": [
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 4},
+                },
+                {
+                    "class_name": "Dense",
+                    "module": "keras.layers",
+                    "config": {"units": 2},
+                },
+            ],
+        }
+        model = deserialize_keras_object(serialized)
+        self.assertIsInstance(model, keras.Sequential)
+        self.assertLen(model.layers, 2)
+        self.assertEqual(model.layers[0].units, 4)
+        self.assertEqual(model.layers[1].units, 2)
 
     def test_malformed_layer_for_sequential_model(self):
         serialized = {

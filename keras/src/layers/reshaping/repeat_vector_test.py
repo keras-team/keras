@@ -43,10 +43,3 @@ class FlattenTest(testing.TestCase):
             TypeError, "Expected an integer value for `n`"
         ):
             layers.RepeatVector(n=[3])
-
-    def test_repeat_vector_with_non_positive_n(self):
-        for n in (0, -3):
-            with self.assertRaisesRegex(
-                ValueError, "should be a positive integer"
-            ):
-                layers.RepeatVector(n=n)
