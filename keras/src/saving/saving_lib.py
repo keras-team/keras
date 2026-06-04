@@ -1060,6 +1060,9 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
+                if isinstance(self.archive, zipfile.ZipFile):
+                    for member in self.archive.namelist():
+                        _reject_zip_bomb(self.archive, member)
                 file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
                 self.tmp_dir, self.root_path
