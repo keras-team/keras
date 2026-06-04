@@ -1,7 +1,0 @@
-🛡️ Sentinel: [ENHANCEMENT] Explicitly disable pickle in `np.load`
-
-🚨 Severity: LOW / ENHANCEMENT
-💡 Vulnerability: `np.load` was called without explicitly specifying `allow_pickle=False`. While modern NumPy versions default to `False`, relying on defaults can lead to insecure deserialization if the environment uses an older version or the default changes.
-🎯 Impact: Insecure deserialization can lead to arbitrary code execution if a maliciously crafted `.npz` file is loaded.
-🔧 Fix: Explicitly pass `allow_pickle=False` to `np.load` in `keras/src/saving/saving_lib.py`.
-✅ Verification: Ran `pytest keras/src/saving/saving_lib_test.py` to ensure no regressions.
