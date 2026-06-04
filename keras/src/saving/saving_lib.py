@@ -13,6 +13,7 @@ import zipfile
 
 import ml_dtypes
 import numpy as np
+from numpy.lib import format as npy_format
 
 from keras.src import backend
 from keras.src.backend.common import global_state
@@ -47,6 +48,11 @@ _VARS_FNAME_H5 = f"{_VARS_FNAME}.h5"
 _VARS_FNAME_NPZ = f"{_VARS_FNAME}.npz"
 _ASSETS_DIRNAME = "assets"
 _MEMORY_UPPER_BOUND = 0.5  # 50%
+# An npz member is rejected as a shape/decompression "bomb" when its declared
+# array size exceeds both this floor and this multiple of its stored size.
+# Mirrors the `_ZIP_MEMBER_*` guard used by `_reject_zip_bomb`.
+_NPZ_MEMBER_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
+_NPZ_MEMBER_MAX_EXPANSION = 100
 
 
 _MODEL_CARD_TEMPLATE = """
@@ -1083,10 +1089,31 @@ class DiskIOStore:
                 ).replace("\\", "/")
                 file_utils.makedirs(self.working_dir)
 
+    def _full_path(self, path):
+        """Resolve `path` under the working dir, rejecting traversal."""
+        # Normalize separators first so a `\\` cannot bypass the check below.
+        path = path.replace("\\", "/")
+        if file_utils.is_remote_path(self.working_dir):
+            # `resolve_path` (realpath/abspath) would corrupt a remote prefix
+            # such as `gs://bucket`, so validate remote paths by string.
+            if path.startswith("/") or "://" in path or ".." in path.split("/"):
+                raise ValueError(
+                    f"Invalid asset path: '{path}' escapes the asset directory."
+                )
+            return file_utils.join(self.working_dir, path).replace("\\", "/")
+        resolved = file_utils.resolve_sub_path(
+            file_utils.resolve_path(self.working_dir), path
+        )
+        if resolved is None:
+            raise ValueError(
+                f"Invalid asset path: '{path}' escapes the asset directory."
+            )
+        return resolved.replace("\\", "/")
+
     def make(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path).replace("\\", "/")
+        path = self._full_path(path)
         if not file_utils.exists(path):
             file_utils.makedirs(path)
         return path
@@ -1094,16 +1121,19 @@ class DiskIOStore:
     def get(self, path):
         if not path:
             return self.working_dir
-        path = file_utils.join(self.working_dir, path).replace("\\", "/")
+        path = self._full_path(path)
         if file_utils.exists(path):
             return path
         return None
 
     def has_path(self, path):
         """Return True if `path` exists on disk under the store's root."""
-        return file_utils.exists(
-            file_utils.join(self.working_dir, path).replace("\\", "/")
-        )
+        if not path:
+            return file_utils.exists(self.working_dir)
+        try:
+            return file_utils.exists(self._full_path(path))
+        except ValueError:
+            return False
 
     def close(self):
         if self.mode == "w" and self.archive:
@@ -1755,8 +1785,46 @@ class NpzIOStore:
                 return dict(self.contents["__root__"])
             return {}
         if path in self.contents:
+            self._reject_npz_bomb(path)
             return self.contents[path].tolist()
         return {}
+
+    def _reject_npz_bomb(self, path):
+        """Guard against npz shape/decompression bombs.
+
+        Reading `self.contents[path]` makes NumPy allocate an array sized to
+        the `.npy` header's declared shape before the stored data is
+        validated, so a tiny member can declare a huge shape and drive an
+        unbounded allocation. Reject a member whose declared size hugely
+        exceeds the number of bytes actually stored for it.
+        """
+        zip_file = getattr(self.contents, "zip", None)
+        if zip_file is None:
+            return
+        try:
+            info = zip_file.getinfo(f"{path}.npy")
+        except KeyError:
+            return
+        with zip_file.open(info) as member_file:
+            major, _ = npy_format.read_magic(member_file)
+            read_header = getattr(
+                npy_format,
+                f"read_array_header_{major}_0",
+                npy_format.read_array_header_2_0,
+            )
+            shape, _, dtype = read_header(member_file)
+        declared_bytes = math.prod(shape) * dtype.itemsize
+        stored_bytes = max(info.compress_size, 1)
+        if (
+            declared_bytes > _NPZ_MEMBER_BOMB_FLOOR_BYTES
+            and declared_bytes > _NPZ_MEMBER_MAX_EXPANSION * stored_bytes
+        ):
+            raise ValueError(
+                f"Refusing to load npz weight '{path}': its header declares "
+                f"{readable_memory_size(declared_bytes)} but only "
+                f"{readable_memory_size(info.compress_size)} is stored on "
+                "disk; refusing to load a potential decompression bomb."
+            )
 
     def has_path(self, path):
         """Return True if `path` exists as a key in the npz contents."""
