@@ -5428,6 +5428,52 @@ def minimum(x1, x2):
     return backend.numpy.minimum(x1, x2)
 
 
+class Fmin(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.fmin(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and x2_sparse
+        return KerasTensor(
+            output_shape, dtype=output_dtype, sparse=output_sparse
+        )
+
+
+@keras_export(["keras.ops.fmin", "keras.ops.numpy.fmin"])
+def fmin(x1, x2):
+    """Element-wise minimum of tensor elements, ignoring NaNs.
+
+    Compare two tensors element-wise and return the minimum. If one of the
+    elements being compared is a NaN, the non-NaN element is returned.
+    If both elements are NaNs, the NaN is returned.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        Output tensor, element-wise minimum of `x1` and `x2`.
+
+    Examples:
+    >>> x1 = keras.ops.convert_to_tensor([2.0, float("nan")])
+    >>> x2 = keras.ops.convert_to_tensor([1.0, 4.0])
+    >>> keras.ops.fmin(x1, x2)
+    array([1.0, 4.0], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Fmin().symbolic_call(x1, x2)
+    return backend.numpy.fmin(x1, x2)
+
+
 class Mod(Operation):
     def call(self, x1, x2):
         return backend.numpy.mod(x1, x2)

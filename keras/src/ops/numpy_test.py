@@ -338,6 +338,11 @@ class NumpyTwoInputOpsDynamicShapeTest(testing.TestCase):
         y = KerasTensor((2, None))
         self.assertEqual(knp.minimum(x, y).shape, (2, 3))
 
+    def test_fmin(self):
+        x = KerasTensor((None, 3))
+        y = KerasTensor((2, None))
+        self.assertEqual(knp.fmin(x, y).shape, (2, 3))
+
     def test_mod(self):
         x = KerasTensor((None, 3))
         y = KerasTensor((2, None))
@@ -1072,6 +1077,19 @@ class NumpyTwoInputOpsStaticShapeTest(testing.TestCase):
             x = KerasTensor((2, 3))
             y = KerasTensor((2, 3, 4))
             knp.minimum(x, y)
+
+    def test_fmin(self):
+        x = KerasTensor((2, 3))
+        y = KerasTensor((2, 3))
+        self.assertEqual(knp.fmin(x, y).shape, (2, 3))
+
+        x = KerasTensor((2, 3))
+        self.assertEqual(knp.fmin(x, 2).shape, (2, 3))
+
+        with self.assertRaises(ValueError):
+            x = KerasTensor((2, 3))
+            y = KerasTensor((2, 3, 4))
+            knp.fmin(x, y)
 
     def test_mod(self):
         x = KerasTensor((2, 3))
@@ -4203,6 +4221,17 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Minimum()(x, y), np.minimum(x, y))
         self.assertAllClose(knp.Minimum()(x, 1), np.minimum(x, 1))
         self.assertAllClose(knp.Minimum()(1, x), np.minimum(1, x))
+
+    def test_fmin(self):
+        x = np.array([[1.0, np.nan], [3.0, 4.0]])
+        y = np.array([[5.0, 6.0], [np.nan, 8.0]])
+        self.assertAllClose(knp.fmin(x, y), np.fmin(x, y))
+        self.assertAllClose(knp.fmin(x, 1.0), np.fmin(x, 1.0))
+        self.assertAllClose(knp.fmin(1.0, x), np.fmin(1.0, x))
+
+        self.assertAllClose(knp.Fmin()(x, y), np.fmin(x, y))
+        self.assertAllClose(knp.Fmin()(x, 1.0), np.fmin(x, 1.0))
+        self.assertAllClose(knp.Fmin()(1.0, x), np.fmin(1.0, x))
 
     def test_mod(self):
         x = np.array([[1, 2], [3, 4]])
@@ -10848,6 +10877,27 @@ class NumpyDtypeTest(testing.TestCase):
 
         self.assertDType(knp.minimum(x, 1.0), expected_dtype)
         self.assertDType(knp.Minimum().symbolic_call(x, 1.0), expected_dtype)
+
+    @parameterized.named_parameters(
+        named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
+    )
+    def test_fmin(self, dtypes):
+        import jax.numpy as jnp
+
+        dtype1, dtype2 = dtypes
+        x1 = knp.ones((), dtype=dtype1)
+        x2 = knp.ones((), dtype=dtype2)
+        x1_jax = jnp.ones((), dtype=dtype1)
+        x2_jax = jnp.ones((), dtype=dtype2)
+        expected_dtype = standardize_dtype(jnp.fmin(x1_jax, x2_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(knp.fmin(x1, x2).dtype), expected_dtype
+        )
+        self.assertEqual(
+            standardize_dtype(knp.Fmin().symbolic_call(x1, x2).dtype),
+            expected_dtype,
+        )
 
     @parameterized.named_parameters(
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
