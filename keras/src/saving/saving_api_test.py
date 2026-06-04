@@ -137,9 +137,7 @@ class SaveModelTests(test_case.TestCase):
 
         legacy_task = Task(Backbone())
         legacy_task(np.ones((1, 3)))
-        filepath = os.path.join(
-            self.get_temp_dir(), "legacy_task.weights.h5"
-        )
+        filepath = os.path.join(self.get_temp_dir(), "legacy_task.weights.h5")
         # This simulates a legacy task weight file that contains the full task,
         # while modern task loading skips backbone-owned objects.
         saving_api.save_weights(legacy_task, filepath)
