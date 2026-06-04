@@ -920,7 +920,12 @@ def erf(x):
 
 
 def erfc(x):
-    raise NotImplementedError("`erfc` is not supported with openvino backend")
+    x = get_ov_output(x)
+    if not x.get_element_type().is_real():
+        x = ov_opset.convert(x, Type.f32).output(0)
+    const_one = ov_opset.constant(1, x.get_element_type()).output(0)
+    erf = ov_opset.erf(x).output(0)
+    return OpenVINOKerasTensor(ov_opset.subtract(const_one, erf).output(0))
 
 
 def erfinv(x):
