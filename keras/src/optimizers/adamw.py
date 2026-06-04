@@ -66,7 +66,7 @@ class AdamW(adam.Adam):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name=None,
+        name="adamw",
         **kwargs,
     ):
         super().__init__(

@@ -1068,13 +1068,10 @@ def _distribute_data(data, layouts=None):
 
     if distribution is not None:
         if layouts is None:
-
-            def get_layout(d):
-                if d is None:
-                    return None
-                return distribution.get_data_layout(d.shape)
-
-            layouts = tree.map_structure(get_layout, data)
+            layouts = tree.map_structure(
+                lambda d: distribution.get_data_layout(d.shape),
+                data,
+            )
         jax_dist_data_input = partial(
             jax_distribution_lib.distribute_data_input,
             batch_dim_name=distribution.batch_dim_name,
@@ -1104,13 +1101,12 @@ class JAXEpochIterator(EpochIterator):
         layouts = None
         for data in self.data_adapter.get_jax_iterator():
             if layouts is None:
-
-                def get_layout(d):
-                    if d is None:
-                        return None
-                    return distribution.get_data_layout(d.shape).backend_layout
-
-                layouts = tree.map_structure(get_layout, data)
+                layouts = tree.map_structure(
+                    lambda d: (
+                        distribution.get_data_layout(d.shape).backend_layout
+                    ),
+                    data,
+                )
             yield _distribute_data(data, layouts)
 
     def _one_batch_ahead_iterator(self, numpy_iterator):

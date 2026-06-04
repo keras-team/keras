@@ -49,7 +49,6 @@ from keras.src.ops.linalg import solve_triangular as solve_triangular
 from keras.src.ops.linalg import svd as svd
 from keras.src.ops.math import cdist as cdist
 from keras.src.ops.math import erf as erf
-from keras.src.ops.math import erfc as erfc
 from keras.src.ops.math import erfinv as erfinv
 from keras.src.ops.math import extract_sequences as extract_sequences
 from keras.src.ops.math import fft as fft
@@ -189,7 +188,6 @@ from keras.src.ops.numpy import digitize as digitize
 from keras.src.ops.numpy import divide as divide
 from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
-from keras.src.ops.numpy import dsplit as dsplit
 from keras.src.ops.numpy import dstack as dstack
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
@@ -206,7 +204,6 @@ from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
-from keras.src.ops.numpy import fmax as fmax
 from keras.src.ops.numpy import fmod as fmod
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like

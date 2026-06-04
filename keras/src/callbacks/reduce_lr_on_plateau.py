@@ -73,8 +73,7 @@ class ReduceLROnPlateau(MonitorCallback):
         self.wait = 0
 
     def _reset(self):
-        """Resets wait counter, cooldown counter, and best value."""
-        self.best = None
+        """Resets wait counter and cooldown counter."""
         self.cooldown_counter = 0
         self.wait = 0
 

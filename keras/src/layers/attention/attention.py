@@ -75,7 +75,6 @@ class Attention(Layer):
         self.use_scale = use_scale
         self.score_mode = score_mode
         self.dropout = dropout
-        self.seed = seed
         if self.dropout > 0:
             self.seed_generator = backend.random.SeedGenerator(seed=seed)
 
@@ -314,6 +313,5 @@ class Attention(Layer):
             "use_scale": self.use_scale,
             "score_mode": self.score_mode,
             "dropout": self.dropout,
-            "seed": self.seed,
         }
         return {**base_config, **config}

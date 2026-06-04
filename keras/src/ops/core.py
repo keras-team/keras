@@ -6,7 +6,6 @@ from keras.src import tree
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import any_symbolic_tensors
-from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import slice_along_axis
 from keras.src.ops.operation import Operation
 from keras.src.saving import serialization_lib
@@ -755,7 +754,9 @@ class Unstack(Operation):
         return backend.core.unstack(x, self.num, self.axis)
 
     def compute_output_spec(self, x):
-        axis = canonicalize_axis(self.axis, len(x.shape))
+        axis = self.axis
+        if axis < 0:
+            axis = len(x.shape) + axis
         output_shapes = x.shape[:axis] + x.shape[axis + 1 :]
         num = self.num
         if num is None:

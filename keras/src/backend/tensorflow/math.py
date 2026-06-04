@@ -295,11 +295,6 @@ def erf(x):
     return tf.math.erf(x)
 
 
-def erfc(x):
-    x = convert_to_tensor(x)
-    return tf.math.erfc(x)
-
-
 def erfinv(x):
     return tf.math.erfinv(x)
 

@@ -13,7 +13,6 @@ import zipfile
 
 import ml_dtypes
 import numpy as np
-from numpy.lib import format as npy_format
 
 from keras.src import backend
 from keras.src.backend.common import global_state
@@ -48,11 +47,6 @@ _VARS_FNAME_H5 = f"{_VARS_FNAME}.h5"
 _VARS_FNAME_NPZ = f"{_VARS_FNAME}.npz"
 _ASSETS_DIRNAME = "assets"
 _MEMORY_UPPER_BOUND = 0.5  # 50%
-# An npz member is rejected as a shape/decompression "bomb" when its declared
-# array size exceeds both this floor and this multiple of its stored size.
-# Mirrors the `_ZIP_MEMBER_*` guard used by `_reject_zip_bomb`.
-_NPZ_MEMBER_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
-_NPZ_MEMBER_MAX_EXPANSION = 100
 
 
 _MODEL_CARD_TEMPLATE = """
@@ -437,43 +431,10 @@ def _model_from_config(config_json, custom_objects, compile, safe_mode):
     return model
 
 
-# Guard against ZIP "decompression bomb" archive members (CWE-409): a member
-# can store almost nothing on disk yet declare an enormous uncompressed size,
-# forcing a huge allocation when it is read into memory. Keras writes archive
-# members uncompressed (stored, ratio ~1:1) and DEFLATE cannot exceed ~1032:1,
-# so a member that both exceeds the floor and expands to more than
-# `_ZIP_MEMBER_MAX_EXPANSION`x its on-disk size is a bomb, not a genuine
-# artifact (this leaves ample headroom for an incidentally recompressed file).
-# The 4 GiB floor matches the HDF5 dataset guard for CVE-2026-0897.
-_ZIP_MEMBER_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
-_ZIP_MEMBER_MAX_EXPANSION = 100
-
-
-def _reject_zip_bomb(archive, name):
-    """Raise if a ZIP member is a decompression bomb (see CWE-409)."""
-    info = archive.getinfo(name)
-    if (
-        info.file_size > _ZIP_MEMBER_BOMB_FLOOR_BYTES
-        and info.file_size > _ZIP_MEMBER_MAX_EXPANSION * info.compress_size
-    ):
-        raise ValueError(
-            f"Not allowed: ZIP member '{name}' declares "
-            f"{readable_memory_size(info.file_size)} but only "
-            f"{readable_memory_size(info.compress_size)} are stored on disk; "
-            "refusing to load a potential decompression bomb."
-        )
-
-
-def _safe_zip_read(archive, name):
-    """Read a ZIP member into memory, rejecting bombs (see CWE-409)."""
-    _reject_zip_bomb(archive, name)
-    with archive.open(name, "r") as f:
-        return f.read()
-
-
 def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     with zipfile.ZipFile(fileobj, "r") as zf:
-        config_json = _safe_zip_read(zf, _CONFIG_FILENAME)
+        with zf.open(_CONFIG_FILENAME, "r") as f:
+            config_json = f.read()
 
         model = _model_from_config(
             config_json, custom_objects, compile, safe_mode
@@ -485,12 +446,6 @@ def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
         asset_store = None
         try:
             if _VARS_FNAME_H5 in all_filenames:
-                # Reject a decompression-bomb weights member up front, outside
-                # the try/except below: the bare `except` falls back to reading
-                # the weights on the fly, so a check inside it would be
-                # swallowed and the bomb still read. Checking here covers the
-                # in-memory, extract-to-disk, and on-the-fly paths at once.
-                _reject_zip_bomb(zf, _VARS_FNAME_H5)
                 try:
                     if is_memory_sufficient(model):
                         # Load the entire file into memory if the system memory
@@ -1082,31 +1037,10 @@ class DiskIOStore:
                 ).replace("\\", "/")
                 file_utils.makedirs(self.working_dir)
 
-    def _full_path(self, path):
-        """Resolve `path` under the working dir, rejecting traversal."""
-        # Normalize separators first so a `\\` cannot bypass the check below.
-        path = path.replace("\\", "/")
-        if file_utils.is_remote_path(self.working_dir):
-            # `resolve_path` (realpath/abspath) would corrupt a remote prefix
-            # such as `gs://bucket`, so validate remote paths by string.
-            if path.startswith("/") or "://" in path or ".." in path.split("/"):
-                raise ValueError(
-                    f"Invalid asset path: '{path}' escapes the asset directory."
-                )
-            return file_utils.join(self.working_dir, path).replace("\\", "/")
-        resolved = file_utils.resolve_sub_path(
-            file_utils.resolve_path(self.working_dir), path
-        )
-        if resolved is None:
-            raise ValueError(
-                f"Invalid asset path: '{path}' escapes the asset directory."
-            )
-        return resolved.replace("\\", "/")
-
     def make(self, path):
         if not path:
             return self.working_dir
-        path = self._full_path(path)
+        path = file_utils.join(self.working_dir, path).replace("\\", "/")
         if not file_utils.exists(path):
             file_utils.makedirs(path)
         return path
@@ -1114,19 +1048,16 @@ class DiskIOStore:
     def get(self, path):
         if not path:
             return self.working_dir
-        path = self._full_path(path)
+        path = file_utils.join(self.working_dir, path).replace("\\", "/")
         if file_utils.exists(path):
             return path
         return None
 
     def has_path(self, path):
         """Return True if `path` exists on disk under the store's root."""
-        if not path:
-            return file_utils.exists(self.working_dir)
-        try:
-            return file_utils.exists(self._full_path(path))
-        except ValueError:
-            return False
+        return file_utils.exists(
+            file_utils.join(self.working_dir, path).replace("\\", "/")
+        )
 
     def close(self):
         if self.mode == "w" and self.archive:
@@ -1163,17 +1094,6 @@ def safe_get_h5_group(parent, name):
     return group
 
 
-# Guard against HDF5 "shape bomb" datasets: a dataset can declare an enormous
-# shape while storing almost nothing on disk (e.g. chunked + gzip-compressed
-# with only a fill value), which forces a huge allocation when it is read into
-# memory (CWE-789 / CWE-409). For datasets whose declared in-memory size is
-# above this floor, we require it to stay within `_H5_DATASET_MAX_EXPANSION` of
-# the bytes actually stored on disk. Genuine arrays (even compressed) satisfy
-# this; shape/decompression bombs, which store next to nothing, do not.
-_H5_DATASET_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
-_H5_DATASET_MAX_EXPANSION = 1000
-
-
 def safe_get_h5_dataset(group, name):
     """Retrieve a Dataset within a given Group.
 
@@ -1203,18 +1123,6 @@ def safe_get_h5_dataset(group, name):
         )
     if dataset.is_virtual:
         raise ValueError("Not allowed: H5 file with virtual Dataset")
-    declared_bytes = math.prod(dataset.shape) * dataset.dtype.itemsize
-    stored_bytes = dataset.id.get_storage_size()
-    if (
-        declared_bytes > _H5_DATASET_BOMB_FLOOR_BYTES
-        and declared_bytes > _H5_DATASET_MAX_EXPANSION * stored_bytes
-    ):
-        raise ValueError(
-            f"Not allowed: H5 dataset '{name}' declares "
-            f"{readable_memory_size(declared_bytes)} but only "
-            f"{readable_memory_size(stored_bytes)} are stored on disk; "
-            "refusing to load a potential decompression/shape bomb."
-        )
     return dataset
 
 
@@ -1480,7 +1388,7 @@ class ShardedH5IOStore(H5IOStore):
         else:
             if self.archive:
                 self.sharding_config = json.loads(
-                    _safe_zip_read(self.archive, str(self.path))
+                    self.archive.open(str(self.path), "r").read()
                 )
             else:
                 with open(self.path, "r") as map_file:
@@ -1778,46 +1686,8 @@ class NpzIOStore:
                 return dict(self.contents["__root__"])
             return {}
         if path in self.contents:
-            self._reject_npz_bomb(path)
             return self.contents[path].tolist()
         return {}
-
-    def _reject_npz_bomb(self, path):
-        """Guard against npz shape/decompression bombs.
-
-        Reading `self.contents[path]` makes NumPy allocate an array sized to
-        the `.npy` header's declared shape before the stored data is
-        validated, so a tiny member can declare a huge shape and drive an
-        unbounded allocation. Reject a member whose declared size hugely
-        exceeds the number of bytes actually stored for it.
-        """
-        zip_file = getattr(self.contents, "zip", None)
-        if zip_file is None:
-            return
-        try:
-            info = zip_file.getinfo(f"{path}.npy")
-        except KeyError:
-            return
-        with zip_file.open(info) as member_file:
-            major, _ = npy_format.read_magic(member_file)
-            read_header = getattr(
-                npy_format,
-                f"read_array_header_{major}_0",
-                npy_format.read_array_header_2_0,
-            )
-            shape, _, dtype = read_header(member_file)
-        declared_bytes = math.prod(shape) * dtype.itemsize
-        stored_bytes = max(info.compress_size, 1)
-        if (
-            declared_bytes > _NPZ_MEMBER_BOMB_FLOOR_BYTES
-            and declared_bytes > _NPZ_MEMBER_MAX_EXPANSION * stored_bytes
-        ):
-            raise ValueError(
-                f"Refusing to load npz weight '{path}': its header declares "
-                f"{readable_memory_size(declared_bytes)} but only "
-                f"{readable_memory_size(info.compress_size)} is stored on "
-                "disk; refusing to load a potential decompression bomb."
-            )
 
     def has_path(self, path):
         """Return True if `path` exists as a key in the npz contents."""

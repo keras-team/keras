@@ -50,7 +50,7 @@ class Lamb(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name=None,
+        name="lamb",
         **kwargs,
     ):
         super().__init__(
