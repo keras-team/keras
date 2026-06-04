@@ -921,8 +921,6 @@ def erf(x):
 
 def erfc(x):
     x = get_ov_output(x)
-    if x.get_element_type() not in (Type.bf16, Type.f16, Type.f32, Type.f64):
-        x = ov_opset.convert(x, Type.f32).output(0)
     const_one = ov_opset.constant(1, x.get_element_type()).output(0)
     erf = ov_opset.erf(x).output(0)
     return OpenVINOKerasTensor(ov_opset.subtract(const_one, erf).output(0))
