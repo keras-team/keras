@@ -1,3 +1,4 @@
+import functools
 import math
 import warnings
 
@@ -16,6 +17,17 @@ from keras.src.backend.common.backend_utils import (
 )
 from keras.src.backend.tensorflow.core import cast
 from keras.src.backend.tensorflow.core import convert_to_tensor
+
+
+@functools.lru_cache(maxsize=None)
+def _cpu_only():
+    """Whether the TF runtime sees only CPU devices.
+
+    Cached because the device list does not change during a run and
+    `tf.config.list_logical_devices()` is comparatively expensive to call on
+    every conv invocation in eager mode.
+    """
+    return all(d.device_type == "CPU" for d in tf.config.list_logical_devices())
 
 
 def relu(x):
@@ -979,9 +991,7 @@ def depthwise_conv(
         # `tf.nn.depthwise_conv2d` does not support `channels_first` with
         # dilations on CPU. Transpose to `channels_last`, compute, and
         # transpose back to avoid the limitation.
-        need_transpose = data_format == "channels_first" and all(
-            d.device_type == "CPU" for d in tf.config.list_logical_devices()
-        )
+        need_transpose = data_format == "channels_first" and _cpu_only()
         if need_transpose:
             inputs = _transpose_spatial_inputs(inputs)
         if need_transpose or data_format == "channels_last":
@@ -1016,9 +1026,7 @@ def depthwise_conv(
     # Transpose to `channels_last`, compute, and transpose back to avoid the
     # limitation. On GPU, `channels_first` (NCHW) is supported natively, so we
     # keep it to avoid unnecessary copies.
-    need_transpose = data_format == "channels_first" and all(
-        d.device_type == "CPU" for d in tf.config.list_logical_devices()
-    )
+    need_transpose = data_format == "channels_first" and _cpu_only()
     if need_transpose:
         inputs = _transpose_spatial_inputs(inputs)
     if need_transpose or data_format == "channels_last":
@@ -1082,9 +1090,7 @@ def separable_conv(
         # 1D separable conv.
         # `tf.nn.separable_conv2d` does not support `channels_first` on CPU.
         # Transpose to `channels_last`, compute, and transpose back.
-        need_transpose = data_format == "channels_first" and all(
-            d.device_type == "CPU" for d in tf.config.list_logical_devices()
-        )
+        need_transpose = data_format == "channels_first" and _cpu_only()
         if need_transpose:
             inputs = _transpose_spatial_inputs(inputs)
         if need_transpose or data_format == "channels_last":
@@ -1117,9 +1123,7 @@ def separable_conv(
     # `tf.nn.separable_conv2d` does not support `channels_first` on CPU.
     # Transpose to `channels_last`, compute, and transpose back. On GPU,
     # NCHW is supported natively, so we keep it to avoid unnecessary copies.
-    need_transpose = data_format == "channels_first" and all(
-        d.device_type == "CPU" for d in tf.config.list_logical_devices()
-    )
+    need_transpose = data_format == "channels_first" and _cpu_only()
     if need_transpose:
         inputs = _transpose_spatial_inputs(inputs)
     if need_transpose or data_format == "channels_last":
