@@ -656,6 +656,50 @@ class MultiHeadAttentionTest(testing.TestCase):
         scores = backend.convert_to_numpy(scores)
         self.assertLess(scores[..., future].sum(), 1e-6)
 
+    @parameterized.named_parameters(
+        ("fused_fallback", False),
+        ("manual_path", True),
+    )
+    def test_compute_attention_combines_causal_and_explicit_mask(
+        self, return_attention_scores
+    ):
+        # `_compute_attention` is a documented override point. Called directly
+        # with both use_causal_mask=True and an explicit attention_mask, it must
+        # apply both. `call` folds the causal mask in upstream, but a subclass
+        # reusing this method does not, so the method must honor its own flag.
+        t = 5
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        layer.build(query_shape=(1, t, 8), value_shape=(1, t, 8))
+
+        rng = np.random.RandomState(0)
+        query = rng.randn(1, t, 2, 4).astype("float32")
+        key = rng.randn(1, t, 2, 4).astype("float32")
+        value = rng.randn(1, t, 2, 4).astype("float32")
+
+        # A non-causal extra constraint so the causal mask is not redundant.
+        extra = np.ones((1, t, t), dtype="bool")
+        extra[:, 3, 1] = False
+        causal = np.tril(np.ones((t, t), dtype="bool"))[None]
+        merged = extra & causal
+
+        out_both, _ = layer._compute_attention(
+            query,
+            key,
+            value,
+            attention_mask=extra,
+            use_causal_mask=True,
+            return_attention_scores=return_attention_scores,
+        )
+        out_merged, _ = layer._compute_attention(
+            query,
+            key,
+            value,
+            attention_mask=merged,
+            use_causal_mask=False,
+            return_attention_scores=return_attention_scores,
+        )
+        self.assertAllClose(out_both, out_merged, atol=1e-5)
+
     def test_sliding_window_validation(self):
         with self.assertRaisesRegex(ValueError, "sliding_window"):
             layers.MultiHeadAttention(num_heads=2, key_dim=4, sliding_window=0)

@@ -539,6 +539,16 @@ class MultiHeadAttention(Layer):
                     flash_attention=self._flash_attention,
                 )
                 return attention_output, None
+            if use_causal_mask and attention_mask is not None:
+                # The native is_causal kernel above was skipped because an
+                # explicit mask was also provided. Fold the causal mask into it
+                # so both constraints apply. Backends disagree on whether
+                # is_causal composes with an explicit mask, so combine them here
+                # rather than forwarding the is_causal flag.
+                attention_mask = ops.logical_and(
+                    ops.cast(attention_mask, "bool"),
+                    self._compute_causal_mask(query, value),
+                )
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
@@ -569,9 +579,17 @@ class MultiHeadAttention(Layer):
         # scores. We skipped the fused is_causal kernel above, so build the
         # causal mask here. `call` drops attention_mask when causal is the
         # only mask source, expecting that kernel to run, and this path never
-        # sees the is_causal flag otherwise.
-        if use_causal_mask and attention_mask is None:
-            attention_mask = self._compute_causal_mask(query, value)
+        # sees the is_causal flag otherwise. When an explicit mask is also
+        # present, combine the two so neither constraint is lost.
+        if use_causal_mask:
+            causal_mask = self._compute_causal_mask(query, value)
+            attention_mask = (
+                causal_mask
+                if attention_mask is None
+                else ops.logical_and(
+                    ops.cast(attention_mask, "bool"), causal_mask
+                )
+            )
         query = ops.multiply(
             query, ops.cast(self._inverse_sqrt_key_dim, query.dtype)
         )

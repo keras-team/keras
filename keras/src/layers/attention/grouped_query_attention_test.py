@@ -500,6 +500,45 @@ class GroupedQueryAttentionTest(testing.TestCase):
             out_explicit = layer(x, x, attention_mask=explicit, training=False)
             self.assertAllClose(out_causal, out_explicit, atol=1e-5)
 
+    @parameterized.named_parameters(
+        ("fused_fallback", False),
+        ("manual_path", True),
+    )
+    def test_compute_attention_combines_causal_and_explicit_mask(
+        self, return_attention_scores
+    ):
+        # `_compute_attention` is a documented override point. Called directly
+        # with both use_causal_mask=True and an explicit attention_mask, it must
+        # apply both. `call` folds the causal mask in upstream, but a subclass
+        # reusing this method does not, so the method must honor its own flag.
+        t = 5
+        layer = layers.GroupedQueryAttention(
+            head_dim=4, num_query_heads=4, num_key_value_heads=2
+        )
+        layer.build(query_shape=(1, t, 16), value_shape=(1, t, 16))
+        layer._return_attention_scores = return_attention_scores
+
+        rng = np.random.RandomState(0)
+        # After projection and head repeat, q/k/v are [B, T, num_query_heads,
+        # head_dim].
+        query = rng.randn(1, t, 4, 4).astype("float32")
+        key = rng.randn(1, t, 4, 4).astype("float32")
+        value = rng.randn(1, t, 4, 4).astype("float32")
+
+        # A non-causal extra constraint so the causal mask is not redundant.
+        extra = np.ones((1, t, t), dtype="bool")
+        extra[:, 3, 1] = False
+        causal = np.tril(np.ones((t, t), dtype="bool"))[None]
+        merged = extra & causal
+
+        out_both, _ = layer._compute_attention(
+            query, key, value, attention_mask=extra, use_causal_mask=True
+        )
+        out_merged, _ = layer._compute_attention(
+            query, key, value, attention_mask=merged, use_causal_mask=False
+        )
+        self.assertAllClose(out_both, out_merged, atol=1e-5)
+
     def test_sliding_window_validation(self):
         with self.assertRaisesRegex(ValueError, "sliding_window"):
             layers.GroupedQueryAttention(
