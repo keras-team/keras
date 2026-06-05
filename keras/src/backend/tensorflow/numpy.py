@@ -3977,14 +3977,15 @@ def unique(
         if return_counts:
             counts = tf.pad(counts, [[0, pad_amount]], constant_values=0)
 
-        # 3. Enforce static shape for JAX/XLA compatibility
-        static_shape = y.shape.as_list()
-        static_shape[dim] = size
-        y.set_shape(static_shape)
-        if return_index:
-            unique_indices.set_shape([size])
-        if return_counts:
-            counts.set_shape([size])
+        # 3. Enforce static shape for XLA compatibility
+        if isinstance(size, int):
+            static_shape = y.shape.as_list()
+            static_shape[dim] = size
+            y.set_shape(static_shape)
+            if return_index:
+                unique_indices.set_shape([size])
+            if return_counts:
+                counts.set_shape([size])
 
     if return_inverse and is_flatten:
         inverse = tf.reshape(inverse, original_shape)
