@@ -163,6 +163,50 @@ class DistributionTest(testing.TestCase):
 
         self.assertIsNone(distribution_lib.distribution())
 
+    def test_data_shard_id(self):
+        # Case 1: num_model_replicas >= num_processes
+        # data_shard_id should be process_id
+        distribution = distribution_lib.Distribution(self.device_mesh)
+        with (
+            mock.patch.object(
+                distribution.__class__,
+                "num_model_replicas",
+                new_callable=mock.PropertyMock,
+                return_value=8,
+            ),
+            mock.patch.object(
+                distribution.__class__,
+                "num_processes",
+                new_callable=mock.PropertyMock,
+                return_value=4,
+            ),
+        ):
+            for process_id in range(4):
+                with mock.patch.object(distribution, "_process_id", process_id):
+                    self.assertEqual(distribution.data_shard_id, process_id)
+
+        # Case 2: num_model_replicas < num_processes
+        # data_shard_id should be process_id //
+        # (num_processes // num_model_replicas)
+        with (
+            mock.patch.object(
+                distribution.__class__,
+                "num_model_replicas",
+                new_callable=mock.PropertyMock,
+                return_value=2,
+            ),
+            mock.patch.object(
+                distribution.__class__,
+                "num_processes",
+                new_callable=mock.PropertyMock,
+                return_value=4,
+            ),
+        ):
+            expected_data_shard_ids = [0, 0, 1, 1]
+            for process_id, expected in enumerate(expected_data_shard_ids):
+                with mock.patch.object(distribution, "_process_id", process_id):
+                    self.assertEqual(distribution.data_shard_id, expected)
+
 
 @pytest.mark.skipif(
     backend.backend() != "jax",

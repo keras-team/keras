@@ -479,11 +479,10 @@ class DataParallel(Distribution):
             self._initialize_mesh_from_devices(devices, auto_shard_dataset)
         else:
             self._initialize_mesh_from_list_devices(auto_shard_dataset)
-        self._num_model_replicas = self.device_mesh.devices.size
 
     @property
     def num_model_replicas(self):
-        return self._num_model_replicas
+        return self.device_mesh.devices.size
 
     def _initialize_with_device_mesh(self, device_mesh, auto_shard_dataset):
         if not isinstance(device_mesh, DeviceMesh):
@@ -688,25 +687,24 @@ class ModelParallel(Distribution):
         super().__init__(device_mesh, batch_dim_name, auto_shard_dataset)
         self._layout_map = layout_map
 
-        mesh_batch_dim_index = self.device_mesh.axis_names.index(
-            self.batch_dim_name
-        )
-        self._num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
         if (
             self._is_multi_process
-            and self.num_processes > self._num_model_replicas
-            and self.num_processes % self._num_model_replicas != 0
+            and self.num_processes > self.num_model_replicas
+            and self.num_processes % self.num_model_replicas != 0
         ):
             raise ValueError(
                 "If `num_processes` is greater than `num_model_replicas`, "
                 "`num_processes` must be divisible by `num_model_replicas`. "
                 f"Got num_processes={self.num_processes}, "
-                f"num_model_replicas={self._num_model_replicas}."
+                f"num_model_replicas={self.num_model_replicas}."
             )
 
     @property
     def num_model_replicas(self):
-        return self._num_model_replicas
+        mesh_batch_dim_index = self.device_mesh.axis_names.index(
+            self.batch_dim_name
+        )
+        return self.device_mesh.shape[mesh_batch_dim_index]
 
     def get_data_layout(self, data_shape):
         data_shard_spec = [None] * len(data_shape)
@@ -756,7 +754,10 @@ class ModelParallel(Distribution):
         # This will depend on how many model replicas we have on each process.
         # Note that this might be smaller than one if model replicas are sharded
         # across multiple processes.
-        num_model_replicas = self.num_model_replicas
+        mesh_batch_dim_index = self.device_mesh.axis_names.index(
+            self.batch_dim_name
+        )
+        num_model_replicas = self.device_mesh.shape[mesh_batch_dim_index]
         if num_model_replicas == 1:
             # No sharding is needed in this case. Each process will have the
             # global batch size, and data from the iterator will need to be
