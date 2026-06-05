@@ -39,13 +39,16 @@ def get_data_adapter(
         and getattr(distribution, "_is_multi_process", False)
         and getattr(distribution, "auto_shard_dataset", False)
         and not (
-            is_tf_dataset(x) or isinstance(x, py_dataset_adapter.PyDataset)
+            is_tf_dataset(x)
+            or is_torch_dataloader(x)
+            or isinstance(x, py_dataset_adapter.PyDataset)
         )
     ):
         raise ValueError(
             "When using a multi-worker distribution with auto-sharding enabled, "
-            "the data must be provided as a `tf.data.Dataset` or a "
-            f"`keras.utils.PyDataset` instance. Received: type(x)={type(x)}. "
+            "the data must be provided as a `tf.data.Dataset`, a "
+            "`torch.utils.data.DataLoader`, or a `keras.utils.PyDataset` "
+            f"instance. Received: type(x)={type(x)}. "
             "If the dataset is already sharded across workers, then set "
             "`distribution.auto_shard_dataset = False`."
         )

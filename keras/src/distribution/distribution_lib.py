@@ -444,6 +444,11 @@ class Distribution:
         if tf.available and isinstance(dataset, tf.data.Dataset):
             return self.distribute_tf_dataset(dataset)
 
+        if hasattr(self, "distribute_torch_dataloader") and (
+            "torch" in str(type(dataset))
+        ):
+            return self.distribute_torch_dataloader(dataset)
+
         raise ValueError(
             f"The dataset type {type(dataset)} is not supported for "
             "auto-sharding in multi-process setting."
@@ -456,6 +461,30 @@ class Distribution:
             dataset, distribution=self
         )
         return adapter.get_tf_dataset()
+
+    def distribute_torch_dataloader(self, dataloader):
+        """Create a distributed torch DataLoader from the original dataloader.
+
+        Args:
+            dataloader: the original global torch DataLoader instance.
+
+        Returns:
+            If `auto_shard_dataset` is `True`, returns a sharded dataloader that
+            only produces data for the current local worker/process. Otherwise,
+            returns the original dataloader.
+        """
+        if not self._is_multi_process or not self.auto_shard_dataset:
+            return dataloader
+
+        num_model_replicas = self.num_model_replicas
+        num_data_shards = min(num_model_replicas, self.num_processes)
+        data_shard_id = self.data_shard_id
+
+        from keras.src.trainers.data_adapters import data_adapter_utils
+
+        return data_adapter_utils._add_torch_distributed_sampler(
+            dataloader, num_data_shards, data_shard_id
+        )
 
     def __repr__(self):
         return f"<{self.__class__.__name__} device_mesh={self.device_mesh}>"
