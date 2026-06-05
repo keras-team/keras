@@ -13,11 +13,17 @@ class TorchDataLoaderAdapter(DataAdapter):
     def __init__(self, dataloader):
         import torch
 
+        from keras.src.distribution import distribution_lib as dist_lib
+
         if not isinstance(dataloader, torch.utils.data.DataLoader):
             raise ValueError(
                 f"Expected argument `dataloader` to be an instance of"
                 f"`torch.utils.data.DataLoader`. Received: {dataloader}"
             )
+
+        dist = dist_lib.distribution()
+        if dist is not None:
+            dataloader = dist.distribute_dataset(dataloader)
 
         self._dataloader = dataloader
         self._output_signature = None

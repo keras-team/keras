@@ -91,6 +91,16 @@ class ArrayDataAdapter(DataAdapter):
         self._batch_size = batch_size
         self._partial_batch_size = num_samples % batch_size
         self._shuffle = shuffle
+        self._epoch = 0
+
+        from keras.src.distribution import distribution_lib
+
+        dist = distribution_lib.distribution()
+        self._num_processes = 1
+        self._process_id = 0
+        if dist is not None and getattr(dist, "auto_shard_dataset", False):
+            self._num_processes = dist.num_model_replicas
+            self._process_id = dist.data_shard_id
 
     def get_numpy_iterator(self):
         inputs = array_slicing.convert_to_sliceable(
@@ -111,6 +121,7 @@ class ArrayDataAdapter(DataAdapter):
         batch_size = self._batch_size
         num_samples = self._num_samples
         num_full_batches = int(self._num_samples // batch_size)
+        epoch = self._epoch
 
         # Vectorized version of shuffle.
         # This is a performance improvement over using `from_tensor_slices`.
@@ -131,7 +142,7 @@ class ArrayDataAdapter(DataAdapter):
             # buffer forwarding.)
             indices = tf.range(num_samples, dtype=tf.int64)
             if shuffle and shuffle != "batch":
-                indices = tf.random.shuffle(indices)
+                indices = tf.random.shuffle(indices, seed=epoch)
             return indices
 
         # We prefetch a single element. Computing large permutations can take
@@ -232,7 +243,9 @@ class ArrayDataAdapter(DataAdapter):
 
         indices_dataset = indices_dataset.flat_map(slice_batch_indices)
         if shuffle == "batch":
-            indices_dataset = indices_dataset.map(tf.random.shuffle)
+            indices_dataset = indices_dataset.map(
+                lambda x: tf.random.shuffle(x, seed=epoch)
+            )
 
         dataset = slice_inputs(indices_dataset, self._inputs)
 
@@ -261,8 +274,9 @@ class ArrayDataAdapter(DataAdapter):
         from keras.src.backend.torch.core import convert_to_tensor
 
         class ArrayDataset(torch.utils.data.Dataset):
-            def __init__(self, array):
+            def __init__(self, array, num_samples):
                 self.array = array
+                self.num_samples = num_samples
 
             def __getitems__(self, indices):
                 def slice_and_convert(sliceable):
@@ -276,15 +290,21 @@ class ArrayDataAdapter(DataAdapter):
                 )
 
             def __len__(self):
-                return len(self.array[0])
+                return self.num_samples
 
         class RandomBatchSampler(torch.utils.data.Sampler):
-            def __init__(self, sampler):
+            def __init__(self, sampler, seed):
                 self.sampler = sampler
+                self.seed = seed
 
             def __iter__(self):
+                generator = torch.Generator()
+                generator.manual_seed(self.seed)
                 for batch in self.sampler:
-                    yield [batch[i] for i in torch.randperm(len(batch))]
+                    yield [
+                        batch[i]
+                        for i in torch.randperm(len(batch), generator=generator)
+                    ]
 
             def __len__(self):
                 return len(self.sampler)
@@ -295,11 +315,16 @@ class ArrayDataAdapter(DataAdapter):
                     range(self._num_samples),
                     batch_size=self._batch_size,
                     drop_last=False,
-                )
+                ),
+                seed=self._epoch,
             )
         elif self._shuffle:
+            generator = torch.Generator()
+            generator.manual_seed(self._epoch)
             batch_sampler = torch.utils.data.BatchSampler(
-                torch.utils.data.RandomSampler(range(self._num_samples)),
+                torch.utils.data.RandomSampler(
+                    range(self._num_samples), generator=generator
+                ),
                 batch_size=self._batch_size,
                 drop_last=False,
             )
@@ -310,6 +335,15 @@ class ArrayDataAdapter(DataAdapter):
                 drop_last=False,
             )
 
+        if self._num_processes > 1:
+            from keras.src.trainers.data_adapters import data_adapter_utils
+
+            batch_sampler = data_adapter_utils.DistributedBatchSampler(
+                batch_sampler,
+                num_replicas=self._num_processes,
+                rank=self._process_id,
+            )
+
         # Because ArrayDataset.__getitems__ returns full batches organized in
         # the expected structure, there is nothing to collate.
         def no_op_collate(batch):
@@ -318,21 +352,24 @@ class ArrayDataAdapter(DataAdapter):
         inputs = array_slicing.convert_to_sliceable(
             self._inputs, target_backend="torch"
         )
-        dataset = ArrayDataset(inputs)
-        return torch.utils.data.DataLoader(
+        dataset = ArrayDataset(inputs, self._num_samples)
+        dataloader = torch.utils.data.DataLoader(
             dataset, batch_sampler=batch_sampler, collate_fn=no_op_collate
         )
 
+        return dataloader
+
     def _get_iterator(self, slice_and_convert_fn, inputs):
+        rng = np.random.RandomState(self._epoch)
         global_permutation = None
         if self._shuffle and self._shuffle != "batch":
-            global_permutation = np.random.permutation(self._num_samples)
+            global_permutation = rng.permutation(self._num_samples)
 
-        for i in range(self._size):
+        for i in range(self._process_id, self._size, self._num_processes):
             start = i * self._batch_size
             stop = min((i + 1) * self._batch_size, self._num_samples)
             if self._shuffle == "batch":
-                indices = np.random.permutation(stop - start) + start
+                indices = rng.permutation(stop - start) + start
             elif self._shuffle:
                 indices = global_permutation[start:stop]
             else:
@@ -360,6 +397,9 @@ class ArrayDataAdapter(DataAdapter):
     @property
     def partial_batch_size(self):
         return self._partial_batch_size or None
+
+    def on_epoch_end(self):
+        self._epoch += 1
 
 
 def can_convert_arrays(arrays):
