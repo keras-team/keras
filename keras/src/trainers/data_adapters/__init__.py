@@ -150,10 +150,10 @@ def get_data_adapter(
 
     elif isinstance(x, types.GeneratorType):
         if y is not None:
-            raise_unsupported_arg("y", "the targets", "PyDataset")
+            raise_unsupported_arg("y", "the targets", "generator")
         if sample_weight is not None:
             raise_unsupported_arg(
-                "sample_weights", "the sample weights", "PyDataset"
+                "sample_weights", "the sample weights", "generator"
             )
         if class_weight is not None:
             raise ValueError(
