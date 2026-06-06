@@ -491,16 +491,6 @@ class GroupedQueryAttention(Layer):
                     flash_attention=self._flash_attention,
                 )
                 return attention_output, None
-            if use_causal_mask and attention_mask is not None:
-                # The native is_causal kernel above was skipped because an
-                # explicit mask was also provided. Fold the causal mask into it
-                # so both constraints apply. Backends disagree on whether
-                # is_causal composes with an explicit mask, so combine them here
-                # rather than forwarding the is_causal flag.
-                attention_mask = ops.logical_and(
-                    ops.cast(attention_mask, "bool"),
-                    self._compute_causal_mask(query, value),
-                )
             if attention_mask is not None:
                 # Ensure attention_mask has the correct shape for broadcasting
                 # Expected shape: [batch_size, num_heads, query_seq_len,
@@ -522,7 +512,7 @@ class GroupedQueryAttention(Layer):
                 bias=None,
                 mask=attention_mask,
                 scale=self._inverse_sqrt_head_dim,
-                is_causal=False,
+                is_causal=use_causal_mask,
                 flash_attention=self._flash_attention,
             )
             return attention_output, None
