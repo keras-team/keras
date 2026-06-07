@@ -11,6 +11,31 @@ from keras.src.utils import tf_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 
+def raise_for_unsafe_vocabulary_load(vocabulary):
+    """Fail closed when a vocabulary file path is deserialized in safe mode.
+
+    A vocabulary supplied as a string is a file path loaded from outside the
+    model archive (``tf.io.gfile`` also resolves remote URIs such as ``gs://``).
+    When reconstructing a layer from a (potentially untrusted) config via
+    ``from_config``, only allow it if safe mode has been explicitly disabled;
+    fail closed when safe mode is unset, so that deserializing an untrusted
+    config cannot read arbitrary local files or reach remote URLs.
+    """
+    if isinstance(vocabulary, str) and (
+        serialization_lib.in_safe_mode() is not False
+    ):
+        raise ValueError(
+            "Requested the loading of a vocabulary file outside of the model "
+            "archive while deserializing a layer. This carries a potential "
+            "risk of loading arbitrary and sensitive files and thus it is "
+            "disallowed by default. If you trust the source of the artifact, "
+            "you can override this error by passing `safe_mode=False` to the "
+            "loading function, or calling "
+            "`keras.config.enable_unsafe_deserialization()`. "
+            f"Vocabulary file: '{vocabulary}'"
+        )
+
+
 class IndexLookup(Layer):
     """Maps values from a vocabulary to integer indices.
 
@@ -402,6 +427,11 @@ class IndexLookup(Layer):
         }
         base_config = super().get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    @classmethod
+    def from_config(cls, config):
+        raise_for_unsafe_vocabulary_load(config.get("vocabulary"))
+        return cls(**config)
 
     def _record_vocabulary_size(self):
         self._ensure_vocab_size_unchanged()

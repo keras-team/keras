@@ -60,6 +60,37 @@ class StringLookupTest(testing.TestCase):
             ["[MASK]", "[OOV]", "a", "b", "c"],
         )
 
+    def test_from_config_vocabulary_path_fails_closed(self):
+        from keras.src.saving.serialization_lib import SafeModeScope
+
+        temp_dir = self.get_temp_dir()
+        vocab_path = os.path.join(temp_dir, "vocab.txt")
+        with open(vocab_path, "w") as file:
+            file.write("a\nb\nc\n")
+
+        # Craft a config that points `vocabulary` at a file path.
+        config = layers.StringLookup(vocabulary=["x", "y"]).get_config()
+        config["vocabulary"] = vocab_path
+
+        # Deserializing a vocabulary file path outside a `SafeModeScope` must
+        # be refused by default.
+        with self.assertRaisesRegex(ValueError, "vocabulary file"):
+            layers.StringLookup.from_config(dict(config))
+
+        # Allowed when safe mode is explicitly disabled.
+        with SafeModeScope(safe_mode=False):
+            layer = layers.StringLookup.from_config(dict(config))
+        self.assertEqual(
+            [str(v) for v in layer.get_vocabulary()][-3:], ["a", "b", "c"]
+        )
+
+        # Direct construction with a path is not a deserialization and is
+        # unaffected.
+        layer = layers.StringLookup(vocabulary=vocab_path)
+        self.assertEqual(
+            [str(v) for v in layer.get_vocabulary()][-3:], ["a", "b", "c"]
+        )
+
     def test_adapt_flow(self):
         layer = layers.StringLookup(
             output_mode="int",
