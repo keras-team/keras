@@ -342,7 +342,7 @@ class IndexLookupLayerTest(testing.TestCase):
         self.assertEqual(output_spec.shape, (None, 3, 4, 4))
         self.assertEqual(output_spec.dtype, backend.floatx())
 
-    pytest.mark.skipif(
+    @pytest.mark.skipif(
         backend.backend() != "tensorflow",
         reason="Sparse outputs are only supported with TensorFlow backend.",
     )
