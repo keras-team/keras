@@ -1430,33 +1430,6 @@ def _can_use_flash_attention(
     return can_use_flash_attention(spda_params, False)
 
 
-def _scaled_dot_product_attention(
-    query, key, value, mask, is_causal, scale, flash_attention
-):
-    if flash_attention:
-        with torch.nn.attention.sdpa_kernel(
-            backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
-        ):
-            return torch.nn.functional.scaled_dot_product_attention(
-                query,
-                key,
-                value,
-                attn_mask=mask,
-                is_causal=is_causal,
-                scale=scale,
-            )
-    if mask is not None:
-        mask = mask.contiguous()
-    return torch.nn.functional.scaled_dot_product_attention(
-        query.contiguous(),
-        key.contiguous(),
-        value.contiguous(),
-        attn_mask=mask,
-        is_causal=is_causal,
-        scale=scale,
-    )
-
-
 def dot_product_attention(
     query,
     key,
@@ -1536,60 +1509,55 @@ def dot_product_attention(
                 _get_replicated_placements(mask.placements, [3]),
             )
 
-        q_l = query.to_local()
-        k_l = key.to_local()
-        v_l = value.to_local()
-        m_l = mask.to_local() if mask is not None else None
-    else:
-        q_l, k_l, v_l, m_l = query, key, value, mask
+        device_mesh = query.device_mesh
+        query_placements = query.placements
+        query = query.to_local()
+        key = key.to_local()
+        value = value.to_local()
+        if mask is not None:
+            mask = mask.to_local()
 
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
-            q_l, k_l, v_l, m_l, is_causal
+            query, key, value, mask, is_causal
         )
     elif flash_attention is True:
+        # Use `raise_error=True` to provide more details if the inputs failed to
+        # use flash attention
         _can_use_flash_attention(
-            q_l, k_l, v_l, m_l, is_causal, raise_error=True
+            query, key, value, mask, is_causal, raise_error=True
         )
-
-    # PyTorch SDPA does not support DTensor yet.
-    # However, if the query/key/value are replicated across the model parallel
-    # axis (e.g. batch dimension is sharded but heads are replicated),
-    # then `to_local()` returns a view and SDPA is efficient.
-    # If heads are sharded, `to_local()` might be inefficient as it
-    # returns only a shard of the heads.
-    # For now we always use local tensors for SDPA.
     if flash_attention:
         with torch.nn.attention.sdpa_kernel(
             backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
         ):
             attention_output = torch.nn.functional.scaled_dot_product_attention(
-                q_l,
-                k_l,
-                v_l,
-                attn_mask=m_l,
+                query,
+                key,
+                value,
+                attn_mask=mask,
                 is_causal=is_causal,
                 scale=scale,
             )
     else:
-        if m_l is not None:
-            m_l = m_l.contiguous()
+        if mask is not None:
+            mask = mask.contiguous()
         attention_output = torch.nn.functional.scaled_dot_product_attention(
-            q_l.contiguous(),
-            k_l.contiguous(),
-            v_l.contiguous(),
-            attn_mask=m_l,
+            query.contiguous(),
+            key.contiguous(),
+            value.contiguous(),
+            attn_mask=mask,
             is_causal=is_causal,
             scale=scale,
         )
 
     if is_dtensor:
         attention_output = DTensor.from_local(
-            attention_output, query.device_mesh, query.placements
+            attention_output, device_mesh, query_placements
         )
-        if query.placements != orig_query_placements:
+        if query_placements != orig_query_placements:
             attention_output = attention_output.redistribute(
-                query.device_mesh, orig_query_placements
+                device_mesh, orig_query_placements
             )
 
     return torch.transpose(attention_output, axis1, axis0)
