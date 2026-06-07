@@ -1081,11 +1081,10 @@ class Trainer:
             layer: layer.trainable for layer in self._flatten_layers()
         }
         changed_layers = []
-        for layer, compiled_trainable in self._compiled_trainable_state.items():
-            if (
-                layer in current_state
-                and current_state[layer] != compiled_trainable
-            ):
+        for layer, trainable in current_state.items():
+            if layer not in self._compiled_trainable_state:
+                changed_layers.append(layer.name)
+            elif trainable != self._compiled_trainable_state[layer]:
                 changed_layers.append(layer.name)
 
         if changed_layers:
@@ -1110,7 +1109,6 @@ class Trainer:
             else:
                 msg += f"calling `{method_name}()`."
             raise ValueError(msg)
-        if method_name in ("fit", "evaluate"):
             self._warn_if_trainable_state_changed()
 
     def _symbolic_build(self, iterator=None, data_batch=None):

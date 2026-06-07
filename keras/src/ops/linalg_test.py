@@ -127,15 +127,15 @@ class LinalgOpsDynamicShapeTest(testing.TestCase):
         qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="reduced")
         qref_shape = (None,) + qref.shape[1:]
         rref_shape = (None,) + rref.shape[1:]
-        self.assertAllClose(q, qref, atol=1e-5, rtol=1e-4)
-        self.assertAllClose(r, rref, atol=1e-5, rtol=1e-4)
+        self.assertEqual(q.shape, qref_shape)
+        self.assertEqual(r.shape, rref_shape)
 
         q, r = linalg.qr(x, mode="complete")
         qref, rref = np.linalg.qr(np.ones((2, 4, 3)), mode="complete")
         qref_shape = (None,) + qref.shape[1:]
         rref_shape = (None,) + rref.shape[1:]
-        self.assertAllClose(q, qref, atol=1e-5, rtol=1e-4)
-        self.assertAllClose(r, rref, atol=1e-5, rtol=1e-4)
+        self.assertEqual(q.shape, qref_shape)
+        self.assertEqual(r.shape, rref_shape)
 
     def test_qr_invalid_mode(self):
         # backend agnostic error message
