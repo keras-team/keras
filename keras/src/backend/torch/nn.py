@@ -1559,9 +1559,29 @@ def dot_product_attention(
     # If heads are sharded, `to_local()` might be inefficient as it
     # returns only a shard of the heads.
     # For now we always use local tensors for SDPA.
-    attention_output = _scaled_dot_product_attention(
-        q_l, k_l, v_l, m_l, is_causal, scale, flash_attention
-    )
+    if flash_attention:
+        with torch.nn.attention.sdpa_kernel(
+            backends=[torch.nn.attention.SDPBackend.FLASH_ATTENTION],
+        ):
+            attention_output = torch.nn.functional.scaled_dot_product_attention(
+                q_l,
+                k_l,
+                v_l,
+                attn_mask=m_l,
+                is_causal=is_causal,
+                scale=scale,
+            )
+    else:
+        if m_l is not None:
+            m_l = m_l.contiguous()
+        attention_output = torch.nn.functional.scaled_dot_product_attention(
+            q_l.contiguous(),
+            k_l.contiguous(),
+            v_l.contiguous(),
+            attn_mask=m_l,
+            is_causal=is_causal,
+            scale=scale,
+        )
 
     if is_dtensor:
         attention_output = DTensor.from_local(

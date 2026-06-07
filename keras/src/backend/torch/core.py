@@ -296,7 +296,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None, layout="auto"):
                 for x1 in tree.flatten(x)
             ):
                 # Symbolic shape values from torch.export can't go through numpy
-                # and don't have a .dtype attribute. Use torch.as_tensor directly.
+                # and don't have a .dtype attribute. Use torch.as_tensor
+                # directly.
                 dt = to_torch_dtype(dtype) if dtype is not None else None
                 x = torch.as_tensor(x, dtype=dt, device=get_device())
         elif not isinstance(x, (bool, int, float)):
