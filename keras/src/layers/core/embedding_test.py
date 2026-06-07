@@ -87,6 +87,16 @@ class EmbeddingTest(test_case.TestCase):
             supports_masking=True,
         )
 
+    def test_build_rejects_oversized_embeddings(self):
+        # A huge `input_dim` would materialize an enormous embeddings table at
+        # build time (e.g. from a tampered config) and OOM-kill the process. We
+        # raise a clear error instead. Requires `psutil` to know the available
+        # memory.
+        pytest.importorskip("psutil")
+        layer = layers.Embedding(input_dim=2**40, output_dim=8)
+        with self.assertRaisesRegex(ValueError, "cannot allocate"):
+            layer.build()
+
     @pytest.mark.skipif(
         not backend.SUPPORTS_SPARSE_TENSORS,
         reason="Backend does not support sparse tensors.",
