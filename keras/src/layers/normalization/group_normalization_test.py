@@ -215,6 +215,8 @@ class GroupNormalizationTest(testing.TestCase):
         # call(), causing values above 65504 to overflow to inf. The
         # internal float32 upcast in _apply_normalization could not recover
         # the already-inf values, leading to NaN output.
+        from keras.src import backend
+
         layer = layers.GroupNormalization(
             groups=8, epsilon=1e-3, dtype="mixed_float16"
         )
@@ -223,7 +225,7 @@ class GroupNormalizationTest(testing.TestCase):
             low=60000, high=70000, size=(2, 4, 4, 64)
         ).astype("float32")
         output = layer(inputs)
-        output_np = np.array(output)
+        output_np = backend.convert_to_numpy(output)
         self.assertFalse(
             np.any(np.isnan(output_np)),
             "GroupNormalization produced NaN with mixed_float16 and "
