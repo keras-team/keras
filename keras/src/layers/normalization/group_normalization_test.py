@@ -208,3 +208,30 @@ class GroupNormalizationTest(testing.TestCase):
                 dtype="mixed_bfloat16",
             )
             self.assertFalse(any("epsilon" in str(x.message) for x in w))
+
+    def test_mixed_float16_no_nan(self):
+        # Regression test for github.com/keras-team/keras/issues/22586.
+        # Under mixed_float16, autocast would cast inputs to float16 before
+        # call(), causing values above 65504 to overflow to inf. The
+        # internal float32 upcast in _apply_normalization could not recover
+        # the already-inf values, leading to NaN output.
+        from keras.src import backend
+
+        original_dtype = backend.floatx()
+        try:
+            layer = layers.GroupNormalization(
+                groups=8, epsilon=1e-3, dtype="mixed_float16"
+            )
+            # Values near and above the float16 max of 65504
+            inputs = np.random.uniform(
+                low=60000, high=70000, size=(2, 4, 4, 64)
+            ).astype("float32")
+            output = layer(inputs)
+            output_np = np.array(output)
+            self.assertFalse(
+                np.any(np.isnan(output_np)),
+                "GroupNormalization produced NaN with mixed_float16 and "
+                "large input values. See issue #22586.",
+            )
+        finally:
+            backend.set_floatx(original_dtype)

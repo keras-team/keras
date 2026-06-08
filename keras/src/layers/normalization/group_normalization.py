@@ -91,6 +91,7 @@ class GroupNormalization(Layer):
             )
         super().__init__(**kwargs)
         self.supports_masking = True
+        self.autocast = False
         self.groups = groups
         self.axis = axis
         self.epsilon = epsilon
