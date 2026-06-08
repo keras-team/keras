@@ -1,9 +1,7 @@
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 import scipy.signal
 from openvino import Type
-from openvino.opset16 import istft as ov_istft
-from openvino.opset16 import segment_max as ov_segment_max
 
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
@@ -92,7 +90,7 @@ def _segment_reduce_via_scatter(
 
 
 def _segment_reduce_via_ov_max(data, segment_ids, num_segments):
-    """Sort + ov_segment_max reduction shared by segment_max and segment_min."""
+    """Sort + segment_max reduction shared by segment_max and segment_min."""
     zero = ov_opset.constant(0, Type.i32).output(0)
     zero_1d = ov_opset.constant([0], Type.i32).output(0)
     one_1d = ov_opset.constant([1], Type.i32).output(0)
@@ -102,7 +100,7 @@ def _segment_reduce_via_ov_max(data, segment_ids, num_segments):
     ).output(0)
     safe_seg = ov_opset.select(is_neg, num_segments, segment_ids).output(0)
 
-    # ov_segment_max requires sorted segment_ids.
+    # OpenVINO segment_max requires sorted segment_ids.
     n = ov_opset.squeeze(
         ov_opset.shape_of(safe_seg, output_type=Type.i32), zero_1d
     ).output(0)
@@ -114,7 +112,7 @@ def _segment_reduce_via_ov_max(data, segment_ids, num_segments):
     nseg_plus1 = ov_opset.add(
         num_segments, ov_opset.constant(1, num_segments.get_element_type())
     ).output(0)
-    result = ov_segment_max(
+    result = ov_opset.segment_max(
         sorted_data, sorted_seg, nseg_plus1, fill_mode="LOWEST"
     ).output(0)
 
@@ -718,7 +716,7 @@ def istft(
     ori_dtype = x[0].dtype
 
     if window is None:
-        # ov_istft always applies OLA normalization via window, so the
+        # OpenVINO ISTFT always applies OLA normalization via window, so the
         # unnormalized window=None case uses the manual irfft + OLA path,
         # matching TF and Torch backend.
         frames = irfft(x, fft_length)
@@ -847,7 +845,8 @@ def istft(
         stacked, ov_opset.constant(perm, Type.i32)
     ).output(0)
 
-    # ov_istft only accepts rank 3 or 4; flatten leading batch dims if needed
+    # OpenVINO ISTFT only accepts rank 3 or 4; flatten leading batch dims if
+    # needed.
     num_batch_dims = rank - 3
     if num_batch_dims > 1:
         data_shape_node = ov_opset.shape_of(data, output_type=Type.i32).output(
@@ -877,7 +876,7 @@ def istft(
         else None
     )
 
-    result = ov_istft(
+    result = ov_opset.istft(
         data,
         win_node,
         frame_size_node,
