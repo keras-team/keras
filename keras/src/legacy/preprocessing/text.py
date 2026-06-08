@@ -66,7 +66,9 @@ def hashing_trick(
     elif hash_function == "md5":
 
         def hash_function(w):
-            return int(hashlib.md5(w.encode(), usedforsecurity=False).hexdigest(), 16)
+            return int(
+                hashlib.md5(w.encode(), usedforsecurity=False).hexdigest(), 16
+            )
 
     if analyzer is None:
         seq = text_to_word_sequence(
