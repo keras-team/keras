@@ -433,7 +433,7 @@ def resolve_hasher(algorithm, file_hash=None):
         return hashlib.sha256()
 
     # This is used only for legacy purposes.
-    return hashlib.md5()
+    return hashlib.md5(usedforsecurity=False)
 
 
 def hash_file(fpath, algorithm="sha256", chunk_size=65535):

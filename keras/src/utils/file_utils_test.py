@@ -706,12 +706,12 @@ class ResolveHasherTest(test_case.TestCase):
     def test_resolve_hasher_auto_md5(self):
         """Auto-detect and resolve hasher for md5."""
         hasher = file_utils.resolve_hasher("auto", file_hash="a" * 32)
-        self.assertIsInstance(hasher, type(hashlib.md5()))
+        self.assertIsInstance(hasher, type(hashlib.md5(usedforsecurity=False)))
 
     def test_resolve_hasher_default(self):
         """Resolve hasher with a random algorithm value."""
         hasher = file_utils.resolve_hasher("random_value")
-        self.assertIsInstance(hasher, type(hashlib.md5()))
+        self.assertIsInstance(hasher, type(hashlib.md5(usedforsecurity=False)))
 
 
 class IsRemotePathTest(test_case.TestCase):
