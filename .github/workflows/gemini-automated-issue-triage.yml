@@ -204,13 +204,13 @@ jobs:
             Your output must be a valid JSON object with the following schema:
             {
               "labels_to_set": ["label-name"],
-              "response_body": "Your response text here. Use markdown.",
+              "triage_reason": "user_error" | "needs_info" | "support" | null,
               "auto_close": true or false
             }
 
             ## Guidelines
             - Output only the JSON object. Do not include any explanation or additional text before/after the JSON.
-            - Provide a helpful markdown response in `response_body`. Use the code context if applicable.
+            - Set `triage_reason` to 'user_error' if the issue is a user error or usage question with a clear workaround. Set it to 'needs_info' if you need more information (e.g. reproducible example). Set it to 'support' if it is a general support question. Set it to null if no automated comment is needed.
             - Set `auto_close` to `true` if the issue is a user error, a usage question with a clear answer, or if a workaround is suggested and no code changes are needed in the Keras repository. Set it to `false` if the issue requires investigation, a bug fix, or any code change in Keras.
 
             Reference 1: Label Definitions
@@ -239,113 +239,94 @@ jobs:
         env:
           ISSUE_NUMBER: '${{ github.event.issue.number || github.event.inputs.issue_number }}'
           LABELS_OUTPUT: '${{ steps.gemini_issue_analysis.outputs.summary }}'
+          ALLOWED_LABELS: '${{ steps.get_labels.outputs.available_labels }}'
         uses: 'actions/github-script@v9'
         with:
           github-token: '${{ secrets.GITHUB_TOKEN }}'
           script: |
             const rawOutput = process.env.LABELS_OUTPUT;
+            const allowedLabelsEnv = process.env.ALLOWED_LABELS || '';
+            const ALLOWED_LABELS = allowedLabelsEnv.split(',').map(l => l.trim()).filter(Boolean);
+
             core.info(`Raw output from model: ${rawOutput}`);
+            core.info(`Allowed labels: ${ALLOWED_LABELS.join(', ')}`);
+
             let labelsToAdd = [];
             let responseBody = '';
             let autoClose = false;
 
+            let parsed;
             try {
-              const parsed = JSON.parse(rawOutput);
-              labelsToAdd = parsed.labels_to_set || [];
-              responseBody = parsed.response_body || '';
-              autoClose = parsed.auto_close || false;
-            } catch (jsonError) {
-              core.info('Standard JSON parse failed, trying fallbacks...');
-              
-              let jsonText = rawOutput;
-              const jsonMatch = rawOutput.match(/```json\s*([\s\S]*?)\s*```/);
-              if (jsonMatch && jsonMatch[1]) {
-                jsonText = jsonMatch[1].trim();
-              } else {
-                const jsonObjectMatch = rawOutput.match(/(\{[\s\S]*"labels_to_set"[\s\S]*\})/);
-                if (jsonObjectMatch) {
-                   jsonText = jsonObjectMatch[0];
-                }
-              }
-
-              try {
-                const parsed = JSON.parse(jsonText);
-                labelsToAdd = parsed.labels_to_set || [];
-                responseBody = parsed.response_body || '';
-                autoClose = parsed.auto_close || false;
-              } catch (innerError) {
-                core.info('Extract JSON block parse failed, trying regex fallback...');
-                
-                const labelsMatch = rawOutput.match(/"labels_to_set":\s*\[(.*?)\]/s);
-                if (labelsMatch) {
-                  try {
-                    labelsToAdd = JSON.parse(`[${labelsMatch[1]}]`);
-                  } catch (_) {
-                    labelsToAdd = labelsMatch[1].split(',').map(l => l.replace(/"/g, '').trim()).filter(Boolean);
-                  }
-                }
-
-                const responseMatch = rawOutput.match(/"response_body":\s*"([\s\S]*?)"\s*(?:,|\}|$)/s);
-                if (responseMatch) {
-                  responseBody = responseMatch[1];
-                  responseBody = responseBody.replace(/\\n/g, '\n').replace(/\\"/g, '"');
-                }
-
-                if (labelsToAdd.length === 0 && !responseBody) {
-                  core.setFailed(`Failed to parse model output.\nRaw output: ${rawOutput}`);
-                  return;
-                }
-              }
+              parsed = JSON.parse(rawOutput);
+            } catch (e) {
+              core.error("Failed to parse LLM output as JSON", e);
+              core.setFailed(`Failed to parse model output.\nRaw output: ${rawOutput}`);
+              return;
             }
 
-            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+            // 1. Strict Label Allowlist
+            const requestedLabels = parsed.labels_to_set || [];
+            labelsToAdd = requestedLabels.filter(label => ALLOWED_LABELS.includes(label));
+            
+            if (requestedLabels.length !== labelsToAdd.length) {
+              core.warn("Blocked unauthorized labels: " + requestedLabels.filter(l => !ALLOWED_LABELS.includes(l)).join(', '));
+            }
 
-            // Add Labels
+            // 2. Template-Based Comments (Avoid arbitrary LLM text)
+            const COMMENT_TEMPLATES = {
+              'user_error': '@${author} This issue appears to be a user error or has a suggested workaround that does not require code changes in the Keras repository. As there is no actionable item for the team, this issue will be automatically closed.\n\nIf you believe this was done in error, please reopen the issue with additional details.',
+              'needs_info': '@${author} Please provide a reproducible example so we can investigate this issue further.',
+              'support': '@${author} This repository is for bug reports and feature requests. For support questions, please use our discussion forum or Discord.'
+            };
+
+            const issueNumber = parseInt(process.env.ISSUE_NUMBER);
+            const issueData = context.payload.issue || (await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+            })).data;
+            const issueAuthor = issueData.user.login;
+
+            const triageReason = parsed.triage_reason; 
+            if (triageReason && COMMENT_TEMPLATES[triageReason]) {
+              responseBody = COMMENT_TEMPLATES[triageReason].replace('${author}', issueAuthor);
+            } else {
+              core.warn("Blocked arbitrary LLM response body or invalid triage reason: " + triageReason);
+            }
+
+            // 3. Restricted Auto-Close
+            if (parsed.auto_close && triageReason === 'user_error') {
+              autoClose = true;
+            }
+
+            // Execute privileged actions
             if (labelsToAdd.length > 0) {
               await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
-                labels: labelsToAdd
+                labels: labelsToAdd,
               });
               core.info(`Successfully added labels for #${issueNumber}: ${labelsToAdd.join(', ')}`);
             }
 
-            // Post Automated Response
             if (responseBody) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
-                body: responseBody
+                body: responseBody,
               });
               core.info(`Successfully posted automated response for #${issueNumber}`);
-            } else {
-              core.warning("No response_body found in model output.");
             }
 
-            // Auto-close if the issue is a user error or has a workaround with no code changes needed
             if (autoClose) {
-              const issueData = context.payload.issue || (await github.rest.issues.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-              })).data;
-              const issueAuthor = issueData.user.login;
-
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                body: `@${issueAuthor} This issue appears to be a user error or has a suggested workaround that does not require code changes in the Keras repository. As there is no actionable item for the team, this issue will be automatically closed.\n\nIf you believe this was done in error, please reopen the issue with additional details.`
-              });
-
               await github.rest.issues.update({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
                 state: 'closed',
-                state_reason: 'not_planned'
+                state_reason: 'not_planned',
               });
               core.info(`Auto-closed issue #${issueNumber} (no actionable item for the team).`);
             }
