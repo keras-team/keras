@@ -1,5 +1,6 @@
 import collections
 import json
+import math
 import os.path
 import pprint
 import zipfile
@@ -556,7 +557,7 @@ class KerasFileEditor:
                 )
 
             # Safe product computation (Python int is unbounded)
-            num_elems = int(np.prod(shape))
+            num_elems = math.prod(shape)
 
             # ------------------------------------------------------
             # Validate TOTAL memory size

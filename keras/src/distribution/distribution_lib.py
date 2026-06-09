@@ -2,6 +2,7 @@
 
 import collections
 import contextlib
+import math
 import os
 import re
 import warnings
@@ -193,7 +194,7 @@ class DeviceMesh:
         if devices is None:
             devices = list_devices()
         devices = np.array(devices)
-        if np.prod(shape) != np.prod(devices.shape):
+        if math.prod(shape) != math.prod(devices.shape):
             raise ValueError(
                 "Shape does not match the number of devices. "
                 f"Received: shape={shape}; devices.shape="
