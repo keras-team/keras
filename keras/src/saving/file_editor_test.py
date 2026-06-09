@@ -1,5 +1,6 @@
 import os
 
+import h5py
 import numpy as np
 import pytest
 
@@ -110,3 +111,53 @@ class SavingTest(testing.TestCase):
         self.assertEqual(
             len(keras.src.tree.flatten(model_weights_editor.weights_dict)), 8
         )
+
+    def test_rejects_external_link_at_group_level(self):
+        target_fpath = os.path.join(
+            self.get_temp_dir(), "victim_private.weights.h5"
+        )
+        model = keras.Sequential(
+            [keras.Input(shape=(3,)), keras.layers.Dense(5)]
+        )
+        model.save_weights(target_fpath)
+
+        attacker_fpath = os.path.join(
+            self.get_temp_dir(), "attacker_payload.weights.h5"
+        )
+        with h5py.File(attacker_fpath, "w") as f:
+            f["layers"] = h5py.ExternalLink(target_fpath, "/layers")
+
+        with self.assertRaisesRegex(ValueError, "ExternalLink"):
+            KerasFileEditor(attacker_fpath)
+
+    def test_rejects_soft_link_at_group_level(self):
+        attacker_fpath = os.path.join(
+            self.get_temp_dir(), "softlink_payload.weights.h5"
+        )
+        with h5py.File(attacker_fpath, "w") as f:
+            real = f.create_group("real_layers")
+            real.create_dataset("inner", data=np.zeros((1,)))
+            f["layers"] = h5py.SoftLink("/real_layers")
+
+        with self.assertRaisesRegex(ValueError, "SoftLink"):
+            KerasFileEditor(attacker_fpath)
+
+    def test_rejects_virtual_dataset(self):
+        temp_dir = self.get_temp_dir()
+        other_fpath = os.path.join(temp_dir, "other.weights.h5")
+        with h5py.File(other_fpath, "w") as f:
+            f.create_dataset("s", data=np.arange(5, dtype="float32"))
+
+        virtual_fpath = os.path.join(temp_dir, "virtual.weights.h5")
+        with h5py.File(virtual_fpath, "w") as f:
+            vars_group = (
+                f.create_group("layers")
+                .create_group("dense")
+                .create_group("vars")
+            )
+            layout = h5py.VirtualLayout(shape=(5,), dtype="float32")
+            layout[:] = h5py.VirtualSource(other_fpath, "s", shape=(5,))
+            vars_group.create_virtual_dataset("0", layout)
+
+        with self.assertRaisesRegex(ValueError, "virtual"):
+            KerasFileEditor(virtual_fpath)

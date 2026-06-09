@@ -3,6 +3,7 @@ from keras.src.api_export import keras_export
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.ops import operation_utils
+from keras.src.ops.operation_utils import validate_reshape_shape
 
 
 @keras_export("keras.layers.Reshape")
@@ -37,12 +38,7 @@ class Reshape(Layer):
     def __init__(self, target_shape, **kwargs):
         super().__init__(**kwargs)
         target_shape = tuple(target_shape)
-        # test validity of target_shape
-        if target_shape.count(-1) > 1:
-            raise ValueError(
-                "The `target_shape` argument must not contain more than one "
-                f"`-1` value. Received: target_shape={target_shape}"
-            )
+        validate_reshape_shape(target_shape, newshape_arg_name="target_shape")
         self.target_shape = target_shape
         self.built = True
 

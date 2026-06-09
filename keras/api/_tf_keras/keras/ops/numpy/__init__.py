@@ -64,6 +64,7 @@ from keras.src.ops.numpy import digitize as digitize
 from keras.src.ops.numpy import divide as divide
 from keras.src.ops.numpy import divide_no_nan as divide_no_nan
 from keras.src.ops.numpy import dot as dot
+from keras.src.ops.numpy import dsplit as dsplit
 from keras.src.ops.numpy import dstack as dstack
 from keras.src.ops.numpy import einsum as einsum
 from keras.src.ops.numpy import empty as empty
@@ -74,11 +75,14 @@ from keras.src.ops.numpy import exp2 as exp2
 from keras.src.ops.numpy import expand_dims as expand_dims
 from keras.src.ops.numpy import expm1 as expm1
 from keras.src.ops.numpy import eye as eye
+from keras.src.ops.numpy import fabs as fabs
 from keras.src.ops.numpy import flip as flip
 from keras.src.ops.numpy import fliplr as fliplr
 from keras.src.ops.numpy import flipud as flipud
 from keras.src.ops.numpy import floor as floor
 from keras.src.ops.numpy import floor_divide as floor_divide
+from keras.src.ops.numpy import fmax as fmax
+from keras.src.ops.numpy import fmin as fmin
 from keras.src.ops.numpy import fmod as fmod
 from keras.src.ops.numpy import full as full
 from keras.src.ops.numpy import full_like as full_like

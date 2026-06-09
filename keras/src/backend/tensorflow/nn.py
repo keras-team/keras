@@ -4,8 +4,9 @@ import warnings
 import tensorflow as tf
 
 from keras.src import backend
+from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
-    check_depthwise_conv_input_channels,
+    check_conv_transpose_input_channels,
 )
 from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
@@ -841,6 +842,108 @@ def conv(
         return _conv()
 
 
+def _needs_depthwise_stride_dilation_decomposition(strides, dilation_rate):
+    # `tf.nn.depthwise_conv2d` / `tf.nn.separable_conv2d` (and
+    # `tf.nn.convolution`) do not support `strides > 1` together with
+    # `dilation_rate > 1`. When both are requested we decompose instead.
+    if dilation_rate is None:
+        return False
+    return any(s > 1 for s in strides) and any(d > 1 for d in dilation_rate)
+
+
+def _pad_same_spatial_channels_last(
+    inputs, kernel_size, strides, dilation_rate
+):
+    # Emulate `padding="same"` with explicit padding so the conv can run as
+    # `padding="valid"`. Matches TF SAME: extra padding goes after (bottom).
+    spatial_shape = tf.shape(inputs, out_type=tf.int32)[1:-1]
+
+    paddings = [tf.constant([0, 0], dtype=tf.int32)]
+    for i, k in enumerate(kernel_size):
+        n = spatial_shape[i]
+        s = strides[i]
+        d = dilation_rate[i]
+        effective_kernel_size = (k - 1) * d + 1
+        out_size = (n + s - 1) // s
+        total_pad = tf.maximum(
+            (out_size - 1) * s + effective_kernel_size - n, 0
+        )
+        pad_before = total_pad // 2
+        pad_after = total_pad - pad_before
+        paddings.append(tf.stack([pad_before, pad_after]))
+    paddings.append(tf.constant([0, 0], dtype=tf.int32))
+
+    return tf.pad(inputs, tf.stack(paddings))
+
+
+def _depthwise_conv_stride_dilation_decomposition(
+    inputs,
+    depthwise_kernel,
+    strides,
+    padding,
+    data_format,
+    dilation_rate,
+    pointwise_kernel=None,
+):
+    # Compute a depthwise (and optionally separable) conv with both stride > 1
+    # and dilation > 1 by running the dilated conv at stride 1 and subsampling,
+    # which TF supports. Always computed in `channels_last` layout.
+    num_spatial_dims = len(inputs.shape) - 2
+    padding = padding.upper()
+
+    if data_format == "channels_first":
+        inputs = _transpose_spatial_inputs(inputs)
+
+    if num_spatial_dims == 1:
+        inputs = tf.expand_dims(inputs, axis=1)
+        depthwise_kernel = tf.expand_dims(depthwise_kernel, axis=0)
+        if pointwise_kernel is not None:
+            pointwise_kernel = tf.expand_dims(pointwise_kernel, axis=0)
+        spatial_strides = (1, strides[0])
+        spatial_dilation_rate = (1, dilation_rate[0])
+    else:
+        spatial_strides = strides
+        spatial_dilation_rate = dilation_rate
+
+    kernel_size = tuple(int(i) for i in depthwise_kernel.shape[:2])
+
+    if padding == "SAME":
+        inputs = _pad_same_spatial_channels_last(
+            inputs, kernel_size, spatial_strides, spatial_dilation_rate
+        )
+    elif padding != "VALID":
+        raise ValueError(
+            f"`padding` must be 'valid' or 'same'. Received: padding={padding}"
+        )
+
+    outputs = tf.nn.depthwise_conv2d(
+        inputs,
+        depthwise_kernel,
+        strides=(1, 1, 1, 1),
+        padding="VALID",
+        data_format="NHWC",
+        dilations=spatial_dilation_rate,
+    )
+    outputs = outputs[:, :: spatial_strides[0], :: spatial_strides[1], :]
+
+    if pointwise_kernel is not None:
+        outputs = tf.nn.conv2d(
+            outputs,
+            pointwise_kernel,
+            strides=(1, 1, 1, 1),
+            padding="VALID",
+            data_format="NHWC",
+        )
+
+    if num_spatial_dims == 1:
+        outputs = tf.squeeze(outputs, [1])
+
+    if data_format == "channels_first":
+        outputs = _transpose_spatial_outputs(outputs)
+
+    return outputs
+
+
 def depthwise_conv(
     inputs,
     kernel,
@@ -858,7 +961,7 @@ def depthwise_conv(
             "`inputs` rank must be 3 (1D conv) or 4 (2D conv). Received: "
             f"{inputs.ndim}."
         )
-    check_depthwise_conv_input_channels(inputs, kernel, data_format)
+    check_conv_input_channels(inputs, kernel, data_format)
     # Because we use `tf.nn.depthwise_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
     tf_data_format = _convert_data_format(data_format, 4)
@@ -867,6 +970,10 @@ def depthwise_conv(
         strides = (strides,) * num_spatial_dims
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate,) * num_spatial_dims
+    if _needs_depthwise_stride_dilation_decomposition(strides, dilation_rate):
+        return _depthwise_conv_stride_dilation_decomposition(
+            inputs, kernel, strides, padding, data_format, dilation_rate
+        )
     if num_spatial_dims == 1:
         # 1D depthwise conv.
         # `tf.nn.depthwise_conv2d` does not support `channels_first` with
@@ -940,7 +1047,7 @@ def separable_conv(
             "`num_spatial_dims` must be 1 or 2. Received: "
             f"num_spatial_dims={num_spatial_dims}."
         )
-    check_depthwise_conv_input_channels(inputs, depthwise_kernel, data_format)
+    check_conv_input_channels(inputs, depthwise_kernel, data_format)
     # Because we use `tf.nn.separable_conv2d` for both 1D and 2D convs, we set
     # `tf_data_format` using 2D conv format.
     tf_data_format = _convert_data_format(data_format, 4)
@@ -949,6 +1056,16 @@ def separable_conv(
         strides = (strides,) * num_spatial_dims
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate,) * num_spatial_dims
+    if _needs_depthwise_stride_dilation_decomposition(strides, dilation_rate):
+        return _depthwise_conv_stride_dilation_decomposition(
+            inputs,
+            depthwise_kernel,
+            strides,
+            padding,
+            data_format,
+            dilation_rate,
+            pointwise_kernel=pointwise_kernel,
+        )
     if num_spatial_dims == 1:
         # 1D depthwise conv.
         if data_format == "channels_last":
@@ -998,6 +1115,9 @@ def conv_transpose(
     dilation_rate=1,
 ):
     data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    check_conv_transpose_input_channels(inputs, kernel, data_format)
     tf_data_format = _convert_data_format(data_format, len(inputs.shape))
     kernel_size = kernel.shape[:-2]
     filters = kernel.shape[-2]

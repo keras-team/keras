@@ -13,13 +13,21 @@ from keras.src.utils import io_utils
 class Progbar:
     """Displays a progress bar.
 
+    If neither of `stateful_metrics` and `stateless_metrics` is provided, all
+    metrics are assumed to be stateless (averaged by the progress bar before
+    display).
+
     Args:
         target: Total number of steps expected, None if unknown.
         width: Progress bar width on screen.
         verbose: Verbosity mode, 0 (silent), 1 (verbose), 2 (semi-verbose)
         stateful_metrics: Iterable of string names of metrics that should *not*
             be averaged over time. Metrics in this list will be displayed as-is.
-            All others will be averaged by the progbar before display.
+            If provided, do not provide `stateless_metrics`.
+        stateless_metrics: Iterable of string names of metrics that *should* be
+            averaged over time. Metrics in this list will be averaged by the
+            progbar before display. If provided, do not provide
+            `stateful_metrics`.
         interval: Minimum visual progress update interval (in seconds).
         unit_name: Display name for step counts (usually "step" or "sample").
     """
@@ -31,17 +39,31 @@ class Progbar:
         verbose=1,
         interval=0.05,
         stateful_metrics=None,
+        stateless_metrics=None,
         unit_name="step",
     ):
+        if stateful_metrics is not None and stateless_metrics is not None:
+            raise ValueError(
+                "Only one of `stateful_metrics` or `stateless_metrics` "
+                "can be provided. `stateful_metrics` is used to make metrics "
+                "stateless by default (with an exclusion list), while "
+                "`stateless_metrics` is used to make metrics stateful by "
+                "default (with an exclusion list)."
+            )
         self.target = target
         self.width = width
         self.verbose = verbose
         self.interval = interval
         self.unit_name = unit_name
-        if stateful_metrics:
+        if stateful_metrics is not None:
             self.stateful_metrics = set(stateful_metrics)
+            self.stateless_metrics = None
+        elif stateless_metrics is not None:
+            self.stateful_metrics = None
+            self.stateless_metrics = set(stateless_metrics)
         else:
             self.stateful_metrics = set()
+            self.stateless_metrics = None
 
         self._dynamic_display = (
             (hasattr(sys.stdout, "isatty") and sys.stdout.isatty())
@@ -82,7 +104,13 @@ class Progbar:
         for k, v in values:
             if k not in self._values_order:
                 self._values_order.append(k)
-            if k not in self.stateful_metrics:
+
+            if self.stateful_metrics is not None:
+                stateless = k not in self.stateful_metrics
+            else:
+                stateless = k in self.stateless_metrics
+
+            if stateless:
                 # In the case that progress bar doesn't have a target value in
                 # the first epoch, both on_batch_end and on_epoch_end will be
                 # called, which will cause 'current' and 'self._seen_so_far' to

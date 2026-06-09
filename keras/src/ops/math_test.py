@@ -12,6 +12,8 @@ from keras.src.backend.common import dtypes
 from keras.src.backend.common import standardize_dtype
 from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.ops import math as kmath
+from keras.src.ops import numpy as knp
+from keras.src.testing.test_utils import named_product
 
 
 def _stft(
@@ -143,6 +145,16 @@ def _max_reduce(left, right):
 
 
 class MathOpsDynamicShapeTest(testing.TestCase):
+    def test_erf(self):
+        x = KerasTensor((None, 2, 3))
+        y = kmath.erf(x)
+        self.assertEqual(y.shape, (None, 2, 3))
+
+    def test_erfc(self):
+        x = KerasTensor((None, 2, 3))
+        y = kmath.erfc(x)
+        self.assertEqual(y.shape, (None, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -336,6 +348,16 @@ class MathOpsDynamicShapeTest(testing.TestCase):
 
 
 class MathOpsStaticShapeTest(testing.TestCase):
+    def test_erf(self):
+        x = KerasTensor((1, 2, 3))
+        y = kmath.erf(x)
+        self.assertEqual(y.shape, (1, 2, 3))
+
+    def test_erfc(self):
+        x = KerasTensor((1, 2, 3))
+        y = kmath.erfc(x)
+        self.assertEqual(y.shape, (1, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     @pytest.mark.skipif(
         backend.backend() == "jax",
@@ -979,6 +1001,22 @@ class MathOpsCorrectnessTest(testing.TestCase):
         output_from_edge_erf_op = kmath.erf(edge_values)
         self.assertAllClose(output_from_edge_erf_op, expected_output, atol=1e-4)
 
+    def test_erfc_operation_basic(self):
+        sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
+
+        expected_output = scipy.special.erfc(sample_values)
+        output_from_erfc_op = kmath.erfc(sample_values)
+
+        self.assertAllClose(output_from_erfc_op, expected_output, atol=1e-4)
+
+    def test_erfc_operation_edge_cases(self):
+        edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
+        expected_output = scipy.special.erfc(edge_values)
+        output_from_edge_erfc_op = kmath.erfc(edge_values)
+        self.assertAllClose(
+            output_from_edge_erfc_op, expected_output, atol=1e-4
+        )
+
     def test_erfinv_operation_basic(self):
         # Sample values for testing
         sample_values = np.array([-3.0, -2.0, -1.0, 0.0, 1.0, 2.0, 3.0])
@@ -1072,6 +1110,41 @@ class MathDtypeTest(testing.TestCase):
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
 
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_erf(self, dtype):
+        import jax.lax as lax
+        import jax.numpy as jnp
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.erf(x_jax).dtype)
+
+        self.assertEqual(standardize_dtype(kmath.erf(x).dtype), expected_dtype)
+        self.assertEqual(
+            standardize_dtype(kmath.Erf().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_erfc(self, dtype):
+        import jax.numpy as jnp
+        import jax.scipy.special as special
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(special.erfc(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.erfc(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Erfc().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
 
 class ExtractSequencesOpTest(testing.TestCase):
     def test_extract_sequences_init_length_1_stride_1(self):
@@ -1160,6 +1233,57 @@ class SegmentMinTest(testing.TestCase):
 
         output = segment_min_op.call(data, segment_ids)
         expected_output = np.array([[1, 4, 7], [3, 6, 9]], dtype=np.float32)
+        self.assertAllClose(output, expected_output)
+
+
+class SegmentProdTest(testing.TestCase):
+    def test_segment_prod_call(self):
+        data = np.array([[1, 4, 7], [3, 6, 9], [2, 5, 8]], dtype=np.float32)
+        segment_ids = np.array([0, 1, 0], dtype=np.int32)
+
+        segment_prod_op = kmath.SegmentProd(num_segments=2, sorted=False)
+
+        output = segment_prod_op.call(data, segment_ids)
+        expected_output = np.array(
+            [[2, 20, 56], [3, 6, 9]],
+            dtype=np.float32,
+        )
+        self.assertAllClose(output, expected_output)
+
+    @pytest.mark.skipif(
+        backend.backend() == "tensorflow",
+        reason="Argument `num_segments` cannot be set when sorted is True "
+        f"when using the {backend.backend()}",
+    )
+    def test_segment_prod_call_sorted(self):
+        data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1], dtype=np.int32)
+
+        segment_prod_op = kmath.SegmentProd(num_segments=2, sorted=True)
+
+        output = segment_prod_op.call(data, segment_ids)
+        expected_output = np.array(
+            [[2, 20, 56], [3, 6, 9]],
+            dtype=np.float32,
+        )
+        self.assertAllClose(output, expected_output)
+
+    @pytest.mark.skipif(
+        backend.backend() == "jax",
+        reason="Argument `num_segments` must be set "
+        f"when using the {backend.backend()}",
+    )
+    def test_segment_prod_call_sorted_without_num_segments(self):
+        data = np.array([[1, 4, 7], [2, 5, 8], [3, 6, 9]], dtype=np.float32)
+        segment_ids = np.array([0, 0, 1], dtype=np.int32)
+
+        segment_prod_op = kmath.SegmentProd(sorted=True)
+
+        output = segment_prod_op.call(data, segment_ids)
+        expected_output = np.array(
+            [[2, 20, 56], [3, 6, 9]],
+            dtype=np.float32,
+        )
         self.assertAllClose(output, expected_output)
 
 

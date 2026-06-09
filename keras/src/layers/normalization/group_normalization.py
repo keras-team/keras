@@ -83,6 +83,12 @@ class GroupNormalization(Layer):
         gamma_constraint=None,
         **kwargs,
     ):
+        if not isinstance(groups, int) or (groups <= 0 and groups != -1):
+            raise ValueError(
+                "Received an invalid value for argument `groups`, expected "
+                "a positive integer (or `-1` for instance normalization). "
+                f"Received: groups={groups}"
+            )
         super().__init__(**kwargs)
         self.supports_masking = True
         self.groups = groups

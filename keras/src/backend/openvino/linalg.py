@@ -1,7 +1,7 @@
 import warnings
 
 import openvino as ov
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 from openvino import Model
 from openvino import Type
 

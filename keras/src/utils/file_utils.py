@@ -41,7 +41,7 @@ def path_to_string(path):
 
 
 def resolve_path(path):
-    return os.path.realpath(os.path.abspath(path))
+    return os.path.realpath(path)
 
 
 def resolve_sub_path(base_dir, relative_path):
@@ -66,8 +66,12 @@ def resolve_sub_path(base_dir, relative_path):
 
 def is_link_in_dir(info, base_dir):
     if info.islnk():
-        # Hard links resolve relative to the root.
-        return resolve_sub_path(base_dir, info.linkname) is not None
+        # Hard links resolve relative to the root. Verify both the link
+        # location and target location.
+        return (
+            resolve_sub_path(base_dir, info.name) is not None
+            and resolve_sub_path(base_dir, info.linkname) is not None
+        )
 
     # Symlinks resolve relative to the directory of their destination.
     destination = resolve_sub_path(base_dir, info.name)

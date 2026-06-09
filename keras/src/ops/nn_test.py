@@ -1154,6 +1154,52 @@ class NNOpsStaticShapeTest(testing.TestCase):
             (2, 4, 5, 5) if data_format == "channels_last" else (2, 5, 4, 5),
         )
 
+    def test_conv_input_channel_validation(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs = KerasTensor(input_shape)
+        # kernel input channels (5) do not match the input's channels (3)
+        bad_kernel = KerasTensor([3, 5, 4])
+        bad_depthwise_kernel = KerasTensor([3, 5, 1])
+        pointwise_kernel = KerasTensor([1, 5, 4])
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.conv(inputs, bad_kernel, padding="valid")
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.depthwise_conv(inputs, bad_depthwise_kernel, padding="valid")
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.separable_conv(
+                inputs,
+                bad_depthwise_kernel,
+                pointwise_kernel,
+                padding="valid",
+            )
+
+        # Dynamic channel dimension should NOT raise.
+        if data_format == "channels_last":
+            dyn_inputs = KerasTensor((2, 10, None))
+        else:
+            dyn_inputs = KerasTensor((2, None, 10))
+        knn.conv(dyn_inputs, bad_kernel, padding="valid")
+        knn.depthwise_conv(dyn_inputs, bad_depthwise_kernel, padding="valid")
+        knn.separable_conv(
+            dyn_inputs,
+            bad_depthwise_kernel,
+            pointwise_kernel,
+            padding="valid",
+        )
+
     def test_conv_transpose(self):
         data_format = backend.config.image_data_format()
         if data_format == "channels_last":
@@ -1201,6 +1247,29 @@ class NNOpsStaticShapeTest(testing.TestCase):
                 else (2, 5, 21, 21)
             ),
         )
+
+    def test_conv_transpose_input_channel_validation(self):
+        data_format = backend.config.image_data_format()
+        if data_format == "channels_last":
+            input_shape = (2, 4, 3)
+        else:
+            input_shape = (2, 3, 4)
+        inputs = KerasTensor(input_shape)
+        # conv_transpose kernel layout: (spatial..., out_channels, in_channels)
+        # in_channels=5 mismatches the input's 3 channels.
+        bad_kernel = KerasTensor([2, 4, 5])
+
+        with self.assertRaisesRegex(
+            ValueError, "input channels must match the kernel"
+        ):
+            knn.conv_transpose(inputs, bad_kernel, 2)
+
+        # Dynamic channel dimension should NOT raise.
+        if data_format == "channels_last":
+            dyn_inputs = KerasTensor((2, 4, None))
+        else:
+            dyn_inputs = KerasTensor((2, None, 4))
+        knn.conv_transpose(dyn_inputs, bad_kernel, 2)
 
     def test_batched_and_unbatched_inputs_multi_hot(self):
         x = KerasTensor([2, 3, 1])
@@ -1853,17 +1922,23 @@ class NNOpsCorrectnessTest(testing.TestCase):
         strides=(1, (1, 1), (2, 2)),
         padding=("valid", "same"),
         dilation_rate=(1, (2, 2)),
+        data_format=("channels_first", "channels_last"),
     )
-    def test_depthwise_conv_2d(self, strides, padding, dilation_rate):
+    def test_depthwise_conv_2d(
+        self, strides, padding, dilation_rate, data_format
+    ):
         if (
             backend.backend() == "tensorflow"
-            and strides == (2, 2)
-            and dilation_rate == (2, 2)
+            and data_format == "channels_first"
+            and not testing.tensorflow_uses_gpu()
+            and not (strides == (2, 2) and dilation_rate == (2, 2))
         ):
-            # This case is not supported by the TF backend.
-            return
-        print(strides, padding, dilation_rate)
-        if backend.config.image_data_format() == "channels_last":
+            # On TF CPU, channels_first depthwise conv only works on the
+            # stride+dilation decomposition path (which transposes to NHWC).
+            # The regular path passes NCHW to tf.nn and is unsupported on CPU;
+            # that is a separate pre-existing gap.
+            pytest.skip("channels_first depthwise conv unsupported on TF CPU")
+        if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
             input_shape = (2, 3, 10, 10)
@@ -1875,6 +1950,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             kernel,
             strides,
             padding=padding,
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         expected = np_depthwise_conv2d(
@@ -1883,7 +1959,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             bias_weights=np.zeros((6,)),
             strides=strides,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
@@ -1892,17 +1968,22 @@ class NNOpsCorrectnessTest(testing.TestCase):
         strides=(1, 2),
         padding=("valid", "same"),
         dilation_rate=(1, (2, 2)),
+        data_format=("channels_first", "channels_last"),
     )
-    def test_separable_conv_2d(self, strides, padding, dilation_rate):
+    def test_separable_conv_2d(
+        self, strides, padding, dilation_rate, data_format
+    ):
+        # Test 2D conv.
         if (
             backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 2)
+            and data_format == "channels_first"
+            and not testing.tensorflow_uses_gpu()
+            and not (strides == 2 and dilation_rate == (2, 2))
         ):
-            # This case is not supported by the TF backend.
-            return
-        # Test 2D conv.
-        if backend.config.image_data_format() == "channels_last":
+            # See test_depthwise_conv_2d: channels_first separable conv on TF
+            # CPU only works on the stride+dilation decomposition path.
+            pytest.skip("channels_first separable conv unsupported on TF CPU")
+        if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
             input_shape = (2, 3, 10, 10)
@@ -1916,6 +1997,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             pointwise_kernel,
             strides,
             padding=padding,
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         # Depthwise followed by pointwise conv
@@ -1925,7 +2007,7 @@ class NNOpsCorrectnessTest(testing.TestCase):
             np.zeros(6),
             strides=strides,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
         )
         expected = np_conv2d(
@@ -1934,8 +2016,113 @@ class NNOpsCorrectnessTest(testing.TestCase):
             np.zeros(6 * 12),
             strides=1,
             padding=padding,
-            data_format=backend.config.image_data_format(),
+            data_format=data_format,
             dilation_rate=dilation_rate,
+            groups=1,
+        )
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @parameterized.product(
+        strides=(1, 2),
+        padding=("valid", "same"),
+        dilation_rate=(1, 2),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_depthwise_conv_1d(
+        self, strides, padding, dilation_rate, data_format
+    ):
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs_1d = np.arange(60, dtype=float).reshape(input_shape)
+        kernel = np.arange(12, dtype=float).reshape([2, 3, 2])
+        if data_format == "channels_last":
+            x2d = inputs_1d[:, None, :, :]
+            squeeze_axis = 1
+        else:
+            x2d = inputs_1d[:, :, None, :]
+            squeeze_axis = 2
+
+        outputs = knn.depthwise_conv(
+            inputs_1d,
+            kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected_2d = np_depthwise_conv2d(
+            x2d,
+            kernel[None],
+            bias_weights=np.zeros((6,)),
+            strides=(1, strides),
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=(1, dilation_rate),
+        )
+        expected = np.squeeze(expected_2d, axis=squeeze_axis)
+        self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
+
+    @parameterized.product(
+        strides=(1, 2),
+        padding=("valid", "same"),
+        dilation_rate=(1, 2),
+        data_format=("channels_first", "channels_last"),
+    )
+    def test_separable_conv_1d(
+        self, strides, padding, dilation_rate, data_format
+    ):
+        if (
+            backend.backend() == "tensorflow"
+            and data_format == "channels_first"
+            and not testing.tensorflow_uses_gpu()
+            and not (strides == 2 and dilation_rate == 2)
+        ):
+            # See test_depthwise_conv_2d: channels_first separable conv on TF
+            # CPU only works on the stride+dilation decomposition path.
+            pytest.skip("channels_first separable conv unsupported on TF CPU")
+        if data_format == "channels_last":
+            input_shape = (2, 10, 3)
+        else:
+            input_shape = (2, 3, 10)
+        inputs_1d = np.arange(60, dtype=float).reshape(input_shape)
+        depthwise_kernel = np.arange(12, dtype=float).reshape([2, 3, 2])
+        pointwise_kernel = np.arange(72, dtype=float).reshape([1, 6, 12])
+        if data_format == "channels_last":
+            x2d = inputs_1d[:, None, :, :]
+            squeeze_axis = 1
+        else:
+            x2d = inputs_1d[:, :, None, :]
+            squeeze_axis = 2
+
+        outputs = knn.separable_conv(
+            inputs_1d,
+            depthwise_kernel,
+            pointwise_kernel,
+            strides,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=dilation_rate,
+        )
+        expected_dw_2d = np_depthwise_conv2d(
+            x2d,
+            depthwise_kernel[None],
+            np.zeros((6,)),
+            strides=(1, strides),
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=(1, dilation_rate),
+        )
+        expected_dw = np.squeeze(expected_dw_2d, axis=squeeze_axis)
+        expected = np_conv1d(
+            expected_dw,
+            pointwise_kernel,
+            np.zeros(12),
+            strides=1,
+            padding=padding,
+            data_format=data_format,
+            dilation_rate=1,
             groups=1,
         )
         self.assertAllClose(outputs, expected, tpu_atol=1e-2, tpu_rtol=1e-2)
@@ -3250,6 +3437,13 @@ class NNOpsBehaviorTest(testing.TestCase):
 
         with self.assertWarnsRegex(UserWarning, expected_warning_regex):
             knn.softmax(x, axis)
+
+    def test_softmax_and_normalize_reject_out_of_range_axis(self):
+        a = KerasTensor((3, 4))
+        with self.assertRaisesRegex(ValueError, "axis 10 is out of bounds"):
+            knn.softmax(a, axis=10)
+        with self.assertRaisesRegex(ValueError, "axis 10 is out of bounds"):
+            knn.normalize(a, axis=10)
 
     def test_normalize_order_validation(self):
         # Test with a non-integer order

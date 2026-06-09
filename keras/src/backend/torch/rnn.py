@@ -2,7 +2,6 @@ import torch
 
 from keras.src import tree
 from keras.src.backend.torch.core import convert_to_tensor
-from keras.src.backend.torch.core import get_device
 
 
 def rnn(
@@ -559,9 +558,6 @@ def lstm(
     if mask is not None:
         raise NotImplementedError
 
-    # Get device from inputs
-    device = get_device()
-
     # Convert to torch tensors (convert_to_tensor unwraps Variables)
     kernel = convert_to_tensor(kernel)
     recurrent_kernel = convert_to_tensor(recurrent_kernel)
@@ -580,16 +576,24 @@ def lstm(
         seq_dim = 1 if batch_first else 0
         inputs = torch.flip(inputs, dims=[seq_dim])
 
-    # Move all tensors to the same device
-    inputs = inputs.to(device)
-    initial_state_h = initial_state_h.to(device)
-    initial_state_c = initial_state_c.to(device)
-
-    cudnn_supported = cudnn_ok(
-        activation,
-        recurrent_activation,
-        unroll,
-        use_bias=bias is not None,
+    # cuDNN only runs on CUDA. Skip it when inputs aren't on CUDA, or when
+    # we're inside a TorchScript / Dynamo trace -- the trace records device
+    # transfers that then fail device-consistency validation downstream
+    # (e.g. `torch.onnx.export` failing in `wrapper_CUDA_cat`).
+    device = inputs.device
+    cudnn_supported = (
+        device.type == "cuda"
+        and not torch.jit.is_tracing()
+        and not (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+        and cudnn_ok(
+            activation,
+            recurrent_activation,
+            unroll,
+            use_bias=bias is not None,
+        )
     )
 
     if cudnn_supported:
@@ -647,8 +651,9 @@ def _cudnn_lstm(
 
     params = prepare_lstm_params(kernel, recurrent_kernel, bias, device)
 
-    # Use functional LSTM to maintain gradient flow through weight tensors
-    outputs, (h_n, c_n) = torch._VF.lstm(
+    # Use functional LSTM to maintain gradient flow through weight tensors.
+    # ``torch._VF.lstm`` returns a flat ``(output, h_n, c_n)`` tuple.
+    outputs, h_n, c_n = torch._VF.lstm(
         inputs,
         (initial_state_h, initial_state_c),
         params,
@@ -741,18 +746,36 @@ def gru(
     unroll=False,
     reset_after=True,
 ):
-    cudnn_supported = cudnn_ok(
+    # Neither path below supports masking. The fallback also only knows the
+    # `reset_after=True` formulation. For anything else, bounce back to the
+    # generic RNN loop.
+    if not reset_after or mask is not None:
+        raise NotImplementedError
+
+    # Activation/bias eligibility for cuDNN doesn't depend on tensor state, so
+    # check it before paying for conversions we might discard.
+    cudnn_activation_ok = cudnn_ok(
         activation,
         recurrent_activation,
         unroll,
         use_bias=bias is not None,
     )
 
-    if not cudnn_supported or not reset_after or mask is not None:
-        raise NotImplementedError
-
-    # Get device from inputs
-    device = get_device()
+    # Peek at the input device without materializing a full tensor: cuDNN
+    # only runs on CUDA, and we want to skip the rest of the conversion
+    # cost when we already know we'll fall back.
+    inputs_device_type = (
+        inputs.device.type if isinstance(inputs, torch.Tensor) else "cpu"
+    )
+    cudnn_runtime_ok = (
+        inputs_device_type == "cuda"
+        and not torch.jit.is_tracing()
+        and not (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    )
+    cudnn_supported = cudnn_activation_ok and cudnn_runtime_ok
 
     # Convert to torch tensors (convert_to_tensor unwraps Variables)
     kernel = convert_to_tensor(kernel)
@@ -760,29 +783,40 @@ def gru(
     if bias is not None:
         bias = convert_to_tensor(bias)
 
-    inputs = convert_to_tensor(inputs, dtype="float32")
-    initial_state = convert_to_tensor(initial_state, dtype="float32")
+    # Cast inputs/state to the kernel's dtype so integer inputs are promoted
+    # to float and mixed-precision dtypes (e.g. float16) are respected.
+    compute_dtype = kernel.dtype
+    inputs = convert_to_tensor(inputs).to(compute_dtype)
+    initial_state = convert_to_tensor(initial_state).to(compute_dtype)
 
     # Preprocess for go_backwards by flipping the sequence
     if go_backwards:
         inputs = torch.flip(inputs, dims=[1])
 
-    # Move all tensors to the same device
-    inputs = inputs.to(device)
-    initial_state = initial_state.to(device)
+    if cudnn_supported:
+        try:
+            return _cudnn_gru(
+                inputs,
+                initial_state,
+                kernel,
+                recurrent_kernel,
+                bias,
+                return_sequences=return_sequences,
+                device=inputs.device,
+            )
+        except Exception:
+            pass
 
-    try:
-        return _cudnn_gru(
-            inputs,
-            initial_state,
-            kernel,
-            recurrent_kernel,
-            bias,
-            return_sequences=return_sequences,
-            device=device,
-        )
-    except Exception:
-        raise NotImplementedError
+    return _fallback_gru(
+        inputs,
+        initial_state,
+        kernel,
+        recurrent_kernel,
+        bias,
+        activation,
+        recurrent_activation,
+        return_sequences,
+    )
 
 
 def prepare_gru_params(kernel, recurrent_kernel, bias, device):
@@ -872,5 +906,334 @@ def _cudnn_gru(
     return last_output, outputs, [h_n]
 
 
-def bidirectional_lstm(*args, **kwargs):
-    raise NotImplementedError
+def _fallback_gru(
+    inputs,
+    initial_state,
+    kernel,
+    recurrent_kernel,
+    bias,
+    activation,
+    recurrent_activation,
+    return_sequences,
+):
+    """Pure-torch GRU (reset_after=True) with pre-computed input projections.
+
+    Used when cuDNN is not available (CPU, non-standard activations, etc.).
+    Pre-computes all input projections in a single matmul across timesteps,
+    then only computes the recurrent projection per step.
+    """
+    # (batch, time, features) -> (time, batch, features)
+    inputs = inputs.permute(1, 0, 2)
+
+    # bias for reset_after=True has shape (2, 3*units): row 0 is input bias,
+    # row 1 is recurrent bias. Apply each on its own projection side so the
+    # gating math matches the unbiased case bit-for-bit.
+    x_proj = torch.matmul(inputs, kernel)
+    if bias is not None:
+        x_proj = x_proj + bias[0]
+
+    time_steps = inputs.shape[0]
+    h = initial_state
+    outputs = []
+
+    for t in range(time_steps):
+        h_proj = torch.matmul(h, recurrent_kernel)
+        if bias is not None:
+            h_proj = h_proj + bias[1]
+
+        x_z, x_r, x_h = torch.chunk(x_proj[t], 3, dim=1)
+        h_z, h_r, h_h = torch.chunk(h_proj, 3, dim=1)
+
+        z = recurrent_activation(x_z + h_z)
+        r = recurrent_activation(x_r + h_r)
+        hh = activation(x_h + r * h_h)
+        h = z * h + (1.0 - z) * hh
+
+        outputs.append(h)
+
+    outputs = torch.stack(outputs, dim=0)  # (time, batch, units)
+    outputs = outputs.permute(1, 0, 2)  # (batch, time, units)
+
+    last_output = h
+    if not return_sequences:
+        outputs = last_output.unsqueeze(1)
+
+    return last_output, outputs, [h]
+
+
+def bidirectional_lstm(
+    inputs,
+    fwd_initial_state_h,
+    fwd_initial_state_c,
+    bwd_initial_state_h,
+    bwd_initial_state_c,
+    mask,
+    fwd_kernel,
+    fwd_recurrent_kernel,
+    fwd_bias,
+    bwd_kernel,
+    bwd_recurrent_kernel,
+    bwd_bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    unroll=False,
+):
+    """Fused bidirectional cuDNN LSTM for the torch backend.
+
+    Runs forward and backward passes in a single
+    ``torch._VF.lstm(..., bidirectional=True)`` call instead of dispatching
+    two unidirectional LSTM calls. Backward outputs are returned in original
+    time order, ready for the caller's ``merge_mode`` to consume directly.
+
+    Args:
+        inputs: Input tensor of shape ``(batch, time, features)``.
+        fwd_initial_state_h: Initial hidden state for the forward direction,
+            shape ``(batch, hidden)``.
+        fwd_initial_state_c: Initial cell state for the forward direction,
+            shape ``(batch, hidden)``.
+        bwd_initial_state_h: Initial hidden state for the backward direction,
+            shape ``(batch, hidden)``.
+        bwd_initial_state_c: Initial cell state for the backward direction,
+            shape ``(batch, hidden)``.
+        mask: Sequence mask. Only ``None`` is supported; otherwise
+            ``NotImplementedError`` is raised so the caller can fall back to
+            the two-pass path.
+        fwd_kernel: Forward input kernel, shape ``(features, 4 * hidden)``.
+        fwd_recurrent_kernel: Forward recurrent kernel, shape
+            ``(hidden, 4 * hidden)``.
+        fwd_bias: Forward bias, shape ``(4 * hidden,)`` or ``None``.
+        bwd_kernel: Backward input kernel, shape ``(features, 4 * hidden)``.
+        bwd_recurrent_kernel: Backward recurrent kernel, shape
+            ``(hidden, 4 * hidden)``.
+        bwd_bias: Backward bias, shape ``(4 * hidden,)`` or ``None``.
+        activation: Output activation. Only ``tanh`` engages cuDNN.
+        recurrent_activation: Gate activation. Only ``sigmoid`` engages
+            cuDNN.
+        return_sequences: If ``True``, return outputs at every timestep;
+            otherwise only the last timestep.
+        unroll: Not supported; cuDNN requires the rolled path.
+
+    Returns:
+        A pair ``((fwd_last, fwd_outputs, [fwd_h_n, fwd_c_n]),
+        (bwd_last, bwd_outputs, [bwd_h_n, bwd_c_n]))`` matching the JAX
+        equivalent's return shape.
+    """
+    if mask is not None:
+        raise NotImplementedError
+    if not cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=fwd_bias is not None and bwd_bias is not None,
+    ):
+        raise NotImplementedError
+
+    fwd_kernel = convert_to_tensor(fwd_kernel)
+    fwd_recurrent_kernel = convert_to_tensor(fwd_recurrent_kernel)
+    bwd_kernel = convert_to_tensor(bwd_kernel)
+    bwd_recurrent_kernel = convert_to_tensor(bwd_recurrent_kernel)
+
+    compute_dtype = fwd_kernel.dtype
+    inputs = convert_to_tensor(inputs, dtype=compute_dtype)
+    fwd_h0 = convert_to_tensor(fwd_initial_state_h, dtype=compute_dtype)
+    fwd_c0 = convert_to_tensor(fwd_initial_state_c, dtype=compute_dtype)
+    bwd_h0 = convert_to_tensor(bwd_initial_state_h, dtype=compute_dtype)
+    bwd_c0 = convert_to_tensor(bwd_initial_state_c, dtype=compute_dtype)
+
+    # cuDNN only runs on CUDA. Fall back to the two-pass path when inputs
+    # aren't on CUDA, or when we're inside a TorchScript / Dynamo trace --
+    # the trace records device transfers that then fail device-consistency
+    # validation downstream (e.g. `torch.onnx.export` in `wrapper_CUDA_cat`).
+    device = inputs.device
+    if (
+        device.type != "cuda"
+        or torch.jit.is_tracing()
+        or (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    ):
+        raise NotImplementedError
+
+    fwd_params = prepare_lstm_params(
+        fwd_kernel, fwd_recurrent_kernel, fwd_bias, device
+    )
+    bwd_params = prepare_lstm_params(
+        bwd_kernel, bwd_recurrent_kernel, bwd_bias, device
+    )
+
+    # torch._VF.lstm with bidirectional=True expects 4 params per direction,
+    # forward direction first, then backward.
+    params = fwd_params + bwd_params
+
+    # cuDNN expects (num_layers * num_directions, batch, hidden) for h0/c0.
+    h_0 = torch.stack([fwd_h0, bwd_h0], dim=0)
+    c_0 = torch.stack([fwd_c0, bwd_c0], dim=0)
+
+    try:
+        # ``torch._VF.lstm`` returns a flat ``(output, h_n, c_n)`` tuple.
+        outputs, h_n, c_n = torch._VF.lstm(
+            inputs,
+            (h_0, c_0),
+            params,
+            True,  # has_biases
+            1,  # num_layers
+            0.0,  # dropout
+            torch.is_grad_enabled(),  # training
+            True,  # bidirectional
+            True,  # batch_first
+        )
+    except (RuntimeError, TypeError, ValueError) as e:
+        raise NotImplementedError(
+            f"cuDNN bidirectional LSTM failed: {e}"
+        ) from e
+
+    # outputs: (batch, seq_len, 2 * hidden_size). First half is the forward
+    # direction, second half is the backward direction (in original time
+    # order, courtesy of cuDNN).
+    hidden_size = fwd_recurrent_kernel.shape[0]
+    y_fwd = outputs[..., :hidden_size]
+    y_bwd = outputs[..., hidden_size:]
+
+    fwd_h_n, bwd_h_n = h_n[0], h_n[1]
+    fwd_c_n, bwd_c_n = c_n[0], c_n[1]
+
+    # Forward "last" is the last timestep of the forward sweep; backward
+    # "last" is the first timestep in original time order (i.e., the result
+    # after the full reverse sweep).
+    fwd_last = y_fwd[:, -1]
+    bwd_last = y_bwd[:, 0]
+
+    if return_sequences:
+        fwd_outputs = y_fwd
+        bwd_outputs = y_bwd
+    else:
+        fwd_outputs = fwd_last.unsqueeze(1)
+        bwd_outputs = bwd_last.unsqueeze(1)
+
+    return (
+        (fwd_last, fwd_outputs, [fwd_h_n, fwd_c_n]),
+        (bwd_last, bwd_outputs, [bwd_h_n, bwd_c_n]),
+    )
+
+
+def bidirectional_gru(
+    inputs,
+    fwd_initial_state,
+    bwd_initial_state,
+    mask,
+    fwd_kernel,
+    fwd_recurrent_kernel,
+    fwd_bias,
+    bwd_kernel,
+    bwd_recurrent_kernel,
+    bwd_bias,
+    activation,
+    recurrent_activation,
+    return_sequences=False,
+    unroll=False,
+    reset_after=True,
+):
+    """Fused bidirectional cuDNN GRU for the torch backend.
+
+    Runs both directions in a single ``torch._VF.gru(bidirectional=True)``
+    call. Mirrors ``bidirectional_lstm`` above. Raises ``NotImplementedError``
+    on CPU, under tracing, with a mask, or with ``reset_after=False`` so the
+    caller falls back to the two-pass path. Returns
+    ``((fwd_last, fwd_outputs, [fwd_h_n]), (bwd_last, bwd_outputs, [bwd_h_n]))``
+    with backward outputs already in original time order.
+    """
+    if mask is not None or not reset_after:
+        raise NotImplementedError
+    if not cudnn_ok(
+        activation,
+        recurrent_activation,
+        unroll,
+        use_bias=fwd_bias is not None and bwd_bias is not None,
+    ):
+        raise NotImplementedError
+
+    # cuDNN only runs on CUDA. Bail out before paying for any
+    # convert_to_tensor work when inputs are on CPU, or when we are inside
+    # a TorchScript / Dynamo trace (the trace records device transfers
+    # that then fail device-consistency validation downstream).
+    inputs_device_type = (
+        inputs.device.type if isinstance(inputs, torch.Tensor) else "cpu"
+    )
+    if (
+        inputs_device_type != "cuda"
+        or torch.jit.is_tracing()
+        or (
+            hasattr(torch.compiler, "is_compiling")
+            and torch.compiler.is_compiling()
+        )
+    ):
+        raise NotImplementedError
+
+    fwd_kernel = convert_to_tensor(fwd_kernel)
+    fwd_recurrent_kernel = convert_to_tensor(fwd_recurrent_kernel)
+    bwd_kernel = convert_to_tensor(bwd_kernel)
+    bwd_recurrent_kernel = convert_to_tensor(bwd_recurrent_kernel)
+
+    compute_dtype = fwd_kernel.dtype
+    inputs = convert_to_tensor(inputs, dtype=compute_dtype)
+    fwd_h0 = convert_to_tensor(fwd_initial_state, dtype=compute_dtype)
+    bwd_h0 = convert_to_tensor(bwd_initial_state, dtype=compute_dtype)
+    device = inputs.device
+
+    fwd_params = prepare_gru_params(
+        fwd_kernel, fwd_recurrent_kernel, fwd_bias, device
+    )
+    bwd_params = prepare_gru_params(
+        bwd_kernel, bwd_recurrent_kernel, bwd_bias, device
+    )
+
+    # torch._VF.gru with bidirectional=True expects 4 params per direction,
+    # forward direction first, then backward.
+    params = fwd_params + bwd_params
+
+    # cuDNN expects (num_layers * num_directions, batch, hidden) for h0.
+    h_0 = torch.stack([fwd_h0, bwd_h0], dim=0)
+
+    try:
+        outputs, h_n = torch._VF.gru(
+            inputs,
+            h_0,
+            params,
+            True,  # has_biases
+            1,  # num_layers
+            0.0,  # dropout
+            torch.is_grad_enabled(),  # training
+            True,  # bidirectional
+            True,  # batch_first
+        )
+    except (RuntimeError, TypeError, ValueError) as e:
+        raise NotImplementedError(f"cuDNN bidirectional GRU failed: {e}") from e
+
+    # outputs: (batch, seq_len, 2 * hidden_size). First half is the forward
+    # direction, second half is the backward direction (in original time
+    # order, courtesy of cuDNN).
+    hidden_size = fwd_recurrent_kernel.shape[0]
+    y_fwd = outputs[..., :hidden_size]
+    y_bwd = outputs[..., hidden_size:]
+
+    fwd_h_n, bwd_h_n = h_n[0], h_n[1]
+
+    # Forward "last" is the last timestep of the forward sweep. Backward
+    # "last" is the first timestep in original time order, which is the
+    # result after the full reverse sweep.
+    fwd_last = y_fwd[:, -1]
+    bwd_last = y_bwd[:, 0]
+
+    if return_sequences:
+        fwd_outputs = y_fwd
+        bwd_outputs = y_bwd
+    else:
+        fwd_outputs = fwd_last.unsqueeze(1)
+        bwd_outputs = bwd_last.unsqueeze(1)
+
+    return (
+        (fwd_last, fwd_outputs, [fwd_h_n]),
+        (bwd_last, bwd_outputs, [bwd_h_n]),
+    )

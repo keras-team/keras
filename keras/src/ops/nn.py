@@ -10,6 +10,10 @@ from keras.src.backend import config
 from keras.src.backend import standardize_data_format
 from keras.src.backend.common.backend_utils import canonicalize_axes
 from keras.src.backend.common.backend_utils import canonicalize_axis
+from keras.src.backend.common.backend_utils import check_conv_input_channels
+from keras.src.backend.common.backend_utils import (
+    check_conv_transpose_input_channels,
+)
 from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_output_shape,
 )
@@ -911,6 +915,8 @@ class Softmax(Operation):
         return backend.nn.softmax(x, axis=self.axis)
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype=x.dtype)
 
 
@@ -945,7 +951,11 @@ def softmax(x, axis=-1):
     # Don't use `backend.shape` since TensorFlow returns
     # symbolic tensors for unknown shape which can trigger
     # an error in TensorFlow graph execution.
-    if isinstance(axis, int) and x.shape[axis] == 1:
+    if (
+        isinstance(axis, int)
+        and -len(x.shape) <= axis < len(x.shape)
+        and x.shape[axis] == 1
+    ):
         warnings.warn(
             f"You are using a softmax over axis {axis} "
             f"of a tensor of shape {x.shape}. This axis "
@@ -1461,13 +1471,15 @@ class Conv(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_input_channels(inputs, kernel, data_format)
         output_shape = operation_utils.compute_conv_output_shape(
             inputs.shape,
             kernel.shape[-1],
             kernel.shape[:-2],
             self.strides,
             self.padding,
-            self.data_format,
+            data_format,
             self.dilation_rate,
         )
         return KerasTensor(output_shape, dtype=inputs.dtype)
@@ -1556,13 +1568,15 @@ class DepthwiseConv(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_input_channels(inputs, kernel, data_format)
         output_shape = operation_utils.compute_conv_output_shape(
             inputs.shape,
             kernel.shape[-1] * kernel.shape[-2],
             kernel.shape[:-2],
             self.strides,
             self.padding,
-            self.data_format,
+            data_format,
             self.dilation_rate,
         )
         return KerasTensor(output_shape, dtype=inputs.dtype)
@@ -1662,17 +1676,19 @@ class SeparableConv(Operation):
         )
 
     def compute_output_spec(self, inputs, depthwise_kernel, pointwise_kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_input_channels(inputs, depthwise_kernel, data_format)
         output_shape = list(
             depthwise_conv(
                 inputs,
                 depthwise_kernel,
                 self.strides,
                 self.padding,
-                self.data_format,
+                data_format,
                 self.dilation_rate,
             ).shape
         )
-        if self.data_format == "channels_last":
+        if data_format == "channels_last":
             output_shape[-1] = pointwise_kernel.shape[-1]
         else:
             output_shape[1] = pointwise_kernel.shape[-1]
@@ -1788,6 +1804,8 @@ class ConvTranspose(Operation):
         )
 
     def compute_output_spec(self, inputs, kernel):
+        data_format = standardize_data_format(self.data_format)
+        check_conv_transpose_input_channels(inputs, kernel, data_format)
         kernel_size = kernel.shape[:-2]
         filters = kernel.shape[-2]
         output_shape = compute_conv_transpose_output_shape(
@@ -1797,7 +1815,7 @@ class ConvTranspose(Operation):
             self.strides,
             self.padding,
             self.output_padding,
-            self.data_format,
+            data_format,
             self.dilation_rate,
         )
         return KerasTensor(output_shape, dtype=inputs.dtype)
@@ -2642,6 +2660,8 @@ class Normalize(Operation):
         self.epsilon = epsilon
 
     def compute_output_spec(self, x):
+        if self.axis is not None:
+            canonicalize_axes(self.axis, len(x.shape))
         return KerasTensor(shape=x.shape)
 
     def call(self, x):

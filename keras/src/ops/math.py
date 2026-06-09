@@ -180,6 +180,55 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
     )
 
 
+class SegmentProd(SegmentReduction):
+    def call(self, data, segment_ids):
+        _segment_reduce_validation(data, segment_ids)
+        return backend.math.segment_prod(
+            data,
+            segment_ids,
+            num_segments=self.num_segments,
+            sorted=self.sorted,
+        )
+
+
+@keras_export("keras.ops.segment_prod")
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    """Computes the product of segments in a tensor.
+
+    Args:
+        data: Input tensor.
+        segment_ids: A 1-D tensor containing segment indices for each
+            element in `data`. `data.shape[0]` should match
+            `segment_ids.shape[0]`.
+        num_segments: An integer representing the total number of
+            segments. If not specified, it is inferred from the maximum
+            value in `segment_ids`.
+        sorted: A boolean indicating whether `segment_ids` is sorted.
+            Defaults to `False`.
+
+    Returns:
+        A tensor containing the product of segments, where each element
+        represents the product of the corresponding segment in `data`.
+
+    Example:
+    >>> data = keras.ops.convert_to_tensor([1, 2, 10, 20, 100, 200])
+    >>> segment_ids = keras.ops.convert_to_tensor([0, 0, 1, 1, 2, 2])
+    >>> num_segments = 3
+    >>> keras.ops.segment_prod(data, segment_ids, num_segments)
+    array([2, 200, 20000], dtype=int32)
+    """
+    _segment_reduce_validation(data, segment_ids)
+
+    if any_symbolic_tensors((data,)):
+        return SegmentProd(
+            num_segments,
+            sorted,
+        ).symbolic_call(data, segment_ids)
+    return backend.math.segment_prod(
+        data, segment_ids, num_segments=num_segments, sorted=sorted
+    )
+
+
 class TopK(Operation):
     def __init__(self, k, sorted=True, *, name=None):
         super().__init__(name=name)
@@ -1107,6 +1156,35 @@ def erf(x):
         return Erf().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.erf(x)
+
+
+class Erfc(Operation):
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape, dtype=result_type(x.dtype, float))
+
+    def call(self, x):
+        return backend.math.erfc(x)
+
+
+@keras_export("keras.ops.erfc")
+def erfc(x):
+    """Computes the complementary error function of `x`, element-wise.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same dtype as `x`.
+
+    Example:
+    >>> x = np.array([-3.0, -2.0, -1.0, 0.0, 1.0])
+    >>> keras.ops.erfc(x)
+    array([1.999978 , 1.9953222, 1.8427008, 1. , 0.1572992],
+      dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Erfc().symbolic_call(x)
+    return backend.math.erfc(x)
 
 
 class Erfinv(Operation):

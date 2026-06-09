@@ -1,9 +1,7 @@
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 import scipy.signal
 from openvino import Type
-from openvino.opset16 import istft as ov_istft
-from openvino.opset16 import segment_max as ov_segment_max
 
 from keras.src.backend.openvino.core import OpenVINOKerasTensor
 from keras.src.backend.openvino.core import cast
@@ -14,22 +12,23 @@ from keras.src.backend.openvino.numpy import stack
 INT32_MAX = 2**31 - 1
 
 
-def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    data = get_ov_output(data)
-    segment_ids = get_ov_output(segment_ids)
-
+def _resolve_num_segments(segment_ids, num_segments):
     if num_segments is None:
         max_id = ov_opset.reduce_max(
             segment_ids, ov_opset.constant([0], Type.i32), keep_dims=False
         ).output(0)
-        num_segments = ov_opset.add(
+        return ov_opset.add(
             max_id, ov_opset.constant(1, max_id.get_element_type())
         ).output(0)
-    else:
-        num_segments = ov_opset.constant(
-            num_segments, segment_ids.get_element_type()
-        ).output(0)
+    return ov_opset.constant(
+        num_segments, segment_ids.get_element_type()
+    ).output(0)
 
+
+def _segment_reduce_via_scatter(
+    data, segment_ids, num_segments, reduction, init_val
+):
+    """Scatter-based segment reduction used by segment_sum and segment_prod."""
     is_negative = ov_opset.less(
         segment_ids, ov_opset.constant(0, segment_ids.get_element_type())
     ).output(0)
@@ -69,51 +68,39 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
             num_segments_plus_1, ov_opset.constant(0, Type.i32)
         ).output(0)
 
-    init_val_node = ov_opset.constant(0, data.get_element_type()).output(0)
+    init_val_node = ov_opset.constant(init_val, data.get_element_type()).output(
+        0
+    )
     buffer = ov_opset.broadcast(init_val_node, buffer_shape).output(0)
-
     scattered = ov_opset.scatter_nd_update(
-        buffer, indices, data, reduction="sum"
+        buffer, indices, data, reduction=reduction
     ).output(0)
 
     start = ov_opset.constant([0], Type.i32).output(0)
     end = ov_opset.unsqueeze(
         num_segments, ov_opset.constant(0, Type.i32)
     ).output(0)
-    axes = ov_opset.constant([0], Type.i32).output(0)
-    step = ov_opset.constant([1], Type.i32).output(0)
-    result = ov_opset.slice(scattered, start, end, step, axes).output(0)
+    return ov_opset.slice(
+        scattered,
+        start,
+        end,
+        ov_opset.constant([1], Type.i32).output(0),
+        ov_opset.constant([0], Type.i32).output(0),
+    ).output(0)
 
-    return OpenVINOKerasTensor(result)
 
-
-def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    data = get_ov_output(data)
-    segment_ids = get_ov_output(segment_ids)
-
+def _segment_reduce_via_ov_max(data, segment_ids, num_segments):
+    """Sort + segment_max reduction shared by segment_max and segment_min."""
     zero = ov_opset.constant(0, Type.i32).output(0)
     zero_1d = ov_opset.constant([0], Type.i32).output(0)
     one_1d = ov_opset.constant([1], Type.i32).output(0)
 
-    if num_segments is None:
-        max_id = ov_opset.reduce_max(
-            segment_ids, zero_1d, keep_dims=False
-        ).output(0)
-        num_segments = ov_opset.add(
-            max_id, ov_opset.constant(1, max_id.get_element_type())
-        ).output(0)
-    else:
-        num_segments = ov_opset.constant(
-            num_segments, segment_ids.get_element_type()
-        ).output(0)
-
     is_neg = ov_opset.less(
-        segment_ids,
-        ov_opset.constant(0, segment_ids.get_element_type()),
+        segment_ids, ov_opset.constant(0, segment_ids.get_element_type())
     ).output(0)
     safe_seg = ov_opset.select(is_neg, num_segments, segment_ids).output(0)
 
-    # ov_segment_max requires sorted segment_ids.
+    # OpenVINO segment_max requires sorted segment_ids.
     n = ov_opset.squeeze(
         ov_opset.shape_of(safe_seg, output_type=Type.i32), zero_1d
     ).output(0)
@@ -125,20 +112,52 @@ def segment_max(data, segment_ids, num_segments=None, sorted=False):
     nseg_plus1 = ov_opset.add(
         num_segments, ov_opset.constant(1, num_segments.get_element_type())
     ).output(0)
-    result = ov_segment_max(
+    result = ov_opset.segment_max(
         sorted_data, sorted_seg, nseg_plus1, fill_mode="LOWEST"
     ).output(0)
 
     nseg_1d = ov_opset.unsqueeze(num_segments, zero).output(0)
-    result = ov_opset.slice(result, zero_1d, nseg_1d, one_1d, zero_1d).output(0)
+    return ov_opset.slice(result, zero_1d, nseg_1d, one_1d, zero_1d).output(0)
 
+
+def segment_sum(data, segment_ids, num_segments=None, sorted=False):
+    data = get_ov_output(data)
+    segment_ids = get_ov_output(segment_ids)
+    num_segments = _resolve_num_segments(segment_ids, num_segments)
+    result = _segment_reduce_via_scatter(
+        data, segment_ids, num_segments, reduction="sum", init_val=0
+    )
+    return OpenVINOKerasTensor(result)
+
+
+def segment_max(data, segment_ids, num_segments=None, sorted=False):
+    data = get_ov_output(data)
+    segment_ids = get_ov_output(segment_ids)
+    num_segments = _resolve_num_segments(segment_ids, num_segments)
+    result = _segment_reduce_via_ov_max(data, segment_ids, num_segments)
     return OpenVINOKerasTensor(result)
 
 
 def segment_min(data, segment_ids, num_segments=None, sorted=False):
-    raise NotImplementedError(
-        "`segment_min` is not supported with openvino backend"
+    data = get_ov_output(data)
+    segment_ids = get_ov_output(segment_ids)
+    num_segments = _resolve_num_segments(segment_ids, num_segments)
+    # segment_min = -segment_max(-data)
+    neg_data = ov_opset.negative(data).output(0)
+    result = ov_opset.negative(
+        _segment_reduce_via_ov_max(neg_data, segment_ids, num_segments)
+    ).output(0)
+    return OpenVINOKerasTensor(result)
+
+
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    data = get_ov_output(data)
+    segment_ids = get_ov_output(segment_ids)
+    num_segments = _resolve_num_segments(segment_ids, num_segments)
+    result = _segment_reduce_via_scatter(
+        data, segment_ids, num_segments, reduction="prod", init_val=1
     )
+    return OpenVINOKerasTensor(result)
 
 
 def top_k(x, k, sorted=True):
@@ -205,14 +224,30 @@ def logsumexp(x, axis=None, keepdims=False):
     return OpenVINOKerasTensor(log_sum_exp)
 
 
-def qr(x, mode="reduced"):
-    raise NotImplementedError("`qr` is not supported with openvino backend")
-
-
 def cdist(x, y):
-    raise NotImplementedError(
-        "`cdist` is not supported with the OpenVINO backend"
-    )
+    x = get_ov_output(x)
+    y = get_ov_output(y)
+    x_shape = x.get_partial_shape()
+    y_shape = y.get_partial_shape()
+    if x_shape.rank.is_static and x_shape.rank.get_length() < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if y_shape.rank.is_static and y_shape.rank.get_length() < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    x_last = x_shape[-1]
+    y_last = y_shape[-1]
+    if x_last.is_static and y_last.is_static:
+        if x_last.get_length() != y_last.get_length():
+            raise ValueError("Last dimension of inputs to `cdist` must match")
+    neg2 = ov_opset.constant(-2, Type.i32).output(0)
+    neg3 = ov_opset.constant(-3, Type.i32).output(0)
+    x = ov_opset.unsqueeze(x, neg2).output(0)
+    y = ov_opset.unsqueeze(y, neg3).output(0)
+    diff = ov_opset.subtract(x, y).output(0)
+    sq = ov_opset.multiply(diff, diff).output(0)
+    last_axis = ov_opset.constant(-1, Type.i32).output(0)
+    summed = ov_opset.reduce_sum(sq, last_axis, False).output(0)
+    result = ov_opset.sqrt(summed).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
@@ -681,7 +716,7 @@ def istft(
     ori_dtype = x[0].dtype
 
     if window is None:
-        # ov_istft always applies OLA normalization via window, so the
+        # OpenVINO ISTFT always applies OLA normalization via window, so the
         # unnormalized window=None case uses the manual irfft + OLA path,
         # matching TF and Torch backend.
         frames = irfft(x, fft_length)
@@ -810,7 +845,8 @@ def istft(
         stacked, ov_opset.constant(perm, Type.i32)
     ).output(0)
 
-    # ov_istft only accepts rank 3 or 4; flatten leading batch dims if needed
+    # OpenVINO ISTFT only accepts rank 3 or 4; flatten leading batch dims if
+    # needed.
     num_batch_dims = rank - 3
     if num_batch_dims > 1:
         data_shape_node = ov_opset.shape_of(data, output_type=Type.i32).output(
@@ -840,7 +876,7 @@ def istft(
         else None
     )
 
-    result = ov_istft(
+    result = ov_opset.istft(
         data,
         win_node,
         frame_size_node,
@@ -880,6 +916,15 @@ def erf(x):
     x = get_ov_output(x)
     erf = ov_opset.erf(x).output(0)
     return OpenVINOKerasTensor(erf)
+
+
+def erfc(x):
+    x = get_ov_output(x)
+    if not x.get_element_type().is_real():
+        x = ov_opset.convert(x, Type.f32).output(0)
+    const_one = ov_opset.constant(1, x.get_element_type()).output(0)
+    erf = ov_opset.erf(x).output(0)
+    return OpenVINOKerasTensor(ov_opset.subtract(const_one, erf).output(0))
 
 
 def erfinv(x):

@@ -255,15 +255,22 @@ def abs(x):
     return absolute(x)
 
 
+def fabs(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = cast(x, config.floatx())
+    return torch.abs(x)
+
+
 def all(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        return cast(torch.all(x), "bool")
     axis = to_tuple_or_list(axis)
-    for a in axis:
-        # `torch.all` does not handle multiple axes.
-        x = torch.all(x, dim=a, keepdim=keepdims)
-    return cast(x, "bool")
+    if axis == () or axis == []:
+        return cast(x, "bool")
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return cast(torch.all(x, dim=axis, keepdim=keepdims), "bool")
 
 
 def angle(x):
@@ -279,13 +286,12 @@ def angle(x):
 
 def any(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    if axis is None:
-        return cast(torch.any(x), "bool")
     axis = to_tuple_or_list(axis)
-    for a in axis:
-        # `torch.any` does not handle multiple axes.
-        x = torch.any(x, dim=a, keepdim=keepdims)
-    return cast(x, "bool")
+    if axis == () or axis == []:
+        return cast(x, "bool")
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return cast(torch.any(x, dim=axis, keepdim=keepdims), "bool")
 
 
 def amax(x, axis=None, keepdims=False):
@@ -1257,46 +1263,28 @@ def maximum(x1, x2):
     return torch.maximum(x1, x2)
 
 
+def fmax(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    return torch.fmax(x1, x2)
+
+
 def median(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    compute_dtype = dtypes.result_type(x.dtype, "float32")
-    result_dtype = dtypes.result_type(x.dtype, float)
-    x = cast(x, compute_dtype)
 
-    if axis is None and keepdims is False:
-        return cast(torch.median(x), result_dtype)
-    elif isinstance(axis, int):
-        return cast(
-            torch.median(x, dim=axis, keepdim=keepdims)[0], result_dtype
-        )
-
-    # support multiple axes
-    if axis is None:
-        y = reshape(x, [-1])
-    else:
-        # transpose
-        axis = [canonicalize_axis(a, x.ndim) for a in axis]
-        other_dims = sorted(set(range(x.ndim)).difference(axis))
-        perm = other_dims + list(axis)
-        x_permed = torch.permute(x, dims=perm)
-        # reshape
-        x_shape = list(x.shape)
-        other_shape = [x_shape[i] for i in other_dims]
-        end_shape = [math.prod([x_shape[i] for i in axis])]
-        full_shape = other_shape + end_shape
-        y = reshape(x_permed, full_shape)
-
-    y = torch.median(y, dim=-1)[0]
-
-    if keepdims:
-        if axis is None:
-            for _ in range(x.ndim):
-                y = expand_dims(y, axis=-1)
-        else:
-            for i in sorted(axis):
-                y = expand_dims(y, axis=i)
-
-    return cast(y, result_dtype)
+    # `torch.median` returns the lower of the two middle values for an
+    # even-length reduction, whereas numpy and the other backends average
+    # them. Delegate to `quantile(q=0.5)`, which averages (and returns a
+    # float result, including for an empty `axis`), matching numpy.
+    return quantile(x, q=0.5, axis=axis, keepdims=keepdims)
 
 
 def meshgrid(*x, indexing="xy"):
@@ -1341,6 +1329,20 @@ def minimum(x1, x2):
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     return torch.minimum(x1, x2)
+
+
+def fmin(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    return torch.fmin(x1, x2)
 
 
 def mod(x1, x2):
@@ -1675,7 +1677,8 @@ def prod(x, axis=None, keepdims=False, dtype=None):
     if axis is None:
         return cast(torch.prod(x, dtype=to_torch_dtype(compute_dtype)), dtype)
     axis = to_tuple_or_list(axis)
-    for a in axis:
+    axis = [canonicalize_axis(a, x.ndim) for a in axis]
+    for a in sorted(axis, reverse=True):
         # `torch.prod` does not handle multiple axes.
         x = cast(
             torch.prod(
@@ -2350,18 +2353,35 @@ def slogdet(x):
 
 def argpartition(x, kth, axis=-1):
     x = convert_to_tensor(x, "int32")
+
+    if axis is None:
+        x = torch.flatten(x)
+        axis = 0
+        original_axis = None
+    else:
+        original_axis = axis
+
     x = torch.transpose(x, axis, -1)
+
     bottom_ind = torch.topk(-x, kth + 1)[1]
 
     def set_to_zero(a, i):
-        a[i] = torch.zeros(1, dtype=a.dtype, device=a.device)
+        a = a.clone()
+        a[i] = 0
         return a
 
     for _ in range(x.dim() - 1):
         set_to_zero = torch.vmap(set_to_zero)
+
     proxy = set_to_zero(torch.ones_like(x, dtype=torch.int32), bottom_ind)
+
     top_ind = torch.topk(proxy, x.shape[-1] - kth - 1)[1]
-    out = torch.cat([bottom_ind, top_ind], dim=x.dim() - 1)
+
+    out = torch.cat([bottom_ind, top_ind], dim=-1)
+
+    if original_axis is None:
+        return cast(out, "int32")
+
     return cast(torch.transpose(out, -1, axis), "int32")
 
 
@@ -2449,3 +2469,10 @@ def unique(
     elif return_index:
         output[1] = unique_indices
     return output[0] if len(output) == 1 else tuple(output)
+
+
+def dsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    if not isinstance(indices_or_sections, int):
+        indices_or_sections = convert_to_tensor(indices_or_sections).tolist()
+    return list(torch.dsplit(x, indices_or_sections))

@@ -533,6 +533,14 @@ def gru(
     return last_output, outputs, [h_last]
 
 
+def bidirectional_gru(*args, **kwargs):
+    # `jax.experimental.rnn` exposes a cuDNN `lstm` but no `gru`. There is
+    # no fused bidirectional GRU primitive on JAX, so we fall through to
+    # the layer-level two-pass path. That path is already JIT compiled and
+    # is the best we can do here.
+    raise NotImplementedError
+
+
 def unstack(x, axis=0):
     return [
         lax.index_in_dim(x, i, axis, keepdims=False)

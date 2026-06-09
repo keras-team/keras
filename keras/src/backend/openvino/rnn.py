@@ -1,7 +1,7 @@
 import logging
 
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 from openvino import Model
 from openvino import Type
 
@@ -829,4 +829,8 @@ def cudnn_ok(*args, **kwargs):
 
 
 def bidirectional_lstm(*args, **kwargs):
+    raise NotImplementedError
+
+
+def bidirectional_gru(*args, **kwargs):
     raise NotImplementedError

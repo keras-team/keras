@@ -51,6 +51,21 @@ def segment_min(data, segment_ids, num_segments=None, sorted=False):
         return tf.math.unsorted_segment_min(data, segment_ids, num_segments)
 
 
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    if sorted:
+        if num_segments is not None:
+            raise ValueError(
+                "Argument `num_segments` cannot be set when sorted is True "
+                "when using the tensorflow backend."
+                f"Received: num_segments={num_segments}, sorted={sorted}."
+            )
+        return tf.math.segment_prod(data, segment_ids)
+    else:
+        if num_segments is None:
+            num_segments = tf.cast(tf.reduce_max(segment_ids) + 1, tf.int32)
+        return tf.math.unsorted_segment_prod(data, segment_ids, num_segments)
+
+
 def top_k(x, k, sorted=True):
     return tf.math.top_k(x, k, sorted=sorted)
 
@@ -61,18 +76,6 @@ def in_top_k(targets, predictions, k):
 
 def logsumexp(x, axis=None, keepdims=False):
     return tf.math.reduce_logsumexp(x, axis=axis, keepdims=keepdims)
-
-
-def qr(x, mode="reduced"):
-    if mode not in {"reduced", "complete"}:
-        raise ValueError(
-            "`mode` argument value not supported. "
-            "Expected one of {'reduced', 'complete'}. "
-            f"Received: mode={mode}"
-        )
-    if mode == "reduced":
-        return tf.linalg.qr(x)
-    return tf.linalg.qr(x, full_matrices=True)
 
 
 def cdist(x, y):
@@ -290,6 +293,11 @@ def rsqrt(x):
 
 def erf(x):
     return tf.math.erf(x)
+
+
+def erfc(x):
+    x = convert_to_tensor(x)
+    return tf.math.erfc(x)
 
 
 def erfinv(x):
