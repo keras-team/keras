@@ -355,6 +355,49 @@ def is_torch_tensor(value):
     return False
 
 
+class DistributedBatchSampler:
+    def __init__(
+        self, batch_sampler, num_data_shards, data_shard_id, drop_last=False
+    ):
+        if num_data_shards < 1:
+            raise ValueError(
+                f"num_data_shards must be >= 1. Received: {num_data_shards}"
+            )
+        if not (0 <= data_shard_id < num_data_shards):
+            raise ValueError(
+                f"data_shard_id must be in [0, {num_data_shards - 1}]. "
+                f"Received: {data_shard_id}"
+            )
+        self.batch_sampler = batch_sampler
+        self.num_data_shards = num_data_shards
+        self.data_shard_id = data_shard_id
+        self.drop_last = drop_last
+
+    def __iter__(self):
+        sampler_len = len(self.batch_sampler)
+
+        limit = (
+            (sampler_len // self.num_data_shards) * self.num_data_shards
+            if self.drop_last
+            else sampler_len
+        )
+
+        for i, batch in enumerate(self.batch_sampler):
+            if i >= limit:
+                break
+            if i % self.num_data_shards == self.data_shard_id:
+                yield batch
+
+    def __len__(self):
+        sampler_len = len(self.batch_sampler)
+
+        if self.drop_last:
+            return sampler_len // self.num_data_shards
+        return (
+            sampler_len - self.data_shard_id + self.num_data_shards - 1
+        ) // self.num_data_shards
+
+
 def is_scipy_sparse(x):
     return str(x.__class__.__module__).startswith("scipy.sparse") and hasattr(
         x, "tocoo"
