@@ -4,7 +4,7 @@ from keras.src.callbacks.callback import Callback
 
 @keras_export("keras.callbacks.LambdaCallback")
 class LambdaCallback(Callback):
-    """Callback for creating simple, custom callbacks on-the-fly.
+    r"""Callback for creating simple, custom callbacks on-the-fly.
 
     This callback is constructed with anonymous functions that will be called
     at the appropriate time (during `Model.{fit | evaluate | predict}`).
