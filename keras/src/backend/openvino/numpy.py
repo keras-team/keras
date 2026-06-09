@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import openvino as ov
 import openvino.opset16 as ov_opset
@@ -5038,7 +5040,7 @@ def unravel_index(indices, shape):
         shape = list(shape)
 
     # Handle negative indices
-    total_size = np.prod(shape)
+    total_size = math.prod(shape)
     total_size_const = ov_opset.constant(total_size, indices_dtype).output(0)
 
     zero = ov_opset.constant(0, indices_dtype).output(0)
