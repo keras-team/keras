@@ -78,7 +78,7 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
     """Initialize the current process for distributed training.
 
     Args:
-        job_addresses: Comma-separated list of host addresses.
+        job_addresses: Address of the coordinator process (process 0).
         num_processes: Total number of processes.
         process_id: Rank of the current process.
     """
@@ -92,16 +92,26 @@ def initialize(job_addresses=None, num_processes=None, process_id=None):
 
     world_size = int(os.environ.get("WORLD_SIZE", 1))
     if world_size > 1:
+        # RANK is the global rank of the process across all nodes.
         rank = int(os.environ.get("RANK", 0))
+        # LOCAL_RANK is the rank of the process on the current node.
+        # This is used to set the device (e.g. which GPU to use).
         local_rank = int(os.environ.get("LOCAL_RANK", rank))
         if torch.cuda.is_available():
             torch.cuda.set_device(local_rank)
 
         init_method = None
         if job_addresses:
-            coordinator = job_addresses.split(",")[0]
+            if "," in job_addresses:
+                raise ValueError(
+                    "For the torch backend, `job_addresses` should only "
+                    "contain the coordinator address (the address of "
+                    f"process 0). Received: job_addresses={job_addresses}"
+                )
             init_method = (
-                coordinator if "://" in coordinator else f"tcp://{coordinator}"
+                job_addresses
+                if "://" in job_addresses
+                else f"tcp://{job_addresses}"
             )
 
         backend = "nccl" if torch.cuda.is_available() else "gloo"
