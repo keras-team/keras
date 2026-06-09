@@ -1,6 +1,7 @@
 """Deprecated image preprocessing APIs from Keras 1."""
 
 import collections
+import math
 import multiprocessing
 import os
 import threading
@@ -1277,7 +1278,7 @@ class ImageDataGenerator:
                 )
         if self.zca_whitening:
             if self.zca_whitening_matrix is not None:
-                flat_x = x.reshape(-1, np.prod(x.shape[-3:]))
+                flat_x = x.reshape(-1, math.prod(x.shape[-3:]))
                 white_x = flat_x @ self.zca_whitening_matrix
                 x = np.reshape(white_x, x.shape)
             else:

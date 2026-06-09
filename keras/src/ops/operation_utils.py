@@ -423,7 +423,7 @@ def compute_take_along_axis_output_shape(input_shape, indices_shape, axis):
     indices_shape = list(indices_shape)
     if axis is None:
         input_shape = (
-            [None] if None in input_shape else [int(np.prod(input_shape))]
+            [None] if None in input_shape else [math.prod(input_shape)]
         )
 
     if len(input_shape) != len(indices_shape):
