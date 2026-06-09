@@ -289,6 +289,50 @@ class AudioDatasetFromDirectoryTest(testing.TestCase):
         for seq_len in sequence_lengths:
             self.assertIn(seq_len, possible_sequence_lengths)
 
+    def test_audio_dataset_from_directory_variable_length_label_modes(self):
+        directory = self._prepare_directory(
+            num_classes=2, count=16, different_sequence_lengths=True
+        )
+
+        dataset = audio_dataset_utils.audio_dataset_from_directory(
+            directory,
+            batch_size=8,
+            label_mode=None,
+            shuffle=False,
+        )
+        batch = next(iter(dataset))
+        self.assertEqual(batch.shape.rank, 3)
+        self.assertEqual(batch.shape[0], 8)
+        self.assertEqual(batch.shape[-1], 1)
+
+        dataset = audio_dataset_utils.audio_dataset_from_directory(
+            directory,
+            batch_size=8,
+            label_mode="binary",
+            shuffle=False,
+        )
+        batch = next(iter(dataset))
+        self.assertLen(batch, 2)
+        self.assertEqual(batch[0].shape.rank, 3)
+        self.assertEqual(batch[0].shape[0], 8)
+        self.assertEqual(batch[0].shape[-1], 1)
+        self.assertEqual(batch[1].shape, (8, 1))
+        self.assertEqual(batch[1].dtype.name, "float32")
+
+        dataset = audio_dataset_utils.audio_dataset_from_directory(
+            directory,
+            batch_size=8,
+            label_mode="categorical",
+            shuffle=False,
+        )
+        batch = next(iter(dataset))
+        self.assertLen(batch, 2)
+        self.assertEqual(batch[0].shape.rank, 3)
+        self.assertEqual(batch[0].shape[0], 8)
+        self.assertEqual(batch[0].shape[-1], 1)
+        self.assertEqual(batch[1].shape, (8, 2))
+        self.assertEqual(batch[1].dtype.name, "float32")
+
     def test_audio_dataset_from_directory_no_output_sequence_length_same_lengths(  # noqa: E501
         self,
     ):

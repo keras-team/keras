@@ -264,9 +264,7 @@ def prepare_dataset(
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     if batch_size is not None:
         if output_sequence_length is None and not ragged:
-            dataset = dataset.padded_batch(
-                batch_size, padded_shapes=([None, None], [])
-            )
+            dataset = dataset.padded_batch(batch_size)
         else:
             dataset = dataset.batch(batch_size)
 
