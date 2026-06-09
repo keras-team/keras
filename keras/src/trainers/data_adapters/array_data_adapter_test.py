@@ -2,6 +2,7 @@ import jax
 import jax.experimental.sparse as jax_sparse
 import numpy as np
 import pandas
+import pytest
 import scipy
 import tensorflow as tf
 import torch
@@ -137,6 +138,33 @@ class TestArrayDataAdapter(testing.TestCase):
             self.assertNotAllClose(x_order, list(range(34)))
         else:
             self.assertAllClose(x_order, list(range(34)))
+
+    @pytest.mark.skipif(backend.backend() != "tensorflow", reason="tf only")
+    def test_tf_sparse_trailing_empty_rows(self):
+        x = tf.SparseTensor(
+            indices=[[0, 0], [1, 2]],
+            values=[1.0, 2.0],
+            dense_shape=(4, 3),
+        )
+
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x,
+            batch_size=4,
+            shuffle=False,
+        )
+        batch = next(iter(adapter.get_tf_dataset()))
+
+        self.assertIsInstance(batch, tf.SparseTensor)
+        self.assertEqual(batch.shape, (4, 3))
+        self.assertAllClose(
+            tf.sparse.to_dense(batch),
+            [
+                [1.0, 0.0, 0.0],
+                [0.0, 0.0, 2.0],
+                [0.0, 0.0, 0.0],
+                [0.0, 0.0, 0.0],
+            ],
+        )
 
     def test_multi_inputs_and_outputs(self):
         x1 = np.random.random((34, 1))
