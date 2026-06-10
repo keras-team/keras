@@ -3,8 +3,10 @@ import warnings
 import numpy as np
 import pytest
 
+from keras.src import backend
 from keras.src import constraints
 from keras.src import layers
+from keras.src import ops
 from keras.src import regularizers
 from keras.src import testing
 
@@ -208,3 +210,20 @@ class GroupNormalizationTest(testing.TestCase):
                 dtype="mixed_bfloat16",
             )
             self.assertFalse(any("epsilon" in str(x.message) for x in w))
+
+    def test_large_value_within_autocast_scope(self):
+        layer = layers.GroupNormalization(groups=2)
+        layer.build((1, 2, 4))
+        # Use 70000 to trigger overflow for float16
+        large_value = ops.full(layer.gamma.shape, 70000)
+        with backend.AutocastScope("float16"):
+            layer.gamma.assign(large_value)
+            self.assertAllClose(layer.gamma.value, large_value)
+
+    def test_mixed_precision_large_input_no_nan(self):
+        # Inputs above the float16 max (~65504) must not overflow to inf/nan
+        # before the float32 normalization runs. See issue #22586.
+        x = ops.full((2, 4, 8), 70000.0)
+        layer = layers.GroupNormalization(groups=2, dtype="mixed_float16")
+        out = ops.convert_to_numpy(layer(x))
+        self.assertFalse(np.any(np.isnan(out)))
