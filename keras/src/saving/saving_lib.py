@@ -591,7 +591,7 @@ def save_weights_only(
         else:
             weights_store = H5IOStore(filepath, mode="w")
         if objects_to_skip is not None:
-            visited_saveables = _get_saveable_ids(objects_to_skip)
+            visited_saveables = set(id(o) for o in objects_to_skip)
         else:
             visited_saveables = set()
         _save_state(
@@ -645,7 +645,7 @@ def load_weights_only(
 
         failed_saveables = set()
         if objects_to_skip is not None:
-            visited_saveables = _get_saveable_ids(objects_to_skip)
+            visited_saveables = set(id(o) for o in objects_to_skip)
         else:
             visited_saveables = set()
         error_msgs = {}
@@ -738,53 +738,6 @@ def _walk_saveable(saveable):
             # Avoid raising the exception when visiting the attributes.
             continue
         yield child_attr, child_obj
-
-
-def _get_saveable_ids(saveables):
-    visited_saveables = set()
-    visited_containers = set()
-    for saveable in saveables:
-        _collect_saveable_ids(
-            saveable,
-            visited_saveables=visited_saveables,
-            visited_containers=visited_containers,
-        )
-    return visited_saveables
-
-
-def _collect_saveable_ids(saveable, visited_saveables, visited_containers):
-    from keras.src.saving.keras_saveable import KerasSaveable
-
-    if isinstance(saveable, KerasSaveable):
-        if id(saveable) in visited_saveables:
-            return
-        visited_saveables.add(id(saveable))
-        for _, child_obj in _walk_saveable(saveable):
-            _collect_saveable_ids(
-                child_obj,
-                visited_saveables=visited_saveables,
-                visited_containers=visited_containers,
-            )
-    elif isinstance(saveable, dict):
-        if id(saveable) in visited_containers:
-            return
-        visited_containers.add(id(saveable))
-        for child_obj in saveable.values():
-            _collect_saveable_ids(
-                child_obj,
-                visited_saveables=visited_saveables,
-                visited_containers=visited_containers,
-            )
-    elif isinstance(saveable, (list, tuple, set)):
-        if id(saveable) in visited_containers:
-            return
-        visited_containers.add(id(saveable))
-        for child_obj in saveable:
-            _collect_saveable_ids(
-                child_obj,
-                visited_saveables=visited_saveables,
-                visited_containers=visited_containers,
-            )
 
 
 def _save_state(

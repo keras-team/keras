@@ -117,19 +117,21 @@ class SaveModelTests(test_case.TestCase):
             model.layers[0].get_weights()[1],
         )
 
-    def test_objects_to_skip_recurses_unflattened_attributes(self):
+    def test_objects_to_skip_with_functional_subclass_attribute_layer(self):
         class Backbone(Model):
             def __init__(self):
+                # Simulate a layer owned by a Functional subclass, but not
+                # part of the Functional graph. This matches e.g. a decoder
+                # attached to a backbone but called by a task model.
+                decoder = layers.Dense(2, name="decoder")
+                self._initialize_tracker()
+                self._tracker.track(decoder)
+                object.__setattr__(self, "decoder", decoder)
+
                 encoder = layers.Dense(4, name="encoder")
                 inputs = layers.Input((3,))
                 outputs = encoder(inputs)
                 super().__init__(inputs, outputs)
-                self.encoder = encoder
-                # This layer is owned by the backbone, but it is not part of
-                # the backbone Functional graph.
-                object.__setattr__(
-                    self, "decoder", layers.Dense(2, name="decoder")
-                )
 
         class Task(Model):
             def __init__(self, backbone):
@@ -150,7 +152,7 @@ class SaveModelTests(test_case.TestCase):
         decoder_kernel = np.array(new_task.backbone.decoder.kernel)
         objects_to_skip = list(new_task.backbone._flatten_layers())
 
-        self.assertNotIn(new_task.backbone.decoder, objects_to_skip)
+        self.assertIn(new_task.backbone.decoder, objects_to_skip)
         saving_api.load_weights(
             new_task, filepath, objects_to_skip=objects_to_skip
         )
