@@ -80,6 +80,14 @@ class LambdaTest(testing.TestCase):
         output = layer(2 * np.ones((2, 3)))
         self.assertAllClose(4 * np.ones((2, 3)), output)
 
+    def test_from_config_fails_closed_without_safe_mode_scope(self):
+        # Without an ambient `SafeModeScope` and without an explicit
+        # `safe_mode`, deserializing a lambda `function` must be refused by
+        # default rather than silently loading the marshalled bytecode.
+        config = layers.Lambda(lambda x: x**2).get_config()
+        with self.assertRaisesRegex(ValueError, "Lambda"):
+            layers.Lambda.from_config(config)
+
     def test_correctness_lambda_shape(self):
         layer = layers.Lambda(lambda x: x**2, output_shape=lambda x: x)
         output = layer(2 * np.ones((2, 3)))
