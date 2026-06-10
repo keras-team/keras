@@ -104,6 +104,17 @@ class GeneratorDataAdapterTest(testing.TestCase):
                 sample_order.append(backend.convert_to_numpy(by[j, 0]))
         self.assertAllClose(sample_order, list(range(34)))
 
+    def test_empty_generator_raises_clear_error(self):
+        def generator():
+            if False:
+                yield
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "the generator must yield at least one batch",
+        ):
+            generator_data_adapter.GeneratorDataAdapter(generator())
+
     def test_with_different_shapes(self):
         def generator():
             yield np.ones([16, 4], "float32"), np.ones([16, 2], "float32")
