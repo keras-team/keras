@@ -1,7 +1,3 @@
-import warnings
-
-import ml_dtypes
-
 from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
@@ -91,6 +87,7 @@ class GroupNormalization(Layer):
             )
         super().__init__(**kwargs)
         self.supports_masking = True
+        self.autocast = False
         self.groups = groups
         self.axis = axis
         self.epsilon = epsilon
@@ -102,22 +99,6 @@ class GroupNormalization(Layer):
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
         self.beta_constraint = constraints.get(beta_constraint)
         self.gamma_constraint = constraints.get(gamma_constraint)
-
-        compute_dtype = backend.standardize_dtype(self.compute_dtype)
-        try:
-            finfo = ml_dtypes.finfo(compute_dtype)
-            if self.epsilon != 0 and self.epsilon < float(finfo.eps):
-                warnings.warn(
-                    "The configured `epsilon` is smaller than what can be "
-                    f"represented in the layer compute dtype "
-                    f"({compute_dtype}); "
-                    "it may be rounded to 0 under autocast. Consider "
-                    "increasing `epsilon` or setting `autocast=False` "
-                    "for this layer.",
-                    stacklevel=2,
-                )
-        except Exception:
-            pass
 
     def build(self, input_shape):
         dim = input_shape[self.axis]
@@ -155,6 +136,7 @@ class GroupNormalization(Layer):
                 initializer=self.gamma_initializer,
                 regularizer=self.gamma_regularizer,
                 constraint=self.gamma_constraint,
+                autocast=False,
             )
         else:
             self.gamma = None
@@ -166,6 +148,7 @@ class GroupNormalization(Layer):
                 initializer=self.beta_initializer,
                 regularizer=self.beta_regularizer,
                 constraint=self.beta_constraint,
+                autocast=False,
             )
         else:
             self.beta = None
