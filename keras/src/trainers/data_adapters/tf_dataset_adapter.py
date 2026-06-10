@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import tree
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.data_adapters.data_adapter import DataAdapter
@@ -106,12 +107,22 @@ def make_class_weight_map_fn(class_weight):
     """
     from keras.src.utils.module_utils import tensorflow as tf
 
-    class_weight_tensor = tf.convert_to_tensor(
-        [
-            class_weight.get(int(c), 1.0)
-            for c in range(max(class_weight.keys()) + 1)
-        ]
-    )
+    class_weight_dtype = tf.as_dtype(backend.floatx())
+    if class_weight:
+        class_weight_table = tf.lookup.StaticHashTable(
+            tf.lookup.KeyValueTensorInitializer(
+                keys=tf.constant(
+                    [int(key) for key in class_weight.keys()],
+                    dtype=tf.int32,
+                ),
+                values=tf.constant(
+                    list(class_weight.values()), dtype=class_weight_dtype
+                ),
+            ),
+            default_value=tf.constant(1.0, dtype=class_weight_dtype),
+        )
+    else:
+        class_weight_table = None
 
     def class_weights_map_fn(*data):
         """Convert `class_weight` to `sample_weight`."""
@@ -137,7 +148,10 @@ def make_class_weight_map_fn(class_weight):
             # Special casing for rank 1, where we can guarantee sparse encoding.
             y_classes = tf.cast(tf.round(y), tf.int32)
 
-        cw = tf.gather(class_weight_tensor, y_classes)
+        if class_weight_table is None:
+            cw = tf.ones(tf.shape(y_classes), dtype=class_weight_dtype)
+        else:
+            cw = class_weight_table.lookup(y_classes)
         return x, y, cw
 
     return class_weights_map_fn
