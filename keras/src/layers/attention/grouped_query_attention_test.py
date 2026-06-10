@@ -461,6 +461,84 @@ class GroupedQueryAttentionTest(testing.TestCase):
         self.assertEqual(tuple(out1.shape), (2, 5, 16))
         self.assertAllClose(out1, out2, atol=1e-5)
 
+    @parameterized.named_parameters(
+        ("scores_only", 0.0, True),
+        ("dropout_only", 0.1, False),
+        ("dropout_and_scores", 0.1, True),
+    )
+    def test_causal_only_masks_when_fused_path_disabled(
+        self, dropout, return_attention_scores
+    ):
+        # dropout>0 and return_attention_scores=True both disable the fused
+        # is_causal kernel and send us down the manual softmax path. That path
+        # has to apply the causal mask too, or future keys leak in. See #22910.
+        t = 6
+        future = np.triu(np.ones((t, t)), k=1).astype(bool)
+        x = np.random.RandomState(0).randn(1, t, 16).astype("float32")
+        layer = layers.GroupedQueryAttention(
+            head_dim=4,
+            num_query_heads=4,
+            num_key_value_heads=2,
+            dropout=dropout,
+        )
+
+        if return_attention_scores:
+            # No weight should land on a strictly-future key.
+            _, scores = layer(
+                x,
+                x,
+                use_causal_mask=True,
+                return_attention_scores=True,
+                training=False,
+            )
+            leak = backend.convert_to_numpy(scores)[..., future].sum()
+            self.assertLess(leak, 1e-6)
+        else:
+            # use_causal_mask should match passing the same mask explicitly.
+            out_causal = layer(x, x, use_causal_mask=True, training=False)
+            explicit = (~future)[None]
+            out_explicit = layer(x, x, attention_mask=explicit, training=False)
+            self.assertAllClose(out_causal, out_explicit, atol=1e-5)
+
+    @parameterized.named_parameters(
+        ("fused_fallback", False),
+        ("manual_path", True),
+    )
+    def test_compute_attention_combines_causal_and_explicit_mask(
+        self, return_attention_scores
+    ):
+        # `_compute_attention` is a documented override point. Called directly
+        # with both use_causal_mask=True and an explicit attention_mask, it must
+        # apply both. `call` folds the causal mask in upstream, but a subclass
+        # reusing this method does not, so the method must honor its own flag.
+        t = 5
+        layer = layers.GroupedQueryAttention(
+            head_dim=4, num_query_heads=4, num_key_value_heads=2
+        )
+        layer.build(query_shape=(1, t, 16), value_shape=(1, t, 16))
+        layer._return_attention_scores = return_attention_scores
+
+        rng = np.random.RandomState(0)
+        # After projection and head repeat, q/k/v are [B, T, num_query_heads,
+        # head_dim].
+        query = rng.randn(1, t, 4, 4).astype("float32")
+        key = rng.randn(1, t, 4, 4).astype("float32")
+        value = rng.randn(1, t, 4, 4).astype("float32")
+
+        # A non-causal extra constraint so the causal mask is not redundant.
+        extra = np.ones((1, t, t), dtype="bool")
+        extra[:, 3, 1] = False
+        causal = np.tril(np.ones((t, t), dtype="bool"))[None]
+        merged = extra & causal
+
+        out_both, _ = layer._compute_attention(
+            query, key, value, attention_mask=extra, use_causal_mask=True
+        )
+        out_merged, _ = layer._compute_attention(
+            query, key, value, attention_mask=merged, use_causal_mask=False
+        )
+        self.assertAllClose(out_both, out_merged, atol=1e-5)
+
     def test_sliding_window_validation(self):
         with self.assertRaisesRegex(ValueError, "sliding_window"):
             layers.GroupedQueryAttention(
