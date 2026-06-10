@@ -282,6 +282,7 @@ def istft(
 
 
 def rsqrt(x):
+    x = convert_to_tensor(x)
     return jax.lax.rsqrt(x)
 
 
