@@ -163,11 +163,19 @@ class TorchModuleWrapper(Layer):
         return {**base_config, **config}
 
     @classmethod
-    def from_config(cls, config):
+    def from_config(cls, config, custom_objects=None, safe_mode=None):
         import torch
 
         if "module" in config:
-            if in_safe_mode():
+            # When `safe_mode` is unset, fall back to the ambient
+            # deserialization scope, treating an unset scope (`in_safe_mode()`
+            # is `None`, e.g. a direct `from_config` call) as safe. This fails
+            # closed so that the `torch.load()` pickle is not deserialized
+            # unless safe mode was explicitly disabled.
+            effective_safe_mode = (
+                safe_mode if safe_mode is not None else in_safe_mode()
+            )
+            if effective_safe_mode is not False:
                 raise ValueError(
                     "Requested the deserialization of a `torch.nn.Module` "
                     "object via `torch.load()`. This carries a potential risk "
