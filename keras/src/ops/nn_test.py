@@ -1927,17 +1927,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_depthwise_conv_2d(
         self, strides, padding, dilation_rate, data_format
     ):
-        if (
-            backend.backend() == "tensorflow"
-            and data_format == "channels_first"
-            and not testing.tensorflow_uses_gpu()
-            and not (strides == (2, 2) and dilation_rate == (2, 2))
-        ):
-            # On TF CPU, channels_first depthwise conv only works on the
-            # stride+dilation decomposition path (which transposes to NHWC).
-            # The regular path passes NCHW to tf.nn and is unsupported on CPU;
-            # that is a separate pre-existing gap.
-            pytest.skip("channels_first depthwise conv unsupported on TF CPU")
         if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
@@ -1974,15 +1963,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         self, strides, padding, dilation_rate, data_format
     ):
         # Test 2D conv.
-        if (
-            backend.backend() == "tensorflow"
-            and data_format == "channels_first"
-            and not testing.tensorflow_uses_gpu()
-            and not (strides == 2 and dilation_rate == (2, 2))
-        ):
-            # See test_depthwise_conv_2d: channels_first separable conv on TF
-            # CPU only works on the stride+dilation decomposition path.
-            pytest.skip("channels_first separable conv unsupported on TF CPU")
         if data_format == "channels_last":
             input_shape = (2, 10, 10, 3)
         else:
@@ -2073,15 +2053,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
     def test_separable_conv_1d(
         self, strides, padding, dilation_rate, data_format
     ):
-        if (
-            backend.backend() == "tensorflow"
-            and data_format == "channels_first"
-            and not testing.tensorflow_uses_gpu()
-            and not (strides == 2 and dilation_rate == 2)
-        ):
-            # See test_depthwise_conv_2d: channels_first separable conv on TF
-            # CPU only works on the stride+dilation decomposition path.
-            pytest.skip("channels_first separable conv unsupported on TF CPU")
         if data_format == "channels_last":
             input_shape = (2, 10, 3)
         else:
