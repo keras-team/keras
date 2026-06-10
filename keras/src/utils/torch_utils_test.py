@@ -234,11 +234,19 @@ class TorchUtilsTest(testing.TestCase):
     def test_from_config(self):
         module = torch.nn.Sequential(torch.nn.Linear(2, 4))
         mw = TorchModuleWrapper(module)
-        config = mw.get_config()
+
         # Deserializing the embedded `torch.load()` pickle requires safe mode to
-        # be explicitly disabled (it fails closed otherwise).
+        # be explicitly disabled (it fails closed otherwise). It can be disabled
+        # via the `safe_mode` argument...
+        new_mw = TorchModuleWrapper.from_config(
+            mw.get_config(), safe_mode=False
+        )
+        for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
+            self.assertAllClose(new_w, ref_w, atol=1e-5)
+
+        # ...or an ambient `SafeModeScope`.
         with SafeModeScope(safe_mode=False):
-            new_mw = TorchModuleWrapper.from_config(config)
+            new_mw = TorchModuleWrapper.from_config(mw.get_config())
         for ref_w, new_w in zip(mw.get_weights(), new_mw.get_weights()):
             self.assertAllClose(new_w, ref_w, atol=1e-5)
 
