@@ -35,7 +35,9 @@ class Variable(KerasVariable):
         return self.value
 
 
-def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None, layout="auto"):
+    if x is None:
+        return None
     if sparse:
         raise ValueError("`sparse=True` is not supported with numpy backend")
     if ragged:

@@ -1485,6 +1485,50 @@ def dot_product_attention(
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
 
+    from torch.distributed.tensor import DTensor
+
+    is_dtensor = isinstance(query, DTensor)
+
+    if is_dtensor:
+        from torch.distributed.tensor import Replicate
+        from torch.distributed.tensor import Shard
+
+        orig_query_placements = query.placements
+
+        def _get_replicated_placements(placements, axes):
+            new_placements = list(placements)
+            for i, p in enumerate(new_placements):
+                if isinstance(p, Shard) and p.dim in axes:
+                    new_placements[i] = Replicate()
+            return tuple(new_placements)
+
+        # Redistribute Q: axis 3 (head_dim) must be replicated.
+        query = query.redistribute(
+            query.device_mesh, _get_replicated_placements(query.placements, [3])
+        )
+        # Redistribute K, V: axis 2 and 3 must be replicated.
+        key = key.redistribute(
+            key.device_mesh, _get_replicated_placements(key.placements, [2, 3])
+        )
+        value = value.redistribute(
+            value.device_mesh,
+            _get_replicated_placements(value.placements, [2, 3]),
+        )
+        if mask is not None and isinstance(mask, DTensor):
+            # Redistribute mask: axis 3 (k_seq_len) must be replicated.
+            mask = mask.redistribute(
+                mask.device_mesh,
+                _get_replicated_placements(mask.placements, [3]),
+            )
+
+        device_mesh = query.device_mesh
+        query_placements = query.placements
+        query = query.to_local()
+        key = key.to_local()
+        value = value.to_local()
+        if mask is not None:
+            mask = mask.to_local()
+
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
             query, key, value, mask, is_causal
@@ -1518,6 +1562,16 @@ def dot_product_attention(
             is_causal=is_causal,
             scale=scale,
         )
+
+    if is_dtensor:
+        attention_output = DTensor.from_local(
+            attention_output, device_mesh, query_placements
+        )
+        if query_placements != orig_query_placements:
+            attention_output = attention_output.redistribute(
+                device_mesh, orig_query_placements
+            )
+
     return torch.transpose(attention_output, axis1, axis0)
 
 

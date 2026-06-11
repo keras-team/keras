@@ -9,6 +9,7 @@ import warnings
 
 import numpy as np
 
+from keras.src import backend
 from keras.src.api_export import keras_export
 from keras.src.backend import KerasTensor
 from keras.src.backend import distribution_lib
@@ -926,3 +927,5 @@ def set_distribution(value):
         value: a `Distribution` instance.
     """
     global_state.set_global_attribute(GLOBAL_ATTRIBUTE_NAME, value)
+    if hasattr(backend.distribution_lib, "set_distribution"):
+        backend.distribution_lib.set_distribution(value)

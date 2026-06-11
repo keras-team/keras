@@ -988,15 +988,22 @@ def _saturate_cast(x, dtype, backend_module=None):
 
 
 class ConvertToTensor(Operation):
-    def __init__(self, dtype=None, sparse=None, ragged=None, *, name=None):
+    def __init__(
+        self, dtype=None, sparse=None, ragged=None, layout="auto", *, name=None
+    ):
         super().__init__(name=name)
         self.dtype = dtype
         self.sparse = sparse
         self.ragged = ragged
+        self.layout = layout
 
     def call(self, x):
         return backend.core.convert_to_tensor(
-            x, dtype=self.dtype, sparse=self.sparse, ragged=self.ragged
+            x,
+            dtype=self.dtype,
+            sparse=self.sparse,
+            ragged=self.ragged,
+            layout=self.layout,
         )
 
     def compute_output_spec(self, x):
@@ -1017,7 +1024,7 @@ class ConvertToTensor(Operation):
 
 
 @keras_export("keras.ops.convert_to_tensor")
-def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None, layout="auto"):
     """Convert a NumPy array or Python array to a tensor.
 
     Native tensors for the current backend or left unchanged unless the `dtype`,
@@ -1032,6 +1039,8 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         ragged: Whether to keep ragged tensors. `False` will cause ragged
             tensors to be densified. The default value of `None` means that
             ragged tensors are kept only if the backend supports them.
+        layout: Optional `TensorLayout` to use for the output tensor.
+            Only supported by the torch backend for now.
 
     Returns:
         A backend tensor of the specified `dtype` and sparseness.
@@ -1043,9 +1052,11 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
     """
     dtype = None if dtype is None else backend.standardize_dtype(dtype)
     if any_symbolic_tensors((x,)):
-        return ConvertToTensor(dtype=dtype, sparse=sparse, ragged=ragged)(x)
+        return ConvertToTensor(
+            dtype=dtype, sparse=sparse, ragged=ragged, layout=layout
+        )(x)
     return backend.core.convert_to_tensor(
-        x, dtype=dtype, sparse=sparse, ragged=ragged
+        x, dtype=dtype, sparse=sparse, ragged=ragged, layout=layout
     )
 
 

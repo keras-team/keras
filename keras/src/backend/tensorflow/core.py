@@ -137,7 +137,9 @@ class Variable(
         return mapping[synchronization]
 
 
-def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
+def convert_to_tensor(x, dtype=None, sparse=None, ragged=None, layout="auto"):
+    if x is None:
+        return None
     if isinstance(x, tf.SparseTensor) and sparse is not None and not sparse:
         x = sparse_to_dense(x)
     if isinstance(x, tf.RaggedTensor) and ragged is not None and not ragged:

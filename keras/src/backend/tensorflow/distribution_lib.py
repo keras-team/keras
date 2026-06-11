@@ -85,3 +85,8 @@ def _to_backend_layout(tensor_layout):
     ]
     dtensor_mesh = tensor_layout.device_mesh.backend_mesh
     return dtensor.Layout(sharding_specs=sharding_specs, mesh=dtensor_mesh)
+
+
+def set_distribution(value):
+    """Set the distribution as the global distribution setting."""
+    pass
