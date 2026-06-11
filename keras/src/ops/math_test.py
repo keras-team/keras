@@ -1145,6 +1145,24 @@ class MathDtypeTest(testing.TestCase):
             expected_dtype,
         )
 
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_rsqrt(self, dtype):
+        import jax.lax as lax
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(lax.rsqrt(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.rsqrt(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Rsqrt().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
 
 class ExtractSequencesOpTest(testing.TestCase):
     def test_extract_sequences_init_length_1_stride_1(self):
