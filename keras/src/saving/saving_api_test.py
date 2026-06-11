@@ -7,6 +7,7 @@ import numpy as np
 from absl import logging
 from absl.testing import parameterized
 
+from keras.src import backend
 from keras.src import layers
 from keras.src.legacy.saving.legacy_h5_format import save_model_to_hdf5
 from keras.src.models import Model
@@ -176,6 +177,10 @@ class LoadModelTests(test_case.TestCase):
     )
     def test_basic_load(self, dtype):
         """Test basic model loading."""
+        if backend.backend() == "mlx" and dtype == "float64":
+            self.skipTest(
+                "mlx backend does not yet support float64 in random and uniform"
+            )
         model = self.get_model(dtype)
         filepath = os.path.join(self.get_temp_dir(), "test_model.keras")
         saving_api.save_model(model, filepath)
@@ -262,6 +267,13 @@ class LoadWeightsTests(test_case.TestCase):
         )
     )
     def test_load_weights(self, save_format, source_dtype, dest_dtype):
+        if backend.backend() == "mlx" and "float64" in (
+            source_dtype,
+            dest_dtype,
+        ):
+            self.skipTest(
+                "mlx backend does not yet support float64 in random and uniform"
+            )
         """Test loading keras weights."""
         src_model = self.get_model(dtype=source_dtype)
         if save_format == "keras":

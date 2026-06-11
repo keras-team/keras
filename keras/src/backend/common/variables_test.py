@@ -357,6 +357,13 @@ class VariablePropertiesTest(test_case.TestCase):
         ):
             self.skipTest(f"openvino backend does not support dtype {dtype}")
 
+        if backend.backend() == "mlx" and dtype in (
+            "complex128",
+            "float8_e4m3fn",
+            "float8_e5m2",
+        ):
+            self.skipTest(f"mlx backend does not support dtype {dtype}")
+
         x = backend.convert_to_tensor(np.zeros(()), dtype)
         actual = standardize_dtype(x.dtype)
         self.assertEqual(actual, dtype)
@@ -1185,6 +1192,14 @@ class VariableOpsDTypeTest(test_case.TestCase):
         named_product(dtypes=itertools.combinations(ALL_DTYPES, 2))
     )
     def test_matmul(self, dtypes):
+        if backend.backend() == "mlx":
+            result_dtype = backend.result_type(*dtypes)
+            if "float" not in result_dtype:
+                self.skipTest(
+                    "mlx backend only supports matmul for real floating point "
+                    "types"
+                )
+
         import jax.numpy as jnp
 
         dtype1, dtype2 = dtypes

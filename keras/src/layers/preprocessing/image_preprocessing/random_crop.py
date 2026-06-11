@@ -141,6 +141,10 @@ class RandomCrop(BaseImagePreprocessingLayer):
 
     def _random_crop(self, images, transformation, interpolation="bilinear"):
         crop_box_hstart, crop_box_wstart = transformation
+        if self.backend.name == "mlx":
+            # mlx cannot slice arrays with scalar arrays
+            crop_box_hstart = int(crop_box_hstart)
+            crop_box_wstart = int(crop_box_wstart)
         crop_height = self.height
         crop_width = self.width
 

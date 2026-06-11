@@ -1,3 +1,4 @@
+from keras.src import backend
 from keras.src import initializers
 from keras.src import ops
 from keras.src.api_export import keras_export
@@ -76,16 +77,32 @@ class SpectralNormalization(Wrapper):
 
     def call(self, inputs, training=False):
         if training:
-            new_vector_u, new_kernel = ops.cond(
-                ops.all(ops.equal(self.kernel.value, 0)),
-                lambda: (self.vector_u.value, self.kernel.value),
-                self.normalized_weights,
-            )
+            if backend.backend() == "mlx":
+                # ops.cond is non-compilable with mlx backend
+                new_vector_u, new_kernel = self._mlx_get_kernel_update()
+            else:
+                new_vector_u, new_kernel = ops.cond(
+                    ops.all(ops.equal(self.kernel.value, 0)),
+                    lambda: (self.vector_u.value, self.kernel.value),
+                    self.normalized_weights,
+                )
             self.vector_u.assign(new_vector_u)
             self.kernel.assign(new_kernel)
 
         output = self.layer(inputs)
         return ops.cast(output, inputs.dtype)
+
+    def _mlx_get_kernel_update(self):
+        kernel_all_zero = ops.all(ops.equal(self.kernel.value, 0))
+        kernel_all_zero = ops.stop_gradient(kernel_all_zero)
+        normalized_vector_u, normalized_kernel = self.normalized_weights()
+        new_vector_u = ops.where(
+            kernel_all_zero, self.vector_u.value, normalized_vector_u
+        )
+        new_kernel = ops.where(
+            kernel_all_zero, self.kernel.value, normalized_kernel
+        )
+        return new_vector_u, new_kernel
 
     def compute_output_shape(self, input_shape):
         return self.layer.compute_output_shape(input_shape)

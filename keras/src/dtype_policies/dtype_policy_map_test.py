@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import layers
 from keras.src import models
@@ -23,6 +24,9 @@ class DTypePolicyMapTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_basic_usage(self):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not yet support quantization")
+
         # Create a subclass that might contain mixing dtype policies for
         # sublayers.
         # It is important to ensure that `dtype` is passed to sublayers and

@@ -37,6 +37,8 @@ elif backend.backend() == "tensorflow":
     )
 elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
+elif backend.backend() == "mlx":
+    from keras.src.backend.mlx.trainer import MLXTrainer as Trainer
 elif backend.backend() == "openvino":
     from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
 else:
@@ -166,6 +168,7 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
             "torch": "cpu",
+            "mlx": "cpu",
         }
         with backend.device(CPU_DEVICES[backend.backend()]):
             return ops.ones((5, 4)), ops.zeros((5, 3))
@@ -664,8 +667,10 @@ class TestTrainer(testing.TestCase):
     ):
         jit_compile = True
         if dataset_kwargs.get("use_multiprocessing", False):
-            if backend.backend() == "jax":
-                pytest.skip("Multiprocessing not supported with JAX backend")
+            if backend.backend() in ("jax", "mlx"):
+                pytest.skip(
+                    "Multiprocessing not supported with JAX and MLX backends"
+                )
             elif backend.backend() == "tensorflow":
                 pytest.skip("Multiprocessing hangs on Tensorflow")
         if dataset_type == "grain_dataset" and backend.backend() == "torch":
@@ -741,7 +746,7 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_fit_with_custom_train_step(self):
-        if backend.backend() == "jax":
+        if backend.backend() in ("jax", "mlx"):
             model = JaxCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)
@@ -830,7 +835,7 @@ class TestTrainer(testing.TestCase):
     @parameterized.named_parameters([("flat", False), ("dict", True)])
     @pytest.mark.requires_trainable_backend
     def test_evaluate_with_custom_test_step(self, return_dict):
-        if backend.backend() == "jax":
+        if backend.backend() in ("jax", "mlx"):
             model = JaxCustomTrainTestStepModel(units=3)
         else:
             model = CustomTrainTestStepModel(units=3)

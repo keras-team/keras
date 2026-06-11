@@ -1,5 +1,6 @@
 import jax
 import jax.experimental.sparse as jax_sparse
+import mlx.core as mx
 import numpy as np
 import pytest
 import scipy
@@ -31,6 +32,8 @@ class TestArrayDataAdapter(testing.TestCase):
             return jax_sparse.BCOO.fromdense(x)
         elif array_type == "torch":
             return torch.as_tensor(x)
+        elif array_type == "mlx":
+            return mx.array(x)
         elif array_type == "pandas_data_frame":
             import pandas  # Import pandas after tf, fixes deadlock on MacOS
 
@@ -52,6 +55,7 @@ class TestArrayDataAdapter(testing.TestCase):
                 "jax",
                 "jax_sparse",
                 "torch",
+                "mlx",
                 "pandas_data_frame",
                 "pandas_series",
                 "scipy_sparse",
@@ -98,6 +102,9 @@ class TestArrayDataAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
         else:
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
