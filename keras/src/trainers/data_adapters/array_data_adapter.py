@@ -253,12 +253,18 @@ class ArrayDataAdapter(DataAdapter):
             return dataset
 
         indices_dataset = indices_dataset.flat_map(slice_batch_indices)
+
+        if self._num_data_shards > 1:
+            indices_dataset = indices_dataset.shard(
+                self._num_data_shards, self._data_shard_id
+            )
+
         if shuffle == "batch":
             indices_dataset = indices_dataset.map(lambda x: self._tf_shuffle(x))
 
         dataset = slice_inputs(indices_dataset, self._inputs)
 
-        # Note: sharding is handled by `TFDatasetAdapter` if a distribution
+        # Note: sharding is also handled by `TFDatasetAdapter` if a distribution
         # is active. We set `AutoShardPolicy.DATA` to ensure that
         # `tf.distribute` will also shard the dataset by default.
         options = tf.data.Options()
@@ -342,16 +348,12 @@ class ArrayDataAdapter(DataAdapter):
             def __len__(self):
                 return len(self.batch_sampler)
 
+        generator = None
         if self._shuffle == "batch":
             batch_sampler = torch.utils.data.BatchSampler(
                 range(self._num_samples),
                 batch_size=self._batch_size,
                 drop_last=False,
-            )
-            batch_sampler = SeededBatchSampler(
-                batch_sampler,
-                seed_provider=lambda: self._epoch,
-                shuffle_batch=True,
             )
         elif self._shuffle:
             generator = torch.Generator()
@@ -362,14 +364,9 @@ class ArrayDataAdapter(DataAdapter):
                 batch_size=self._batch_size,
                 drop_last=False,
             )
-            batch_sampler = SeededBatchSampler(
-                batch_sampler,
-                seed_provider=lambda: self._epoch,
-                generator=generator,
-            )
         else:
             batch_sampler = torch.utils.data.BatchSampler(
-                torch.utils.data.SequentialSampler(range(self._num_samples)),
+                range(self._num_samples),
                 batch_size=self._batch_size,
                 drop_last=False,
             )
@@ -381,6 +378,19 @@ class ArrayDataAdapter(DataAdapter):
                 batch_sampler,
                 num_data_shards=self._num_data_shards,
                 data_shard_id=self._data_shard_id,
+            )
+
+        if self._shuffle == "batch":
+            batch_sampler = SeededBatchSampler(
+                batch_sampler,
+                seed_provider=lambda: self._epoch,
+                shuffle_batch=True,
+            )
+        elif self._shuffle:
+            batch_sampler = SeededBatchSampler(
+                batch_sampler,
+                seed_provider=lambda: self._epoch,
+                generator=generator,
             )
 
         # Because ArrayDataset.__getitems__ returns full batches organized in

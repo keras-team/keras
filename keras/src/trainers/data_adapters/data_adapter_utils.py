@@ -359,11 +359,11 @@ class DistributedBatchSampler:
     """Sampler that shards a batch sampler.
 
     This sampler is useful for sharding an existing batch sampler (an iterable
-    of batches) across multiple data shards. It is primarily used to shard
-    PyTorch `DataLoader` objects.
+    of batches) across multiple data shards.
 
     Args:
-        batch_sampler: An iterable of batches.
+        batch_sampler: An iterable of batches. For example, a
+            `torch.utils.data.BatchSampler` instance.
         num_data_shards: Total number of data shards.
         data_shard_id: ID of the current data shard.
         drop_last: Whether to drop the last partial batch.
@@ -372,6 +372,14 @@ class DistributedBatchSampler:
     def __init__(
         self, batch_sampler, num_data_shards, data_shard_id, drop_last=False
     ):
+        """Initialize the DistributedBatchSampler.
+
+        Args:
+            batch_sampler: An iterable of batches.
+            num_data_shards: Total number of data shards.
+            data_shard_id: ID of the current data shard.
+            drop_last: Whether to drop the last partial batch.
+        """
         if num_data_shards < 1:
             raise ValueError(
                 f"num_data_shards must be >= 1. Received: {num_data_shards}"
@@ -397,17 +405,21 @@ class DistributedBatchSampler:
 
         import torch
 
-        # Optimization: if the batch_sampler is a standard BatchSampler,
-        # we can skip indices efficiently.
+        # Optimization: if the batch_sampler is a standard BatchSampler
+        # with an indexable sampler, we can skip indices efficiently.
         if isinstance(self.batch_sampler, torch.utils.data.BatchSampler):
-            for i in range(self.data_shard_id, limit, self.num_data_shards):
-                # Manual index-based access is more efficient than filtering
-                # the iterator.
-                yield self.batch_sampler.sampler[
-                    i * self.batch_sampler.batch_size : (i + 1)
-                    * self.batch_sampler.batch_size
-                ]
-            return
+            sampler = self.batch_sampler.sampler
+            if hasattr(sampler, "__getitem__") and not isinstance(
+                sampler, torch.utils.data.Sampler
+            ):
+                for i in range(self.data_shard_id, limit, self.num_data_shards):
+                    # Manual index-based access is more efficient than filtering
+                    # the iterator.
+                    yield sampler[
+                        i * self.batch_sampler.batch_size : (i + 1)
+                        * self.batch_sampler.batch_size
+                    ]
+                return
 
         for i, batch in enumerate(self.batch_sampler):
             if i >= limit:
