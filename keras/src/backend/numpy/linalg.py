@@ -7,7 +7,10 @@ from keras.src.backend.numpy.core import convert_to_tensor
 
 
 def cholesky(a, upper=False):
-    return np.linalg.cholesky(a, upper=upper)
+    out = np.linalg.cholesky(a)
+    if upper:
+        return np.swapaxes(out, -1, -2).conj()
+    return out
 
 
 def cholesky_inverse(a, upper=False):
@@ -110,6 +113,8 @@ def matrix_rank(x, tol=None):
 
 def pinv(x, rcond=None):
     x = convert_to_tensor(x)
+    if rcond is None:
+        rcond = 1e-15
     return np.linalg.pinv(x, rcond=rcond)
 
 
