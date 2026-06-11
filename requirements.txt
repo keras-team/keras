@@ -19,6 +19,9 @@ flax
 # OpenVino
 openvino
 
+# MLX.
+mlx
+
 # Common deps.
 -r requirements-common.txt
 
