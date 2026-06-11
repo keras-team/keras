@@ -55,6 +55,11 @@ elif backend() == "openvino":
     from keras.src.backend.openvino.core import Variable as BackendVariable
 
     distribution_lib = None
+elif backend() == "mlx":
+    from keras.src.backend.mlx import *  # noqa: F403
+    from keras.src.backend.mlx.core import Variable as BackendVariable
+
+    distribution_lib = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
 
