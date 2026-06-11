@@ -99,7 +99,6 @@ class Functional(Function, Model):
     def __new__(cls, *args, **kwargs):
         return typing.cast(cls, super().__new__(cls))
 
-    @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
         if isinstance(inputs, dict):
             for k, v in inputs.items():
@@ -133,21 +132,14 @@ class Functional(Function, Model):
         if not all(is_input_keras_tensor(t) for t in flat_inputs):
             inputs, outputs = clone_graph_nodes(inputs, outputs)
 
-        preexisting_layers = list(getattr(self, "_layers", []))
-
-        Function.__init__(self, inputs, outputs, name=name)
+        with tracking.DotNotTrackScope():
+            Function.__init__(self, inputs, outputs, name=name)
 
         if trainable is not None:
             self.trainable = trainable
 
-        graph_layers = self.layers
-        graph_layer_ids = {id(layer) for layer in graph_layers}
-        extra_layers = [
-            layer
-            for layer in preexisting_layers
-            if id(layer) not in graph_layer_ids
-        ]
-        self._layers = graph_layers + extra_layers
+        for layer in self.layers:
+            self._tracker.track(layer)
         self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
