@@ -1,5 +1,6 @@
 import math
 import time
+from unittest.mock import patch
 
 import jax
 import numpy as np
@@ -10,6 +11,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import py_dataset_adapter
 from keras.src.utils.rng_utils import set_random_seed
@@ -453,3 +455,115 @@ class PyDatasetAdapterTest(testing.TestCase):
         for index, _ in enumerate(NoLenDataset()):
             if index >= 10:
                 break
+
+    @parameterized.named_parameters(
+        ("dataparallel", "dp", 4, 1, 4, 1),
+        ("modelparallel", "mp", 8, 5, 8, 5),
+        ("modelparallel_large_mesh", "mp", 4, 2, 4, 2),
+    )
+    @patch("keras.src.distribution.distribution_lib.distribution")
+    def test_sharding(
+        self,
+        dist_type,
+        world_size,
+        rank,
+        expected_num_data_shards,
+        expected_data_shard_id,
+        mock_distribution,
+    ):
+        if backend.backend() not in ("jax"):
+            pytest.skip("Distribution support is only available for jax.")
+        from keras.src.backend import distribution_lib as backend_dist_lib
+
+        with (
+            patch.object(
+                backend_dist_lib, "num_processes", return_value=world_size
+            ),
+            patch.object(backend_dist_lib, "process_id", return_value=rank),
+        ):
+            if dist_type == "dp":
+                dist = dist_lib.DataParallel(devices=["cpu:0"] * world_size)
+            else:
+                device_mesh = dist_lib.DeviceMesh(
+                    shape=(world_size,),
+                    axis_names=("data",),
+                    devices=["cpu:0"] * world_size,
+                )
+                dist = dist_lib.ModelParallel(
+                    device_mesh=device_mesh,
+                    layout_map=dist_lib.LayoutMap(device_mesh),
+                    batch_dim_name="data",
+                )
+            dist.auto_shard_dataset = True
+            mock_distribution.return_value = dist
+
+            x = np.random.random((16, 4)).astype("float32")
+            y = np.random.random((16, 2)).astype("float32")
+            py_dataset = ExamplePyDataset(x, y, batch_size=2)
+            adapter = py_dataset_adapter.PyDatasetAdapter(
+                py_dataset, shuffle=False
+            )
+
+            self.assertEqual(adapter._num_data_shards, expected_num_data_shards)
+            self.assertEqual(adapter._data_shard_id, expected_data_shard_id)
+
+            it = adapter._get_iterator()
+            batches = list(it)
+            expected_num_batches = 8 // expected_num_data_shards
+            self.assertEqual(len(batches), expected_num_batches)
+
+    def test_deterministic_shuffle(self):
+        x = np.arange(16).reshape((8, 2)).astype("float32")
+        y = np.arange(8).reshape((8, 1)).astype("float32")
+        py_dataset = ExamplePyDataset(x, y, batch_size=2)
+
+        # Two adapters with same epoch should have same shuffle
+        adapter1 = py_dataset_adapter.PyDatasetAdapter(py_dataset, shuffle=True)
+        # Force sharding path to ensure deterministic seeds are used
+        adapter1._num_data_shards = 2
+        adapter1._data_shard_id = 0
+        adapter1._epoch = 1
+        it1 = adapter1._get_iterator()
+        batches1 = list(it1)
+
+        adapter2 = py_dataset_adapter.PyDatasetAdapter(py_dataset, shuffle=True)
+        adapter2._num_data_shards = 2
+        adapter2._data_shard_id = 0
+        adapter2._epoch = 1
+        it2 = adapter2._get_iterator()
+        batches2 = list(it2)
+
+        for b1, b2 in zip(batches1, batches2):
+            self.assertAllClose(b1[0], b2[0])
+
+        # Different epochs should have different shuffle
+        adapter3 = py_dataset_adapter.PyDatasetAdapter(py_dataset, shuffle=True)
+        adapter3._num_data_shards = 2
+        adapter3._data_shard_id = 0
+        adapter3._epoch = 2
+        it3 = adapter3._get_iterator()
+        batches3 = list(it3)
+
+        different = False
+        for b1, b3 in zip(batches1, batches3):
+            if not np.allclose(b1[0], b3[0]):
+                different = True
+                break
+        self.assertTrue(different)
+
+    def test_enqueuer_is_running_and_start(self):
+        x = np.random.random((16, 4))
+        y = np.random.random((16, 2))
+        py_dataset = ExamplePyDataset(x, y, batch_size=2)
+        enqueuer = py_dataset_adapter.OrderedEnqueuer(
+            py_dataset, workers=2, use_multiprocessing=False
+        )
+        try:
+            self.assertFalse(enqueuer.is_running())
+            enqueuer.start()
+            self.assertTrue(enqueuer.is_running())
+            enqueuer.start()
+            self.assertTrue(enqueuer.is_running())
+        finally:
+            enqueuer.stop()
+        self.assertFalse(enqueuer.is_running())
