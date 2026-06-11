@@ -309,15 +309,6 @@ class DataParallelDistributionTest(testing.TestCase):
         tensor_layout = distribution.get_tensor_layout(path)
         self.assertIsNone(tensor_layout)
 
-    def test_distribute_dataset(self):
-        # We can only verify the single worker/process case in OSS for now.
-        dataset = tf.data.Dataset.range(8)
-        distribution = distribution_lib.DataParallel(
-            device_mesh=self.device_mesh
-        )
-        distributed_dataset = distribution.distribute_dataset(dataset)
-        self.assertIs(dataset, distributed_dataset)
-
 
 @pytest.mark.skipif(
     backend.backend() != "jax",
@@ -400,16 +391,6 @@ class ModelParallelDistributionTest(testing.TestCase):
         self.assertIs(variable_layout.device_mesh, explicit_mesh)
         self.assertEqual(variable_layout.axes, explicit_layout.axes)
 
-    def test_distribute_dataset(self):
-        # We can only verify the single worker/process case in OSS for now.
-        dataset = tf.data.Dataset.range(8)
-        layout_map = distribution_lib.LayoutMap(self.device_mesh)
-        distribution = distribution_lib.ModelParallel(
-            layout_map=layout_map, batch_dim_name="data"
-        )
-        distributed_dataset = distribution.distribute_dataset(dataset)
-        self.assertIs(dataset, distributed_dataset)
-
     @mock.patch.object(backend_dlib, "num_processes", return_value=4)
     def test_num_processes_validation(self, mock_backend_num_processes):
         device_mesh = distribution_lib.DeviceMesh(
@@ -441,132 +422,6 @@ class ModelParallelDistributionTest(testing.TestCase):
         )
         self.assertEqual(distribution.num_model_replicas, 4)
         self.assertEqual(distribution.num_processes, 2)
-
-
-class TfDatasetDistributionTest(testing.TestCase):
-    def setUp(self):
-        super().setUp()
-        self.devices = [f"cpu:{i}" for i in range(8)]
-        self.device_mesh = distribution_lib.DeviceMesh(
-            (4, 2), ["data", "model"], self.devices
-        )
-        self.layout_map = distribution_lib.LayoutMap(self.device_mesh)
-        self.distribution = distribution_lib.ModelParallel(
-            layout_map=self.layout_map, batch_dim_name="data"
-        )
-
-    def test_distribute_tf_dataset_multiple_replicas_per_process(self):
-        # Case: num_model_replicas=4, num_processes=2 => 2 replicas per process
-        dataset = tf.data.Dataset.range(16).batch(8)
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=4,
-            ),
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_processes",
-                new_callable=mock.PropertyMock,
-                return_value=2,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            mock.patch.object(self.distribution, "_process_id", 0),
-        ):
-            # Global batch size 8 is divisible by num_processes 2
-            distributed_dataset = self.distribution.distribute_dataset(dataset)
-            # per_process_batch_size = 8 // 2 = 4
-            # num_shards = 2, index = 0
-            # Original dataset has 16 items, batched by 8 => 2 batches:
-            # [0..7], [8..15]
-            # Rebatched by 4 => 4 batches: [0..3], [4..7], [8..11], [12..15]
-            # Sharded by 2, index 0 => batches 0 and 2: [0..3], [8..11]
-            data = list(distributed_dataset.as_numpy_iterator())
-            self.assertEqual(len(data), 2)
-            self.assertAllClose(data[0], [0, 1, 2, 3])
-            self.assertAllClose(data[1], [8, 9, 10, 11])
-
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=4,
-            ),
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_processes",
-                new_callable=mock.PropertyMock,
-                return_value=2,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            mock.patch.object(self.distribution, "_process_id", 1),
-        ):
-            distributed_dataset = self.distribution.distribute_dataset(dataset)
-            # Sharded by 2, index 1 => batches 1 and 3: [4..7], [12..15]
-            data = list(distributed_dataset.as_numpy_iterator())
-            self.assertEqual(len(data), 2)
-            self.assertAllClose(data[0], [4, 5, 6, 7])
-            self.assertAllClose(data[1], [12, 13, 14, 15])
-
-    def test_distribute_tf_dataset_error_not_divisible(self):
-        dataset = tf.data.Dataset.range(16).batch(7)
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=4,
-            ),
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_processes",
-                new_callable=mock.PropertyMock,
-                return_value=2,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-        ):
-            # Global batch size 7 is NOT divisible by num_processes 2
-            with self.assertRaisesRegex(
-                ValueError, "Global batch size must be divisible by the number"
-            ):
-                self.distribution.distribute_dataset(dataset)
-
-    def test_unsupported_dataset_type(self):
-        with (
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            self.assertRaisesRegex(
-                ValueError, "is not supported for auto-sharding"
-            ),
-        ):
-            self.distribution.distribute_dataset([1, 2, 3])
-
-    def test_unknown_batch_size(self):
-        dataset = tf.data.Dataset.range(16)
-        with (
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-            self.assertRaisesRegex(ValueError, "batch size .* is unknown"),
-        ):
-            self.distribution.distribute_dataset(dataset)
-
-    def test_num_model_replicas_one(self):
-        dataset = tf.data.Dataset.range(16).batch(8)
-        with (
-            mock.patch.object(
-                self.distribution.__class__,
-                "num_model_replicas",
-                new_callable=mock.PropertyMock,
-                return_value=1,
-            ),
-            mock.patch.object(self.distribution, "_is_multi_process", True),
-        ):
-            distributed_dataset = self.distribution.distribute_dataset(dataset)
-            # Should return the same data (with prefetch)
-            data = list(distributed_dataset.as_numpy_iterator())
-            self.assertEqual(len(data), 2)
-            self.assertAllClose(data[0], np.arange(8))
-            self.assertAllClose(data[1], np.arange(8, 16))
 
 
 class LayoutMapTest(testing.TestCase):

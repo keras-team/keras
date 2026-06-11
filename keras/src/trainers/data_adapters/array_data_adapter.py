@@ -3,6 +3,7 @@ import math
 
 import numpy as np
 
+from keras.src import backend
 from keras.src import tree
 from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import array_slicing
@@ -92,8 +93,7 @@ class ArrayDataAdapter(DataAdapter):
         self._batch_size = batch_size
         self._partial_batch_size = num_samples % batch_size
         self._shuffle = shuffle
-        self._epoch = 0
-        self._tf_epoch = None
+        self._epoch = backend.Variable(0, dtype="int64", trainable=False)
 
         dist = distribution_lib.distribution()
         self._num_data_shards = 1
@@ -104,15 +104,16 @@ class ArrayDataAdapter(DataAdapter):
             )
             self._data_shard_id = dist.data_shard_id
 
-    def _tf_shuffle(self, tensors, epoch_seed):
+    def _tf_shuffle(self, tensors):
         """Centralized helper for standard vs stateless cluster TF shuffling."""
         from keras.src.utils.module_utils import tensorflow as tf
 
-        if self._num_data_shards > 1:
-            return tf.random.experimental.stateless_shuffle(
-                tensors, seed=tf.cast(tf.stack([epoch_seed, 0]), tf.int32)
-            )
-        return tf.random.shuffle(tensors)
+        return tf.random.experimental.stateless_shuffle(
+            tensors,
+            seed=tf.cast(
+                tf.stack([tf.convert_to_tensor(self._epoch), 0]), tf.int32
+            ),
+        )
 
     def get_numpy_iterator(self):
         inputs = array_slicing.convert_to_sliceable(
@@ -144,12 +145,6 @@ class ArrayDataAdapter(DataAdapter):
         # 3. pipelined permutation generation
         # 4. optimized permutation batching
         # 5. disabled static optimizations
-        if tf.available:
-            if self._tf_epoch is None:
-                self._tf_epoch = tf.Variable(0, dtype=tf.int64, trainable=False)
-            self._tf_epoch.assign(self._epoch)
-        epoch = self._tf_epoch if self._tf_epoch is not None else self._epoch
-
         indices_dataset = tf.data.Dataset.range(1)
 
         def permutation(_):
@@ -158,7 +153,7 @@ class ArrayDataAdapter(DataAdapter):
             # buffer forwarding.)
             indices = tf.range(num_samples, dtype=tf.int64)
             if shuffle and shuffle != "batch":
-                indices = self._tf_shuffle(indices, epoch)
+                indices = self._tf_shuffle(indices)
             return indices
 
         # We prefetch a single element. Computing large permutations can take
@@ -259,12 +254,13 @@ class ArrayDataAdapter(DataAdapter):
 
         indices_dataset = indices_dataset.flat_map(slice_batch_indices)
         if shuffle == "batch":
-            indices_dataset = indices_dataset.map(
-                lambda x: self._tf_shuffle(x, epoch)
-            )
+            indices_dataset = indices_dataset.map(lambda x: self._tf_shuffle(x))
 
         dataset = slice_inputs(indices_dataset, self._inputs)
 
+        # Note: sharding is handled by `TFDatasetAdapter` if a distribution
+        # is active. We set `AutoShardPolicy.DATA` to ensure that
+        # `tf.distribute` will also shard the dataset by default.
         options = tf.data.Options()
         options.experimental_distribute.auto_shard_policy = (
             tf.data.experimental.AutoShardPolicy.DATA
@@ -308,33 +304,54 @@ class ArrayDataAdapter(DataAdapter):
             def __len__(self):
                 return self.num_samples
 
-        class RandomBatchSampler(torch.utils.data.Sampler):
-            def __init__(self, sampler, adapter):
-                self.sampler = sampler
-                self.adapter = adapter
+        class SeededBatchSampler(torch.utils.data.Sampler):
+            def __init__(
+                self,
+                batch_sampler,
+                seed_provider,
+                generator=None,
+                shuffle_batch=False,
+            ):
+                self.batch_sampler = batch_sampler
+                self.seed_provider = seed_provider
+                self.generator = generator
+                self.shuffle_batch = shuffle_batch
 
             def __iter__(self):
-                generator = None
-                if self.adapter._num_data_shards > 1:
-                    generator = torch.Generator()
-                    generator.manual_seed(self.adapter._epoch)
-                for batch in self.sampler:
-                    yield [
-                        batch[i]
-                        for i in torch.randperm(len(batch), generator=generator)
-                    ]
+                seed = int(self.seed_provider())
+                if self.generator is not None:
+                    self.generator.manual_seed(seed)
+
+                # For shuffle="batch", we need a generator for randperm
+                batch_generator = None
+                if self.shuffle_batch:
+                    batch_generator = torch.Generator()
+                    batch_generator.manual_seed(seed)
+
+                for batch in self.batch_sampler:
+                    if self.shuffle_batch:
+                        yield [
+                            batch[i]
+                            for i in torch.randperm(
+                                len(batch), generator=batch_generator
+                            )
+                        ]
+                    else:
+                        yield batch
 
             def __len__(self):
-                return len(self.sampler)
+                return len(self.batch_sampler)
 
         if self._shuffle == "batch":
-            batch_sampler = RandomBatchSampler(
-                torch.utils.data.BatchSampler(
-                    range(self._num_samples),
-                    batch_size=self._batch_size,
-                    drop_last=False,
-                ),
-                adapter=self,
+            batch_sampler = torch.utils.data.BatchSampler(
+                range(self._num_samples),
+                batch_size=self._batch_size,
+                drop_last=False,
+            )
+            batch_sampler = SeededBatchSampler(
+                batch_sampler,
+                seed_provider=lambda: self._epoch,
+                shuffle_batch=True,
             )
         elif self._shuffle:
             generator = torch.Generator()
@@ -345,22 +362,11 @@ class ArrayDataAdapter(DataAdapter):
                 batch_size=self._batch_size,
                 drop_last=False,
             )
-
-            class SeededBatchSampler(torch.utils.data.Sampler):
-                def __init__(self, batch_sampler, generator, adapter):
-                    self.batch_sampler = batch_sampler
-                    self.generator = generator
-                    self.adapter = adapter
-
-                def __iter__(self):
-                    if self.adapter._num_data_shards > 1:
-                        self.generator.manual_seed(self.adapter._epoch)
-                    yield from self.batch_sampler
-
-                def __len__(self):
-                    return len(self.batch_sampler)
-
-            batch_sampler = SeededBatchSampler(batch_sampler, generator, self)
+            batch_sampler = SeededBatchSampler(
+                batch_sampler,
+                seed_provider=lambda: self._epoch,
+                generator=generator,
+            )
         else:
             batch_sampler = torch.utils.data.BatchSampler(
                 torch.utils.data.SequentialSampler(range(self._num_samples)),
@@ -393,9 +399,8 @@ class ArrayDataAdapter(DataAdapter):
         return dataloader
 
     def _get_iterator(self, slice_and_convert_fn, inputs):
-        rng = np.random.default_rng(
-            self._epoch if self._num_data_shards > 1 else None
-        )
+        epoch = int(self._epoch)
+        rng = np.random.default_rng(epoch)
 
         global_permutation = None
         if self._shuffle and self._shuffle != "batch":
@@ -405,7 +410,7 @@ class ArrayDataAdapter(DataAdapter):
             start = i * self._batch_size
             stop = min((i + 1) * self._batch_size, self._num_samples)
             if self._shuffle == "batch":
-                batch_rng = np.random.default_rng(self._epoch + i)
+                batch_rng = np.random.default_rng(epoch + i)
                 indices = batch_rng.permutation(stop - start) + start
             elif self._shuffle:
                 indices = global_permutation[start:stop]
@@ -438,9 +443,7 @@ class ArrayDataAdapter(DataAdapter):
         return self._partial_batch_size or None
 
     def on_epoch_end(self):
-        self._epoch += 1
-        if self._tf_epoch is not None:
-            self._tf_epoch.assign(self._epoch)
+        self._epoch.assign_add(1)
 
 
 def can_convert_arrays(arrays):
