@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        backend: [tensorflow, jax, torch, numpy, openvino]
+        backend: [tensorflow, jax, torch, numpy, openvino, mlx]
         nnx_enabled: [false]
         include:
           - backend: jax
@@ -131,6 +131,11 @@ jobs:
         run: |
           pytest integration_tests/torch_workflow_test.py
           python integration_tests/torch_custom_fit_test.py
+
+      - name: Test MLX-specific integrations
+        if: ${{ matrix.backend == 'mlx'}}
+        run: |
+          python integration_tests/mlx_custom_fit_test.py
 
       - name: Run Tests
         if: ${{ matrix.nnx_enabled == false }}
