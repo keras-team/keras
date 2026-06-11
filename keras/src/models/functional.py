@@ -710,9 +710,12 @@ def operation_fn(operation, **call_context_args):
 
 
 def functional_like_constructor(cls):
-    init_args = inspect.getfullargspec(cls.__init__).args[1:]
+    init_spec = inspect.getfullargspec(cls.__init__)
+    init_args = init_spec.args[1:]
     functional_init_args = inspect.getfullargspec(Functional.__init__).args[1:]
     if init_args == functional_init_args:
+        return True
+    if init_spec.varargs is not None and init_spec.varkw is not None:
         return True
     return False
 
