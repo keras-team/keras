@@ -143,11 +143,15 @@ class UpSampling2dTest(testing.TestCase):
     def test_upsampling_2d_various_interpolation_methods(self):
         input_shape = (2, 2, 1, 3)
         x = np.arange(np.prod(input_shape)).reshape(input_shape)
+        if backend.backend() == "mlx":
+            # mlx does not support integer matmul
+            x = x.astype("float32")
         for interpolation in ["nearest", "bilinear", "bicubic"]:
             layers.UpSampling2D(size=(1, 2), interpolation=interpolation)(x)
 
     @pytest.mark.skipif(
-        backend.backend() == "torch", reason="Torch does not support lanczos."
+        backend.backend() in ("torch", "mlx"),
+        reason=f"{backend.backend()} does not support lanczos.",
     )
     def test_upsampling_2d_lanczos_interpolation_methods(self):
         input_shape = (2, 2, 1, 3)

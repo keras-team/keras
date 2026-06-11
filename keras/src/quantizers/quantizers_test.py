@@ -17,6 +17,10 @@ from keras.src.quantizers.quantizers import quantize_with_zero_point
 from keras.src.testing.test_utils import named_product
 
 
+@pytest.mark.skipif(
+    backend.backend() == "mlx",
+    reason="quantization for mlx backend not yet implemented",
+)
 class QuantizersTest(testing.TestCase):
     def test_get_method(self):
         quantizer = quantizers.get("abs_max_quantizer")

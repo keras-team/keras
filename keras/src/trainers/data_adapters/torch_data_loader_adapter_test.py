@@ -1,5 +1,6 @@
 import math
 
+import mlx.core as mx
 import numpy as np
 import tensorflow as tf
 import torch
@@ -35,6 +36,9 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
         else:
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
@@ -103,6 +107,9 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
         else:
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
@@ -154,6 +161,8 @@ class TestTorchDataLoaderAdapter(testing.TestCase):
             it = adapter.get_jax_iterator()
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
         else:
             it = adapter.get_numpy_iterator()
 

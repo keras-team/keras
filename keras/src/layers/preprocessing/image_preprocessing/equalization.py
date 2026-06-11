@@ -70,6 +70,9 @@ class Equalization(BaseImagePreprocessingLayer):
         self.bins = bins
         self._set_value_range(value_range)
         self.data_format = backend.standardize_data_format(data_format)
+        if self.backend.name == "mlx":
+            # mlx.numpy.bincount() is not currently jit compilable
+            self.supports_jit = False
 
     def _set_value_range(self, value_range):
         if not isinstance(value_range, (tuple, list)):
