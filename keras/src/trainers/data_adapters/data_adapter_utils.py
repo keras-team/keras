@@ -263,6 +263,19 @@ def get_jax_iterator(iterable):
         )
 
 
+def get_mlx_iterator(iterable):
+    import mlx.core as mx
+
+    def convert_to_mlx(x):
+        if isinstance(x, mx.array):
+            return x
+        else:
+            return mx.array(x)
+
+    for batch in iterable:
+        yield tree.map_structure(convert_to_mlx, batch, none_is_leaf=False)
+
+
 def get_numpy_iterator(iterable):
     def convert_to_numpy(x):
         if not isinstance(x, np.ndarray):
@@ -273,6 +286,8 @@ def get_numpy_iterator(iterable):
                 if is_torch_tensor(x):
                     x = x.cpu()
                 x = np.asarray(x)
+            if is_mlx_array(x):
+                x = np.array(x)
         return x
 
     for batch in iterable:
@@ -341,6 +356,15 @@ def is_jax_sparse(value):
     if hasattr(value, "__class__"):
         return str(value.__class__.__module__).startswith(
             "jax.experimental.sparse"
+        )
+    return False
+
+
+def is_mlx_array(value):
+    if hasattr(value, "__class__"):
+        return (
+            value.__class__.__module__ == "mlx.core"
+            and value.__class__.__name__ == "array"
         )
     return False
 

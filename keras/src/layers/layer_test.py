@@ -214,6 +214,9 @@ class LayerTest(testing.TestCase):
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_quantized_layer_with_remat(self):
+        if backend.backend() == "mlx":
+            self.skipTest("float8 is not yet supported in mlx backend.")
+
         """Test rematerialization on a quantized layer."""
         mock_remat = MockRemat()
         with mock.patch(
@@ -1724,8 +1727,8 @@ class LayerTest(testing.TestCase):
         self.assertListEqual(layer1_names, layer2_names)
 
     @pytest.mark.skipif(
-        not backend.SUPPORTS_COMPLEX_DTYPES,
-        reason=f"{backend.backend()} backend doesn't support complex dtypes.",
+        not backend.SUPPORTS_COMPLEX_DTYPES or backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support complex matmul.",
     )
     def test_complex_dtype_support(self):
         class MyDenseLayer(layers.Layer):

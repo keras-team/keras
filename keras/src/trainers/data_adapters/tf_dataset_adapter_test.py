@@ -1,6 +1,7 @@
 from unittest import mock
 
 import jax
+import mlx.core as mx
 import numpy as np
 import pytest
 import tensorflow as tf
@@ -34,6 +35,9 @@ class TestTFDatasetAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
         else:
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray
@@ -316,6 +320,9 @@ class TestTFDatasetAdapter(testing.TestCase):
         elif backend.backend() == "torch":
             it = adapter.get_torch_dataloader()
             expected_class = torch.Tensor
+        elif backend.backend() == "mlx":
+            it = adapter.get_mlx_iterator()
+            expected_class = mx.array
         else:
             it = adapter.get_numpy_iterator()
             expected_class = np.ndarray

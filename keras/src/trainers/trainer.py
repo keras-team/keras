@@ -389,7 +389,7 @@ class Trainer:
                 losses.append(loss)
         for loss in self.losses:
             losses.append(self._aggregate_additional_loss(loss))
-        if backend.backend() != "jax" and len(losses) == 0:
+        if backend.backend() not in ["jax", "mlx"] and len(losses) == 0:
             raise ValueError(
                 "No loss to compute. Provide a `loss` argument in `compile()`."
             )
