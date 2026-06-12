@@ -384,24 +384,36 @@ def get_file(
                         self.finished = True
 
         error_msg = "URL fetch failure on {}: {} -- {}"
+        # Download to a temporary file in the cache directory and atomically
+        # move it into place. Writing directly to `download_target` would
+        # follow a pre-existing symlink at that path and could place the
+        # downloaded file outside the cache directory.
+        tmp_prefix = f".tmp_{os.path.basename(fname)}_"
+        fd, tmp_download_target = tempfile.mkstemp(
+            dir=datadir, prefix=tmp_prefix
+        )
+        os.close(fd)
+        # `mkstemp` creates the file with 0o600 permissions, but the previous
+        # `urlretrieve` wrote it through `open(..., "wb")`, which honors the
+        # umask (typically 0o644). Restore that so cached files stay readable
+        # by other users of a shared cache directory.
+        try:
+            os.chmod(tmp_download_target, 0o644)
+        except OSError:
+            pass
         try:
             try:
-                urlretrieve(origin, download_target, DLProgbar())
+                urlretrieve(origin, tmp_download_target, DLProgbar())
             except urllib.error.HTTPError as e:
                 raise Exception(error_msg.format(origin, e.code, e.msg))
             except urllib.error.URLError as e:
                 raise Exception(error_msg.format(origin, e.errno, e.reason))
-        except (Exception, KeyboardInterrupt):
-            if os.path.exists(download_target):
-                os.remove(download_target)
-            raise
 
-        # Validate download if succeeded and user provided an expected hash
-        # Security conscious users would get the hash of the file from a
-        # separate channel and pass it to this API to prevent MITM / corruption:
-        if os.path.exists(download_target) and file_hash is not None:
-            if not validate_file(
-                download_target, file_hash, algorithm=hash_algorithm
+            # Validate the download before moving it into place. Security
+            # conscious users would get the hash of the file from a separate
+            # channel and pass it to this API to prevent MITM / corruption:
+            if file_hash is not None and not validate_file(
+                tmp_download_target, file_hash, algorithm=hash_algorithm
             ):
                 raise ValueError(
                     "Incomplete or corrupted file detected. "
@@ -409,6 +421,11 @@ def get_file(
                     "file hash does not match the provided value "
                     f"of {file_hash}."
                 )
+            os.replace(tmp_download_target, download_target)
+        except (Exception, KeyboardInterrupt):
+            if os.path.exists(tmp_download_target):
+                os.remove(tmp_download_target)
+            raise
 
     if extract or untar:
         if untar:

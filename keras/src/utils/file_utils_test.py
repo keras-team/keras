@@ -403,6 +403,35 @@ class GetFileTest(test_case.TestCase):
         path = file_utils.get_file("test.txt", origin, file_hash=hashval)
         self.assertTrue(os.path.exists(path))
 
+    def test_get_file_does_not_follow_symlink(self):
+        """A pre-planted symlink at the download path must not be followed."""
+        cache_dir = self.get_temp_dir()
+        datadir = os.path.join(cache_dir, "datasets")
+        os.makedirs(datadir, exist_ok=True)
+        download_target = os.path.join(datadir, "test.txt")
+        # An attacker plants a symlink pointing outside the cache directory.
+        outside = os.path.join(self.get_temp_dir(), "outside_target")
+        try:
+            os.symlink(outside, download_target)
+        except OSError:
+            # Symlink creation may require privileges (e.g. on Windows).
+            self.skipTest("Symlinks are not supported in this environment.")
+
+        src_path = os.path.join(self.get_temp_dir(), "src.txt")
+        with open(src_path, "w") as text_file:
+            text_file.write("downloaded content")
+        origin = urllib.parse.urljoin(
+            "file://", urllib.request.pathname2url(os.path.abspath(src_path))
+        )
+
+        path = file_utils.get_file("test.txt", origin, cache_dir=cache_dir)
+
+        # The write must not have been redirected through the symlink.
+        self.assertFalse(os.path.exists(outside))
+        self.assertFalse(os.path.islink(path))
+        with open(path) as text_file:
+            self.assertEqual(text_file.read(), "downloaded content")
+
     def test_cache_invalidation(self):
         """Test using a hash to force cache invalidation."""
         cache_dir = self.get_temp_dir()
