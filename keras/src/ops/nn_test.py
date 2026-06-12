@@ -3959,3 +3959,35 @@ class NNOpsBehaviorTest(testing.TestCase):
             ValueError, "`block_size` must be at least 2"
         ):
             knn.space_to_depth(x, block_size=-1)
+
+
+@pytest.mark.skipif(
+    backend.backend() in ("numpy", "openvino"),
+    reason="""
+    Key/Value broadcasting is not supported on numpy and openvino backends.
+    """,
+)
+class DotProductAttentionGQATest(testing.TestCase):
+    def test_gqa_broadcasting(self):
+        batch_size = 2
+        q_len, kv_len = 16, 16
+        num_q_heads = 4
+        num_kv_heads = 2
+        head_dim = 32
+
+        query = ops.ones(
+            (batch_size, q_len, num_q_heads, head_dim), dtype="float32"
+        )
+        key = ops.ones(
+            (batch_size, kv_len, num_kv_heads, head_dim), dtype="float32"
+        )
+        value = ops.ones(
+            (batch_size, kv_len, num_kv_heads, head_dim), dtype="float32"
+        )
+
+        # Should execute successfully without raising any
+        # shape mismatch RuntimeError/InvalidArgumentError
+        output = knn.dot_product_attention(query, key, value)
+        self.assertEqual(
+            output.shape, (batch_size, q_len, num_q_heads, head_dim)
+        )
