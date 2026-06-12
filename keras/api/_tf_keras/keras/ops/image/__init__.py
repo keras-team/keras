@@ -14,6 +14,8 @@ from keras.src.ops.image import hsv_to_rgb as hsv_to_rgb
 from keras.src.ops.image import map_coordinates as map_coordinates
 from keras.src.ops.image import pad_images as pad_images
 from keras.src.ops.image import perspective_transform as perspective_transform
+from keras.src.ops.image import reconstruct_patches as reconstruct_patches
+from keras.src.ops.image import reconstruct_patches_3d as reconstruct_patches_3d
 from keras.src.ops.image import resize as resize
 from keras.src.ops.image import rgb_to_grayscale as rgb_to_grayscale
 from keras.src.ops.image import rgb_to_hsv as rgb_to_hsv
