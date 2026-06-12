@@ -181,21 +181,32 @@ class Embedding(Layer):
         the full `(input_dim, output_dim)` table at build time -- before any
         stored weights are read -- which can exhaust memory and get the process
         OOM-killed. When `psutil` is available, raise a clear error instead of
-        attempting an allocation that cannot fit in available memory.
+        attempting an allocation that obviously cannot fit in system memory.
+
+        The bound is intentionally generous (a multiple of total system
+        memory rather than currently-available memory) so that legitimate
+        large models are not rejected under transient memory pressure or when
+        the table is sharded across hosts; it only blocks the absurd
+        allocations (terabytes from a tiny config) used to trigger an OOM.
         """
         if psutil is None:
             return
         num_params = math.prod(embeddings_shape)
-        bytes_per_param = dtype_utils.dtype_size(self.variable_dtype) / 8
+        try:
+            bytes_per_param = dtype_utils.dtype_size(self.variable_dtype) / 8
+        except ValueError:
+            # Unknown/custom dtype: fall back to 4 bytes (float32) so the
+            # guard still works rather than crashing the build.
+            bytes_per_param = 4.0
         required_bytes = num_params * bytes_per_param
-        available_bytes = psutil.virtual_memory().available
-        if required_bytes > available_bytes:
+        total_bytes = psutil.virtual_memory().total
+        if required_bytes > 2 * total_bytes:
             raise ValueError(
                 f"The `Embedding` layer cannot allocate its embeddings table "
                 f"of shape {embeddings_shape}: it requires about "
-                f"{required_bytes / 1e9:.1f} GB but only "
-                f"{available_bytes / 1e9:.1f} GB of memory is available. This "
-                "usually indicates a corrupted or malicious `input_dim` / "
+                f"{required_bytes / 1e9:.1f} GB which far exceeds the total "
+                f"system memory of {total_bytes / 1e9:.1f} GB. This usually "
+                "indicates a corrupted or malicious `input_dim` / "
                 "`output_dim` in the layer configuration."
             )
 
