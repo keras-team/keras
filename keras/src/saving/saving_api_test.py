@@ -124,12 +124,12 @@ class SaveModelTests(test_case.TestCase):
                 # part of the Functional graph. This matches e.g. a decoder
                 # attached to a backbone but called by a task model.
                 decoder = layers.Dense(2, name="decoder")
-                self.decoder = decoder
 
                 encoder = layers.Dense(4, name="encoder")
                 inputs = layers.Input((3,))
                 outputs = encoder(inputs)
                 super().__init__(inputs, outputs)
+                self.decoder = decoder
 
         class Task(Model):
             def __init__(self, backbone):
