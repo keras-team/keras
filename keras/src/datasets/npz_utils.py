@@ -54,7 +54,12 @@ def _load_npy_member(fp):
         version = np.lib.format.read_magic(fp)
         if version[0] == 1:
             np.lib.format.read_array_header_1_0(fp)
-        elif version[0] == 2:
+        elif version[0] in (2, 3):
+            # numpy exposes no public `read_array_header_3_0`. The 3.0 format
+            # only differs from 2.0 by encoding the header string as UTF-8
+            # instead of latin1; the 4-byte header-length layout we skip past
+            # to reach the pickle stream is identical, so 2.0's reader handles
+            # both.
             np.lib.format.read_array_header_2_0(fp)
         else:
             raise ValueError(f"Unsupported `.npy` file version: {version}.")
