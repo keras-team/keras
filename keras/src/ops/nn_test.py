@@ -1778,9 +1778,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
         dilation_rate=(1, 2),
     )
     def test_conv_1d(self, strides, padding, dilation_rate):
-        if strides > 1 and dilation_rate > 1:
-            pytest.skip("Unsupported configuration")
-
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 20, 3)
         else:
@@ -1831,13 +1828,6 @@ class NNOpsCorrectnessTest(testing.TestCase):
 
     @parameterized.product(strides=(1, 2), dilation_rate=(1, (2, 1)))
     def test_conv_2d_group_2(self, strides, dilation_rate):
-        if (
-            backend.backend() == "tensorflow"
-            and strides == 2
-            and dilation_rate == (2, 1)
-        ):
-            # This case is not supported by the TF backend.
-            return
         if backend.config.image_data_format() == "channels_last":
             input_shape = (2, 10, 10, 4)
         else:

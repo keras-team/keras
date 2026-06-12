@@ -807,12 +807,101 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    data_format = backend.standardize_data_format(data_format)
+    padding = padding.lower()
+    num_spatial_dims = len(inputs.shape) - 2
+
+    if isinstance(strides, int):
+        strides = (strides,) * num_spatial_dims
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * num_spatial_dims
+
+    is_dilated_strided = any(s > 1 for s in strides) and any(
+        d > 1 for d in dilation_rate
+    )
+
+    # Workaround for TF limitation: tf.nn.convolution rejects strides > 1
+    # in conjunction with dilation_rate > 1.
+    if is_dilated_strided:
+        if padding == "same":
+            pad_total = []
+            all_static = True
+
+            # Check if all spatial dimensions are static (preferred for XLA)
+            for i in range(num_spatial_dims):
+                dim = inputs.shape[
+                    i + (2 if data_format == "channels_first" else 1)
+                ]
+                if not isinstance(dim, int):
+                    all_static = False
+                    break
+
+            if all_static:
+                for i in range(num_spatial_dims):
+                    in_size = inputs.shape[
+                        i + (2 if data_format == "channels_first" else 1)
+                    ]
+                    s = strides[i]
+                    d = dilation_rate[i]
+                    filter_size = kernel.shape[i]
+                    k_eff = (filter_size - 1) * d + 1
+
+                    out_size = math.ceil(in_size / s)
+                    pad_along_dim = max((out_size - 1) * s + k_eff - in_size, 0)
+                    pad_left = pad_along_dim // 2
+                    pad_right = pad_along_dim - pad_left
+                    pad_total.append([pad_left, pad_right])
+
+                if data_format == "channels_first":
+                    paddings = [[0, 0], [0, 0]] + pad_total
+                else:
+                    paddings = [[0, 0]] + pad_total + [[0, 0]]
+
+                inputs = tf.pad(inputs, paddings)
+            else:
+                # Dynamic shape padding computation
+                for i in range(num_spatial_dims):
+                    in_size_dyn = tf.shape(inputs)[
+                        i + (2 if data_format == "channels_first" else 1)
+                    ]
+                    s = strides[i]
+                    d = dilation_rate[i]
+                    filter_size = kernel.shape[i]
+                    k_eff = (filter_size - 1) * d + 1
+
+                    out_size = (in_size_dyn + s - 1) // s
+                    pad_along_dim = tf.math.maximum(
+                        (out_size - 1) * s + k_eff - in_size_dyn, 0
+                    )
+                    pad_left = pad_along_dim // 2
+                    pad_right = pad_along_dim - pad_left
+                    pad_total.append([pad_left, pad_right])
+
+                zeros = tf.constant([0, 0], dtype=tf.int32)
+                if data_format == "channels_first":
+                    paddings = [zeros, zeros] + [tf.stack(p) for p in pad_total]
+                else:
+                    paddings = (
+                        [zeros] + [tf.stack(p) for p in pad_total] + [zeros]
+                    )
+
+                inputs = tf.pad(inputs, tf.stack(paddings))
+
+            # Since we manually padded, switch argument to "valid"
+            padding = "valid"
+
+        strides_for_conv = [1] * num_spatial_dims
+    else:
+        strides_for_conv = strides
+
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
         result = tf.nn.convolution(
             inputs,
             kernel,
-            strides,
+            strides_for_conv,
             padding.upper(),
             data_format=tf_data_format,
             dilations=dilation_rate,
@@ -842,16 +931,31 @@ def conv(
     # Channels first "NCDHW" (3d convolutions) are broken on CPU without XLA.
     needs_xla = data_format == "channels_first" and len(inputs.shape) == 5
     # grouped convolutions are broken on CPU without XLA.
-    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels = inputs.shape[-1]
     else:
         channels = inputs.shape[1]
     needs_xla = needs_xla or channels != kernel.shape[-2]
     if needs_xla:
-        return _conv_xla()
+        outputs = _conv_xla()
     else:
-        return _conv()
+        outputs = _conv()
+
+    if is_dilated_strided:
+        # Subsample the outputs using the original strides
+        if data_format == "channels_first":
+            slices = [slice(None), slice(None)] + [
+                slice(None, None, s) for s in strides
+            ]
+        else:
+            slices = (
+                [slice(None)]
+                + [slice(None, None, s) for s in strides]
+                + [slice(None)]
+            )
+        return outputs[tuple(slices)]
+
+    return outputs
 
 
 def _needs_depthwise_stride_dilation_decomposition(strides, dilation_rate):
