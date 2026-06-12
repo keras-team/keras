@@ -388,8 +388,19 @@ def get_file(
         # move it into place. Writing directly to `download_target` would
         # follow a pre-existing symlink at that path and could place the
         # downloaded file outside the cache directory.
-        fd, tmp_download_target = tempfile.mkstemp(dir=datadir)
+        tmp_prefix = f".tmp_{os.path.basename(fname)}_"
+        fd, tmp_download_target = tempfile.mkstemp(
+            dir=datadir, prefix=tmp_prefix
+        )
         os.close(fd)
+        # `mkstemp` creates the file with 0o600 permissions, but the previous
+        # `urlretrieve` wrote it through `open(..., "wb")`, which honors the
+        # umask (typically 0o644). Restore that so cached files stay readable
+        # by other users of a shared cache directory.
+        try:
+            os.chmod(tmp_download_target, 0o644)
+        except OSError:
+            pass
         try:
             try:
                 urlretrieve(origin, tmp_download_target, DLProgbar())

@@ -411,7 +411,11 @@ class GetFileTest(test_case.TestCase):
         download_target = os.path.join(datadir, "test.txt")
         # An attacker plants a symlink pointing outside the cache directory.
         outside = os.path.join(self.get_temp_dir(), "outside_target")
-        os.symlink(outside, download_target)
+        try:
+            os.symlink(outside, download_target)
+        except OSError:
+            # Symlink creation may require privileges (e.g. on Windows).
+            self.skipTest("Symlinks are not supported in this environment.")
 
         src_path = os.path.join(self.get_temp_dir(), "src.txt")
         with open(src_path, "w") as text_file:
