@@ -10,6 +10,7 @@ from absl.testing import parameterized
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.distribution import distribution_lib as dist_lib
 from keras.src.testing.test_utils import named_product
 from keras.src.trainers.data_adapters import array_data_adapter
 
@@ -328,3 +329,125 @@ class TestArrayDataAdapter(testing.TestCase):
             array_data_adapter.ArrayDataAdapter(
                 x=x, y=nested_y, class_weight=cw
             )
+
+    def test_torch_data_loader_nested_input(self):
+        # This tests ArrayDataset.__len__ with nested input
+        x = {"a": np.ones((10, 1)), "b": np.ones((10, 2))}
+        y = np.ones((10, 3))
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x=x, y=y, batch_size=5, shuffle=False
+        )
+        dl = adapter.get_torch_dataloader()
+        self.assertEqual(len(dl.dataset), 10)
+        batch = next(iter(dl))
+        self.assertEqual(batch[0]["a"].shape, (5, 1))
+        self.assertEqual(batch[0]["b"].shape, (5, 2))
+        self.assertEqual(batch[1].shape, (5, 3))
+
+    @parameterized.named_parameters(
+        ("dataparallel", "dp", 4, 1, (4,), 4, 1),
+        ("modelparallel", "mp", 8, 5, (2, 4), 2, 1),
+        ("modelparallel_large_mesh", "mp", 4, 2, (8, 2), 4, 2),
+    )
+    def test_sharding(
+        self,
+        dist_type,
+        world_size,
+        rank,
+        mesh_shape,
+        expected_num_replicas,
+        expected_rank,
+    ):
+        if dist_type == "dp":
+            dist = dist_lib.DataParallel(devices=["cpu:0"] * world_size)
+        else:
+            device_mesh = dist_lib.DeviceMesh(
+                shape=mesh_shape,
+                axis_names=("data", "model"),
+                devices=["cpu:0"] * np.prod(mesh_shape),
+            )
+            dist = dist_lib.ModelParallel(
+                device_mesh=device_mesh,
+                layout_map=dist_lib.LayoutMap(device_mesh),
+                batch_dim_name="data",
+            )
+        dist._num_processes = world_size
+        dist._process_id = rank
+        dist.auto_shard_dataset = True
+
+        x = self.make_array("np", (100, 10), "float32")
+        y = self.make_array("np", (100, 1), "float32")
+        with dist.scope():
+            adapter = array_data_adapter.ArrayDataAdapter(
+                x, y, batch_size=10, shuffle=False
+            )
+
+            if backend.backend() == "tensorflow":
+                it = adapter.get_tf_dataset()
+            elif backend.backend() == "jax":
+                it = adapter.get_jax_iterator()
+            elif backend.backend() == "torch":
+                it = adapter.get_torch_dataloader()
+            else:
+                it = adapter.get_numpy_iterator()
+
+        self.assertEqual(adapter._num_data_shards, expected_num_replicas)
+        self.assertEqual(adapter._data_shard_id, expected_rank)
+
+        batches = list(it)
+        expected_num_batches = (
+            10 - expected_rank + expected_num_replicas - 1
+        ) // expected_num_replicas
+        self.assertEqual(len(batches), expected_num_batches)
+
+        for i, batch in enumerate(batches):
+            bx, by = batch
+            bx = backend.convert_to_numpy(bx)
+            by = backend.convert_to_numpy(by)
+            expected_batch_index = expected_rank + i * expected_num_replicas
+            expected_first_sample_value = expected_batch_index * 10
+            self.assertAllClose(bx[0, 0], expected_first_sample_value)
+            self.assertAllClose(by[0, 0], expected_first_sample_value)
+
+    def test_deterministic_shuffle(self):
+        x = np.arange(100).reshape((50, 2)).astype("float32")
+        y = np.arange(50).reshape((50, 1)).astype("float32")
+
+        def get_order(it):
+            order = []
+            for batch in it:
+                bx = batch[0]
+                bx = backend.convert_to_numpy(bx)
+                order.extend(bx[:, 0].tolist())
+            return order
+
+        adapter = array_data_adapter.ArrayDataAdapter(
+            x, y, batch_size=10, shuffle=True
+        )
+        # Force sharding path to ensure deterministic seeds are used
+        adapter._num_data_shards = 2
+        adapter._data_shard_id = 0
+
+        # We test both the numpy iterator and the native iterator
+        it_methods = ["get_numpy_iterator"]
+        backend_it_method = {
+            "tensorflow": "get_tf_dataset",
+            "jax": "get_jax_iterator",
+            "torch": "get_torch_dataloader",
+        }.get(backend.backend())
+        if backend_it_method:
+            it_methods.append(backend_it_method)
+
+        for it_method in it_methods:
+            it_fn = getattr(adapter, it_method)
+            # Same epoch should have same shuffle
+            adapter._epoch = 1
+            order1 = get_order(it_fn())
+            adapter._epoch = 1
+            order2 = get_order(it_fn())
+            self.assertAllClose(order1, order2)
+
+            # Different epochs should have different shuffle
+            adapter._epoch = 2
+            order3 = get_order(it_fn())
+            self.assertNotAllClose(order1, order3)
