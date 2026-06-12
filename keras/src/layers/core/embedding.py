@@ -13,6 +13,12 @@ from keras.src.backend import KerasTensor
 from keras.src.layers.layer import Layer
 from keras.src.quantizers.quantization_config import QuantizationConfig
 from keras.src.quantizers.quantization_config import get_block_size_for_layer
+from keras.src.utils import dtype_utils
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
 from keras.src.quantizers.quantizers import dequantize_with_sz_map
 from keras.src.saving import serialization_lib
 
@@ -147,6 +153,7 @@ class Embedding(Layer):
         if self.built:
             return
         embeddings_shape = (self.input_dim, self.output_dim)
+        self._check_embeddings_fit_in_memory(embeddings_shape)
         if self.quantization_mode:
             self.quantized_build(
                 embeddings_shape,
@@ -165,6 +172,43 @@ class Embedding(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+
+    def _check_embeddings_fit_in_memory(self, embeddings_shape):
+        """Avoid an out-of-memory crash when building a huge embeddings table.
+
+        A model loaded from an untrusted config can declare an enormous
+        `input_dim`. The default (random) `embeddings_initializer` materializes
+        the full `(input_dim, output_dim)` table at build time -- before any
+        stored weights are read -- which can exhaust memory and get the process
+        OOM-killed. When `psutil` is available, raise a clear error instead of
+        attempting an allocation that obviously cannot fit in system memory.
+
+        The bound is intentionally generous (a multiple of total system
+        memory rather than currently-available memory) so that legitimate
+        large models are not rejected under transient memory pressure or when
+        the table is sharded across hosts; it only blocks the absurd
+        allocations (terabytes from a tiny config) used to trigger an OOM.
+        """
+        if psutil is None:
+            return
+        num_params = math.prod(embeddings_shape)
+        try:
+            bytes_per_param = dtype_utils.dtype_size(self.variable_dtype) / 8
+        except ValueError:
+            # Unknown/custom dtype: fall back to 4 bytes (float32) so the
+            # guard still works rather than crashing the build.
+            bytes_per_param = 4.0
+        required_bytes = num_params * bytes_per_param
+        total_bytes = psutil.virtual_memory().total
+        if required_bytes > 2 * total_bytes:
+            raise ValueError(
+                f"The `Embedding` layer cannot allocate its embeddings table "
+                f"of shape {embeddings_shape}: it requires about "
+                f"{required_bytes / 1e9:.1f} GB which far exceeds the total "
+                f"system memory of {total_bytes / 1e9:.1f} GB. This usually "
+                "indicates a corrupted or malicious `input_dim` / "
+                "`output_dim` in the layer configuration."
+            )
 
     @property
     def embeddings(self):
