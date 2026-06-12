@@ -5,6 +5,7 @@ import json
 import numpy as np
 
 from keras.src.api_export import keras_export
+from keras.src.datasets import npz_utils
 from keras.src.utils.file_utils import get_file
 from keras.src.utils.python_utils import remove_long_seq
 
@@ -83,9 +84,12 @@ def load_data(
             "69664113be75683a8fe16e3ed0ab59fda8886cb3cd7ada244f7d9544e4676b9f"
         ),
     )
-    with np.load(path, allow_pickle=True) as f:
-        x_train, labels_train = f["x_train"], f["y_train"]
-        x_test, labels_test = f["x_test"], f["y_test"]
+    # The IMDB arrays are ragged (`dtype=object`) sequences, so they are stored
+    # as pickle streams. Load them with a restricted unpickler that only allows
+    # numpy array reconstruction instead of `np.load(allow_pickle=True)`.
+    f = npz_utils.load_npz(path)
+    x_train, labels_train = f["x_train"], f["y_train"]
+    x_test, labels_test = f["x_test"], f["y_test"]
 
     rng = np.random.RandomState(seed)
     indices = np.arange(len(x_train))
