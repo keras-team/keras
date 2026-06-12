@@ -1,3 +1,6 @@
+import inspect
+import itertools
+
 import numpy as np
 
 from keras.src import backend
@@ -353,6 +356,219 @@ def is_torch_tensor(value):
             ):
                 return True
     return False
+
+
+class DistributedBatchSampler:
+    """Sampler that shards a batch sampler.
+
+    This sampler is useful for sharding an existing batch sampler (an iterable
+    of batches) across multiple data shards.
+
+    Args:
+        batch_sampler: An iterable of batches. For example, a
+            `torch.utils.data.BatchSampler` instance.
+        num_data_shards: Total number of data shards.
+        data_shard_id: ID of the current data shard.
+        drop_last: Whether to drop the last partial batch.
+    """
+
+    def __init__(
+        self, batch_sampler, num_data_shards, data_shard_id, drop_last=False
+    ):
+        """Initialize the DistributedBatchSampler.
+
+        Args:
+            batch_sampler: An iterable of batches.
+            num_data_shards: Total number of data shards.
+            data_shard_id: ID of the current data shard.
+            drop_last: Whether to drop the last partial batch.
+        """
+        if num_data_shards < 1:
+            raise ValueError(
+                f"num_data_shards must be >= 1. Received: {num_data_shards}"
+            )
+        if not (0 <= data_shard_id < num_data_shards):
+            raise ValueError(
+                f"data_shard_id must be in [0, {num_data_shards - 1}]. "
+                f"Received: {data_shard_id}"
+            )
+        self.batch_sampler = batch_sampler
+        self.num_data_shards = num_data_shards
+        self.data_shard_id = data_shard_id
+        self.drop_last = drop_last
+
+    def __iter__(self):
+        sampler_len = len(self.batch_sampler)
+
+        limit = (
+            (sampler_len // self.num_data_shards) * self.num_data_shards
+            if self.drop_last
+            else sampler_len
+        )
+
+        import torch
+
+        # Optimization: if the batch_sampler is a standard BatchSampler
+        # with an indexable sampler, we can skip indices efficiently.
+        if isinstance(self.batch_sampler, torch.utils.data.BatchSampler):
+            sampler = self.batch_sampler.sampler
+            if hasattr(sampler, "__getitem__") and not isinstance(
+                sampler, torch.utils.data.Sampler
+            ):
+                for i in range(self.data_shard_id, limit, self.num_data_shards):
+                    # Manual index-based access is more efficient than filtering
+                    # the iterator.
+                    yield sampler[
+                        i * self.batch_sampler.batch_size : (i + 1)
+                        * self.batch_sampler.batch_size
+                    ]
+                return
+
+        for i, batch in enumerate(self.batch_sampler):
+            if i >= limit:
+                break
+            if i % self.num_data_shards == self.data_shard_id:
+                yield batch
+
+    def __len__(self):
+        sampler_len = len(self.batch_sampler)
+
+        if self.drop_last:
+            return sampler_len // self.num_data_shards
+        return (
+            sampler_len - self.data_shard_id + self.num_data_shards - 1
+        ) // self.num_data_shards
+
+
+def _add_torch_distributed_sampler(dataloader, num_data_shards, data_shard_id):
+    import torch
+
+    kwargs = {
+        "num_workers": dataloader.num_workers,
+        "collate_fn": dataloader.collate_fn,
+        "pin_memory": dataloader.pin_memory,
+        "timeout": dataloader.timeout,
+        "worker_init_fn": dataloader.worker_init_fn,
+        "multiprocessing_context": dataloader.multiprocessing_context,
+        "generator": dataloader.generator,
+        "prefetch_factor": dataloader.prefetch_factor,
+        "persistent_workers": dataloader.persistent_workers,
+    }
+    if hasattr(dataloader, "pin_memory_device"):
+        if (
+            "pin_memory_device"
+            in inspect.signature(torch.utils.data.DataLoader).parameters
+        ):
+            kwargs["pin_memory_device"] = dataloader.pin_memory_device
+
+    if isinstance(dataloader.dataset, torch.utils.data.IterableDataset):
+
+        class ShardedIterableDataset(torch.utils.data.IterableDataset):
+            def __init__(
+                self, dataset, num_data_shards, data_shard_id, drop_last
+            ):
+                self.dataset = dataset
+                self.num_data_shards = num_data_shards
+                self.data_shard_id = data_shard_id
+                self.drop_last = drop_last
+
+            def __iter__(self):
+                it = itertools.islice(
+                    self.dataset, self.data_shard_id, None, self.num_data_shards
+                )
+                if self.drop_last and hasattr(self.dataset, "__len__"):
+                    num_samples = len(self.dataset) // self.num_data_shards
+                    return itertools.islice(it, num_samples)
+                return it
+
+        if hasattr(dataloader.dataset, "__len__"):
+
+            def __len__(self):
+                if self.drop_last:
+                    return len(self.dataset) // self.num_data_shards
+                return (
+                    len(self.dataset)
+                    - self.data_shard_id
+                    + self.num_data_shards
+                    - 1
+                ) // self.num_data_shards
+
+            ShardedIterableDataset.__len__ = __len__
+
+        dataset = ShardedIterableDataset(
+            dataloader.dataset,
+            num_data_shards,
+            data_shard_id,
+            dataloader.drop_last,
+        )
+        kwargs["batch_size"] = dataloader.batch_size
+        kwargs["drop_last"] = dataloader.drop_last
+
+        return torch.utils.data.DataLoader(dataset, **kwargs)
+
+    shuffle = isinstance(dataloader.sampler, torch.utils.data.RandomSampler)
+    if hasattr(dataloader, "batch_sampler") and dataloader.batch_sampler:
+        if hasattr(dataloader.batch_sampler, "sampler"):
+            shuffle = isinstance(
+                dataloader.batch_sampler.sampler, torch.utils.data.RandomSampler
+            )
+            if not isinstance(
+                dataloader.batch_sampler.sampler,
+                (
+                    torch.utils.data.SequentialSampler,
+                    torch.utils.data.RandomSampler,
+                ),
+            ):
+                import warnings
+
+                warnings.warn(
+                    f"Custom sampler {type(dataloader.batch_sampler.sampler)} "
+                    "will be replaced by DistributedSampler. Custom sampling "
+                    "logic may be lost.",
+                    stacklevel=2,
+                )
+    elif not isinstance(
+        dataloader.sampler,
+        (torch.utils.data.SequentialSampler, torch.utils.data.RandomSampler),
+    ):
+        import warnings
+
+        warnings.warn(
+            f"Custom sampler {type(dataloader.sampler)} will be replaced by "
+            "DistributedSampler. Custom sampling logic may be lost.",
+            stacklevel=2,
+        )
+
+    if dataloader.batch_sampler is not None:
+        if type(dataloader.batch_sampler) is torch.utils.data.BatchSampler:
+            kwargs["sampler"] = torch.utils.data.distributed.DistributedSampler(
+                dataloader.dataset,
+                num_replicas=num_data_shards,
+                rank=data_shard_id,
+                shuffle=shuffle,
+                drop_last=dataloader.batch_sampler.drop_last,
+            )
+            kwargs["batch_size"] = dataloader.batch_sampler.batch_size
+            kwargs["drop_last"] = dataloader.batch_sampler.drop_last
+        else:
+            kwargs["batch_sampler"] = DistributedBatchSampler(
+                dataloader.batch_sampler,
+                num_data_shards,
+                data_shard_id,
+                drop_last=getattr(dataloader.batch_sampler, "drop_last", False),
+            )
+    else:
+        kwargs["sampler"] = torch.utils.data.distributed.DistributedSampler(
+            dataloader.dataset,
+            num_replicas=num_data_shards,
+            rank=data_shard_id,
+            shuffle=shuffle,
+            drop_last=dataloader.drop_last,
+        )
+        kwargs["batch_size"] = dataloader.batch_size
+        kwargs["drop_last"] = dataloader.drop_last
+
+    return torch.utils.data.DataLoader(dataloader.dataset, **kwargs)
 
 
 def is_scipy_sparse(x):
