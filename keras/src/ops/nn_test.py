@@ -3961,6 +3961,12 @@ class NNOpsBehaviorTest(testing.TestCase):
             knn.space_to_depth(x, block_size=-1)
 
 
+@pytest.mark.skipif(
+    backend.backend() in ("numpy", "openvino"),
+    reason="""
+    Key/Value broadcasting is not supported on numpy and openvino backends.
+    """,
+)
 class DotProductAttentionGQATest(testing.TestCase):
     def test_gqa_broadcasting(self):
         batch_size = 2
