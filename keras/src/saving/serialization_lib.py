@@ -751,6 +751,14 @@ def deserialize_keras_object(
     # so that we can catch any custom objects that the config refers to.
     custom_obj_scope = object_registration.CustomObjectScope(custom_objects)
     safe_mode_scope = SafeModeScope(safe_mode)
+    _validate_config(inner_config)
+    build_config = config.get("build_config", None)
+    if build_config:
+        _validate_config(build_config, path="build_config")
+    compile_config = config.get("compile_config", None)
+    if compile_config:
+        _validate_config(compile_config, path="compile_config")
+
     with custom_obj_scope, safe_mode_scope:
         try:
             instance = cls.from_config(inner_config)
@@ -763,11 +771,9 @@ def deserialize_keras_object(
                 " model's `from_config()` method."
                 f"\n\nconfig={config}.\n\nException encountered: {e}"
             )
-        build_config = config.get("build_config", None)
         if build_config and not instance.built:
             instance.build_from_config(build_config)
             instance.built = True
-        compile_config = config.get("compile_config", None)
         if compile_config:
             instance.compile_from_config(compile_config)
             instance.compiled = True
@@ -793,6 +799,29 @@ def _assert_no_registered_name_for_builtin(full_config, name, resolved_name):
     )
 
 
+def _validate_config(config, path="config", seen=None):
+    """Recursively validate that config contains no raw callable objects."""
+    if seen is None:
+        seen = set()
+    obj_id = id(config)
+    if obj_id in seen:
+        return
+    if isinstance(config, (dict, list, tuple)):
+        seen.add(obj_id)
+    if isinstance(config, dict):
+        for key, value in config.items():
+            _validate_config(value, path=f"{path}[{key!r}]", seen=seen)
+    elif isinstance(config, (list, tuple)):
+        for i, value in enumerate(config):
+            _validate_config(value, path=f"{path}[{i}]", seen=seen)
+    elif callable(config) and not isinstance(config, type):
+        raise TypeError(
+            f"Received a callable object in configuration at {path}. "
+            f"Callable objects are not safe to deserialize. "
+            f"Received: {config}"
+        )
+
+
 def _retrieve_class_or_fn(
     name, registered_name, module, obj_type, full_config, custom_objects=None
 ):
@@ -807,6 +836,30 @@ def _retrieve_class_or_fn(
             registered_name, custom_objects=custom_objects
         )
     if custom_obj is not None:
+        # Prevent namespace hijacking: if the config claims to be a Keras
+        # built-in class, do not allow a globally registered custom object
+        # to shadow it.
+        if obj_type == "class" and module:
+            package = module.split(".", maxsplit=1)[0]
+            if package in {"keras", "keras_hub", "keras_cv", "keras_nlp"}:
+                api_name = f"{module}.{name}"
+                builtin_obj = None
+                if api_name not in LOADING_APIS:
+                    builtin_obj = api_export.get_symbol_from_name(api_name)
+                if builtin_obj is None:
+                    try:
+                        mod = importlib.import_module(module)
+                        candidate = vars(mod).get(name, None)
+                        if isinstance(candidate, type) and issubclass(
+                            candidate, KerasSaveable
+                        ):
+                            builtin_obj = candidate
+                    except ModuleNotFoundError:
+                        pass
+                if builtin_obj is not None and builtin_obj is not custom_obj:
+                    _assert_no_registered_name_for_builtin(
+                        full_config, name, f"{module}.{name}"
+                    )
         return custom_obj
 
     if module:

@@ -578,6 +578,88 @@ class SerializationLibTest(testing.TestCase):
         restored = serialization_lib.deserialize_keras_object(config)
         self.assertIsInstance(restored, MyDense)
 
+    def test_namespace_hijacking_blocked(self):
+        """Tests that registered_name cannot hijack built-in Keras classes."""
+
+        @keras.saving.register_keras_serializable(
+            package="MaliciousPackage", name="Dense"
+        )
+        class HiddenLogicDense(keras.layers.Dense):
+            pass
+
+        try:
+            hijacked_config = {
+                "module": "keras.layers",
+                "class_name": "Dense",
+                "config": {"units": 5, "activation": "relu"},
+                "registered_name": "MaliciousPackage>Dense",
+            }
+            with self.assertRaisesRegex(
+                ValueError, "resolved to a Keras built-in"
+            ):
+                serialization_lib.deserialize_keras_object(hijacked_config)
+        finally:
+            # Clean up global registration so other tests are not affected.
+            object_registration.GLOBAL_CUSTOM_OBJECTS.pop(
+                "MaliciousPackage>Dense", None
+            )
+            object_registration.GLOBAL_CUSTOM_NAMES.pop(HiddenLogicDense, None)
+
+    def test_callable_in_config_blocked(self):
+        """Tests that raw callable objects in config are rejected."""
+
+        def malicious_fn(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {
+                "units": 4,
+                "kernel_initializer": malicious_fn,
+            },
+        }
+        with self.assertRaisesRegex(TypeError, "Callable objects are not safe"):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_nested_callable_in_config_blocked(self):
+        """Tests that nested raw callable objects in config are rejected."""
+
+        def malicious_fn(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {
+                "units": 4,
+                "bias_initializer": {
+                    "class_name": "Ones",
+                    "module": "keras.initializers",
+                    "config": {"seed": malicious_fn},
+                },
+            },
+        }
+        with self.assertRaisesRegex(TypeError, "Callable objects are not safe"):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_list_callable_in_config_blocked(self):
+        """Tests that callables inside lists in config are rejected."""
+
+        def malicious_fn(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {
+                "units": 4,
+                "kernel_initializer": [malicious_fn],
+            },
+        }
+        with self.assertRaisesRegex(TypeError, "Callable objects are not safe"):
+            serialization_lib.deserialize_keras_object(config)
+
 
 @keras.saving.register_keras_serializable()
 class MyDense(keras.layers.Layer):
