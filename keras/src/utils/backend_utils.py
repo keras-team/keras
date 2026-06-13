@@ -106,6 +106,9 @@ class DynamicBackend:
         if self._backend == "torch":
             module = importlib.import_module("keras.src.backend.torch")
             return getattr(module, name)
+        if self._backend == "mlx":
+            module = importlib.import_module("keras.src.backend.mlx")
+            return getattr(module, name)
         if self._backend == "numpy":
             if backend_module.backend() == "numpy":
                 return getattr(backend_module, name)

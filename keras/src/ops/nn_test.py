@@ -2666,10 +2666,10 @@ class NNOpsCorrectnessTest(testing.TestCase):
             )
 
         if flash_attention:
-            if backend.backend() in ("tensorflow", "numpy"):
+            if backend.backend() in ("tensorflow", "numpy", "mlx"):
                 self.skipTest(
-                    "Flash attention is not supported in tensorflow and numpy "
-                    "backends."
+                    "Flash attention is not supported in tensorflow, numpy, "
+                    "and mlx backends."
                 )
             elif backend.backend() == "torch":
                 import torch

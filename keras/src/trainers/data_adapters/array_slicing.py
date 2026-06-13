@@ -103,6 +103,20 @@ class Sliceable:
         return x
 
     @classmethod
+    def convert_to_mlx_compatible(cls, x):
+        """Convert a tensor to something that the MLX backend can consume.
+
+        This can be a `MLX` array or a NumPy array.
+        Only called after slicing using `__getitem__`.
+        Used to convert sparse tensors and densify ragged tensors.
+
+        Args:
+            x: the tensor to convert.
+        Returns: the converted tensor.
+        """
+        return x
+
+    @classmethod
     def convert_to_torch_compatible(cls, x):
         """Convert a tensor to something that the Torch backend can consume.
 
@@ -120,6 +134,37 @@ class Sliceable:
 
 class NumpySliceable(Sliceable):
     pass
+
+
+class MLXSliceable(Sliceable):
+    def __getitem__(self, indices):
+        if isinstance(indices, slice):
+            return self.array[indices]
+        elif isinstance(indices, int):
+            return self.array[indices]
+        import mlx.core as mx
+
+        return self.array[mx.array(indices)]
+
+    @classmethod
+    def cast(cls, x, dtype):
+        from keras.src.backend.mlx.core import cast
+
+        return cast(x, dtype)
+
+    @classmethod
+    def convert_to_numpy(cls, x):
+        from keras.src.backend.mlx.core import convert_to_numpy
+
+        return convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_jax_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_tf_dataset_compatible(cls, x):
+        return cls.convert_to_numpy(x)
 
 
 class TensorflowSliceable(Sliceable):
@@ -147,6 +192,10 @@ class TensorflowSliceable(Sliceable):
 class TensorflowRaggedSliceable(TensorflowSliceable):
     @classmethod
     def convert_to_jax_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
         return cls.convert_to_numpy(x)
 
     @classmethod
@@ -179,6 +228,12 @@ class TensorflowSparseSliceable(TensorflowSliceable):
 
         return tf_sparse.sparse_to_dense(x)
 
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
+        from keras.src.backend.tensorflow import sparse as tf_sparse
+
+        return tf_sparse.sparse_to_dense(x)
+
 
 class JaxSparseSliceable(Sliceable):
     def __getitem__(self, indices):
@@ -198,6 +253,10 @@ class JaxSparseSliceable(Sliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
+        return x.todense()
+
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
         return x.todense()
 
 
@@ -229,6 +288,10 @@ class PandasSliceable(Sliceable):
 
     @classmethod
     def convert_to_jax_compatible(cls, x):
+        return cls.convert_to_numpy(x)
+
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
         return cls.convert_to_numpy(x)
 
     @classmethod
@@ -268,6 +331,10 @@ class ScipySparseSliceable(Sliceable):
 
     @classmethod
     def convert_to_torch_compatible(cls, x):
+        return x.todense()
+
+    @classmethod
+    def convert_to_mlx_compatible(cls, x):
         return x.todense()
 
 
@@ -341,6 +408,7 @@ def can_slice_array(x):
         or isinstance(x, ARRAY_TYPES)
         or data_adapter_utils.is_tensorflow_tensor(x)
         or data_adapter_utils.is_jax_array(x)
+        or data_adapter_utils.is_mlx_array(x)
         or data_adapter_utils.is_torch_tensor(x)
         or data_adapter_utils.is_scipy_sparse(x)
         or hasattr(x, "__array__")
@@ -382,6 +450,8 @@ def convert_to_sliceable(arrays, target_backend=None):
         # Step 1. Determine which Sliceable class to use.
         if isinstance(x, np.ndarray):
             sliceable_class = NumpySliceable
+        elif data_adapter_utils.is_mlx_array(x):
+            sliceable_class = MLXSliceable
         elif data_adapter_utils.is_tensorflow_tensor(x):
             if data_adapter_utils.is_tensorflow_ragged(x):
                 sliceable_class = TensorflowRaggedSliceable

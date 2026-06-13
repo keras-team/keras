@@ -995,6 +995,10 @@ class MultiHeadAttentionTest(testing.TestCase):
         with self.assertRaisesRegex(ValueError, r"Invalid `output_shape`"):
             layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
 
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason=f"{backend.backend()} backend doesn't support quantization.",
+    )
     def test_quantize_int8(self):
         utils.set_random_seed(1347)
 

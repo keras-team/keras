@@ -792,6 +792,13 @@ class ModelTest(testing.TestCase):
         ("float8", "float8"),
     )
     def test_quantize(self, mode):
+        if backend.backend() == "mlx":
+            self.skipTest(
+                "mlx backend does not support float8."
+                if mode == "float8"
+                else "mlx backend does not support integer matmul"
+            )
+
         model = _get_model()
         x1 = np.random.rand(2, 3)
         x2 = np.random.rand(2, 3)

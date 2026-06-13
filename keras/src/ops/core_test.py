@@ -555,6 +555,8 @@ class CoreOpsCorrectnessTest(testing.TestCase):
         ("float8_e4m3fn", "float8_e4m3fn"), ("float8_e5m2", "float8_e5m2")
     )
     def test_cast_float8(self, float8_dtype):
+        if backend.backend() == "mlx":
+            self.skipTest("mlx backend does not support float8.")
         # Cast to float8 and cast back
         x = ops.ones((2,), dtype="float32")
         y = ops.cast(x, float8_dtype)

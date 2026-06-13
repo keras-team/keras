@@ -95,8 +95,16 @@ class TestSpectrogram(testing.TestCase):
             for i in range(audio.shape[-1])
         ]
 
-        self.assertAllClose(y_last, np.concatenate(y_singles, axis=-1))
-        self.assertAllClose(y_expanded, np.stack(y_singles, axis=-1))
+        if backend.backend() == "mlx":
+            atol, rtol = 1e-5, 1e-5
+        else:
+            atol, rtol = 1e-6, 1e-6
+        self.assertAllClose(
+            y_last, np.concatenate(y_singles, axis=-1), atol=atol, rtol=rtol
+        )
+        self.assertAllClose(
+            y_expanded, np.stack(y_singles, axis=-1), atol=atol, rtol=rtol
+        )
 
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",
@@ -151,11 +159,21 @@ class TestSpectrogram(testing.TestCase):
         )
         y_last = layer_last.predict(audio, verbose=0)
         y_first = layer_first.predict(np.transpose(audio, [0, 2, 1]), verbose=0)
-        self.assertAllClose(np.transpose(y_first, [0, 2, 1]), y_last)
-        self.assertAllClose(y_expanded, np.stack(y_singles, axis=1))
+        if backend.backend() == "mlx":
+            atol, rtol = 1e-5, 1e-5
+        else:
+            atol, rtol = 1e-6, 1e-6
+        self.assertAllClose(
+            np.transpose(y_first, [0, 2, 1]), y_last, atol=atol, rtol=rtol
+        )
+        self.assertAllClose(
+            y_expanded, np.stack(y_singles, axis=1), atol=atol, rtol=rtol
+        )
         self.assertAllClose(
             y_first,
             np.transpose(np.concatenate(y_singles, axis=-1), [0, 2, 1]),
+            atol=atol,
+            rtol=rtol,
         )
         self.run_layer_test(
             layers.STFTSpectrogram,
