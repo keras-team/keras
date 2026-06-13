@@ -1714,6 +1714,61 @@ class SafeZipReadTest(testing.TestCase):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
 
+    def test_load_model_rejects_bomb_assets(self):
+        # Asset members are extracted by DiskIOStore. They must get the same
+        # decompression-bomb guard as config and weights members.
+        import keras
+
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        good = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(good)
+        with zipfile.ZipFile(good) as zf:
+            members = {name: zf.read(name) for name in zf.namelist()}
+
+        evil = os.path.join(self.get_temp_dir(), "evil_asset.keras")
+        with zipfile.ZipFile(evil, "w") as zf:
+            for name, data in members.items():
+                zf.writestr(name, data)
+            info = zipfile.ZipInfo("assets/bomb.txt")
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(info, b"\x00" * 200_000)
+
+        self.assertLess(os.path.getsize(evil), 1 << 16)
+        with (
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64),
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_MAX_EXPANSION", 10),
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib.load_model(evil)
+
+    def test_load_model_rejects_duplicate_name_bomb_assets(self):
+        # `ZipFile.getinfo(name)` resolves to one entry for duplicate names,
+        # while extraction walks every ZipInfo. Validate each ZipInfo directly.
+        import keras
+
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        good = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(good)
+        with zipfile.ZipFile(good) as zf:
+            members = {name: zf.read(name) for name in zf.namelist()}
+
+        evil = os.path.join(self.get_temp_dir(), "evil_duplicate_asset.keras")
+        with zipfile.ZipFile(evil, "w") as zf:
+            for name, data in members.items():
+                zf.writestr(name, data)
+            info = zipfile.ZipInfo("assets/duplicate.txt")
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(info, b"\x00" * 200_000)
+            zf.writestr("assets/duplicate.txt", b"ok")
+
+        self.assertLess(os.path.getsize(evil), 1 << 16)
+        with (
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_BOMB_FLOOR_BYTES", 64),
+            mock.patch.object(saving_lib, "_ZIP_MEMBER_MAX_EXPANSION", 10),
+        ):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib.load_model(evil)
+
 
 class SafeGetH5DatasetTest(testing.TestCase):
     def _shape_bomb_file(self):

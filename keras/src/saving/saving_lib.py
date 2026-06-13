@@ -451,7 +451,11 @@ _ZIP_MEMBER_MAX_EXPANSION = 100
 
 def _reject_zip_bomb(archive, name):
     """Raise if a ZIP member is a decompression bomb (see CWE-409)."""
-    info = archive.getinfo(name)
+    if isinstance(name, zipfile.ZipInfo):
+        info = name
+        name = info.filename
+    else:
+        info = archive.getinfo(name)
     if (
         info.file_size > _ZIP_MEMBER_BOMB_FLOOR_BYTES
         and info.file_size > _ZIP_MEMBER_MAX_EXPANSION * info.compress_size
@@ -1066,6 +1070,9 @@ class DiskIOStore:
         if self.archive:
             self.tmp_dir = get_temp_dir()
             if self.mode == "r":
+                if isinstance(self.archive, zipfile.ZipFile):
+                    for member in self.archive.infolist():
+                        _reject_zip_bomb(self.archive, member)
                 file_utils.extract_open_archive(self.archive, self.tmp_dir)
             self.working_dir = file_utils.join(
                 self.tmp_dir, self.root_path
