@@ -296,6 +296,7 @@ def erfc(x):
 
 
 def erfinv(x):
+    x = convert_to_tensor(x)
     return jax.lax.erf_inv(x)
 
 
