@@ -12,6 +12,7 @@ from keras.src.saving.keras_saveable import KerasSaveable
 from keras.src.utils import backend_utils
 from keras.src.utils.module_utils import tensorflow as tf
 from keras.src.utils.naming import auto_name
+from keras.src.utils.progbar import Progbar
 
 
 class Cross(KerasSaveable):
@@ -507,7 +508,7 @@ class FeatureSpace(Layer):
                 adaptable_preprocessors.append(name)
         return adaptable_preprocessors
 
-    def adapt(self, dataset):
+    def adapt(self, dataset, verbose=1):
         if not isinstance(dataset, tf.data.Dataset):
             if isinstance(dataset, dict):
                 dataset = tf.data.Dataset.from_tensor_slices(dataset)
@@ -518,7 +519,13 @@ class FeatureSpace(Layer):
                     f"Received instead: {dataset} (of type {type(dataset)})"
                 )
 
-        for name in self._list_adaptable_preprocessors():
+        adaptable_preprocessors = self._list_adaptable_preprocessors()
+        if verbose:
+            progbar = Progbar(
+                target=len(adaptable_preprocessors),
+                unit_name="feature",
+            )
+        for i, name in enumerate(adaptable_preprocessors):
             # Call adapt() on each individual adaptable layer.
 
             # TODO: consider rewriting this to instead iterate on the
@@ -526,9 +533,11 @@ class FeatureSpace(Layer):
             # and call the layer's `_adapt_function` on each batch
             # to simulate the behavior of adapt() in a more performant fashion.
 
+            if verbose:
+                progbar.update(i)
+
             feature_dataset = dataset.map(lambda x: x[name])
             preprocessor = self.preprocessors[name]
-            # TODO: consider adding an adapt progress bar.
             # Sample 1 element to check the rank
             x = next(iter(feature_dataset))
             if len(x.shape) == 0:
@@ -542,6 +551,8 @@ class FeatureSpace(Layer):
                     lambda x: tf.expand_dims(x, -1)
                 )
             preprocessor.adapt(feature_dataset)
+        if verbose:
+            progbar.update(len(adaptable_preprocessors), finalize=True)
         self._is_adapted = True
         self.get_encoded_features()  # Finish building the layer
         self.built = True
