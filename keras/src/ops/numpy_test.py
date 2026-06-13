@@ -8432,6 +8432,9 @@ class NumpyDtypeTest(testing.TestCase):
     if backend.backend() == "torch":
         ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "paddle":
+        ALL_DTYPES = [x for x in ALL_DTYPES if x not in ("uint16", "uint32")]
+        INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
     elif backend.backend() == "tensorflow":
         # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
         # dtypes.result_type(uint32, int*) -> int64 promotion.

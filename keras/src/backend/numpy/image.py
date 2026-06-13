@@ -946,12 +946,14 @@ def map_coordinates(
     # unless mode='reflect'. For order=1, this only affects interpolation
     # outside the bounds of the original array.
     # https://github.com/scipy/scipy/issues/2640
+    # Cast to float32 for coordinate computation (bfloat16/float16 overflow)
+    coords_f32 = [c.astype("float32") for c in coordinates]
     padding = [
         (
             max(-np.floor(c.min()).astype(int) + 1, 0),
             max(np.ceil(c.max()).astype(int) + 1 - size, 0),
         )
-        for c, size in zip(coordinates, inputs.shape)
+        for c, size in zip(coords_f32, inputs.shape)
     ]
     shifted_coords = [c + p[0] for p, c in zip(padding, coordinates)]
     pad_mode = {

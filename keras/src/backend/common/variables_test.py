@@ -956,6 +956,26 @@ class VariableOpsDTypeTest(test_case.TestCase):
             x for x in ALL_DTYPES if x not in ("uint16", "uint32", "complex64")
         ]
         INT_DTYPES = [x for x in INT_DTYPES if x not in ("uint16", "uint32")]
+    elif backend.backend() == "paddle":
+        ALL_DTYPES = [
+            x
+            for x in ALL_DTYPES
+            if x
+            not in (
+                "uint8",
+                "uint16",
+                "uint32",
+                "int8",
+                "int16",
+                "float16",
+                "bfloat16",
+            )
+        ]
+        INT_DTYPES = [
+            x
+            for x in INT_DTYPES
+            if x not in ("uint8", "uint16", "uint32", "int8", "int16")
+        ]
     elif backend.backend() == "tensorflow":
         # TODO(hongyu): Re-enable uint32 tests once we determine how to handle
         # dtypes.result_type(uint32, int*) -> int64 promotion.

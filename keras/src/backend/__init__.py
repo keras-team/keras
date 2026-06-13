@@ -55,6 +55,11 @@ elif backend() == "openvino":
     from keras.src.backend.openvino.core import Variable as BackendVariable
 
     distribution_lib = None
+elif backend() == "paddle":
+    from keras.src.backend.paddle import *  # noqa: F403
+    from keras.src.backend.paddle.core import Variable as BackendVariable
+
+    distribution_lib = None
 else:
     raise ValueError(f"Unable to import backend : {backend()}")
 
