@@ -319,6 +319,7 @@ def erfc(x):
 
 
 def erfinv(x):
+    x = convert_to_tensor(x)
     dtype = dtypes.result_type(x.dtype, float)
     return scipy.special.erfinv(x).astype(dtype)
 
