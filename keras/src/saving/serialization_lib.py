@@ -1,5 +1,6 @@
 """Object config serialization and deserialization logic."""
 
+import functools
 import importlib
 import inspect
 import types
@@ -17,6 +18,15 @@ from keras.src.utils import python_utils
 from keras.src.utils.module_utils import tensorflow as tf
 
 PLAIN_TYPES = (str, int, float, bool)
+
+_RAW_CALLABLE_TYPES = (
+    types.FunctionType,
+    types.BuiltinFunctionType,
+    types.MethodType,
+    types.BuiltinMethodType,
+    functools.partial,
+    functools.partialmethod,
+)
 
 # List of Keras modules with built-in string representations for Keras defaults
 BUILTIN_MODULES = frozenset(
@@ -405,6 +415,24 @@ def serialize_dict(obj):
     return {key: serialize_keras_object(value) for key, value in obj.items()}
 
 
+def _reject_raw_callables(config, path="config"):
+    if isinstance(config, _RAW_CALLABLE_TYPES):
+        raise TypeError(
+            f"Received a raw Python callable at {path!r} during "
+            "deserialization. Configs must contain only serializable "
+            "values; wrap custom callables with "
+            "`@keras.saving.register_keras_serializable()` and pass the "
+            "serialized dict, or pass `safe_mode=False` to allow raw "
+            f"callables. Received: {config!r}"
+        )
+    if isinstance(config, dict):
+        for k, v in config.items():
+            _reject_raw_callables(v, f"{path}.{k}")
+    elif isinstance(config, (list, tuple)):
+        for i, v in enumerate(config):
+            _reject_raw_callables(v, f"{path}[{i}]")
+
+
 @keras_export(
     [
         "keras.saving.deserialize_keras_object",
@@ -620,6 +648,9 @@ def deserialize_keras_object(
     class_name = config["class_name"]
     inner_config = config["config"] if config["config"] is not None else {}
     custom_objects = custom_objects or {}
+
+    if safe_mode:
+        _reject_raw_callables(config)
 
     # Special cases:
     if class_name == "__keras_tensor__":

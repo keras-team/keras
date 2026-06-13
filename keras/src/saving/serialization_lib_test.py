@@ -1,5 +1,6 @@
 """Tests for serialization_lib."""
 
+import functools
 import json
 
 import numpy as np
@@ -8,6 +9,7 @@ import pytest
 import keras
 from keras.src import ops
 from keras.src import testing
+from keras.src.constraints import NonNeg
 from keras.src.saving import deserialize_keras_object
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
@@ -577,6 +579,256 @@ class SerializationLibTest(testing.TestCase):
         config = serialization_lib.serialize_keras_object(layer)
         restored = serialization_lib.deserialize_keras_object(config)
         self.assertIsInstance(restored, MyDense)
+
+    def test_raw_callable_in_config_raises_in_safe_mode(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_initializer": smuggled},
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_raw_callable_in_config_accepted_when_safe_mode_false(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_initializer": smuggled},
+        }
+        layer = serialization_lib.deserialize_keras_object(
+            config, safe_mode=False
+        )
+        self.assertIsInstance(layer, keras.layers.Dense)
+
+    def test_raw_lambda_nested_in_list_raises(self):
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "weights": [lambda w: w]},
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_functools_partial_in_config_raises(self):
+        partial_fn = functools.partial(print, "hello")
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_initializer": partial_fn},
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_raw_callable_in_build_config_raises(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4},
+            "build_config": {
+                "input_shape": [None, 8],
+                "smuggled": smuggled,
+            },
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_raw_callable_at_outer_key_raises(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4},
+            "some_extra_key": smuggled,
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_raw_callable_in_nested_dict_within_list_raises(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "items": [{"nested_key": smuggled}]},
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_lambda_path_still_raises_lambda_error_not_our_error(self):
+        config = {
+            "class_name": "__lambda__",
+            "config": {"value": "gASVKAAAAAAAAACMBG1haW6U"},
+        }
+        with self.assertRaisesRegex(ValueError, "arbitrary code execution"):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_class_instance_value_is_not_rejected(self):
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_constraint": NonNeg()},
+        }
+        layer = serialization_lib.deserialize_keras_object(config)
+        self.assertIsInstance(layer, keras.layers.Dense)
+
+    def test_class_object_value_is_not_rejected(self):
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_constraint": NonNeg},
+        }
+        layer = serialization_lib.deserialize_keras_object(config)
+        self.assertIsInstance(layer, keras.layers.Dense)
+
+    def test_serialized_function_dict_value_is_not_rejected(self):
+        layer = keras.layers.Dense(4, activation="relu")
+        layer.build((None, 8))
+        _, restored, _ = self.roundtrip(layer)
+        self.assertIsInstance(restored, keras.layers.Dense)
+        self.assertIs(restored.activation, keras.activations.relu)
+
+    def test_each_raw_callable_type_raises(self):
+        class _Holder:
+            def method(self):
+                return 1
+
+        holder = _Holder()
+
+        def plain_fn():
+            return 1
+
+        rejected_samples = {
+            "FunctionType": plain_fn,
+            "BuiltinFunctionType": len,
+            "MethodType": holder.method,
+            "BuiltinMethodType": [].append,
+            "partial": functools.partial(print, "x"),
+            "partialmethod": functools.partialmethod(lambda self, x: x, 42),
+        }
+        for type_name, value in rejected_samples.items():
+            config = {
+                "class_name": "Dense",
+                "module": "keras.layers",
+                "config": {"units": 4, "smuggled": value},
+            }
+            with self.assertRaisesRegex(
+                TypeError,
+                "Received a raw Python callable",
+                msg=f"Failed to reject {type_name}",
+            ):
+                serialization_lib.deserialize_keras_object(config)
+
+    def test_walk_respects_safe_mode_scope(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_initializer": smuggled},
+        }
+        with serialization_lib.SafeModeScope(safe_mode=False):
+            layer = serialization_lib.deserialize_keras_object(config)
+        self.assertIsInstance(layer, keras.layers.Dense)
+
+    def test_walk_safe_mode_scope_true_overrides_arg(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_initializer": smuggled},
+        }
+        with serialization_lib.SafeModeScope(safe_mode=True):
+            with self.assertRaisesRegex(
+                TypeError, "Received a raw Python callable"
+            ):
+                serialization_lib.deserialize_keras_object(
+                    config, safe_mode=False
+                )
+
+    def test_error_message_includes_path(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "kernel_initializer": smuggled},
+        }
+        with self.assertRaisesRegex(
+            TypeError, r"config\.config\.kernel_initializer"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_path_for_nested_list_index(self):
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "weights": [lambda w: w]},
+        }
+        with self.assertRaisesRegex(TypeError, r"config\.config\.weights\[0\]"):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_raw_callable_in_compile_config_raises(self):
+        def smuggled(*args, **kwargs):
+            return 1.0
+
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4},
+            "compile_config": {"loss": smuggled},
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_tuple_containing_callable_is_rejected(self):
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "hooks": (lambda: None,)},
+        }
+        with self.assertRaisesRegex(
+            TypeError, "Received a raw Python callable"
+        ):
+            serialization_lib.deserialize_keras_object(config)
+
+    def test_callable_name_as_string_is_not_rejected(self):
+        config = {
+            "class_name": "Dense",
+            "module": "keras.layers",
+            "config": {"units": 4, "name": "lambda_x_x"},
+        }
+        layer = serialization_lib.deserialize_keras_object(config)
+        self.assertIsInstance(layer, keras.layers.Dense)
 
 
 @keras.saving.register_keras_serializable()
