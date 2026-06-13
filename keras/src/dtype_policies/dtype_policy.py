@@ -3,7 +3,7 @@ from keras.src import ops
 from keras.src.api_export import keras_export
 from keras.src.backend.common import global_state
 
-QUANTIZATION_MODES = ("int8", "float8", "int4", "gptq", "awq")
+QUANTIZATION_MODES = ("int8", "float8", "int4", "ternary", "gptq", "awq")
 
 
 @keras_export(
@@ -606,6 +606,8 @@ def _get_quantized_dtype_policy_by_str(policy):
             return Int4DTypePolicy(mode, source_name)
         else:
             return QuantizedDTypePolicy(mode, source_name)
+    elif policy.startswith("ternary"):
+        return QuantizedDTypePolicy(mode, source_name)
     elif policy.startswith("gptq"):
         return GPTQDTypePolicy(mode, source_name)
     elif policy.startswith("awq"):

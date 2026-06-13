@@ -21,6 +21,9 @@ from keras.src.quantizers.quantization_config import (
 from keras.src.quantizers.quantization_config import (
     QuantizationConfig as QuantizationConfig,
 )
+from keras.src.quantizers.quantization_config import (
+    TernaryQuantizationConfig as TernaryQuantizationConfig,
+)
 from keras.src.quantizers.quantizers import AbsMaxQuantizer as AbsMaxQuantizer
 from keras.src.quantizers.quantizers import Quantizer as Quantizer
 from keras.src.quantizers.quantizers import abs_max_quantize as abs_max_quantize
@@ -37,7 +40,9 @@ from keras.src.quantizers.quantizers import (
     fake_quant_with_min_max_vars as fake_quant_with_min_max_vars,
 )
 from keras.src.quantizers.quantizers import pack_int4 as pack_int4
+from keras.src.quantizers.quantizers import pack_ternary as pack_ternary
 from keras.src.quantizers.quantizers import (
     quantize_and_dequantize as quantize_and_dequantize,
 )
 from keras.src.quantizers.quantizers import unpack_int4 as unpack_int4
+from keras.src.quantizers.quantizers import unpack_ternary as unpack_ternary
