@@ -1385,6 +1385,36 @@ class SavingBattleTest(testing.TestCase):
             atol=1e-6,
         )
 
+    def test_fresh_save_load_emits_no_container_skip_warning(self):
+        # The legacy-skip warning should fire only when an in-memory
+        # container would have contributed unvisited `KerasSaveable` state
+        # that isn't present in the file. Containers of pure metadata
+        # (e.g. `variable_serialization_spec`) and containers that mirror
+        # already-loaded saveables (e.g. Functional's `_operations_by_depth`)
+        # have nothing left to load, so a missing group there is expected.
+        path = os.path.join(self.get_temp_dir(), "model.keras")
+        inp = keras.layers.Input(shape=(5,))
+        model = keras.Model(
+            inp, keras.layers.EinsumDense("ab,bc->ac", output_shape=(7,))(inp)
+        )
+        model.save(path)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            keras.saving.load_model(path)
+        spurious = [
+            str(w.message)
+            for w in caught
+            if "Skipping nested container" in str(w.message)
+        ]
+        self.assertEqual(
+            spurious,
+            [],
+            msg=(
+                "Loading a freshly-saved model should not emit the "
+                f"'Skipping nested container' warning. Got: {spurious}"
+            ),
+        )
+
     def test_remove_weights_only_saving_and_loading(self):
         def is_remote_path(path):
             return True
