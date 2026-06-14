@@ -89,3 +89,9 @@ ocp = OrbaxLazyModule(
         "You can install it via pip install orbax-checkpoint"
     ),
 )
+
+
+pil_image = LazyModule("PIL.Image", pip_name="pillow")
+pil_imagedraw = LazyModule("PIL.ImageDraw", pip_name="pillow")
+pil_imagefont = LazyModule("PIL.ImageFont", pip_name="pillow")
+aggdraw = LazyModule("aggdraw")
