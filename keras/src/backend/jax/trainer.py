@@ -1,4 +1,7 @@
 import itertools
+import os
+import queue
+import threading
 import warnings
 from functools import partial
 
@@ -404,7 +407,7 @@ class JAXTrainer(base_trainer.Trainer):
             ) = data_adapter_utils.unpack_x_y_sample_weight(validation_data)
 
         # Create an iterator that yields batches for one epoch.
-        epoch_iterator = JAXEpochIterator(
+        epoch_iterator = build_jax_epoch_iterator(
             x=x,
             y=y,
             sample_weight=sample_weight,
@@ -499,7 +502,7 @@ class JAXTrainer(base_trainer.Trainer):
                 ):
                     # Create JAXEpochIterator for evaluation and cache it.
                     if getattr(self, "_eval_epoch_iterator", None) is None:
-                        self._eval_epoch_iterator = JAXEpochIterator(
+                        self._eval_epoch_iterator = build_jax_epoch_iterator(
                             x=val_x,
                             y=val_y,
                             sample_weight=val_sample_weight,
@@ -537,9 +540,11 @@ class JAXTrainer(base_trainer.Trainer):
             ):
                 self.optimizer.finalize_variable_values(self.trainable_weights)
 
+            epoch_iterator.close()
             # If _eval_epoch_iterator exists, delete it after all epochs
             # are done.
             if getattr(self, "_eval_epoch_iterator", None) is not None:
+                self._eval_epoch_iterator.close()
                 del self._eval_epoch_iterator
             if training_finished:
                 callbacks.on_train_end(logs=training_logs)
@@ -570,7 +575,7 @@ class JAXTrainer(base_trainer.Trainer):
         else:
             # Create an iterator that yields batches of
             # input/target data.
-            epoch_iterator = JAXEpochIterator(
+            epoch_iterator = build_jax_epoch_iterator(
                 x=x,
                 y=y,
                 sample_weight=sample_weight,
@@ -638,6 +643,9 @@ class JAXTrainer(base_trainer.Trainer):
                 if self.stop_evaluating:
                     break
 
+        if not use_cached_eval_dataset:
+            epoch_iterator.close()
+
         # Reattach state back to model (if not already done by a callback).
         self.jax_state_sync()
 
@@ -654,7 +662,7 @@ class JAXTrainer(base_trainer.Trainer):
         self, x, batch_size=None, verbose="auto", steps=None, callbacks=None
     ):
         # Create an iterator that yields batches of input data.
-        epoch_iterator = JAXEpochIterator(
+        epoch_iterator = build_jax_epoch_iterator(
             x=x,
             batch_size=batch_size,
             steps_per_epoch=steps,
@@ -740,7 +748,7 @@ class JAXTrainer(base_trainer.Trainer):
 
                 if self.stop_predicting:
                     break
-
+        epoch_iterator.close()
         self.jax_state_sync()
         callbacks.on_predict_end()
         self._jax_state = None
@@ -1133,3 +1141,175 @@ class JAXEpochIterator(EpochIterator):
 
         if next_batch is not None:
             yield next_batch
+
+    def close(self):
+        pass
+
+
+def device_put_tree(batch):
+    return tree.map_structure(
+        lambda x: None if x is None else jax.device_put(x),
+        batch,
+    )
+
+
+def shape_signature(batch):
+    return tuple(
+        (
+            path,
+            None
+            if leaf is None
+            else (tuple(leaf.shape), getattr(leaf, "dtype", None)),
+        )
+        for path, leaf in tree.flatten_with_path(batch)
+    )
+
+
+class ThreadedPrefetchIterator:
+    def __init__(self, iterator, transform, maxsize=2):
+        self.iterator = iter(iterator)
+        self.transform = transform
+        self.queue = queue.Queue(maxsize=maxsize)
+        self.end = object()
+        self.errors = []
+        self.stop = threading.Event()
+        self.closed = False
+        self.thread = None
+
+    def _start(self):
+        if self.thread is None:
+            self.thread = threading.Thread(
+                target=self._producer,
+                name="jax_iterator_prefetch",
+                daemon=True,
+            )
+            self.thread.start()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.closed:
+            raise StopIteration
+
+        self._start()
+        item = self.queue.get()
+        if item is self.end:
+            self.close()
+            if self.errors:
+                raise self.errors[0]
+            raise StopIteration
+        return item
+
+    def _safe_put(self, item):
+        while not self.stop.is_set():
+            try:
+                self.queue.put(item, timeout=0.1)
+                return True
+            except queue.Full:
+                pass
+        return False
+
+    def _producer(self):
+        try:
+            for item in self.iterator:
+                if self.stop.is_set():
+                    return
+                item = self.transform(item)
+                if not self._safe_put(item):
+                    return
+        except BaseException as e:
+            if not self.stop.is_set():
+                self.errors.append(e)
+        finally:
+            self._safe_put(self.end)
+
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        self.stop.set()
+        if self.thread is not None and self.thread.is_alive():
+            self.thread.join(timeout=2.0)
+
+
+class JAXEpochIteratorThreaded(JAXEpochIterator):
+    """JAX epoch iterator with threaded async prefetch."""
+
+    def __init__(self, *args, prefetch=2, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.prefetch = max(1, prefetch)
+
+    def reset(self):
+        self.close()
+        super().reset()
+
+    def __del__(self):
+        self.close()
+
+    def close(self):
+        if self._current_iterator is not None:
+            close = getattr(self._current_iterator, "close", None)
+            if close is not None:
+                close()
+            self._current_iterator = None
+
+    def _get_iterator(self):
+        distribution = distribution_lib.distribution()
+        prepare_batch = self._make_prepare_batch(distribution)
+        return ThreadedPrefetchIterator(
+            self.data_adapter.get_jax_iterator(),
+            transform=prepare_batch,
+            maxsize=self.prefetch,
+        )
+
+    def _make_prepare_batch(self, distribution):
+        if distribution is None:
+            return device_put_tree
+
+        layout_cache = {}
+        last_signature = None
+        last_layouts = None
+
+        def prepare_distributed_batch(batch):
+            nonlocal last_signature, last_layouts
+
+            if batch is None:
+                return None
+
+            signature = shape_signature(batch)
+
+            if signature == last_signature:
+                layouts = last_layouts
+            else:
+                layouts = layout_cache.get(signature)
+
+                if layouts is None:
+                    layouts = tree.map_structure(
+                        lambda d: (
+                            None
+                            if d is None
+                            else distribution.get_data_layout(
+                                d.shape
+                            ).backend_layout
+                        ),
+                        batch,
+                    )
+                    layout_cache[signature] = layouts
+
+                last_signature = signature
+                last_layouts = layouts
+
+            return _distribute_data(batch, layouts)
+
+        return prepare_distributed_batch
+
+
+def build_jax_epoch_iterator(*args, **kwargs):
+    mode = os.environ.get("KERAS_JAX_EPOCH_ITERATOR", "default")
+
+    if mode == "default":
+        return JAXEpochIterator(*args, **kwargs)
+    elif mode == "threaded":
+        return JAXEpochIteratorThreaded(*args, **kwargs)
+    raise ValueError(f"Invalid value for KERAS_JAX_EPOCH_ITERATOR: {mode}")
