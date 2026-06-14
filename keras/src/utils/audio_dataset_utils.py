@@ -76,7 +76,8 @@ def audio_dataset_from_directory(
             (the dataset will yield individual samples).
         sampling_rate: Audio sampling rate (in samples per second).
         output_sequence_length: Maximum length of an audio sequence. Audio files
-            longer than this will be truncated to `output_sequence_length`.
+            longer than this will be truncated to `output_sequence_length`,
+            after resampling if `sampling_rate` is set.
             If set to `None`, then all sequences in the same batch will
             be padded to the
             length of the longest sequence in the batch.
@@ -379,11 +380,13 @@ def read_and_decode_audio(
     """Reads and decodes audio file."""
     audio = tf.io.read_file(path)
 
-    if output_sequence_length is None:
-        output_sequence_length = -1
+    if output_sequence_length is not None and sampling_rate is None:
+        desired_samples = output_sequence_length
+    else:
+        desired_samples = -1
 
     audio, default_audio_rate = tf.audio.decode_wav(
-        contents=audio, desired_samples=output_sequence_length
+        contents=audio, desired_samples=desired_samples
     )
     if sampling_rate is not None:
         # default_audio_rate should have dtype=int64
@@ -391,6 +394,16 @@ def read_and_decode_audio(
         audio = tfio.audio.resample(
             input=audio, rate_in=default_audio_rate, rate_out=sampling_rate
         )
+        if output_sequence_length is not None:
+            audio = _trim_and_pad_audio(audio, output_sequence_length)
+    return audio
+
+
+def _trim_and_pad_audio(audio, output_sequence_length):
+    audio = audio[:output_sequence_length]
+    padding = output_sequence_length - tf.shape(audio)[0]
+    audio = tf.pad(audio, [[0, padding], [0, 0]])
+    audio.set_shape((output_sequence_length, None))
     return audio
 
 
