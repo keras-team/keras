@@ -1663,3 +1663,633 @@ def angle(x):
     re = cast(re, dtype)
     im = cast(im, dtype)
     return mx.arctan2(im, re)
+
+
+def _to_numpy(*xs):
+    # numpy cannot read mlx bfloat16 arrays, so upcast to float32 first. This
+    # is only used by ops that fall back to numpy for unsupported primitives.
+    out = []
+    for x in xs:
+        if isinstance(x, mx.array) and x.dtype == mx.bfloat16:
+            x = x.astype(mx.float32)
+        out.append(np.asarray(x))
+    return out[0] if len(out) == 1 else out
+
+
+def _np_axis(axis):
+    if isinstance(axis, list):
+        return tuple(axis)
+    return axis
+
+
+def _mlx_result_dtype(dtype):
+    # mlx has no float64 on the default (GPU) device, so the backend never
+    # materializes float64. Mirror the rest of the backend by downcasting any
+    # float64 result to the configured floatx. 64-bit dtypes are excluded from
+    # the dtype test matrix, so this only affects host int64/float64 inputs.
+    if standardize_dtype(dtype) == "float64":
+        return to_mlx_dtype(config.floatx())
+    return to_mlx_dtype(dtype)
+
+
+def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    x1, x2 = _to_numpy(x1, x2)
+    return mx.array(
+        np.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
+    )
+
+
+def array_split(x, indices_or_sections, axis=0):
+    x = convert_to_tensor(x)
+    if axis < 0:
+        axis += x.ndim
+    if isinstance(indices_or_sections, int):
+        n = indices_or_sections
+        if n == 1:
+            return [x]
+        size = x.shape[axis]
+        each, rem = divmod(size, n)
+        split_points = []
+        pos = 0
+        for i in range(n - 1):
+            pos += each + (1 if i < rem else 0)
+            split_points.append(pos)
+        return mx.split(x, split_points, axis=axis)
+    return mx.split(x, indices_or_sections, axis=axis)
+
+
+def cbrt(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ("bool", "int8", "int16", "int32", "uint8", "uint16", "uint32"):
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    return mx.array(np.cbrt(_to_numpy(x))).astype(_mlx_result_dtype(dtype))
+
+
+def corrcoef(x):
+    x = convert_to_tensor(x)
+    sd = standardize_dtype(x.dtype)
+    if sd in ("int64", "float64"):
+        dtype = "float64"
+    elif sd in ("bfloat16", "float16"):
+        dtype = sd
+    else:
+        dtype = config.floatx()
+    return mx.array(np.corrcoef(_to_numpy(x))).astype(_mlx_result_dtype(dtype))
+
+
+def deg2rad(x):
+    x = convert_to_tensor(x)
+    sd = standardize_dtype(x.dtype)
+    if sd in ("int64", "float64"):
+        dtype = "float64"
+    elif sd in ("bfloat16", "float16"):
+        dtype = sd
+    else:
+        dtype = config.floatx()
+    mlx_dtype = _mlx_result_dtype(dtype)
+    x = x.astype(mlx_dtype)
+    return (x * (math.pi / 180.0)).astype(mlx_dtype)
+
+
+def dsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return mx.split(x, indices_or_sections, axis=2)
+
+
+def _atleast_3d(x):
+    if x.ndim == 0:
+        return x.reshape(1, 1, 1)
+    if x.ndim == 1:
+        return x.reshape(1, x.shape[0], 1)
+    if x.ndim == 2:
+        return x.reshape(x.shape[0], x.shape[1], 1)
+    return x
+
+
+def dstack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
+    dtype = _mlx_result_dtype(
+        dtypes.result_type(*[standardize_dtype(x.dtype) for x in xs])
+    )
+    xs = [_atleast_3d(x).astype(dtype) for x in xs]
+    return mx.concatenate(xs, axis=2)
+
+
+def empty_like(x, dtype=None):
+    x = convert_to_tensor(x)
+    dtype = _mlx_result_dtype(dtype or x.dtype)
+    return mx.zeros(x.shape, dtype=dtype)
+
+
+def fabs(x):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if "int" in dtype or dtype == "bool":
+        x = x.astype(_mlx_result_dtype(config.floatx()))
+    return mx.abs(x)
+
+
+def fliplr(x):
+    x = convert_to_tensor(x)
+    return flip(x, axis=1)
+
+
+def flipud(x):
+    x = convert_to_tensor(x)
+    return flip(x, axis=0)
+
+
+def fmax(x1, x2):
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    if "float" in dtype:
+        return mx.where(
+            mx.isnan(x1), x2, mx.where(mx.isnan(x2), x1, mx.maximum(x1, x2))
+        )
+    return mx.maximum(x1, x2)
+
+
+def fmin(x1, x2):
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)), getattr(x2, "dtype", type(x2))
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    if "float" in dtype:
+        return mx.where(
+            mx.isnan(x1), x2, mx.where(mx.isnan(x2), x1, mx.minimum(x1, x2))
+        )
+    return mx.minimum(x1, x2)
+
+
+def fmod(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    mlx_dtype = _mlx_result_dtype(dtype)
+    x1 = x1.astype(mlx_dtype)
+    x2 = x2.astype(mlx_dtype)
+    return mx.array(np.fmod(_to_numpy(x1), _to_numpy(x2))).astype(mlx_dtype)
+
+
+def gcd(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return mx.array(np.gcd(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def geomspace(start, stop, num=50, endpoint=True, dtype=None, axis=0):
+    dtype = dtype or config.floatx()
+    result = np.geomspace(
+        start, stop, num=num, endpoint=endpoint, dtype=dtype, axis=axis
+    )
+    return mx.array(result).astype(_mlx_result_dtype(standardize_dtype(dtype)))
+
+
+def hamming(x):
+    x = convert_to_tensor(x)
+    return mx.array(np.hamming(int(_to_numpy(x)))).astype(
+        _mlx_result_dtype(config.floatx())
+    )
+
+
+def hanning(x):
+    x = convert_to_tensor(x)
+    return mx.array(np.hanning(int(_to_numpy(x)))).astype(
+        _mlx_result_dtype(config.floatx())
+    )
+
+
+def heaviside(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ("int8", "int16", "int32", "uint8", "uint16", "uint32"):
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    return mx.array(np.heaviside(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def hsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    axis = 0 if x.ndim == 1 else 1
+    return mx.split(x, indices_or_sections, axis=axis)
+
+
+def hypot(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    if dtype in ("int8", "int16", "int32", "uint8", "uint16", "uint32"):
+        dtype = config.floatx()
+    elif dtype == "int64":
+        dtype = "float64"
+    return mx.array(np.hypot(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def i0(x):
+    x = convert_to_tensor(x)
+    sd = standardize_dtype(x.dtype)
+    dtype = (
+        "float64"
+        if sd in ("int64", "float64")
+        else dtypes.result_type(x.dtype, float)
+    )
+    x = x.astype(_mlx_result_dtype(dtype))
+    return mx.array(np.i0(_to_numpy(x))).astype(_mlx_result_dtype(dtype))
+
+
+def isin(x1, x2, assume_unique=False, invert=False):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    return mx.array(
+        np.isin(
+            _to_numpy(x1),
+            _to_numpy(x2),
+            assume_unique=assume_unique,
+            invert=invert,
+        )
+    )
+
+
+def isneginf(x):
+    x = convert_to_tensor(x)
+    return mx.array(np.isneginf(_to_numpy(x)))
+
+
+def isposinf(x):
+    x = convert_to_tensor(x)
+    return mx.array(np.isposinf(_to_numpy(x)))
+
+
+def isreal(x):
+    x = convert_to_tensor(x)
+    return mx.array(np.isreal(_to_numpy(x)))
+
+
+def kaiser(x, beta):
+    x = convert_to_tensor(x)
+    beta = float(_to_numpy(convert_to_tensor(beta)))
+    return mx.array(np.kaiser(int(_to_numpy(x)), beta)).astype(
+        _mlx_result_dtype(config.floatx())
+    )
+
+
+def kron(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return mx.array(np.kron(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def lcm(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype)
+    return mx.array(np.lcm(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def ldexp(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
+        raise TypeError(
+            "ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
+        )
+    return mx.array(np.ldexp(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def logaddexp2(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return mx.array(np.logaddexp2(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def nanargmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    xn = _to_numpy(x)
+    if not np.issubdtype(xn.dtype, np.floating):
+        return argmax(x, axis=axis, keepdims=keepdims)
+    nan_mask = np.isnan(xn)
+    result = np.where(
+        np.all(nan_mask, axis=axis, keepdims=keepdims),
+        -1,
+        np.nanargmax(
+            np.where(nan_mask, -np.inf, xn), axis=axis, keepdims=keepdims
+        ).astype("int32"),
+    )
+    return mx.array(result)
+
+
+def nanargmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    xn = _to_numpy(x)
+    if not np.issubdtype(xn.dtype, np.floating):
+        return argmin(x, axis=axis, keepdims=keepdims)
+    nan_mask = np.isnan(xn)
+    result = np.where(
+        np.all(nan_mask, axis=axis, keepdims=keepdims),
+        -1,
+        np.nanargmin(
+            np.where(nan_mask, np.inf, xn), axis=axis, keepdims=keepdims
+        ).astype("int32"),
+    )
+    return mx.array(result)
+
+
+def nancumprod(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    result = np.nancumprod(_to_numpy(x), axis=_np_axis(axis), dtype=dtype)
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nancumsum(x, axis=None, dtype=None):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(dtype or x.dtype)
+    if dtype == "bool":
+        dtype = "int32"
+    result = np.nancumsum(_to_numpy(x), axis=_np_axis(axis), dtype=dtype)
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nanmax(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    result = np.nanmax(_to_numpy(x), axis=_np_axis(axis), keepdims=keepdims)
+    return mx.array(result).astype(x.dtype)
+
+
+def nanmean(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    result = np.nanmean(_to_numpy(x), axis=_np_axis(axis), keepdims=keepdims)
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nanmedian(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(standardize_dtype(x.dtype), float)
+    result = np.nanmedian(_to_numpy(x), axis=_np_axis(axis), keepdims=keepdims)
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nanmin(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    result = np.nanmin(_to_numpy(x), axis=_np_axis(axis), keepdims=keepdims)
+    return mx.array(result).astype(x.dtype)
+
+
+def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype(_mlx_result_dtype(config.floatx()))
+    if "float" in standardize_dtype(x.dtype):
+        dtype = standardize_dtype(x.dtype)
+    else:
+        dtype = config.floatx()
+    result = np.nanpercentile(
+        _to_numpy(x),
+        _to_numpy(q),
+        axis=_np_axis(axis),
+        method=method,
+        keepdims=keepdims,
+    )
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nanprod(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype)
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    result = np.nanprod(
+        _to_numpy(x), axis=_np_axis(axis), keepdims=keepdims, dtype=dtype
+    )
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nanquantile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype(_mlx_result_dtype(config.floatx()))
+    dtype = dtypes.result_type(x.dtype, float)
+    result = np.nanquantile(
+        _to_numpy(x),
+        _to_numpy(q),
+        axis=_np_axis(axis),
+        method=method,
+        keepdims=keepdims,
+    )
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nanstd(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    result = np.nanstd(
+        _to_numpy(x), axis=_np_axis(axis), keepdims=keepdims, dtype=compute_dtype
+    )
+    return mx.array(result).astype(_mlx_result_dtype(result_dtype))
+
+
+def nansum(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    dtype = standardize_dtype(x.dtype)
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
+    result = np.nansum(_to_numpy(x), axis=_np_axis(axis), keepdims=keepdims)
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def nanvar(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    result = np.nanvar(
+        _to_numpy(x), axis=_np_axis(axis), keepdims=keepdims, dtype=compute_dtype
+    )
+    return mx.array(result).astype(_mlx_result_dtype(result_dtype))
+
+
+def nextafter(x1, x2):
+    x1 = convert_to_tensor(x1)
+    x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
+    return mx.array(np.nextafter(_to_numpy(x1), _to_numpy(x2))).astype(
+        _mlx_result_dtype(dtype)
+    )
+
+
+def percentile(x, q, axis=None, method="linear", keepdims=False):
+    x = convert_to_tensor(x)
+    q = convert_to_tensor(q)
+    if standardize_dtype(x.dtype) == "bool":
+        x = x.astype(_mlx_result_dtype(config.floatx()))
+    dtype = dtypes.result_type(x.dtype, float)
+    result = np.percentile(
+        _to_numpy(x),
+        _to_numpy(q),
+        axis=_np_axis(axis),
+        method=method,
+        keepdims=keepdims,
+    )
+    return mx.array(result).astype(_mlx_result_dtype(dtype))
+
+
+def ptp(x, axis=None, keepdims=False):
+    x = convert_to_tensor(x)
+    result = np.ptp(_to_numpy(x), axis=_np_axis(axis), keepdims=keepdims)
+    return mx.array(result).astype(x.dtype)
+
+
+def rad2deg(x):
+    x = convert_to_tensor(x)
+    sd = standardize_dtype(x.dtype)
+    if sd in ("int64", "float64"):
+        dtype = "float64"
+    elif sd in ("bfloat16", "float16"):
+        dtype = sd
+    else:
+        dtype = config.floatx()
+    mlx_dtype = _mlx_result_dtype(dtype)
+    x = x.astype(mlx_dtype)
+    return (x * (180.0 / math.pi)).astype(mlx_dtype)
+
+
+def sinc(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "int64":
+        dtype = config.floatx()
+    else:
+        dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(_mlx_result_dtype(dtype))
+    return mx.array(np.sinc(_to_numpy(x))).astype(_mlx_result_dtype(dtype))
+
+
+def trapezoid(y, x=None, dx=1.0, axis=-1):
+    y = convert_to_tensor(y)
+    result_dtype = dtypes.result_type(y.dtype, float)
+    yn = _to_numpy(y)
+    xn = _to_numpy(convert_to_tensor(x)) if x is not None else None
+    result = np.trapezoid(yn, xn, dx=dx, axis=axis)
+    return mx.array(result).astype(_mlx_result_dtype(result_dtype))
+
+
+def unique(
+    x,
+    sorted=True,
+    return_index=False,
+    return_inverse=False,
+    return_counts=False,
+    axis=None,
+    size=None,
+    fill_value=None,
+):
+    x = convert_to_tensor(x)
+    xn = _to_numpy(x)
+    # np.unique always sorts in versions < 2.3.0. We accept the `sorted`
+    # argument for API consistency but do not forward it to np.unique to
+    # avoid a TypeError on older numpy.
+    output = np.unique(
+        xn,
+        return_index=return_index,
+        return_inverse=return_inverse,
+        return_counts=return_counts,
+        axis=axis,
+        equal_nan=False,
+    )
+
+    if not (return_index or return_inverse or return_counts):
+        output = [output]
+    else:
+        output = list(output)
+
+    values = output[0]
+
+    if size is not None:
+        dim = 0 if axis is None else (axis % x.ndim)
+        values_count = values.shape[dim]
+        if values_count > size:
+            indices = [builtins.slice(None)] * values.ndim
+            indices[dim] = builtins.slice(0, size)
+            values = values[tuple(indices)]
+            if return_counts:
+                output[-1] = output[-1][indices[dim]]
+            if return_index:
+                output[1] = output[1][indices[dim]]
+        elif values_count < size:
+            pad_width = [(0, 0)] * values.ndim
+            pad_width[dim] = (0, size - values_count)
+            fill = 0 if fill_value is None else fill_value
+            values = np.pad(values, pad_width, constant_values=fill)
+            if return_counts:
+                output[-1] = np.pad(
+                    output[-1], pad_width[dim], constant_values=0
+                )
+            if return_index:
+                output[1] = np.pad(output[1], pad_width[dim], constant_values=1)
+
+    output[0] = values
+    output = [mx.array(o) for o in output]
+    return output[0] if len(output) == 1 else tuple(output)
+
+
+def vander(x, N=None, increasing=False):
+    x = convert_to_tensor(x)
+    result_dtype = dtypes.result_type(x.dtype)
+    compute_dtype = dtypes.result_type(x.dtype, config.floatx())
+    x = x.astype(_mlx_result_dtype(compute_dtype))
+    result = np.vander(_to_numpy(x), N=N, increasing=increasing)
+    return mx.array(result).astype(_mlx_result_dtype(result_dtype))
+
+
+def view(x, dtype=None):
+    x = convert_to_tensor(x)
+    xn = _to_numpy(x)
+    if dtype is None:
+        return mx.array(xn)
+    target = standardize_dtype(dtype)
+    return mx.array(xn.view(np.dtype(target)))
+
+
+def vsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return mx.split(x, indices_or_sections, axis=0)
