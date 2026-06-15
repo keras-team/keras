@@ -20,7 +20,6 @@ import collections
 import functools
 import inspect
 import math
-import typing
 import warnings
 from functools import wraps
 from typing import Any
@@ -875,17 +874,6 @@ class Layer(BackendLayer, Operation):
     def symbolic_call(self, *args, **kwargs):
         # Node is created at the end of `__call__` instead of `symbolic_call`.
         return self.compute_output_spec(*args, **kwargs)
-
-    @traceback_utils.filter_traceback
-    @typing.overload
-    def __call__(
-        self, __x: "KerasTensor", *args: Any, **kwargs: Any
-    ) -> "KerasTensor": ...
-
-    @typing.overload
-    def __call__(
-        self, __x: List["KerasTensor"], *args: Any, **kwargs: Any
-    ) -> "KerasTensor": ...
 
     @traceback_utils.filter_traceback
     def __call__(
