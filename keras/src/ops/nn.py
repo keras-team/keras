@@ -2721,12 +2721,20 @@ def _normalize(x, axis=-1, order=2, epsilon=None):
         epsilon = backend.epsilon()
     if 2 == order:
         # A special case: L2 normalization with `x * rsqrt(...)`
-        # instead of `x / sqrt(...)`
+        # instead of `x / sqrt(...)`.
+        # Clamp the squared norm *before* the rsqrt rather than clamping
+        # its output afterwards. `rsqrt(0)` is `inf`, and its derivative
+        # involves `0 * inf = NaN`, so a zero vector produces NaN gradients
+        # that a `minimum` on the output cannot undo (see #23075). Lower-
+        # bounding the input at `epsilon ** 2` keeps the gradient finite and
+        # yields the same value as the previous `minimum(inv_norm, 1/epsilon)`
+        # clamp, since `rsqrt(epsilon ** 2) == 1 / epsilon`.
         square_sum = backend.numpy.sum(
             backend.numpy.square(x), axis=axis, keepdims=True
         )
-        inv_norm = backend.math.rsqrt(square_sum)
-        inv_norm = backend.numpy.minimum(inv_norm, 1.0 / epsilon)
+        inv_norm = backend.math.rsqrt(
+            backend.numpy.maximum(square_sum, epsilon * epsilon)
+        )
         return x * inv_norm
     norm = backend.linalg.norm(x, ord=order, axis=axis, keepdims=True)
     denom = backend.numpy.maximum(norm, epsilon)
