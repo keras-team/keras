@@ -142,10 +142,10 @@ class SKLBase(BaseEstimator):
         return self
 
     def _get_model(self, X, y):
+        if self.warm_start and hasattr(self, "model_"):
+            return self.model_
         if isinstance(self.model, Model):
             if self.warm_start:
-                if hasattr(self, "model_"):
-                    return self.model_
                 return self.model
             return clone_model(self.model)
         else:
