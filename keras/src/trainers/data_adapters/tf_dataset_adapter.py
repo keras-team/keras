@@ -114,10 +114,7 @@ def make_class_weight_map_fn(class_weight):
         }
         max_class = max(class_weight_clean.keys())
         class_weight_tensor = tf.convert_to_tensor(
-            [
-                class_weight_clean.get(c, 1.0)
-                for c in range(max_class + 1)
-            ],
+            [class_weight_clean.get(c, 1.0) for c in range(max_class + 1)],
             dtype=class_weight_dtype,
         )
     else:

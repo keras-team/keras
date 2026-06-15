@@ -38,6 +38,10 @@ class RandomPerspectiveTest(testing.TestCase):
 
         np.random.seed(seed)
         inputs = np.random.randint(0, 255, size=(224, 224, 3))
+        transformation = layer.get_random_transformation(inputs)
+        self.assertAllClose(
+            transformation["start_points"], transformation["end_points"]
+        )
         output = layer(inputs)
         self.assertAllClose(inputs, output)
 
