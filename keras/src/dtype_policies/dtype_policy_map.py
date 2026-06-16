@@ -6,14 +6,16 @@ from keras.src.api_export import keras_export
 from keras.src.dtype_policies import DTypePolicy
 
 # `DTypePolicyMap` keys are matched against layer paths with `re.fullmatch`, and
-# both the keys and the paths come from a (possibly untrusted) model config. An
-# overly long key/path or a nested-quantifier pattern can cause catastrophic
-# regex backtracking (ReDoS, CWE-1333) that hangs `load_model`. Keys are meant
-# to be exact paths or simple `prefix/.*` globs, so we cap their length and
-# reject a group immediately followed by a repeating quantifier (`)` then `*`,
-# `+`, or `{`) -- the construct behind exponential backtracking.
+# both keys and paths come from a (possibly untrusted) model config, so a
+# crafted key can cause catastrophic regex backtracking (ReDoS, CWE-1333) that
+# hangs `load_model`. Keys are documented to be only exact layer paths or a
+# simple `prefix/.*` glob, so we enforce that contract with an allowlist: a key
+# must be a run of path characters, optionally ending in `.*` (or be `.*`
+# itself). This admits every legitimate key while making any backtracking-prone
+# construct impossible. The allowlist regex itself is linear (one quantifier
+# over a character class), so validation cannot be turned into a ReDoS.
 _MAX_DTYPE_POLICY_KEY_LENGTH = 256
-_NESTED_QUANTIFIER_RE = re.compile(r"\)[*+{]")
+_SAFE_KEY_RE = re.compile(r"^(?:[a-zA-Z0-9_./-]+(?:\.\*)?|\.\*)$")
 
 
 def _validate_dtype_policy_map_key(key):
@@ -27,11 +29,13 @@ def _validate_dtype_policy_map_key(key):
             "against layer paths; an overly long key can cause catastrophic "
             "backtracking when loading a model."
         )
-    if _NESTED_QUANTIFIER_RE.search(key):
+    if not _SAFE_KEY_RE.match(key):
         raise ValueError(
-            f"Unsafe `DTypePolicyMap` key '{key}': a group followed by a "
-            "repeating quantifier can cause catastrophic regular-expression "
-            "backtracking (ReDoS). Use an exact path or a `prefix/.*` pattern."
+            f"Unsafe or invalid `DTypePolicyMap` key '{key}'. Keys must be "
+            "exact paths (alphanumeric characters, underscores, slashes, "
+            "hyphens, or dots) or a simple prefix pattern ending in `.*`, so "
+            "that matching them cannot cause regular-expression backtracking "
+            "(ReDoS)."
         )
 
 
