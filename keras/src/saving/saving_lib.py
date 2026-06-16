@@ -1172,6 +1172,12 @@ def safe_get_h5_group(parent, name):
 # this; shape/decompression bombs, which store next to nothing, do not.
 _H5_DATASET_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
 _H5_DATASET_MAX_EXPANSION = 1000
+# Floor for the *cumulative* (whole-file) guard below. Genuine HDF5 weight
+# files store their arrays uncompressed, so their total declared size tracks
+# the on-disk size (ratio ~1); only a bomb declares far more than is stored.
+# A much lower floor than the per-dataset one lets the cumulative guard also
+# catch a single sub-4 GiB dataset that the per-dataset floor would miss.
+_H5_CUMULATIVE_BOMB_FLOOR_BYTES = 1 << 26  # 64 MiB
 
 
 def safe_get_h5_dataset(group, name):
@@ -1227,8 +1233,9 @@ def reject_h5_shape_bomb(h5_file):
     `load_subset_weights_from_hdf5_group` materializes every weight of a layer
     at once). This bounds the *cumulative* in-memory size of all datasets in
     the file against the bytes actually stored on disk, using the same
-    expansion ratio, so a tiny file cannot force an unbounded allocation
-    (CWE-789 / CWE-409).
+    expansion ratio. Because genuine weight files are uncompressed (declared
+    size ~= file size), this also catches a single dataset that declares just
+    under the per-dataset 4 GiB floor (CWE-789 / CWE-409).
     """
     try:
         file_size = h5_file.id.get_filesize()
@@ -1236,21 +1243,24 @@ def reject_h5_shape_bomb(h5_file):
         # If we cannot determine the on-disk size, skip the cumulative check
         # rather than break loading; the per-dataset guard still applies.
         return
-    limit = max(
-        _H5_DATASET_BOMB_FLOOR_BYTES,
-        _H5_DATASET_MAX_EXPANSION * file_size,
-    )
+    if file_size <= 0:
+        return
     total_declared = 0
 
     def _accumulate(_name, obj):
         nonlocal total_declared
-        if isinstance(obj, h5py.Dataset):
+        # A null-dataspace dataset has `shape is None`; skip it (`math.prod`
+        # would raise on `None`).
+        if isinstance(obj, h5py.Dataset) and obj.shape is not None:
             total_declared += math.prod(obj.shape) * obj.dtype.itemsize
 
     # `visititems` only walks hard-linked datasets; external/soft links are
     # rejected separately by `safe_get_h5_dataset` when they are accessed.
     h5_file.visititems(_accumulate)
-    if total_declared > limit:
+    if (
+        total_declared > _H5_CUMULATIVE_BOMB_FLOOR_BYTES
+        and total_declared > _H5_DATASET_MAX_EXPANSION * file_size
+    ):
         raise ValueError(
             "Not allowed: the HDF5 file declares "
             f"{readable_memory_size(total_declared)} of array data but only "
@@ -1296,13 +1306,10 @@ class H5IOStore:
         self.archive = archive
         self.io_file = None
 
-        # Init H5 file.
+        # Init H5 file. `_get_h5_file` applies `reject_h5_shape_bomb` on every
+        # read-mode open, so it also covers `ShardedH5IOStore`'s lazily opened
+        # shards (which never call this `__init__`).
         self.h5_file = self._get_h5_file(self.path_or_io)
-
-        # Reject a file whose datasets jointly declare far more than is stored
-        # (a cumulative shape bomb that evades the per-dataset floor).
-        if self.mode == "r":
-            reject_h5_shape_bomb(self.h5_file)
 
         # Init H5 entry group.
         self._h5_entry_path = None
@@ -1326,9 +1333,14 @@ class H5IOStore:
                 self.io_file = io.BytesIO()
             else:
                 self.io_file = self.archive.open(str(path_or_io), "r")
-            return h5py.File(self.io_file, mode=mode)
+            h5_file = h5py.File(self.io_file, mode=mode)
         else:
-            return h5py.File(path_or_io, mode=mode)
+            h5_file = h5py.File(path_or_io, mode=mode)
+        if mode == "r":
+            # Guard every read-mode open (covers `H5IOStore`, sharded shards
+            # opened lazily by `ShardedH5IOStore`, and shard switching).
+            reject_h5_shape_bomb(h5_file)
+        return h5_file
 
     def make(self, path, metadata=None):
         """Make a new H5 entry group.
