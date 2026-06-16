@@ -558,11 +558,13 @@ class FeatureSpace(Layer):
         # Handle layers without state-update hooks separately.
         # Let's check which adaptable preprocessors have `update_state`
         stateful_preprocessors = [
-            name for name in adaptable_preprocessors
+            name
+            for name in adaptable_preprocessors
             if hasattr(self.preprocessors[name], "update_state")
         ]
         stateless_adapt_preprocessors = [
-            name for name in adaptable_preprocessors
+            name
+            for name in adaptable_preprocessors
             if not hasattr(self.preprocessors[name], "update_state")
         ]
 
