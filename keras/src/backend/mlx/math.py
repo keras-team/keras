@@ -1,10 +1,13 @@
 import math
 
 import mlx.core as mx
+import numpy as np
 
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.mlx.core import convert_to_tensor
+from keras.src.backend.mlx.core import to_mlx_dtype
 from keras.src.backend.mlx.linalg import det
 from keras.src.utils.module_utils import scipy
 
@@ -20,7 +23,9 @@ def _segment_reduction_fn(
         data = data.astype(mx.int32)
 
     if num_segments is None:
-        num_segments = mx.max(segment_ids) + 1
+        num_segments = int(mx.max(segment_ids).item()) + 1
+    else:
+        num_segments = int(num_segments)
 
     mask = segment_ids >= 0
     # pack segment_ids < 0 into index 0 and then handle below
@@ -39,10 +44,25 @@ def _segment_reduction_fn(
     data_shape = list(data.shape)
     data_shape[0] = num_segments
 
+    is_int = "int" in standardize_dtype(data.dtype)
+
     if reduction_method == "max":
-        masked_data = mx.where(mask, data, -mx.inf)
-        result = mx.ones(data_shape, dtype=data.dtype) * -mx.inf
+        # -inf overflows when cast to an integer dtype, so use the dtype min.
+        fill = (
+            np.iinfo(standardize_dtype(data.dtype)).min if is_int else -mx.inf
+        )
+        masked_data = mx.where(mask, data, fill)
+        result = mx.full(data_shape, fill, dtype=data.dtype)
         result = result.at[safe_segment_ids].maximum(masked_data)
+    elif reduction_method == "min":
+        fill = np.iinfo(standardize_dtype(data.dtype)).max if is_int else mx.inf
+        masked_data = mx.where(mask, data, fill)
+        result = mx.full(data_shape, fill, dtype=data.dtype)
+        result = result.at[safe_segment_ids].minimum(masked_data)
+    elif reduction_method == "prod":
+        masked_data = mx.where(mask, data, 1)
+        result = mx.ones(data_shape, dtype=data.dtype)
+        result = result.at[safe_segment_ids].multiply(masked_data)
     else:  # sum
         masked_data = mx.where(mask, data, 0)
         result = mx.zeros(data_shape, dtype=data.dtype)
@@ -57,6 +77,39 @@ def segment_sum(data, segment_ids, num_segments=None, sorted=False):
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
     return _segment_reduction_fn(data, segment_ids, "max", num_segments, sorted)
+
+
+def segment_min(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(data, segment_ids, "min", num_segments, sorted)
+
+
+def segment_prod(data, segment_ids, num_segments=None, sorted=False):
+    return _segment_reduction_fn(
+        data, segment_ids, "prod", num_segments, sorted
+    )
+
+
+def cdist(x, y):
+    x = convert_to_tensor(x)
+    y = convert_to_tensor(y)
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError("`cdist` inputs must have rank >= 2")
+    if x.shape[-1] != y.shape[-1]:
+        raise ValueError("Last dimension of inputs to `cdist` must match")
+    diff = mx.expand_dims(x, axis=-2) - mx.expand_dims(y, axis=-3)
+    return mx.sqrt(mx.sum(diff * diff, axis=-1))
+
+
+def erfc(x):
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    # mlx has no erfc primitive. Fall back to scipy, which keeps tail accuracy
+    # that a naive 1 - erf(x) would lose.
+    if x.dtype == mx.bfloat16:
+        x = x.astype(mx.float32)
+    return mx.array(scipy.special.erfc(np.asarray(x))).astype(
+        to_mlx_dtype(dtype)
+    )
 
 
 def top_k(x, k, sorted=True):
