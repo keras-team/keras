@@ -2123,7 +2123,10 @@ def nanstd(x, axis=None, keepdims=False):
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     result_dtype = dtypes.result_type(x.dtype, float)
     result = np.nanstd(
-        _to_numpy(x), axis=_np_axis(axis), keepdims=keepdims, dtype=compute_dtype
+        _to_numpy(x),
+        axis=_np_axis(axis),
+        keepdims=keepdims,
+        dtype=compute_dtype,
     )
     return mx.array(result).astype(_mlx_result_dtype(result_dtype))
 
@@ -2144,7 +2147,10 @@ def nanvar(x, axis=None, keepdims=False):
     compute_dtype = dtypes.result_type(x.dtype, "float32")
     result_dtype = dtypes.result_type(x.dtype, float)
     result = np.nanvar(
-        _to_numpy(x), axis=_np_axis(axis), keepdims=keepdims, dtype=compute_dtype
+        _to_numpy(x),
+        axis=_np_axis(axis),
+        keepdims=keepdims,
+        dtype=compute_dtype,
     )
     return mx.array(result).astype(_mlx_result_dtype(result_dtype))
 
