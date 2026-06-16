@@ -1770,6 +1770,44 @@ class SafeGetH5DatasetTest(testing.TestCase):
         with self.assertRaises(ValueError):
             reloaded.load_weights(good_path)
 
+    def _cumulative_bomb_file(self):
+        """Several datasets, each just under the 4 GiB per-dataset floor and
+        storing ~nothing, that jointly declare far more than is stored."""
+        path = os.path.join(self.get_temp_dir(), "cumulative_bomb.h5")
+        elems = (3 << 30) // 4  # 3 GiB of float32 each, below the 4 GiB floor
+        with h5py.File(path, "w") as f:
+            g = f.create_group("layer")
+            for i in range(3):  # 9 GiB declared total
+                g.create_dataset(
+                    f"w{i}",
+                    shape=(elems,),
+                    dtype="float32",
+                    chunks=(1 << 20,),
+                    compression="gzip",
+                    fillvalue=0.0,
+                )
+        return path
+
+    def test_rejects_cumulative_shape_bomb_under_floor(self):
+        path = self._cumulative_bomb_file()
+        self.assertLess(os.path.getsize(path), 1 << 20)  # tiny file on disk
+        with h5py.File(path, "r") as f:
+            # Each dataset is below the per-dataset floor, so the per-dataset
+            # guard passes; the cumulative guard must still reject the file.
+            for name in ("w0", "w1", "w2"):
+                saving_lib.safe_get_h5_dataset(f["layer"], name)
+            with self.assertRaisesRegex(ValueError, "shape bomb"):
+                saving_lib.reject_h5_shape_bomb(f)
+
+    def test_does_not_reject_genuine_weights(self):
+        model = keras.Sequential(
+            [keras.Input((16,)), keras.layers.Dense(64), keras.layers.Dense(8)]
+        )
+        path = os.path.join(self.get_temp_dir(), "good.weights.h5")
+        model.save_weights(path)
+        with h5py.File(path, "r") as f:
+            saving_lib.reject_h5_shape_bomb(f)  # must not raise
+
 
 class SavingDiskIOStoreTest(testing.TestCase):
     def test_disk_io_store_rejects_path_traversal(self):

@@ -1218,6 +1218,47 @@ def safe_get_h5_dataset(group, name):
     return dataset
 
 
+def reject_h5_shape_bomb(h5_file):
+    """Guard against an HDF5 file that is a cumulative shape bomb.
+
+    `safe_get_h5_dataset` bounds a *single* dataset, but its per-dataset floor
+    can be evaded by many datasets that each declare just under the floor while
+    storing almost nothing, and that are then read into memory together (e.g.
+    `load_subset_weights_from_hdf5_group` materializes every weight of a layer
+    at once). This bounds the *cumulative* in-memory size of all datasets in
+    the file against the bytes actually stored on disk, using the same
+    expansion ratio, so a tiny file cannot force an unbounded allocation
+    (CWE-789 / CWE-409).
+    """
+    try:
+        file_size = h5_file.id.get_filesize()
+    except Exception:
+        # If we cannot determine the on-disk size, skip the cumulative check
+        # rather than break loading; the per-dataset guard still applies.
+        return
+    limit = max(
+        _H5_DATASET_BOMB_FLOOR_BYTES,
+        _H5_DATASET_MAX_EXPANSION * file_size,
+    )
+    total_declared = 0
+
+    def _accumulate(_name, obj):
+        nonlocal total_declared
+        if isinstance(obj, h5py.Dataset):
+            total_declared += math.prod(obj.shape) * obj.dtype.itemsize
+
+    # `visititems` only walks hard-linked datasets; external/soft links are
+    # rejected separately by `safe_get_h5_dataset` when they are accessed.
+    h5_file.visititems(_accumulate)
+    if total_declared > limit:
+        raise ValueError(
+            "Not allowed: the HDF5 file declares "
+            f"{readable_memory_size(total_declared)} of array data but only "
+            f"{readable_memory_size(file_size)} are stored on disk; "
+            "refusing to load a potential decompression/shape bomb."
+        )
+
+
 class H5IOStore:
     """Numerical variable store backed by HDF5.
 
@@ -1257,6 +1298,11 @@ class H5IOStore:
 
         # Init H5 file.
         self.h5_file = self._get_h5_file(self.path_or_io)
+
+        # Reject a file whose datasets jointly declare far more than is stored
+        # (a cumulative shape bomb that evades the per-dataset floor).
+        if self.mode == "r":
+            reject_h5_shape_bomb(self.h5_file)
 
         # Init H5 entry group.
         self._h5_entry_path = None
