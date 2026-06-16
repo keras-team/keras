@@ -12,6 +12,7 @@ from keras.src.legacy.saving import saving_options
 from keras.src.legacy.saving import saving_utils
 from keras.src.saving import object_registration
 from keras.src.saving import serialization_lib
+from keras.src.saving.saving_lib import reject_h5_shape_bomb
 from keras.src.saving.saving_lib import safe_get_h5_dataset
 from keras.src.saving.saving_lib import safe_get_h5_group
 from keras.src.utils import io_utils
@@ -342,6 +343,7 @@ def load_weights_from_hdf5_group(group, model, skip_mismatch=False):
         ValueError: in case of mismatch between provided layers
             and weights file.
     """
+    reject_h5_shape_bomb(group.file)
     if "keras_version" in group.attrs:
         original_keras_version = group.attrs["keras_version"]
         if hasattr(original_keras_version, "decode"):
@@ -486,6 +488,7 @@ def load_weights_from_hdf5_group_by_name(group, model, skip_mismatch=False):
         ValueError: in case of mismatch between provided layers
             and weights file and skip_match=False.
     """
+    reject_h5_shape_bomb(group.file)
     if "keras_version" in group.attrs:
         original_keras_version = group.attrs["keras_version"]
         if hasattr(original_keras_version, "decode"):
