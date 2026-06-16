@@ -123,6 +123,24 @@ class DTypePolicyMapTest(testing.TestCase):
         ):
             dtype_policy_map["layer/dense_3"] = 123
 
+    def test_rejects_redos_pattern_key(self):
+        # Keys are matched as regexes against layer paths while loading a model,
+        # so a nested-quantifier pattern (or an overly long key) could cause
+        # catastrophic backtracking (ReDoS) on an untrusted config.
+        policy = dtype_policies.DTypePolicy("float16")
+        with self.assertRaisesRegex(ValueError, "ReDoS"):
+            DTypePolicyMap()["(a+)+$"] = policy
+        # The deserialization path passes `policy_map` straight to `__init__`.
+        with self.assertRaisesRegex(ValueError, "ReDoS"):
+            DTypePolicyMap(policy_map={"(a+)+$": policy})
+        with self.assertRaisesRegex(ValueError, "at most"):
+            DTypePolicyMap()["a" * 1000] = policy
+        # Exact paths and simple `prefix/.*` globs are still accepted.
+        dtype_policy_map = DTypePolicyMap()
+        dtype_policy_map["encoder/.*"] = policy
+        dtype_policy_map["model/encoder/layer_0/dense"] = policy
+        self.assertLen(dtype_policy_map, 2)
+
     def test_get(self):
         # 1. Setup
         bfloat16_policy = dtype_policies.DTypePolicy("bfloat16")
