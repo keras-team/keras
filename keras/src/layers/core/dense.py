@@ -129,10 +129,8 @@ class Dense(Layer):
                 mode=self.quantization_mode,
                 config=self.quantization_config,
             )
-        if self.quantization_mode not in ("int8", "int4", "gptq", "awq"):
-            # If the layer is quantized to int8 or int4, `self._kernel` will be
-            # added in `self._int8_build` or `_int4_build`. Therefore, we skip
-            # it here.
+        if self.quantization_mode not in ("int8", "int4", "gptq", "awq", "ternary"):
+            # Quantized modes manage their own weight storage in quantized_build.
             self._kernel = self.add_weight(
                 name="kernel",
                 shape=kernel_shape,
@@ -176,6 +174,11 @@ class Dense(Layer):
 
         # Decide the source tensor first (packed vs already-quantized vs plain
         # kernel)
+        if mode == "ternary":
+            # Ternary: unpack to int8 {-1, 0, +1} float view.
+            return quantizers.unpack_ternary(
+                self._packed_kernel, self._orig_input_dim, axis=0
+            )
         if is_gptq and gptq_calibrated and gptq_bits != 4:
             # calibrated GPTQ, not 4-bit, no unpacking needed
             kernel = self.quantized_kernel
@@ -310,7 +313,10 @@ class Dense(Layer):
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
-                store[str(idx)] = kernel_value
+                if mode == "ternary":
+                    store[str(idx)] = self._packed_kernel
+                else:
+                    store[str(idx)] = kernel_value
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero":
@@ -348,7 +354,10 @@ class Dense(Layer):
         idx = 0
         for name in self.variable_serialization_spec[mode]:
             if name == "kernel":
-                self._kernel.assign(store[str(idx)])
+                if mode == "ternary":
+                    self._packed_kernel.assign(store[str(idx)])
+                else:
+                    self._kernel.assign(store[str(idx)])
             elif name == "bias" and self.bias is None:
                 continue
             elif name == "kernel_zero" and not hasattr(self, "kernel_zero"):
@@ -412,6 +421,11 @@ class Dense(Layer):
                 "kernel",
                 "bias",
             ],
+            "ternary": [
+                "kernel",
+                "bias",
+                "kernel_scale",
+            ],
             "int8": [
                 "kernel",
                 "bias",
@@ -458,6 +472,8 @@ class Dense(Layer):
             self._int4_build(kernel_shape, config)
         elif mode == "float8":
             self._float8_build()
+        elif mode == "ternary":
+            self._ternary_build(kernel_shape)
         elif mode == "gptq":
             self._gptq_build(kernel_shape, config)
         elif mode == "awq":
@@ -465,6 +481,26 @@ class Dense(Layer):
         else:
             raise self._quantization_mode_error(mode)
         self._is_quantized = True
+
+    def _ternary_build(self, kernel_shape):
+        input_dim, units = kernel_shape
+        # Five trits per byte (3^5 == 243 <= 256): ceil(input_dim / 5) rows.
+        packed_rows = (input_dim + 4) // 5
+        self._packed_kernel = self.add_weight(
+            name="kernel",
+            shape=(packed_rows, units),
+            initializer="zeros",
+            dtype="uint8",
+            trainable=False,
+        )
+        # Scalar BitNet b1.58 beta scale; 1.0 in fixed-threshold mode.
+        self.kernel_scale = self.add_weight(
+            name="kernel_scale",
+            shape=(),
+            initializer="ones",
+            trainable=False,
+        )
+        self._orig_input_dim = input_dim
 
     def _int8_build(self, kernel_shape, config=None):
         self.inputs_quantizer = (
@@ -661,6 +697,26 @@ class Dense(Layer):
         if self.activation is not None:
             y = self.activation(y)
         return y
+
+    def _ternary_call(self, inputs):
+        # Sparseskip inference. The kernel trits are {-1, 0, +1}; we split into
+        # two boolean masks so both matmuls reduce to additions only, with zero
+        # weights skipped entirely. No float multiplies on kernel values.
+        k = quantizers.unpack_ternary(
+            self._packed_kernel, self._orig_input_dim, axis=0
+        )
+        pos = ops.cast(ops.equal(k, 1), self.compute_dtype)
+        neg = ops.cast(ops.equal(k, -1), self.compute_dtype)
+        x = ops.subtract(
+            ops.matmul(inputs, pos),
+            ops.matmul(inputs, neg),
+        )
+        x = ops.multiply(x, ops.cast(self.kernel_scale, self.compute_dtype))
+        if self.bias is not None:
+            x = ops.add(x, self.bias)
+        if self.activation is not None:
+            x = self.activation(x)
+        return x
 
     def _int4_build(self, kernel_shape, config=None):
         """Build variables for int4 quantization.
@@ -1036,7 +1092,24 @@ class Dense(Layer):
         self.quantization_config = config
 
         kernel_shape = self._kernel.shape
-        if mode == "int8":
+        if mode == "ternary":
+            # BitNet b1.58 rule: threshold = 0.5 * mean(|W|), beta = mean(|W|).
+            kernel_np = ops.convert_to_numpy(self._kernel)
+            abs_k = ops.convert_to_numpy(ops.abs(self._kernel))
+            t = float(ops.convert_to_numpy(ops.mean(abs_k))) * 0.5
+            import numpy as _np
+            kernel_ternary = (
+                _np.sign(kernel_np) * (abs_k > t).astype(kernel_np.dtype)
+            )
+            beta = float(_np.mean(abs_k))
+            packed_kernel, _, _ = quantizers.pack_ternary(
+                kernel_ternary, axis=0
+            )
+            del self._kernel
+            self.quantized_build(kernel_shape, mode=mode)
+            self._packed_kernel.assign(packed_kernel)
+            self.kernel_scale.assign(beta)
+        elif mode == "int8":
             weight_quantizer = QuantizationConfig.weight_quantizer_or_default(
                 self.quantization_config, quantizers.AbsMaxQuantizer(axis=0)
             )
@@ -1153,6 +1226,8 @@ class Dense(Layer):
         """
         if self.dtype_policy.quantization_mode in (None, "gptq", "awq"):
             return self.kernel, None, None
+        if self.dtype_policy.quantization_mode == "ternary":
+            return self._packed_kernel, None, None
 
         kernel_value = self._kernel
         kernel_scale = self.kernel_scale

@@ -11,13 +11,13 @@ from keras.src.layers.layer import Layer
 
 @keras_export("keras.layers.TernaryDense")
 class TernaryDense(Layer):
-    """A densely-connected layer with weights quantized to {-1, 0, +1}.
+    """Densely-connected layer with Straight-Through Estimator ternary training.
 
-    Drop-in replacement for `Dense` for ternary-weight models (BitNet b1.58
-    and successors). On every forward pass the kernel is quantized to
-    `{-1, 0, +1}` before the matrix multiply; the underlying float weights
-    remain trainable so that gradient-based optimizers can update them between
-    steps.
+    Trains a dense layer whose weights are constrained to `{-1, 0, +1}` via a
+    Straight-Through Estimator (STE). On every forward pass the float kernel is
+    ternarized before the matrix multiply; gradients flow back through the
+    quantization step as if it were the identity, keeping the underlying float
+    weights trainable.
 
     Quantization rule (BitNet b1.58, https://arxiv.org/abs/2402.17764 §3.1):
 
@@ -29,16 +29,18 @@ class TernaryDense(Layer):
 
     where `threshold` defaults to `0.5 * mean(|kernel|)` and `beta =
     mean(|kernel|)` per forward pass (both per the BitNet b1.58 §3.1 spec).
-    Gradients flow through the quantization step via a Straight-Through
-    Estimator (STE), keeping the underlying float kernel trainable.
 
-    For export and inference, call `layer.quantize("ternary")` after training.
-    This replaces the float kernel with a packed representation that stores the
-    `{-1, 0, +1}` weights at the information-theoretic floor of `log2(3) ~=
-    1.58` bits/value: five trits are packed into each byte, since
-    `3 ** 5 == 243 <= 256`. The result is ~1.6 bits/weight on disk, denser than
-    int4 (4 bits) or int8 (8 bits) can express, and lossless (the exact
-    ternary values are recovered). Inference then runs from the packed kernel.
+    For post-training quantization of a regular `Dense` layer (no STE), use
+    `keras.layers.Dense` with `layer.quantize("ternary")` instead. That path
+    packs the trained float kernel to `~1.58 bits/weight` and runs inference
+    via the sparseskip kernel (zero weights skipped, ±1 weights as
+    additions/subtractions, no float multiplies).
+
+    Call `layer.quantize("ternary")` on a `TernaryDense` after training to
+    freeze the ternarized kernel into the same packed format and switch to the
+    sparseskip inference path. The packed representation stores `{-1, 0, +1}`
+    weights at the information-theoretic floor of `log2(3) ~= 1.58` bits/value:
+    five trits per byte (`3 ** 5 == 243 <= 256`), denser than int4 or int8.
 
     Args:
         units: Positive integer, dimensionality of the output space.
@@ -221,11 +223,18 @@ class TernaryDense(Layer):
         self._orig_input_dim = input_dim
 
     def _ternary_call(self, inputs):
-        kernel = quantizers.unpack_ternary(
+        # Sparseskip inference: split into pos (+1) and neg (-1) boolean masks.
+        # Zero weights are skipped; ±1 weights become additions/subtractions
+        # with no float multiplies on kernel values.
+        k = quantizers.unpack_ternary(
             self._packed_kernel, self._orig_input_dim, axis=0
         )
-        kernel = ops.cast(kernel, self.compute_dtype)
-        x = ops.matmul(inputs, kernel)
+        pos = ops.cast(ops.equal(k, 1), self.compute_dtype)
+        neg = ops.cast(ops.equal(k, -1), self.compute_dtype)
+        x = ops.subtract(
+            ops.matmul(inputs, pos),
+            ops.matmul(inputs, neg),
+        )
         x = ops.multiply(x, ops.cast(self.kernel_scale, self.compute_dtype))
         if self.bias is not None:
             x = ops.add(x, self.bias)
