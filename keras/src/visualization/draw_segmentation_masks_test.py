@@ -20,6 +20,7 @@ class DrawSegmentationMasksTest(testing.TestCase):
             num_classes=3,
             color_mapping={0: [10, 10, 10], 1: [255, 0, 0], 2: [0, 255, 0]},
             blend=False,
+            data_format="channels_last",
         )
         self.assertEqual(out.shape, (1, 2, 2, 3))
 
@@ -31,6 +32,10 @@ class DrawSegmentationMasksTest(testing.TestCase):
         images = np.zeros((1, 2, 2, 3), dtype="uint8")
         masks = np.array([[[1, 2], [0, 2]]], dtype="int32")[..., None]
         out = draw_segmentation_masks(
-            images, masks, num_classes=None, blend=False
+            images,
+            masks,
+            num_classes=None,
+            blend=False,
+            data_format="channels_last",
         )
         self.assertEqual(out.shape, (1, 2, 2, 3))
