@@ -1,11 +1,3 @@
-"""Tests for multi-process distribution with Jax backend.
-
-These tests are designed to work in both internal Google3 environments
-(multi-process setup) and open-source environments (e.g. GitHub Actions,
-local) with single-host setup by dynamically detecting available devices
-and computing mesh shapes.
-"""
-
 import jax
 import numpy as np
 import pytest
@@ -20,19 +12,9 @@ from keras.src.backend.jax import distribution_lib as jax_distribution_lib
 from keras.src.distribution import distribution_lib
 from keras.src.utils import rng_utils
 
-# Try to import the internal Google3 multiprocess harness.
-# If unavailable, fall back to a stub class.
-try:
-    from google3.learning.brain.research.jax.tests.multiprocess import (
-        multiprocess_test,
-    )
 
-    MultiProcessTest = multiprocess_test.MultiProcessTest
-except ImportError:
-    multiprocess_test = None
-
-    class MultiProcessTest:
-        pass
+class MultiProcessTest:
+    pass
 
 
 @pytest.mark.multi_device
@@ -43,6 +25,16 @@ class JaxMultiProcessDistributeTest(
     def setUp(self):
         # We need a consistent seed across all processes.
         rng_utils.set_random_seed(1234)
+
+        num_processes = jax.process_count()
+        num_devices = jax.device_count()
+        local_devices = jax.local_device_count()
+
+        # In the internal multi-process environment, we expect a specific count.
+        if num_processes > 1:
+            self.assertEqual(num_processes, 4)
+            self.assertEqual(num_devices, 8)
+            self.assertEqual(local_devices, 2)
 
     def test_list_device(self):
         devices = distribution_lib.list_devices()
@@ -58,19 +50,14 @@ class JaxMultiProcessDistributeTest(
         num_devices = jax.device_count()
         local_devices = jax.local_device_count()
 
-        # In the internal multi-process environment, we expect a specific count.
-        if num_processes > 1:
-            self.assertEqual(num_processes, 4)
-            self.assertEqual(num_devices, 8)
-            self.assertEqual(local_devices, 2)
-
         global_shape = (8, 4)
         kernel = np.arange(np.prod(global_shape)).reshape(global_shape)
 
         axis_names = ["batch", "model"]
+        model_dim = min(kernel.shape[1], num_devices // num_processes)
         jax_mesh = jax.sharding.Mesh(
             np.array(jax.devices()).reshape(
-                num_processes, num_devices // num_processes
+                num_devices // model_dim, model_dim
             ),
             axis_names,
         )
@@ -105,8 +92,6 @@ class JaxMultiProcessDistributeTest(
 
     def test_dataset_distribution_data_parallel(self):
         num_processes = jax.process_count()
-        if num_processes > 1:
-            self.assertEqual(num_processes, 4)
 
         # Create a dataset with range, so that we can verify the numerical
         # correctness.
@@ -146,9 +131,6 @@ class JaxMultiProcessDistributeTest(
         num_processes = jax.process_count()
         num_devices = jax.device_count()
         local_devices = jax.local_device_count()
-
-        if num_processes > 1:
-            self.assertEqual(num_processes, 4)
 
         # Ensure model_dim doesn't exceed available devices.
         model_dim = min(model_dim, num_devices)
@@ -271,4 +253,4 @@ class JaxMultiProcessDistributeTest(
 
 
 if __name__ == "__main__":
-    multiprocess_test.main()
+    pytest.main([__file__])
