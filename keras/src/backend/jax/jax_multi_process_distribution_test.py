@@ -28,10 +28,8 @@ try:
     )
 
     MultiProcessTest = multiprocess_test.MultiProcessTest
-    _HAS_GOOGLE3_MULTIPROCESS = True
 except ImportError:
     multiprocess_test = None
-    _HAS_GOOGLE3_MULTIPROCESS = False
 
     class MultiProcessTest:
         pass
