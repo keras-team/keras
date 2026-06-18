@@ -605,7 +605,7 @@ def save_weights_only(
     finally:
         if tmp_dir is not None:
             file_utils.copy(filepath, remote_filepath)
-            shutil.rmtree(tmp_dir)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def load_weights_only(
@@ -667,7 +667,7 @@ def load_weights_only(
             _raise_loading_failure(error_msgs, warn_only=skip_mismatch)
     finally:
         if tmp_dir is not None:
-            shutil.rmtree(tmp_dir)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def _raise_loading_failure(error_msgs, warn_only=False):
