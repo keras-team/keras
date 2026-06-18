@@ -883,37 +883,6 @@ def _container_path_present(weights_store, assets_store, path):
     )
 
 
-def _container_has_unvisited_saveables(container, visited_saveables, seen=None):
-    """True if `container` transitively holds an unvisited `KerasSaveable`.
-
-    A container can show up in the in-memory traversal even when its state
-    has no corresponding group in the saved file — either because it holds
-    no `KerasSaveable` at all (e.g. lists of strings inside
-    `variable_serialization_spec`), or because every saveable in it was
-    already loaded via another path (e.g. `_operations_by_depth` mirrors
-    the `layers` collection that's loaded first). In neither case is a
-    missing group an error worth warning about.
-    """
-    from keras.src.saving.keras_saveable import KerasSaveable
-
-    if seen is None:
-        seen = set()
-    if id(container) in seen:
-        return False
-    seen.add(id(container))
-    if isinstance(container, dict):
-        container = container.values()
-    for item in container:
-        if isinstance(item, KerasSaveable):
-            if visited_saveables is None or id(item) not in visited_saveables:
-                return True
-        elif isinstance(
-            item, (list, dict, tuple)
-        ) and _container_has_unvisited_saveables(item, visited_saveables, seen):
-            return True
-    return False
-
-
 def _save_container_state(
     container,
     weights_store,
@@ -1007,15 +976,32 @@ def _load_container_state(
             if not _container_path_present(
                 weights_store, assets_store, nested_path
             ):
-                # Only warn when the in-memory container would actually have
-                # contributed loadable state — i.e. it transitively holds at
-                # least one `KerasSaveable`. Containers of pure metadata
-                # (e.g. lists of strings inside `variable_serialization_spec`)
-                # have nothing to load and a missing group there is expected,
-                # not an error.
-                if _container_has_unvisited_saveables(
-                    saveable, visited_saveables
-                ):
+                # The container's group is missing from the saved file.
+                # Try to load it recursively anyway with `skip_mismatch=True`,
+                # then warn only if doing so produced new failures — i.e. the
+                # container genuinely held an unvisited `KerasSaveable` that
+                # needed loading. This silently skips two benign cases:
+                #   - Containers of pure metadata (e.g. lists of strings in
+                #     `variable_serialization_spec`).
+                #   - Containers that mirror already-loaded saveables (e.g.
+                #     a Functional model's `_operations_by_depth` whose
+                #     items are also in the `layers` collection).
+                tracked_failures = (
+                    failed_saveables if failed_saveables is not None else set()
+                )
+                failed_before = len(tracked_failures)
+                _load_container_state(
+                    saveable,
+                    weights_store,
+                    assets_store,
+                    inner_path=nested_path,
+                    skip_mismatch=True,
+                    visited_saveables=visited_saveables,
+                    failed_saveables=tracked_failures,
+                    error_msgs=error_msgs,
+                    visited_containers=visited_containers,
+                )
+                if len(tracked_failures) > failed_before:
                     # Legacy files saved before PR #22362 didn't write the
                     # `container*` groups for nested containers — silently
                     # skip so the model still loads (sublayers keep their
