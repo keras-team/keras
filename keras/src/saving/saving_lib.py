@@ -1021,19 +1021,45 @@ def _load_container_state(
             if not _container_path_present(
                 weights_store, assets_store, nested_path
             ):
-                # Legacy files saved before PR #22362 didn't write the
-                # `container*` groups for nested containers — silently
-                # skip so the model still loads (sublayers keep their
-                # freshly-initialized weights).
-                warnings.warn(
-                    f"Skipping nested container at '{nested_path}': no "
-                    "matching group found in the saved file. This usually "
-                    "means the file was saved with a Keras version that "
-                    "did not serialize sublayers nested inside containers. "
-                    "Affected layers will retain their freshly-initialized "
-                    "weights.",
-                    stacklevel=2,
+                # The container's group is missing from the saved file.
+                # Try to load it recursively anyway with `skip_mismatch=True`,
+                # then warn only if doing so produced new failures — i.e. the
+                # container genuinely held an unvisited `KerasSaveable` that
+                # needed loading. This silently skips two benign cases:
+                #   - Containers of pure metadata (e.g. lists of strings in
+                #     `variable_serialization_spec`).
+                #   - Containers that mirror already-loaded saveables (e.g.
+                #     a Functional model's `_operations_by_depth` whose
+                #     items are also in the `layers` collection).
+                tracked_failures = (
+                    failed_saveables if failed_saveables is not None else set()
                 )
+                failed_before = len(tracked_failures)
+                _load_container_state(
+                    saveable,
+                    weights_store,
+                    assets_store,
+                    inner_path=nested_path,
+                    skip_mismatch=True,
+                    visited_saveables=visited_saveables,
+                    failed_saveables=tracked_failures,
+                    error_msgs=error_msgs,
+                    visited_containers=visited_containers,
+                )
+                if len(tracked_failures) > failed_before:
+                    # Legacy files saved before PR #22362 didn't write the
+                    # `container*` groups for nested containers — silently
+                    # skip so the model still loads (sublayers keep their
+                    # freshly-initialized weights).
+                    warnings.warn(
+                        f"Skipping nested container at '{nested_path}': no "
+                        "matching group found in the saved file. This "
+                        "usually means the file was saved with a Keras "
+                        "version that did not serialize sublayers nested "
+                        "inside containers. Affected layers will retain "
+                        "their freshly-initialized weights.",
+                        stacklevel=2,
+                    )
                 continue
             _load_container_state(
                 saveable,
