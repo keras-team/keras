@@ -27,13 +27,12 @@ def draw_segmentation_masks(
         segmentation_masks: A batch of segmentation masks as a 3D or 4D tensor
             or NumPy array.  Shape should be (batch_size, height, width) or
             (batch_size, height, width, 1). The values represent class indices
-            starting from 1 up to `num_classes`. Class 0 is reserved for
-            the background and will be ignored if `ignore_index` is not 0.
+            from 0 up to `num_classes - 1`.
         num_classes: The number of segmentation classes. If `None`, it is
-            inferred from the maximum value in `segmentation_masks`.
+            inferred as the maximum value in `segmentation_masks` plus 1.
         color_mapping: A dictionary mapping class indices to RGB colors.
             If `None`, a default color palette is generated. The keys should be
-            integers starting from 1 up to `num_classes`.
+            integers from 0 up to `num_classes - 1`.
         alpha: The opacity of the segmentation masks. Must be in the range
             `[0, 1]`.
         blend: Whether to blend the masks with the input image using the
@@ -75,7 +74,7 @@ def draw_segmentation_masks(
 
     # Infer num_classes
     if num_classes is None:
-        num_classes = int(ops.convert_to_numpy(ops.max(segmentation_masks)))
+        num_classes = int(ops.convert_to_numpy(ops.max(segmentation_masks))) + 1
     if color_mapping is None:
         colors = _generate_color_palette(num_classes)
     else:
