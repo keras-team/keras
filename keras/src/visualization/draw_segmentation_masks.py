@@ -29,7 +29,8 @@ def draw_segmentation_masks(
             (batch_size, height, width, 1). The values represent class indices
             from 0 up to `num_classes - 1`.
         num_classes: The number of segmentation classes. If `None`, it is
-            inferred as the maximum value in `segmentation_masks` plus 1.
+            inferred as the maximum non-ignored value in `segmentation_masks`
+            plus 1.
         color_mapping: A dictionary mapping class indices to RGB colors.
             If `None`, a default color palette is generated. The keys should be
             integers from 0 up to `num_classes - 1`.
@@ -74,7 +75,15 @@ def draw_segmentation_masks(
 
     # Infer num_classes
     if num_classes is None:
-        num_classes = int(ops.convert_to_numpy(ops.max(segmentation_masks))) + 1
+        valid_segmentation_masks = ops.where(
+            ops.not_equal(segmentation_masks, ignore_index),
+            segmentation_masks,
+            -1,
+        )
+        num_classes = (
+            int(ops.convert_to_numpy(ops.max(valid_segmentation_masks))) + 1
+        )
+        num_classes = max(1, num_classes)
     if color_mapping is None:
         colors = _generate_color_palette(num_classes)
     else:
