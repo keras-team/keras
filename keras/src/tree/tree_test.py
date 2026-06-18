@@ -2425,6 +2425,38 @@ class TreeTest(testing.TestCase):
             v.visited(), [1, 2, _DictWrapper({"a": 11, "b": 12})]
         )
 
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_traverse_no_reference_cycle_torch(self, t):
+        """Regression test for GPU memory leak caused by closure cycles."""
+
+        import gc
+        import weakref
+
+        class _Box:
+            """Weak-referenceable container."""
+
+            __slots__ = ("data", "__weakref__")
+
+            def __init__(self, data):
+                self.data = data
+
+        gc_active = gc.isenabled()
+        gc.disable()
+        try:
+            structure = {"a": [1, 2, 3], "b": {"c": 4, "d": 5}}
+            box = _Box(structure["a"])
+            structure["_box"] = box
+            ref = weakref.ref(box)
+            del box
+
+            t.traverse(lambda x: None, structure)
+            del structure
+            # If no closure cycle, refcounting frees it immediately
+            self.assertIsNone(ref())
+        finally:
+            if gc_active:
+                gc.enable()
+
     def test_lists_to_tuples(self, t):
         self.assertEqualStrict(
             t.lists_to_tuples([1, 2, 3]),
