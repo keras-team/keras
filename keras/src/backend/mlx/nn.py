@@ -10,6 +10,9 @@ from keras.src.backend import result_type
 from keras.src.backend import standardize_data_format
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common.backend_utils import (
+    compute_adaptive_pooling_window_sizes,
+)
+from keras.src.backend.common.backend_utils import (
     compute_conv_transpose_padding_args_for_mlx,
 )
 from keras.src.backend.common.backend_utils import (
@@ -87,12 +90,9 @@ def sparse_plus(x):
     )
 
 
-def silu(x, beta=1.0):
+def silu(x):
     x = convert_to_tensor(x)
-    if beta == 1:
-        return nn.silu(x)
-    else:
-        return x * mx.sigmoid(beta * x)
+    return nn.silu(x)
 
 
 def squareplus(x, b=4):
@@ -134,11 +134,9 @@ def elu(x, alpha=1.0):
     return xneg + xpos
 
 
-def selu(
-    x,
-    alpha=1.6732632423543772848170429916717,
-    scale=1.0507009873554804934193349852946,
-):
+def selu(x):
+    alpha = 1.6732632423543772848170429916717
+    scale = 1.0507009873554804934193349852946
     x = convert_to_tensor(x)
     xneg = mx.minimum(x, 0)
     xpos = mx.maximum(x, 0)
@@ -187,9 +185,9 @@ def log_softmax(x, axis=-1):
     return x - mx.logsumexp(x, axis=axis, keepdims=True)
 
 
-def sparsemax(logits, axis=-1):
+def sparsemax(x, axis=-1):
     # Sort logits along the specified axis in descending order
-    logits = convert_to_tensor(logits)
+    logits = convert_to_tensor(x)
     logits_sorted = -1.0 * mx.sort(logits * -1.0, axis=axis)
     logits_cumsum = mx.cumsum(logits_sorted, axis=axis)  # find cumulative sum
     r = mx.arange(1, logits.shape[axis] + 1)  # Determine the sparsity
@@ -632,7 +630,7 @@ def conv_transpose(
     return result
 
 
-def one_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with mlx backend")
     x = convert_to_tensor(x, dtype=mx.int32)
@@ -1254,13 +1252,12 @@ def _apply_masks(logits, mask, is_causal):
 
 
 def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
-    original_dtype = key.dtype
-    # logits_dtype = mx.promote_types(query.dtype, np.float32)
+    # The encoded output follows the keras promotion lattice, e.g. mixing
+    # bfloat16 and float16 inputs yields float32.
+    original_dtype = to_mlx_dtype(
+        result_type(query.dtype, key.dtype, value.dtype)
+    )
     logits_dtype = mx.float32
-    # if standardize_dtype(key.dtype) == "bfloat16":
-    #     # `np.einsum` doesn't support bfloat16
-    #     key = key.astype("float32")
-    #     value = value.astype("float32")
     logits = mx.einsum("BTNH,BSNH->BNTS", query, key)
     logits = logits.astype(logits_dtype)
     logits *= mx.array(scale, dtype=logits.dtype)
@@ -1271,13 +1268,8 @@ def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
     # Softmax and it is always carried out in fp32.
     padded_logits = padded_logits.astype(mx.float32)
     probs = softmax(padded_logits, axis=-1).astype(original_dtype)
-    encoded_dtype = probs.dtype
-    # if backend.standardize_dtype(probs.dtype) == "bfloat16":
-    #     # `np.einsum` doesn't support bfloat16
-    #     probs = probs.astype("float32")
-    #     value = value.astype("float32")
     encoded = mx.einsum("BNTS,BSNH->BTNH", probs, value)
-    encoded = encoded.astype(encoded_dtype)
+    encoded = encoded.astype(original_dtype)
     return encoded
 
 
@@ -1312,3 +1304,227 @@ def dot_product_attention(
     return _dot_product_attention(
         query, key, value, bias, mask, is_causal, scale
     )
+
+
+def _pair(x):
+    return (x, x) if isinstance(x, int) else tuple(x)
+
+
+def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
+    x = convert_to_tensor(x)
+    k = _pair(kernel_size)
+    d = _pair(dilation)
+    p = _pair(padding)
+    s = _pair(stride)
+
+    N, C, _, _ = x.shape
+    if p[0] > 0 or p[1] > 0:
+        x = mx.pad(x, ((0, 0), (0, 0), (p[0], p[0]), (p[1], p[1])))
+
+    oH = (x.shape[2] - (k[0] - 1) * d[0] - 1) // s[0] + 1
+    oW = (x.shape[3] - (k[1] - 1) * d[1] - 1) // s[1] + 1
+
+    i0 = (mx.arange(oH) * s[0])[:, None]
+    j0 = (mx.arange(oW) * s[1])[None, :]
+    rows = (i0 + mx.zeros((oH, oW), dtype=i0.dtype)).reshape(-1)
+    cols = (j0 + mx.zeros((oH, oW), dtype=j0.dtype)).reshape(-1)
+
+    cols_out = []
+    for idx in range(k[0]):
+        for jdx in range(k[1]):
+            cols_out.append(x[:, :, rows + idx * d[0], cols + jdx * d[1]])
+    # (N, C, kH * kW, oH * oW) -> (N, C * kH * kW, oH * oW)
+    patches = mx.stack(cols_out, axis=2)
+    return patches.reshape(N, C * k[0] * k[1], oH * oW)
+
+
+def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
+    x = convert_to_tensor(x)
+    oH, oW = _pair(output_size)
+    kH, kW = _pair(kernel_size)
+    dH, dW = _pair(dilation)
+    pH, pW = _pair(padding)
+    sH, sW = _pair(stride)
+
+    N, CKK, _ = x.shape
+    C = CKK // (kH * kW)
+    nH = (oH + 2 * pH - dH * (kH - 1) - 1) // sH + 1
+    nW = (oW + 2 * pW - dW * (kW - 1) - 1) // sW + 1
+
+    x = mx.reshape(x, (N, C, kH, kW, nH, nW))
+    oH_pad = oH + 2 * pH
+    oW_pad = oW + 2 * pW
+
+    # Scatter-add the overlapping patches using flat spatial indices.
+    output = mx.zeros((N, C, oH_pad * oW_pad), dtype=x.dtype)
+    for i in range(kH):
+        for j in range(kW):
+            h_idx = i * dH + mx.arange(nH) * sH
+            w_idx = j * dW + mx.arange(nW) * sW
+            lin = (h_idx[:, None] * oW_pad + w_idx[None, :]).reshape(-1)
+            src = x[:, :, i, j, :, :].reshape(N, C, nH * nW)
+            output = output.at[:, :, lin].add(src)
+
+    output = output.reshape(N, C, oH_pad, oW_pad)
+    if pH > 0 or pW > 0:
+        output = output[:, :, pH : oH_pad - pH, pW : oW_pad - pW]
+    return output
+
+
+def depth_to_space(x, block_size, data_format="channels_last"):
+    x = convert_to_tensor(x)
+    if data_format == "channels_last":
+        n, h, w, c = x.shape
+        new_c = c // (block_size**2)
+        x = mx.reshape(x, (n, h, w, block_size, block_size, new_c))
+        x = mx.transpose(x, (0, 1, 3, 2, 4, 5))
+        x = mx.reshape(x, (n, h * block_size, w * block_size, new_c))
+    else:
+        n, c, h, w = x.shape
+        new_c = c // (block_size**2)
+        x = mx.reshape(x, (n, new_c, block_size, block_size, h, w))
+        x = mx.transpose(x, (0, 1, 4, 2, 5, 3))
+        x = mx.reshape(x, (n, new_c, h * block_size, w * block_size))
+    return x
+
+
+def space_to_depth(x, block_size, data_format="channels_last"):
+    x = convert_to_tensor(x)
+    if data_format == "channels_last":
+        n, h, w, c = x.shape
+        new_h = h // block_size
+        new_w = w // block_size
+        x = mx.reshape(x, (n, new_h, block_size, new_w, block_size, c))
+        x = mx.transpose(x, (0, 1, 3, 2, 4, 5))
+        x = mx.reshape(x, (n, new_h, new_w, c * block_size**2))
+    else:
+        n, c, h, w = x.shape
+        new_h = h // block_size
+        new_w = w // block_size
+        x = mx.reshape(x, (n, c, new_h, block_size, new_w, block_size))
+        x = mx.transpose(x, (0, 1, 3, 5, 2, 4))
+        x = mx.reshape(x, (n, c * block_size**2, new_h, new_w))
+    return x
+
+
+def _compute_adaptive_pooling_gather_indices(
+    input_dim, output_size, big_window
+):
+    window_starts = mx.floor(
+        (mx.arange(output_size) * input_dim) / output_size
+    ).astype(mx.int32)
+    window_ends = mx.ceil(
+        (mx.arange(1, output_size + 1) * input_dim) / output_size
+    ).astype(mx.int32)
+    window_sizes = window_ends - window_starts
+    is_big = window_sizes == big_window
+
+    small_window = big_window - 1
+    small_pool_len = input_dim - small_window + 1
+    small_indices = window_starts
+    big_indices = window_starts + small_pool_len
+    return mx.where(is_big, big_indices, small_indices)
+
+
+def _strided_view_1d(x, window_size):
+    # Sliding windows of `window_size` over axis 1, gathered explicitly since
+    # mlx has no stride-trick view. Returns (n, out, window_size, c).
+    _, length, _ = x.shape
+    out = length - window_size + 1
+    idx = mx.arange(out)[:, None] + mx.arange(window_size)[None, :]
+    return x[:, idx, :]
+
+
+def _adaptive_pool_axis(x, output_size, mode):
+    # Pool the (n, length, c) tensor along axis 1 down to `output_size`.
+    length = x.shape[1]
+    small, big = compute_adaptive_pooling_window_sizes(length, output_size)
+    gather = _compute_adaptive_pooling_gather_indices(length, output_size, big)
+    reduce_fn = mx.mean if mode == "average" else mx.max
+    small_pool = reduce_fn(_strided_view_1d(x, small), axis=2)
+    big_pool = reduce_fn(_strided_view_1d(x, big), axis=2)
+    combined = mx.concatenate([small_pool, big_pool], axis=1)
+    return combined[:, gather, :]
+
+
+def _adaptive_pool1d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size,)
+    if data_format == "channels_first":
+        inputs = mx.transpose(inputs, (0, 2, 1))
+    out = _adaptive_pool_axis(inputs, output_size[0], mode)
+    if data_format == "channels_first":
+        out = mx.transpose(out, (0, 2, 1))
+    return out
+
+
+def _adaptive_pool2d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size)
+    if data_format == "channels_first":
+        inputs = mx.transpose(inputs, (0, 2, 3, 1))
+
+    n, h, w, c = inputs.shape
+    out_h, out_w = output_size
+
+    x_h = mx.transpose(inputs, (0, 2, 1, 3)).reshape(n * w, h, c)
+    pooled_h = _adaptive_pool_axis(x_h, out_h, mode)
+    pooled_h = pooled_h.reshape(n, w, out_h, c)
+    pooled_h = mx.transpose(pooled_h, (0, 2, 1, 3))
+
+    x_w = pooled_h.reshape(n * out_h, w, c)
+    out = _adaptive_pool_axis(x_w, out_w, mode).reshape(n, out_h, out_w, c)
+
+    if data_format == "channels_first":
+        out = mx.transpose(out, (0, 3, 1, 2))
+    return out
+
+
+def _adaptive_pool3d_impl(inputs, output_size, mode, data_format):
+    if isinstance(output_size, int):
+        output_size = (output_size, output_size, output_size)
+    if data_format == "channels_first":
+        inputs = mx.transpose(inputs, (0, 2, 3, 4, 1))
+
+    n, d, h, w, c = inputs.shape
+    out_d, out_h, out_w = output_size
+
+    x_d = mx.transpose(inputs, (0, 2, 3, 1, 4)).reshape(n * h * w, d, c)
+    pooled_d = _adaptive_pool_axis(x_d, out_d, mode).reshape(n, h, w, out_d, c)
+    pooled_d = mx.transpose(pooled_d, (0, 3, 1, 2, 4))
+
+    x_h = mx.transpose(pooled_d, (0, 1, 3, 2, 4)).reshape(n * out_d * w, h, c)
+    pooled_h = _adaptive_pool_axis(x_h, out_h, mode).reshape(
+        n, out_d, w, out_h, c
+    )
+    pooled_h = mx.transpose(pooled_h, (0, 1, 3, 2, 4))
+
+    x_w = pooled_h.reshape(n * out_d * out_h, w, c)
+    out = _adaptive_pool_axis(x_w, out_w, mode).reshape(
+        n, out_d, out_h, out_w, c
+    )
+
+    if data_format == "channels_first":
+        out = mx.transpose(out, (0, 4, 1, 2, 3))
+    return out
+
+
+def _adaptive_pool(inputs, output_size, mode, data_format):
+    inputs = convert_to_tensor(inputs)
+    data_format = standardize_data_format(data_format)
+    dims = inputs.ndim - 2
+    if dims == 1:
+        return _adaptive_pool1d_impl(inputs, output_size, mode, data_format)
+    if dims == 2:
+        return _adaptive_pool2d_impl(inputs, output_size, mode, data_format)
+    if dims == 3:
+        return _adaptive_pool3d_impl(inputs, output_size, mode, data_format)
+    raise ValueError("adaptive pooling supports only 1D/2D/3D")
+
+
+def adaptive_average_pool(inputs, output_size, data_format=None):
+    return _adaptive_pool(inputs, output_size, "average", data_format)
+
+
+def adaptive_max_pool(inputs, output_size, data_format=None):
+    return _adaptive_pool(inputs, output_size, "max", data_format)

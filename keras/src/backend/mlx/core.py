@@ -263,7 +263,7 @@ def scatter(indices, values, shape):
     return zeros
 
 
-def scatter_update(inputs, indices, updates):
+def scatter_update(inputs, indices, updates, reduction=None):
     inputs = convert_to_tensor(inputs)
     indices = convert_to_tensor(indices)
     updates = convert_to_tensor(updates)
@@ -272,7 +272,18 @@ def scatter_update(inputs, indices, updates):
     elif inputs.dtype == mx.uint64:
         inputs = inputs.astype(mx.uint32)
     indices = tuple(indices[..., i] for i in range(indices.shape[-1]))
-    inputs[indices] = updates
+    if reduction is None:
+        inputs[indices] = updates
+    elif reduction == "add":
+        inputs = inputs.at[indices].add(updates)
+    elif reduction == "max":
+        inputs = inputs.at[indices].maximum(updates)
+    elif reduction == "min":
+        inputs = inputs.at[indices].minimum(updates)
+    elif reduction == "mul":
+        inputs = inputs.at[indices].multiply(updates)
+    else:
+        raise ValueError(f"Unsupported reduction: {reduction}")
 
     return inputs
 
@@ -586,16 +597,16 @@ class custom_gradient:
     """Decorator for custom gradients.
 
     Args:
-        fun: Forward pass function.
+        f: Forward pass function.
     """
 
-    def __init__(self, fun):
+    def __init__(self, f):
         warnings.warn(
             "`custom_gradient` for the mlx backend acts as a pass-through to "
             "support the forward pass. No gradient computation or modification "
             "takes place."
         )
-        self.fun = fun
+        self.fun = f
 
     def __call__(self, *args, **kwargs):
         outputs, _ = self.fun(*args, **kwargs)
