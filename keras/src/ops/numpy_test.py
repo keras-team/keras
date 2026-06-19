@@ -12594,6 +12594,12 @@ class HistogramTest(testing.TestCase):
         ),
     )
     def test_histogram_predict(self, jit_compile):
+        if jit_compile and backend.backend() == "mlx":
+            self.skipTest(
+                "histogram bin edges need concrete min/max, which mlx cannot "
+                "evaluate under compile."
+            )
+
         class HistogramLayer(keras.layers.Layer):
             def call(self, x):
                 shape = ops.shape(x)
