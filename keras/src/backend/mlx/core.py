@@ -195,7 +195,10 @@ def compute_output_spec(fn, *args, **kwargs):
                 for i, e in enumerate(shape):
                     if e is None:
                         shape[i] = fill_value
-            return mx.ones(shape, dtype=MLX_DTYPES[x.dtype])
+            # mlx has no GPU float64, and eager convert_to_tensor downcasts it
+            # to float32, so mirror that here for shape/dtype inference.
+            dtype = "float32" if x.dtype == "float64" else x.dtype
+            return mx.ones(shape, dtype=MLX_DTYPES[dtype])
         return x
 
     def convert_mlx_to_keras_tensor(x):

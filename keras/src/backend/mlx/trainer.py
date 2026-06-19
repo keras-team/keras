@@ -1,5 +1,6 @@
 import collections
 import itertools
+import warnings
 
 import mlx.core as mx
 import numpy as np
@@ -8,6 +9,7 @@ from keras.src import backend
 from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
+from keras.src.backend import config
 from keras.src.trainers import trainer as base_trainer
 from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
@@ -452,6 +454,11 @@ class MLXTrainer(base_trainer.Trainer):
         validation_freq=1,
     ):
         self._assert_compile_called("fit")
+        # Possibly cap epochs for debugging runs.
+        max_epochs = config.max_epochs()
+        if max_epochs and max_epochs < epochs:
+            warnings.warn("Limiting epochs to %d" % max_epochs)
+            epochs = max_epochs
 
         # TODO: respect compiled trainable state
         self._eval_epoch_iterator = None
@@ -832,6 +839,7 @@ class MLXTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
         self.make_train_function()
+        self.reset_metrics()
 
         state = self._get_mlx_state(
             trainable_variables=True,
@@ -882,6 +890,7 @@ class MLXTrainer(base_trainer.Trainer):
         # Maybe build model
         self._symbolic_build(data_batch=next(data()))
         self.make_test_function()
+        self.reset_metrics()
 
         # Test step
         state = self._get_mlx_state(
