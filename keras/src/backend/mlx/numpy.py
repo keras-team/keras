@@ -924,7 +924,14 @@ def nonzero(x):
 def not_equal(x1, x2):
     x1 = maybe_convert_to_tensor(x1)
     x2 = maybe_convert_to_tensor(x2)
-    if mx.float64 in (getattr(x1, "dtype", None), getattr(x2, "dtype", None)):
+    # Filter out None (scalar operands) before the membership test, since
+    # `mx.Dtype.__eq__(None)` raises instead of returning False.
+    dtypes = [
+        d
+        for d in (getattr(x1, "dtype", None), getattr(x2, "dtype", None))
+        if d is not None
+    ]
+    if mx.float64 in dtypes:
         # float64 is only supported on the cpu stream.
         with mx.stream(mx.cpu):
             return mx.not_equal(x1, x2)
