@@ -251,6 +251,71 @@ class TensorFlowTrainer(base_trainer.Trainer):
 
         return function
 
+    def _assert_target_compatibility(self, y):
+        """Validates training target arrays against model structural outputs."""
+        if y is None:
+            return
+
+        outputs_attr = getattr(self, "outputs", None)
+        if outputs_attr is None:
+            return
+
+        if isinstance(outputs_attr, dict):
+            if not isinstance(y, dict):
+                raise ValueError(
+                    f"Mismatched target format. The model expects a "
+                    f"dictionary of outputs matching keys "
+                    f"{list(outputs_attr.keys())}, but received "
+                    f"type: {type(y)}."
+                )
+            flat_outputs = [outputs_attr[k] for k in outputs_attr]
+            flat_targets = [y.get(k, None) for k in outputs_attr]
+        else:
+            flat_outputs = tree.flatten(outputs_attr)
+            flat_targets = tree.flatten(y)
+
+        for i, (out_t, tgt_t) in enumerate(zip(flat_outputs, flat_targets)):
+            if tgt_t is None or out_t is None:
+                continue
+
+            out_shape = getattr(out_t, "shape", None)
+            tgt_shape = getattr(tgt_t, "shape", None)
+
+            if out_shape is None or tgt_shape is None:
+                continue
+
+            try:
+                out_shape = list(out_shape)
+                tgt_shape = list(tgt_shape)
+            except (TypeError, ValueError):
+                continue
+
+            if not out_shape or not tgt_shape:
+                continue
+
+            if len(out_shape) != len(tgt_shape):
+                raise ValueError(
+                    f"Target shape mismatch at output index {i}. "
+                    f"Model output expects rank {len(out_shape)} "
+                    f"(shape {out_shape}), but received target array "
+                    f"with rank {len(tgt_shape)} (shape {tgt_shape})."
+                )
+
+            for dim_idx, (dim_out, dim_tgt) in enumerate(
+                zip(out_shape[1:], tgt_shape[1:])
+            ):
+                if (
+                    dim_out is not None
+                    and dim_tgt is not None
+                    and dim_out != dim_tgt
+                ):
+                    raise ValueError(
+                        f"Target shape mismatch at output index {i}, "
+                        f"axis {dim_idx + 1}. Model structural output "
+                        f"expects dimension {dim_out}, but received "
+                        f"training target dimension {dim_tgt}."
+                    )
+
     def make_train_function(self, force=False):
         if self.train_function is not None and not force:
             return self.train_function
@@ -331,6 +396,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         validation_batch_size=None,
         validation_freq=1,
     ):
+        self._assert_target_compatibility(y)
         self._assert_compile_called("fit")
         # Possibly cap epochs for debugging runs.
         max_epochs = config.max_epochs()
@@ -465,6 +531,7 @@ class TensorFlowTrainer(base_trainer.Trainer):
         return_dict=False,
         **kwargs,
     ):
+        self._assert_target_compatibility(y)
         self._assert_compile_called("evaluate")
         use_cached_eval_dataset = kwargs.pop("_use_cached_eval_dataset", False)
         if kwargs:
