@@ -181,12 +181,14 @@ class LossScaleOptimizer(optimizer.Optimizer):
             self.dynamic_scale.assign(final_dynamic_scale)
             new_own_vars = [scope.get_current_value(v) for v in self._variables]
 
-        # Unscale gradients.
+        # Unscale gradients. Skip variables flagged for gradient overwrite,
+        # using the tracked Variable objects (not the passed-in values) so
+        # `overwrite_with_gradient` is visible.
         unscaled_grads = [
             g
             if g is None or self._overwrite_variable_with_gradient(v)
             else ops.divide(g, dynamic_scale)
-            for g, v in zip(grads, trainable_variables)
+            for g, v in zip(grads, self._trainable_variables)
         ]
 
         with backend.StatelessScope(state_mapping=mapping):
