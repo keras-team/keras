@@ -19,8 +19,10 @@ flax
 # OpenVino
 openvino
 
-# MLX.
-mlx
+# MLX. The base wheel only ships the Python frontend. The native library
+# comes from mlx-metal on macOS and mlx-cpu on Linux (the `cpu` extra,
+# which is platform-gated to Linux so macOS still gets Metal).
+mlx[cpu]
 
 # Common deps.
 -r requirements-common.txt
