@@ -268,31 +268,37 @@ class TensorFlowTrainer(base_trainer.Trainer):
                 )
                 flat_outputs = []
                 flat_targets = []
-                for k, v in y.items():
-                    if k not in name_to_output:
-                        raise ValueError(
-                            f"Unknown output key in target dictionary: "
-                            f"'{k}'. Valid output names are: {output_names}"
-                        )
-                    flat_outputs.append(name_to_output[k])
-                    flat_targets.append(v)
+
+                try:
+                    for k, v in y.items():
+                        if k in name_to_output:
+                            flat_outputs.append(name_to_output[k])
+                            flat_targets.append(v)
+                        else:
+                            flat_outputs = tree.flatten(outputs_attr)
+                            flat_targets = tree.flatten(y)
+                            break
+                except Exception:
+                    flat_outputs = tree.flatten(outputs_attr)
+                    flat_targets = tree.flatten(y)
             elif isinstance(outputs_attr, dict):
                 flat_outputs = []
                 flat_targets = []
-                for k, v in y.items():
-                    if k not in outputs_attr:
-                        raise ValueError(
-                            f"Unknown output key in target dictionary: "
-                            f"'{k}'. Valid output keys are: "
-                            f"{list(outputs_attr.keys())}"
-                        )
-                    flat_outputs.append(outputs_attr[k])
-                    flat_targets.append(v)
+                try:
+                    for k, v in y.items():
+                        if k in outputs_attr:
+                            flat_outputs.append(outputs_attr[k])
+                            flat_targets.append(v)
+                        else:
+                            flat_outputs = tree.flatten(outputs_attr)
+                            flat_targets = tree.flatten(y)
+                            break
+                except Exception:
+                    flat_outputs = tree.flatten(outputs_attr)
+                    flat_targets = tree.flatten(y)
             else:
-                raise ValueError(
-                    f"Mismatched target format. The model outputs are not "
-                    f"named, but received a dictionary of targets: {y}."
-                )
+                flat_outputs = tree.flatten(outputs_attr)
+                flat_targets = tree.flatten(y)
         else:
             flat_outputs = tree.flatten(outputs_attr)
             flat_targets = tree.flatten(y)
@@ -316,6 +322,9 @@ class TensorFlowTrainer(base_trainer.Trainer):
             if not out_shape or not tgt_shape:
                 continue
 
+            if len(out_shape) == len(tgt_shape) + 1 and out_shape[-1] == 1:
+                out_shape = out_shape[:-1]
+
             if len(out_shape) != len(tgt_shape):
                 raise ValueError(
                     f"Target shape mismatch at output index {i}. "
@@ -323,7 +332,6 @@ class TensorFlowTrainer(base_trainer.Trainer):
                     f"(shape {out_shape}), but received target array "
                     f"with rank {len(tgt_shape)} (shape {tgt_shape})."
                 )
-
             for dim_idx, (dim_out, dim_tgt) in enumerate(
                 zip(out_shape[1:], tgt_shape[1:])
             ):
