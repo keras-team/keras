@@ -20,6 +20,13 @@ def rgb_to_grayscale(images, data_format=None):
             "or rank 4 (batch of images). Received input with shape: "
             f"images.shape={images.shape}"
         )
+    if images.shape[channels_axis] not in (1, 3):
+        raise ValueError(
+            "Invalid channel size: expected 3 (RGB) or 1 (Grayscale). "
+            f"Received input with shape: images.shape={images.shape}"
+        )
+    if images.shape[channels_axis] == 1:
+        return images
     # Convert to floats
     original_dtype = images.dtype
     compute_dtype = backend.result_type(images.dtype, float)
@@ -373,7 +380,11 @@ def affine_transform(
 def _resize_nearest(x, output_shape):
     # Ref: jax.image.resize
     input_shape = x.shape
-    assert len(input_shape) == len(output_shape)
+    if len(input_shape) != len(output_shape):
+        raise ValueError(
+            "Input and output ranks must match. Received: "
+            f"input_shape={input_shape}, output_shape={output_shape}"
+        )
     spatial_dims = tuple(
         i for i in range(len(input_shape)) if input_shape[i] != output_shape[i]
     )
@@ -658,6 +669,116 @@ def _compute_weight_mat(
     )
 
 
+SCALE_AND_TRANSLATE_METHODS = {
+    "linear",
+    "bilinear",
+    "trilinear",
+    "cubic",
+    "bicubic",
+    "tricubic",
+    "lanczos3",
+    "lanczos5",
+}
+
+
+def scale_and_translate(
+    images,
+    output_shape,
+    scale,
+    translation,
+    spatial_dims,
+    method,
+    antialias=True,
+):
+    if method not in SCALE_AND_TRANSLATE_METHODS:
+        raise ValueError(
+            "Invalid value for argument `method`. Expected of one "
+            f"{SCALE_AND_TRANSLATE_METHODS}. Received: method={method}"
+        )
+    if method in ("linear", "bilinear", "trilinear"):
+        kernel = _fill_triangle_kernel
+    elif method in ("cubic", "bicubic", "tricubic"):
+        kernel = _fill_keys_cubic_kernel
+    elif method == "lanczos3":
+        kernel = functools.partial(_fill_lanczos_kernel, 3.0)
+    elif method == "lanczos5":
+        kernel = functools.partial(_fill_lanczos_kernel, 5.0)
+
+    images = convert_to_tensor(images)
+    scale = convert_to_tensor(scale)
+    translation = convert_to_tensor(translation)
+    dtype = backend.result_type(scale.dtype, translation.dtype)
+    scale = scale.astype(to_mlx_dtype(dtype))
+    translation = translation.astype(to_mlx_dtype(dtype))
+
+    input_shape = images.shape
+    out = images
+    for i, d in enumerate(spatial_dims):
+        w = _compute_weight_mat(
+            input_shape[d],
+            output_shape[d],
+            scale[i],
+            translation[i],
+            kernel,
+            antialias,
+        ).astype(out.dtype)
+        # Contract the spatial axis with the (in, out) weight matrix.
+        # tensordot appends the new output axis, so move it back into place.
+        out = mx.tensordot(out, w, axes=([d], [0]))
+        out = mx.moveaxis(out, -1, d)
+    return out
+
+
+def sobel_edges(images, data_format=None):
+    images = convert_to_tensor(images)
+    data_format = backend.standardize_data_format(data_format)
+
+    need_squeeze = False
+    if images.ndim == 3:
+        images = images[mx.newaxis, ...]
+        need_squeeze = True
+
+    if data_format == "channels_first":
+        images = mx.transpose(images, (0, 2, 3, 1))
+
+    num_channels = images.shape[-1]
+    dtype = images.dtype
+
+    # mlx expects depthwise kernels with shape (C, H, W, 1).
+    sobel_y = convert_to_tensor(
+        [[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=dtype
+    )
+    sobel_x = convert_to_tensor(
+        [[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=dtype
+    )
+    kernel = mx.stack([sobel_y, sobel_x], axis=0)  # (2, 3, 3)
+    kernel = kernel.reshape(2, 3, 3, 1)
+    kernel = mx.tile(kernel, (num_channels, 1, 1, 1))  # (2C, 3, 3, 1)
+
+    edges = mx.conv_general(
+        images,
+        kernel,
+        stride=1,
+        padding=((1, 1), (1, 1)),
+        kernel_dilation=1,
+        input_dilation=1,
+        groups=num_channels,
+        flip=False,
+    )
+
+    # conv groups output as (..., C * 2). Split into (..., C, 2).
+    B, H, W, _ = edges.shape
+    edges = edges.reshape(B, H, W, num_channels, 2)
+
+    if data_format == "channels_first":
+        edges = mx.transpose(edges, (0, 3, 1, 2, 4))
+
+    if need_squeeze:
+        edges = mx.squeeze(edges, axis=0)
+
+    return edges
+
+
 def compute_homography_matrix(start_points, end_points):
     # as implemented for the jax backend
     start_points = convert_to_tensor(start_points, dtype=mx.float32)
@@ -890,7 +1011,8 @@ def gaussian_blur(
     if need_squeeze:
         blurred_images = mx.squeeze(blurred_images, axis=0)
 
-    return blurred_images
+    # The default float32 sigma promotes the kernel, restore the input dtype.
+    return blurred_images.astype(dtype)
 
 
 def elastic_transform(

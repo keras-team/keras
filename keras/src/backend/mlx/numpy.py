@@ -17,9 +17,15 @@ from keras.src.backend.mlx.core import slice
 from keras.src.backend.mlx.core import to_mlx_dtype
 
 
+def _promote(*xs):
+    # mlx promotes uint32 + signed to int32, keras/jax want int64. Cast to
+    # result_type so the output dtype matches the other backends.
+    dtype = result_type(*[getattr(x, "dtype", type(x)) for x in xs])
+    return [convert_to_tensor(x, dtype) for x in xs]
+
+
 def add(x1, x2):
-    x1 = maybe_convert_to_tensor(x1)
-    x2 = maybe_convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.add(x1, x2)
 
 
@@ -29,8 +35,7 @@ def einsum(subscripts, *operands, **kwargs):
 
 
 def subtract(x1, x2):
-    x1 = maybe_convert_to_tensor(x1)
-    x2 = maybe_convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.subtract(x1, x2)
 
 
@@ -40,8 +45,7 @@ def matmul(x1, x2):
 
 
 def multiply(x1, x2):
-    x1 = maybe_convert_to_tensor(x1)
-    x2 = maybe_convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.multiply(x1, x2)
 
 
@@ -127,24 +131,24 @@ def amin(x, axis=None, keepdims=False):
 
 
 def append(x1, x2, axis=None):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.concatenate([x1, x2], axis=axis)
 
 
-def arange(start, stop=None, step=1, dtype=None):
+def arange(start, stop=None, step=None, dtype=None):
     if dtype is None:
-        dtypes_to_resolve = [
-            getattr(start, "dtype", type(start)),
-            getattr(step, "dtype", type(step)),
-        ]
+        dtypes_to_resolve = [getattr(start, "dtype", type(start))]
         if stop is not None:
             dtypes_to_resolve.append(getattr(stop, "dtype", type(stop)))
+        if step is not None:
+            dtypes_to_resolve.append(getattr(step, "dtype", type(step)))
         dtype = result_type(*dtypes_to_resolve)
     dtype = to_mlx_dtype(dtype)
     if stop is None:
         stop = start
         start = 0
+    if step is None:
+        step = 1
     return mx.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -245,8 +249,7 @@ def average(x, axis=None, weights=None):
 
 
 def bitwise_and(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    x, y = _promote(x, y)
     return mx.bitwise_and(x, y)
 
 
@@ -260,14 +263,12 @@ def bitwise_not(x):
 
 
 def bitwise_or(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    x, y = _promote(x, y)
     return mx.bitwise_or(x, y)
 
 
 def bitwise_xor(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+    x, y = _promote(x, y)
     return mx.bitwise_xor(x, y)
 
 
@@ -375,7 +376,7 @@ def clip(x, x_min, x_max):
 
 
 def concatenate(xs, axis=0):
-    xs = convert_to_tensors(*xs)
+    xs = _promote(*xs)
     return mx.concatenate(xs, axis=axis)
 
 
@@ -410,8 +411,7 @@ def count_nonzero(x, axis=None):
 
 
 def cross(x1, x2, axisa=-1, axisb=-1, axisc=-1, axis=None):
-    x1 = convert_to_tensor(x1)
-    x2 = convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
 
     if axis is not None:
         axisa = axisb = axisc = axis
@@ -495,9 +495,9 @@ def digitize(x, bins):
     return (x[..., None] >= bins).sum(axis=-1)
 
 
-def dot(x, y):
-    x = convert_to_tensor(x)
-    y = convert_to_tensor(y)
+def dot(x1, x2):
+    x = convert_to_tensor(x1)
+    y = convert_to_tensor(x2)
 
     ndimx = x.ndim
     ndimy = y.ndim
@@ -614,7 +614,7 @@ def greater_equal(x1, x2):
 
 
 def hstack(xs):
-    xs = [convert_to_tensor(x) for x in xs]
+    xs = _promote(*xs)
     if xs[0].ndim == 1:
         return mx.concatenate(xs, axis=0)
     else:
@@ -764,8 +764,7 @@ def logspace(start, stop, num=50, endpoint=True, base=10, dtype=None, axis=0):
 
 
 def maximum(x1, x2):
-    x1 = maybe_convert_to_tensor(x1)
-    x2 = maybe_convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.maximum(x1, x2)
 
 
@@ -842,14 +841,12 @@ def min(x, axis=None, keepdims=False, initial=None):
 
 
 def minimum(x1, x2):
-    x1 = maybe_convert_to_tensor(x1)
-    x2 = maybe_convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.minimum(x1, x2)
 
 
 def mod(x1, x2):
-    x1 = maybe_convert_to_tensor(x1)
-    x2 = maybe_convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.remainder(x1, x2)
 
 
@@ -905,7 +902,7 @@ def ones_like(x, dtype=None):
 
 
 def outer(x1, x2):
-    x1, x2 = convert_to_tensor(x1), convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     x1 = x1.reshape(-1)
     x2 = x2.reshape(-1)
 
@@ -1029,11 +1026,11 @@ def repeat(x, repeats, axis=None):
     return mx.take(x, indices, axis=axis)
 
 
-def reshape(x, new_shape):
-    if not isinstance(new_shape, (list, tuple)):
-        new_shape = (new_shape,)
+def reshape(x, newshape):
+    if not isinstance(newshape, (list, tuple)):
+        newshape = (newshape,)
     x = convert_to_tensor(x)
-    return mx.reshape(x, new_shape)
+    return mx.reshape(x, newshape)
 
 
 def roll(x, shift, axis=None):
@@ -1071,8 +1068,8 @@ def split(x, indices_or_sections, axis=0):
     return mx.split(x, indices_or_sections, axis=axis)
 
 
-def stack(xs, axis=0):
-    xs = [convert_to_tensor(x) for x in xs]
+def stack(x, axis=0):
+    xs = _promote(*x)
     return mx.stack(xs, axis=axis)
 
 
@@ -1134,11 +1131,13 @@ def tile(x, repeats):
     return mx.tile(x, repeats)
 
 
-def trace(x, offset=None, axis1=None, axis2=None):
+def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
-    if dtype not in ("int64", "uint32", "uint64"):
-        dtype = dtypes.result_type(dtype, "int32")
+    if dtype in ("bool", "int8", "int16"):
+        dtype = "int32"
+    elif dtype in ("uint8", "uint16"):
+        dtype = "uint32"
     mlx_dtype = to_mlx_dtype(dtype)
     return diagonal(x, offset, axis1, axis2).sum(-1).astype(mlx_dtype)
 
@@ -1196,13 +1195,13 @@ def inner(x1, x2):
 
 
 def vstack(xs):
-    xs = [convert_to_tensor(x) for x in xs]
+    xs = _promote(*xs)
     if xs[0].ndim == 1:
         xs = [x[None] for x in xs]
     return mx.concatenate(xs, axis=0)
 
 
-def where(condition, x1, x2):
+def where(condition, x1=None, x2=None):
     if x1 is None and x2 is None:
         return nonzero(condition)
     elif x1 is None or x2 is None:
@@ -1244,8 +1243,7 @@ def true_divide(x1, x2):
 
 
 def power(x1, x2):
-    x1 = maybe_convert_to_tensor(x1)
-    x2 = maybe_convert_to_tensor(x2)
+    x1, x2 = _promote(x1, x2)
     return mx.power(x1, x2)
 
 
@@ -1288,7 +1286,15 @@ def sum(x, axis=None, keepdims=False):
     return mx.sum(x, axis=axis, keepdims=keepdims)
 
 
-def eye(N, M=None, k=None, dtype=None):
+def eye(N, M=None, k=0, dtype=None):
+    # mlx silently converts a float-valued 0-d array to int, numpy raises.
+    for arg in (N, M):
+        arg_dtype = getattr(arg, "dtype", None)
+        if arg_dtype is not None and "float" in standardize_dtype(arg_dtype):
+            raise TypeError(
+                f"Argument to `eye` must be an integer, received dtype "
+                f"{standardize_dtype(arg_dtype)}."
+            )
     dtype = to_mlx_dtype(dtype or config.floatx())
     M = N if M is None else M
     k = 0 if k is None else k
@@ -1444,8 +1450,8 @@ def histogram(x, bins=10, range=None):
     return counts[1:], bin_edges
 
 
-def unravel_index(x, shape):
-    x = convert_to_tensor(x)
+def unravel_index(indices, shape):
+    x = convert_to_tensor(indices)
     input_dtype = x.dtype
 
     if None in shape:
