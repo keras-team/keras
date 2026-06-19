@@ -31,7 +31,21 @@ def add(x1, x2):
 
 def einsum(subscripts, *operands, **kwargs):
     operands = [convert_to_tensor(x) for x in operands]
-    return mx.einsum(subscripts, *operands)
+    dtypes_to_resolve = list({standardize_dtype(x.dtype) for x in operands})
+    # int8-only einsum accumulates into int32 to align with jax.
+    if len(dtypes_to_resolve) == 1 and dtypes_to_resolve[0] == "int8":
+        result_dtype = "int32"
+    else:
+        result_dtype = result_type(*[x.dtype for x in operands])
+    # mlx einsum only supports floating point, so integer contractions run in
+    # float32 and are cast back to the integer result dtype.
+    if "int" in result_dtype or result_dtype == "bool":
+        compute_dtype = mx.float32
+    else:
+        compute_dtype = to_mlx_dtype(result_dtype)
+    operands = [x.astype(compute_dtype) for x in operands]
+    out = mx.einsum(subscripts, *operands)
+    return out.astype(to_mlx_dtype(result_dtype))
 
 
 def subtract(x1, x2):
@@ -41,7 +55,21 @@ def subtract(x1, x2):
 
 def matmul(x1, x2):
     x1, x2 = convert_to_tensors(x1, x2)
-    return mx.matmul(x1, x2)
+    x1_dtype = standardize_dtype(x1.dtype)
+    x2_dtype = standardize_dtype(x2.dtype)
+    # int8 @ int8 accumulates into int32 to align with jax.
+    if x1_dtype == "int8" and x2_dtype == "int8":
+        result_dtype = "int32"
+    else:
+        result_dtype = result_type(x1.dtype, x2.dtype)
+    # mlx matmul only supports floating point, so integer matmuls run in
+    # float32 and are cast back to the integer result dtype.
+    if "int" in result_dtype or result_dtype == "bool":
+        compute_dtype = mx.float32
+    else:
+        compute_dtype = to_mlx_dtype(result_dtype)
+    out = mx.matmul(x1.astype(compute_dtype), x2.astype(compute_dtype))
+    return out.astype(to_mlx_dtype(result_dtype))
 
 
 def multiply(x1, x2):
