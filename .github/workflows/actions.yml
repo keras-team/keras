@@ -38,6 +38,10 @@ jobs:
 
     env:
       KERAS_HOME: .github/workflows/config/${{ matrix.backend }}
+      # mlx 0.31.2 JIT-compiles CPU kernels via g++, and its generated code
+      # redeclares the _Float128/_Float64 builtins, which gcc 13+ rejects.
+      # Disable the JIT until the wheel ships compatible codegen.
+      MLX_DISABLE_COMPILE: ${{ matrix.backend == 'mlx' && '1' || '' }}
 
     steps:
       - name: Install binary dependencies
@@ -68,6 +72,13 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install --no-deps tf_keras
+
+      - name: Install local Keras for MLX
+        # Dependencies pull Keras from PyPI, which has no mlx backend yet, so
+        # the standalone integration scripts import that instead of the repo.
+        # Reinstall the local package so its mlx backend is importable.
+        if: ${{ matrix.backend == 'mlx' }}
+        run: pip install --no-deps --force-reinstall .
 
       - name: Run Tests for applications
         if: ${{ steps.filter.outputs.applications == 'true' && matrix.nnx_enabled == false }}
