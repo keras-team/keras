@@ -177,6 +177,10 @@ def arange(start, stop=None, step=None, dtype=None):
         start = 0
     if step is None:
         step = 1
+    # mlx arange only accepts python scalars, not 0-d arrays.
+    start = start.item() if hasattr(start, "item") else start
+    stop = stop.item() if hasattr(stop, "item") else stop
+    step = step.item() if hasattr(step, "item") else step
     return mx.arange(start, stop, step=step, dtype=dtype)
 
 
@@ -920,6 +924,10 @@ def nonzero(x):
 def not_equal(x1, x2):
     x1 = maybe_convert_to_tensor(x1)
     x2 = maybe_convert_to_tensor(x2)
+    if mx.float64 in (getattr(x1, "dtype", None), getattr(x2, "dtype", None)):
+        # float64 is only supported on the cpu stream.
+        with mx.stream(mx.cpu):
+            return mx.not_equal(x1, x2)
     return x1 != x2
 
 
