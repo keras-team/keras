@@ -73,6 +73,10 @@ def _get_concrete_noise_shape(inputs, noise_shape):
 
 
 def dropout(inputs, rate, noise_shape=None, seed=None):
+    if rate == 1.0:
+        return mx.zeros_like(inputs)
+    if rate == 0.0:
+        return inputs
     seed = mlx_draw_seed(seed)
     keep_prob = 1.0 - rate
     # The `noise_shape` may contain `None` so we need to convert it
@@ -80,8 +84,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
     mask = mx.random.bernoulli(p=keep_prob, shape=noise_shape, key=seed)
     mask = mx.broadcast_to(mask, inputs.shape)
-
-    return mask * (inputs / keep_prob)
+    return mx.where(mask, inputs / keep_prob, mx.zeros_like(inputs))
 
 
 def shuffle(x, axis=0, seed=None):
