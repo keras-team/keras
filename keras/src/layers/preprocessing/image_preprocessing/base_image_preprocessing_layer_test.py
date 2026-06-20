@@ -1,3 +1,4 @@
+import numpy as np
 from absl.testing import parameterized
 
 from keras.src import backend
@@ -69,3 +70,27 @@ class BaseImagePreprocessingLayerTest(testing.TestCase):
         self.assertIn("data_format", config)
         revived = layer_cls.from_config(config)
         self.assertEqual(revived.data_format, data_format)
+
+    def test_segmentation_mask_dtype_is_preserved(self):
+        # Regression for https://github.com/keras-team/keras/issues/20857:
+        # uint8 segmentation masks passed through a preprocessing layer
+        # were silently cast to float32 because subclassed
+        # `transform_segmentation_masks` implementations delegated to
+        # `transform_images`, which casts to the layer's compute_dtype.
+        images = np.zeros((1, 4, 4, 3), dtype="uint8")
+        masks = np.array(
+            [
+                [
+                    [[0], [1], [2], [0]],
+                    [[1], [1], [2], [2]],
+                    [[0], [0], [1], [2]],
+                    [[2], [0], [1], [0]],
+                ]
+            ],
+            dtype="uint8",
+        )
+        layer = layers.RandomFlip("horizontal", seed=0)
+        out = layer({"images": images, "segmentation_masks": masks})
+        self.assertEqual(
+            backend.standardize_dtype(out["segmentation_masks"].dtype), "uint8"
+        )

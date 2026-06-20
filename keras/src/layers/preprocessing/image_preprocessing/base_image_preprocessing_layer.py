@@ -197,22 +197,29 @@ class BaseImagePreprocessingLayer(DataLayer):
                         training=training,
                     )
             if "segmentation_masks" in data:
+                masks = self.backend.convert_to_tensor(
+                    data["segmentation_masks"]
+                )
+                mask_dtype = masks.dtype
                 if is_batched:
-                    data["segmentation_masks"] = (
-                        self.transform_segmentation_masks(
-                            data["segmentation_masks"],
-                            transformation=transformation,
-                            training=training,
-                        )
+                    masks = self.transform_segmentation_masks(
+                        masks,
+                        transformation=transformation,
+                        training=training,
                     )
                 else:
-                    data["segmentation_masks"] = (
-                        self.transform_single_segmentation_mask(
-                            data["segmentation_masks"],
-                            transformation=transformation,
-                            training=training,
-                        )
+                    masks = self.transform_single_segmentation_mask(
+                        masks,
+                        transformation=transformation,
+                        training=training,
                     )
+                # Preserve the input dtype: layer-internal logic typically
+                # casts to `compute_dtype` (float32), but masks represent
+                # class indices and should be returned in their original
+                # integer dtype. See keras-team/keras#20857.
+                if masks.dtype != mask_dtype:
+                    masks = self.backend.cast(masks, mask_dtype)
+                data["segmentation_masks"] = masks
             return data
 
         # `data` is just images.
