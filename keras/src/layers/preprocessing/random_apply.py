@@ -58,11 +58,17 @@ class RandomApply(Layer):
             return inputs
 
         transformed = self.layer(inputs, training=training)
+        # Stack [transformed, inputs] along a new leading axis and gather the
+        # one selected by the Bernoulli draw. The gather-based selection
+        # avoids relying on `ops.where` with a scalar mask broadcasting
+        # against an N-D tensor — behavior of which is uneven across backends.
+        stacked = ops.stack([transformed, inputs], axis=0)
         u = random.uniform(
-            shape=(), minval=0.0, maxval=1.0, seed=self.generator
+            shape=(1,), minval=0.0, maxval=1.0, seed=self.generator
         )
-        should_apply = ops.less(u, self.rate)
-        return ops.where(should_apply, transformed, inputs)
+        # 0 -> apply transformed, 1 -> skip (return inputs).
+        idx = ops.cast(ops.greater_equal(u, self.rate), "int32")
+        return ops.take(stacked, idx, axis=0)[0]
 
     def get_config(self):
         config = super().get_config()
