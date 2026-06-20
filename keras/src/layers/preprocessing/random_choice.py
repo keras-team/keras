@@ -64,15 +64,18 @@ class RandomChoice(Layer):
             return inputs
 
         n = len(self._wrapped_layers)
+        # Stack all candidate outputs along a new leading axis and gather the
+        # one selected by `choice`. This avoids relying on `ops.where` with a
+        # scalar mask broadcasting against an N-D tensor — which is uneven
+        # across backends.
+        candidates = [
+            layer(inputs, training=training) for layer in self._wrapped_layers
+        ]
+        stacked = ops.stack(candidates, axis=0)
         choice = random.randint(
-            shape=(), minval=0, maxval=n, seed=self.generator
+            shape=(1,), minval=0, maxval=n, seed=self.generator
         )
-
-        result = inputs
-        for i, layer in enumerate(self._wrapped_layers):
-            transformed = layer(inputs, training=training)
-            result = ops.where(ops.equal(choice, i), transformed, result)
-        return result
+        return ops.take(stacked, choice, axis=0)[0]
 
     def get_config(self):
         config = super().get_config()
