@@ -2075,3 +2075,9 @@ def sobel_edges(images, data_format=None):
     raise NotImplementedError(
         "`sobel_edges` is not supported with openvino backend"
     )
+
+
+def euclidean_dist_transform(images, dtype="float32", data_format=None):
+    raise NotImplementedError(
+        "`euclidean_dist_transform` is not supported with openvino backend"
+    )

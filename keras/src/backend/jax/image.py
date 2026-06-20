@@ -951,3 +951,48 @@ def sobel_edges(images, data_format=None):
     edges = jnp.stack([edges_y, edges_x], axis=-1)
 
     return edges
+
+
+def euclidean_dist_transform(images, dtype="float32", data_format=None):
+    import numpy as np
+    from scipy import ndimage
+
+    data_format = backend.standardize_data_format(data_format)
+    images = convert_to_tensor(images)
+    if images.ndim not in (3, 4):
+        raise ValueError(
+            "Invalid images rank: expected rank 3 (single image) or rank 4 "
+            f"(batch of images). Received: images.shape={images.shape}"
+        )
+    if not jnp.issubdtype(images.dtype, jnp.integer):
+        raise TypeError(
+            "`euclidean_dist_transform` expects an integer-dtype input. "
+            f"Received: images.dtype={backend.standardize_dtype(images.dtype)}"
+        )
+
+    unbatched = images.ndim == 3
+    if unbatched:
+        images = images[jnp.newaxis, ...]
+    if data_format == "channels_first":
+        images = jnp.transpose(images, (0, 2, 3, 1))
+
+    np_dtype = backend.standardize_dtype(dtype)
+
+    def _scipy_edt(np_images):
+        np_images = np.asarray(np_images)
+        out = np.empty(np_images.shape, dtype=np_dtype)
+        for b in range(np_images.shape[0]):
+            for c in range(np_images.shape[-1]):
+                out[b, :, :, c] = ndimage.distance_transform_edt(
+                    np_images[b, :, :, c] != 0
+                )
+        return out
+
+    result_shape_dtype = jax.ShapeDtypeStruct(images.shape, jnp.dtype(np_dtype))
+    out = jax.pure_callback(_scipy_edt, result_shape_dtype, images)
+
+    if data_format == "channels_first":
+        out = jnp.transpose(out, (0, 3, 1, 2))
+    if unbatched:
+        out = jnp.squeeze(out, axis=0)
+    return out

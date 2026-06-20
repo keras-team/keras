@@ -3313,3 +3313,94 @@ class SobelEdgesTest(testing.TestCase):
         image = np.random.random((1, 16, 16, 3)).astype("float32")
         edges = kimage.sobel_edges(image, data_format="channels_last")
         self.assertEqual(edges.shape, (1, 16, 16, 3, 2))
+
+
+class EuclideanDistTransformTest(testing.TestCase):
+    def setUp(self):
+        if backend.backend() == "openvino":
+            self.skipTest(
+                "`euclidean_dist_transform` is not supported with openvino "
+                "backend"
+            )
+
+    def _scipy_reference(self, images_uint8_nhwc):
+        # Per-(batch, channel) reference using scipy directly.
+        ref = np.empty(images_uint8_nhwc.shape, dtype="float32")
+        for b in range(images_uint8_nhwc.shape[0]):
+            for c in range(images_uint8_nhwc.shape[-1]):
+                ref[b, :, :, c] = scipy.ndimage.distance_transform_edt(
+                    images_uint8_nhwc[b, :, :, c] != 0
+                )
+        return ref
+
+    def test_shape_4d_channels_last(self):
+        image = np.ones((2, 8, 8, 3), dtype="uint8")
+        out = kimage.euclidean_dist_transform(
+            image, data_format="channels_last"
+        )
+        self.assertEqual(tuple(out.shape), (2, 8, 8, 3))
+
+    def test_shape_4d_channels_first(self):
+        image = np.ones((2, 3, 8, 8), dtype="uint8")
+        out = kimage.euclidean_dist_transform(
+            image, data_format="channels_first"
+        )
+        self.assertEqual(tuple(out.shape), (2, 3, 8, 8))
+
+    def test_shape_3d(self):
+        image = np.ones((8, 8, 1), dtype="uint8")
+        out = kimage.euclidean_dist_transform(
+            image, data_format="channels_last"
+        )
+        self.assertEqual(tuple(out.shape), (8, 8, 1))
+
+    def test_matches_scipy_reference(self):
+        rng = np.random.default_rng(0)
+        image = rng.integers(0, 2, size=(2, 16, 16, 2), dtype=np.uint8)
+        out = kimage.euclidean_dist_transform(
+            image, data_format="channels_last"
+        )
+        ref = self._scipy_reference(image)
+        self.assertAllClose(backend.convert_to_numpy(out), ref, atol=1e-5)
+
+    def test_single_zero_pixel(self):
+        # All foreground except a single background pixel at (3, 4); every
+        # output entry should equal its Euclidean distance to (3, 4).
+        image = np.ones((1, 8, 8, 1), dtype="uint8")
+        image[0, 3, 4, 0] = 0
+        out = kimage.euclidean_dist_transform(
+            image, data_format="channels_last"
+        )
+        out = backend.convert_to_numpy(out)[0, :, :, 0]
+        yy, xx = np.meshgrid(np.arange(8), np.arange(8), indexing="ij")
+        expected = np.sqrt((yy - 3) ** 2 + (xx - 4) ** 2)
+        self.assertAllClose(out, expected, atol=1e-5)
+
+    def test_dtype_argument(self):
+        image = np.ones((1, 4, 4, 1), dtype="uint8")
+        # Default float32.
+        out = kimage.euclidean_dist_transform(
+            image, data_format="channels_last"
+        )
+        self.assertEqual(backend.standardize_dtype(out.dtype), "float32")
+        # Explicit float16.
+        out = kimage.euclidean_dist_transform(
+            image, dtype="float16", data_format="channels_last"
+        )
+        self.assertEqual(backend.standardize_dtype(out.dtype), "float16")
+
+    def test_rejects_float_input(self):
+        image = np.ones((1, 4, 4, 1), dtype="float32")
+        with self.assertRaisesRegex(TypeError, "integer-dtype"):
+            kimage.euclidean_dist_transform(image, data_format="channels_last")
+
+    def test_rejects_rank_2(self):
+        image = np.ones((8, 8), dtype="uint8")
+        with self.assertRaisesRegex(ValueError, "rank 3"):
+            kimage.euclidean_dist_transform(image, data_format="channels_last")
+
+    def test_symbolic_call(self):
+        x = KerasTensor((None, 8, 8, 3), dtype="uint8")
+        out = kimage.euclidean_dist_transform(x, data_format="channels_last")
+        self.assertEqual(out.shape, (None, 8, 8, 3))
+        self.assertEqual(backend.standardize_dtype(out.dtype), "float32")
