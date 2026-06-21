@@ -3248,7 +3248,11 @@ def nanargmin(x, axis=None, keepdims=False):
 
 
 def nancumsum(x, axis=None, dtype=None):
-    return cumsum(nan_to_num(x, nan=0.0), axis=axis, dtype=dtype)
+    return cumsum(
+        nan_to_num(x, nan=0.0, posinf=float("inf"), neginf=float("-inf")),
+        axis=axis,
+        dtype=dtype,
+    )
 
 
 def nancumprod(x, axis=None, dtype=None):
