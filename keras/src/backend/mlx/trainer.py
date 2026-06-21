@@ -15,6 +15,7 @@ from keras.src.trainers.data_adapters import array_slicing
 from keras.src.trainers.data_adapters import data_adapter_utils
 from keras.src.trainers.epoch_iterator import EpochIterator
 from keras.src.utils import traceback_utils
+from keras.src.utils.python_utils import pythonify_logs
 
 
 class MLXTrainer(base_trainer.Trainer):
@@ -116,33 +117,6 @@ class MLXTrainer(base_trainer.Trainer):
             for v in self.metrics_variables:
                 v._value = None
 
-    def _pythonify_logs(self, logs):
-        result = {}
-        for key, value in sorted(logs.items()):
-            if isinstance(value, dict):
-                result.update(self._pythonify_logs(value))
-            else:
-                if (
-                    isinstance(value, mx.array)
-                    and value.size == 1
-                    and value.dtype in (mx.float32, mx.float16, mx.bfloat16)
-                ):
-                    value = value.item()
-                result[key] = value
-        return result
-
-    def get_metrics_result(self):
-        """Same as the base class but doesn't pythonify the logs to allow for
-        lazy computation."""
-        return_metrics = {}
-        for metric in self.metrics:
-            result = metric.result()
-            if isinstance(result, dict):
-                return_metrics.update(result)
-            else:
-                return_metrics[metric.name] = result
-        return return_metrics
-
     def compute_loss_and_updates(
         self,
         trainable_variables,
@@ -155,7 +129,7 @@ class MLXTrainer(base_trainer.Trainer):
         optimizer_variables=None,
     ):
         """Similar to the jax trainer, this method is stateless and is intended
-        for use with mx.value_and_grad ."""
+        for use with mx.value_and_grad."""
         kwargs = {}
         if self._call_has_training_arg:
             kwargs["training"] = training
@@ -479,7 +453,7 @@ class MLXTrainer(base_trainer.Trainer):
                 (x, y, sample_weight), validation_split=validation_split
             )
 
-        if validation_data:
+        if validation_data is not None:
             (
                 val_x,
                 val_y,
@@ -558,9 +532,7 @@ class MLXTrainer(base_trainer.Trainer):
                     }
 
                     # Callbacks
-                    callbacks.on_train_batch_end(
-                        end_step, self._pythonify_logs(logs)
-                    )
+                    callbacks.on_train_batch_end(end_step, pythonify_logs(logs))
                     if self.stop_training:
                         break
 
@@ -568,12 +540,12 @@ class MLXTrainer(base_trainer.Trainer):
             self.mlx_state_sync()
 
             # Override with model metrics instead of last step logs
-            epoch_logs = self._pythonify_logs(
-                self._get_metrics_result_or_logs(logs)
-            )
+            epoch_logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
 
             # Run validation.
-            if validation_data and self._should_eval(epoch, validation_freq):
+            if validation_data is not None and self._should_eval(
+                epoch, validation_freq
+            ):
                 # Create EpochIterator for evaluation and cache it.
                 if getattr(self, "_eval_epoch_iterator", None) is None:
                     self._eval_epoch_iterator = MLXEpochIterator(
@@ -702,14 +674,12 @@ class MLXTrainer(base_trainer.Trainer):
                     "non_trainable_variables": non_trainable_variables,
                     "metrics_variables": metrics_variables,
                 }
-                callbacks.on_test_batch_end(
-                    end_step, self._pythonify_logs(logs)
-                )
+                callbacks.on_test_batch_end(end_step, pythonify_logs(logs))
                 if self.stop_evaluating:
                     break
 
         self.mlx_state_sync()
-        logs = self._pythonify_logs(self._get_metrics_result_or_logs(logs))
+        logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
         callbacks.on_test_end(logs)
         self._mlx_state = None
 
@@ -870,7 +840,7 @@ class MLXTrainer(base_trainer.Trainer):
         }
         self.mlx_state_sync()
 
-        logs = self._pythonify_logs(logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
@@ -915,7 +885,7 @@ class MLXTrainer(base_trainer.Trainer):
         }
         self.mlx_state_sync()
 
-        logs = self._pythonify_logs(logs)
+        logs = pythonify_logs(logs)
         if return_dict:
             return logs
         return self._flatten_metrics_in_order(logs)
