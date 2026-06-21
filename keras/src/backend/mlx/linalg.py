@@ -89,7 +89,7 @@ def svd(x, full_matrices=True, compute_uv=True):
             return s
         if not full_matrices:
             n = min(x.shape[-2:])
-            return u[..., :n], s, vt[:n, ...]
+            return u[..., :n], s, vt[..., :n, :]
         # mlx returns full matrices by default
         return u, s, vt
 
