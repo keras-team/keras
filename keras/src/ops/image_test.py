@@ -1326,8 +1326,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, ref_out, atol=1e-4)
 
     def test_resize_uint8_round(self):
-        if backend.backend() == "mlx":
-            self.skipTest("mlx backend does not support uint8 matmul.")
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
         expected = np.array(
             # OpenCV as gold standard.
@@ -1366,8 +1364,6 @@ class ImageOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(out, expected, atol=1e-4)
 
     def test_resize_uint8_round_saturate(self):
-        if backend.backend() == "mlx":
-            self.skipTest("mlx backend does not support uint8 matmul.")
         x = np.array([0, 1, 254, 255], dtype="uint8").reshape(1, 2, 2, 1)
         expected = np.array(
             # OpenCV as gold standard. Same for `torch` backend.

@@ -59,7 +59,7 @@ def rgb_to_hsv(images, data_format=None):
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={backend.standardize_dtype(dtype)}"
         )
-    eps = mx.finfo(dtype).min
+    eps = mx.finfo(dtype).eps
     images = mx.where(mx.abs(images) < eps, 0.0, images)
     red, green, blue = mx.split(images, 3, channels_axis)
     red = mx.squeeze(red, channels_axis)
@@ -335,11 +335,12 @@ def affine_transform(
     )
     indices = mx.tile(indices, (batch_size, 1, 1, 1, 1))
 
-    # swap the values
+    # Swap the values on a copy so the caller's transform is left untouched.
     a0 = transform[:, 0]
     a2 = transform[:, 2]
     b1 = transform[:, 4]
     b2 = transform[:, 5]
+    transform = mx.array(transform)
     transform[:, 0] = b1
     transform[:, 2] = b2
     transform[:, 4] = a0
@@ -608,25 +609,33 @@ def _scale_and_translate(
             f"and output channels: {C_out}"
         )
 
+    # The interpolation weights live in [0, 1], so the contraction must run in
+    # float. Casting the weights to an integer input dtype would truncate them
+    # to zero. Compute in float and cast the result back to the input dtype.
+    compute_dtype = mx.float32
     w_mats = {}
     for i, d in enumerate(spatial_dims):
         if d == 1:  # height dimension
             w_mats[d] = _compute_weight_mat(
                 H_in, H_out, scale[i], translation[i], kernel, antialias
-            ).astype(x.dtype)
+            )
         elif d == 2:  # width dimension
             w_mats[d] = _compute_weight_mat(
                 W_in, W_out, scale[i], translation[i], kernel, antialias
-            ).astype(x.dtype)
+            )
         else:
             raise ValueError(f"Unexpected dimension {d} for 2D scaling.")
 
     w_h = w_mats[1]  # shape (H_in, H_out)
     w_w = w_mats[2]  # shape (W_in, W_out)
 
-    new_x = mx.einsum("bhwc,hH,wW->bHWc", x, w_h, w_w)
+    new_x = mx.einsum("bhwc,hH,wW->bHWc", x.astype(compute_dtype), w_h, w_w)
 
-    return new_x
+    # Integer images round and saturate to the input range, since kernels such
+    # as cubic and lanczos can overshoot it.
+    if mx.issubdtype(x.dtype, mx.integer):
+        new_x = mx.clip(mx.round(new_x), x.min(), x.max())
+    return new_x.astype(x.dtype)
 
 
 def _compute_weight_mat(
@@ -712,7 +721,9 @@ def scale_and_translate(
     translation = translation.astype(to_mlx_dtype(dtype))
 
     input_shape = images.shape
-    out = images
+    # The interpolation weights live in [0, 1], so the contraction must run in
+    # float. Compute in float and cast back to the input dtype at the end.
+    out = images.astype(mx.float32)
     for i, d in enumerate(spatial_dims):
         w = _compute_weight_mat(
             input_shape[d],
@@ -721,12 +732,16 @@ def scale_and_translate(
             translation[i],
             kernel,
             antialias,
-        ).astype(out.dtype)
+        )
         # Contract the spatial axis with the (in, out) weight matrix.
         # tensordot appends the new output axis, so move it back into place.
         out = mx.tensordot(out, w, axes=([d], [0]))
         out = mx.moveaxis(out, -1, d)
-    return out
+    # Integer images round and saturate to the input range, since kernels such
+    # as cubic and lanczos can overshoot it.
+    if mx.issubdtype(images.dtype, mx.integer):
+        out = mx.clip(mx.round(out), images.min(), images.max())
+    return out.astype(images.dtype)
 
 
 def sobel_edges(images, data_format=None):
