@@ -3252,7 +3252,11 @@ def nancumsum(x, axis=None, dtype=None):
 
 
 def nancumprod(x, axis=None, dtype=None):
-    return cumprod(nan_to_num(x, nan=1.0), axis=axis, dtype=dtype)
+    return cumprod(
+        nan_to_num(x, nan=1.0, posinf=float("inf"), neginf=float("-inf")),
+        axis=axis,
+        dtype=dtype,
+    )
 
 
 def nanmax(x, axis=None, keepdims=False):
