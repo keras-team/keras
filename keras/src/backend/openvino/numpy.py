@@ -2340,6 +2340,11 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     abs_x2 = ov_opset.abs(x2)
     total_tolerance = ov_opset.add(atol, ov_opset.multiply(rtol, abs_x2))
     is_close = ov_opset.less_equal(abs_diff, total_tolerance)
+    finite = ov_opset.logical_and(
+        get_ov_output(isfinite(x1)), get_ov_output(isfinite(x2))
+    )
+    is_close = ov_opset.logical_and(finite, is_close)
+    is_close = ov_opset.logical_or(is_close, ov_opset.equal(x1, x2))
     if equal_nan:
         both_nan = ov_opset.logical_and(ov_opset.isnan(x1), ov_opset.isnan(x2))
         is_close = ov_opset.logical_or(is_close, both_nan)

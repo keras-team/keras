@@ -1792,7 +1792,9 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = tf.cast(x1, dtype)
     x2 = tf.cast(x2, dtype)
     if "float" in dtype:
-        result = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        finite = tf.math.is_finite(x1) & tf.math.is_finite(x2)
+        close = tf.abs(x1 - x2) <= (atol + rtol * tf.abs(x2))
+        result = (finite & close) | tf.equal(x1, x2)
         if equal_nan:
             result = result | (is_nan(x1) & is_nan(x2))
         return result
