@@ -355,7 +355,7 @@ def average_pool(
     else:
         # Create a tensor of ones of the same shape of inputs.
         # Then create a pool, padding by zero and using sum as function.
-        # This will create a tensor of the smae dimensions as pooled tensor
+        # This will create a tensor of the same dimensions as pooled tensor
         # with values being the sum.
         # By dividing pooled by windows_counts, we get the average while
         # skipping the padded values.

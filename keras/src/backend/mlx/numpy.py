@@ -520,7 +520,7 @@ def diff(a, n=1, axis=-1):
 
 
 def digitize(x, bins):
-    # TODO: This is quite inefficient but we don't have natice support yet
+    # TODO: This is quite inefficient but we don't have native support yet
     x = convert_to_tensor(x)
     bins = convert_to_tensor(bins)
 
@@ -1519,11 +1519,11 @@ def searchsorted(sorted_sequence, values, side="left"):
     if sorted_sequence.ndim != 1:
         raise ValueError(
             "Invalid sorted_sequence, should be 1-dimensional. "
-            f"Recieved sorted_sequence.shape={sorted_sequence.shape}"
+            f"Received sorted_sequence.shape={sorted_sequence.shape}"
         )
     if values.ndim == 0:
         raise ValueError(
-            "Invalid values, should be N-dimensional. Recieved "
+            "Invalid values, should be N-dimensional. Received "
             f"scalar array values.shape={values.shape}"
         )
 
