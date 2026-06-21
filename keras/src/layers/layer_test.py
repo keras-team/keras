@@ -214,10 +214,10 @@ class LayerTest(testing.TestCase):
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
     def test_quantized_layer_with_remat(self):
+        """Test rematerialization on a quantized layer."""
         if backend.backend() == "mlx":
             self.skipTest("float8 is not yet supported in mlx backend.")
 
-        """Test rematerialization on a quantized layer."""
         mock_remat = MockRemat()
         with mock.patch(
             "keras.src.backend.common.remat.remat", wraps=mock_remat

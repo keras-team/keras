@@ -997,7 +997,7 @@ class MultiHeadAttentionTest(testing.TestCase):
 
     @pytest.mark.skipif(
         backend.backend() == "mlx",
-        reason=f"{backend.backend()} backend doesn't support quantization.",
+        reason="mlx backend does not support quantization",
     )
     def test_quantize_int8(self):
         utils.set_random_seed(1347)
