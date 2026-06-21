@@ -268,32 +268,6 @@ def compute_conv_transpose_output_crops_for_torch(
     return crops
 
 
-def _convert_conv_tranpose_padding_args_from_keras_to_mlx(
-    kernel_size, stride, dilation_rate, padding, output_padding
-):
-    effective_k_size = (kernel_size - 1) * dilation_rate + 1
-    if padding == "valid":
-        output_padding = (
-            max(effective_k_size, stride) - effective_k_size
-            if output_padding is None
-            else output_padding
-        )
-        pad_left = effective_k_size - 1
-        pad_right = effective_k_size - 1 + output_padding
-    elif padding == "same":
-        if output_padding is None:
-            total_pad = stride + effective_k_size - 2
-        else:
-            total_pad = (
-                effective_k_size + effective_k_size % 2 - 2 + output_padding
-            )
-        pad_left = min(total_pad // 2 + total_pad % 2, effective_k_size - 1)
-        pad_right = total_pad - pad_left
-    else:
-        raise ValueError(f"Invalid padding value: {padding}")
-    return pad_left, pad_right
-
-
 def compute_conv_transpose_padding_args_for_mlx(
     padding,
     num_spatial_dims,
@@ -302,20 +276,19 @@ def compute_conv_transpose_padding_args_for_mlx(
     strides,
     output_padding,
 ):
+    # The per-dimension padding is the same as for jax. mlx only differs in how
+    # the paddings are packaged, as separate start and end lists.
     start_paddings = []
     end_paddings = []
     for i in range(num_spatial_dims):
-        kernel_size_i = kernel_spatial_shape[i]
-        stride_i = strides[i]
-        dilation_rate_i = dilation_rate[i]
         output_padding_i = None if output_padding is None else output_padding[i]
         pad_left, pad_right = (
-            _convert_conv_tranpose_padding_args_from_keras_to_mlx(
-                kernel_size_i,
-                stride_i,
-                dilation_rate_i,
-                padding,
-                output_padding_i,
+            _convert_conv_transpose_padding_args_from_keras_to_jax(
+                kernel_size=kernel_spatial_shape[i],
+                stride=strides[i],
+                dilation_rate=dilation_rate[i],
+                padding=padding,
+                output_padding=output_padding_i,
             )
         )
         start_paddings.append(pad_left)
