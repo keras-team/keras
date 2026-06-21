@@ -7,6 +7,7 @@ from absl.testing import parameterized
 from keras.src import backend
 from keras.src import layers
 from keras.src import models
+from keras.src import ops
 from keras.src import saving
 from keras.src import testing
 from keras.src import utils
@@ -570,7 +571,7 @@ class OrbaxCheckpointTest(testing.TestCase, parameterized.TestCase):
                 super().build(input_shape)
 
             def call(self, inputs):
-                return inputs @ self.kernel
+                return ops.matmul(inputs, self.kernel)
 
         # Build model with both trainable and non-trainable variables
         inputs = layers.Input(shape=(10,), name="input_layer")
