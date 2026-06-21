@@ -57,6 +57,7 @@ class TFDatasetAdapter(DataAdapter):
             yield tree.map_structure(convert_to_jax, batch, none_is_leaf=False)
 
     def get_mlx_iterator(self):
+        from keras.src.backend.tensorflow.core import convert_to_numpy
         from keras.src.backend.tensorflow.core import sparse_to_dense
         from keras.src.utils.module_utils import mlx
         from keras.src.utils.module_utils import tensorflow as tf
@@ -64,7 +65,9 @@ class TFDatasetAdapter(DataAdapter):
         def convert_to_mlx(x):
             if isinstance(x, tf.SparseTensor):
                 x = sparse_to_dense(x)
-            return mlx.core.array(x)
+            # We use numpy as an intermediary because it is faster and avoids
+            # feeding a tf tensor straight to mlx.
+            return mlx.core.array(convert_to_numpy(x))
 
         for batch in self._dataset:
             yield tree.map_structure(convert_to_mlx, batch, none_is_leaf=False)

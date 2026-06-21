@@ -45,17 +45,9 @@ class TorchDataLoaderAdapter(DataAdapter):
         return self.get_numpy_iterator()
 
     def get_mlx_iterator(self):
-        from keras.src.utils.module_utils import mlx
-
-        # mlx requires converting torch tensors to numpy first for now
-        for batch in self._dataloader:
-            yield tuple(
-                tree.map_structure(
-                    lambda x: mlx.core.array(x.numpy()),
-                    batch,
-                    none_is_leaf=False,
-                )
-            )
+        # Reuse the numpy iterator, which already moves cuda tensors to the
+        # host and detaches them, then convert each leaf to an mlx array.
+        return data_adapter_utils.get_mlx_iterator(self.get_numpy_iterator())
 
     def get_tf_dataset(self):
         from keras.src.utils.module_utils import tensorflow as tf
