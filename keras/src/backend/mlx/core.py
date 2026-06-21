@@ -126,6 +126,12 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
         # mlx.array returns a TypeError when called with None
         raise ValueError("mlx cannot convert `None` to array")
 
+    if hasattr(x, "__array__"):
+        # Framework tensors and variables such as a tf.Tensor or a tf
+        # ResourceVariable cannot be passed to mx.array directly. Route them
+        # through numpy so the float64 and bfloat16 handling above applies.
+        return convert_to_tensor(np.asarray(x), dtype=dtype)
+
     return mx.array(x, dtype=mlx_dtype)
 
 
