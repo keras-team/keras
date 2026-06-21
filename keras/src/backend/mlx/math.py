@@ -8,7 +8,6 @@ from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import to_mlx_dtype
-from keras.src.backend.mlx.linalg import det
 from keras.src.utils.module_utils import scipy
 
 
@@ -139,11 +138,6 @@ def in_top_k(targets, predictions, k):
 def logsumexp(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
     return mx.logsumexp(x, axis, keepdims)
-
-
-def qr(x, mode="reduced"):
-    # TODO https://ml-explore.github.io/mlx/build/html/python/linalg.html
-    raise NotImplementedError("QR decomposition not supported in mlx yet")
 
 
 def extract_sequences(x, sequence_length, sequence_stride):
@@ -542,13 +536,9 @@ def erfinv(x):
     return mx.erfinv(x)
 
 
-def solve(a, b):
-    raise NotImplementedError(
-        "Linear system solving not yet implemented in mlx"
-    )
-
-
 def logdet(x):
-    x = convert_to_tensor(x)
-    det_x = det(x)
-    return mx.log(det_x)
+    from keras.src.backend.mlx.numpy import slogdet
+
+    # slogdet is more numerically stable than log(det(x)) and avoids NaN for
+    # negative determinants.
+    return slogdet(x)[1]
