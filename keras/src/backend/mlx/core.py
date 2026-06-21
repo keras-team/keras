@@ -309,9 +309,8 @@ def slice(inputs, start_indices, shape):
         start_indices = [
             i if isinstance(i, int) else i.item() for i in start_indices
         ]
-    python_slice = __builtins__["slice"]
     slices = tuple(
-        python_slice(start_index, start_index + length)
+        builtins.slice(start_index, start_index + length)
         for start_index, length in zip(start_indices, shape)
     )
     return inputs[slices]
@@ -327,9 +326,8 @@ def slice_update(inputs, start_indices, updates):
         ]
     updates = convert_to_tensor(updates)
 
-    python_slice = __builtins__["slice"]
     slices = tuple(
-        python_slice(start_index, start_index + update_length)
+        builtins.slice(start_index, start_index + update_length)
         for start_index, update_length in zip(start_indices, updates.shape)
     )
     inputs[slices] = updates
