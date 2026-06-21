@@ -2820,6 +2820,12 @@ class TestTrainer(testing.TestCase):
         backend.backend() == "torch",
         reason="`steps_per_execution` not implemented for torch yet",
     )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="Trace caching across `steps_per_execution` needs JIT compile. "
+        "That is turned off on the mlx CPU CI runner via MLX_DISABLE_COMPILE, "
+        "so the step runs eagerly on every batch.",
+    )
     def test_retracing(self):
         x = np.ones((100, 4))
         y = np.ones((100, 1))
@@ -2860,6 +2866,12 @@ class TestTrainer(testing.TestCase):
         backend.backend() == "tensorflow",
         reason="`predict_function` with `steps_per_execution` is not "
         "optimized for tensorflow yet",
+    )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="Trace caching across `steps_per_execution` needs JIT compile. "
+        "That is turned off on the mlx CPU CI runner via MLX_DISABLE_COMPILE, "
+        "so the step runs eagerly on every batch.",
     )
     def test_retracing_predict(self):
         x = np.ones((100, 4))
