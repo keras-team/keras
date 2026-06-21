@@ -676,7 +676,7 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         )
 
     if from_logits:
-        log_prob = log_softmax(output)
+        log_prob = log_softmax(output, axis=axis)
     else:
         output = output / mx.sum(output, axis=axis, keepdims=True)
         output = mx.clip(output, epsilon(), 1 - epsilon())
@@ -1257,6 +1257,11 @@ def _dot_product_attention(query, key, value, bias, mask, is_causal, scale):
     original_dtype = to_mlx_dtype(
         result_type(query.dtype, key.dtype, value.dtype)
     )
+    # Run the contraction in a single common dtype so mixed-precision inputs do
+    # not hit a dtype mismatch in the einsum.
+    query = query.astype(original_dtype)
+    key = key.astype(original_dtype)
+    value = value.astype(original_dtype)
     logits_dtype = mx.float32
     logits = mx.einsum("BTNH,BSNH->BNTS", query, key)
     logits = logits.astype(logits_dtype)
@@ -1299,7 +1304,24 @@ def dot_product_attention(
             f"Received: query.shape={query.shape}, key.shape={key.shape}, "
             f"value.shape={value.shape}."
         )
-    _, _, _, H = key.shape
+    # Grouped-query and multi-query attention. When the query has more heads
+    # than the key and value, repeat the key and value heads so each query head
+    # is paired with the head of its group. Ref: jax.nn.dot_product_attention.
+    num_query_heads = query.shape[2]
+    num_kv_heads = key.shape[2]
+    if num_query_heads != num_kv_heads:
+        if num_kv_heads == 0 or num_query_heads % num_kv_heads != 0:
+            raise ValueError(
+                "The number of query heads must be a multiple of the number "
+                "of key/value heads. Received: "
+                f"num_query_heads={num_query_heads}, "
+                f"num_key_value_heads={num_kv_heads}."
+            )
+        repeats = num_query_heads // num_kv_heads
+        key = mx.repeat(key, repeats, axis=2)
+        value = mx.repeat(value, repeats, axis=2)
+
+    H = key.shape[-1]
     scale = (1.0 / mx.sqrt(H)) if scale is None else scale
     return _dot_product_attention(
         query, key, value, bias, mask, is_causal, scale
