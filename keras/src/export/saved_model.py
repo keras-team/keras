@@ -101,11 +101,6 @@ def export_saved_model(
     use the lower-level `keras.export.ExportArchive` class. The
     `export()` method relies on `ExportArchive` internally.
     """
-    if backend.backend() not in ("tensorflow", "jax", "torch"):
-        raise NotImplementedError(
-            "`export_saved_model` only currently supports the tensorflow, "
-            "jax and torch backends."
-        )
     if verbose is None:
         verbose = True  # Defaults to `True` for all backends.
     export_archive = ExportArchive()
