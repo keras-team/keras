@@ -146,6 +146,16 @@ class LossScaleOptimizer(optimizer.Optimizer):
             ),
         )
 
+    def _unscale_grads(self, grads, scale, variables):
+        # Divide gradients by the loss scale, keeping any gradient that
+        # overwrites its variable untouched.
+        return [
+            g
+            if g is None or self._overwrite_variable_with_gradient(v)
+            else ops.divide(g, scale)
+            for g, v in zip(grads, variables)
+        ]
+
     def _mlx_stateless_apply(
         self, optimizer_variables, grads, trainable_variables
     ):
@@ -184,12 +194,9 @@ class LossScaleOptimizer(optimizer.Optimizer):
         # Unscale gradients. Skip variables flagged for gradient overwrite,
         # using the tracked Variable objects (not the passed-in values) so
         # `overwrite_with_gradient` is visible.
-        unscaled_grads = [
-            g
-            if g is None or self._overwrite_variable_with_gradient(v)
-            else ops.divide(g, dynamic_scale)
-            for g, v in zip(grads, self._trainable_variables)
-        ]
+        unscaled_grads = self._unscale_grads(
+            grads, dynamic_scale, self._trainable_variables
+        )
 
         with backend.StatelessScope(state_mapping=mapping):
             (
@@ -249,12 +256,9 @@ class LossScaleOptimizer(optimizer.Optimizer):
 
             # Unscale gradients.
             scale = self.dynamic_scale
-            unscaled_grads = [
-                g
-                if g is None or self._overwrite_variable_with_gradient(v)
-                else ops.divide(g, scale)
-                for g, v in zip(grads, self._trainable_variables)
-            ]
+            unscaled_grads = self._unscale_grads(
+                grads, scale, self._trainable_variables
+            )
             (
                 new_trainable_variables,
                 new_inner_variables,
@@ -295,12 +299,7 @@ class LossScaleOptimizer(optimizer.Optimizer):
         scale = self.dynamic_scale
         # Unscale gradients.
         tvs = trainable_variables or self._trainable_variables
-        unscaled_grads = [
-            g
-            if g is None or self._overwrite_variable_with_gradient(v)
-            else ops.divide(g, scale)
-            for g, v in zip(grads, tvs)
-        ]
+        unscaled_grads = self._unscale_grads(grads, scale, tvs)
         self.inner_optimizer.apply(
             unscaled_grads, trainable_variables=trainable_variables
         )
