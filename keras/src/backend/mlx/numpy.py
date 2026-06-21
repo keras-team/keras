@@ -586,9 +586,11 @@ def expand_dims(x, axis):
 
 
 def expm1(x):
-    # TODO: Add the numerically stable version
     x = convert_to_tensor(x)
-    return mx.exp(x) - 1
+    ori_dtype = standardize_dtype(x.dtype)
+    if "int" in ori_dtype or ori_dtype == "bool":
+        x = cast(x, config.floatx())
+    return mx.expm1(x)
 
 
 def flip(x, axis=None):
@@ -655,12 +657,7 @@ def hstack(xs):
 
 def identity(n, dtype=None):
     dtype = to_mlx_dtype(dtype or config.floatx())
-
-    zeros = mx.zeros((n, n), dtype=dtype)
-    idx = mx.arange(n)
-    zeros[idx, idx] = 1
-
-    return zeros
+    return mx.eye(n, dtype=dtype)
 
 
 def imag(x):
@@ -676,12 +673,12 @@ def isclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
 
 def isfinite(x):
     x = convert_to_tensor(x)
-    return True - (isinf(x) + isnan(x))
+    return mx.isfinite(x)
 
 
 def isinf(x):
     x = convert_to_tensor(x)
-    return mx.abs(x) == float("inf")
+    return mx.isinf(x)
 
 
 def isnan(x):
@@ -886,12 +883,12 @@ def not_equal(x1, x2):
     x2 = maybe_convert_to_tensor(x2)
     # Filter out None (scalar operands) before the membership test, since
     # `mx.Dtype.__eq__(None)` raises instead of returning False.
-    dtypes = [
+    operand_dtypes = [
         d
         for d in (getattr(x1, "dtype", None), getattr(x2, "dtype", None))
         if d is not None
     ]
-    if mx.float64 in dtypes:
+    if mx.float64 in operand_dtypes:
         # float64 is only supported on the cpu stream.
         with mx.stream(mx.cpu):
             return mx.not_equal(x1, x2)
@@ -957,11 +954,7 @@ def pad(x, pad_width, mode="constant", constant_values=None):
 def prod(x, axis=None, keepdims=False, dtype=None):
     x = convert_to_tensor(x)
     if dtype is None:
-        dtype = dtypes.result_type(x.dtype)
-        if dtype in ("bool", "int8", "int16"):
-            dtype = "int32"
-        elif dtype in ("uint8", "uint16"):
-            dtype = "uint32"
+        dtype = _widen_reduce_int_dtype(dtypes.result_type(x.dtype))
     mlx_dtype = to_mlx_dtype(dtype)
     output = mx.prod(x, axis=axis, keepdims=keepdims)
     return output.astype(mlx_dtype)
@@ -1136,11 +1129,7 @@ def tile(x, repeats):
 
 def trace(x, offset=0, axis1=0, axis2=1):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = _widen_reduce_int_dtype(standardize_dtype(x.dtype))
     mlx_dtype = to_mlx_dtype(dtype)
     return diagonal(x, offset, axis1, axis2).sum(-1).astype(mlx_dtype)
 
@@ -1708,13 +1697,20 @@ def _mlx_result_dtype(dtype):
     return to_mlx_dtype(dtype)
 
 
+def _widen_reduce_int_dtype(dtype):
+    # Match numpy integer accumulation, where small integer types widen to
+    # 32-bit so the reduction does not overflow.
+    if dtype in ("bool", "int8", "int16"):
+        return "int32"
+    if dtype in ("uint8", "uint16"):
+        return "uint32"
+    return dtype
+
+
 def allclose(x1, x2, rtol=1e-5, atol=1e-8, equal_nan=False):
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    x1, x2 = _to_numpy(x1, x2)
-    return mx.array(
-        np.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
-    )
+    return mx.allclose(x1, x2, rtol=rtol, atol=atol, equal_nan=equal_nan)
 
 
 def array_split(x, indices_or_sections, axis=0):
@@ -2107,11 +2103,7 @@ def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
 
 def nanprod(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype)
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = _widen_reduce_int_dtype(dtypes.result_type(x.dtype))
     result = np.nanprod(
         _to_numpy(x), axis=_np_axis(axis), keepdims=keepdims, dtype=dtype
     )
@@ -2149,11 +2141,7 @@ def nanstd(x, axis=None, keepdims=False):
 
 def nansum(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    dtype = standardize_dtype(x.dtype)
-    if dtype in ("bool", "int8", "int16"):
-        dtype = "int32"
-    elif dtype in ("uint8", "uint16"):
-        dtype = "uint32"
+    dtype = _widen_reduce_int_dtype(standardize_dtype(x.dtype))
     result = np.nansum(_to_numpy(x), axis=_np_axis(axis), keepdims=keepdims)
     return mx.array(result).astype(_mlx_result_dtype(dtype))
 
