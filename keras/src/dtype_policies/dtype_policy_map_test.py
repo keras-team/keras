@@ -25,7 +25,7 @@ class DTypePolicyMapTest(testing.TestCase):
     @pytest.mark.requires_trainable_backend
     def test_basic_usage(self):
         if backend.backend() == "mlx":
-            self.skipTest("mlx backend does not yet support quantization")
+            self.skipTest("mlx backend does not support quantization")
 
         # Create a subclass that might contain mixing dtype policies for
         # sublayers.
