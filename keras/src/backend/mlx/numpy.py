@@ -801,53 +801,13 @@ def maximum(x1, x2):
 
 
 def median(x, axis=None, keepdims=False):
+    # mlx's median axis must be an int, a sequence of ints, or None.
+    if isinstance(axis, list):
+        axis = tuple(axis)
     x = convert_to_tensor(x)
-    dtype = dtypes.result_type(x.dtype, float)
-    mlx_dtype = to_mlx_dtype(dtype)
-
-    axis_arg = axis
-    x_dim = x.ndim
-
-    if axis is None:
-        x = x.flatten()
-        axis = (0,)
-    elif isinstance(axis, int):
-        axis = (axis,)
-
-    axis = tuple(sorted(ax if ax >= 0 else ax + x.ndim for ax in axis))
-
-    transposed_axes = [i for i in range(x.ndim) if i not in axis] + list(axis)
-    x = x.transpose(*transposed_axes)
-
-    shape_without_axes = tuple(x.shape[i] for i in range(x.ndim - len(axis)))
-    x = x.reshape(shape_without_axes + (-1,))
-
-    x_sorted = mx.sort(x, axis=-1)
-    mid_index = x_sorted.shape[-1] // 2
-    if x_sorted.shape[-1] % 2 == 0:
-        lower = mx.take(x_sorted, mx.array([mid_index - 1]), axis=-1)
-        upper = mx.take(x_sorted, mx.array([mid_index]), axis=-1)
-        medians = (lower + upper) / 2
-    else:
-        medians = mx.take(x_sorted, mx.array([mid_index]), axis=-1)
-
-    if keepdims:
-        final_shape = list(shape_without_axes) + [1] * len(axis)
-        medians = medians.reshape(final_shape)
-        index_value_pairs = [
-            (i, transposed_axes[i]) for i in range(len(transposed_axes))
-        ]
-        index_value_pairs.sort(key=lambda pair: pair[1])
-        sorted_indices = [pair[0] for pair in index_value_pairs]
-        medians = medians.transpose(*sorted_indices)
-    else:
-        medians = medians.squeeze()
-
-    if keepdims and axis_arg is None:
-        while medians.ndim < x_dim:
-            medians = mx.expand_dims(medians, axis=-1)
-
-    return medians.astype(mlx_dtype)
+    result_dtype = dtypes.result_type(x.dtype, float)
+    x = x.astype(_mlx_result_dtype(result_dtype))
+    return mx.median(x, axis=axis, keepdims=keepdims)
 
 
 def meshgrid(*x, indexing="xy"):
@@ -1117,8 +1077,8 @@ def stack(x, axis=0):
 
 
 def std(x, axis=None, keepdims=False):
-    x = convert_to_tensor(x)
-    return mx.sqrt(mx.var(x, axis=axis, keepdims=keepdims))
+    # Reuse var so std inherits the float32 compute precision safeguard.
+    return mx.sqrt(var(x, axis=axis, keepdims=keepdims))
 
 
 def swapaxes(x, axis1, axis2):
@@ -1319,7 +1279,14 @@ def transpose(x, axes=None):
 
 def var(x, axis=None, keepdims=False):
     x = convert_to_tensor(x)
-    return mx.var(x, axis=axis, keepdims=keepdims)
+    # mlx computes the variance in the input dtype, which overflows in low
+    # precision such as float16. Compute in float32 and cast back.
+    compute_dtype = dtypes.result_type(x.dtype, "float32")
+    result_dtype = dtypes.result_type(x.dtype, float)
+    result = mx.var(
+        x.astype(to_mlx_dtype(compute_dtype)), axis=axis, keepdims=keepdims
+    )
+    return result.astype(_mlx_result_dtype(result_dtype))
 
 
 def sum(x, axis=None, keepdims=False):
