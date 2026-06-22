@@ -7,9 +7,6 @@ EqualizationTest::test_output_range_0_255
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_matrix_rank
-LinalgOpsCorrectnessTest::test_norm_2_-2
-LinalgOpsCorrectnessTest::test_norm_2_2
-LinalgOpsCorrectnessTest::test_norm_2_nuc
 LinalgOpsCorrectnessTest::test_pinv_batched
 LinalgOpsCorrectnessTest::test_pinv_square_default_rcond
 LinalgOpsCorrectnessTest::test_pinv_tall_default_rcond
