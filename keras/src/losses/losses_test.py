@@ -2310,6 +2310,25 @@ class CharbonnierTest(testing.TestCase):
         loss = losses.Charbonnier(dtype="bfloat16")(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_sample_weight(self):
+        y_true = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32")
+        y_pred = y_true + 1.0
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.Charbonnier()(y_true, y_pred, sample_weight=sample_weight)
+        per_sample = losses.charbonnier(y_true, y_pred)
+        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_epsilon_parameter(self):
+        y_true = np.array([[0.0, 0.0], [0.0, 0.0]], dtype="float32")
+        y_pred = y_true + 0.0
+        self.assertAllClose(
+            losses.Charbonnier(epsilon=0.0)(y_true, y_pred), 0.0
+        )
+        self.assertAllClose(
+            losses.Charbonnier(epsilon=1.0)(y_true, y_pred), 1.0
+        )
+
 
 class PSNRTest(testing.TestCase):
     def test_config(self):
@@ -2359,6 +2378,36 @@ class PSNRTest(testing.TestCase):
         loss = losses.PSNR(dtype="bfloat16")(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
 
+    def test_sample_weight(self):
+        y_true = np.array(
+            [[[[0.0, 1.0], [1.0, 0.0]]], [[[0.5, 0.5], [0.5, 0.5]]]],
+            dtype="float32",
+        )
+        y_pred = y_true + 0.1
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.PSNR()(y_true, y_pred, sample_weight=sample_weight)
+        per_sample = losses.psnr(y_true, y_pred)
+        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_unbatched(self):
+        y_true = np.array([[[0.0, 1.0], [1.0, 0.0]]], dtype="float32")
+        y_pred = y_true + 0.1
+        loss = losses.PSNR()(y_true, y_pred)
+        self.assertAllClose(loss, -20.0)
+
+    def test_max_val(self):
+        y_true = np.array([[[[0.0, 255.0], [255.0, 0.0]]]], dtype="float32")
+        y_pred = y_true + 2.55
+        loss = losses.PSNR(max_val=255.0)(y_true, y_pred)
+        self.assertAllClose(loss, -40.0)
+
+    def test_invalid_rank(self):
+        y_true = np.array([[0.0, 1.0], [1.0, 0.0]], dtype="float32")
+        y_pred = y_true + 0.1
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.PSNR()(y_true, y_pred)
+
 
 class TotalVariationTest(testing.TestCase):
     def test_config(self):
@@ -2369,13 +2418,13 @@ class TotalVariationTest(testing.TestCase):
     def test_correctness(self):
         y_true = np.zeros((1, 2, 2, 1), dtype="float32")
         y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
-        expected = np.array([[[4.0], [10.0]]], dtype="float32")
+        expected = np.array([14.0], dtype="float32")
 
         loss = losses.total_variation(y_true, y_pred)
         self.assertAllClose(loss, expected)
 
         loss = losses.TotalVariation()(y_true, y_pred)
-        self.assertAllClose(loss, 7.0)
+        self.assertAllClose(loss, 14.0)
 
     def test_all_correct_unweighted(self):
         y_pred = np.ones((2, 4, 4, 3), dtype="float32")
@@ -2384,10 +2433,17 @@ class TotalVariationTest(testing.TestCase):
         self.assertAllClose(loss, 0.0)
 
     def test_no_reduction(self):
-        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
-        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        y_true = np.zeros((2, 2, 2, 1), dtype="float32")
+        y_pred = np.array(
+            [
+                [[[1.0], [2.0]], [[4.0], [8.0]]],
+                [[[1.0], [2.0]], [[4.0], [8.0]]],
+            ],
+            dtype="float32",
+        )
         loss = losses.TotalVariation(reduction=None)(y_true, y_pred)
-        self.assertAllClose(loss, np.array([[[4.0], [10.0]]]))
+        self.assertEqual(backend.shape(loss), (2,))
+        self.assertAllClose(loss, np.array([14.0, 14.0]))
 
     def test_sum_reduction(self):
         y_true = np.zeros((1, 2, 2, 1), dtype="float32")
@@ -2408,6 +2464,47 @@ class TotalVariationTest(testing.TestCase):
         y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
         loss = losses.TotalVariation(dtype="bfloat16")(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
+
+    def test_sample_weight(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred[0, :, :, :] = np.arange(4)[None, :, None] * 1.0
+        y_pred[1, :, :, :] = np.arange(4)[None, :, None] * 2.0
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.TotalVariation()(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        per_sample = losses.total_variation(y_true, y_pred)
+        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_unbatched(self):
+        y_true = np.zeros((2, 2, 1), dtype="float32")
+        y_pred = np.array([[[1.0], [2.0]], [[4.0], [8.0]]], dtype="float32")
+        loss = losses.TotalVariation()(y_true, y_pred)
+        self.assertAllClose(loss, 14.0)
+
+    def test_non_square(self):
+        y_true = np.zeros((1, 2, 3, 1), dtype="float32")
+        y_pred = np.arange(6, dtype="float32").reshape((1, 2, 3, 1))
+        loss = losses.TotalVariation()(y_true, y_pred)
+        # Vertical: |3-0|+|4-1|+|5-2| = 9
+        # Horizontal: |1-0|+|2-1|+|4-3|+|5-4| = 4
+        self.assertAllClose(loss, 13.0)
+
+    def test_invalid_rank(self):
+        y_true = np.zeros((2, 2), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.TotalVariation()(y_true, y_pred)
+
+    def test_invalid_axis(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.TotalVariation(axis=0)(y_true, y_pred)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.TotalVariation(axis=-1)(y_true, y_pred)
 
 
 class EdgeAwareSmoothnessTest(testing.TestCase):
@@ -2472,6 +2569,39 @@ class EdgeAwareSmoothnessTest(testing.TestCase):
         y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
         loss = losses.EdgeAwareSmoothness(dtype="bfloat16")(y_true, y_pred)
         self.assertDType(loss, "bfloat16")
+
+    def test_sample_weight(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred[0, :, :, :] = np.arange(4)[None, :, None] * 1.0
+        y_pred[1, :, :, :] = np.arange(4)[None, :, None] * 2.0
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.EdgeAwareSmoothness()(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        per_sample = losses.edge_aware_smoothness(y_true, y_pred)
+        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_non_square(self):
+        y_true = np.zeros((1, 2, 3, 1), dtype="float32")
+        y_pred = np.arange(6, dtype="float32").reshape((1, 2, 3, 1))
+        loss = losses.EdgeAwareSmoothness()(y_true, y_pred)
+        self.assertTrue(ops.isfinite(loss))
+
+    def test_invalid_rank(self):
+        y_true = np.zeros((2, 2), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.EdgeAwareSmoothness()(y_true, y_pred)
+
+    def test_invalid_axis(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.EdgeAwareSmoothness(axis=0)(y_true, y_pred)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.EdgeAwareSmoothness(axis=-1)(y_true, y_pred)
 
 
 class MSSSIMTest(testing.TestCase):
@@ -2563,3 +2693,50 @@ class MSSSIMTest(testing.TestCase):
             filter_size=5, power_factors=(0.5, 0.5), dtype="float16"
         )(y_true, y_pred)
         self.assertDType(loss, "float16")
+
+    def test_sample_weight(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        per_sample = losses.msssim(
+            y_true, y_pred, filter_size=5, power_factors=(0.5, 0.5)
+        )
+        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_channels_first(self):
+        y_true = np.random.random((2, 3, 32, 32)).astype("float32")
+        y_pred = y_true + 0.05
+        loss = losses.MSSSIM(
+            filter_size=5,
+            power_factors=(0.5, 0.5),
+            data_format="channels_first",
+        )(y_true, y_pred)
+        self.assertTrue(ops.isfinite(loss))
+
+    def test_invalid_rank(self):
+        y_true = np.zeros((32, 32), dtype="float32")
+        y_pred = y_true + 0.05
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+                y_true, y_pred
+            )
+
+    def test_too_small_image(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = y_true + 0.05
+        with self.assertRaisesRegex(ValueError, "spatial"):
+            losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+                y_true, y_pred
+            )
+
+    def test_invalid_axis(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5), axis=0)(
+                y_true, y_pred
+            )

@@ -4,6 +4,7 @@ from keras.src import backend
 from keras.src import ops
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
 from keras.src.saving import serialization_lib
@@ -2794,12 +2795,12 @@ def categorical_generalized_cross_entropy(y_true, y_pred, q):
 # ------------------------------------------------------------------------------
 
 
-def _canonicalize_image_axes(axis, data_format, y_rank):
-    """Return tuple of positive spatial axes and the channel axis.
+def _canonicalize_spatial_axes(axis, data_format, y_rank):
+    """Return and validate the spatial axes tuple for an image tensor.
 
-    The returned axes are positive integers. For `channels_last` the spatial
-    axes are `(-3, -2)` and the channel axis is `-1`. For `channels_first`
-    they are `(-2, -1)` and `-3`.
+    For `channels_last` the default spatial axes are `(-3, -2)` and the
+    channel axis is `-1`. For `channels_first` the default spatial axes are
+    `(-2, -1)` and the channel axis is `-3`.
     """
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
@@ -2811,28 +2812,28 @@ def _canonicalize_image_axes(axis, data_format, y_rank):
 
     if axis is None:
         axis = default_spatial
-
     if isinstance(axis, int):
         axis = (axis,)
     axis = tuple(canonicalize_axis(a, y_rank) for a in axis)
-
-    # If the channel axis is explicitly present in ``axis``, drop it so that
-    # per-channel computations can be averaged independently.
     channel_axis = canonicalize_axis(channel_axis, y_rank)
-    spatial_axes = tuple(a for a in axis if a != channel_axis)
-    if not spatial_axes:
+
+    if y_rank == 4 and 0 in axis:
         raise ValueError(
-            "`axis` must contain at least one spatial axis. "
-            f"Received axis={axis}."
+            f"`axis` must not include the batch axis 0. Received axis={axis}."
         )
-    return spatial_axes, channel_axis
+    if channel_axis in axis:
+        raise ValueError(
+            "`axis` must not include the channel axis. "
+            f"Received axis={axis} for data_format={data_format}."
+        )
+    return axis
 
 
 def _ensure_4d_images(y_true, y_pred, data_format):
     """Convert 3D/4D image tensors to 4D channels_last tensors.
 
     Returns:
-        Tuple of (y_true_4d, y_pred_4d, was_unbatched, original_data_format).
+        Tuple of `(y_true_4d, y_pred_4d, was_unbatched, original_data_format)`.
     """
     data_format = backend.standardize_data_format(data_format)
     y_pred = ops.convert_to_tensor(y_pred)
@@ -2864,21 +2865,6 @@ def _restore_batch_dim(result, unbatched):
     return result
 
 
-def _avg_pool2d(x, data_format):
-    """Downsample a 4D channels_last tensor by 2x."""
-    if data_format == "channels_last":
-        return ops.nn.average_pool(
-            x,
-            pool_size=2,
-            strides=2,
-            padding="valid",
-            data_format="channels_last",
-        )
-    return ops.nn.average_pool(
-        x, pool_size=2, strides=2, padding="valid", data_format="channels_first"
-    )
-
-
 def _create_gaussian_kernel2d(filter_size, filter_sigma, dtype):
     """Create a 2D Gaussian kernel for SSIM filtering."""
     x = ops.arange(filter_size, dtype=dtype)
@@ -2894,8 +2880,8 @@ def _ssim_components_per_channel(
     """Compute luminance and contrast-structure components per channel.
 
     Args:
-        img1: 4D tensor `(B, H, W, C)` in channels_last format.
-        img2: 4D tensor `(B, H, W, C)` in channels_last format.
+        img1: 4D tensor `(B, H, W, C)` in channels-last format.
+        img2: 4D tensor `(B, H, W, C)` in channels-last format.
 
     Returns:
         Tuple of `(luminance, contrast_structure)`, each of shape
@@ -2908,12 +2894,11 @@ def _ssim_components_per_channel(
     kernel = _create_gaussian_kernel2d(filter_size, filter_sigma, dtype)
     kernel = ops.reshape(kernel, (filter_size, filter_size, 1, 1))
 
-    # Depthwise convolution on each channel independently.  Keras' conv
-    # applies kernels over the channel dimension, so we fold the channel
-    # dimension into the batch dimension, convolve single-channel images,
-    # then restore the original batch/channel layout.
+    # Depthwise convolution on each channel independently. Keras' conv applies
+    # kernels over the channel dimension, so we fold the channel dimension into
+    # the batch dimension, convolve single-channel images, then restore the
+    # original batch/channel layout.
     shape = ops.shape(img1)
-    batch_size = shape[0]
     height = shape[1]
     width = shape[2]
     channels = shape[3]
@@ -2921,11 +2906,11 @@ def _ssim_components_per_channel(
     def _depthwise_conv4d(x):
         x = ops.transpose(x, (0, 3, 1, 2))
         x = ops.reshape(x, [-1, height, width, 1])
-        y = backend.nn.conv(
+        y = ops.conv(
             x, kernel, strides=1, padding="valid", data_format="channels_last"
         )
         shape_y = ops.shape(y)
-        return ops.reshape(y, [batch_size, shape_y[1], shape_y[2], channels])
+        return ops.reshape(y, [-1, shape_y[1], shape_y[2], channels])
 
     mu1 = _depthwise_conv4d(img1)
     mu2 = _depthwise_conv4d(img2)
@@ -2953,9 +2938,10 @@ def _multiscale_ssim(
     k1,
     k2,
 ):
-    """Compute Multi-Scale SSIM between two 4D channels_last image tensors.
+    """Compute Multi-Scale SSIM between two 4D channels-last image tensors.
 
-    Returns a per-image tensor of shape `(B,)`.
+    SSIM is computed over the spatial axes `(-3, -2)` and averaged over the
+    channel axis `(-1)`. Returns a per-image tensor of shape `(B,)`.
     """
     num_scales = len(power_factors)
     weighted_components = []
@@ -2966,20 +2952,23 @@ def _multiscale_ssim(
         )
         # Average over spatial dimensions, keep channels separate.
         cs = ops.mean(cs, axis=(1, 2))
+        # Clamp to avoid raising small negative values to fractional powers.
+        cs = ops.maximum(cs, 0.0)
         weighted_components.append(ops.power(cs, power_factors[i]))
-        # Downsample for the next scale.
+        # Downsample by 2x for the next scale. Same padding keeps the size
+        # close to half, which is the standard MS-SSIM downsampling pattern.
         img1 = ops.nn.average_pool(
             img1,
             pool_size=2,
             strides=2,
-            padding="valid",
+            padding="same",
             data_format="channels_last",
         )
         img2 = ops.nn.average_pool(
             img2,
             pool_size=2,
             strides=2,
-            padding="valid",
+            padding="same",
             data_format="channels_last",
         )
 
@@ -2989,6 +2978,7 @@ def _multiscale_ssim(
     )
     ssim = luminance * cs
     ssim = ops.mean(ssim, axis=(1, 2))
+    ssim = ops.maximum(ssim, 0.0)
     weighted_components.append(ops.power(ssim, power_factors[-1]))
 
     ms_ssim_per_channel = ops.prod(
@@ -3010,6 +3000,8 @@ def charbonnier(y_true, y_pred, epsilon=1e-3):
     ```python
     loss = mean(sqrt((y_true - y_pred) ** 2 + epsilon ** 2))
     ```
+
+    The mean is taken over all axes except the batch axis.
 
     Args:
         y_true: Ground truth values.
@@ -3054,11 +3046,11 @@ def psnr(y_true, y_pred, max_val=1.0, axis=None):
     ```
 
     Args:
-        y_true: Ground truth image tensor.
-        y_pred: Predicted image tensor.
+        y_true: Ground truth image tensor. Expected rank 3 or 4.
+        y_pred: Predicted image tensor. Expected rank 3 or 4.
         max_val: The maximum possible pixel value. Defaults to `1.0`.
-        axis: Tuple of axes over which the MSE is computed. Defaults to the
-            image dimensions `(-3, -2, -1)` for channels-last data.
+        axis: Tuple of axes over which the MSE is computed. Defaults to all
+            axes except the batch axis.
 
     Returns:
         Negative PSNR values with shape `[batch_size]`.
@@ -3073,8 +3065,15 @@ def psnr(y_true, y_pred, max_val=1.0, axis=None):
     y_true = ops.cast(y_true, y_pred.dtype)
     max_val = ops.cast(max_val, y_pred.dtype)
 
+    rank = len(y_pred.shape)
+    if rank not in (3, 4):
+        raise ValueError(
+            "`psnr` expects rank 3 (single image) or rank 4 (batched images). "
+            f"Received input rank {rank}."
+        )
+
     if axis is None:
-        axis = tuple(range(1, len(y_pred.shape)))
+        axis = tuple(range(1, rank))
     elif isinstance(axis, int):
         axis = (axis,)
 
@@ -3090,7 +3089,8 @@ def total_variation(y_true, y_pred, axis=None, data_format=None):
 
     Total variation measures the sum of absolute differences between
     neighboring pixels. It is typically used as a regularizer in image
-    restoration to encourage spatial smoothness.
+    restoration to encourage spatial smoothness. `y_true` is ignored and is
+    present only for API consistency with other Keras losses.
 
     Formula:
 
@@ -3098,21 +3098,22 @@ def total_variation(y_true, y_pred, axis=None, data_format=None):
     loss = sum(abs(y_pred[..., 1:, ...] - y_pred[..., :-1, ...]))
     ```
 
-    The loss is computed over the spatial axes specified by `axis` and the
-    channel dimension is preserved, allowing the caller to reduce over it
-    via the `reduction` argument of the class wrapper.
+    The loss is computed over the spatial axes specified by `axis` and then
+    summed over the channel dimension, yielding one scalar value per image.
 
     Args:
         y_true: Ground truth values (ignored; present for API consistency).
-        y_pred: Predicted image tensor.
+        y_pred: Predicted image tensor. Expected rank 3 or 4.
         axis: Tuple of spatial axes over which to compute total variation.
-            Defaults to `(-3, -2)` for channels-last data.
+            If `None`, defaults to `(-3, -2)` for channels-last data or
+            `(-2, -1)` for channels-first data.
         data_format: A string specifying the data format, either
             `"channels_last"` or `"channels_first"`. If `None`, defaults to
             `keras.config.image_data_format()`.
 
     Returns:
-        Total variation values.
+        Total variation values with shape `[batch_size]` (or a scalar for
+        unbatched rank-3 inputs).
 
     Example:
 
@@ -3123,16 +3124,28 @@ def total_variation(y_true, y_pred, axis=None, data_format=None):
     y_pred = ops.convert_to_tensor(y_pred)
     data_format = backend.standardize_data_format(data_format)
 
-    if axis is None:
-        axis = (-3, -2) if data_format == "channels_last" else (-2, -1)
-    if isinstance(axis, int):
-        axis = (axis,)
-    axis = tuple(canonicalize_axis(a, len(y_pred.shape)) for a in axis)
+    rank = len(y_pred.shape)
+    if rank not in (3, 4):
+        raise ValueError(
+            "`total_variation` expects rank 3 (single image) or rank 4 "
+            f"(batched images). Received input rank {rank}."
+        )
+
+    axis = _canonicalize_spatial_axes(axis, data_format, rank)
 
     loss = 0.0
+    ndim = rank
     for ax in axis:
-        diff = ops.diff(y_pred, n=1, axis=ax)
-        loss = loss + ops.sum(ops.abs(diff), axis=ax)
+        slice1 = [slice(None)] * ndim
+        slice1[ax] = slice(1, None)
+        slice2 = [slice(None)] * ndim
+        slice2[ax] = slice(None, -1)
+        diff = y_pred[tuple(slice1)] - y_pred[tuple(slice2)]
+        loss = loss + ops.sum(ops.abs(diff), axis=axis)
+    # Sum over remaining non-batch axes (the channel dimension for batched
+    # inputs) so that each sample contributes a single scalar loss value.
+    if len(loss.shape) > 1:
+        loss = ops.sum(loss, axis=tuple(range(1, len(loss.shape))))
     return loss
 
 
@@ -3151,16 +3164,20 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
     ```
 
     Args:
-        y_true: Ground truth image tensor used to detect edges.
+        y_true: Ground truth image tensor used to detect edges. Expected rank
+            3 or 4.
         y_pred: Predicted image tensor that is penalized for being non-smooth.
-        axis: Tuple of spatial axes over which to compute the loss. Defaults
-            to `(-3, -2)` for channels-last data.
+            Expected rank 3 or 4.
+        axis: Tuple of spatial axes over which to compute the loss. If `None`,
+            defaults to `(-3, -2)` for channels-last data or `(-2, -1)` for
+            channels-first data.
         data_format: A string specifying the data format, either
             `"channels_last"` or `"channels_first"`. If `None`, defaults to
             `keras.config.image_data_format()`.
 
     Returns:
-        Edge-aware smoothness values.
+        Edge-aware smoothness values with shape `[batch_size]` (or a scalar
+        for unbatched rank-3 inputs).
 
     Example:
 
@@ -3172,18 +3189,30 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
     y_true = ops.cast(y_true, y_pred.dtype)
     data_format = backend.standardize_data_format(data_format)
 
-    if axis is None:
-        axis = (-3, -2) if data_format == "channels_last" else (-2, -1)
-    if isinstance(axis, int):
-        axis = (axis,)
-    axis = tuple(canonicalize_axis(a, len(y_pred.shape)) for a in axis)
+    rank = len(y_pred.shape)
+    if rank not in (3, 4):
+        raise ValueError(
+            "`edge_aware_smoothness` expects rank 3 (single image) or rank 4 "
+            f"(batched images). Received input rank {rank}."
+        )
+
+    axis = _canonicalize_spatial_axes(axis, data_format, rank)
 
     loss = 0.0
+    ndim = rank
     for ax in axis:
-        pred_grad = ops.diff(y_pred, n=1, axis=ax)
-        true_grad = ops.diff(y_true, n=1, axis=ax)
+        slice1 = [slice(None)] * ndim
+        slice1[ax] = slice(1, None)
+        slice2 = [slice(None)] * ndim
+        slice2[ax] = slice(None, -1)
+        pred_grad = y_pred[tuple(slice1)] - y_pred[tuple(slice2)]
+        true_grad = y_true[tuple(slice1)] - y_true[tuple(slice2)]
         weighted = ops.abs(pred_grad) * ops.exp(-ops.abs(true_grad))
-        loss = loss + ops.sum(weighted, axis=ax)
+        loss = loss + ops.sum(weighted, axis=axis)
+    # Sum over remaining non-batch axes (the channel dimension for batched
+    # inputs) so that each sample contributes a single scalar loss value.
+    if len(loss.shape) > 1:
+        loss = ops.sum(loss, axis=tuple(range(1, len(loss.shape))))
     return loss
 
 
@@ -3208,16 +3237,20 @@ def msssim(
     so that minimizing it maximizes MS-SSIM. When `l1_weight` is `0`, only the
     MS-SSIM term is returned (scaled by `alpha`).
 
+    SSIM is computed over the spatial axes and averaged over channels. The
+    `axis` argument is validated to be the spatial axes for the given
+    `data_format` and is used only for the optional L1 term.
+
     Args:
-        y_true: Ground truth image tensor.
-        y_pred: Predicted image tensor.
+        y_true: Ground truth image tensor. Expected rank 3 or 4.
+        y_pred: Predicted image tensor. Expected rank 3 or 4.
         max_val: The maximum possible pixel value. Defaults to `1.0`.
         alpha: Weight of the MS-SSIM term in the MS-SSIM + L1 combination.
             Defaults to `0.84`.
         l1_weight: Weight of the L1 term. When `0`, the L1 term is omitted.
             Defaults to `0.0`.
-        axis: Tuple of axes specifying the image dimensions. Defaults to
-            `(-3, -2, -1)` for channels-last data.
+        axis: Tuple of spatial axes. If `None`, defaults to `(-3, -2)` for
+            channels-last data or `(-2, -1)` for channels-first data.
         data_format: A string specifying the data format, either
             `"channels_last"` or `"channels_first"`. If `None`, defaults to
             `keras.config.image_data_format()`.
@@ -3228,29 +3261,46 @@ def msssim(
         k1: First SSIM stabilization constant. Defaults to `0.01`.
         k2: Second SSIM stabilization constant. Defaults to `0.03`.
         power_factors: Tuple of weights for each scale. Defaults to the
-            standard MS-SSIM weights.
+            standard MS-SSIM weights. The number of scales equals
+            `len(power_factors)`.
 
     Returns:
         MS-SSIM loss values with shape `[batch_size]`.
 
     Example:
 
-    >>> y_true = np.random.random((2, 128, 128, 3))
+    >>> y_true = np.random.random((2, 32, 32, 3))
     >>> y_pred = y_true + 0.05
-    >>> loss = keras.losses.msssim(y_true, y_pred)
+    >>> loss = keras.losses.msssim(
+    ...     y_true, y_pred, filter_size=5, power_factors=(0.5, 0.5)
+    ... )
 
     References:
-        - [Wang et al., 2003](https://ieeexplore.ieee.org/document/1292216)
+        - [Wang et al., 2003](https://arxiv.org/abs/cs/0505038)
           ("Multiscale structural similarity for image quality assessment")
     """
     y_true, y_pred, unbatched, data_format = _ensure_4d_images(
         y_true, y_pred, data_format
     )
 
-    spatial_axes, _ = _canonicalize_image_axes(
-        axis, data_format, len(y_pred.shape)
-    )
-    # _multiscale_ssim operates on channels_last 4D tensors and returns (B,).
+    # Validate that `axis` matches the spatial axes for the data format. SSIM
+    # is always computed over the channels-last spatial axes `(-3, -2)`.
+    _canonicalize_spatial_axes(axis, data_format, len(y_pred.shape))
+
+    shape = ops.shape(y_pred)
+    height = shape[1]
+    width = shape[2]
+    num_scales = len(power_factors)
+    min_size = filter_size * (2 ** (num_scales - 1))
+    if height < min_size or width < min_size:
+        raise ValueError(
+            "MS-SSIM requires input spatial size to be at least "
+            f"{min_size}x{min_size} for {num_scales} scales and "
+            f"filter_size={filter_size}. Received shape "
+            f"({shape[0]}, {height}, {width}, {shape[3]}). Use fewer "
+            "scales, a smaller filter_size, or larger input images."
+        )
+
     ms_ssim = _multiscale_ssim(
         y_pred,
         y_true,
@@ -3265,9 +3315,10 @@ def msssim(
     ms_ssim = ops.cast(ms_ssim, y_pred.dtype)
     loss = alpha * (1.0 - ms_ssim)
 
-    l1_weight = ops.cast(l1_weight, y_pred.dtype)
-    if l1_weight != 0.0:
-        l1 = ops.mean(ops.abs(y_true - y_pred), axis=spatial_axes)
+    if not (isinstance(l1_weight, (int, float)) and l1_weight == 0.0):
+        l1_weight = ops.cast(l1_weight, y_pred.dtype)
+        # Use the channels-last spatial axes for the L1 term.
+        l1 = ops.mean(ops.abs(y_true - y_pred), axis=(1, 2))
         l1 = ops.mean(l1, axis=-1)  # average over channels
         loss = loss + (1.0 - alpha) * l1_weight * l1
 
@@ -3328,8 +3379,8 @@ class PSNR(LossFunctionWrapper):
 
     Args:
         max_val: The maximum possible pixel value. Defaults to `1.0`.
-        axis: Tuple of axes over which the MSE is computed. Defaults to the
-            image dimensions `(-3, -2, -1)` for channels-last data.
+        axis: Tuple of axes over which the MSE is computed. Defaults to all
+            axes except the batch axis.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`. Supported options are
             `"sum"`, `"sum_over_batch_size"`, `"mean"`,
@@ -3352,7 +3403,7 @@ class PSNR(LossFunctionWrapper):
     def __init__(
         self,
         max_val=1.0,
-        axis=(-3, -2, -1),
+        axis=None,
         reduction="sum_over_batch_size",
         name="psnr",
         dtype=None,
@@ -3380,7 +3431,8 @@ class TotalVariation(LossFunctionWrapper):
 
     Args:
         axis: Tuple of spatial axes over which to compute total variation.
-            Defaults to `(-3, -2)` for channels-last data.
+            If `None`, defaults to `(-3, -2)` for channels-last data or
+            `(-2, -1)` for channels-first data.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`. Supported options are
             `"sum"`, `"sum_over_batch_size"`, `"mean"`,
@@ -3405,7 +3457,7 @@ class TotalVariation(LossFunctionWrapper):
 
     def __init__(
         self,
-        axis=(-3, -2),
+        axis=None,
         reduction="sum_over_batch_size",
         name="total_variation",
         dtype=None,
@@ -3433,8 +3485,9 @@ class EdgeAwareSmoothness(LossFunctionWrapper):
     """Computes edge-aware smoothness loss between labels and predictions.
 
     Args:
-        axis: Tuple of spatial axes over which to compute the loss. Defaults
-            to `(-3, -2)` for channels-last data.
+        axis: Tuple of spatial axes over which to compute the loss. If `None`,
+            defaults to `(-3, -2)` for channels-last data or `(-2, -1)` for
+            channels-first data.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`. Supported options are
             `"sum"`, `"sum_over_batch_size"`, `"mean"`,
@@ -3459,7 +3512,7 @@ class EdgeAwareSmoothness(LossFunctionWrapper):
 
     def __init__(
         self,
-        axis=(-3, -2),
+        axis=None,
         reduction="sum_over_batch_size",
         name="edge_aware_smoothness",
         dtype=None,
@@ -3492,8 +3545,8 @@ class MSSSIM(LossFunctionWrapper):
             Defaults to `0.84`.
         l1_weight: Weight of the optional L1 term. When `0`, the L1 term is
             omitted. Defaults to `0.0`.
-        axis: Tuple of axes specifying the image dimensions. Defaults to
-            `(-3, -2, -1)` for channels-last data.
+        axis: Tuple of spatial axes. If `None`, defaults to `(-3, -2)` for
+            channels-last data or `(-2, -1)` for channels-first data.
         reduction: Type of reduction to apply to the loss. In almost all cases
             this should be `"sum_over_batch_size"`. Supported options are
             `"sum"`, `"sum_over_batch_size"`, `"mean"`,
@@ -3519,9 +3572,11 @@ class MSSSIM(LossFunctionWrapper):
 
     Example:
 
-    >>> y_true = np.random.random((2, 128, 128, 3))
+    >>> y_true = np.random.random((2, 32, 32, 3))
     >>> y_pred = y_true + 0.05
-    >>> loss = keras.losses.MSSSIM()(y_true, y_pred)
+    >>> loss = keras.losses.MSSSIM(
+    ...     filter_size=5, power_factors=(0.5, 0.5)
+    ... )(y_true, y_pred)
     """
 
     def __init__(
@@ -3529,7 +3584,7 @@ class MSSSIM(LossFunctionWrapper):
         max_val=1.0,
         alpha=0.84,
         l1_weight=0.0,
-        axis=(-3, -2, -1),
+        axis=None,
         reduction="sum_over_batch_size",
         name="msssim",
         dtype=None,
