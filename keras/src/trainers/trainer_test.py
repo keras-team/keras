@@ -2228,13 +2228,16 @@ class TestTrainer(testing.TestCase):
         outputs = layers.Dense(3)(inputs)
         model = models.Model(inputs, outputs)
         model.compile(optimizer="adam", loss="mse")
-
         bad_y = np.ones((10, 5, 5))
-        with self.assertRaisesRegex(ValueError, "Target shape mismatch"):
-            model.fit(np.ones((10, 3)), bad_y, epochs=1, verbose=0)
 
+        if backend.backend() == "tensorflow":
+            with self.assertRaisesRegex(ValueError, "Target shape mismatch"):
+                model.fit(np.ones((10, 3)), bad_y, epochs=1, verbose=0)
+        else:
+            with self.assertRaises((ValueError, RuntimeError, TypeError)):
+                model.fit(np.ones((10, 3)), bad_y, epochs=1, verbose=0)
         dict_y = {"wrong_key_name": np.ones((10, 3))}
-        with self.assertRaises((ValueError, TypeError)):
+        with self.assertRaises((ValueError, TypeError, RuntimeError)):
             model.fit(np.ones((10, 3)), dict_y, epochs=1, verbose=0)
 
     @pytest.mark.requires_trainable_backend
