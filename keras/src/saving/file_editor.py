@@ -1,5 +1,6 @@
 import collections
 import json
+import math
 import os.path
 import pprint
 import zipfile
@@ -528,6 +529,12 @@ class KerasFileEditor:
                     f"{value.external}"
                 )
 
+            if value.is_virtual:
+                raise ValueError(
+                    "Not allowed: H5 file with virtual Dataset at "
+                    f"{current_inner_path}"
+                )
+
             shape = value.shape
             dtype = value.dtype
 
@@ -550,7 +557,7 @@ class KerasFileEditor:
                 )
 
             # Safe product computation (Python int is unbounded)
-            num_elems = int(np.prod(shape))
+            num_elems = math.prod(shape)
 
             # ------------------------------------------------------
             # Validate TOTAL memory size

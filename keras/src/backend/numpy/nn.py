@@ -1,3 +1,5 @@
+import math
+
 import jax
 import numpy as np
 from jax import lax
@@ -327,7 +329,7 @@ def average_pool(
     pooled = _pool(inputs, 0.0, lax.add, pool_size, strides, padding)
     if padding == "valid":
         # Avoid the extra reduce_window.
-        return pooled / np.prod(pool_size)
+        return pooled / math.prod(pool_size)
     else:
         # Count the number of valid entries at each input point, then use that
         # for computing average. Assumes that any two arrays of same shape will

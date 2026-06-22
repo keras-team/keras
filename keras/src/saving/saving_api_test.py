@@ -9,6 +9,7 @@ from absl.testing import parameterized
 
 from keras.src import layers
 from keras.src.legacy.saving.legacy_h5_format import save_model_to_hdf5
+from keras.src.models import Model
 from keras.src.models import Sequential
 from keras.src.saving import saving_api
 from keras.src.testing import test_case
@@ -115,6 +116,45 @@ class SaveModelTests(test_case.TestCase):
             new_model.layers[0].get_weights()[1],
             model.layers[0].get_weights()[1],
         )
+
+    def test_objects_to_skip_with_functional_subclass_attribute_layer(self):
+        class Backbone(Model):
+            def __init__(self):
+                # Simulate a layer owned by a Functional subclass, but not
+                # part of the Functional graph. This matches e.g. a decoder
+                # attached to a backbone but called by a task model.
+                decoder = layers.Dense(2, name="decoder")
+
+                encoder = layers.Dense(4, name="encoder")
+                inputs = layers.Input((3,))
+                outputs = encoder(inputs)
+                super().__init__(inputs, outputs)
+                self.decoder = decoder
+
+        class Task(Model):
+            def __init__(self, backbone):
+                inputs = backbone.input
+                outputs = backbone.decoder(backbone(inputs))
+                super().__init__(inputs, outputs)
+                self.backbone = backbone
+
+        legacy_task = Task(Backbone())
+        legacy_task(np.ones((1, 3)))
+        filepath = os.path.join(self.get_temp_dir(), "legacy_task.weights.h5")
+        # This simulates a legacy task weight file that contains the full task,
+        # while modern task loading skips backbone-owned objects.
+        saving_api.save_weights(legacy_task, filepath)
+
+        new_task = Task(Backbone())
+        new_task(np.ones((1, 3)))
+        decoder_kernel = np.array(new_task.backbone.decoder.kernel)
+        objects_to_skip = list(new_task.backbone._flatten_layers())
+
+        self.assertIn(new_task.backbone.decoder, objects_to_skip)
+        saving_api.load_weights(
+            new_task, filepath, objects_to_skip=objects_to_skip
+        )
+        self.assertAllClose(new_task.backbone.decoder.kernel, decoder_kernel)
 
 
 class LoadModelTests(test_case.TestCase):

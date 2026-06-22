@@ -1,5 +1,5 @@
 import numpy as np
-import openvino.opset15 as ov_opset
+import openvino.opset16 as ov_opset
 from openvino import Type
 
 import keras.src.backend.openvino.numpy as onp
@@ -349,6 +349,9 @@ def average_pool(
     padding="valid",
     data_format=None,
 ):
+    num_spatial_dims = (
+        get_ov_output(inputs).get_partial_shape().rank.get_length() - 2
+    )
     return _pool(
         inputs,
         pool_size,
@@ -357,6 +360,7 @@ def average_pool(
         padding,
         data_format,
         exclude_pad=True,
+        dilations=[1] * num_spatial_dims,
     )
 
 
@@ -429,6 +433,7 @@ def _adaptive_pool_ov(
                 kernel_shape=small_kernel,
                 exclude_pad=True,
                 auto_pad="VALID",
+                dilations=[1] * num_spatial_dims,
             ).output(0)
         else:
             small_pool = ov_opset.max_pool(
@@ -454,6 +459,7 @@ def _adaptive_pool_ov(
                     kernel_shape=big_kernel,
                     exclude_pad=True,
                     auto_pad="VALID",
+                    dilations=[1] * num_spatial_dims,
                 ).output(0)
             else:
                 big_pool = ov_opset.max_pool(
@@ -1273,6 +1279,58 @@ def dot_product_attention(
             mask = ov_opset.add(mask, bias).output(0)
         else:
             mask = bias
+    if is_causal and mask is not None:
+        # OpenVINO's SDPA ignores `attention_mask` when `causal=True`, so a
+        # caller-provided mask would otherwise silently drop the causal
+        # constraint. Fold a lower-triangular mask into the explicit mask and
+        # disable the flag. `query`/`key` are [batch, heads, seq, head_dim].
+        seq_axis = ov_opset.constant([2], Type.i32).output(0)
+        gather_axis = ov_opset.constant(0, Type.i32).output(0)
+        squeeze_axis = ov_opset.constant([0], Type.i32).output(0)
+        t_len = ov_opset.squeeze(
+            ov_opset.gather(
+                ov_opset.shape_of(query).output(0), seq_axis, gather_axis
+            ).output(0),
+            squeeze_axis,
+        ).output(0)
+        s_len = ov_opset.squeeze(
+            ov_opset.gather(
+                ov_opset.shape_of(key).output(0), seq_axis, gather_axis
+            ).output(0),
+            squeeze_axis,
+        ).output(0)
+        zero_idx = ov_opset.constant(0, Type.i32).output(0)
+        one_idx = ov_opset.constant(1, Type.i32).output(0)
+        rows = ov_opset.unsqueeze(
+            ov_opset.range(
+                zero_idx, t_len, one_idx, output_type=Type.i32
+            ).output(0),
+            ov_opset.constant([1], Type.i32).output(0),
+        ).output(0)
+        cols = ov_opset.unsqueeze(
+            ov_opset.range(
+                zero_idx, s_len, one_idx, output_type=Type.i32
+            ).output(0),
+            ov_opset.constant([0], Type.i32).output(0),
+        ).output(0)
+        causal_keep = ov_opset.less_equal(cols, rows).output(0)
+        if mask.get_element_type() == Type.boolean:
+            false_const = ov_opset.constant(False, Type.boolean).output(0)
+            mask = ov_opset.select(causal_keep, mask, false_const).output(0)
+        else:
+            query_dtype = ov_to_keras_type(query.get_element_type())
+            min_val = (
+                np.finfo(np.float16).min
+                if query_dtype == "float16"
+                else np.finfo(np.float32).min
+            )
+            large_neg = ov_opset.constant(
+                min_val, query.get_element_type()
+            ).output(0)
+            zero = ov_opset.constant(0.0, query.get_element_type()).output(0)
+            causal_add = ov_opset.select(causal_keep, zero, large_neg).output(0)
+            mask = ov_opset.add(mask, causal_add).output(0)
+        is_causal = False
     scale = (
         get_ov_output(scale, query.get_element_type())
         if scale is not None

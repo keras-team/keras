@@ -985,6 +985,20 @@ def maximum(x1, x2):
     return np.maximum(x1, x2)
 
 
+def fmax(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    return np.fmax(x1, x2)
+
+
 def median(x, axis=None, keepdims=False):
     dtype = dtypes.result_type(x.dtype, float)
     return np.median(x, axis=axis, keepdims=keepdims).astype(dtype)
@@ -1011,6 +1025,20 @@ def minimum(x1, x2):
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
     return np.minimum(x1, x2)
+
+
+def fmin(x1, x2):
+    if not isinstance(x1, (int, float)):
+        x1 = convert_to_tensor(x1)
+    if not isinstance(x2, (int, float)):
+        x2 = convert_to_tensor(x2)
+    dtype = dtypes.result_type(
+        getattr(x1, "dtype", type(x1)),
+        getattr(x2, "dtype", type(x2)),
+    )
+    x1 = convert_to_tensor(x1, dtype)
+    x2 = convert_to_tensor(x2, dtype)
+    return np.fmin(x1, x2)
 
 
 def mod(x1, x2):
@@ -1782,3 +1810,8 @@ def unique(
 
     output[0] = values
     return output[0] if len(output) == 1 else tuple(output)
+
+
+def dsplit(x, indices_or_sections):
+    x = convert_to_tensor(x)
+    return np.dsplit(x, indices_or_sections)

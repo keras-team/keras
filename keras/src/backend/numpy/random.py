@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 
 from keras.src.backend.config import floatx
@@ -48,7 +50,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     lower_bound = mean - 2 * stddev
     upper_bound = mean + 2 * stddev
 
-    flat_shape = np.prod(shape)
+    flat_shape = math.prod(shape)
     random_numbers = np.empty(0)
 
     # loop until we have enough valid numbers to fill our desired shape

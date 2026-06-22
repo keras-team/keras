@@ -19,7 +19,7 @@ class VariableMappingTest(testing.TestCase):
         model.optimizer.build(model.trainable_variables)
         variable_map = model._get_variable_map()
         self.assertIn("sequential/dense_1/bias", variable_map)
-        self.assertIn("adam/learning_rate", variable_map)
+        self.assertIn("adam_1/learning_rate", variable_map)
 
         model = saving_lib_test._get_subclassed_model()
         model(np.ones((1, 1)))
@@ -30,4 +30,4 @@ class VariableMappingTest(testing.TestCase):
         self.assertIn(
             "custom_model_x/my_dense_1/my_additional_weight", variable_map
         )
-        self.assertIn("adam/learning_rate", variable_map)
+        self.assertIn("adam_2/learning_rate", variable_map)

@@ -1,4 +1,5 @@
 import hashlib
+import inspect
 import os
 import re
 import shutil
@@ -41,7 +42,7 @@ def path_to_string(path):
 
 
 def resolve_path(path):
-    return os.path.realpath(os.path.abspath(path))
+    return os.path.realpath(path)
 
 
 def resolve_sub_path(base_dir, relative_path):
@@ -66,8 +67,12 @@ def resolve_sub_path(base_dir, relative_path):
 
 def is_link_in_dir(info, base_dir):
     if info.islnk():
-        # Hard links resolve relative to the root.
-        return resolve_sub_path(base_dir, info.linkname) is not None
+        # Hard links resolve relative to the root. Verify both the link
+        # location and target location.
+        return (
+            resolve_sub_path(base_dir, info.name) is not None
+            and resolve_sub_path(base_dir, info.linkname) is not None
+        )
 
     # Symlinks resolve relative to the directory of their destination.
     destination = resolve_sub_path(base_dir, info.name)
@@ -135,10 +140,15 @@ def extract_open_archive(archive, path="."):
     else:
         # Tar archive.
         extractall_kwargs = {}
-        # The `filter="data"` option was added in Python 3.12. It became the
-        # default starting from Python 3.14. So we only specify it between
-        # those two versions.
-        if sys.version_info >= (3, 12) and sys.version_info < (3, 14):
+        # The `filter="data"` option was:
+        # - added in Python 3.12
+        # - backported to Python 3.10.12 and 3.11.4
+        # - became the default starting from Python 3.14
+        # So we only specify it for supported versions before 3.14.
+        if (
+            sys.version_info < (3, 14)
+            and "filter" in inspect.signature(archive.extractall).parameters
+        ):
             extractall_kwargs = {"filter": "data"}
         archive.extractall(
             path,

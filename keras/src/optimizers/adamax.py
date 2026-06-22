@@ -65,7 +65,7 @@ class Adamax(optimizer.Optimizer):
         ema_overwrite_frequency=None,
         loss_scale_factor=None,
         gradient_accumulation_steps=None,
-        name="adamax",
+        name=None,
         **kwargs,
     ):
         super().__init__(

@@ -99,7 +99,6 @@ class Functional(Function, Model):
     def __new__(cls, *args, **kwargs):
         return typing.cast(cls, super().__new__(cls))
 
-    @tracking.no_automatic_dependency_tracking
     def __init__(self, inputs, outputs, name=None, **kwargs):
         if isinstance(inputs, dict):
             for k, v in inputs.items():
@@ -133,12 +132,14 @@ class Functional(Function, Model):
         if not all(is_input_keras_tensor(t) for t in flat_inputs):
             inputs, outputs = clone_graph_nodes(inputs, outputs)
 
-        Function.__init__(self, inputs, outputs, name=name)
+        with tracking.DotNotTrackScope():
+            Function.__init__(self, inputs, outputs, name=name)
 
         if trainable is not None:
             self.trainable = trainable
 
-        self._layers = self.layers
+        for layer in self.layers:
+            self._tracker.track(layer)
         self.build(None)
         # We will convert directly (to the correct dtype per input).
         self._convert_input_args = False
@@ -709,9 +710,12 @@ def operation_fn(operation, **call_context_args):
 
 
 def functional_like_constructor(cls):
-    init_args = inspect.getfullargspec(cls.__init__).args[1:]
+    init_spec = inspect.getfullargspec(cls.__init__)
+    init_args = init_spec.args[1:]
     functional_init_args = inspect.getfullargspec(Functional.__init__).args[1:]
     if init_args == functional_init_args:
+        return True
+    if init_spec.varargs is not None and init_spec.varkw is not None:
         return True
     return False
 

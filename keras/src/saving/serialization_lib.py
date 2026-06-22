@@ -31,15 +31,34 @@ BUILTIN_MODULES = frozenset(
     }
 )
 
-LOADING_APIS = frozenset(
+NON_MODELING_APIS = frozenset(
     {
+        "keras.backend.clear_session",
         "keras.config.enable_unsafe_deserialization",
         "keras.models.load_model",
+        "keras.models.model_from_json",
+        "keras.models.save_model",
+        "keras.preprocessing.image_dataset_from_directory",
         "keras.preprocessing.image.load_img",
+        "keras.preprocessing.image.save_img",
+        "keras.preprocessing.text_dataset_from_directory",
+        "keras.saving.deserialize_keras_object",
         "keras.saving.load_model",
         "keras.saving.load_weights",
+        "keras.saving.register_keras_serializable",
+        "keras.saving.save_model",
+        "keras.saving.save_weights",
+        "keras.saving.serialize_keras_object",
+        "keras.utils.audio_dataset_from_directory",
+        "keras.utils.clear_session",
+        "keras.utils.deserialize_keras_object",
         "keras.utils.get_file",
+        "keras.utils.image_dataset_from_directory",
         "keras.utils.load_img",
+        "keras.utils.register_keras_serializable",
+        "keras.utils.save_img",
+        "keras.utils.serialize_keras_object",
+        "keras.utils.text_dataset_from_directory",
     }
 )
 
@@ -618,7 +637,7 @@ def deserialize_keras_object(
         }
 
     class_name = config["class_name"]
-    inner_config = config["config"] or {}
+    inner_config = config["config"] if config["config"] is not None else {}
     custom_objects = custom_objects or {}
 
     # Special cases:
@@ -669,6 +688,13 @@ def deserialize_keras_object(
             )
         return python_utils.func_load(inner_config["value"])
     if tf is not None and config["class_name"] == "__typespec__":
+        if not isinstance(inner_config, (tuple, list)):
+            raise TypeError(
+                "Expected 'config' to be a list or a tuple"
+                "for a __typespec__ class name,\n"
+                f"instead got {type(inner_config)}\n"
+                f"Full config: {config}"
+            )
         obj = _retrieve_class_or_fn(
             config["spec_name"],
             config["registered_name"],
@@ -694,6 +720,13 @@ def deserialize_keras_object(
 
     if class_name == "function":
         fn_name = inner_config
+        if not isinstance(fn_name, str):
+            raise TypeError(
+                "Expected 'config' to be a non-null str for"
+                "a function classname,\n"
+                f"instead got {type(fn_name)}\n"
+                f"Full config: {config}"
+            )
         return _retrieve_class_or_fn(
             fn_name,
             registered_name,
@@ -702,8 +735,13 @@ def deserialize_keras_object(
             full_config=config,
             custom_objects=custom_objects,
         )
-
     # Below, handling of all classes.
+    if not isinstance(inner_config, dict):
+        raise TypeError(
+            f"Expected 'config' to be a dict for {class_name},\n"
+            f"instead got {type(inner_config)}\n"
+            f"Full config: {config}"
+        )
     # First, is it a shared object?
     if "shared_object_id" in config:
         obj = get_shared_object(config["shared_object_id"])
@@ -798,10 +836,13 @@ def _retrieve_class_or_fn(
         if module == "keras" or module.startswith("keras."):
             api_name = f"{module}.{name}"
 
-            if api_name in LOADING_APIS:
+            if api_name in NON_MODELING_APIS:
                 raise ValueError(
-                    f"Cannot deserialize `{api_name}`, loading functions are "
-                    "not allowed during deserialization"
+                    f"Cannot deserialize `{api_name}` because it is not a "
+                    "modeling function. Non-modeling APIs are disallowed "
+                    "during deserialization for security. Model configuration "
+                    "should only contains operations, layers, metrics, losses, "
+                    "or registered custom objects and functions."
                 )
 
             obj = api_export.get_symbol_from_name(api_name)

@@ -282,11 +282,17 @@ def istft(
 
 
 def rsqrt(x):
+    x = convert_to_tensor(x)
     return jax.lax.rsqrt(x)
 
 
 def erf(x):
     return jax.lax.erf(x)
+
+
+def erfc(x):
+    x = convert_to_tensor(x)
+    return jax.scipy.special.erfc(x)
 
 
 def erfinv(x):

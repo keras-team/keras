@@ -295,7 +295,7 @@ def to_tensorflow_sparse_wrapper(sparse):
 
     row_ids = sparse.indices[:, 0]
     row_splits = tf.experimental.RowPartition.from_value_rowids(
-        row_ids
+        row_ids, nrows=sparse.dense_shape[0]
     ).row_splits()
 
     ragged_indices = tf.cast(

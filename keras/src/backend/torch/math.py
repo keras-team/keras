@@ -406,6 +406,11 @@ def erf(x):
     return torch.erf(x)
 
 
+def erfc(x):
+    x = convert_to_tensor(x)
+    return torch.erfc(x)
+
+
 def erfinv(x):
     x = convert_to_tensor(x)
     return torch.erfinv(x)

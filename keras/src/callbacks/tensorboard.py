@@ -432,6 +432,9 @@ class TensorBoard(Callback):
 
     def on_train_batch_begin(self, batch, logs=None):
         self._global_train_batch += 1
+        if self.update_freq != "epoch":
+            self._pop_writer()
+            self._push_writer(self._train_writer, self._global_train_batch)
         if self.write_steps_per_second:
             self._batch_start_time = time.time()
         if not self._should_trace:
@@ -475,6 +478,9 @@ class TensorBoard(Callback):
 
     def on_test_batch_begin(self, batch, logs=None):
         self._global_test_batch += 1
+        if self.update_freq != "epoch":
+            self._pop_writer()
+            self._push_writer(self._val_writer, self._global_test_batch)
 
     def on_epoch_begin(self, epoch, logs=None):
         # Keeps track of epoch for profiling.

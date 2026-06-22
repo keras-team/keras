@@ -876,8 +876,8 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=torch.long)
     output = convert_to_tensor(output)
 
-    if len(target.shape) == len(output.shape) and target.shape[-1] == 1:
-        target = torch.squeeze(target, dim=-1)
+    if len(target.shape) == len(output.shape) and target.shape[axis] == 1:
+        target = torch.squeeze(target, dim=axis)
 
     if len(output.shape) < 1:
         raise ValueError(
@@ -1461,7 +1461,19 @@ def dot_product_attention(
 
     mask = mask if mask is None else convert_to_tensor(mask, dtype="bool")
     if mask is not None:
-        # Explicit set `is_causal` to `False` when `mask` is not `None`.
+        if is_causal:
+            # `scaled_dot_product_attention` treats `attn_mask` and
+            # `is_causal` as mutually exclusive, so a caller-provided mask
+            # would otherwise silently drop the causal constraint. Fold the
+            # causal mask into the explicit mask to honor both.
+            q_len, kv_len = query.shape[1], key.shape[1]
+            causal_mask = torch.tril(
+                torch.ones(
+                    (q_len, kv_len), dtype=torch.bool, device=mask.device
+                )
+            )
+            mask = torch.logical_and(mask, causal_mask)
+        # Explicitly set `is_causal` to `False` when `mask` is not `None`.
         is_causal = False
         mask = torch.where(mask, 0.0, _get_large_negative(query.dtype))
     if bias is not None:

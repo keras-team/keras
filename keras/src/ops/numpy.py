@@ -1,4 +1,5 @@
 import builtins
+import math as python_math
 import re
 
 import numpy as np
@@ -630,9 +631,11 @@ class Append(Operation):
         )
         if self.axis is None:
             if None in x1_shape or None in x2_shape:
-                output_shape = [None]
+                output_shape = (None,)
             else:
-                output_shape = [int(np.prod(x1_shape) + np.prod(x2_shape))]
+                output_shape = (
+                    python_math.prod(x1_shape) + python_math.prod(x2_shape),
+                )
             return KerasTensor(output_shape, dtype=dtype)
 
         if not shape_equal(x1_shape, x2_shape, [self.axis]):
@@ -1141,7 +1144,10 @@ class Argsort(Operation):
 
     def compute_output_spec(self, x):
         if self.axis is None:
-            return KerasTensor([int(np.prod(x.shape))], dtype="int32")
+            if None in x.shape:
+                return KerasTensor((None,), dtype="int32")
+            return KerasTensor((python_math.prod(x.shape),), dtype="int32")
+        canonicalize_axis(self.axis, len(x.shape))
         return KerasTensor(x.shape, dtype="int32")
 
 
@@ -2070,12 +2076,13 @@ class Concatenate(Operation):
 
     def compute_output_spec(self, xs):
         first_shape = xs[0].shape
+        axis = canonicalize_axis(self.axis, len(first_shape))
         total_size_on_axis = 0
         all_sparse = True
         dtypes_to_resolve = []
         for x in xs:
             if not shape_equal(
-                x.shape, first_shape, axis=[self.axis], allow_none=True
+                x.shape, first_shape, axis=[axis], allow_none=True
             ):
                 raise ValueError(
                     "Every value in `xs` must have the same shape except on "
@@ -2083,14 +2090,14 @@ class Concatenate(Operation):
                     f"which is different from the first element's "
                     f"shape {first_shape}."
                 )
-            if total_size_on_axis is None or x.shape[self.axis] is None:
+            if total_size_on_axis is None or x.shape[axis] is None:
                 total_size_on_axis = None
             else:
-                total_size_on_axis += x.shape[self.axis]
+                total_size_on_axis += x.shape[axis]
             all_sparse = all_sparse and getattr(x, "sparse", False)
             dtypes_to_resolve.append(getattr(x, "dtype", type(x)))
         output_shape = list(first_shape)
-        output_shape[self.axis] = total_size_on_axis
+        output_shape[axis] = total_size_on_axis
         dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=dtype, sparse=all_sparse)
 
@@ -2399,8 +2406,9 @@ class Cumprod(Operation):
             if None in x.shape:
                 output_shape = (None,)
             else:
-                output_shape = (int(np.prod(x.shape)),)
+                output_shape = (python_math.prod(x.shape),)
         else:
+            canonicalize_axis(self.axis, len(x.shape))
             output_shape = x.shape
         output_dtype = (
             backend.standardize_dtype(x.dtype)
@@ -2445,8 +2453,9 @@ class Cumsum(Operation):
             if None in x.shape:
                 output_shape = (None,)
             else:
-                output_shape = (int(np.prod(x.shape)),)
+                output_shape = (python_math.prod(x.shape),)
         else:
+            canonicalize_axis(self.axis, len(x.shape))
             output_shape = x.shape
         output_dtype = (
             backend.standardize_dtype(x.dtype)
@@ -2807,10 +2816,11 @@ class Diff(Operation):
         return backend.numpy.diff(a, n=self.n, axis=self.axis)
 
     def compute_output_spec(self, a):
+        axis = canonicalize_axis(self.axis, len(a.shape))
         shape = list(a.shape)
-        size = shape[self.axis]
+        size = shape[axis]
         if size is not None:
-            shape[self.axis] = builtins.max(size - self.n, 0)
+            shape[axis] = builtins.max(size - self.n, 0)
         return KerasTensor(shape, dtype=a.dtype)
 
 
@@ -5184,6 +5194,52 @@ def maximum(x1, x2):
     return backend.numpy.maximum(x1, x2)
 
 
+class Fmax(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.fmax(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and x2_sparse
+        return KerasTensor(
+            output_shape, dtype=output_dtype, sparse=output_sparse
+        )
+
+
+@keras_export(["keras.ops.fmax", "keras.ops.numpy.fmax"])
+def fmax(x1, x2):
+    """Element-wise maximum of tensor elements, ignoring NaNs.
+
+    Compare two tensors element-wise and return the maximum. If one of the
+    elements being compared is a NaN, the non-NaN element is returned.
+    If both elements are NaNs, the NaN is returned.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        Output tensor, element-wise maximum of `x1` and `x2`.
+
+    Examples:
+    >>> x1 = keras.ops.convert_to_tensor([2.0, float("nan")])
+    >>> x2 = keras.ops.convert_to_tensor([1.0, 4.0])
+    >>> keras.ops.fmax(x1, x2)
+    array([2.0, 4.0], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Fmax().symbolic_call(x1, x2)
+    return backend.numpy.fmax(x1, x2)
+
+
 class Median(Operation):
     def __init__(self, axis=None, keepdims=False, *, name=None):
         super().__init__(name=name)
@@ -5248,7 +5304,7 @@ class Meshgrid(Operation):
                 if None in xi.shape:
                     size = None
                 else:
-                    size = int(np.prod(xi.shape))
+                    size = python_math.prod(xi.shape)
             output_shape.append(size)
         if self.indexing == "ij":
             return [KerasTensor(output_shape) for _ in range(len(x))]
@@ -5375,6 +5431,52 @@ def minimum(x1, x2):
     if any_symbolic_tensors((x1, x2)):
         return Minimum().symbolic_call(x1, x2)
     return backend.numpy.minimum(x1, x2)
+
+
+class Fmin(Operation):
+    def call(self, x1, x2):
+        return backend.numpy.fmin(x1, x2)
+
+    def compute_output_spec(self, x1, x2):
+        x1_shape = getattr(x1, "shape", [])
+        x2_shape = getattr(x2, "shape", [])
+        output_shape = broadcast_shapes(x1_shape, x2_shape)
+        output_dtype = dtypes.result_type(
+            getattr(x1, "dtype", type(x1)),
+            getattr(x2, "dtype", type(x2)),
+        )
+        x1_sparse = getattr(x1, "sparse", False)
+        x2_sparse = getattr(x2, "sparse", False)
+        output_sparse = x1_sparse and x2_sparse
+        return KerasTensor(
+            output_shape, dtype=output_dtype, sparse=output_sparse
+        )
+
+
+@keras_export(["keras.ops.fmin", "keras.ops.numpy.fmin"])
+def fmin(x1, x2):
+    """Element-wise minimum of tensor elements, ignoring NaNs.
+
+    Compare two tensors element-wise and return the minimum. If one of the
+    elements being compared is a NaN, the non-NaN element is returned.
+    If both elements are NaNs, the NaN is returned.
+
+    Args:
+        x1: First input tensor.
+        x2: Second input tensor.
+
+    Returns:
+        Output tensor, element-wise minimum of `x1` and `x2`.
+
+    Examples:
+    >>> x1 = keras.ops.convert_to_tensor([2.0, float("nan")])
+    >>> x2 = keras.ops.convert_to_tensor([1.0, 4.0])
+    >>> keras.ops.fmin(x1, x2)
+    array([1.0, 4.0], dtype=float32)
+    """
+    if any_symbolic_tensors((x1, x2)):
+        return Fmin().symbolic_call(x1, x2)
+    return backend.numpy.fmin(x1, x2)
 
 
 class Mod(Operation):
@@ -5647,7 +5749,7 @@ class Nancumsum(Operation):
             if None in x.shape:
                 output_shape = (None,)
             else:
-                output_shape = (int(np.prod(x.shape)),)
+                output_shape = (python_math.prod(x.shape),)
         else:
             output_shape = x.shape
 
@@ -5708,7 +5810,7 @@ class Nancumprod(Operation):
             if None in x.shape:
                 output_shape = (None,)
             else:
-                output_shape = (int(np.prod(x.shape)),)
+                output_shape = (python_math.prod(x.shape),)
         else:
             output_shape = x.shape
 
@@ -6586,12 +6688,12 @@ class Outer(Operation):
         if None in x1_shape:
             x1_flatten_shape = None
         else:
-            x1_flatten_shape = int(np.prod(x1_shape))
+            x1_flatten_shape = python_math.prod(x1_shape)
         if None in x2_shape:
             x2_flatten_shape = None
         else:
-            x2_flatten_shape = int(np.prod(x2_shape))
-        output_shape = [x1_flatten_shape, x2_flatten_shape]
+            x2_flatten_shape = python_math.prod(x2_shape)
+        output_shape = (x1_flatten_shape, x2_flatten_shape)
         output_dtype = backend.result_type(
             getattr(x1, "dtype", type(x1)),
             getattr(x2, "dtype", type(x2)),
@@ -7007,11 +7109,9 @@ class Ravel(Operation):
 
     def compute_output_spec(self, x):
         if None in x.shape:
-            output_shape = [
-                None,
-            ]
+            output_shape = (None,)
         else:
-            output_shape = [int(np.prod(x.shape))]
+            output_shape = (python_math.prod(x.shape),)
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
@@ -7158,9 +7258,9 @@ class Repeat(Operation):
             if None in x_shape:
                 return KerasTensor([None], dtype=x.dtype)
 
-            x_flatten_size = int(np.prod(x_shape))
+            x_flatten_size = python_math.prod(x_shape)
             if broadcast:
-                output_shape = [x_flatten_size * repeats[0]]
+                output_shape = (x_flatten_size * repeats[0],)
             elif repeats_size != x_flatten_size:
                 raise ValueError(
                     "Size of `repeats` and "
@@ -7168,7 +7268,7 @@ class Repeat(Operation):
                     f"Received: {repeats_size} and {x_flatten_size}"
                 )
             else:
-                output_shape = [int(np.sum(repeats))]
+                output_shape = (builtins.sum(repeats),)
             return KerasTensor(output_shape, dtype=x.dtype)
 
         size_on_ax = x_shape[self.axis]
@@ -7185,7 +7285,7 @@ class Repeat(Operation):
                 f"Received: {repeats_size} and {x_shape}"
             )
         else:
-            output_shape[self.axis] = int(np.sum(repeats))
+            output_shape[self.axis] = builtins.sum(repeats)
         return KerasTensor(output_shape, dtype=x.dtype)
 
 
@@ -7547,8 +7647,9 @@ class Sort(Operation):
             if None in x.shape:
                 output_shape = (None,)
             else:
-                output_shape = (int(np.prod(x.shape)),)
+                output_shape = (python_math.prod(x.shape),)
             return KerasTensor(output_shape, x.dtype)
+        canonicalize_axis(self.axis, len(x.shape))
         return KerasTensor(x.shape, x.dtype)
 
 
@@ -7571,6 +7672,7 @@ def sort(x, axis=-1):
 
 def _compute_split_output_spec(x, indices_or_sections, axis):
     x_shape = list(x.shape)
+    axis = canonicalize_axis(axis, len(x_shape))
     x_size_on_axis = x_shape[axis]
     if isinstance(indices_or_sections, int):
         if x_size_on_axis is None:
@@ -7663,6 +7765,9 @@ class Stack(Operation):
 
     def compute_output_spec(self, x):
         first_shape = x[0].shape
+        # `stack` adds a new axis, so the valid range is one larger than
+        # the input rank.
+        axis = canonicalize_axis(self.axis, len(first_shape) + 1)
         dtypes_to_resolve = []
         for a in x:
             if not shape_equal(a.shape, first_shape, axis=[], allow_none=True):
@@ -7675,12 +7780,7 @@ class Stack(Operation):
 
         size_on_axis = len(x)
         output_shape = list(first_shape)
-        if self.axis == -1:
-            output_shape = output_shape + [size_on_axis]
-        elif self.axis >= 0:
-            output_shape.insert(self.axis, size_on_axis)
-        else:
-            output_shape.insert(self.axis + 1, size_on_axis)
+        output_shape.insert(axis, size_on_axis)
         output_dtype = dtypes.result_type(*dtypes_to_resolve)
         return KerasTensor(output_shape, dtype=output_dtype)
 
@@ -7801,8 +7901,7 @@ class Take(Operation):
         if self.axis is None:
             return KerasTensor(indices_shape, dtype=x.dtype)
 
-        # make sure axis is non-negative
-        axis = len(x_shape) + self.axis if self.axis < 0 else self.axis
+        axis = canonicalize_axis(self.axis, len(x_shape))
         output_shape = x_shape[:axis] + indices_shape + x_shape[axis + 1 :]
         return KerasTensor(output_shape, dtype=x.dtype, ragged=ragged)
 
@@ -8270,7 +8369,26 @@ class Inner(Operation):
             getattr(x1, "dtype", type(x1)),
             getattr(x2, "dtype", type(x2)),
         )
-        return KerasTensor([], dtype=dtype)
+        x1_shape = tuple(getattr(x1, "shape", ()))
+        x2_shape = tuple(getattr(x2, "shape", ()))
+        # A scalar operand acts as scalar multiplication, yielding the other
+        # operand's full shape (matches `np.inner`).
+        if not x1_shape:
+            output_shape = x2_shape
+        elif not x2_shape:
+            output_shape = x1_shape
+        else:
+            # `inner` sums over the last axis, so the last dimensions must
+            # match; the output is x1.shape[:-1] + x2.shape[:-1].
+            d1, d2 = x1_shape[-1], x2_shape[-1]
+            if isinstance(d1, int) and isinstance(d2, int) and d1 != d2:
+                raise ValueError(
+                    "`inner` requires the last dimension of `x1` and `x2` "
+                    f"to match. Received: x1.shape={x1_shape}, "
+                    f"x2.shape={x2_shape}."
+                )
+            output_shape = x1_shape[:-1] + x2_shape[:-1]
+        return KerasTensor(output_shape, dtype=dtype)
 
 
 @keras_export(["keras.ops.inner", "keras.ops.numpy.inner"])
@@ -9863,3 +9981,53 @@ def unique(
         size=size,
         fill_value=fill_value,
     )
+
+
+class Dsplit(Operation):
+    def __init__(self, indices_or_sections, *, name=None):
+        super().__init__(name=name)
+        if not isinstance(indices_or_sections, int):
+            indices_or_sections = tuple(indices_or_sections)
+        self.indices_or_sections = indices_or_sections
+
+    def call(self, x):
+        return backend.numpy.dsplit(x, self.indices_or_sections)
+
+    def compute_output_spec(self, x):
+        if len(x.shape) < 3:
+            raise ValueError(
+                "`dsplit` only works on arrays of at least 3 dimensions. "
+                f"Received array with shape {x.shape}."
+            )
+        return _compute_split_output_spec(x, self.indices_or_sections, 2)
+
+
+@keras_export(["keras.ops.dsplit", "keras.ops.numpy.dsplit"])
+def dsplit(x, indices_or_sections):
+    """Split an array into multiple sub-arrays depth-wise.
+
+    Args:
+        x: Input tensor.
+        indices_or_sections: If an integer, N, the tensor will be split into N
+            equal sections along axis 2. If a 1-D array of sorted integers,
+            the entries indicate indices at which the tensor will be split
+            along axis 2.
+    Returns:
+        A list of sub-arrays.
+
+    Example:
+
+    >>> x = keras.ops.arange(16.0).reshape((2, 2, 4))
+    >>> keras.ops.dsplit(x, 2)
+    [array([[[ 0.,  1.],
+            [ 4.,  5.]],
+           [[ 8.,  9.],
+            [12., 13.]]]),
+     array([[[ 2.,  3.],
+            [ 6.,  7.]],
+           [[10., 11.],
+            [14., 15.]]])]
+    """
+    if any_symbolic_tensors((x,)):
+        return Dsplit(indices_or_sections).symbolic_call(x)
+    return backend.numpy.dsplit(x, indices_or_sections)

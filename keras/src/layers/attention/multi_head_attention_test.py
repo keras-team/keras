@@ -15,6 +15,7 @@ from keras.src import ops
 from keras.src import random
 from keras.src import saving
 from keras.src import testing
+from keras.src import utils
 from keras.src.backend.config import disable_flash_attention
 from keras.src.backend.config import enable_flash_attention
 from keras.src.backend.config import is_flash_attention_enabled
@@ -486,10 +487,6 @@ class MultiHeadAttentionTest(testing.TestCase):
         self.assertAllClose(output_1, output_2)
         self.assertAllClose(output_1, output_3)
 
-    @pytest.mark.skipif(
-        backend.backend() == "numpy",
-        reason="Numpy backend does not support masking.",
-    )
     def test_no_warning_with_keras_mask(self):
         layer = layers.MultiHeadAttention(num_heads=2, key_dim=2)
         query = np.array([[1, 2, 3, 0, 0], [3, 3, 1, 1, 2], [1, 0, 0, 0, 0]])
@@ -533,6 +530,175 @@ class MultiHeadAttentionTest(testing.TestCase):
                     self.assertGreater(scores[i, j], 0.0)
                 else:
                     self.assertEqual(scores[i, j], 0.0)
+
+    def test_causal_only_fast_path(self):
+        # When `use_causal_mask=True` is the only mask source, the layer
+        # should route through `dot_product_attention(is_causal=True)` and
+        # not materialize a [T, S] mask. The output must match the explicit
+        # mask path bit-for-bit (or near it).
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        x = np.random.RandomState(0).randn(2, 5, 8).astype("float32")
+        # Force build so weights are shared between both calls.
+        _ = layer(x, x, use_causal_mask=True)
+        fast = layer(x, x, use_causal_mask=True)
+
+        # Reference: build the explicit causal mask and feed it as
+        # attention_mask, which bypasses the causal_only branch.
+        t = x.shape[1]
+        causal = np.tril(np.ones((1, t, t), dtype="bool"))
+        slow = layer(x, x, attention_mask=causal)
+
+        self.assertAllClose(fast, slow, atol=1e-5)
+
+    def test_causal_only_skipped_for_subclass(self):
+        # A subclass with the previous _compute_attention signature must not
+        # see the use_causal_mask kwarg, and must not receive attention_mask
+        # = None when use_causal_mask=True. Otherwise it would silently do
+        # unmasked attention.
+        seen = {}
+
+        class Sub(layers.MultiHeadAttention):
+            def _compute_attention(
+                self,
+                query,
+                key,
+                value,
+                attention_mask=None,
+                training=None,
+                return_attention_scores=False,
+            ):
+                seen["mask_is_none"] = attention_mask is None
+                return super()._compute_attention(
+                    query,
+                    key,
+                    value,
+                    attention_mask,
+                    training,
+                    return_attention_scores,
+                )
+
+        layer = Sub(num_heads=2, key_dim=4)
+        x = np.random.RandomState(0).randn(2, 5, 8).astype("float32")
+        _ = layer(x, x, use_causal_mask=True)
+        self.assertFalse(seen["mask_is_none"])
+
+    def test_causal_only_with_other_mask_falls_back(self):
+        # If any other mask source is present, the layer must NOT take the
+        # is_causal=True shortcut, because torch's SDPA rejects passing both
+        # an attn_mask and is_causal=True. A regression that silently kept
+        # the shortcut would also drop the extra mask entirely, so compare
+        # against the explicit merged-mask path to prove `extra_mask` is
+        # honored.
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        x = np.random.RandomState(0).randn(2, 5, 8).astype("float32")
+        # Build once so both calls share weights.
+        layer.build(query_shape=x.shape, value_shape=x.shape)
+
+        # Non-trivial extra mask: query position 2 must not attend to key 3.
+        extra_mask = np.ones((2, 5, 5), dtype="bool")
+        extra_mask[:, 2, 3] = False
+        causal = np.tril(np.ones((5, 5), dtype="bool"))
+        merged = extra_mask & causal
+
+        out1 = layer(x, x, attention_mask=extra_mask, use_causal_mask=True)
+        out2 = layer(x, x, attention_mask=merged, use_causal_mask=False)
+        self.assertEqual(tuple(out1.shape), (2, 5, 8))
+        self.assertAllClose(out1, out2, atol=1e-5)
+
+    @parameterized.named_parameters(
+        ("scores_only", 0.0, True),
+        ("dropout_only", 0.1, False),
+        ("dropout_and_scores", 0.1, True),
+    )
+    def test_causal_only_masks_when_fused_path_disabled(
+        self, dropout, return_attention_scores
+    ):
+        # dropout>0 and return_attention_scores=True both disable the fused
+        # is_causal kernel and send us down the manual softmax path. That path
+        # has to apply the causal mask too, or future keys leak in. See #22910.
+        t = 6
+        future = np.triu(np.ones((t, t)), k=1).astype(bool)
+        x = np.random.RandomState(0).randn(1, t, 8).astype("float32")
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, dropout=dropout
+        )
+
+        if return_attention_scores:
+            # No weight should land on a strictly-future key.
+            _, scores = layer(
+                x,
+                x,
+                use_causal_mask=True,
+                return_attention_scores=True,
+                training=False,
+            )
+            leak = backend.convert_to_numpy(scores)[..., future].sum()
+            self.assertLess(leak, 1e-6)
+        else:
+            # use_causal_mask should match passing the same mask explicitly.
+            out_causal = layer(x, x, use_causal_mask=True, training=False)
+            explicit = (~future)[None]
+            out_explicit = layer(x, x, attention_mask=explicit, training=False)
+            self.assertAllClose(out_causal, out_explicit, atol=1e-5)
+
+    def test_causal_only_masks_non_4d_inputs(self):
+        # A rank-5 projected query (extra attention axis) is the third thing
+        # that disables the fused kernel, so check that path masks too.
+        t = 5
+        future = np.triu(np.ones((t, t)), k=1).astype(bool)
+        x = np.random.RandomState(0).randn(1, t, 3, 8).astype("float32")
+        layer = layers.MultiHeadAttention(
+            num_heads=2, key_dim=4, attention_axes=1
+        )
+        _, scores = layer(
+            x, x, use_causal_mask=True, return_attention_scores=True
+        )
+        scores = backend.convert_to_numpy(scores)
+        self.assertLess(scores[..., future].sum(), 1e-6)
+
+    @parameterized.named_parameters(
+        ("fused_fallback", False),
+        ("manual_path", True),
+    )
+    def test_compute_attention_combines_causal_and_explicit_mask(
+        self, return_attention_scores
+    ):
+        # `_compute_attention` is a documented override point. Called directly
+        # with both use_causal_mask=True and an explicit attention_mask, it must
+        # apply both. `call` folds the causal mask in upstream, but a subclass
+        # reusing this method does not, so the method must honor its own flag.
+        t = 5
+        layer = layers.MultiHeadAttention(num_heads=2, key_dim=4)
+        layer.build(query_shape=(1, t, 8), value_shape=(1, t, 8))
+
+        rng = np.random.RandomState(0)
+        query = rng.randn(1, t, 2, 4).astype("float32")
+        key = rng.randn(1, t, 2, 4).astype("float32")
+        value = rng.randn(1, t, 2, 4).astype("float32")
+
+        # A non-causal extra constraint so the causal mask is not redundant.
+        extra = np.ones((1, t, t), dtype="bool")
+        extra[:, 3, 1] = False
+        causal = np.tril(np.ones((t, t), dtype="bool"))[None]
+        merged = extra & causal
+
+        out_both, _ = layer._compute_attention(
+            query,
+            key,
+            value,
+            attention_mask=extra,
+            use_causal_mask=True,
+            return_attention_scores=return_attention_scores,
+        )
+        out_merged, _ = layer._compute_attention(
+            query,
+            key,
+            value,
+            attention_mask=merged,
+            use_causal_mask=False,
+            return_attention_scores=return_attention_scores,
+        )
+        self.assertAllClose(out_both, out_merged, atol=1e-5)
 
     def test_sliding_window_validation(self):
         with self.assertRaisesRegex(ValueError, "sliding_window"):
@@ -830,6 +996,8 @@ class MultiHeadAttentionTest(testing.TestCase):
             layers.MultiHeadAttention(num_heads=2, key_dim=16, output_shape=8.0)
 
     def test_quantize_int8(self):
+        utils.set_random_seed(1347)
+
         query = np.array([[[1.0, 0.0], [0.0, 1.0]]])
         key = np.array([[[0.0, 1.0], [1.0, 0.0]]])
         value = np.array([[[1.0, 2.0], [3.0, 4.0]]])

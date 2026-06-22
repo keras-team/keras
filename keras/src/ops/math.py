@@ -1124,7 +1124,6 @@ def rsqrt(x):
     """
     if any_symbolic_tensors((x,)):
         return Rsqrt().symbolic_call(x)
-    x = backend.convert_to_tensor(x)
     return backend.math.rsqrt(x)
 
 
@@ -1156,6 +1155,35 @@ def erf(x):
         return Erf().symbolic_call(x)
     x = backend.convert_to_tensor(x)
     return backend.math.erf(x)
+
+
+class Erfc(Operation):
+    def compute_output_spec(self, x):
+        return KerasTensor(shape=x.shape, dtype=result_type(x.dtype, float))
+
+    def call(self, x):
+        return backend.math.erfc(x)
+
+
+@keras_export("keras.ops.erfc")
+def erfc(x):
+    """Computes the complementary error function of `x`, element-wise.
+
+    Args:
+        x: Input tensor.
+
+    Returns:
+        A tensor with the same dtype as `x`.
+
+    Example:
+    >>> x = np.array([-3.0, -2.0, -1.0, 0.0, 1.0])
+    >>> keras.ops.erfc(x)
+    array([1.999978 , 1.9953222, 1.8427008, 1. , 0.1572992],
+      dtype=float32)
+    """
+    if any_symbolic_tensors((x,)):
+        return Erfc().symbolic_call(x)
+    return backend.math.erfc(x)
 
 
 class Erfinv(Operation):

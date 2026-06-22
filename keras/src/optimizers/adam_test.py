@@ -78,12 +78,74 @@ class AdamTest(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     def test_ema(self):
-        # TODO: test correctness
-        model = keras.Sequential([keras.layers.Dense(10)])
-        model.compile(optimizer=Adam(use_ema=True), loss="mse")
-        x = keras.ops.zeros((1, 5))
-        y = keras.ops.zeros((1, 10))
-        model.fit(x, y)
+        optimizer = Adam(learning_rate=1.0, use_ema=True, ema_momentum=0.9)
+        var = backend.Variable([1.0, 2.0], dtype="float32")
+        grads = ops.array([0.1, 0.2], dtype="float32")
+
+        # First step: EMA is initialized to the first updated variable value
+        optimizer.apply_gradients([(grads, var)])
+        v1 = var.numpy()
+        self.assertAllClose(optimizer._model_variables_moving_average[0], v1)
+
+        # Second step: EMA is updated
+        optimizer.apply_gradients([(grads, var)])
+        v2 = var.numpy()
+        expected_ema = 0.9 * v1 + 0.1 * v2
+        self.assertAllClose(
+            optimizer._model_variables_moving_average[0], expected_ema
+        )
+
+        # Finalize: model variable is overwritten by EMA
+        optimizer.finalize_variable_values([var])
+        self.assertAllClose(var, expected_ema)
+
+        # Test model.fit()
+        model = keras.Sequential(
+            [keras.layers.Dense(10, kernel_initializer="ones", use_bias=False)]
+        )
+        model.compile(
+            optimizer=Adam(use_ema=True, ema_momentum=0.9), loss="mse"
+        )
+        x = ops.ones((1, 5))
+        y = ops.zeros((1, 10))
+        model.fit(x, y, verbose=0)
+
+        # Weights are finalized at the end of fit()
+        # So model weights should match EMA weights
+        optimizer = model.optimizer
+        ema_weights = optimizer._model_variables_moving_average[0].numpy()
+        model_weights = model.trainable_variables[0].numpy()
+        self.assertAllClose(model_weights, ema_weights)
+
+    def test_ema_overwrite_frequency(self):
+        optimizer = Adam(
+            learning_rate=1.0,
+            use_ema=True,
+            ema_momentum=0.9,
+            ema_overwrite_frequency=2,
+        )
+        optimizer_no_ema = Adam(learning_rate=1.0)
+        var = backend.Variable([1.0, 2.0], dtype="float32")
+        var_no_ema = backend.Variable([1.0, 2.0], dtype="float32")
+        grads = ops.array([0.1, 0.2], dtype="float32")
+
+        # First step: iterations = 0, EMA initialized to v1
+        optimizer.apply_gradients([(grads, var)])
+        optimizer_no_ema.apply_gradients([(grads, var_no_ema)])
+        v1 = var_no_ema.numpy()
+        # Not overwritten yet (iterations became 1 after increment)
+        self.assertAllClose(var, v1)
+
+        # Second step: iterations = 1, (1 + 1) % 2 = 0. Overwrite!
+        optimizer.apply_gradients([(grads, var)])
+        optimizer_no_ema.apply_gradients([(grads, var_no_ema)])
+        v2 = var_no_ema.numpy()
+        expected_ema = 0.9 * v1 + 0.1 * v2
+        # var should have been updated to v2 and THEN overwritten by EMA
+        self.assertAllClose(var, expected_ema)
+        self.assertAllClose(
+            optimizer._model_variables_moving_average[0], expected_ema
+        )
 
     @pytest.mark.skipif(
         backend.backend() != "tensorflow",
