@@ -2469,7 +2469,8 @@ class CharbonnierTest(testing.TestCase):
         sample_weight = np.array([0.5, 2.0], dtype="float32")
         loss = losses.Charbonnier()(y_true, y_pred, sample_weight=sample_weight)
         per_sample = losses.charbonnier(y_true, y_pred)
-        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
         self.assertAllClose(loss, expected)
 
     def test_epsilon_parameter(self):
@@ -2540,7 +2541,8 @@ class PSNRTest(testing.TestCase):
         sample_weight = np.array([0.5, 2.0], dtype="float32")
         loss = losses.PSNR()(y_true, y_pred, sample_weight=sample_weight)
         per_sample = losses.psnr(y_true, y_pred)
-        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
         self.assertAllClose(loss, expected)
 
     def test_unbatched(self):
@@ -2628,7 +2630,8 @@ class TotalVariationTest(testing.TestCase):
             y_true, y_pred, sample_weight=sample_weight
         )
         per_sample = losses.total_variation(y_true, y_pred)
-        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
         self.assertAllClose(loss, expected)
 
     def test_unbatched(self):
@@ -2733,7 +2736,8 @@ class EdgeAwareSmoothnessTest(testing.TestCase):
             y_true, y_pred, sample_weight=sample_weight
         )
         per_sample = losses.edge_aware_smoothness(y_true, y_pred)
-        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
         self.assertAllClose(loss, expected)
 
     def test_non_square(self):
@@ -2857,7 +2861,8 @@ class MSSSIMTest(testing.TestCase):
         per_sample = losses.msssim(
             y_true, y_pred, filter_size=5, power_factors=(0.5, 0.5)
         )
-        expected = ops.sum(per_sample * sample_weight) / len(sample_weight)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
         self.assertAllClose(loss, expected)
 
     def test_channels_first(self):
