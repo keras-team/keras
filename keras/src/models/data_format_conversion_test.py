@@ -128,10 +128,16 @@ class ConvertDataFormatTest(testing.TestCase):
         # docstring) — we just check that the structural conversion still
         # produces a valid channels_first model.
         inputs = layers.Input(shape=(8, 8, 3))
-        a = layers.Conv2D(4, 3, padding="same")(inputs)
-        b = layers.Conv2D(4, 3, padding="same")(inputs)
+        a = layers.Conv2D(4, 3, padding="same", data_format="channels_last")(
+            inputs
+        )
+        b = layers.Conv2D(4, 3, padding="same", data_format="channels_last")(
+            inputs
+        )
         merged = layers.Concatenate(axis=-1)([a, b])
-        outputs = layers.GlobalAveragePooling2D()(merged)
+        outputs = layers.GlobalAveragePooling2D(data_format="channels_last")(
+            merged
+        )
         m = Functional(inputs, outputs)
 
         m_cf = convert_data_format(m, "channels_first")
