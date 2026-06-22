@@ -3398,6 +3398,30 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.Multiply()(x, y), np.multiply(x, y))
         self.assertAllClose(knp.Multiply()(x, z), np.multiply(x, z))
 
+    @pytest.mark.skipif(
+        backend.backend() != "tensorflow",
+        reason="Only test TensorFlow backend subnormal handling.",
+    )
+    @parameterized.named_parameters(
+        ("float32", np.float32),
+        ("float64", np.float64),
+    )
+    def test_multiply_inf_by_subnormal(self, dtype):
+        tiny = np.nextafter(dtype(0), dtype(1))
+        x1 = np.array(
+            [np.inf, np.inf, -np.inf, -np.inf, np.inf, -np.inf],
+            dtype=dtype,
+        )
+        x2 = np.array(
+            [tiny, -tiny, tiny, -tiny, dtype(0), dtype(-0.0)],
+            dtype=dtype,
+        )
+        with np.errstate(invalid="ignore"):
+            expected = np.multiply(x1, x2)
+
+        self.assertAllClose(knp.multiply(x1, x2), expected)
+        self.assertAllClose(knp.Multiply()(x1, x2), expected)
+
     def test_matmul(self):
         x = np.ones([2, 3, 4, 5])
         y = np.ones([2, 3, 5, 6])

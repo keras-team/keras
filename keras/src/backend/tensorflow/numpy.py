@@ -634,6 +634,35 @@ def matmul(x1, x2):
         return tf.cast(output, result_dtype)
 
 
+def _subnormal_mask_and_signbit(x):
+    dtype = standardize_dtype(x.dtype)
+    if dtype == "float32":
+        bits = tf.bitcast(x, tf.uint32)
+        zero = tf.constant(0, dtype=tf.uint32)
+        sign_mask = tf.constant(0x80000000, dtype=tf.uint32)
+        abs_mask = tf.constant(0x7FFFFFFF, dtype=tf.uint32)
+        min_normal = tf.constant(0x00800000, dtype=tf.uint32)
+    elif dtype == "float64":
+        bits = tf.bitcast(x, tf.uint64)
+        zero = tf.constant(0, dtype=tf.uint64)
+        sign_mask = tf.constant(0x8000000000000000, dtype=tf.uint64)
+        abs_mask = tf.constant(0x7FFFFFFFFFFFFFFF, dtype=tf.uint64)
+        min_normal = tf.constant(0x0010000000000000, dtype=tf.uint64)
+    else:
+        raise ValueError(
+            "`_subnormal_mask_and_signbit` only supports float32 and float64. "
+            f"Received: dtype={dtype}"
+        )
+
+    abs_bits = tf.bitwise.bitwise_and(bits, abs_mask)
+    is_subnormal = tf.logical_and(
+        tf.greater(abs_bits, zero),
+        tf.less(abs_bits, min_normal),
+    )
+    signbit = tf.not_equal(tf.bitwise.bitwise_and(bits, sign_mask), zero)
+    return is_subnormal, signbit
+
+
 @sparse.elementwise_binary_intersection
 def multiply(x1, x2):
     if not isinstance(x1, (int, float)):
@@ -646,7 +675,23 @@ def multiply(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype)
     x2 = convert_to_tensor(x2, dtype)
-    return tf.multiply(x1, x2)
+    result = tf.multiply(x1, x2)
+
+    if dtype not in ("float32", "float64"):
+        return result
+    x1_subnormal, x1_signbit = _subnormal_mask_and_signbit(x1)
+    x2_subnormal, x2_signbit = _subnormal_mask_and_signbit(x2)
+    needs_fix = tf.logical_or(
+        tf.logical_and(tf.math.is_inf(x1), x2_subnormal),
+        tf.logical_and(x1_subnormal, tf.math.is_inf(x2)),
+    )
+    result_signbit = tf.math.logical_xor(x1_signbit, x2_signbit)
+    signed_inf = tf.where(
+        result_signbit,
+        tf.constant(float("-inf"), dtype=result.dtype),
+        tf.constant(float("inf"), dtype=result.dtype),
+    )
+    return tf.where(needs_fix, signed_inf, result)
 
 
 def mean(x, axis=None, keepdims=False):
