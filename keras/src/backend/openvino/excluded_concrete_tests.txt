@@ -1,9 +1,4 @@
 EqualizationTest::test_equalizes_to_all_bins
-EqualizationTest::test_input_dtypes_float32
-EqualizationTest::test_input_dtypes_int32
-EqualizationTest::test_input_dtypes_int64
-EqualizationTest::test_output_range_0_1
-EqualizationTest::test_output_range_0_255
 LinalgOpsCorrectnessTest::test_eig
 LinalgOpsCorrectnessTest::test_lstsq
 LinalgOpsCorrectnessTest::test_matrix_rank
