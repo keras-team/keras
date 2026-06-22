@@ -2845,7 +2845,7 @@ def _ensure_4d_images(y_true, y_pred, data_format):
     y_pred = ops.convert_to_tensor(y_pred)
     y_true = ops.cast(y_true, y_pred.dtype)
 
-    rank = len(y_pred.shape)
+    rank = ops.ndim(y_pred)
     if rank not in (3, 4):
         raise ValueError(
             "Image restoration losses expect rank 3 (single image) or rank 4 "
@@ -2866,7 +2866,7 @@ def _ensure_4d_images(y_true, y_pred, data_format):
 
 def _restore_batch_dim(result, unbatched):
     """Remove the batch dimension that was added for unbatched inputs."""
-    if unbatched and len(result.shape) > 0:
+    if unbatched and ops.ndim(result) > 0:
         result = ops.squeeze(result, axis=0)
     return result
 
@@ -2877,7 +2877,9 @@ def _create_gaussian_kernel2d(filter_size, filter_sigma, dtype):
     x = x - (filter_size - 1) / 2.0
     gauss_1d = ops.exp(-(x**2) / (2.0 * filter_sigma**2))
     gauss_1d = gauss_1d / ops.sum(gauss_1d)
-    return ops.outer(gauss_1d, gauss_1d)
+    return ops.expand_dims(gauss_1d, axis=-1) * ops.expand_dims(
+        gauss_1d, axis=0
+    )
 
 
 def _ssim_components_per_channel(
@@ -2904,7 +2906,7 @@ def _ssim_components_per_channel(
     # kernels over the channel dimension, so we fold the channel dimension into
     # the batch dimension, convolve single-channel images, then restore the
     # original batch/channel layout.
-    shape = ops.shape(img1)
+    shape = backend.shape(img1)
     height = shape[1]
     width = shape[2]
     channels = shape[3]
@@ -2915,8 +2917,9 @@ def _ssim_components_per_channel(
         y = ops.conv(
             x, kernel, strides=1, padding="valid", data_format="channels_last"
         )
-        shape_y = ops.shape(y)
-        return ops.reshape(y, [-1, shape_y[1], shape_y[2], channels])
+        shape_y = backend.shape(y)
+        y = ops.reshape(y, [-1, channels, shape_y[1], shape_y[2]])
+        return ops.transpose(y, (0, 2, 3, 1))
 
     mu1 = _depthwise_conv4d(img1)
     mu2 = _depthwise_conv4d(img2)
@@ -3029,7 +3032,7 @@ def charbonnier(y_true, y_pred, epsilon=1e-3):
     epsilon = ops.cast(epsilon, y_pred.dtype)
     diff = y_true - y_pred
     loss = ops.sqrt(ops.square(diff) + ops.square(epsilon))
-    axes = list(range(1, len(loss.shape)))
+    axes = list(range(1, ops.ndim(loss)))
     if axes:
         loss = ops.mean(loss, axis=axes)
     return loss
@@ -3071,7 +3074,7 @@ def psnr(y_true, y_pred, max_val=1.0, axis=None):
     y_true = ops.cast(y_true, y_pred.dtype)
     max_val = ops.cast(max_val, y_pred.dtype)
 
-    rank = len(y_pred.shape)
+    rank = ops.ndim(y_pred)
     if rank not in (3, 4):
         raise ValueError(
             "`psnr` expects rank 3 (single image) or rank 4 (batched images). "
@@ -3130,7 +3133,7 @@ def total_variation(y_true, y_pred, axis=None, data_format=None):
     y_pred = ops.convert_to_tensor(y_pred)
     data_format = backend.standardize_data_format(data_format)
 
-    rank = len(y_pred.shape)
+    rank = ops.ndim(y_pred)
     if rank not in (3, 4):
         raise ValueError(
             "`total_variation` expects rank 3 (single image) or rank 4 "
@@ -3148,10 +3151,10 @@ def total_variation(y_true, y_pred, axis=None, data_format=None):
         slice2[ax] = slice(None, -1)
         diff = y_pred[tuple(slice1)] - y_pred[tuple(slice2)]
         loss = loss + ops.sum(ops.abs(diff), axis=axis)
-    # Sum over remaining non-batch axes (the channel dimension for batched
-    # inputs) so that each sample contributes a single scalar loss value.
-    if len(loss.shape) > 1:
-        loss = ops.sum(loss, axis=tuple(range(1, len(loss.shape))))
+    # Sum over the channel dimension so that each sample contributes a
+    # single scalar loss value (or a scalar for unbatched inputs).
+    if ops.ndim(loss) > 0:
+        loss = ops.sum(loss, axis=-1)
     return loss
 
 
@@ -3195,7 +3198,7 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
     y_true = ops.cast(y_true, y_pred.dtype)
     data_format = backend.standardize_data_format(data_format)
 
-    rank = len(y_pred.shape)
+    rank = ops.ndim(y_pred)
     if rank not in (3, 4):
         raise ValueError(
             "`edge_aware_smoothness` expects rank 3 (single image) or rank 4 "
@@ -3215,10 +3218,10 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
         true_grad = y_true[tuple(slice1)] - y_true[tuple(slice2)]
         weighted = ops.abs(pred_grad) * ops.exp(-ops.abs(true_grad))
         loss = loss + ops.sum(weighted, axis=axis)
-    # Sum over remaining non-batch axes (the channel dimension for batched
-    # inputs) so that each sample contributes a single scalar loss value.
-    if len(loss.shape) > 1:
-        loss = ops.sum(loss, axis=tuple(range(1, len(loss.shape))))
+    # Sum over the channel dimension so that each sample contributes a
+    # single scalar loss value (or a scalar for unbatched inputs).
+    if ops.ndim(loss) > 0:
+        loss = ops.sum(loss, axis=-1)
     return loss
 
 
@@ -3291,9 +3294,9 @@ def msssim(
 
     # Validate that `axis` matches the spatial axes for the data format. SSIM
     # is always computed over the channels-last spatial axes `(-3, -2)`.
-    _canonicalize_spatial_axes(axis, data_format, len(y_pred.shape))
+    _canonicalize_spatial_axes(axis, data_format, ops.ndim(y_pred))
 
-    shape = ops.shape(y_pred)
+    shape = backend.shape(y_pred)
     height = shape[1]
     width = shape[2]
     num_scales = len(power_factors)
