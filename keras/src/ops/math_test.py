@@ -1044,12 +1044,19 @@ class MathOpsCorrectnessTest(testing.TestCase):
 
     def test_erfinv_operation_edge_cases(self):
         # Test for edge cases
-        edge_values = np.array([1e5, -1e5, 1e-5, -1e-5], dtype=np.float64)
+        edge_values = np.array([1.0, -1.0, 1e-5, -1e-5], dtype=np.float64)
         expected_output = scipy.special.erfinv(edge_values)
         output_from_edge_erfinv_op = kmath.erfinv(edge_values)
         self.assertAllClose(
             output_from_edge_erfinv_op, expected_output, atol=1e-4
         )
+        val_nextafter = np.nextafter(np.float32(1.0), np.float32(0.0))
+        float32_edge = np.array([val_nextafter], dtype=np.float32)
+
+        expected_float32 = scipy.special.erfinv(float32_edge)
+        output_float32 = kmath.erfinv(float32_edge)
+
+        self.assertAllClose(output_float32, expected_float32, atol=1e-4)
 
     def test_logdet(self):
         x = np.array(
