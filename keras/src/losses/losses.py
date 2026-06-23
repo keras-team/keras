@@ -3126,6 +3126,7 @@ def total_variation(y_true, y_pred, axis=None, data_format=None):
             f"(batched images). Received input rank {rank}."
         )
 
+    all_spatial_axes = _canonicalize_spatial_axes(None, data_format, rank)
     axis = _canonicalize_spatial_axes(axis, data_format, rank)
 
     loss = 0.0
@@ -3136,9 +3137,10 @@ def total_variation(y_true, y_pred, axis=None, data_format=None):
         slice2 = [slice(None)] * ndim
         slice2[ax] = slice(None, -1)
         diff = y_pred[tuple(slice1)] - y_pred[tuple(slice2)]
-        loss = loss + ops.sum(ops.abs(diff), axis=axis)
+        loss = loss + ops.sum(ops.abs(diff), axis=all_spatial_axes)
     if ops.ndim(loss) > 0:
         loss = ops.sum(loss, axis=-1)
+    return loss
     return loss
 
 
@@ -3189,6 +3191,7 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
             f"(batched images). Received input rank {rank}."
         )
 
+    all_spatial_axes = _canonicalize_spatial_axes(None, data_format, rank)
     axis = _canonicalize_spatial_axes(axis, data_format, rank)
 
     loss = 0.0
@@ -3201,9 +3204,10 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
         pred_grad = y_pred[tuple(slice1)] - y_pred[tuple(slice2)]
         true_grad = y_true[tuple(slice1)] - y_true[tuple(slice2)]
         weighted = ops.abs(pred_grad) * ops.exp(-ops.abs(true_grad))
-        loss = loss + ops.sum(weighted, axis=axis)
+        loss = loss + ops.sum(weighted, axis=all_spatial_axes)
     if ops.ndim(loss) > 0:
         loss = ops.sum(loss, axis=-1)
+    return loss
     return loss
 
 
@@ -3273,7 +3277,7 @@ def msssim(
 
     _canonicalize_spatial_axes(axis, data_format, ops.ndim(y_pred))
 
-    shape = backend.shape(y_pred)
+    shape = y_pred.shape
     height = shape[1]
     width = shape[2]
     num_scales = len(power_factors)
