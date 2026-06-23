@@ -590,7 +590,9 @@ def expm1(x):
     ori_dtype = standardize_dtype(x.dtype)
     if "int" in ori_dtype or ori_dtype == "bool":
         x = cast(x, config.floatx())
-    return mx.expm1(x)
+    # mlx's native expm1 loses precision on Metal, so use exp(x) - 1 which
+    # stays within tolerance on both CPU and GPU.
+    return mx.exp(x) - 1
 
 
 def flip(x, axis=None):
