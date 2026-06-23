@@ -3273,7 +3273,7 @@ def msssim(
 
     _canonicalize_spatial_axes(axis, data_format, ops.ndim(y_pred))
 
-    shape = backend.shape(y_pred)
+    shape = y_pred.shape
     height = shape[1]
     width = shape[2]
     num_scales = len(power_factors)
