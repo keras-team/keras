@@ -126,13 +126,17 @@ def top_k(x, k, sorted=True):
 
 
 def in_top_k(targets, predictions, k):
-    targets = convert_to_tensor(targets)
+    targets = convert_to_tensor(targets, dtype="int32")
     predictions = convert_to_tensor(predictions)
-    targets = targets[..., None]
-    topk_values = top_k(predictions, k, sorted=False)[0]
-    targets_values = mx.take_along_axis(predictions, targets, axis=-1)
-    mask = targets_values >= topk_values
-    return mx.any(mask, axis=-1)
+    preds_at_label = mx.take_along_axis(
+        predictions, mx.expand_dims(targets, axis=-1), axis=-1
+    )
+    # nan should not be considered as a large probability.
+    preds_at_label = mx.where(
+        mx.isnan(preds_at_label), -float("inf"), preds_at_label
+    )
+    rank = 1 + mx.sum(predictions > preds_at_label, axis=-1)
+    return rank <= k
 
 
 def logsumexp(x, axis=None, keepdims=False):
