@@ -2481,6 +2481,12 @@ class TotalVariationTest(testing.TestCase):
             y_true, y_pred
         )
         self.assertAllClose(loss, 0.0)
+    
+    def test_custom_axis(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        loss = losses.TotalVariation(axis=1)(y_true, y_pred)
+        self.assertAllClose(loss, 9.0)
 
     def test_dtype_arg(self):
         y_true = np.zeros((1, 2, 2, 1), dtype="float32")
@@ -2596,6 +2602,12 @@ class EdgeAwareSmoothnessTest(testing.TestCase):
             axis=None, data_format="channels_first"
         )(y_true, y_pred)
         self.assertAllClose(loss, 0.0)
+    
+    def test_custom_axis(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        loss = losses.EdgeAwareSmoothness(axis=1)(y_true, y_pred)
+        self.assertAllClose(loss, 9.0)
 
     def test_dtype_arg(self):
         y_true = np.zeros((1, 2, 2, 1), dtype="float32")
@@ -2801,6 +2813,11 @@ class _ListFeatureExtractor:
         return [inputs, inputs * 3.0]
 
 
+class _ScalarFeatureExtractor:
+    def __call__(self, inputs, training=False):
+        return ops.mean(inputs, axis=-1)
+
+
 class _TrainingAwareFeatureExtractor:
     def __init__(self):
         self.training_values = []
@@ -2886,6 +2903,23 @@ class PerceptualLossTest(testing.TestCase):
             _IdentityFeatureExtractor(), reduction="sum"
         )(y_true, y_pred)
         self.assertAllClose(loss, 2.0)
+
+    def test_one_dimensional_features_keep_batch_axis(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.array(
+            [[1.0, 1.0, 1.0, 1.0], [2.0, 2.0, 2.0, 2.0]],
+            dtype="float32",
+        )
+        per_sample = losses.PerceptualLoss(
+            _ScalarFeatureExtractor(), reduction=None
+        )(y_true, y_pred)
+        self.assertEqual(backend.shape(per_sample), (2,))
+        self.assertAllClose(per_sample, np.array([1.0, 4.0]))
+
+        summed = losses.PerceptualLoss(
+            _ScalarFeatureExtractor(), reduction="sum"
+        )(y_true, y_pred)
+        self.assertAllClose(summed, 5.0)
 
     def test_sample_weight(self):
         y_true = np.zeros((2, 4), dtype="float32")

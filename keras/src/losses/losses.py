@@ -3278,14 +3278,15 @@ def msssim(
     width = shape[2]
     num_scales = len(power_factors)
     min_size = filter_size * (2 ** (num_scales - 1))
-    if height < min_size or width < min_size:
-        raise ValueError(
-            "MS-SSIM requires input spatial size to be at least "
-            f"{min_size}x{min_size} for {num_scales} scales and "
-            f"filter_size={filter_size}. Received shape "
-            f"({shape[0]}, {height}, {width}, {shape[3]}). Use fewer "
-            "scales, a smaller filter_size, or larger input images."
-        )
+    if isinstance(height, int) and isinstance(width, int):
+        if height < min_size or width < min_size:
+            raise ValueError(
+                "MS-SSIM requires input spatial size to be at least "
+                f"{min_size}x{min_size} for {num_scales} scales and "
+                f"filter_size={filter_size}. Received shape "
+                f"({shape[0]}, {height}, {width}, {shape[3]}). Use fewer "
+                "scales, a smaller filter_size, or larger input images."
+            )
 
     ms_ssim = _multiscale_ssim(
         y_pred,
@@ -3862,10 +3863,8 @@ class PerceptualLoss(Loss):
     def _feature_reduction_axis(self, feature_loss):
         rank = ops.ndim(feature_loss)
         if self.axis is None:
-            if rank == 0:
+            if rank <= 1:
                 return None
-            if rank == 1:
-                return (0,)
             return tuple(range(1, rank))
         axis = self.axis
         if isinstance(axis, int):
