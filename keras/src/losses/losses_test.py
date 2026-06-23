@@ -2565,6 +2565,15 @@ class PSNRTest(testing.TestCase):
 
 
 class TotalVariationTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
+
     def test_config(self):
         self.run_class_serialization_test(
             losses.TotalVariation(name="mytv", data_format="channels_last")
@@ -2664,6 +2673,15 @@ class TotalVariationTest(testing.TestCase):
 
 
 class EdgeAwareSmoothnessTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
+
     def test_config(self):
         self.run_class_serialization_test(
             losses.EdgeAwareSmoothness(
@@ -2762,6 +2780,15 @@ class EdgeAwareSmoothnessTest(testing.TestCase):
 
 
 class MSSSIMTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
+
     def test_config(self):
         self.run_class_serialization_test(
             losses.MSSSIM(
