@@ -4,6 +4,9 @@ import numpy as np
 import pytest
 
 from keras.src import backend
+from keras.src import layers
+from keras.src import losses as losses_module
+from keras.src import ops
 from keras.src import testing
 from keras.src.losses import losses
 
@@ -2275,3 +2278,663 @@ class CategoricalGeneralizedCrossEntropyTest(testing.TestCase):
             y_true, y_pred
         )
         self.assertDType(output, "bfloat16")
+
+
+class CharbonnierTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.Charbonnier(name="mycharbonnier", epsilon=0.5)
+        )
+
+    def test_correctness(self):
+        y_true = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32")
+        y_pred = y_true + 1.0
+        epsilon = 1e-3
+        expected = np.mean(np.sqrt(1.0 + epsilon**2))
+
+        loss = losses.charbonnier(y_true, y_pred)
+        self.assertAllClose(loss, [expected, expected])
+
+        loss = losses.Charbonnier()(y_true, y_pred)
+        self.assertAllClose(loss, expected)
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32")
+        loss = losses.Charbonnier(epsilon=0.0)(y_true, y_true)
+        self.assertAllClose(loss, 0.0)
+
+    def test_no_reduction(self):
+        y_true = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32")
+        y_pred = y_true + 1.0
+        loss = losses.Charbonnier(reduction=None)(y_true, y_pred)
+        self.assertEqual(backend.shape(loss), (2,))
+
+    def test_sum_reduction(self):
+        y_true = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32")
+        y_pred = y_true + 1.0
+        loss = losses.Charbonnier(reduction="sum")(y_true, y_pred)
+        expected = losses.charbonnier(y_true, y_pred)
+        self.assertAllClose(loss, ops.sum(expected))
+
+    def test_dtype_arg(self):
+        y_true = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32")
+        y_pred = y_true + 1.0
+        loss = losses.Charbonnier(dtype="bfloat16")(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
+    def test_sample_weight(self):
+        y_true = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype="float32")
+        y_pred = y_true + 1.0
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.Charbonnier()(y_true, y_pred, sample_weight=sample_weight)
+        per_sample = losses.charbonnier(y_true, y_pred)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_epsilon_parameter(self):
+        y_true = np.array([[0.0, 0.0], [0.0, 0.0]], dtype="float32")
+        y_pred = y_true + 0.0
+        self.assertAllClose(
+            losses.Charbonnier(epsilon=0.0)(y_true, y_pred), 0.0
+        )
+        self.assertAllClose(
+            losses.Charbonnier(epsilon=1.0)(y_true, y_pred), 1.0
+        )
+
+
+class PSNRTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.PSNR(name="mypsnr", max_val=255.0)
+        )
+
+    def test_correctness(self):
+        y_true = np.array([[[[0.0, 1.0], [1.0, 0.0]]]], dtype="float32")
+        y_pred = y_true + 0.1
+
+        loss = losses.psnr(y_true, y_pred)
+        self.assertAllClose(loss, [-20.0])
+
+        loss = losses.PSNR()(y_true, y_pred)
+        self.assertAllClose(loss, -20.0)
+
+    def test_all_correct_unweighted(self):
+        y_true = np.array([[[[0.0, 1.0], [1.0, 0.0]]]], dtype="float32")
+        loss = losses.PSNR()(y_true, y_true)
+        # MSE is clamped to backend epsilon to avoid -inf.
+        expected = 10.0 * ops.log10(backend.epsilon())
+        self.assertAllClose(loss, expected, atol=1e-4)
+
+    def test_no_reduction(self):
+        y_true = np.array(
+            [[[[0.0, 1.0], [1.0, 0.0]]], [[[0.5, 0.5], [0.5, 0.5]]]],
+            dtype="float32",
+        )
+        y_pred = y_true + 0.1
+        loss = losses.PSNR(reduction=None)(y_true, y_pred)
+        self.assertEqual(backend.shape(loss), (2,))
+
+    def test_sum_reduction(self):
+        y_true = np.array(
+            [[[[0.0, 1.0], [1.0, 0.0]]], [[[0.5, 0.5], [0.5, 0.5]]]],
+            dtype="float32",
+        )
+        y_pred = y_true + 0.1
+        loss = losses.PSNR(reduction="sum")(y_true, y_pred)
+        expected = losses.psnr(y_true, y_pred)
+        self.assertAllClose(loss, ops.sum(expected))
+
+    def test_dtype_arg(self):
+        y_true = np.array([[[[0.0, 1.0], [1.0, 0.0]]]], dtype="float32")
+        y_pred = y_true + 0.1
+        loss = losses.PSNR(dtype="bfloat16")(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
+    def test_sample_weight(self):
+        y_true = np.array(
+            [[[[0.0, 1.0], [1.0, 0.0]]], [[[0.5, 0.5], [0.5, 0.5]]]],
+            dtype="float32",
+        )
+        y_pred = y_true + 0.1
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.PSNR()(y_true, y_pred, sample_weight=sample_weight)
+        per_sample = losses.psnr(y_true, y_pred)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_unbatched(self):
+        y_true = np.array([[[0.0, 1.0], [1.0, 0.0]]], dtype="float32")
+        y_pred = y_true + 0.1
+        loss = losses.PSNR()(y_true, y_pred)
+        self.assertAllClose(loss, -20.0)
+
+    def test_max_val(self):
+        y_true = np.array([[[[0.0, 255.0], [255.0, 0.0]]]], dtype="float32")
+        y_pred = y_true + 2.55
+        loss = losses.PSNR(max_val=255.0)(y_true, y_pred)
+        self.assertAllClose(loss, -40.0)
+
+    def test_invalid_rank(self):
+        y_true = np.array([[0.0, 1.0], [1.0, 0.0]], dtype="float32")
+        y_pred = y_true + 0.1
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.PSNR()(y_true, y_pred)
+
+
+class TotalVariationTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
+
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.TotalVariation(name="mytv", data_format="channels_last")
+        )
+
+    def test_correctness(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        expected = np.array([14.0], dtype="float32")
+
+        loss = losses.total_variation(y_true, y_pred)
+        self.assertAllClose(loss, expected)
+
+        loss = losses.TotalVariation()(y_true, y_pred)
+        self.assertAllClose(loss, 14.0)
+
+    def test_all_correct_unweighted(self):
+        y_pred = np.ones((2, 4, 4, 3), dtype="float32")
+        y_true = np.zeros_like(y_pred)
+        loss = losses.TotalVariation()(y_true, y_pred)
+        self.assertAllClose(loss, 0.0)
+
+    def test_no_reduction(self):
+        y_true = np.zeros((2, 2, 2, 1), dtype="float32")
+        y_pred = np.array(
+            [
+                [[[1.0], [2.0]], [[4.0], [8.0]]],
+                [[[1.0], [2.0]], [[4.0], [8.0]]],
+            ],
+            dtype="float32",
+        )
+        loss = losses.TotalVariation(reduction=None)(y_true, y_pred)
+        self.assertEqual(backend.shape(loss), (2,))
+        self.assertAllClose(loss, np.array([14.0, 14.0]))
+
+    def test_sum_reduction(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        loss = losses.TotalVariation(reduction="sum")(y_true, y_pred)
+        self.assertAllClose(loss, 14.0)
+
+    def test_channels_first(self):
+        y_true = np.zeros((2, 3, 4, 4), dtype="float32")
+        y_pred = np.ones((2, 3, 4, 4), dtype="float32")
+        loss = losses.TotalVariation(axis=None, data_format="channels_first")(
+            y_true, y_pred
+        )
+        self.assertAllClose(loss, 0.0)
+
+    def test_dtype_arg(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        loss = losses.TotalVariation(dtype="bfloat16")(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
+    def test_sample_weight(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred[0, :, :, :] = np.arange(4)[None, :, None] * 1.0
+        y_pred[1, :, :, :] = np.arange(4)[None, :, None] * 2.0
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.TotalVariation()(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        per_sample = losses.total_variation(y_true, y_pred)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_unbatched(self):
+        y_true = np.zeros((2, 2, 1), dtype="float32")
+        y_pred = np.array([[[1.0], [2.0]], [[4.0], [8.0]]], dtype="float32")
+        loss = losses.TotalVariation()(y_true, y_pred)
+        self.assertAllClose(loss, 14.0)
+
+    def test_non_square(self):
+        y_true = np.zeros((1, 2, 3, 1), dtype="float32")
+        y_pred = np.arange(6, dtype="float32").reshape((1, 2, 3, 1))
+        loss = losses.TotalVariation()(y_true, y_pred)
+        # Vertical: |3-0|+|4-1|+|5-2| = 9
+        # Horizontal: |1-0|+|2-1|+|4-3|+|5-4| = 4
+        self.assertAllClose(loss, 13.0)
+
+    def test_invalid_rank(self):
+        y_true = np.zeros((2, 2), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.TotalVariation()(y_true, y_pred)
+
+    def test_invalid_axis(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.TotalVariation(axis=0)(y_true, y_pred)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.TotalVariation(axis=-1)(y_true, y_pred)
+
+
+class EdgeAwareSmoothnessTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
+
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.EdgeAwareSmoothness(
+                name="myedge", data_format="channels_last"
+            )
+        )
+
+    def test_correctness(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        expected = losses.total_variation(y_true, y_pred)
+
+        loss = losses.edge_aware_smoothness(y_true, y_pred)
+        self.assertAllClose(loss, expected)
+
+        loss = losses.EdgeAwareSmoothness()(y_true, y_pred)
+        self.assertAllClose(loss, ops.mean(expected))
+
+    def test_edge_preservation(self):
+        y_true = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        y_pred = y_true
+        loss_with_edge = losses.edge_aware_smoothness(y_true, y_pred)
+
+        y_true_flat = np.zeros_like(y_true)
+        loss_without_edge = losses.edge_aware_smoothness(y_true_flat, y_pred)
+
+        self.assertTrue(ops.all(loss_with_edge < loss_without_edge))
+
+    def test_all_correct_unweighted(self):
+        y_pred = np.ones((2, 4, 4, 3), dtype="float32")
+        y_true = np.random.random((2, 4, 4, 3)).astype("float32")
+        loss = losses.EdgeAwareSmoothness()(y_true, y_pred)
+        self.assertAllClose(loss, 0.0)
+
+    def test_no_reduction(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        loss = losses.EdgeAwareSmoothness(reduction=None)(y_true, y_pred)
+        expected = losses.total_variation(y_true, y_pred)
+        self.assertAllClose(loss, expected)
+
+    def test_sum_reduction(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        loss = losses.EdgeAwareSmoothness(reduction="sum")(y_true, y_pred)
+        expected = losses.total_variation(y_true, y_pred)
+        self.assertAllClose(loss, ops.sum(expected))
+
+    def test_channels_first(self):
+        y_true = np.zeros((2, 3, 4, 4), dtype="float32")
+        y_pred = np.ones((2, 3, 4, 4), dtype="float32")
+        loss = losses.EdgeAwareSmoothness(
+            axis=None, data_format="channels_first"
+        )(y_true, y_pred)
+        self.assertAllClose(loss, 0.0)
+
+    def test_dtype_arg(self):
+        y_true = np.zeros((1, 2, 2, 1), dtype="float32")
+        y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
+        loss = losses.EdgeAwareSmoothness(dtype="bfloat16")(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
+    def test_sample_weight(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred[0, :, :, :] = np.arange(4)[None, :, None] * 1.0
+        y_pred[1, :, :, :] = np.arange(4)[None, :, None] * 2.0
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.EdgeAwareSmoothness()(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        per_sample = losses.edge_aware_smoothness(y_true, y_pred)
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_non_square(self):
+        y_true = np.zeros((1, 2, 3, 1), dtype="float32")
+        y_pred = np.arange(6, dtype="float32").reshape((1, 2, 3, 1))
+        loss = losses.EdgeAwareSmoothness()(y_true, y_pred)
+        self.assertTrue(ops.isfinite(loss))
+
+    def test_invalid_rank(self):
+        y_true = np.zeros((2, 2), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.EdgeAwareSmoothness()(y_true, y_pred)
+
+    def test_invalid_axis(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = np.zeros_like(y_true)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.EdgeAwareSmoothness(axis=0)(y_true, y_pred)
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.EdgeAwareSmoothness(axis=-1)(y_true, y_pred)
+
+
+class MSSSIMTest(testing.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.data_format = backend.image_data_format()
+        backend.set_image_data_format("channels_last")
+
+    def tearDown(self):
+        super().tearDown()
+        backend.set_image_data_format(self.data_format)
+
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.MSSSIM(
+                name="mymsssim",
+                filter_size=5,
+                power_factors=(0.5, 0.5),
+            )
+        )
+
+    def _make_images(self, seed=0):
+        np.random.seed(seed)
+        return np.random.random((2, 32, 32, 3)).astype("float32")
+
+    def test_correctness(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+
+        loss = losses.msssim(
+            y_true,
+            y_pred,
+            filter_size=5,
+            power_factors=(0.5, 0.5),
+        )
+        self.assertEqual(backend.shape(loss), (2,))
+        self.assertTrue(ops.all(loss > 0))
+
+        loss = losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+            y_true, y_pred
+        )
+        self.assertAllClose(
+            loss,
+            ops.mean(
+                losses.msssim(
+                    y_true, y_pred, filter_size=5, power_factors=(0.5, 0.5)
+                )
+            ),
+        )
+
+    def test_all_correct_unweighted(self):
+        y_true = self._make_images()
+        loss = losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+            y_true, y_true
+        )
+        self.assertAllClose(loss, 0.0, atol=1e-5)
+
+        loss_l1 = losses.MSSSIM(
+            filter_size=5,
+            power_factors=(0.5, 0.5),
+            l1_weight=1.0,
+        )(y_true, y_true)
+        self.assertAllClose(loss_l1, 0.0, atol=1e-5)
+
+    def test_l1_combination(self):
+        y_true = np.zeros((2, 32, 32, 3), dtype="float32")
+        y_pred = np.ones((2, 32, 32, 3), dtype="float32")
+        loss = losses.MSSSIM(
+            filter_size=5,
+            power_factors=(0.5, 0.5),
+            l1_weight=1.0,
+        )(y_true, y_pred)
+        self.assertTrue(loss > 0.0)
+
+    def test_no_reduction(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+        loss = losses.MSSSIM(
+            filter_size=5, power_factors=(0.5, 0.5), reduction=None
+        )(y_true, y_pred)
+        self.assertEqual(backend.shape(loss), (2,))
+
+    def test_sum_reduction(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+        loss = losses.MSSSIM(
+            filter_size=5, power_factors=(0.5, 0.5), reduction="sum"
+        )(y_true, y_pred)
+        expected = losses.msssim(
+            y_true, y_pred, filter_size=5, power_factors=(0.5, 0.5)
+        )
+        self.assertAllClose(loss, ops.sum(expected))
+
+    def test_dtype_arg(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+        loss = losses.MSSSIM(
+            filter_size=5, power_factors=(0.5, 0.5), dtype="float16"
+        )(y_true, y_pred)
+        self.assertDType(loss, "float16")
+
+    def test_sample_weight(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        per_sample = losses.msssim(
+            y_true, y_pred, filter_size=5, power_factors=(0.5, 0.5)
+        )
+        sample_weight_t = ops.convert_to_tensor(sample_weight, per_sample.dtype)
+        expected = ops.sum(per_sample * sample_weight_t) / len(sample_weight)
+        self.assertAllClose(loss, expected)
+
+    def test_channels_first(self):
+        y_true = np.random.random((2, 3, 32, 32)).astype("float32")
+        y_pred = y_true + 0.05
+        loss = losses.MSSSIM(
+            filter_size=5,
+            power_factors=(0.5, 0.5),
+            data_format="channels_first",
+        )(y_true, y_pred)
+        self.assertTrue(ops.isfinite(loss))
+
+    def test_invalid_rank(self):
+        y_true = np.zeros((32, 32), dtype="float32")
+        y_pred = y_true + 0.05
+        with self.assertRaisesRegex(ValueError, "rank"):
+            losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+                y_true, y_pred
+            )
+
+    def test_too_small_image(self):
+        y_true = np.zeros((2, 4, 4, 3), dtype="float32")
+        y_pred = y_true + 0.05
+        with self.assertRaisesRegex(ValueError, "spatial"):
+            losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5))(
+                y_true, y_pred
+            )
+
+    def test_invalid_axis(self):
+        y_true = self._make_images()
+        y_pred = y_true + 0.05
+        with self.assertRaisesRegex(ValueError, "axis"):
+            losses.MSSSIM(filter_size=5, power_factors=(0.5, 0.5), axis=0)(
+                y_true, y_pred
+            )
+
+
+class _IdentityFeatureExtractor:
+    def __call__(self, inputs, training=False):
+        return inputs
+
+
+class _DictFeatureExtractor:
+    def __call__(self, inputs, training=False):
+        return {"low": inputs, "high": inputs * 2.0}
+
+
+class _ListFeatureExtractor:
+    def __call__(self, inputs, training=False):
+        return [inputs, inputs * 3.0]
+
+
+class _TrainingAwareFeatureExtractor:
+    def __init__(self):
+        self.training_values = []
+
+    def __call__(self, inputs, training=None):
+        self.training_values.append(training)
+        return inputs
+
+
+class PerceptualLossTest(testing.TestCase):
+    def test_config(self):
+        self.run_class_serialization_test(
+            losses.PerceptualLoss(
+                feature_extractor=layers.Identity(name="identity_features"),
+                name="myperceptual",
+                feature_loss="l1",
+                normalize=True,
+                layers=None,
+            )
+        )
+
+    def test_get_registered_loss(self):
+        loss = losses_module.get("PerceptualLoss")
+        self.assertIsInstance(loss, losses.PerceptualLoss)
+
+    def test_l2_tensor_output(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        loss = losses.PerceptualLoss(_IdentityFeatureExtractor())(
+            y_true, y_pred
+        )
+        self.assertAllClose(loss, 1.0)
+
+    def test_l1_selected_dict_feature_with_weight(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        loss = losses.PerceptualLoss(
+            _DictFeatureExtractor(),
+            layers=["high"],
+            weights=[0.5],
+            feature_loss="l1",
+        )(y_true, y_pred)
+        self.assertAllClose(loss, 1.0)
+
+    def test_dict_weights_multiple_features(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        loss = losses.PerceptualLoss(
+            _DictFeatureExtractor(),
+            weights={"low": 1.0, "high": 0.25},
+        )(y_true, y_pred)
+        self.assertAllClose(loss, 2.0)
+
+    def test_list_feature_selection(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        loss = losses.PerceptualLoss(
+            _ListFeatureExtractor(), layers=[1], weights=[2.0]
+        )(y_true, y_pred)
+        self.assertAllClose(loss, 18.0)
+
+    def test_normalize(self):
+        y_true = np.array([[1.0, 0.0], [0.0, 2.0]], dtype="float32")
+        y_pred = np.array([[3.0, 0.0], [0.0, 4.0]], dtype="float32")
+        loss = losses.PerceptualLoss(
+            _IdentityFeatureExtractor(), normalize=True
+        )(y_true, y_pred)
+        self.assertAllClose(loss, 0.0)
+
+    def test_no_reduction(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        loss = losses.PerceptualLoss(
+            _IdentityFeatureExtractor(), reduction=None
+        )(y_true, y_pred)
+        self.assertEqual(backend.shape(loss), (2,))
+        self.assertAllClose(loss, np.array([1.0, 1.0]))
+
+    def test_sum_reduction(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        loss = losses.PerceptualLoss(
+            _IdentityFeatureExtractor(), reduction="sum"
+        )(y_true, y_pred)
+        self.assertAllClose(loss, 2.0)
+
+    def test_sample_weight(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        sample_weight = np.array([0.5, 2.0], dtype="float32")
+        loss = losses.PerceptualLoss(_IdentityFeatureExtractor())(
+            y_true, y_pred, sample_weight=sample_weight
+        )
+        self.assertAllClose(loss, 1.25)
+
+    def test_dtype_arg(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        loss = losses.PerceptualLoss(
+            _IdentityFeatureExtractor(), dtype="bfloat16"
+        )(y_true, y_pred)
+        self.assertDType(loss, "bfloat16")
+
+    def test_training_false_when_supported(self):
+        extractor = _TrainingAwareFeatureExtractor()
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        losses.PerceptualLoss(extractor)(y_true, y_pred)
+        self.assertEqual(extractor.training_values, [False, False])
+
+    def test_missing_extractor(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "feature_extractor"):
+            losses.PerceptualLoss()(y_true, y_pred)
+
+    def test_invalid_feature_loss(self):
+        with self.assertRaisesRegex(ValueError, "feature_loss"):
+            losses.PerceptualLoss(
+                _IdentityFeatureExtractor(), feature_loss="cosine"
+            )
+
+    def test_invalid_layer_key(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "layers"):
+            losses.PerceptualLoss(_DictFeatureExtractor(), layers=["missing"])(
+                y_true, y_pred
+            )
+
+    def test_invalid_weight_length(self):
+        y_true = np.zeros((2, 4), dtype="float32")
+        y_pred = np.ones((2, 4), dtype="float32")
+        with self.assertRaisesRegex(ValueError, "weights"):
+            losses.PerceptualLoss(_DictFeatureExtractor(), weights=[1.0])(
+                y_true, y_pred
+            )
