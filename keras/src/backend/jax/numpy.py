@@ -1701,4 +1701,5 @@ def dsplit(x, indices_or_sections):
 
 
 def column_stack(xs):
+    xs = [convert_to_tensor(x) for x in xs]
     return jnp.column_stack(xs)

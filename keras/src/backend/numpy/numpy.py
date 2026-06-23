@@ -1818,10 +1818,9 @@ def dsplit(x, indices_or_sections):
 
 
 def column_stack(xs):
-    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    xs = [convert_to_tensor(x) for x in xs]
+    dtype_set = set([x.dtype for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tree.map_structure(
-            lambda x: convert_to_tensor(x).astype(dtype), xs
-        )
+        xs = [x.astype(dtype) for x in xs]
     return np.column_stack(xs)

@@ -5947,8 +5947,7 @@ def column_stack(xs):
         xs = (xs,)
 
     elems = [convert_to_tensor(x) for x in xs]
-    element_type = elems[0].output.get_element_type()
-    elems = [get_ov_output(x, element_type) for x in elems]
+    elems = [get_ov_output(x) for x in elems]
 
     processed_elems = []
     for elem in elems:

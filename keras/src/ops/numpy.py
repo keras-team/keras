@@ -10071,13 +10071,13 @@ class ColumnStack(Operation):
             if not shape_equal(
                 x_effective_shape,
                 first_effective_shape,
-                axis=[1],
+                axis=1,
                 allow_none=True,
             ):
                 raise ValueError(
-                    "Every value in `xs` must have the same shape except on "
-                    "the `axis` dim (after 1-D tensors are reshaped to 2-D "
-                    "columns). But found element of shape "
+                    "Every value in xs must have the same shape except on "
+                    "the column axis (axis 1) after 1-D tensors are reshaped "
+                    "to 2-D columns. But found element of shape "
                     f"{x_shape}, which is different from the first "
                     f"element's shape {first_shape}."
                 )
