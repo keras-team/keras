@@ -2481,7 +2481,7 @@ class TotalVariationTest(testing.TestCase):
             y_true, y_pred
         )
         self.assertAllClose(loss, 0.0)
-    
+
     def test_custom_axis(self):
         y_true = np.zeros((1, 2, 2, 1), dtype="float32")
         y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
@@ -2602,7 +2602,7 @@ class EdgeAwareSmoothnessTest(testing.TestCase):
             axis=None, data_format="channels_first"
         )(y_true, y_pred)
         self.assertAllClose(loss, 0.0)
-    
+
     def test_custom_axis(self):
         y_true = np.zeros((1, 2, 2, 1), dtype="float32")
         y_pred = np.array([[[[1.0], [2.0]], [[4.0], [8.0]]]], dtype="float32")
