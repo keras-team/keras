@@ -201,8 +201,8 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
         if len(shape) != alpha_arr.ndim:
             raise ValueError(
                 "Output shape and `alpha` and `beta` shapes cannot be "
-                f"broadcast. Received shape={shape} and alpha and "
-                f"beta shapes={alpha.shape}"
+                f"broadcast. Received shape={shape}, alpha shape="
+                f"{alpha_arr.shape}, beta shape={beta_arr.shape}"
             )
 
         def _sample_gamma(shape, a, b, key):

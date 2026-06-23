@@ -648,7 +648,7 @@ def one_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     return output
 
 
-def multi_hot(x, num_classes, axis=-1, dtype="float32", sparse=False):
+def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     if sparse:
         raise ValueError("Unsupported value `sparse=True` with mlx backend")
     x = convert_to_tensor(x)
@@ -1227,8 +1227,7 @@ def psnr(x1, x2, max_val):
 
 
 def _get_large_negative(dtype):
-    val = 65500.0 if dtype == mx.float16 else 3.38953e38
-    return mx.array(val * -0.7, dtype=dtype)
+    return mx.array(-0.7 * mx.finfo(dtype).max, dtype=dtype)
 
 
 def _apply_masks(logits, mask, is_causal):
