@@ -1815,3 +1815,13 @@ def unique(
 def dsplit(x, indices_or_sections):
     x = convert_to_tensor(x)
     return np.dsplit(x, indices_or_sections)
+
+
+def column_stack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(
+            lambda x: convert_to_tensor(x).astype(dtype), xs
+        )
+    return np.column_stack(xs)

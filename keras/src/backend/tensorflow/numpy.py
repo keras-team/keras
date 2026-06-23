@@ -4005,3 +4005,12 @@ def unique(
 
 def dsplit(x, indices_or_sections):
     return split(x, indices_or_sections, axis=2)
+
+
+def column_stack(xs):
+    dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
+    if len(dtype_set) > 1:
+        dtype = dtypes.result_type(*dtype_set)
+        xs = tree.map_structure(lambda x: convert_to_tensor(x, dtype), xs)
+    xs = [tf.expand_dims(x, axis=-1) if len(x.shape) == 1 else x for x in xs]
+    return tf.concat(xs, axis=1)
