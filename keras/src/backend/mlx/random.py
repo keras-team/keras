@@ -113,11 +113,10 @@ def gamma(shape, alpha, dtype=None, seed=None):
     # if alpha < 1, apply Gamma(alpha) = Gamma(alpha+1) * U^(1/alpha)
     # where U is a random uniform variable
     if alpha < 1.0:
-        gamma_alpha_plus_1 = gamma(shape, alpha + 1, dtype, seed=seed)
-
-        key, ukey = mx.random.split(key)
+        # Split the key first so the inner gamma draw and u are independent.
+        gkey, ukey = mx.random.split(key)
+        gamma_alpha_plus_1 = gamma(shape, alpha + 1, dtype, seed=gkey)
         u = mx.random.uniform(key=ukey, shape=shape)
-
         return (gamma_alpha_plus_1 * (u ** (1.0 / alpha))).astype(dtype)
 
     # alpha >= 1 vectorized
