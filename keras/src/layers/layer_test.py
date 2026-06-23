@@ -213,6 +213,10 @@ class LayerTest(testing.TestCase):
         self.assertLen(mock_remat.rematted_functions, 1)
         next(iter(mock_remat.rematted_functions.values())).assert_called()
 
+    def test_rematerialized_call_none(self):
+        layer = layers.Dense(4)
+        layer.rematerialized_call(layer.call, ops.ones((2, 3)))
+
     def test_quantized_layer_with_remat(self):
         """Test rematerialization on a quantized layer."""
         mock_remat = MockRemat()

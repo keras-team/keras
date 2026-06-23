@@ -6,6 +6,7 @@ from keras.src import testing
 from keras.src.backend.common import keras_tensor
 from keras.src.ops import numpy as knp
 from keras.src.ops import operation
+from keras.src.utils import traceback_utils
 
 
 class OpWithMultipleInputs(operation.Operation):
@@ -110,6 +111,17 @@ class OpWithKwargsInConstructorGetConfig(operation.Operation):
         return {**super().get_config(), "alpha": self.alpha}
 
 
+class OpWithQuantizedCall(operation.Operation):
+    def call(self, x):
+        return x
+
+    def quantized_call(self, x):
+        return x + 1
+
+    def compute_output_spec(self, x):
+        return keras_tensor.KerasTensor(x.shape, x.dtype)
+
+
 class OperationTest(testing.TestCase):
     def test_symbolic_call(self):
         x = keras_tensor.KerasTensor(shape=(2, 3), name="x")
@@ -194,6 +206,48 @@ class OperationTest(testing.TestCase):
         self.assertTrue(backend.is_tensor(out[1]))
         self.assertAllClose(out[0], np.ones((2, 3)))
         self.assertAllClose(out[1], np.ones((2, 3)) + 1)
+
+    def test_rematerialized_call(self):
+        from keras.src.backend.common.remat import RematScope
+
+        x = knp.ones((2, 3))
+
+        # Test standard rematerialized call using RematScope
+        with RematScope(mode="full"):
+            op = OpWithMultipleInputs(name="test_op")
+        out = op(x, x, x)
+        self.assertTrue(backend.is_tensor(out))
+        self.assertAllClose(out, 6 * np.ones((2, 3)))
+
+        # Test quantized rematerialized call
+        with RematScope(mode="full"):
+            op_q = OpWithQuantizedCall(name="test_op_q")
+        op_q.quantization_mode = object()
+        out = op_q(x)
+        self.assertTrue(backend.is_tensor(out))
+        self.assertAllClose(out, 2 * np.ones((2, 3)))
+
+        # Test traceback filtering branch
+        was_enabled = traceback_utils.is_traceback_filtering_enabled()
+        traceback_utils.enable_traceback_filtering()
+        try:
+            # Standard rematerialized
+            with RematScope(mode="full"):
+                op = OpWithMultipleInputs(name="test_op_traceback")
+            out = op(x, x, x)
+            self.assertTrue(backend.is_tensor(out))
+            self.assertAllClose(out, 6 * np.ones((2, 3)))
+
+            # Quantized rematerialized
+            with RematScope(mode="full"):
+                op_q = OpWithQuantizedCall(name="test_op_q_traceback")
+            op_q.quantization_mode = object()
+            out = op_q(x)
+            self.assertTrue(backend.is_tensor(out))
+            self.assertAllClose(out, 2 * np.ones((2, 3)))
+        finally:
+            if not was_enabled:
+                traceback_utils.disable_traceback_filtering()
 
     def test_serialization_with_default_init_and_get_config(self):
         # Explicit name passed in constructor is serialized and deserialized.

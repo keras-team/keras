@@ -19,7 +19,6 @@ And some more magic:
 import collections
 import functools
 import inspect
-import math
 import warnings
 from functools import wraps
 
@@ -342,7 +341,6 @@ class Layer(BackendLayer, Operation):
         self._build_shapes_dict = None
         # Parent path
         self._parent_path = None
-        self._remat_mode = get_current_remat_mode()
         self._initialize_tracker()
 
     @tracking.no_automatic_dependency_tracking
@@ -1769,36 +1767,9 @@ class Layer(BackendLayer, Operation):
         Returns:
             Rematerialized layer's `call` method.
         """
-
-        def compute_size(x):
-            return (
-                math.prod([d or 1 for d in x.shape])
-                if isinstance(x, KerasTensor)
-                else 0
-            )
-
-        # Full rematerialization
-        if self._remat_mode.mode == "full":
-            return remat.remat(layer_call)
-
-        # Apply rematerialization to specific layers
-        elif self._remat_mode.mode == "list_of_layers" and (
-            self.name in self._remat_mode.layer_names
-        ):
-            return remat.remat(layer_call)
-
-        # Apply rematerialization based on output size threshold
-        elif self._remat_mode.mode == "larger_than":
-            output_spec = self.compute_output_spec(*args, **kwargs)
-            output_size = sum(
-                tree.flatten(tree.map_structure(compute_size, output_spec))
-            )
-            if (
-                output_size
-                and output_size > self._remat_mode.output_size_threshold
-            ):
-                return remat.remat(layer_call)
-        elif self._remat_mode.mode == "activations":
+        if not self._remat_mode:
+            return layer_call
+        if self._remat_mode.mode == "activations":
             has_activation = (
                 hasattr(self, "activation") and self.activation is not None
             )
@@ -1814,7 +1785,11 @@ class Layer(BackendLayer, Operation):
                         self.activation = original_activation
 
                 return rematerialized_activation_call_wrapper
-        return layer_call
+        elif self._remat_mode.mode == "list_of_layers" and (
+            self.name in self._remat_mode.layer_names
+        ):
+            return remat.remat(layer_call)
+        return super().rematerialized_call(layer_call, *args, **kwargs)
 
     def _register_call_context_args(self, *names):
         """Registers call-context args for this layer.

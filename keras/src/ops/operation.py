@@ -1,10 +1,13 @@
 import inspect
+import math
 import textwrap
 
 from keras.src import backend
 from keras.src import dtype_policies
 from keras.src import tree
 from keras.src.api_export import keras_export
+from keras.src.backend import KerasTensor
+from keras.src.backend.common import remat
 from keras.src.backend.common.keras_tensor import any_symbolic_tensors
 from keras.src.backend.config import is_nnx_enabled
 from keras.src.ops.node import Node
@@ -28,6 +31,7 @@ class Operation(KerasSaveable):
         self.name = name
         self._inbound_nodes = []
         self._outbound_nodes = []
+        self._remat_mode = remat.get_current_remat_mode()
 
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
@@ -36,7 +40,7 @@ class Operation(KerasSaveable):
             if any_symbolic_tensors(args, kwargs):
                 call_fn = self.symbolic_call
             else:
-                if getattr(self, "_remat_mode", None) is not None:
+                if self._remat_mode:
                     if getattr(self, "quantization_mode", None) is not None:
                         call_fn = self.rematerialized_call(
                             self.quantized_call,
@@ -61,7 +65,7 @@ class Operation(KerasSaveable):
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
             return self.symbolic_call(*args, **kwargs)
-        elif getattr(self, "_remat_mode", None) is not None:
+        elif self._remat_mode:
             if getattr(self, "quantization_mode", None) is not None:
                 return self.rematerialized_call(
                     self.quantized_call, *args, **kwargs
@@ -95,6 +99,42 @@ class Operation(KerasSaveable):
 
     def quantized_call(self, *args, **kwargs):
         raise NotImplementedError
+
+    def rematerialized_call(self, fn, *args, **kwargs):
+        """Enable rematerialization dynamically for an operation's call method.
+
+        Args:
+            fn: The original `call` or `quantized_call` method of an operation.
+
+        Returns:
+            Rematerialized method.
+        """
+        if not self._remat_mode:
+            return fn
+
+        def compute_size(x):
+            return (
+                math.prod([d or 1 for d in x.shape])
+                if isinstance(x, KerasTensor)
+                else 0
+            )
+
+        # Full rematerialization
+        if self._remat_mode.mode == "full":
+            return remat.remat(fn)
+
+        # Apply rematerialization based on output size threshold
+        elif self._remat_mode.mode == "larger_than":
+            output_spec = self.compute_output_spec(*args, **kwargs)
+            output_size = sum(
+                tree.flatten(tree.map_structure(compute_size, output_spec))
+            )
+            if (
+                output_size
+                and output_size > self._remat_mode.output_size_threshold
+            ):
+                return remat.remat(fn)
+        return fn
 
     def compute_output_spec(self, *args, **kwargs):
         try:
