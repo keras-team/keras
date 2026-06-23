@@ -40,13 +40,19 @@ class Variable(
         if isinstance(value, tf.Variable):
             self._value = value
         else:
+            synchronization = tf.VariableSynchronization.AUTO
+            if tf.distribute.has_strategy():
+                strategy = tf.distribute.get_strategy()
+                if is_tpu_strategy(strategy):
+                    synchronization = tf.VariableSynchronization.ON_WRITE
+
             self._value = tf.Variable(
                 value,
                 dtype=self._dtype,
                 trainable=self.trainable,
                 name=self.name,
                 aggregation=self._map_aggregation(self.aggregation),
-                synchronization=self._map_synchronization(self.synchronization),
+                synchronization=synchronization,
             )
 
     def _initialize_with_initializer(self, initializer):
@@ -887,3 +893,6 @@ class name_scope(base_name_scope):
 
 def device_scope(device_name):
     return tf.device(device_name)
+
+def is_tpu_strategy(strategy):
+    return isinstance(strategy, tf.distribute.TPUStrategy)
