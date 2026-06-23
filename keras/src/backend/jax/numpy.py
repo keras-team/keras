@@ -1698,3 +1698,7 @@ def unique(
 def dsplit(x, indices_or_sections):
     x = convert_to_tensor(x)
     return jnp.dsplit(x, indices_or_sections)
+
+
+def column_stack(xs):
+    return jnp.column_stack(xs)
