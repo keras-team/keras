@@ -3191,7 +3191,7 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
             f"(batched images). Received input rank {rank}."
         )
 
-    spatial_axes = _canonicalize_spatial_axes(None, data_format, rank)
+    all_spatial_axes = _canonicalize_spatial_axes(None, data_format, rank)
     axis = _canonicalize_spatial_axes(axis, data_format, rank)
 
     loss = 0.0
@@ -3204,9 +3204,10 @@ def edge_aware_smoothness(y_true, y_pred, axis=None, data_format=None):
         pred_grad = y_pred[tuple(slice1)] - y_pred[tuple(slice2)]
         true_grad = y_true[tuple(slice1)] - y_true[tuple(slice2)]
         weighted = ops.abs(pred_grad) * ops.exp(-ops.abs(true_grad))
-        loss = loss + ops.sum(weighted, axis=spatial_axes)
+        loss = loss + ops.sum(weighted, axis=all_spatial_axes)
     if ops.ndim(loss) > 0:
         loss = ops.sum(loss, axis=-1)
+    return loss
     return loss
 
 
