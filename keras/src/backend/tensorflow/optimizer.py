@@ -21,9 +21,24 @@ class TFOptimizer(KerasAutoTrackable, base_optimizer.BaseOptimizer):
         super().__init__(*args, **kwargs)
         self._distribution_strategy = tf.distribute.get_strategy()
 
-    def add_variable(self, *args, **kwargs):
+    def add_variable(
+        self,
+        shape,
+        initializer="zeros",
+        dtype=None,
+        aggregation="none",
+        layout=None,
+        name=None,
+    ):
         with tf.init_scope():
-            return super().add_variable(*args, **kwargs)
+            return super().add_variable(
+                shape,
+                initializer=initializer,
+                dtype=dtype,
+                aggregation=aggregation,
+                layout=layout,
+                name=name,
+            )
 
     def add_variable_from_reference(
         self, reference_variable, name=None, initializer="zeros"
