@@ -1485,6 +1485,13 @@ def dot_product_attention(
     key = torch.transpose(key, axis0, axis1)
     value = torch.transpose(value, axis0, axis1)
 
+    num_query_heads = query.shape[1]
+    num_kv_heads = key.shape[1]
+    if num_query_heads > num_kv_heads and num_kv_heads > 1:
+        groups = num_query_heads // num_kv_heads
+        key = torch.repeat_interleave(key, repeats=groups, dim=1)
+        value = torch.repeat_interleave(value, repeats=groups, dim=1)
+
     if flash_attention is None:
         flash_attention = _can_use_flash_attention(
             query, key, value, mask, is_causal
