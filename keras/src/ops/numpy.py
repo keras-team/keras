@@ -9493,7 +9493,7 @@ def select(condlist, choicelist, default=0):
         choicelist: List of tensors.
             The list of tensors from which the output elements are taken.
             This list has to be of the same length as `condlist`.
-        defaults: Optional scalar value.
+        default: Optional scalar value.
             The element inserted in the output
             when all conditions evaluate to `False`.
 
@@ -9599,7 +9599,7 @@ def argpartition(x, kth, axis=-1):
     in partitioned order.
 
     Args:
-        a: Array to sort.
+        x: Array to sort.
         kth: Element index to partition by.
             The k-th element will be in its final sorted position and all
             smaller elements will be moved before it and all larger elements
