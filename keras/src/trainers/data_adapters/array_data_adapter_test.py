@@ -350,22 +350,22 @@ class TestArrayDataAdapter(testing.TestCase):
                 {
                     "testcase_name": "dataparallel",
                     "dist_type": "dp",
-                    "world_size": 4,
-                    "rank": 1,
+                    "num_processes": 4,
+                    "process_id": 1,
                     "mesh_shape": (4,),
                 },
                 {
                     "testcase_name": "modelparallel",
                     "dist_type": "mp",
-                    "world_size": 8,
-                    "rank": 5,
+                    "num_processes": 8,
+                    "process_id": 5,
                     "mesh_shape": (2, 4),
                 },
                 {
                     "testcase_name": "modelparallel_large_mesh",
                     "dist_type": "mp",
-                    "world_size": 4,
-                    "rank": 2,
+                    "num_processes": 4,
+                    "process_id": 2,
                     "mesh_shape": (8, 2),
                 },
             ],
@@ -375,13 +375,13 @@ class TestArrayDataAdapter(testing.TestCase):
     def test_sharding(
         self,
         dist_type,
-        world_size,
-        rank,
+        num_processes,
+        process_id,
         mesh_shape,
         shuffle,
     ):
         if dist_type == "dp":
-            dist = dist_lib.DataParallel(devices=["cpu:0"] * world_size)
+            dist = dist_lib.DataParallel(devices=["cpu:0"] * num_processes)
         else:
             device_mesh = dist_lib.DeviceMesh(
                 shape=mesh_shape,
@@ -393,12 +393,12 @@ class TestArrayDataAdapter(testing.TestCase):
                 layout_map=dist_lib.LayoutMap(device_mesh),
                 batch_dim_name="data",
             )
-        dist._num_processes = world_size
-        dist._process_id = rank
+        dist._num_processes = num_processes
+        dist._process_id = process_id
         dist.auto_shard_dataset = True
 
-        expected_num_replicas = min(dist.num_model_replicas, world_size)
-        expected_rank = dist.data_shard_id
+        expected_num_replicas = min(dist.num_model_replicas, num_processes)
+        expected_shard_id = dist.data_shard_id
 
         x = self.make_array("np", (100, 10), "float32")
         y = self.make_array("np", (100, 1), "float32")
@@ -417,7 +417,7 @@ class TestArrayDataAdapter(testing.TestCase):
                 it_methods.append(backend_it_method)
 
         self.assertEqual(adapter._num_data_shards, expected_num_replicas)
-        self.assertEqual(adapter._data_shard_id, expected_rank)
+        self.assertEqual(adapter._data_shard_id, expected_shard_id)
 
         def get_order(it_fn):
             order = []
@@ -432,7 +432,7 @@ class TestArrayDataAdapter(testing.TestCase):
             if not shuffle:
                 batches = list(it_fn())
                 expected_num_batches = (
-                    10 - expected_rank + expected_num_replicas - 1
+                    10 - expected_shard_id + expected_num_replicas - 1
                 ) // expected_num_replicas
                 self.assertEqual(len(batches), expected_num_batches)
 
@@ -441,11 +441,23 @@ class TestArrayDataAdapter(testing.TestCase):
                     bx = backend.convert_to_numpy(bx)
                     by = backend.convert_to_numpy(by)
                     expected_batch_index = (
-                        expected_rank + i * expected_num_replicas
+                        expected_shard_id + i * expected_num_replicas
                     )
                     expected_first_sample_value = expected_batch_index * 10
-                    self.assertAllClose(bx[0, 0], expected_first_sample_value)
-                    self.assertAllClose(by[0, 0], expected_first_sample_value)
+                    self.assertAllClose(
+                        bx[:, 0],
+                        np.arange(
+                            expected_first_sample_value,
+                            expected_first_sample_value + 10,
+                        ),
+                    )
+                    self.assertAllClose(
+                        by[:, 0],
+                        np.arange(
+                            expected_first_sample_value,
+                            expected_first_sample_value + 10,
+                        ),
+                    )
             else:
                 # Same epoch should have same shuffle
                 adapter._epoch = 1

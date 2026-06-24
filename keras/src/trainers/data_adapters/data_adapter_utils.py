@@ -366,10 +366,6 @@ class DistributedBatchSampler:
     build batch samplers over the dataset and then may optionally shuffle within
     each returned batch.
 
-    `torch.utils.data.distributed.DistributedSampler` shards individual sample
-    indices rather than pre-batched batches, so it cannot be used here without
-    substantially changing the adapter's batch-level semantics.
-
     Args:
         batch_sampler: An iterable of batches. For example, a
             `torch.utils.data.BatchSampler` instance.
