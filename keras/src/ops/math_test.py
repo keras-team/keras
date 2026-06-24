@@ -1051,6 +1051,17 @@ class MathOpsCorrectnessTest(testing.TestCase):
             output_from_edge_erfinv_op, expected_output, atol=1e-4
         )
 
+        # Largest float32 value smaller than 1.0
+        val_nextafter = np.nextafter(np.float32(1.0), np.float32(0.0))
+        float32_edge = np.array([val_nextafter], dtype=np.float32)
+
+        expected_float32 = scipy.special.erfinv(float32_edge)
+        output_float32 = kmath.erfinv(float32_edge)
+
+        self.assertAllClose(
+            output_float32, expected_float32, rtol=1e-2, atol=1e-1
+        )
+
     def test_logdet(self):
         x = np.array(
             [

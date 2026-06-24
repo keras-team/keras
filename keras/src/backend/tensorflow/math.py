@@ -302,6 +302,9 @@ def erfc(x):
 
 
 def erfinv(x):
+    x = convert_to_tensor(x)
+    if standardize_dtype(x.dtype) == "float32":
+        return cast(tf.math.erfinv(cast(x, "float64")), "float32")
     return tf.math.erfinv(x)
 
 
