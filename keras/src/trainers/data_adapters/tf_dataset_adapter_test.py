@@ -358,10 +358,11 @@ class TestTFDatasetAdapter(testing.TestCase):
     def test_distribute_tf_dataset_multiple_replicas_per_process(self):
         dataset = tf.data.Dataset.range(16).batch(8)
 
-        distribution = mock.Mock()
-        distribution.num_model_replicas = 4
-        distribution.num_processes = 2
-        distribution.data_shard_id = 0
+        distribution = distribution_lib.DataParallel(
+            devices=["cpu:0", "cpu:1", "cpu:2", "cpu:3"]
+        )
+        distribution._num_processes = 2
+        distribution._process_id = 0
         distribution.auto_shard_dataset = True
 
         adapter = tf_dataset_adapter.TFDatasetAdapter(
@@ -376,7 +377,7 @@ class TestTFDatasetAdapter(testing.TestCase):
         self.assertAllClose(data[0], [0, 1, 2, 3])
         self.assertAllClose(data[1], [8, 9, 10, 11])
 
-        distribution.data_shard_id = 1
+        distribution._process_id = 1
         adapter = tf_dataset_adapter.TFDatasetAdapter(
             dataset, distribution=distribution
         )
@@ -388,10 +389,11 @@ class TestTFDatasetAdapter(testing.TestCase):
         self.assertAllClose(data[1], [12, 13, 14, 15])
 
     def test_distribute_tf_dataset_error_not_divisible(self):
-        distribution = mock.Mock()
-        distribution.num_model_replicas = 4
-        distribution.num_processes = 2
-        distribution.data_shard_id = 0
+        distribution = distribution_lib.DataParallel(
+            devices=["cpu:0", "cpu:1", "cpu:2", "cpu:3"]
+        )
+        distribution._num_processes = 2
+        distribution._process_id = 0
         distribution.auto_shard_dataset = True
 
         dataset = tf.data.Dataset.range(16).batch(7)
@@ -404,10 +406,9 @@ class TestTFDatasetAdapter(testing.TestCase):
             )
 
     def test_unknown_batch_size(self):
-        distribution = mock.Mock()
-        distribution.num_model_replicas = 1
-        distribution.num_processes = 2
-        distribution.data_shard_id = 0
+        distribution = distribution_lib.DataParallel(devices=["cpu:0"])
+        distribution._num_processes = 2
+        distribution._process_id = 0
         distribution.auto_shard_dataset = True
 
         dataset = tf.data.Dataset.range(16)
@@ -417,10 +418,9 @@ class TestTFDatasetAdapter(testing.TestCase):
             )
 
     def test_num_model_replicas_one(self):
-        distribution = mock.Mock()
-        distribution.num_model_replicas = 1
-        distribution.num_processes = 2
-        distribution.data_shard_id = 0
+        distribution = distribution_lib.DataParallel(devices=["cpu:0"])
+        distribution._num_processes = 2
+        distribution._process_id = 0
         distribution.auto_shard_dataset = True
 
         dataset = tf.data.Dataset.range(16).batch(8)
@@ -456,10 +456,11 @@ class DataShardingIntegrationTest(testing.TestCase):
         shards = []
         processes_per_replica = num_devices // num_model_replicas
         for process_id in range(num_devices):
-            distribution = mock.Mock()
-            distribution.num_model_replicas = num_model_replicas
-            distribution.num_processes = num_devices
-            distribution.data_shard_id = process_id // processes_per_replica
+            distribution = distribution_lib.DataParallel(
+                devices=["cpu:0"] * num_model_replicas
+            )
+            distribution._num_processes = num_devices
+            distribution._process_id = process_id
             distribution.auto_shard_dataset = True
 
             adapter = tf_dataset_adapter.TFDatasetAdapter(
