@@ -155,6 +155,11 @@ class MathOpsDynamicShapeTest(testing.TestCase):
         y = kmath.erfc(x)
         self.assertEqual(y.shape, (None, 2, 3))
 
+    def test_erfinv(self):
+        x = KerasTensor((None, 2, 3))
+        y = kmath.erfinv(x)
+        self.assertEqual(y.shape, (None, 2, 3))
+
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
     def test_segment_reduce(self, segment_reduce_op):
         # 1D case
@@ -356,6 +361,11 @@ class MathOpsStaticShapeTest(testing.TestCase):
     def test_erfc(self):
         x = KerasTensor((1, 2, 3))
         y = kmath.erfc(x)
+        self.assertEqual(y.shape, (1, 2, 3))
+
+    def test_erfinv(self):
+        x = KerasTensor((1, 2, 3))
+        y = kmath.erfinv(x)
         self.assertEqual(y.shape, (1, 2, 3))
 
     @parameterized.parameters([(kmath.segment_sum,), (kmath.segment_max,)])
@@ -1142,6 +1152,25 @@ class MathDtypeTest(testing.TestCase):
         )
         self.assertEqual(
             standardize_dtype(kmath.Erfc().symbolic_call(x).dtype),
+            expected_dtype,
+        )
+
+    @parameterized.named_parameters(named_product(dtype=FLOAT_DTYPES))
+    def test_erfinv(self, dtype):
+        import jax.numpy as jnp
+        import jax.scipy.special as special
+
+        x = knp.ones((1,), dtype=dtype)
+        x_jax = jnp.ones((1,), dtype=dtype)
+
+        expected_dtype = standardize_dtype(special.erfinv(x_jax).dtype)
+
+        self.assertEqual(
+            standardize_dtype(kmath.erfinv(x).dtype),
+            expected_dtype,
+        )
+        self.assertEqual(
+            standardize_dtype(kmath.Erfinv().symbolic_call(x).dtype),
             expected_dtype,
         )
 

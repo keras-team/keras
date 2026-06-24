@@ -319,7 +319,9 @@ def erfc(x):
 
 
 def erfinv(x):
-    return np.array(scipy.special.erfinv(x))
+    x = convert_to_tensor(x)
+    dtype = dtypes.result_type(x.dtype, float)
+    return scipy.special.erfinv(x).astype(dtype)
 
 
 def logdet(x):
