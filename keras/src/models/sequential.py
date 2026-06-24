@@ -378,7 +378,7 @@ class Sequential(Model):
             raise ValueError(
                 "A Sequential model configuration must be "
                 "a dictionary containing the 'name' and "
-                "'layers' keys. Received: config={config}"
+                f"'layers' keys. Received: config={config}"
             )
         model = cls(name=name)
         for layer_config in layer_configs:

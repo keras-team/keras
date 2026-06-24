@@ -31,15 +31,34 @@ BUILTIN_MODULES = frozenset(
     }
 )
 
-LOADING_APIS = frozenset(
+NON_MODELING_APIS = frozenset(
     {
+        "keras.backend.clear_session",
         "keras.config.enable_unsafe_deserialization",
         "keras.models.load_model",
+        "keras.models.model_from_json",
+        "keras.models.save_model",
+        "keras.preprocessing.image_dataset_from_directory",
         "keras.preprocessing.image.load_img",
+        "keras.preprocessing.image.save_img",
+        "keras.preprocessing.text_dataset_from_directory",
+        "keras.saving.deserialize_keras_object",
         "keras.saving.load_model",
         "keras.saving.load_weights",
+        "keras.saving.register_keras_serializable",
+        "keras.saving.save_model",
+        "keras.saving.save_weights",
+        "keras.saving.serialize_keras_object",
+        "keras.utils.audio_dataset_from_directory",
+        "keras.utils.clear_session",
+        "keras.utils.deserialize_keras_object",
         "keras.utils.get_file",
+        "keras.utils.image_dataset_from_directory",
         "keras.utils.load_img",
+        "keras.utils.register_keras_serializable",
+        "keras.utils.save_img",
+        "keras.utils.serialize_keras_object",
+        "keras.utils.text_dataset_from_directory",
     }
 )
 
@@ -817,10 +836,13 @@ def _retrieve_class_or_fn(
         if module == "keras" or module.startswith("keras."):
             api_name = f"{module}.{name}"
 
-            if api_name in LOADING_APIS:
+            if api_name in NON_MODELING_APIS:
                 raise ValueError(
-                    f"Cannot deserialize `{api_name}`, loading functions are "
-                    "not allowed during deserialization"
+                    f"Cannot deserialize `{api_name}` because it is not a "
+                    "modeling function. Non-modeling APIs are disallowed "
+                    "during deserialization for security. Model configuration "
+                    "should only contains operations, layers, metrics, losses, "
+                    "or registered custom objects and functions."
                 )
 
             obj = api_export.get_symbol_from_name(api_name)
