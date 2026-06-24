@@ -6,27 +6,29 @@ import zipfile
 
 import numpy as np
 
-# Globals that are legitimately required to reconstruct the numpy object arrays
-# stored inside the IMDB / Reuters `.npz` files (ragged sequences are saved as
-# `dtype=object` arrays, which numpy persists as pickle streams). Both the
-# numpy < 2 (`numpy.core`) and numpy >= 2 (`numpy._core`) module spellings are
-# listed so files written by either can be read. Anything outside this set
-# (e.g. `os.system`, `builtins.eval`, `subprocess.Popen`) is refused, which
-# prevents a tampered `.npz` from executing code through a pickle `__reduce__`
-# gadget.
+# Globals required to reconstruct the numpy object arrays stored inside the
+# IMDB / Reuters `.npz` files. These datasets store ragged sequences as
+# `dtype=object` arrays, which numpy can only persist as a pickle stream, so
+# `np.load(allow_pickle=False)` refuses them outright ("Object arrays cannot be
+# loaded when allow_pickle=False"). Rebuilding such an array uses exactly three
+# globals -- `numpy.ndarray`, `numpy.dtype` and `multiarray._reconstruct` -- and
+# nothing else (verified against the actual IMDB and Reuters files). Both the
+# numpy < 2 (`numpy.core`) and numpy >= 2 (`numpy._core`) spellings of
+# `multiarray` are listed so files written by either can be read. Anything
+# outside this set (e.g. `os.system`, `builtins.eval`, `subprocess.Popen`) is
+# refused, which prevents a tampered `.npz` from executing code through a pickle
+# `__reduce__` gadget.
 _ALLOWED_PICKLE_GLOBALS = frozenset(
     {
         ("numpy", "ndarray"),
         ("numpy", "dtype"),
         ("numpy.core.multiarray", "_reconstruct"),
-        ("numpy.core.multiarray", "scalar"),
         ("numpy._core.multiarray", "_reconstruct"),
-        ("numpy._core.multiarray", "scalar"),
     }
 )
 
 
-class _RestrictedUnpickler(pickle.Unpickler):
+class RestrictedUnpickler(pickle.Unpickler):
     """An unpickler that only allows numpy array reconstruction globals."""
 
     def find_class(self, module, name):
@@ -38,11 +40,11 @@ class _RestrictedUnpickler(pickle.Unpickler):
         )
 
 
-def _load_npy_member(fp):
+def load_npy_member(fp):
     """Read a single `.npy` stream without allowing arbitrary unpickling.
 
     Numeric arrays are read with pickling disabled entirely. Object arrays
-    (which genuinely require pickle) are read with `_RestrictedUnpickler`, so
+    (which genuinely require pickle) are read with `RestrictedUnpickler`, so
     only numpy array reconstruction is permitted.
     """
     try:
@@ -63,7 +65,7 @@ def _load_npy_member(fp):
             np.lib.format.read_array_header_2_0(fp)
         else:
             raise ValueError(f"Unsupported `.npy` file version: {version}.")
-        return _RestrictedUnpickler(fp).load()
+        return RestrictedUnpickler(fp).load()
 
 
 def load_npz(path):
@@ -87,5 +89,5 @@ def load_npz(path):
                 continue
             with archive.open(member) as raw:
                 buffer = io.BytesIO(raw.read())
-            arrays[member[: -len(".npy")]] = _load_npy_member(buffer)
+            arrays[member[: -len(".npy")]] = load_npy_member(buffer)
     return arrays
