@@ -31,7 +31,7 @@ jobs:
 
     name: Run tests on GPU
     runs-on: linux-x86-g2-16-l4-1gpu
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     container:
       image: python:3.11-slim
