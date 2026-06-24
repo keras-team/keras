@@ -144,6 +144,7 @@ class ArrayDataAdapter(DataAdapter):
         # 3. pipelined permutation generation
         # 4. optimized permutation batching
         # 5. disabled static optimizations
+
         indices_dataset = tf.data.Dataset.range(1)
 
         def permutation(_):
@@ -263,6 +264,11 @@ class ArrayDataAdapter(DataAdapter):
 
         dataset = slice_inputs(indices_dataset, self._inputs)
 
+        options = tf.data.Options()
+        options.experimental_distribute.auto_shard_policy = (
+            tf.data.experimental.AutoShardPolicy.DATA
+        )
+        dataset = dataset.with_options(options)
         return dataset.prefetch(tf.data.AUTOTUNE)
 
     def get_jax_iterator(self):
