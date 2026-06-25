@@ -35,6 +35,62 @@ def is_ipython_notebook():
         return False
 
 
+# An HDF5 weights file whose datasets cumulatively declare more than this floor
+# of array data, and more than `_H5_SHAPE_BOMB_MAX_EXPANSION` times the bytes
+# actually stored on disk, is treated as a shape/decompression bomb
+# (CWE-789 / CWE-409). Mirrors the loader's HDF5 guard so the editor enjoys the
+# same protection (it walks the weights itself instead of going through the
+# loader's `safe_get_h5_dataset`).
+_H5_SHAPE_BOMB_FLOOR_BYTES = 1 << 26  # 64 MiB
+_H5_SHAPE_BOMB_MAX_EXPANSION = 1000
+
+
+def _reject_h5_shape_bomb(h5_file):
+    """Reject a cumulative shape/decompression-bomb HDF5 weights file.
+
+    `KerasFileEditor` walks the weights in `_extract_weights_from_store` rather
+    than through the loader's ratio-checked `safe_get_h5_dataset`, and its
+    per-dataset size guard has no decompression-ratio bound and no cumulative
+    budget: a dataset declaring just under the per-dataset limit while storing
+    almost nothing, or several such datasets, are read into memory in full from
+    a few-KB file. This bounds the cumulative declared size of every dataset in
+    the file against the bytes actually stored on disk, mirroring the loader's
+    HDF5 shape-bomb guard, so opening an untrusted file cannot drive the editor
+    into memory exhaustion (CWE-789 / CWE-409 / CWE-400).
+    """
+    try:
+        file_size = h5_file.id.get_filesize()
+    except Exception:
+        # If the on-disk size cannot be determined, skip the check rather than
+        # break opening the file.
+        return
+    if file_size <= 0:
+        return
+    total_declared = 0
+
+    def _accumulate(_name, obj):
+        nonlocal total_declared
+        # A null-dataspace dataset has `shape is None`; skip it (`math.prod`
+        # would raise on `None`).
+        if isinstance(obj, h5py.Dataset) and obj.shape is not None:
+            total_declared += math.prod(obj.shape) * obj.dtype.itemsize
+
+    # `visititems` only walks hard-linked datasets; external/soft links are
+    # rejected separately by `_extract_weights_from_store` when accessed.
+    h5_file.visititems(_accumulate)
+    if (
+        total_declared > _H5_SHAPE_BOMB_FLOOR_BYTES
+        and total_declared > _H5_SHAPE_BOMB_MAX_EXPANSION * file_size
+    ):
+        declared_str = summary_utils.readable_memory_size(total_declared)
+        stored_str = summary_utils.readable_memory_size(file_size)
+        raise ValueError(
+            "Refusing to open a potential decompression/shape bomb: the "
+            f"HDF5 weights declare {declared_str} of array data but only "
+            f"{stored_str} are stored on disk."
+        )
+
+
 @keras_export("keras.saving.KerasFileEditor")
 class KerasFileEditor:
     """Utility to inspect, edit, and resave Keras weights files.
@@ -98,6 +154,7 @@ class KerasFileEditor:
                 f"Received: filepath={filepath}"
             )
 
+        _reject_h5_shape_bomb(weights_store.h5_file)
         weights_dict, object_metadata = self._extract_weights_from_store(
             weights_store.h5_file
         )
