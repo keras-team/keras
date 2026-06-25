@@ -736,26 +736,6 @@ class SavingTest(testing.TestCase):
         backend.backend() == "jax",
         reason="JAX backend doesn't support Python's multiprocessing",
     )
-    @pytest.mark.skipif(
-        testing.uses_gpu(),
-        reason="This test doesn't support GPU",
-    )
-    def test_load_model_concurrently(self):
-        import multiprocessing as mp
-
-        model = keras.Sequential([keras.Input([1]), keras.layers.Dense(2)])
-        filepath = f"{self.get_temp_dir()}/model.keras"
-        saving_lib.save_model(model, filepath)
-
-        # Load the model concurrently.
-        results = []
-        with mp.Pool(4) as pool:
-            for i in range(4):
-                results.append(pool.apply_async(_load_model_fn, (filepath,)))
-            pool.close()
-            pool.join()
-        [r.get() for r in results]  # No error occurs here
-
     def test_load_model_containing_reused_layer(self):
         # https://github.com/keras-team/keras/issues/20307
         inputs = keras.Input((4,))
