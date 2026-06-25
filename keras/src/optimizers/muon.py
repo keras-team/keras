@@ -170,7 +170,15 @@ class Muon(optimizer.Optimizer):
         self.ns_steps = ns_steps
         self.nesterov = nesterov
         self.exclude_embeddings = exclude_embeddings
-        self.exclude_layers = exclude_layers or []
+        # A bare string would iterate per-character (each a 1-char regex that
+        # matches almost any path); require a list and normalize to one so the
+        # config round-trips cleanly.
+        if isinstance(exclude_layers, str):
+            raise ValueError(
+                "Argument `exclude_layers` must be a list of strings. "
+                f"Received: exclude_layers='{exclude_layers}'"
+            )
+        self.exclude_layers = list(exclude_layers or [])
         for keyword in self.exclude_layers:
             _validate_exclude_layer(keyword)
         self.adam_weight_decay = adam_weight_decay

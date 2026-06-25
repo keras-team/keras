@@ -58,6 +58,10 @@ class MuonTest(testing.TestCase):
                 Muon(exclude_layers=[bad])
         with self.assertRaisesRegex(ValueError, "at most"):
             Muon(exclude_layers=["a" * 1000])
+        # A bare string (instead of a list) is rejected rather than iterated
+        # per-character.
+        with self.assertRaisesRegex(ValueError, "must be a list of strings"):
+            Muon(exclude_layers="output_dense")
         # Plain keywords and a simple trailing `.*` glob are still accepted.
         optimizer = Muon(
             exclude_layers=["output_dense", "block1/dense", "encoder/.*"]
