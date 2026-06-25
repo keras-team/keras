@@ -1800,6 +1800,76 @@ class SafeGetH5DatasetTest(testing.TestCase):
         with self.assertRaises(ValueError):
             reloaded.load_weights(good_path)
 
+    def _external_secret_file(self):
+        secret = os.path.join(self.get_temp_dir(), "secret.h5")
+        with h5py.File(secret, "w") as f:
+            f.create_dataset("kernel", data=np.full((3, 2), 99.0, "float32"))
+            f.create_dataset("bias", data=np.full((2,), 99.0, "float32"))
+        return secret
+
+    def test_rejects_intermediate_external_link(self):
+        # A multi-component name whose *intermediate* component is an
+        # ExternalLink must be rejected. `getlink` only inspects the final
+        # component, so the link would otherwise be followed into the external
+        # file and an arbitrary HDF5 file disclosed.
+        secret = self._external_secret_file()
+        path = os.path.join(self.get_temp_dir(), "mal.weights.h5")
+        with h5py.File(path, "w") as f:
+            f.create_group("layer")["ext"] = h5py.ExternalLink(secret, "/")
+        with h5py.File(path, "r") as f:
+            with self.assertRaisesRegex(ValueError, "ExternalLink"):
+                saving_lib.safe_get_h5_dataset(f["layer"], "ext/kernel")
+            with self.assertRaisesRegex(ValueError, "ExternalLink"):
+                saving_lib.safe_get_h5_group(f, "layer/ext")
+
+    def test_rejects_intermediate_soft_link(self):
+        path = os.path.join(self.get_temp_dir(), "soft.weights.h5")
+        with h5py.File(path, "w") as f:
+            real = f.create_group("real")
+            real.create_dataset("kernel", data=np.zeros((2, 2), "float32"))
+            f["soft"] = h5py.SoftLink("/real")
+        with h5py.File(path, "r") as f:
+            with self.assertRaisesRegex(ValueError, "SoftLink"):
+                saving_lib.safe_get_h5_dataset(f, "soft/kernel")
+
+    def test_allows_legitimate_nested_name(self):
+        # A multi-component name made only of real (hard-linked) groups and
+        # datasets must still resolve (no false positive).
+        path = os.path.join(self.get_temp_dir(), "ok.weights.h5")
+        with h5py.File(path, "w") as f:
+            f.create_group("layers").create_group("dense").create_dataset(
+                "kernel", data=np.zeros((2, 2), "float32")
+            )
+        with h5py.File(path, "r") as f:
+            self.assertIsInstance(
+                saving_lib.safe_get_h5_group(f, "layers/dense"), h5py.Group
+            )
+            self.assertEqual(
+                saving_lib.safe_get_h5_dataset(f, "layers/dense/kernel").shape,
+                (2, 2),
+            )
+
+    def test_load_subset_weights_rejects_intermediate_external_link(self):
+        # End-to-end via the legacy loader: a layer group whose `weight_names`
+        # traverse an intermediate ExternalLink is rejected before the external
+        # file is read.
+        from keras.src.legacy.saving.legacy_h5_format import (
+            load_subset_weights_from_hdf5_group,
+        )
+
+        secret = self._external_secret_file()
+        path = os.path.join(self.get_temp_dir(), "evil.weights.h5")
+        with h5py.File(path, "w") as f:
+            g = f.create_group("layer")
+            g["ext"] = h5py.ExternalLink(secret, "/")
+            g.attrs["weight_names"] = [
+                np.bytes_(b"ext/kernel"),
+                np.bytes_(b"ext/bias"),
+            ]
+        with h5py.File(path, "r") as f:
+            with self.assertRaisesRegex(ValueError, "ExternalLink"):
+                load_subset_weights_from_hdf5_group(f["layer"])
+
 
 class SavingDiskIOStoreTest(testing.TestCase):
     def test_disk_io_store_rejects_path_traversal(self):

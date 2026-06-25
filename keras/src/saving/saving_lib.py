@@ -1163,6 +1163,43 @@ class DiskIOStore:
             file_utils.rmtree(self.tmp_dir)
 
 
+def _reject_h5_link_traversal(parent, name):
+    """Reject a name whose path traverses an `ExternalLink`/`SoftLink`.
+
+    `parent.get(name, getlink=True)` reports only the link type of the *final*
+    path component, so a multi-component name such as ``"ext/kernel"`` whose
+    *intermediate* component (``"ext"``) is an `ExternalLink` is silently
+    followed into the external file while the guard inspects only the final
+    component (an ordinary dataset in that file). Check the link type of every
+    component -- without dereferencing it -- so an intermediate link cannot
+    smuggle a traversal past `safe_get_h5_group` / `safe_get_h5_dataset` and
+    disclose an arbitrary HDF5 file at load time.
+    """
+    # Only h5py groups/files have links to traverse (an in-memory dict store
+    # used for some code paths does not); leave existence handling to the
+    # caller's `name not in parent` check.
+    if not isinstance(parent, (h5py.Group, h5py.File)):
+        return
+    # An absolute name resolves from the file root, mirroring `parent[name]`.
+    current = parent.file if name.startswith("/") else parent
+    for component in name.split("/"):
+        if not component:  # skip empty components (leading/duplicate slashes)
+            continue
+        if not isinstance(current, (h5py.Group, h5py.File)):
+            # The path descends past a dataset; let the caller's lookup fail.
+            return
+        link_type = current.get(
+            component, default=None, getclass=True, getlink=True
+        )
+        if link_type is None:
+            # Missing component; the caller's existence check raises KeyError.
+            return
+        if link_type in (h5py.ExternalLink, h5py.SoftLink):
+            raise ValueError(f"Not allowed: H5 file with {link_type.__name__}")
+        # Safe to descend: `component` is a hard link within the same file.
+        current = current[component]
+
+
 def safe_get_h5_group(parent, name):
     """Retrieve a Group within a given File or Group.
 
@@ -1173,13 +1210,10 @@ def safe_get_h5_group(parent, name):
     Returns:
         The child h5py.Group.
     """
+    _reject_h5_link_traversal(parent, name)
     # Also handles the case when the group is an empty dict initially.
     if name not in parent:
         raise KeyError(name)
-
-    group_type = parent.get(name, default=None, getclass=True, getlink=True)
-    if group_type in (h5py.ExternalLink, h5py.SoftLink):
-        raise ValueError(f"Not allowed: H5 file with {group_type.__name__}")
 
     group = parent[name]
     if not isinstance(group, h5py.Group):
@@ -1210,13 +1244,10 @@ def safe_get_h5_dataset(group, name):
     Returns:
         The child h5py.Dataset.
     """
+    _reject_h5_link_traversal(group, name)
     # Also handles the case when the group is an empty dict initially.
     if name not in group:
         raise KeyError(name)
-
-    dataset_type = group.get(name, default=None, getclass=True, getlink=True)
-    if dataset_type in (h5py.ExternalLink, h5py.SoftLink):
-        raise ValueError(f"Not allowed: H5 file with {dataset_type.__name__}")
 
     dataset = group[name]
     if not isinstance(dataset, h5py.Dataset):
