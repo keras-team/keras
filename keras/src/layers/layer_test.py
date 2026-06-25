@@ -707,6 +707,48 @@ class LayerTest(testing.TestCase):
         y = layer(x)
         self.assertEqual(ops.min(y), 1)
 
+    def test_signature_default_training_does_not_leak(self):
+        # A `training=True` *signature default* (as on `Resizing`/`CenterCrop`)
+        # must not leak through the shared call-context into sibling/downstream
+        # layers at inference.
+        class DefaultsTrainingTrue(layers.Layer):
+            def call(self, x, training=True):  # mirrors `Resizing.call`
+                return x
+
+        x = np.ones((4, 4))
+
+        # 1) In a Functional graph. The downstream layer must default
+        # `training=None` (the BatchNorm case) to observe the leak: a non-None
+        # default would be baked into its own node and hide it.
+        seen = {}
+
+        class RecordTraining(layers.Layer):
+            def call(self, x, training=None):
+                seen["training"] = training
+                return x
+
+        inp = Input((4,))
+        out = RecordTraining()(DefaultsTrainingTrue()(inp))
+        model = Model(inp, out)
+        model(x)
+        self.assertIsNone(seen["training"])  # default must not leak
+        model(x, training=True)
+        self.assertTrue(seen["training"])  # explicit still propagates
+
+        # 2) Imperatively, inside another layer's `call`.
+        class Wrapper(layers.Layer):
+            def __init__(self):
+                super().__init__()
+                self.pre = DefaultsTrainingTrue()
+                self.dp = layers.Dropout(0.9)
+
+            def call(self, x):
+                return self.dp(self.pre(x))
+
+        layer = Wrapper()
+        self.assertEqual(ops.min(layer(x)), 1)
+        self.assertEqual(ops.min(layer(x, training=True)), 0)
+
     @pytest.mark.skipif(
         backend.backend() == "torch",
         reason="Some torch ops not implemented for float16 on CPU.",
