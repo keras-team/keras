@@ -1176,9 +1176,10 @@ def _reject_h5_link_traversal(parent, name):
     disclose an arbitrary HDF5 file at load time.
     """
     # Only h5py groups/files have links to traverse (an in-memory dict store
-    # used for some code paths does not); leave existence handling to the
-    # caller's `name not in parent` check.
-    if not isinstance(parent, (h5py.Group, h5py.File)):
+    # used for some code paths does not), and `h5py` is an optional dependency,
+    # so guard `h5py.available` before referencing its attributes; leave
+    # existence handling to the caller's `name not in parent` check.
+    if not h5py.available or not isinstance(parent, (h5py.Group, h5py.File)):
         return
     # An absolute name resolves from the file root, mirroring `parent[name]`.
     current = parent.file if name.startswith("/") else parent

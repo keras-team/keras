@@ -1870,6 +1870,14 @@ class SafeGetH5DatasetTest(testing.TestCase):
             with self.assertRaisesRegex(ValueError, "ExternalLink"):
                 load_subset_weights_from_hdf5_group(f["layer"])
 
+    def test_link_traversal_skips_when_h5py_unavailable(self):
+        # `h5py` is an optional dependency; the guard must return gracefully
+        # (rather than crash referencing `h5py.Group`) when it is unavailable.
+        fake_h5py = mock.Mock()
+        fake_h5py.available = False
+        with mock.patch.object(saving_lib, "h5py", fake_h5py):
+            saving_lib._reject_h5_link_traversal({"layer": {}}, "layer/ext")
+
 
 class SavingDiskIOStoreTest(testing.TestCase):
     def test_disk_io_store_rejects_path_traversal(self):
