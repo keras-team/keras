@@ -471,13 +471,95 @@ def _safe_zip_read(archive, name):
         return f.read()
 
 
+# A model loaded from a `.keras` allocates each layer's weights at build time,
+# from the (untrusted) config, *before* any weight data is read. A config that
+# declares oversized layers (a huge Dense `units`, Conv `filters`, Embedding
+# dimension, ...) would otherwise drive a multi-gigabyte allocation from a
+# few-KB file (CWE-789 / CWE-400). Bound the cumulative build-time allocation
+# against the size of the weights actually stored in the file: a genuine model
+# declares roughly as much as it stores (ratio ~1), while a bomb declares far
+# more than the file could ever fill. The floor allows small models (whose
+# stored weights are tiny) to build freely; the expansion ratio leaves ample
+# headroom for any honest model.
+_BUILD_ALLOCATION_FLOOR_BYTES = 1 << 30  # 1 GiB
+_BUILD_ALLOCATION_MAX_EXPANSION = 1000
+# `Layer.add_weight` reads the ambient budget under this global-state key. Keep
+# in sync with `keras/src/layers/layer.py`.
+_BUILD_ALLOCATION_BUDGET_KEY = "keras_build_allocation_budget"
+
+
+class _BuildAllocationBudget:
+    """Ambient cap on cumulative build-time weight allocation while loading.
+
+    Set around `_model_from_config` so it applies only to a model rebuilt from
+    a loaded file (building a model directly in user code is unaffected, since
+    no budget is installed). `Layer.add_weight` consumes from it before each
+    allocation and raises once the total exceeds the limit derived from the
+    bytes of weight data stored in the file.
+    """
+
+    def __init__(self, stored_bytes):
+        self.stored_bytes = stored_bytes
+        self.limit = max(
+            _BUILD_ALLOCATION_FLOOR_BYTES,
+            _BUILD_ALLOCATION_MAX_EXPANSION * stored_bytes,
+        )
+        self.allocated = 0
+
+    def consume(self, shape, dtype):
+        try:
+            num_bytes = math.prod(shape) * np.dtype(dtype).itemsize
+        except (TypeError, ValueError):
+            # Non-numeric dtype or a shape with non-integer entries: nothing to
+            # bound here, leave it to the backend.
+            return
+        self.allocated += num_bytes
+        if self.allocated > self.limit:
+            raise ValueError(
+                "Refusing to build a model that allocates at least "
+                f"{readable_memory_size(self.allocated)} of weights at build "
+                "time, far more than the "
+                f"{readable_memory_size(self.stored_bytes)} of weight data "
+                "stored in the file; the configuration may declare oversized "
+                "layers (potential memory-exhaustion bomb)."
+            )
+
+    def __enter__(self):
+        self._previous = global_state.get_global_attribute(
+            _BUILD_ALLOCATION_BUDGET_KEY
+        )
+        global_state.set_global_attribute(_BUILD_ALLOCATION_BUDGET_KEY, self)
+        return self
+
+    def __exit__(self, *args):
+        global_state.set_global_attribute(
+            _BUILD_ALLOCATION_BUDGET_KEY, self._previous
+        )
+
+
+def _stored_weights_size(archive):
+    """Uncompressed size of the weights member in a `.keras` archive.
+
+    Used to bound build-time weight allocation against the weights actually
+    present in the file. Returns 0 when there is no weights member, so a config
+    shipped without weights is still held to the floor.
+    """
+    for name in (_VARS_FNAME_H5, _VARS_FNAME_NPZ):
+        try:
+            return archive.getinfo(name).file_size
+        except KeyError:
+            continue
+    return 0
+
+
 def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     with zipfile.ZipFile(fileobj, "r") as zf:
         config_json = _safe_zip_read(zf, _CONFIG_FILENAME)
 
-        model = _model_from_config(
-            config_json, custom_objects, compile, safe_mode
-        )
+        with _BuildAllocationBudget(_stored_weights_size(zf)):
+            model = _model_from_config(
+                config_json, custom_objects, compile, safe_mode
+            )
 
         all_filenames = zf.namelist()
         extract_dir = None

@@ -1801,6 +1801,79 @@ class SafeGetH5DatasetTest(testing.TestCase):
             reloaded.load_weights(good_path)
 
 
+class BuildAllocationBudgetTest(testing.TestCase):
+    def _tampered_keras(self, model, class_name, key, value):
+        """Save `model`, then rewrite `class_name`'s `key` to `value` in its
+        config.json — an oversized layer in an otherwise tiny file."""
+        src = os.path.join(self.get_temp_dir(), "src.keras")
+        model.save(src)
+        with zipfile.ZipFile(src) as zin:
+            names = zin.namelist()
+            blobs = {n: zin.read(n) for n in names}
+        cfg = json.loads(blobs["config.json"])
+
+        def bump(obj):
+            if isinstance(obj, dict):
+                if obj.get("class_name") == class_name:
+                    obj["config"][key] = value
+                for v in obj.values():
+                    bump(v)
+            elif isinstance(obj, list):
+                for v in obj:
+                    bump(v)
+
+        bump(cfg)
+        blobs["config.json"] = json.dumps(cfg).encode()
+        evil = os.path.join(self.get_temp_dir(), "evil.keras")
+        with zipfile.ZipFile(evil, "w", zipfile.ZIP_DEFLATED) as zo:
+            for name in names:
+                zo.writestr(name, blobs[name])
+        return evil
+
+    def test_rejects_oversized_dense_units(self):
+        # A tampered config declaring a huge `units` is rejected before the
+        # (128 x 1e9) kernel is allocated.
+        model = keras.Sequential([keras.Input((128,)), keras.layers.Dense(4)])
+        evil = self._tampered_keras(model, "Dense", "units", 1_000_000_000)
+        self.assertLess(os.path.getsize(evil), 1 << 16)  # tiny file on disk
+        with self.assertRaisesRegex(ValueError, "memory-exhaustion bomb"):
+            saving_lib.load_model(evil)
+
+    def test_rejects_oversized_conv_filters(self):
+        model = keras.Sequential(
+            [keras.Input((32, 32, 3)), keras.layers.Conv2D(4, 3)]
+        )
+        evil = self._tampered_keras(model, "Conv2D", "filters", 500_000_000)
+        with self.assertRaisesRegex(ValueError, "memory-exhaustion bomb"):
+            saving_lib.load_model(evil)
+
+    def test_allows_genuine_model(self):
+        # A genuine model (declared weights ~= stored weights) loads normally.
+        model = keras.Sequential(
+            [
+                keras.Input((128,)),
+                keras.layers.Dense(256),
+                keras.layers.Dense(10),
+            ]
+        )
+        path = os.path.join(self.get_temp_dir(), "ok.keras")
+        model.save(path)
+        reloaded = saving_lib.load_model(path)
+        self.assertEqual(reloaded.count_params(), model.count_params())
+
+    def test_budget_only_applies_during_load(self):
+        # The cap is loader-scoped: no budget is installed during direct model
+        # construction in user code, so large in-code layers are unrestricted.
+        from keras.src.backend.common import global_state
+
+        self.assertIsNone(
+            global_state.get_global_attribute("keras_build_allocation_budget")
+        )
+        layer = keras.layers.Dense(512)
+        layer.build((None, 256))
+        self.assertEqual(tuple(layer.kernel.shape), (256, 512))
+
+
 class SavingDiskIOStoreTest(testing.TestCase):
     def test_disk_io_store_rejects_path_traversal(self):
         store = saving_lib.DiskIOStore("assets", archive=None, mode="w")

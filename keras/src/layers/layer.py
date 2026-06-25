@@ -618,6 +618,17 @@ class Layer(BackendLayer, Operation):
             else:
                 initializer = "zeros"
         initializer = initializers.get(initializer)
+        # When rebuilding a model from a loaded file, bound the cumulative
+        # build-time allocation against the weights stored in the file so an
+        # untrusted config cannot declare oversized layers and exhaust memory
+        # before any weight data is read. The budget is only installed by the
+        # loader (see `saving_lib._BuildAllocationBudget`); direct model
+        # construction in user code is unaffected.
+        _build_budget = global_state.get_global_attribute(
+            "keras_build_allocation_budget"
+        )
+        if _build_budget is not None:
+            _build_budget.consume(shape, dtype)
         with backend.name_scope(self.name, caller=self):
             variable = backend.Variable(
                 initializer=initializer,
