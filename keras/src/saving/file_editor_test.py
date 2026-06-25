@@ -209,3 +209,19 @@ class SavingTest(testing.TestCase):
         self.assertLess(os.path.getsize(bomb_fpath), 1 << 20)  # tiny on disk
         with self.assertRaisesRegex(ValueError, "shape bomb"):
             KerasFileEditor(bomb_fpath)
+
+    def test_shape_bomb_guard_rejects_external_link(self):
+        # The guard traverses the group manually and rejects an external/soft
+        # link itself (without resolving it), rather than relying only on
+        # `_extract_weights_from_store` to catch it.
+        from keras.src.saving.file_editor import _reject_h5_shape_bomb
+
+        secret_fpath = os.path.join(self.get_temp_dir(), "secret.h5")
+        with h5py.File(secret_fpath, "w") as f:
+            f.create_dataset("k", data=np.zeros((2, 2), "float32"))
+        mal_fpath = os.path.join(self.get_temp_dir(), "mal.weights.h5")
+        with h5py.File(mal_fpath, "w") as f:
+            f["ext"] = h5py.ExternalLink(secret_fpath, "/")
+        with h5py.File(mal_fpath, "r") as f:
+            with self.assertRaisesRegex(ValueError, "ExternalLink"):
+                _reject_h5_shape_bomb(f, file_size=os.path.getsize(mal_fpath))
