@@ -1873,6 +1873,17 @@ class BuildAllocationBudgetTest(testing.TestCase):
         layer.build((None, 256))
         self.assertEqual(tuple(layer.kernel.shape), (256, 512))
 
+    def test_negative_dimension_does_not_underflow_budget(self):
+        # A negative dimension makes `math.prod(shape)` negative, which must
+        # not decrease the running total and let a later oversized allocation
+        # slip past the budget.
+        budget = saving_lib._BuildAllocationBudget(stored_bytes=0)
+        budget.consume((128, -1_000_000_000), "float32")
+        self.assertEqual(budget.allocated, 0)
+        # A subsequent genuinely-oversized allocation is still rejected.
+        with self.assertRaisesRegex(ValueError, "memory-exhaustion bomb"):
+            budget.consume((1_000_000_000, 1_000), "float32")
+
 
 class SavingDiskIOStoreTest(testing.TestCase):
     def test_disk_io_store_rejects_path_traversal(self):

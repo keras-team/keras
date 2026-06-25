@@ -508,6 +508,13 @@ class _BuildAllocationBudget:
 
     def consume(self, shape, dtype):
         try:
+            # Reject negative dimensions: `math.prod` of a shape with a
+            # negative entry can be negative, which would *decrease* the
+            # running total and let a later oversized allocation slip past the
+            # budget. `int(dim)` also normalizes NumPy integers and raises on a
+            # `None`/non-integer entry, which the `except` below ignores.
+            if any(int(dim) < 0 for dim in shape):
+                return
             num_bytes = math.prod(shape) * np.dtype(dtype).itemsize
         except (TypeError, ValueError):
             # Non-numeric dtype or a shape with non-integer entries: nothing to
