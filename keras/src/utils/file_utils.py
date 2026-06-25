@@ -174,6 +174,10 @@ def _reject_extraction_bombs(members, stored_size):
         declared = getattr(finfo, "file_size", None)
         if declared is None:
             declared = getattr(finfo, "size", 0) or 0
+        # Clamp a negative size from a malformed archive: it would otherwise
+        # decrease the running total and let a later oversized member slip past
+        # the cumulative cap.
+        declared = max(0, declared)
         name = getattr(finfo, "filename", None) or getattr(finfo, "name", "?")
         # Per-member ratio: a zip member carries its own stored size, so a
         # single hugely-expanding member is a bomb regardless of the others.

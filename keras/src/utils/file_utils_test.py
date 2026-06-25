@@ -407,6 +407,26 @@ class ExtractArchiveTest(test_case.TestCase):
         with open(os.path.join(extract_path, "sample.txt")) as f:
             self.assertEqual(f.read(), self.file_content)
 
+    def test_extract_bomb_guard_ignores_negative_member_size(self):
+        # A malformed archive with a negative member size must not decrease the
+        # cumulative total and let a later oversized member slip past the cap.
+        class _FakeTarInfo:
+            def __init__(self, name, size):
+                self.name = name
+                self.size = size  # no compress_size -> cumulative check only
+
+        members = [
+            _FakeTarInfo("a", -10_000_000),  # negative -> clamped to 0
+            _FakeTarInfo(
+                "b", 8_000_000
+            ),  # would slip past if total underflowed
+        ]
+        with patch.object(file_utils, "_EXTRACT_BOMB_FLOOR_BYTES", 1 << 20):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                list(
+                    file_utils._reject_extraction_bombs(members, stored_size=8)
+                )
+
 
 class GetFileTest(test_case.TestCase):
     def setUp(self):
