@@ -53,6 +53,11 @@ _MEMORY_UPPER_BOUND = 0.5  # 50%
 # Mirrors the `_ZIP_MEMBER_*` guard used by `_reject_zip_bomb`.
 _NPZ_MEMBER_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
 _NPZ_MEMBER_MAX_EXPANSION = 100
+# Floor for the *cumulative* (whole-archive) npz guard. A much lower floor than
+# the per-member one lets the cumulative guard also catch a single member that
+# declares just under the per-member floor, as well as several sub-floor
+# members that are read into memory together (see `_reject_npz_archive_bomb`).
+_NPZ_CUMULATIVE_BOMB_FLOOR_BYTES = 1 << 26  # 64 MiB
 
 
 _MODEL_CARD_TEMPLATE = """
@@ -447,6 +452,11 @@ def _model_from_config(config_json, custom_objects, compile, safe_mode):
 # The 4 GiB floor matches the HDF5 dataset guard for CVE-2026-0897.
 _ZIP_MEMBER_BOMB_FLOOR_BYTES = 1 << 32  # 4 GiB
 _ZIP_MEMBER_MAX_EXPANSION = 100
+# Floor for the *cumulative* (whole-archive) guard below. A much lower floor
+# than the per-member one lets the cumulative guard also catch a single member
+# that declares just under the per-member floor, as well as the several
+# independent member reads on the load path that each stay under it.
+_ZIP_CUMULATIVE_BOMB_FLOOR_BYTES = 1 << 26  # 64 MiB
 
 
 def _reject_zip_bomb(archive, name):
@@ -464,6 +474,35 @@ def _reject_zip_bomb(archive, name):
         )
 
 
+def _reject_zip_archive_bomb(archive):
+    """Raise if a ZIP archive is cumulatively a decompression bomb (CWE-409).
+
+    `_reject_zip_bomb` bounds a *single* member, but its per-member floor can
+    be evaded by a member declaring just under the floor, or by the several
+    members that the load path reads into memory independently (`config.json`,
+    `model.weights.h5`, and the shard map), each staying under it. This bounds
+    the *cumulative* declared size of every member against the bytes actually
+    stored on disk, using the same expansion ratio. Genuine `.keras` archives
+    store their members uncompressed (declared size ~= stored size), so this
+    only fires on archives that declare far more than they store.
+    """
+    total_declared = 0
+    total_stored = 0
+    for info in archive.infolist():
+        total_declared += info.file_size
+        total_stored += info.compress_size
+    if (
+        total_declared > _ZIP_CUMULATIVE_BOMB_FLOOR_BYTES
+        and total_declared > _ZIP_MEMBER_MAX_EXPANSION * total_stored
+    ):
+        raise ValueError(
+            "Not allowed: the archive declares "
+            f"{readable_memory_size(total_declared)} across its members but "
+            f"only {readable_memory_size(total_stored)} are stored on disk; "
+            "refusing to load a potential decompression bomb."
+        )
+
+
 def _safe_zip_read(archive, name):
     """Read a ZIP member into memory, rejecting bombs (see CWE-409)."""
     _reject_zip_bomb(archive, name)
@@ -473,6 +512,7 @@ def _safe_zip_read(archive, name):
 
 def _load_model_from_fileobj(fileobj, custom_objects, compile, safe_mode):
     with zipfile.ZipFile(fileobj, "r") as zf:
+        _reject_zip_archive_bomb(zf)
         config_json = _safe_zip_read(zf, _CONFIG_FILENAME)
 
         model = _model_from_config(
@@ -641,6 +681,7 @@ def load_weights_only(
             weights_store = ShardedH5IOStore(filepath, mode="r")
         elif filepath_str.endswith(".keras"):
             archive = zipfile.ZipFile(filepath, "r")
+            _reject_zip_archive_bomb(archive)
             weights_store = H5IOStore(_VARS_FNAME_H5, archive=archive, mode="r")
 
         failed_saveables = set()
@@ -1769,6 +1810,29 @@ class ShardedH5IOStore(H5IOStore):
         return False
 
 
+def _npz_member_declared_bytes(zip_file, member_name):
+    """Return `(declared_bytes, stored_bytes)` for an npz `.npy` member.
+
+    Reads only the `.npy` header (which carries the declared shape and dtype),
+    so it never allocates the array itself. Returns `None` if the member is
+    absent from the archive.
+    """
+    try:
+        info = zip_file.getinfo(f"{member_name}.npy")
+    except KeyError:
+        return None
+    with zip_file.open(info) as member_file:
+        major, _ = npy_format.read_magic(member_file)
+        read_header = getattr(
+            npy_format,
+            f"read_array_header_{major}_0",
+            npy_format.read_array_header_2_0,
+        )
+        shape, _, dtype = read_header(member_file)
+    declared_bytes = math.prod(shape) * dtype.itemsize
+    return declared_bytes, info.compress_size
+
+
 class NpzIOStore:
     def __init__(self, root_path, archive=None, mode="r"):
         """Numerical variable store backed by NumPy.savez/load.
@@ -1790,6 +1854,7 @@ class NpzIOStore:
             else:
                 self.f = open(root_path, mode="rb")
             self.contents = np.load(self.f, allow_pickle=False)
+            self._reject_npz_archive_bomb()
 
     def make(self, path, metadata=None):
         if not path:
@@ -1820,20 +1885,11 @@ class NpzIOStore:
         zip_file = getattr(self.contents, "zip", None)
         if zip_file is None:
             return
-        try:
-            info = zip_file.getinfo(f"{path}.npy")
-        except KeyError:
+        sizes = _npz_member_declared_bytes(zip_file, path)
+        if sizes is None:
             return
-        with zip_file.open(info) as member_file:
-            major, _ = npy_format.read_magic(member_file)
-            read_header = getattr(
-                npy_format,
-                f"read_array_header_{major}_0",
-                npy_format.read_array_header_2_0,
-            )
-            shape, _, dtype = read_header(member_file)
-        declared_bytes = math.prod(shape) * dtype.itemsize
-        stored_bytes = max(info.compress_size, 1)
+        declared_bytes, compress_size = sizes
+        stored_bytes = max(compress_size, 1)
         if (
             declared_bytes > _NPZ_MEMBER_BOMB_FLOOR_BYTES
             and declared_bytes > _NPZ_MEMBER_MAX_EXPANSION * stored_bytes
@@ -1841,7 +1897,40 @@ class NpzIOStore:
             raise ValueError(
                 f"Refusing to load npz weight '{path}': its header declares "
                 f"{readable_memory_size(declared_bytes)} but only "
-                f"{readable_memory_size(info.compress_size)} is stored on "
+                f"{readable_memory_size(compress_size)} is stored on "
+                "disk; refusing to load a potential decompression bomb."
+            )
+
+    def _reject_npz_archive_bomb(self):
+        """Guard against an npz that is cumulatively a shape/decompression bomb.
+
+        `_reject_npz_bomb` bounds a *single* member, but its per-member floor
+        can be evaded by a member declaring just under it, or by several
+        members that each stay under it and are read into memory together.
+        This bounds the *cumulative* declared size of every member against the
+        bytes actually stored on disk, using the same expansion ratio, so
+        sub-floor members cannot sum without bound (CWE-789 / CWE-409).
+        """
+        zip_file = getattr(self.contents, "zip", None)
+        if zip_file is None:
+            return
+        total_declared = 0
+        total_stored = 0
+        for member_name in self.contents.files:
+            sizes = _npz_member_declared_bytes(zip_file, member_name)
+            if sizes is None:
+                continue
+            declared_bytes, compress_size = sizes
+            total_declared += declared_bytes
+            total_stored += compress_size
+        if (
+            total_declared > _NPZ_CUMULATIVE_BOMB_FLOOR_BYTES
+            and total_declared > _NPZ_MEMBER_MAX_EXPANSION * total_stored
+        ):
+            raise ValueError(
+                "Refusing to load npz weights: the archive declares "
+                f"{readable_memory_size(total_declared)} across its members "
+                f"but only {readable_memory_size(total_stored)} is stored on "
                 "disk; refusing to load a potential decompression bomb."
             )
 
