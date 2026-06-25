@@ -1,4 +1,5 @@
 import hashlib
+import io
 import os
 import tarfile
 import urllib
@@ -11,6 +12,26 @@ from absl.testing import parameterized
 
 from keras.src.testing import test_case
 from keras.src.utils import file_utils
+
+
+class _ZeroStream(io.RawIOBase):
+    """A readable stream of `n` zero bytes, never materialized in memory.
+
+    Used to build a tiny archive whose member header declares a huge
+    (highly compressible) size without allocating that many bytes.
+    """
+
+    def __init__(self, n):
+        self.remaining = n
+
+    def readable(self):
+        return True
+
+    def readinto(self, b):
+        chunk = min(len(b), self.remaining, 1 << 20)
+        b[:chunk] = b"\x00" * chunk
+        self.remaining -= chunk
+        return chunk
 
 
 class PathToStringTest(test_case.TestCase):
@@ -329,6 +350,62 @@ class ExtractArchiveTest(test_case.TestCase):
             with self.assertRaises(KeyboardInterrupt):
                 file_utils.extract_archive(tar_path, extract_path, "tar")
         self.assertFalse(os.path.exists(extract_path))
+
+    def _create_tar_gz_bomb(self, declared_bytes):
+        """A tiny `.tar.gz` whose member header declares `declared_bytes` of
+        (highly compressible) zeros."""
+        archive_path = os.path.join(self.temp_dir, "bomb.tar.gz")
+        with tarfile.open(archive_path, "w:gz") as tf:
+            ti = tarfile.TarInfo("data.bin")
+            ti.size = declared_bytes
+            tf.addfile(ti, _ZeroStream(declared_bytes))
+        return archive_path
+
+    def _create_zip_bomb(self, declared_bytes):
+        """A tiny `.zip` whose member decompresses to `declared_bytes`."""
+        archive_path = os.path.join(self.temp_dir, "bomb.zip")
+        with zipfile.ZipFile(archive_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            with zf.open("data.bin", "w") as f:
+                written = 0
+                chunk = b"\x00" * (1 << 20)
+                while written < declared_bytes:
+                    n = min(len(chunk), declared_bytes - written)
+                    f.write(chunk[:n])
+                    written += n
+        return archive_path
+
+    def test_extract_archive_rejects_tar_gz_bomb(self):
+        # A tiny .tar.gz declaring a far larger member is rejected before the
+        # member is written (the declared size is read from the header). The
+        # floor is lowered so the test stays small.
+        archive_path = self._create_tar_gz_bomb(8 << 20)  # 8 MiB declared
+        self.assertLess(os.path.getsize(archive_path), 1 << 20)  # tiny on disk
+        extract_path = os.path.join(self.temp_dir, "tar_bomb_out")
+        with patch.object(file_utils, "_EXTRACT_BOMB_FLOOR_BYTES", 1 << 20):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                file_utils.extract_archive(archive_path, extract_path, "tar")
+        self.assertFalse(os.path.exists(os.path.join(extract_path, "data.bin")))
+
+    def test_extract_archive_rejects_zip_bomb(self):
+        archive_path = self._create_zip_bomb(8 << 20)  # 8 MiB declared
+        self.assertLess(os.path.getsize(archive_path), 1 << 20)  # tiny on disk
+        extract_path = os.path.join(self.temp_dir, "zip_bomb_out")
+        with patch.object(file_utils, "_EXTRACT_BOMB_FLOOR_BYTES", 1 << 20):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                file_utils.extract_archive(archive_path, extract_path, "zip")
+        self.assertFalse(os.path.exists(os.path.join(extract_path, "data.bin")))
+
+    def test_extract_archive_allows_genuine_archive(self):
+        # A genuine low-ratio archive extracts fine even with the floor
+        # lowered (no false positive).
+        archive_path = self.create_tar()
+        extract_path = os.path.join(self.temp_dir, "genuine_out")
+        with patch.object(file_utils, "_EXTRACT_BOMB_FLOOR_BYTES", 1 << 20):
+            self.assertTrue(
+                file_utils.extract_archive(archive_path, extract_path, "tar")
+            )
+        with open(os.path.join(extract_path, "sample.txt")) as f:
+            self.assertEqual(f.read(), self.file_content)
 
 
 class GetFileTest(test_case.TestCase):
