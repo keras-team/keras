@@ -78,7 +78,7 @@ def load_data(
             "1a2e3a52e0398de6463aebe6f4a8da34fb21fbb6b934cf88c3425e766f2a1a6f"
         ),
     )
-    with np.load(path, allow_pickle=True) as f:
+    with np.load(path, allow_pickle=False) as f:
         x = f["x"]
         y = f["y"]
 
