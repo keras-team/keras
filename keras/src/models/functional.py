@@ -191,7 +191,55 @@ class Functional(Function, Model):
 
     def compute_output_spec(self, inputs, training=None, mask=None):
         # From Function
-        return super().compute_output_spec(inputs)
+        output_spec = super().compute_output_spec(inputs)
+        # Rebuild masks separately because the shape-only shortcut returns
+        # fresh tensors without mask metadata.
+        output_masks = self._compute_output_masks(inputs, mask=mask)
+        if output_masks is not None:
+            flat_output_specs = tree.flatten(output_spec)
+            flat_output_masks = tree.flatten(output_masks)
+            for output, output_mask in zip(
+                flat_output_specs, flat_output_masks
+            ):
+                if output_mask is not None:
+                    backend.set_keras_mask(output, output_mask)
+        return output_spec
+
+    def _compute_output_masks(self, inputs, mask=None):
+        output_masks = tree.map_structure(
+            backend.get_keras_mask, self._outputs_struct
+        )
+        flat_output_masks = tree.flatten(output_masks)
+        if not any(
+            output_mask is not None for output_mask in flat_output_masks
+        ):
+            return None
+
+        flat_inputs = self._standardize_inputs(inputs)
+        if mask is not None:
+            for x, input_mask in zip(flat_inputs, tree.flatten(mask)):
+                if input_mask is not None:
+                    backend.set_keras_mask(x, input_mask)
+
+        mask_indices = [
+            i
+            for i, output_mask in enumerate(flat_output_masks)
+            if output_mask is not None
+        ]
+        mask_index_set = set(mask_indices)
+        mask_fn = Function(
+            self.inputs, [flat_output_masks[i] for i in mask_indices]
+        )
+        computed_masks = tree.flatten(mask_fn._run_through_graph(flat_inputs))
+
+        computed_masks_iter = iter(computed_masks)
+        flat_computed_output_masks = []
+        for i, output_mask in enumerate(flat_output_masks):
+            if i in mask_index_set:
+                flat_computed_output_masks.append(next(computed_masks_iter))
+            else:
+                flat_computed_output_masks.append(output_mask)
+        return tree.pack_sequence_as(output_masks, flat_computed_output_masks)
 
     def compute_output_shape(self, input_shape):
         # From Function
