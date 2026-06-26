@@ -1,5 +1,6 @@
 import os
 import warnings
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -19,6 +20,7 @@ from keras.src.models import Functional
 from keras.src.models import Model
 from keras.src.models import Sequential
 from keras.src.models.model import model_from_json
+from keras.src.ops.function import Function
 
 
 class FunctionalTest(testing.TestCase):
@@ -169,6 +171,46 @@ class FunctionalTest(testing.TestCase):
             mask_values[2],
             np.array([[False, True, True], [True, False, True]]),
         )
+
+    def test_compute_output_spec_skips_none_output_mask_target(self):
+        inputs = Input((2,))
+        outputs = layers.Dense(1)(inputs)
+        model = Model(inputs, outputs)
+        output_spec = [None, KerasTensor((None, 1))]
+        output_mask = KerasTensor((None,), dtype="bool")
+
+        with (
+            mock.patch.object(
+                Function,
+                "compute_output_spec",
+                autospec=True,
+                return_value=output_spec,
+            ),
+            mock.patch.object(
+                model,
+                "_compute_output_masks",
+                return_value=[output_mask, output_mask],
+            ),
+        ):
+            result = model.compute_output_spec(Input((2,)))
+
+        self.assertIs(result[0], None)
+        self.assertIs(backend.get_keras_mask(result[1]), output_mask)
+
+    def test_compute_output_masks_skips_none_input_mask_target(self):
+        tokens = Input((3,), dtype="int32", name="tokens")
+        optional_tokens = Input(
+            (3,), dtype="int32", name="optional_tokens", optional=True
+        )
+        outputs = layers.Embedding(3, 5, mask_zero=True)(tokens)
+        model = Model([tokens, optional_tokens], outputs)
+        input_mask = KerasTensor((None, 3), dtype="bool")
+
+        output_mask = model._compute_output_masks(
+            [tokens, None], mask=[input_mask, input_mask]
+        )
+
+        self.assertIsNotNone(output_mask)
 
     def test_named_input_dict_io(self):
         # Single input

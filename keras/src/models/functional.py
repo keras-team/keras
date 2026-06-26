@@ -201,7 +201,7 @@ class Functional(Function, Model):
             for output, output_mask in zip(
                 flat_output_specs, flat_output_masks
             ):
-                if output_mask is not None:
+                if output is not None and output_mask is not None:
                     backend.set_keras_mask(output, output_mask)
         return output_spec
 
@@ -218,7 +218,7 @@ class Functional(Function, Model):
         flat_inputs = self._standardize_inputs(inputs)
         if mask is not None:
             for x, input_mask in zip(flat_inputs, tree.flatten(mask)):
-                if input_mask is not None:
+                if x is not None and input_mask is not None:
                     backend.set_keras_mask(x, input_mask)
 
         mask_indices = [
