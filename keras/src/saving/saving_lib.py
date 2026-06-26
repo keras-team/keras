@@ -1562,6 +1562,7 @@ class ShardedH5IOStore(H5IOStore):
         self._h5_entry_group = {}
         self._h5_entry_metadata = None
         self._h5_entry_initialized = False
+        self._written_variable_datasets = {}
 
         # Init shard parameters.
         self.current_shard_index = 0
@@ -1771,29 +1772,43 @@ class ShardedH5IOStore(H5IOStore):
     def __setitem__(self, key, value):
         self._restore_h5_file()
 
-        # Accumulate `current_shard_size`.
-        value = backend.convert_to_numpy(value)
-        dtype = backend.standardize_dtype(value.dtype)
-        weight_counts = math.prod(value.shape)
-        per_param_size = dtype_utils.dtype_size(dtype)
-        value_size = weight_counts * per_param_size / 8  # In bytes.
-        self.total_shard_size += value_size
-        if value_size > self.max_shard_size:
-            value_size_str = readable_memory_size(value_size)
-            max_shard_size_str = readable_memory_size(self.max_shard_size)
-            raise ValueError(
-                f"The size of {key} is {value_size_str} which "
-                f"exceeds the maximum shard size {max_shard_size_str}. You "
-                "can increase the `max_shard_size` parameter to accommodate "
-                "the size."
+        variable_id = self._get_variable_id(value)
+        is_linked = False
+        if variable_id is not None:
+            linked_dataset_path = self._written_variable_datasets.get(
+                variable_id
             )
+            if linked_dataset_path is not None:
+                try:
+                    self.h5_file[linked_dataset_path]
+                    is_linked = True
+                except KeyError:
+                    pass
 
-        # Create a new shard if the current shard is full.
-        self.current_shard_size += value_size
-        if self.current_shard_size > self.max_shard_size:
-            self.close()
-            self.h5_file = self._create_new_shard_file()
-            self.current_shard_size = value_size
+        if not is_linked:
+            # Accumulate `current_shard_size`.
+            value_size_source = backend.convert_to_numpy(value)
+            dtype = backend.standardize_dtype(value_size_source.dtype)
+            weight_counts = math.prod(value_size_source.shape)
+            per_param_size = dtype_utils.dtype_size(dtype)
+            value_size = weight_counts * per_param_size / 8  # In bytes.
+            self.total_shard_size += value_size
+            if value_size > self.max_shard_size:
+                value_size_str = readable_memory_size(value_size)
+                max_shard_size_str = readable_memory_size(self.max_shard_size)
+                raise ValueError(
+                    f"The size of {key} is {value_size_str} which "
+                    f"exceeds the maximum shard size {max_shard_size_str}. "
+                    "You can increase the `max_shard_size` parameter to "
+                    "accommodate the size."
+                )
+
+            # Create a new shard if the current shard is full.
+            self.current_shard_size += value_size
+            if self.current_shard_size > self.max_shard_size:
+                self.close()
+                self.h5_file = self._create_new_shard_file()
+                self.current_shard_size = value_size
 
         super().__setitem__(key, value)
 

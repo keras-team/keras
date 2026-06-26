@@ -1094,6 +1094,48 @@ class SavingBattleTest(testing.TestCase):
         ]
         self.assertIs(shared_layers[0].kernel, shared_layers[1].kernel)
 
+    def test_sharded_save_weights_hard_links_duplicate_variables(self):
+        model = self._get_shared_variable_model()
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "shared_variable_model.weights.json"
+        )
+        x = np.array([[1.0, 2.0]])
+        ref_output = model(x)
+
+        with pytest.warns(
+            UserWarning,
+            match="referenced by multiple Keras saveables",
+        ):
+            saving_lib.save_weights_only(
+                model, temp_filepath, max_shard_size=0.000001
+            )
+
+        with open(temp_filepath) as f:
+            sharding_config = json.load(f)
+        shard_filenames = {
+            filename
+            for filenames in sharding_config["weight_map"].values()
+            for filename in (
+                filenames if isinstance(filenames, list) else [filenames]
+            )
+        }
+        self.assertLen(shard_filenames, 1)
+        shard_filepath = os.path.join(
+            os.path.dirname(temp_filepath), shard_filenames.pop()
+        )
+        with h5py.File(shard_filepath, "r") as h5_file:
+            self._assert_duplicate_h5_datasets_are_linked(h5_file)
+
+        loaded_model = self._get_shared_variable_model()
+        saving_lib.load_weights_only(loaded_model, temp_filepath)
+        self.assertAllClose(loaded_model(x), ref_output)
+        shared_layers = [
+            layer
+            for layer in loaded_model.layers
+            if isinstance(layer, SharedVariableLayer)
+        ]
+        self.assertIs(shared_layers[0].kernel, shared_layers[1].kernel)
+
     def test_custom_object_without_from_config(self):
         temp_filepath = os.path.join(
             self.get_temp_dir(), "custom_fn_model.keras"
