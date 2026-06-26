@@ -5,6 +5,7 @@ import json
 import numpy as np
 
 from keras.src.api_export import keras_export
+from keras.src.datasets import npz_utils
 from keras.src.utils.file_utils import get_file
 from keras.src.utils.python_utils import remove_long_seq
 
@@ -92,8 +93,12 @@ def load_data(
             "d6586e694ee56d7a4e65172e12b3e987c03096cb01eab99753921ef915959916"
         ),
     )
-    with np.load(path, allow_pickle=True) as f:
-        xs, labels = f["x"], f["y"]
+    # The Reuters arrays are ragged (`dtype=object`) sequences, so they are
+    # stored as pickle streams. Load them with a restricted unpickler that only
+    # allows numpy array reconstruction instead of
+    # `np.load(allow_pickle=True)`.
+    f = npz_utils.load_npz(path)
+    xs, labels = f["x"], f["y"]
 
     rng = np.random.RandomState(seed)
     indices = np.arange(len(xs))
