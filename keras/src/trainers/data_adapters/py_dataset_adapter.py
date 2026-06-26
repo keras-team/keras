@@ -36,8 +36,9 @@ class PyDataset:
             This is necessary to gain compute-level (rather than I/O level)
             benefits from parallelism. However it can only be set to
             `True` if your dataset can be safely pickled.
-            With the JAX backend on GPU, `fit()` falls back to thread-based
-            workers when this is `True` to avoid unsafe process forking.
+            With the JAX backend on GPU or TPU, `fit()` falls back to
+            thread-based workers when this is `True` to avoid unsafe process
+            forking.
         max_queue_size: Maximum number of batches to keep in the queue
             when iterating over the dataset in a multithreaded or
             multiprocessed setting.
@@ -216,11 +217,11 @@ class PyDatasetAdapter(DataAdapter):
 
         workers = self.py_dataset.workers
         use_multiprocessing = self.py_dataset.use_multiprocessing
-        if use_multiprocessing and _is_jax_gpu_backend():
+        if use_multiprocessing and _is_jax_accelerator_backend():
             warnings.warn(
                 "`use_multiprocessing=True` is not supported with the JAX "
-                "backend on GPU. Falling back to thread-based workers to "
-                "avoid unsafe process forking after JAX/CUDA initialization.",
+                "backend on GPU or TPU. Falling back to thread-based workers "
+                "to avoid unsafe process forking after JAX initialization.",
                 stacklevel=3,
             )
             use_multiprocessing = False
@@ -381,12 +382,16 @@ _WORKER_ID_QUEUE = None  # Only created if needed.
 _FORCE_THREADPOOL = False
 
 
-def _is_jax_gpu_backend():
+def _is_jax_accelerator_backend():
     if backend.backend() != "jax":
         return False
-    import jax
 
-    return any(device.platform == "gpu" for device in jax.local_devices())
+    try:
+        import jax
+
+        return any(device.platform != "cpu" for device in jax.local_devices())
+    except Exception:
+        return False
 
 
 def get_pool_class(use_multiprocessing):

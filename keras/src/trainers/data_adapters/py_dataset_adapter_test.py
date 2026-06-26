@@ -421,7 +421,7 @@ class PyDatasetAdapterTest(testing.TestCase):
         ):
             next(it)
 
-    def test_jax_gpu_multiprocessing_falls_back_to_threads(self):
+    def test_jax_accelerator_multiprocessing_falls_back_to_threads(self):
         dataset = ExamplePyDataset(
             np.ones((6, 11), dtype="int32"),
             np.zeros((6, 11), dtype="int32"),
@@ -432,7 +432,9 @@ class PyDatasetAdapterTest(testing.TestCase):
 
         with (
             mock.patch.object(
-                py_dataset_adapter, "_is_jax_gpu_backend", return_value=True
+                py_dataset_adapter,
+                "_is_jax_accelerator_backend",
+                return_value=True,
             ),
             mock.patch.object(
                 py_dataset_adapter,
@@ -446,6 +448,46 @@ class PyDatasetAdapterTest(testing.TestCase):
             py_dataset_adapter.PyDatasetAdapter(dataset, shuffle=False)
 
         self.assertFalse(enqueuer_cls.call_args.kwargs["use_multiprocessing"])
+
+    def test_is_jax_accelerator_backend(self):
+        with mock.patch.object(
+            py_dataset_adapter.backend, "backend", return_value="numpy"
+        ):
+            self.assertFalse(py_dataset_adapter._is_jax_accelerator_backend())
+
+        with (
+            mock.patch.object(
+                py_dataset_adapter.backend, "backend", return_value="jax"
+            ),
+            mock.patch.object(
+                jax,
+                "local_devices",
+                return_value=[mock.Mock(platform="cpu")],
+            ),
+        ):
+            self.assertFalse(py_dataset_adapter._is_jax_accelerator_backend())
+
+        with (
+            mock.patch.object(
+                py_dataset_adapter.backend, "backend", return_value="jax"
+            ),
+            mock.patch.object(
+                jax,
+                "local_devices",
+                return_value=[mock.Mock(platform="tpu")],
+            ),
+        ):
+            self.assertTrue(py_dataset_adapter._is_jax_accelerator_backend())
+
+        with (
+            mock.patch.object(
+                py_dataset_adapter.backend, "backend", return_value="jax"
+            ),
+            mock.patch.object(
+                jax, "local_devices", side_effect=RuntimeError("unavailable")
+            ),
+        ):
+            self.assertFalse(py_dataset_adapter._is_jax_accelerator_backend())
 
     def test_iterate_finite(self):
         py_dataset = ExamplePyDataset(
