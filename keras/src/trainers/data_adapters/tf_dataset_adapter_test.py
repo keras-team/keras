@@ -10,6 +10,7 @@ from keras.src import Sequential
 from keras.src import backend
 from keras.src import layers
 from keras.src import testing
+from keras.src.distribution import distribution_lib
 from keras.src.trainers.data_adapters import tf_dataset_adapter
 
 
@@ -213,6 +214,9 @@ class TestTFDatasetAdapter(testing.TestCase):
         base_ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(16)
 
         data_distribution = mock.Mock()
+        data_distribution.num_processes = 2
+        data_distribution.num_model_replicas = 2
+        data_distribution.data_shard_id = 0
         # Mimic that there are 2 worker, and each of the worker will get batch
         # size of 8
         data_distribution.distribute_dataset = mock.MagicMock(
@@ -350,3 +354,135 @@ class TestTFDatasetAdapter(testing.TestCase):
         model.compile(optimizer="adam", loss="mse")
         history = model.fit(dist_dataset, epochs=1)
         self.assertIn("loss", history.history)
+
+    def test_distribute_tf_dataset_multiple_replicas_per_process(self):
+        dataset = tf.data.Dataset.range(16).batch(8)
+
+        distribution = distribution_lib.DataParallel(
+            devices=["cpu:0", "cpu:1", "cpu:2", "cpu:3"]
+        )
+        distribution._num_processes = 2
+        distribution._process_id = 0
+        distribution.auto_shard_dataset = True
+
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            dataset, distribution=distribution
+        )
+        distributed_dataset = adapter.get_tf_dataset()
+        # Global batch size 8 is divisible by num_shards (min(4, 2)) = 2
+        # per_process_batch_size = 8 // 2 = 4
+        # index = data_shard_id = 0
+        data = list(distributed_dataset.as_numpy_iterator())
+        self.assertEqual(len(data), 2)
+        self.assertAllClose(data[0], [0, 1, 2, 3])
+        self.assertAllClose(data[1], [8, 9, 10, 11])
+
+        distribution._process_id = 1
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            dataset, distribution=distribution
+        )
+        distributed_dataset = adapter.get_tf_dataset()
+        # index = data_shard_id = 1
+        data = list(distributed_dataset.as_numpy_iterator())
+        self.assertEqual(len(data), 2)
+        self.assertAllClose(data[0], [4, 5, 6, 7])
+        self.assertAllClose(data[1], [12, 13, 14, 15])
+
+    def test_distribute_tf_dataset_error_not_divisible(self):
+        distribution = distribution_lib.DataParallel(
+            devices=["cpu:0", "cpu:1", "cpu:2", "cpu:3"]
+        )
+        distribution._num_processes = 2
+        distribution._process_id = 0
+        distribution.auto_shard_dataset = True
+
+        dataset = tf.data.Dataset.range(16).batch(7)
+        # Global batch size 7 is NOT divisible by num_shards (min(4, 2)) = 2
+        with self.assertRaisesRegex(
+            ValueError, "Global batch size must be divisible by the number"
+        ):
+            tf_dataset_adapter.TFDatasetAdapter(
+                dataset, distribution=distribution
+            )
+
+    def test_unknown_batch_size(self):
+        distribution = distribution_lib.DataParallel(devices=["cpu:0"])
+        distribution._num_processes = 2
+        distribution._process_id = 0
+        distribution.auto_shard_dataset = True
+
+        dataset = tf.data.Dataset.range(16)
+        with self.assertRaisesRegex(ValueError, "batch size .* is unknown"):
+            tf_dataset_adapter.TFDatasetAdapter(
+                dataset, distribution=distribution
+            )
+
+    def test_num_model_replicas_one(self):
+        distribution = distribution_lib.DataParallel(devices=["cpu:0"])
+        distribution._num_processes = 2
+        distribution._process_id = 0
+        distribution.auto_shard_dataset = True
+
+        dataset = tf.data.Dataset.range(16).batch(8)
+        adapter = tf_dataset_adapter.TFDatasetAdapter(
+            dataset, distribution=distribution
+        )
+        distributed_dataset = adapter.get_tf_dataset()
+        # Should return the same data (with prefetch)
+        data = list(distributed_dataset.as_numpy_iterator())
+        self.assertEqual(len(data), 2)
+        self.assertAllClose(data[0], np.arange(8))
+        self.assertAllClose(data[1], np.arange(8, 16))
+
+
+@pytest.mark.skipif(
+    backend.backend() != "jax",
+    reason="Only JAX has the proper backend distribution lib",
+)
+@pytest.mark.multi_device
+class DataShardingIntegrationTest(testing.TestCase):
+    def test_distribute_dataset_sharding_behavior(self):
+        num_devices = distribution_lib.get_device_count()
+        self.assertGreaterEqual(
+            num_devices, 4, "Number of devices must be at least 4"
+        )
+        self.assertEqual(num_devices % 2, 0, "Number of devices must be even")
+
+        num_model_replicas = num_devices // 2
+        global_dataset = tf.data.Dataset.range(4 * num_model_replicas).batch(
+            2 * num_model_replicas
+        )
+
+        shards = []
+        processes_per_replica = num_devices // num_model_replicas
+        for process_id in range(num_devices):
+            distribution = distribution_lib.DataParallel(
+                devices=["cpu:0"] * num_model_replicas
+            )
+            distribution._num_processes = num_devices
+            distribution._process_id = process_id
+            distribution.auto_shard_dataset = True
+
+            adapter = tf_dataset_adapter.TFDatasetAdapter(
+                global_dataset, distribution=distribution
+            )
+            ds = adapter.get_tf_dataset()
+            shards.append(list(ds.unbatch().as_numpy_iterator()))
+
+        processes_per_replica = num_devices // num_model_replicas
+        for replica_id in range(num_model_replicas):
+            start = replica_id * processes_per_replica
+            for process_id in range(start + 1, start + processes_per_replica):
+                self.assertEqual(
+                    shards[start],
+                    shards[process_id],
+                    f"Processes {start} and {process_id} should have same "
+                    f"shard, got {shards}",
+                )
+
+        for replica_id in range(1, num_model_replicas):
+            self.assertNotEqual(
+                shards[0],
+                shards[replica_id * processes_per_replica],
+                f"Replica groups should have different shards, got {shards}",
+            )
