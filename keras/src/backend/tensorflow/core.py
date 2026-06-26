@@ -887,3 +887,23 @@ class name_scope(base_name_scope):
 
 def device_scope(device_name):
     return tf.device(device_name)
+
+
+def get_memory_info(device):
+    import tensorflow as tf
+
+    if not isinstance(device, str):
+        if hasattr(device, "to_string"):
+            device = device.to_string()
+        else:
+            device = str(device)
+    device = device.upper().replace("CUDA", "GPU")
+    for key in ("GPU", "CPU"):
+        if key in device:
+            device = device[device.find(key) :]
+            break
+    try:
+        info = tf.config.experimental.get_memory_info(device)
+        return {"allocated": info["current"], "peak": info["peak"]}
+    except (ValueError, RuntimeError, TypeError):
+        return {"allocated": 0, "peak": 0}

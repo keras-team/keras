@@ -1845,3 +1845,9 @@ def remat(f):
         "utilize this feature."
     )
     return f
+
+
+def get_memory_info(device):
+    raise NotImplementedError(
+        "`get_memory_info` is not supported for the OpenVINO backend."
+    )
