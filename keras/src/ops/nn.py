@@ -708,6 +708,7 @@ class Glu(Operation):
         self.axis = axis
 
     def call(self, x):
+        canonicalize_axis(self.axis, len(x.shape))
         return backend.nn.glu(x, axis=self.axis)
 
     def compute_output_spec(self, x):
