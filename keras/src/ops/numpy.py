@@ -6755,9 +6755,15 @@ class Pad(Operation):
                 f"(of length {len(self.pad_width)}) and x.shape={x.shape} "
                 f"(of length {len(x.shape)})"
             )
+        pad_width = self.pad_width
+        if len(pad_width) == 1:
+            # Broadcast a single `(before, after)` pair to every axis, matching
+            # `np.pad` and the symbolic path (`compute_output_spec`). Some
+            # backends (e.g. TensorFlow, Torch) do not broadcast on their own.
+            pad_width = tuple(pad_width[0] for _ in range(len(x.shape)))
         return backend.numpy.pad(
             x,
-            pad_width=self.pad_width,
+            pad_width=pad_width,
             mode=self.mode,
             constant_values=constant_values,
         )
