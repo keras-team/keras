@@ -3,6 +3,7 @@ from unittest import mock
 import jax
 import numpy as np
 import pytest
+import tensorflow as tf
 from absl.testing import parameterized
 
 import keras
@@ -1764,6 +1765,66 @@ class TestTrainer(testing.TestCase):
         loss1 = model.evaluate(x, y, batch_size=80)
         loss2 = model.evaluate(x, y, batch_size=100)
         self.assertAllClose(loss1, loss2)
+
+    def test_evaluate_fixed_batch_dim_graph_matches_eager(self):
+        batch_size = 4
+        num_samples = 32
+
+        x_data = np.random.randn(num_samples, 4).astype(np.float32)
+        y_data = np.random.randn(num_samples, 1).astype(np.float32)
+
+        def make_dataset():
+            def gen():
+                for i in range(0, num_samples, batch_size):
+                    yield (
+                        x_data[i : i + batch_size],
+                        y_data[i : i + batch_size],
+                    )
+
+            return tf.data.Dataset.from_generator(
+                gen,
+                output_signature=(
+                    tf.TensorSpec((batch_size, 4), tf.float32),
+                    tf.TensorSpec((batch_size, 1), tf.float32),
+                ),
+            )
+
+        # Graph mode
+        model_graph = ExampleModel(units=1)
+        model_graph.compile(
+            loss="mse",
+            metrics=["mae"],
+            run_eagerly=False,
+        )
+
+        graph_result = model_graph.evaluate(
+            make_dataset(),
+            verbose=0,
+        )
+
+        # Eager mode
+        model_eager = ExampleModel(units=1)
+        model_eager.compile(
+            loss="mse",
+            metrics=["mae"],
+            run_eagerly=True,
+        )
+
+        eager_result = model_eager.evaluate(
+            make_dataset(),
+            verbose=0,
+        )
+
+        self.assertAllClose(
+            graph_result["mae"]
+            if isinstance(graph_result, dict)
+            else graph_result,
+            eager_result["mae"]
+            if isinstance(eager_result, dict)
+            else eager_result,
+            atol=1e-5,
+            rtol=1e-5,
+        )
 
     @pytest.mark.requires_trainable_backend
     def test_adds_loss_scaling_optimizer(self):
