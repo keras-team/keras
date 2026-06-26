@@ -3,7 +3,6 @@ from unittest import mock
 import jax
 import numpy as np
 import pytest
-import tensorflow as tf
 from absl.testing import parameterized
 
 import keras
@@ -1767,6 +1766,8 @@ class TestTrainer(testing.TestCase):
         self.assertAllClose(loss1, loss2)
 
     def test_evaluate_fixed_batch_dim_graph_matches_eager(self):
+        import tensorflow as tf
+
         batch_size = 4
         num_samples = 32
 
