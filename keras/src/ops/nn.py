@@ -750,6 +750,7 @@ def glu(x, axis=-1):
     """
     if any_symbolic_tensors((x,)):
         return Glu(axis).symbolic_call(x)
+    canonicalize_axis(axis, len(x.shape))
     return backend.nn.glu(x, axis=axis)
 
 
