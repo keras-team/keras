@@ -88,6 +88,34 @@ class LayerWithCustomSaving(MyDense):
 
 
 @keras.saving.register_keras_serializable(package="my_custom_package")
+class SharedVariableLayer(keras.layers.Layer):
+    def __init__(self, shared_kernel=None, **kwargs):
+        super().__init__(**kwargs)
+        self.shared_kernel = shared_kernel
+
+    def build(self, input_shape):
+        if self.shared_kernel is None:
+            self.kernel = self.add_weight(
+                shape=(input_shape[-1], 1),
+                name="kernel",
+                initializer="ones",
+            )
+        else:
+            self.kernel = self.shared_kernel
+        self.bias = self.add_weight(
+            shape=(1,),
+            name="bias",
+            initializer="zeros",
+        )
+
+    def call(self, inputs):
+        return ops.matmul(inputs, self.kernel) + self.bias
+
+    def get_config(self):
+        return super().get_config()
+
+
+@keras.saving.register_keras_serializable(package="my_custom_package")
 class CustomModelX(keras.Model):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -980,6 +1008,92 @@ class ComplexModel(keras.layers.Layer):
 
 
 class SavingBattleTest(testing.TestCase):
+    def _get_shared_variable_model(self):
+        inputs = keras.Input((2,))
+        layer_a = SharedVariableLayer(name="shared_a")
+        output_a = layer_a(inputs)
+        output_b = SharedVariableLayer(
+            shared_kernel=layer_a.kernel, name="shared_b"
+        )(inputs)
+        return keras.Model(inputs, output_a + output_b)
+
+    def _get_h5_dataset_paths(self, group, suffix):
+        paths = []
+
+        def collect(current_group, prefix=""):
+            for key in current_group.keys():
+                path = f"{prefix}/{key}" if prefix else key
+                value = current_group[key]
+                if isinstance(value, h5py.Dataset):
+                    if path.endswith(suffix):
+                        paths.append(path)
+                elif isinstance(value, h5py.Group):
+                    collect(value, path)
+
+        collect(group)
+        return sorted(paths)
+
+    def _assert_duplicate_h5_datasets_are_linked(self, h5_file):
+        kernel_paths = self._get_h5_dataset_paths(h5_file, "/vars/0")
+        shared_kernel_paths = [
+            path for path in kernel_paths if "shared_variable_layer" in path
+        ]
+        self.assertLen(shared_kernel_paths, 2)
+        dataset_addresses = [
+            h5py.h5o.get_info(h5_file[path].id).addr
+            for path in shared_kernel_paths
+        ]
+        self.assertEqual(dataset_addresses[0], dataset_addresses[1])
+
+    def test_model_save_hard_links_duplicate_variables(self):
+        model = self._get_shared_variable_model()
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "shared_variable_model.keras"
+        )
+        x = np.array([[1.0, 2.0]])
+        ref_output = model(x)
+
+        with pytest.warns(
+            UserWarning,
+            match="referenced by multiple Keras saveables",
+        ):
+            saving_lib.save_model(model, temp_filepath)
+
+        with zipfile.ZipFile(temp_filepath, "r") as zf:
+            with zf.open("model.weights.h5", "r") as weights_file:
+                with h5py.File(BytesIO(weights_file.read()), "r") as h5_file:
+                    self._assert_duplicate_h5_datasets_are_linked(h5_file)
+
+        loaded_model = saving_lib.load_model(temp_filepath)
+        self.assertAllClose(loaded_model(x), ref_output)
+
+    def test_save_weights_hard_links_duplicate_variables(self):
+        model = self._get_shared_variable_model()
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "shared_variable_model.weights.h5"
+        )
+        x = np.array([[1.0, 2.0]])
+        ref_output = model(x)
+
+        with pytest.warns(
+            UserWarning,
+            match="referenced by multiple Keras saveables",
+        ):
+            saving_lib.save_weights_only(model, temp_filepath)
+
+        with h5py.File(temp_filepath, "r") as h5_file:
+            self._assert_duplicate_h5_datasets_are_linked(h5_file)
+
+        loaded_model = self._get_shared_variable_model()
+        saving_lib.load_weights_only(loaded_model, temp_filepath)
+        self.assertAllClose(loaded_model(x), ref_output)
+        shared_layers = [
+            layer
+            for layer in loaded_model.layers
+            if isinstance(layer, SharedVariableLayer)
+        ]
+        self.assertIs(shared_layers[0].kernel, shared_layers[1].kernel)
+
     def test_custom_object_without_from_config(self):
         temp_filepath = os.path.join(
             self.get_temp_dir(), "custom_fn_model.keras"

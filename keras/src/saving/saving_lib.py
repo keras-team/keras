@@ -746,6 +746,7 @@ def _save_state(
     assets_store,
     inner_path,
     visited_saveables,
+    visited_variables=None,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
 
@@ -768,7 +769,13 @@ def _save_state(
     if id(saveable) in visited_saveables:
         return
 
+    if visited_variables is None:
+        visited_variables = {}
+
     if hasattr(saveable, "save_own_variables") and weights_store:
+        _warn_if_duplicate_own_variables(
+            saveable, inner_path, visited_variables
+        )
         if hasattr(saveable, "name") and isinstance(saveable.name, str):
             metadata = {"name": saveable.name}
         else:
@@ -792,6 +799,7 @@ def _save_state(
                     "\\", "/"
                 ),
                 visited_saveables=visited_saveables,
+                visited_variables=visited_variables,
             )
         elif isinstance(child_obj, (list, dict, tuple)):
             _save_container_state(
@@ -802,6 +810,7 @@ def _save_state(
                     "\\", "/"
                 ),
                 visited_saveables=visited_saveables,
+                visited_variables=visited_variables,
             )
 
 
@@ -916,6 +925,41 @@ def _get_unique_name(name, used_names):
     return name
 
 
+def _warn_if_duplicate_own_variables(saveable, inner_path, visited_variables):
+    if not hasattr(saveable, "_trainable_variables"):
+        return
+
+    all_vars = list(saveable._trainable_variables)
+    if hasattr(saveable, "_non_trainable_variables"):
+        all_vars += list(saveable._non_trainable_variables)
+
+    current_path = inner_path or "<root>"
+    for variable in all_vars:
+        variable_id = id(variable)
+        if variable_id not in visited_variables:
+            visited_variables[variable_id] = current_path
+            continue
+
+        previous_path = visited_variables[variable_id]
+        if previous_path == current_path:
+            continue
+
+        variable_name = getattr(variable, "path", None)
+        if variable_name is None:
+            variable_name = getattr(variable, "name", "variable")
+        warnings.warn(
+            f"Variable '{variable_name}' is referenced by multiple Keras "
+            f"saveables: '{previous_path}' and '{current_path}'. The variable "
+            "will be hard-linked in HDF5-based save files when possible to "
+            "avoid duplicating tensor data on disk. However, manually sharing "
+            "variable objects across different layer instances may not "
+            "preserve shared Python object identity when loading a full "
+            "model. Prefer using one shared layer instance instead of "
+            "assigning the same variable to multiple layers.",
+            stacklevel=6,
+        )
+
+
 def _container_path_present(weights_store, assets_store, path):
     """True if either store has anything under `path`.
 
@@ -934,6 +978,7 @@ def _save_container_state(
     assets_store,
     inner_path,
     visited_saveables,
+    visited_variables=None,
     visited_containers=None,
 ):
     from keras.src.saving.keras_saveable import KerasSaveable
@@ -963,6 +1008,7 @@ def _save_container_state(
                 assets_store,
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_saveables=visited_saveables,
+                visited_variables=visited_variables,
             )
         elif isinstance(saveable, (list, dict, tuple)):
             name = _get_unique_name("container", used_names)
@@ -972,6 +1018,7 @@ def _save_container_state(
                 assets_store,
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_saveables=visited_saveables,
+                visited_variables=visited_variables,
                 visited_containers=visited_containers,
             )
 
@@ -1289,6 +1336,7 @@ class H5IOStore:
         self._h5_entry_group = {}
         self._h5_entry_metadata = None
         self._h5_entry_initialized = False
+        self._written_variable_datasets = {}
 
     def __bool__(self):
         # Delegate `__bool__` to the underlying `h5_file`. Otherwise, Python
@@ -1419,11 +1467,32 @@ class H5IOStore:
             value = np.array(value)
         return value
 
+    def _get_variable_id(self, value):
+        if isinstance(value, backend.Variable):
+            return id(value)
+        return None
+
     def __setitem__(self, key, value):
         if self.mode not in ("w", "a"):
             raise ValueError("Setting a value is only allowed in write mode.")
         if not self._h5_entry_initialized:
             self._create_h5_group(self._h5_entry_path)
+
+        variable_id = self._get_variable_id(value)
+        if variable_id is not None:
+            linked_dataset_path = self._written_variable_datasets.get(
+                variable_id
+            )
+            if linked_dataset_path is not None:
+                try:
+                    self._h5_entry_group[key] = self.h5_file[
+                        linked_dataset_path
+                    ]
+                    return
+                except KeyError:
+                    # Sharded stores may have moved to another H5 file. In
+                    # that case, fall through and write the value normally.
+                    pass
 
         value = backend.convert_to_numpy(value)
         if backend.standardize_dtype(value.dtype) == "bfloat16":
@@ -1431,6 +1500,10 @@ class H5IOStore:
             ds.attrs["dtype"] = "bfloat16"
         else:
             self._h5_entry_group[key] = value
+            ds = self._h5_entry_group[key]
+
+        if variable_id is not None:
+            self._written_variable_datasets[variable_id] = ds.name
 
     def __delitem__(self, key):
         if self.mode not in ("w", "a"):
