@@ -2642,12 +2642,6 @@ def pad(x, pad_width, mode="constant", constant_values=None):
             )
         kwargs["constant_values"] = constant_values
     pad_width = convert_to_tensor(pad_width, "int32")
-    # `tf.pad` requires `pad_width` to have shape `[rank(x), 2]`, whereas
-    # `np.pad` (and the symbolic path) allow a single `(before, after)` pair
-    # to be broadcast to every axis. Replicate that broadcasting here so a
-    # scalar / single-pair `pad_width` behaves consistently for eager tensors.
-    if pad_width.shape.rank == 2 and pad_width.shape[0] == 1:
-        pad_width = tf.repeat(pad_width, tf.rank(x), axis=0)
     return tf.pad(x, pad_width, mode.upper(), **kwargs)
 
 
