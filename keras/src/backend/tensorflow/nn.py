@@ -807,6 +807,26 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
+    data_format = backend.standardize_data_format(data_format)
+    inputs = convert_to_tensor(inputs)
+    kernel = convert_to_tensor(kernel)
+    num_spatial_dims = len(inputs.shape) - 2
+    if isinstance(strides, int):
+        strides = (strides,) * num_spatial_dims
+    else:
+        strides = tuple(strides)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * num_spatial_dims
+    else:
+        dilation_rate = tuple(dilation_rate)
+    # `tf.nn.convolution` rejects `strides > 1` together with
+    # `dilation_rate > 1`. Decompose into a dilated stride-1 conv plus
+    # subsampling, matching the JAX/Torch backends and the symbolic path.
+    if _needs_depthwise_stride_dilation_decomposition(strides, dilation_rate):
+        return _conv_stride_dilation_decomposition(
+            inputs, kernel, strides, padding, data_format, dilation_rate
+        )
+
     def _conv():
         tf_data_format = _convert_data_format(data_format, len(inputs.shape))
         result = tf.nn.convolution(
@@ -842,7 +862,6 @@ def conv(
     # Channels first "NCDHW" (3d convolutions) are broken on CPU without XLA.
     needs_xla = data_format == "channels_first" and len(inputs.shape) == 5
     # grouped convolutions are broken on CPU without XLA.
-    data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
         channels = inputs.shape[-1]
     else:
@@ -949,6 +968,49 @@ def _depthwise_conv_stride_dilation_decomposition(
 
     if num_spatial_dims == 1:
         outputs = tf.squeeze(outputs, [1])
+
+    if data_format == "channels_first":
+        outputs = _transpose_spatial_outputs(outputs)
+
+    return outputs
+
+
+def _conv_stride_dilation_decomposition(
+    inputs, kernel, strides, padding, data_format, dilation_rate
+):
+    # Compute a regular conv with both stride > 1 and dilation > 1 by running
+    # the dilated conv at stride 1 (which `tf.nn.convolution` supports) and
+    # subsampling the result. Always computed in `channels_last` layout.
+    num_spatial_dims = len(inputs.shape) - 2
+    padding = padding.upper()
+
+    if data_format == "channels_first":
+        inputs = _transpose_spatial_inputs(inputs)
+
+    kernel_size = tuple(int(i) for i in kernel.shape[:num_spatial_dims])
+
+    if padding == "SAME":
+        inputs = _pad_same_spatial_channels_last(
+            inputs, kernel_size, strides, dilation_rate
+        )
+    elif padding != "VALID":
+        raise ValueError(
+            f"`padding` must be 'valid' or 'same'. Received: padding={padding}"
+        )
+
+    outputs = tf.nn.convolution(
+        inputs,
+        kernel,
+        strides=1,
+        padding="VALID",
+        data_format=_convert_data_format("channels_last", num_spatial_dims + 2),
+        dilations=dilation_rate,
+    )
+
+    slices = [slice(None)]
+    slices.extend(slice(None, None, s) for s in strides)
+    slices.append(slice(None))
+    outputs = outputs[tuple(slices)]
 
     if data_format == "channels_first":
         outputs = _transpose_spatial_outputs(outputs)
