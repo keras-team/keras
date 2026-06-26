@@ -964,16 +964,6 @@ def _save_container_state(
                 inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
                 visited_saveables=visited_saveables,
             )
-        elif isinstance(saveable, (list, dict, tuple)):
-            name = _get_unique_name("container", used_names)
-            _save_container_state(
-                saveable,
-                weights_store,
-                assets_store,
-                inner_path=file_utils.join(inner_path, name).replace("\\", "/"),
-                visited_saveables=visited_saveables,
-                visited_containers=visited_containers,
-            )
 
 
 def _load_container_state(
@@ -1014,37 +1004,6 @@ def _load_container_state(
                 visited_saveables=visited_saveables,
                 failed_saveables=failed_saveables,
                 error_msgs=error_msgs,
-            )
-        elif isinstance(saveable, (list, dict, tuple)):
-            name = _get_unique_name("container", used_names)
-            nested_path = file_utils.join(inner_path, name).replace("\\", "/")
-            if not _container_path_present(
-                weights_store, assets_store, nested_path
-            ):
-                # Legacy files saved before PR #22362 didn't write the
-                # `container*` groups for nested containers — silently
-                # skip so the model still loads (sublayers keep their
-                # freshly-initialized weights).
-                warnings.warn(
-                    f"Skipping nested container at '{nested_path}': no "
-                    "matching group found in the saved file. This usually "
-                    "means the file was saved with a Keras version that "
-                    "did not serialize sublayers nested inside containers. "
-                    "Affected layers will retain their freshly-initialized "
-                    "weights.",
-                    stacklevel=2,
-                )
-                continue
-            _load_container_state(
-                saveable,
-                weights_store,
-                assets_store,
-                inner_path=nested_path,
-                skip_mismatch=skip_mismatch,
-                visited_saveables=visited_saveables,
-                failed_saveables=failed_saveables,
-                error_msgs=error_msgs,
-                visited_containers=visited_containers,
             )
 
 
