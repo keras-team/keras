@@ -1535,10 +1535,10 @@ class DenseTest(testing.TestCase):
         beta_expected = float(np.mean(np.abs(kernel)))
         layer.quantize("ternary")
 
-        self.assertAlmostEqual(
+        self.assertAllClose(
             float(ops.convert_to_numpy(layer.kernel_scale)),
             beta_expected,
-            delta=1e-5,
+            atol=1e-5,
         )
 
     def test_dense_quantize_ternary_no_bias(self):

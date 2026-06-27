@@ -708,7 +708,7 @@ class Dense(Layer):
             y = self.activation(y)
         return y
 
-    def _ternary_call(self, inputs):
+    def _ternary_call(self, inputs, **kwargs):
         # Sparseskip inference path. Weights split into pos (+1) and neg (-1)
         # boolean masks so the matmul is structurally multiply-free — only
         # additions, subtractions, and zero-skips on kernel values.
