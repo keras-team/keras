@@ -8,8 +8,52 @@ from keras.src import dtype_policies
 from keras.src import losses as losses_module
 from keras.src import ops
 from keras.src import testing
+from keras.src import tree
+from keras.src.losses import loss as _loss_mod
 from keras.src.losses.loss import Loss
 from keras.src.losses.loss import squeeze_or_expand_to_same_rank
+from keras.src.losses.losses import MeanSquaredError
+
+
+def _to_np(t):
+    """Convert tensor or array to numpy for numeric comparison."""
+    try:
+        import torch as _torch
+
+        if isinstance(t, _torch.Tensor):
+            return t.detach().cpu().numpy()
+    except ImportError:
+        pass
+    return np.asarray(t)
+
+
+def _slow_call_mse(loss_fn, y_true, y_pred, sample_weight=None):
+    """Replicate slow-path behaviour unconditionally (no fast-path shortcut)."""
+    in_mask = backend.get_keras_mask(y_pred)
+    with ops.name_scope(loss_fn.name):
+        yp = tree.map_structure(
+            lambda x: ops.convert_to_tensor(x, dtype=loss_fn.dtype), y_pred
+        )
+        yt = tree.map_structure(
+            lambda x: ops.convert_to_tensor(x, dtype=loss_fn.dtype), y_true
+        )
+        losses = loss_fn.call(yt, yp)
+        out_mask = backend.get_keras_mask(losses)
+        if in_mask is not None and out_mask is not None:
+            mask = in_mask & out_mask
+        elif in_mask is not None:
+            mask = in_mask
+        elif out_mask is not None:
+            mask = out_mask
+        else:
+            mask = None
+        return _loss_mod.reduce_weighted_values(
+            losses,
+            sample_weight=sample_weight,
+            mask=mask,
+            reduction=loss_fn.reduction,
+            dtype=loss_fn.dtype,
+        )
 
 
 class ExampleLoss(Loss):
@@ -270,3 +314,165 @@ class LossTest(testing.TestCase):
         loss_fn = ExampleLoss()
         loss = loss_fn(y_true, y_pred)
         self.assertDType(loss, backend.floatx())
+
+    def test_mse_fast_path_torch_reductions(self):
+        """Fast path taken for both-torch inputs; numerics match slow path."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        for reduction in ["sum_over_batch_size", "mean", "sum", "none", None]:
+            mse = MeanSquaredError(reduction=reduction)
+            yt = torch.tensor([1.0, 2.0, 3.0, 4.0])
+            yp = torch.tensor([1.1, 1.9, 3.2, 3.8])
+            fast = mse(yt, yp)
+            slow = _slow_call_mse(mse, yt, yp)
+            self.assertAllClose(
+                _to_np(fast),
+                _to_np(slow),
+                rtol=1e-5,
+                atol=1e-5,
+                msg=f"reduction={reduction}",
+            )
+
+    def test_mse_numpy_ytrue_torch_ypred_fallback(self):
+        """numpy y_true falls through; result must match slow path."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        mse = MeanSquaredError()
+        yt_np = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float32)
+        yp_t = torch.tensor([1.1, 1.9, 3.2, 3.8])
+        result = mse(yt_np, yp_t)
+        ref = _slow_call_mse(mse, yt_np, yp_t)
+        self.assertAllClose(_to_np(result), _to_np(ref), rtol=1e-5, atol=1e-5)
+        val = float(_to_np(result))
+        self.assertTrue(np.isfinite(val), f"Loss is not finite: {val}")
+
+    def test_mse_sample_weight_uses_slow_path(self):
+        """sample_weight != None bypasses fast path; result must be correct."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        mse = MeanSquaredError()
+        yt = torch.tensor([1.0, 2.0, 3.0, 4.0])
+        yp = torch.tensor([1.1, 1.9, 3.2, 3.8])
+        sw = torch.tensor([1.0, 2.0, 1.0, 2.0])
+        result = mse(yt, yp, sample_weight=sw)
+        ref = _slow_call_mse(mse, yt, yp, sample_weight=sw)
+        self.assertAllClose(_to_np(result), _to_np(ref), rtol=1e-5, atol=1e-5)
+
+    def test_mse_numeric_equivalence_all_cases(self):
+        """Allclose for both-torch, numpy+torch, and sample_weight cases."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        yt_t = torch.tensor([0.5, 1.5, 2.5, 3.5])
+        yp_t = torch.tensor([0.6, 1.4, 2.7, 3.3])
+        yt_np = yt_t.numpy()
+        sw = torch.tensor([1.0, 2.0, 1.0, 2.0])
+        cases = {
+            "both_torch": (yt_t, yp_t, None),
+            "numpy_ytrue_torch_ypred": (yt_np, yp_t, None),
+            "sample_weight": (yt_t, yp_t, sw),
+        }
+        reductions = ["sum_over_batch_size", "mean", "sum", "none"]
+        for desc, (yt, yp, sw_arg) in cases.items():
+            r_list = (
+                ["sum_over_batch_size"]
+                if desc == "sample_weight"
+                else reductions
+            )
+            for red in r_list:
+                fn = MeanSquaredError(reduction=red)
+                fast = (
+                    fn(yt, yp)
+                    if sw_arg is None
+                    else fn(yt, yp, sample_weight=sw_arg)
+                )
+                ref = _slow_call_mse(fn, yt, yp, sample_weight=sw_arg)
+                self.assertAllClose(
+                    _to_np(fast),
+                    _to_np(ref),
+                    rtol=1e-5,
+                    atol=1e-5,
+                    msg=f"FAIL {desc} reduction={red}",
+                )
+
+    def test_mse_fast_path_actually_taken(self):
+        """Fast path (sum_over_batch_size): torch.Tensor with correct value."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        mse = MeanSquaredError(reduction="sum_over_batch_size")
+        yt = torch.tensor([1.0, 2.0])
+        yp = torch.tensor([1.5, 2.5])
+        result = mse(yt, yp)
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertAllClose(float(result), 0.25, rtol=1e-5, atol=1e-5)
+
+    def test_fast_path_skipped_when_ypred_dtype_mismatch(self):
+        """float16 y_pred falls through to slow path; result must be float32."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        mse = MeanSquaredError(reduction="sum_over_batch_size")
+        yt = torch.tensor([1.0, 2.0, 3.0, 4.0], dtype=torch.float32)
+        yp = torch.tensor([1.1, 1.9, 3.2, 3.8], dtype=torch.float16)
+        result = mse(yt, yp)
+        self.assertEqual(backend.standardize_dtype(result.dtype), "float32")
+        ref = _slow_call_mse(mse, yt, yp)
+        self.assertAllClose(float(result), float(ref), rtol=1e-3, atol=1e-3)
+
+    def test_fast_path_taken_when_dtypes_match(self):
+        """Fast path IS taken when y_pred and y_true both match self.dtype."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        mse = MeanSquaredError(reduction="sum_over_batch_size")
+        # both float32, matches self.dtype
+        yt = torch.tensor([1.0, 2.0, 3.0, 4.0], dtype=torch.float32)
+        yp = torch.tensor([1.1, 1.9, 3.2, 3.8], dtype=torch.float32)
+
+        result = mse(yt, yp)
+
+        self.assertIsInstance(result, torch.Tensor)
+        self.assertEqual(backend.standardize_dtype(result.dtype), "float32")
+        ref = _slow_call_mse(mse, yt, yp)
+        self.assertAllClose(float(result), float(ref), rtol=1e-5, atol=1e-5)
+
+    def test_fast_path_same_device(self):
+        """Fast path: both tensors on same device, numerics match slow path."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch  # noqa: I001
+        from keras.src.backend.torch.core import get_device
+
+        device = get_device()
+        mse = MeanSquaredError(reduction="sum_over_batch_size")
+        yt = torch.tensor([1.0, 2.0, 3.0, 4.0]).to(device)
+        yp = torch.tensor([1.1, 1.9, 3.2, 3.8]).to(device)
+        result = mse(yt, yp)
+        ref = _slow_call_mse(mse, yt, yp)
+        self.assertAllClose(_to_np(result), _to_np(ref), rtol=1e-5, atol=1e-5)
+
+    def test_fast_path_skipped_cross_device(self):
+        """Cross-device inputs fall through to slow path without crashing."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        if not torch.cuda.is_available():
+            self.skipTest("cuda not available")
+        mse = MeanSquaredError(reduction="sum_over_batch_size")
+        yt = torch.tensor([1.0, 2.0, 3.0, 4.0]).cpu()
+        yp = torch.tensor([1.1, 1.9, 3.2, 3.8]).cuda()
+        result = mse(yt, yp)
+        ref = _slow_call_mse(mse, yt, yp)
+        self.assertAllClose(_to_np(result), _to_np(ref), rtol=1e-5, atol=1e-5)
