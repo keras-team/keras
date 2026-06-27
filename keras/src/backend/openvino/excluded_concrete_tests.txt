@@ -5,7 +5,6 @@ EqualizationTest::test_input_dtypes_int64
 EqualizationTest::test_output_range_0_1
 EqualizationTest::test_output_range_0_255
 LinalgOpsCorrectnessTest::test_eig
-LinalgOpsCorrectnessTest::test_matrix_rank
 LinalgOpsCorrectnessTest::test_norm_2_-2
 LinalgOpsCorrectnessTest::test_norm_2_2
 LinalgOpsCorrectnessTest::test_norm_2_nuc

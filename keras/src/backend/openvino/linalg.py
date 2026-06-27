@@ -1725,9 +1725,30 @@ def lstsq(a, b, rcond=None):
 
 
 def matrix_rank(x, tol=None):
-    raise NotImplementedError(
-        "`matrix_rank` is not supported with openvino backend"
+    # Matrix rank requires SVD, which OpenVINO doesn't have. When the input
+    # is a Constant we can fall back to numpy and return the result as a
+    # Constant node — this covers the common case of computing the rank
+    # of a known matrix at model-build time. Runtime inputs (Parameters)
+    # remain unsupported until OpenVINO gains an SVD op.
+    x = convert_to_tensor(x)
+    if x.ndim < 2:
+        raise ValueError(
+            "Expected input to have rank >= 2. "
+            f"Received input with shape {x.shape}."
+        )
+    x_ov = get_ov_output(x)
+    x_node = x_ov.get_node()
+    if x_node.get_type_name() != "Constant":
+        raise NotImplementedError(
+            "`matrix_rank` on the OpenVINO backend only supports inputs "
+            "that fold to a constant at model-build time (e.g. numpy "
+            "arrays or pre-computed tensors). Runtime input is not "
+            "supported because OpenVINO has no SVD op."
+        )
+    rank_np = np.linalg.matrix_rank(np.asarray(x_node.data), tol=tol).astype(
+        "int32"
     )
+    return OpenVINOKerasTensor(ov_opset.constant(rank_np).output(0))
 
 
 def pinv(x, rcond=None):
