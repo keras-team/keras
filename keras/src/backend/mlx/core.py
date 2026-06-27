@@ -304,11 +304,11 @@ def scatter_update(inputs, indices, updates, reduction=None):
 
 def slice(inputs, start_indices, shape):
     inputs = convert_to_tensor(inputs)
-    if not isinstance(shape, list):
+    if not isinstance(shape, (list, tuple)):
         shape = convert_to_tensor(shape, dtype="int32").tolist()
     else:
         shape = [i if isinstance(i, int) else i.item() for i in shape]
-    if not isinstance(start_indices, list):
+    if not isinstance(start_indices, (list, tuple)):
         start_indices = convert_to_tensor(start_indices, dtype="int32").tolist()
     else:
         start_indices = [
@@ -328,7 +328,7 @@ def slice(inputs, start_indices, shape):
 
 def slice_update(inputs, start_indices, updates):
     inputs = convert_to_tensor(inputs)
-    if not isinstance(start_indices, list):
+    if not isinstance(start_indices, (list, tuple)):
         start_indices = convert_to_tensor(start_indices, dtype="int32").tolist()
     else:
         start_indices = [
@@ -461,9 +461,9 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
         n = int(length) if length is not None else shape(xs_flat[0])[0]
 
     init_flat = tree.flatten(init)
-    init_flat = [convert_to_tensor(init) for init in init_flat]
+    init_flat = [convert_to_tensor(v) for v in init_flat]
     init = pack_output(init_flat)
-    dummy_y = [mx.zeros_like(init) for init in init_flat]
+    dummy_y = [mx.zeros_like(v) for v in init_flat]
 
     carry = init
     ys = []
@@ -496,7 +496,7 @@ def map(f, xs):
 
 def dilate(x, axis, dilation_rate):
     x_shape = list(x.shape)
-    x_shape[axis] = x.shape[axis] * dilation_rate - 1
+    x_shape[axis] = (x.shape[axis] - 1) * dilation_rate + 1
 
     result = mx.zeros(x_shape, dtype=x.dtype)
 
