@@ -758,12 +758,8 @@ def moments(x, axes, keepdims=False, synchronized=False):
         need_cast = True
         x = x.astype(mx.float32)
 
-    mean = mx.mean(x, axis=axes, keepdims=True)
-    variance = mx.var(x, axis=axes, keepdims=True)
-
-    if not keepdims:
-        mean = mean.squeeze(axes)
-        variance = variance.squeeze(axes)
+    mean = mx.mean(x, axis=axes, keepdims=keepdims)
+    variance = mx.var(x, axis=axes, keepdims=keepdims)
 
     if need_cast:
         # float16 has a narrow range, so clip before casting back. bfloat16
@@ -1353,8 +1349,8 @@ def unfold(x, kernel_size, dilation=1, padding=0, stride=1):
 
     i0 = (mx.arange(oH) * s[0])[:, None]
     j0 = (mx.arange(oW) * s[1])[None, :]
-    rows = (i0 + mx.zeros((oH, oW), dtype=i0.dtype)).reshape(-1)
-    cols = (j0 + mx.zeros((oH, oW), dtype=j0.dtype)).reshape(-1)
+    rows = mx.broadcast_to(i0, (oH, oW)).reshape(-1)
+    cols = mx.broadcast_to(j0, (oH, oW)).reshape(-1)
 
     cols_out = []
     for idx in range(k[0]):

@@ -233,6 +233,17 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
             f"probabilities={probabilities}"
         )
 
+    # Fast path for the common scalar case: draw n Bernoulli samples per
+    # output element in one vectorized call instead of a Python loop.
+    if counts_arr.size == 1 and probs_arr.size == 1:
+        n = int(counts_arr.item())
+        if n == 0:
+            return mx.zeros(shape, dtype=dtype)
+        draws = mx.random.bernoulli(
+            p=float(probs_arr.item()), shape=(n,) + tuple(shape), key=key
+        )
+        return mx.sum(draws, axis=0).astype(dtype)
+
     # broadcast counts and probs to `shape``
     zeros_for_bcast = mx.zeros(shape=shape, dtype=mx.float32)
     counts_bcast = counts_arr + zeros_for_bcast
