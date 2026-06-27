@@ -114,7 +114,9 @@ def erfc(x):
 def top_k(x, k, sorted=True):
     # default to sorted=True to match other backends
     x = convert_to_tensor(x)
-    indices = mx.argpartition(mx.negative(x), k, axis=-1)[..., :k]
+    # argpartition requires kth < size, so clamp when k equals the last dim.
+    kth = min(k, x.shape[-1] - 1)
+    indices = mx.argpartition(mx.negative(x), kth, axis=-1)[..., :k]
     values = mx.take_along_axis(x, indices, axis=-1)
 
     if sorted:
