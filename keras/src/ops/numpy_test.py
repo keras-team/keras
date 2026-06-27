@@ -7183,6 +7183,14 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
             knp.nancumsum(x_all_nan, axis=1), np.nancumsum(x_all_nan, axis=1)
         )
 
+        x_with_inf = np.array(
+            [[np.nan, np.inf, 1.0], [np.nan, -np.inf, -1.0]], dtype=np.float32
+        )
+        self.assertAllClose(
+            knp.nancumsum(x_with_inf, axis=1),
+            np.nancumsum(x_with_inf, axis=1),
+        )
+
     def test_nancumprod(self):
         x = np.array([[1.0, np.nan, 3.0], [np.nan, 2.0, -1.0]])
 
@@ -7212,6 +7220,13 @@ class NumpyOneInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(
             knp.nancumprod(x_all_nan, axis=1),
             np.nancumprod(x_all_nan, axis=1),
+        )
+
+        x_with_inf = np.array(
+            [[np.nan, np.inf, -np.inf], [2.0, np.nan, -3.0]], dtype=np.float32
+        )
+        self.assertAllClose(
+            knp.nancumprod(x_with_inf), np.nancumprod(x_with_inf)
         )
 
     def test_nanmax(self):

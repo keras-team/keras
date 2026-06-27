@@ -1754,6 +1754,19 @@ def dot_product_attention(
     query = cast(query, compute_dtype)
     key = cast(key, compute_dtype)
     value = cast(value, compute_dtype)
+
+    num_query_heads = query.shape[2]
+    num_kv_heads = key.shape[2]
+    if (
+        num_query_heads is not None
+        and num_kv_heads is not None
+        and num_query_heads > num_kv_heads
+        and num_kv_heads > 1
+    ):
+        groups = num_query_heads // num_kv_heads
+        key = tf.repeat(key, repeats=groups, axis=2)
+        value = tf.repeat(value, repeats=groups, axis=2)
+
     if bias is not None:
         bias = convert_to_tensor(bias, dtype=compute_dtype)
 
