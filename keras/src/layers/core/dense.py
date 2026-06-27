@@ -699,9 +699,11 @@ class Dense(Layer):
         return y
 
     def _ternary_call(self, inputs):
-        # Sparseskip inference. The kernel trits are {-1, 0, +1}; we split into
-        # two boolean masks so both matmuls reduce to additions only, with zero
-        # weights skipped entirely. No float multiplies on kernel values.
+        # Storage-only path: unpack the packed uint8 kernel to a full float
+        # {-1, 0, +1} matrix, then run a standard matmul. There is no compute
+        # or runtime-memory saving versus a plain Dense call; inference is
+        # slightly slower due to the per-call unpack. The benefit of
+        # quantize("ternary") is checkpoint size only (~1.58 bits/weight).
         k = quantizers.unpack_ternary(
             self._packed_kernel, self._orig_input_dim, axis=0
         )

@@ -32,15 +32,22 @@ class TernaryDense(Layer):
 
     For post-training quantization of a regular `Dense` layer (no STE), use
     `keras.layers.Dense` with `layer.quantize("ternary")` instead. That path
-    packs the trained float kernel to `~1.58 bits/weight` and runs inference
-    via the sparseskip kernel (zero weights skipped, ±1 weights as
-    additions/subtractions, no float multiplies).
+    packs the trained float kernel to `~1.58 bits/weight` for checkpoint storage.
 
     Call `layer.quantize("ternary")` on a `TernaryDense` after training to
-    freeze the ternarized kernel into the same packed format and switch to the
-    sparseskip inference path. The packed representation stores `{-1, 0, +1}`
-    weights at the information-theoretic floor of `log2(3) ~= 1.58` bits/value:
-    five trits per byte (`3 ** 5 == 243 <= 256`), denser than int4 or int8.
+    freeze the ternarized kernel into a packed representation. The packed
+    format stores `{-1, 0, +1}` weights at the information-theoretic floor of
+    `log2(3) ~= 1.58` bits/value: five trits per byte
+    (`3 ** 5 == 243 <= 256`), denser than int4 or int8.
+
+    **Storage optimization only.** `quantize("ternary")` reduces checkpoint
+    size (~5× vs float32, ~2.5× vs int4). At inference the packed kernel is
+    unpacked to a full-precision matrix on every forward pass and fed to a
+    standard matmul, so there is no compute or runtime-memory saving versus
+    a plain `Dense` layer (inference is slightly slower due to the per-call
+    unpack). Realizing BitNet-style multiply-free speedups requires a native
+    ternary matmul kernel that reads the packed format directly; that is out
+    of scope for this layer.
 
     Args:
         units: Positive integer, dimensionality of the output space.
