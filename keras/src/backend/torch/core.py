@@ -632,23 +632,59 @@ def scatter_update(inputs, indices, updates, reduction=None):
     return outputs
 
 
+def _to_static_index(v):
+    """Return a Python-level slice bound for *v*, or raise ``TypeError``.
+
+    The returned value is usable directly as a Python ``slice`` bound:
+    - Python ``int`` and ``torch.SymInt`` are returned unchanged. Calling
+      ``int()`` on a ``SymInt`` specializes a ``torch.export`` dynamic
+      dimension to a constant (#22998), so it must pass through as-is.
+    - 0-d integer ``torch.Tensor`` and ``numpy`` integer scalars are coerced
+      to a Python ``int``.
+
+    Floats, 0-d float tensors, and any other type raise ``TypeError`` so the
+    caller falls through to the slow ``torch.narrow`` path (no silent
+    truncation).
+    """
+    if isinstance(v, (int, torch.SymInt)):
+        return v
+    if isinstance(v, torch.Tensor) and v.ndim == 0:
+        if not v.is_floating_point() and not v.is_complex():
+            return int(v)
+        raise TypeError(
+            f"slice() index element is a 0-d float tensor "
+            f"(dtype {v.dtype}); using torch.narrow path"
+        )
+    if isinstance(v, np.integer):
+        return int(v)
+    raise TypeError(
+        f"slice() index element has type {type(v).__name__!r}; "
+        "using torch.narrow path"
+    )
+
+
 def slice(inputs, start_indices, shape):
     inputs = convert_to_tensor(inputs)
 
-    # Fast path: when both start_indices and shape are Python int sequences,
-    # build the slice objects directly. This avoids creating tensors from
-    # the indices, which would introduce data-dependent expressions that
-    # torch.export cannot trace.
+    # Fast path: build Python slice objects from integer-valued indices.
+    # Accepted: Python int, torch.SymInt, 0-d integer tensor, numpy integer.
+    # _to_static_index raises TypeError for floats and float tensors, causing
+    # fall-through to torch.narrow (no silent truncation). RuntimeError covers
+    # data-dependent symbolic shapes under torch.export/dynamo tracing. Each
+    # bound is coerced once per dim, and the indexing runs in the else clause
+    # so a genuine indexing error propagates instead of falling to torch.narrow.
     if isinstance(start_indices, (list, tuple)) and isinstance(
         shape, (list, tuple)
     ):
-        if all(
-            isinstance(s, (int, torch.SymInt)) for s in start_indices
-        ) and all(isinstance(s, (int, torch.SymInt)) for s in shape):
-            slices = [
-                builtins.slice(start_index, start_index + length)
-                for start_index, length in zip(start_indices, shape)
-            ]
+        try:
+            slices = []
+            for s, l in zip(start_indices, shape):
+                start = _to_static_index(s)
+                length = _to_static_index(l)
+                slices.append(builtins.slice(start, start + length))
+        except (TypeError, RuntimeError):
+            pass
+        else:
             return inputs[tuple(slices)]
 
     # Slow path: tensor-based slicing via torch.narrow for truly dynamic
