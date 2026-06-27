@@ -121,6 +121,18 @@ class DtypesTest(test_case.TestCase):
     def test_result_type_empty_list(self):
         self.assertEqual(backend.result_type(), "float32")
 
+    def test_result_type_respects_floatx(self):
+        # The memoized core is keyed on floatx() so weak-type promotion
+        # follows set_floatx and never returns a stale cached result.
+        original_floatx = backend.floatx()
+        try:
+            backend.set_floatx("float32")
+            self.assertEqual(backend.result_type(float), "float32")
+            backend.set_floatx("float16")
+            self.assertEqual(backend.result_type(float), "float16")
+        finally:
+            backend.set_floatx(original_floatx)
+
     def test_respect_weak_type_for_bool(self):
         self.assertEqual(dtypes._respect_weak_type("bool", True), "bool")
 

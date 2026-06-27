@@ -368,6 +368,73 @@ class VariablePropertiesTest(test_case.TestCase):
         x = torch.randn(4, 4)
         backend.standardize_dtype(x.dtype)
 
+    def test_standardize_dtype_contract_and_cache(self):
+        """Characterization test: pin the P1 dtype fast-path contract.
+
+        Records the exact return values for every input the hot path
+        encounters. Also verifies that the module-level _DTYPE_CACHE returns
+        identical results on the second call (cache hit path).
+
+        CRITICAL: uint32 must NOT be remapped to int64; it returns 'uint32'.
+        """
+        if backend.backend() != "torch":
+            self.skipTest("contract table recorded against the torch backend")
+
+        import torch
+
+        from keras.src.backend.common.variables import standardize_dtype
+
+        cases = [
+            # (input, expected_output)
+            (None, "float32"),
+            ("float32", "float32"),
+            ("int64", "int64"),
+            # Framework-prefixed dtype strings must resolve to canonical names.
+            ("torch.float32", "float32"),
+            ("jax.numpy.float32", "float32"),
+            (torch.float32, "float32"),
+            (torch.int64, "int64"),
+            (np.float32, "float32"),
+            (np.dtype("float32"), "float32"),
+            # uint32 MUST be preserved; do NOT remap to int64
+            (np.dtype("uint32"), "uint32"),
+            (np.dtype("uint8"), "uint8"),
+            (int, "int32"),
+            (float, "float32"),
+            (bool, "bool"),
+        ]
+
+        # First call (cold / may populate cache)
+        for dtype_in, expected in cases:
+            result = standardize_dtype(dtype_in)
+            self.assertEqual(
+                result,
+                expected,
+                msg=f"standardize_dtype({dtype_in!r}): "
+                f"got {result!r}, want {expected!r}",
+            )
+
+        # Second call (cache hit path must be identical)
+        for dtype_in, expected in cases:
+            result = standardize_dtype(dtype_in)
+            self.assertEqual(
+                result,
+                expected,
+                msg=f"cache hit: standardize_dtype({dtype_in!r}): "
+                f"got {result!r}, want {expected!r}",
+            )
+
+        # Invalid dtype must raise ValueError
+        with self.assertRaises(ValueError):
+            standardize_dtype("invalid_dtype_xyz")
+
+        # Framework-prefixed strings with an invalid tail must raise with the
+        # tail segment only.
+        with self.assertRaisesRegex(ValueError, r"^Invalid dtype: extra$"):
+            standardize_dtype("torch.float32.extra")
+        with self.assertRaisesRegex(ValueError, r"^Invalid dtype: notadtype$"):
+            standardize_dtype("jax.numpy.notadtype")
+
     def test_name_validation(self):
         """Tests validation of variable names."""
         with self.assertRaisesRegex(

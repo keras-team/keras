@@ -567,25 +567,70 @@ def initialize_all_variables():
     global_state.set_global_attribute("uninitialized_variables", [])
 
 
+# Cache for non-string dtype objects (torch dtypes, numpy scalar types,
+# Python builtins). Keyed by the dtype object itself; values are the canonical
+# string name. Thread safety: dict reads/writes are GIL-protected in CPython
+# and the worst case (two threads racing on the same key) is a redundant write
+# of the same value.
+_DTYPE_CACHE = {}
+
+
 @keras_export(
     ["keras.utils.standardize_dtype", "keras.backend.standardize_dtype"]
 )
 def standardize_dtype(dtype):
+    # Fast path 1: already a canonical string.
+    if isinstance(dtype, str):
+        if dtype in dtypes.ALLOWED_DTYPES_SET:
+            return dtype
+        # Could be a mapped string like "int" -> fall through to
+        # PYTHON_DTYPES_MAP
+        mapped = dtypes.PYTHON_DTYPES_MAP.get(dtype)
+        if mapped is not None:
+            return mapped
+        # Framework-prefixed strings like "torch.float32" or
+        # "jax.numpy.float32" resolve by splitting on ".".
+        if "torch" in dtype or "jax.numpy" in dtype:
+            resolved = dtype.split(".")[-1]
+            if resolved in dtypes.ALLOWED_DTYPES_SET:
+                return resolved
+            raise ValueError(f"Invalid dtype: {resolved}")
+        raise ValueError(f"Invalid dtype: {dtype}")
+
+    # None resolves to floatx().
     if dtype is None:
         return config.floatx()
-    dtype = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
-    if hasattr(dtype, "name"):
-        dtype = dtype.name
-    elif hasattr(dtype, "__name__"):
-        dtype = dtype.__name__
-    elif hasattr(dtype, "__str__") and (
-        "torch" in str(dtype) or "jax.numpy" in str(dtype)
-    ):
-        dtype = str(dtype).split(".")[-1]
 
-    if dtype not in dtypes.ALLOWED_DTYPES:
-        raise ValueError(f"Invalid dtype: {dtype}")
-    return dtype
+    # Fast path 2: numpy dtype object.
+    # np.dtype objects have a .name attribute that is always a canonical
+    # string. We do NOT remap uint32 to int64; the exact name is returned.
+    if isinstance(dtype, np.dtype):
+        name = dtype.name
+        if name in dtypes.ALLOWED_DTYPES_SET:
+            return name
+        raise ValueError(f"Invalid dtype: {name}")
+
+    # Fast path 3: cached non-string objects (torch dtypes, Python types).
+    cached = _DTYPE_CACHE.get(dtype)
+    if cached is not None:
+        return cached
+
+    # Slow path: resolve and cache.
+    resolved = dtypes.PYTHON_DTYPES_MAP.get(dtype, dtype)
+    if hasattr(resolved, "name"):
+        resolved = resolved.name
+    elif hasattr(resolved, "__name__"):
+        resolved = resolved.__name__
+    elif hasattr(resolved, "__str__") and (
+        "torch" in str(resolved) or "jax.numpy" in str(resolved)
+    ):
+        resolved = str(resolved).split(".")[-1]
+
+    if resolved not in dtypes.ALLOWED_DTYPES_SET:
+        raise ValueError(f"Invalid dtype: {resolved}")
+
+    _DTYPE_CACHE[dtype] = resolved
+    return resolved
 
 
 def standardize_shape(shape):
