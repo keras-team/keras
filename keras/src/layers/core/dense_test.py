@@ -1436,3 +1436,125 @@ class DenseTest(testing.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    # Ternary quantization tests for Dense.quantize("ternary").
+
+    def test_dense_quantize_ternary_matches_float(self):
+        layer = layers.Dense(units=16)
+        layer.build((None, 11))
+        x = np.random.rand(4, 11).astype("float32")
+        y_float = layer(x)
+
+        layer.quantize("ternary")
+
+        self.assertEqual(layer.quantization_mode, "ternary")
+        self.assertFalse(hasattr(layer, "_kernel"))
+        from keras.src import backend as _backend
+        self.assertEqual(
+            _backend.standardize_dtype(layer._packed_kernel.dtype), "uint8"
+        )
+        # packed shape: ceil(11 / 5) = 3 rows
+        self.assertEqual(tuple(layer._packed_kernel.shape), (3, 16))
+
+        y_quantized = layer(x)
+        self.assertAllClose(y_float, y_quantized)
+
+    def test_dense_quantize_ternary_packed_density(self):
+        # input_dim=40 → ceil(40/5)=8 packed rows; 8 bytes encode 40 trits.
+        layer = layers.Dense(units=32)
+        layer.build((None, 40))
+        layer.quantize("ternary")
+
+        n_bytes = 8 * 32
+        n_weights = 40 * 32
+        bits_per_weight = 8 * n_bytes / n_weights
+        self.assertEqual(bits_per_weight, 1.6)
+        self.assertLess(n_bytes, n_weights // 2)
+
+    def test_dense_quantize_ternary_kernel_property(self):
+        # Dense.kernel property should return an unpacked {-1, 0, +1} tensor.
+        layer = layers.Dense(units=8)
+        layer.build((None, 6))
+        layer.quantize("ternary")
+
+        k = ops.convert_to_numpy(layer.kernel)
+        self.assertEqual(k.shape, (6, 8))
+        unique_vals = set(np.round(k).astype(np.int32).flat)
+        self.assertTrue(
+            unique_vals <= {-1, 0, 1},
+            f"Expected kernel values in {{-1, 0, 1}}, got {np.unique(k)}",
+        )
+
+    def test_dense_quantize_ternary_save_load(self):
+        layer = layers.Dense(units=16)
+        layer.build((None, 8))
+        x = np.random.rand(3, 8).astype("float32")
+        y_float = layer(x)
+        layer.quantize("ternary")
+        y_quantized = layer(x)
+        self.assertAllClose(y_float, y_quantized)
+
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "dense_ternary_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertEqual(new_model.layers[0].quantization_mode, "ternary")
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        temp_weights = os.path.join(
+            self.get_temp_dir(), "dense_ternary_model.weights.h5"
+        )
+        model.save_weights(temp_weights)
+        new_model = models.Sequential([layers.Dense(units=16)])
+        new_model.build((None, 8))
+        new_model.quantize("ternary")
+        new_model.load_weights(temp_weights)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    def test_dense_quantize_ternary_beta_scale(self):
+        # With default threshold (None), beta = mean(|W|) is stored in
+        # kernel_scale and applied in _ternary_call.
+        layer = layers.Dense(units=4, use_bias=False)
+        layer.build((None, 4))
+        kernel = np.array(
+            [[0.5, -0.5, 0.5, -0.5],
+             [0.5,  0.5, -0.5, 0.5],
+             [-0.5, 0.5, 0.5, -0.5],
+             [0.5, -0.5, -0.5, 0.5]],
+            dtype="float32",
+        )
+        layer._kernel.assign(kernel)
+        beta_expected = float(np.mean(np.abs(kernel)))
+        layer.quantize("ternary")
+
+        self.assertAlmostEqual(
+            float(ops.convert_to_numpy(layer.kernel_scale)),
+            beta_expected,
+            places=5,
+        )
+
+    def test_dense_quantize_ternary_no_bias(self):
+        layer = layers.Dense(units=8, use_bias=False)
+        layer.build((None, 6))
+        x = np.random.rand(2, 6).astype("float32")
+        y_float = layer(x)
+        layer.quantize("ternary")
+        self.assertIsNone(layer.bias)
+        y_quantized = layer(x)
+        self.assertAllClose(y_float, y_quantized)
+
+    def test_dense_prebuilt_ternary_mode(self):
+        # Dense constructed with quantization_mode="ternary" uses _ternary_build
+        # directly — the float kernel never exists.
+        layer = layers.Dense(units=8, quantization_mode="ternary")
+        layer.build((None, 10))
+        self.assertTrue(layer.built)
+        self.assertEqual(layer.quantization_mode, "ternary")
+        self.assertTrue(hasattr(layer, "_packed_kernel"))
+        # ceil(10 / 5) = 2 packed rows
+        self.assertEqual(tuple(layer._packed_kernel.shape), (2, 8))
+        x = np.random.rand(3, 10).astype("float32")
+        y = layer(x)
+        self.assertEqual(tuple(y.shape), (3, 8))

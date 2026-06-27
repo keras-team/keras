@@ -237,3 +237,82 @@ class TernaryDenseTest(testing.TestCase):
         layer.build((None, 6))
         with self.assertRaises(NotImplementedError):
             layer.quantize("int8")
+
+    def test_quantize_subclass_type_check_raises(self):
+        # type_check=True (default) must reject subclasses with a different
+        # kernel layout to prevent silent weight mismatches on save/load.
+        class MyTernaryDense(layers.TernaryDense):
+            pass
+
+        layer = MyTernaryDense(4)
+        layer.build((None, 6))
+        with self.assertRaises(NotImplementedError):
+            layer.quantize("ternary", type_check=True)
+
+    def test_quantize_subclass_type_check_false(self):
+        # type_check=False bypasses the class guard — useful for subclasses that
+        # haven't changed the kernel layout and explicitly opt in.
+        class MyTernaryDense(layers.TernaryDense):
+            pass
+
+        layer = MyTernaryDense(4)
+        layer.build((None, 6))
+        x = np.random.rand(2, 6).astype("float32")
+        y_float = layer(x)
+        layer.quantize("ternary", type_check=False)
+        self.assertEqual(layer.quantization_mode, "ternary")
+        self.assertAllClose(y_float, layer(x))
+
+    def test_quantized_build_invalid_mode_raises(self):
+        layer = layers.TernaryDense(4)
+        layer.build((None, 6))
+        with self.assertRaises(NotImplementedError):
+            layer.quantized_build((6, 4), mode="int8")
+
+    def test_variable_serialization_spec(self):
+        layer = layers.TernaryDense(8)
+        spec = layer.variable_serialization_spec
+        self.assertIn(None, spec)
+        self.assertIn("ternary", spec)
+        self.assertEqual(spec[None], ["kernel", "bias"])
+        self.assertIn("kernel_scale", spec["ternary"])
+
+    def test_save_load_no_bias(self):
+        # Covers the `if name == "bias" and self.bias is None: continue` branch
+        # in save_own_variables / load_own_variables.
+        layer = layers.TernaryDense(16, use_bias=False)
+        layer.build((None, 8))
+        x = np.random.rand(3, 8).astype("float32")
+        y_float = layer(x)
+        layer.quantize("ternary")
+        y_quantized = layer(x)
+        self.assertAllClose(y_float, y_quantized)
+
+        model = models.Sequential([layer])
+        temp_filepath = os.path.join(
+            self.get_temp_dir(), "ternary_nobias_model.keras"
+        )
+        model.save(temp_filepath)
+        new_model = saving.load_model(temp_filepath)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+        temp_weights = os.path.join(
+            self.get_temp_dir(), "ternary_nobias_model.weights.h5"
+        )
+        model.save_weights(temp_weights)
+        new_model = models.Sequential([layers.TernaryDense(16, use_bias=False)])
+        new_model.build((None, 8))
+        new_model.quantize("ternary")
+        new_model.load_weights(temp_weights)
+        self.assertAllClose(model.predict(x), new_model.predict(x))
+
+    def test_quantize_skips_dtype_policy_update_when_already_set(self):
+        # When dtype_policy.quantization_mode is already set after the first
+        # quantize(), a second call hits the "already quantized" guard before
+        # reaching the policy block — which verifies the policy guard is not None.
+        layer = layers.TernaryDense(8)
+        layer.build((None, 6))
+        layer.quantize("ternary")
+        self.assertIsNotNone(layer.dtype_policy.quantization_mode)
+        with self.assertRaisesRegex(ValueError, "already quantized"):
+            layer.quantize("ternary")
