@@ -13,10 +13,10 @@ from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.common.backend_utils import (
-    compute_conv_transpose_padding_args_for_mlx,
+    compute_conv_padding_args_for_mlx,
 )
 from keras.src.backend.common.backend_utils import (
-    compute_transpose_padding_args_for_mlx,
+    compute_conv_transpose_padding_args_for_mlx,
 )
 from keras.src.backend.config import epsilon
 from keras.src.backend.mlx.core import cast
@@ -408,8 +408,10 @@ def conv(
     data_format=None,
     dilation_rate=1,
 ):
-    inputs = convert_to_tensor(inputs)
     kernel = convert_to_tensor(kernel)
+    # Match jax: the input follows the kernel dtype so mixed dtypes do not
+    # silently promote in the convolution.
+    inputs = convert_to_tensor(inputs, dtype=kernel.dtype)
     data_format = standardize_data_format(data_format)
     num_spatial_dims = inputs.ndim - 2
 
@@ -427,7 +429,7 @@ def conv(
 
     kernel_spatial_shape = kernel.shape[1:-1]
     input_spatial_shape = inputs.shape[1:-1]
-    mlx_padding = compute_transpose_padding_args_for_mlx(
+    mlx_padding = compute_conv_padding_args_for_mlx(
         padding,
         input_spatial_shape,
         kernel_spatial_shape,
@@ -506,7 +508,7 @@ def depthwise_conv(
 
     kernel_spatial_shape = kernel.shape[1:-1]
     input_spatial_shape = inputs.shape[1:-1]
-    mlx_padding = compute_transpose_padding_args_for_mlx(
+    mlx_padding = compute_conv_padding_args_for_mlx(
         padding,
         input_spatial_shape,
         kernel_spatial_shape,
@@ -689,9 +691,12 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     target = convert_to_tensor(target, dtype=mx.int32)
     output = convert_to_tensor(output)
 
-    if axis != -1:
+    # jax and tensorflow only support reducing over the last axis, so match
+    # them rather than silently accepting other axes.
+    if axis != -1 and axis != output.ndim - 1:
         raise ValueError(
-            "Only axis=-1 is supported in sparse_categorical_crossentropy"
+            "Only axis=-1 is supported in sparse_categorical_crossentropy. "
+            f"Received: axis={axis}"
         )
 
     if target.ndim == output.ndim and target.shape[-1] == 1:
@@ -745,12 +750,11 @@ def moments(x, axes, keepdims=False, synchronized=False):
         )
 
     x = convert_to_tensor(x)
-    # The dynamic range of float16 is too limited for statistics. As a
-    # workaround, we simply perform the operations on float32 and convert back
-    # to float16
+    # The dynamic range of float16 and bfloat16 is too limited for statistics,
+    # so compute on float32 and cast back, matching the jax backend.
     need_cast = False
     ori_dtype = x.dtype
-    if ori_dtype == mx.float16:
+    if ori_dtype in (mx.float16, mx.bfloat16):
         need_cast = True
         x = x.astype(mx.float32)
 
@@ -762,11 +766,13 @@ def moments(x, axes, keepdims=False, synchronized=False):
         variance = variance.squeeze(axes)
 
     if need_cast:
-        # clip values to avoid overflow/underflow when casting back to float16
-        mean = mx.clip(mean, mx.finfo(mx.float16).min, mx.finfo(mx.float16).max)
-        variance = mx.clip(
-            variance, mx.finfo(mx.float16).min, mx.finfo(mx.float16).max
-        )
+        # float16 has a narrow range, so clip before casting back. bfloat16
+        # shares float32's range, so it needs no clipping.
+        if ori_dtype == mx.float16:
+            fmin = mx.finfo(mx.float16).min
+            fmax = mx.finfo(mx.float16).max
+            mean = mx.clip(mean, fmin, fmax)
+            variance = mx.clip(variance, fmin, fmax)
         mean = mean.astype(ori_dtype)
         variance = variance.astype(ori_dtype)
 
