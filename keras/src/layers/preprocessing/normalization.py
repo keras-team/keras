@@ -126,7 +126,6 @@ class Normalization(DataLayer):
         self.supports_masking = True
         self._build_input_shape = None
         self.mean = None
-        self._mlx_inputs_captured = False
 
         # Set `mean` and `variance` if passed.
         if (mean is not None) != (variance is not None):
@@ -409,17 +408,14 @@ class Normalization(DataLayer):
         self.variance = ops.cast(self.variance, self.compute_dtype)
 
     def _mlx_capture_inputs(self):
-        # Due to mlx's lazy evaluation, when compiled, the mean and
-        # variance need to be evaluated or the values will not be
-        # captured and an error thrown.
-        if self._mlx_inputs_captured:
-            return
-
+        # Due to mlx's lazy evaluation, when compiled, the mean and variance
+        # need to be evaluated or the values will not be captured and an error
+        # is thrown. Eval on every call so a re-adapt picks up the new mean and
+        # variance rather than a stale cached pair.
         from keras.src.utils.module_utils import mlx
 
         mlx.core.eval(self.mean)
         mlx.core.eval(self.variance)
-        self._mlx_inputs_captured = True
 
     def call(self, inputs):
         # This layer can be called in tf.data

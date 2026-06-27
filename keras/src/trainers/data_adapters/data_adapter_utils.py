@@ -287,7 +287,11 @@ def get_numpy_iterator(iterable):
                     x = x.cpu()
                 x = np.asarray(x)
             if is_mlx_array(x):
-                x = np.array(x)
+                # mlx arrays lack `__array__`, and raw `np.array` cannot read
+                # bfloat16 buffers, so use the backend converter.
+                from keras.src.backend.mlx.core import convert_to_numpy
+
+                x = convert_to_numpy(x)
         return x
 
     for batch in iterable:

@@ -187,6 +187,8 @@ def rnn(
                 return new_states, output_t
 
             scan_xs = inputs
+        # Run scan inside a stateless scope so a variable update by
+        # step_function during the loop does not leak into the model state.
         if stateless_scope.in_stateless_scope():
             # Reuse the existing parent stateless scope.
             scope = contextlib.nullcontext()

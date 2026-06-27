@@ -398,12 +398,6 @@ class MLXTrainer(base_trainer.Trainer):
         else:
             predict_step = self.predict_step
 
-        # def predict_step(state, data):
-        #     return self.predict_step(state, data)
-
-        # if not self.run_eagerly and self.jit_compile:
-        #     predict_step = mx.compile(predict_step)
-
         step_function = self._make_function(
             predict_step, concatenate_outputs=True
         )
@@ -492,103 +486,111 @@ class MLXTrainer(base_trainer.Trainer):
         training_logs = {}
         callbacks.on_train_begin()
         initial_epoch = self._initial_epoch or initial_epoch
-        for epoch in range(initial_epoch, epochs):
-            self.reset_metrics()
-            callbacks.on_epoch_begin(epoch)
+        training_finished = False
+        try:
+            for epoch in range(initial_epoch, epochs):
+                self.reset_metrics()
+                callbacks.on_epoch_begin(epoch)
 
-            self._mlx_state_synced = True
-            with epoch_iterator.catch_stop_iteration():
-                for begin_step, end_step, iterator in epoch_iterator:
-                    # Callbacks
-                    callbacks.on_train_batch_begin(begin_step)
-                    # Train step
-                    if self._mlx_state_synced:
-                        # The state may have been synced by a callback.
-                        state = self._get_mlx_state(
-                            trainable_variables=True,
-                            non_trainable_variables=True,
-                            optimizer_variables=True,
-                            metrics_variables=True,
-                            purge_model_variables=True,
+                self._mlx_state_synced = True
+                with epoch_iterator.catch_stop_iteration():
+                    for begin_step, end_step, iterator in epoch_iterator:
+                        # Callbacks
+                        callbacks.on_train_batch_begin(begin_step)
+                        # Train step
+                        if self._mlx_state_synced:
+                            # The state may have been synced by a callback.
+                            state = self._get_mlx_state(
+                                trainable_variables=True,
+                                non_trainable_variables=True,
+                                optimizer_variables=True,
+                                metrics_variables=True,
+                                purge_model_variables=True,
+                            )
+                            self._mlx_state_synced = False
+
+                        logs, state = self.train_function(state, iterator)
+                        mx.eval(logs, state)
+                        (
+                            trainable_variables,
+                            non_trainable_variables,
+                            optimizer_variables,
+                            metrics_variables,
+                        ) = state
+
+                        # Setting _mlx_state lets callbacks force a state sync
+                        # if they need to.
+                        self._mlx_state = {
+                            "trainable_variables": trainable_variables,
+                            "non_trainable_variables": non_trainable_variables,
+                            "optimizer_variables": optimizer_variables,
+                            "metrics_variables": metrics_variables,
+                        }
+
+                        # Callbacks
+                        callbacks.on_train_batch_end(
+                            end_step, pythonify_logs(logs)
                         )
-                        self._mlx_state_synced = False
+                        if self.stop_training:
+                            break
 
-                    logs, state = self.train_function(state, iterator)
-                    mx.eval(logs, state)
-                    (
-                        trainable_variables,
-                        non_trainable_variables,
-                        optimizer_variables,
-                        metrics_variables,
-                    ) = state
+                # Reattach state to model variables.
+                self.mlx_state_sync()
 
-                    # Setting _mlx_state enables callbacks to force a state sync
-                    # if they need to.
-                    self._mlx_state = {
-                        "trainable_variables": trainable_variables,
-                        "non_trainable_variables": non_trainable_variables,
-                        "optimizer_variables": optimizer_variables,
-                        "metrics_variables": metrics_variables,
-                    }
+                # Override with model metrics instead of last step logs
+                epoch_logs = pythonify_logs(
+                    self._get_metrics_result_or_logs(logs)
+                )
 
-                    # Callbacks
-                    callbacks.on_train_batch_end(end_step, pythonify_logs(logs))
-                    if self.stop_training:
-                        break
-
-            # Reattach state to model variables.
-            self.mlx_state_sync()
-
-            # Override with model metrics instead of last step logs
-            epoch_logs = pythonify_logs(self._get_metrics_result_or_logs(logs))
-
-            # Run validation.
-            if validation_data is not None and self._should_eval(
-                epoch, validation_freq
-            ):
-                # Create EpochIterator for evaluation and cache it.
-                if getattr(self, "_eval_epoch_iterator", None) is None:
-                    self._eval_epoch_iterator = MLXEpochIterator(
+                # Run validation.
+                if validation_data is not None and self._should_eval(
+                    epoch, validation_freq
+                ):
+                    # Create EpochIterator for evaluation and cache it.
+                    if getattr(self, "_eval_epoch_iterator", None) is None:
+                        self._eval_epoch_iterator = MLXEpochIterator(
+                            x=val_x,
+                            y=val_y,
+                            sample_weight=val_sample_weight,
+                            batch_size=validation_batch_size or batch_size,
+                            steps_per_execution=self.steps_per_execution,
+                            steps_per_epoch=validation_steps,
+                            shuffle=False,
+                        )
+                    val_logs = self.evaluate(
                         x=val_x,
                         y=val_y,
                         sample_weight=val_sample_weight,
                         batch_size=validation_batch_size or batch_size,
-                        steps_per_execution=self.steps_per_execution,
-                        steps_per_epoch=validation_steps,
-                        shuffle=False,
+                        steps=validation_steps,
+                        callbacks=callbacks,
+                        return_dict=True,
+                        _use_cached_eval_dataset=True,
                     )
-                val_logs = self.evaluate(
-                    x=val_x,
-                    y=val_y,
-                    sample_weight=val_sample_weight,
-                    batch_size=validation_batch_size or batch_size,
-                    steps=validation_steps,
-                    callbacks=callbacks,
-                    return_dict=True,
-                    _use_cached_eval_dataset=True,
-                )
-                val_logs = {
-                    "val_" + name: val for name, val in val_logs.items()
-                }
-                epoch_logs.update(val_logs)
+                    val_logs = {
+                        "val_" + name: val for name, val in val_logs.items()
+                    }
+                    epoch_logs.update(val_logs)
 
-            callbacks.on_epoch_end(epoch, epoch_logs)
-            training_logs = epoch_logs
-            if self.stop_training:
-                break
+                callbacks.on_epoch_end(epoch, epoch_logs)
+                training_logs = epoch_logs
+                if self.stop_training:
+                    break
 
-        if (
-            isinstance(self.optimizer, optimizers_module.Optimizer)
-            and epochs > 0
-        ):
-            self.optimizer.finalize_variable_values(self.trainable_weights)
-
-        # If _eval_epoch_iterator exists, delete it after all epochs are done.
-        if getattr(self, "_eval_epoch_iterator", None) is not None:
-            del self._eval_epoch_iterator
-
-        callbacks.on_train_end(logs=training_logs)
-        self._mlx_state = None
+            training_finished = True
+        finally:
+            # Reattach state and finalize even if an epoch raises.
+            self.mlx_state_sync()
+            if (
+                isinstance(self.optimizer, optimizers_module.Optimizer)
+                and epochs > 0
+            ):
+                self.optimizer.finalize_variable_values(self.trainable_weights)
+            if getattr(self, "_eval_epoch_iterator", None) is not None:
+                del self._eval_epoch_iterator
+            if training_finished:
+                callbacks.on_train_end(logs=training_logs)
+            self._mlx_state = None
         return self.history
 
     @traceback_utils.filter_traceback
