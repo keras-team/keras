@@ -159,7 +159,10 @@ class LossScaleOptimizer(optimizer.Optimizer):
     def _mlx_stateless_apply(
         self, optimizer_variables, grads, trainable_variables
     ):
-        # This performs a stateless_apply without ops.cond using ops.where.
+        # This performs a stateless_apply without ops.cond using ops.where,
+        # because ops.cond is not compilable on the mlx backend. It mirrors the
+        # finite and non-finite branches of _stateless_handle_finite_grads and
+        # _stateless_handle_non_finite_grads, so keep the three in sync.
         finite = self.check_finite(grads)
 
         mapping = list(zip(self.variables, optimizer_variables))

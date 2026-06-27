@@ -38,6 +38,15 @@ class DataAdapter:
         """
         raise NotImplementedError
 
+    def get_mlx_iterator(self):
+        """Get a Python iterable for the `DataAdapter`, that yields arrays that
+        can be fed to MLX. NumPy arrays are preferred for performance.
+
+        Returns:
+            A Python iterator.
+        """
+        raise NotImplementedError
+
     def get_torch_dataloader(self):
         """Get a Torch `DataLoader` for the `DataAdapter`.
 
