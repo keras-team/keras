@@ -130,7 +130,11 @@ class Dense(Layer):
                 config=self.quantization_config,
             )
         if self.quantization_mode not in (
-            "int8", "int4", "gptq", "awq", "ternary"
+            "int8",
+            "int4",
+            "gptq",
+            "awq",
+            "ternary",
         ):
             # Quantized modes manage their own weight storage in
             # quantized_build.
@@ -1110,8 +1114,9 @@ class Dense(Layer):
             abs_k = ops.convert_to_numpy(ops.abs(self._kernel))
             t = float(ops.convert_to_numpy(ops.mean(abs_k))) * 0.5
             import numpy as _np
-            kernel_ternary = (
-                _np.sign(kernel_np) * (abs_k > t).astype(kernel_np.dtype)
+
+            kernel_ternary = _np.sign(kernel_np) * (abs_k > t).astype(
+                kernel_np.dtype
             )
             beta = float(_np.mean(abs_k))
             packed_kernel, _, _ = quantizers.pack_ternary(
