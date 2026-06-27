@@ -40,6 +40,9 @@ MLX_DTYPES = {
     "bfloat16": mx.bfloat16,
     "bool": mx.bool_,
     "complex64": mx.complex64,
+    # mlx has no complex128, downcast like float64 to keep complex requests
+    # from raising.
+    "complex128": mx.complex64,
 }
 
 
@@ -282,6 +285,8 @@ def scatter_update(inputs, indices, updates, reduction=None):
         inputs = inputs.astype(mx.uint32)
     indices = tuple(indices[..., i] for i in range(indices.shape[-1]))
     if reduction is None:
+        # Copy so we do not mutate the caller's array or a Variable buffer.
+        inputs = mx.array(inputs)
         inputs[indices] = updates
     elif reduction == "add":
         inputs = inputs.at[indices].add(updates)
@@ -309,6 +314,11 @@ def slice(inputs, start_indices, shape):
         start_indices = [
             i if isinstance(i, int) else i.item() for i in start_indices
         ]
+    # A length of -1 means all remaining elements in that dimension.
+    shape = [
+        inputs.shape[i] - start_indices[i] if length == -1 else length
+        for i, length in enumerate(shape)
+    ]
     slices = tuple(
         builtins.slice(start_index, start_index + length)
         for start_index, length in zip(start_indices, shape)
@@ -330,6 +340,8 @@ def slice_update(inputs, start_indices, updates):
         builtins.slice(start_index, start_index + update_length)
         for start_index, update_length in zip(start_indices, updates.shape)
     )
+    # Copy so we do not mutate the caller's array or a Variable buffer.
+    inputs = mx.array(inputs)
     inputs[slices] = updates
     return inputs
 
@@ -461,6 +473,13 @@ def scan(f, init, xs=None, length=None, reverse=False, unroll=1):
         packed_xs = pack_input(xs_slice) if len(xs_slice) > 0 else None
         carry, y = f(carry, packed_xs)
         ys.append(y if y is not None else dummy_y)
+    if not ys:
+        # A zero-length scan returns the carry and empty leading-dim stacks.
+        stacked_y = tree.map_structure(
+            lambda y: mx.zeros((0,) + y.shape, dtype=y.dtype),
+            pack_output(dummy_y),
+        )
+        return carry, stacked_y
     stacked_y = tree.map_structure(
         lambda *ys: mx.stack(ys), *maybe_reversed(ys)
     )
