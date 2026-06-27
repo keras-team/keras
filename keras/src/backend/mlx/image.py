@@ -531,34 +531,34 @@ def resize(
         if img_box_hstart > 0:
             padded_img = mx.concatenate(
                 [
-                    mx.ones(
+                    mx.full(
                         (batch_size, img_box_hstart, width, channels),
+                        fill_value,
                         dtype=images.dtype,
-                    )
-                    * fill_value,
+                    ),
                     images,
-                    mx.ones(
+                    mx.full(
                         (batch_size, img_box_hstart, width, channels),
+                        fill_value,
                         dtype=images.dtype,
-                    )
-                    * fill_value,
+                    ),
                 ],
                 axis=1,
             )
         elif img_box_wstart > 0:
             padded_img = mx.concatenate(
                 [
-                    mx.ones(
+                    mx.full(
                         (batch_size, height, img_box_wstart, channels),
+                        fill_value,
                         dtype=images.dtype,
-                    )
-                    * fill_value,
+                    ),
                     images,
-                    mx.ones(
+                    mx.full(
                         (batch_size, height, img_box_wstart, channels),
+                        fill_value,
                         dtype=images.dtype,
-                    )
-                    * fill_value,
+                    ),
                 ],
                 axis=2,
             )
