@@ -267,6 +267,7 @@ class LoadWeightsTests(test_case.TestCase):
         )
     )
     def test_load_weights(self, save_format, source_dtype, dest_dtype):
+        """Test loading keras weights."""
         if backend.backend() == "mlx" and "float64" in (
             source_dtype,
             dest_dtype,
@@ -274,7 +275,6 @@ class LoadWeightsTests(test_case.TestCase):
             self.skipTest(
                 "mlx backend does not yet support float64 in random and uniform"
             )
-        """Test loading keras weights."""
         src_model = self.get_model(dtype=source_dtype)
         if save_format == "keras":
             filepath = os.path.join(self.get_temp_dir(), "test_weights.keras")
