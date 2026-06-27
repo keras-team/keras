@@ -95,15 +95,45 @@ def mean(x, axis=None, keepdims=False):
     return cast(output, result_dtype)
 
 
+def _reduced_shape(shape, axis, keepdims):
+    # The output shape of a reduction over `axis`, honoring keepdims.
+    if axis is None:
+        return (1,) * len(shape) if keepdims else ()
+    axes = (axis,) if isinstance(axis, int) else tuple(axis)
+    axes = tuple(a % len(shape) for a in axes)
+    out = []
+    for i, s in enumerate(shape):
+        if i in axes:
+            if keepdims:
+                out.append(1)
+        else:
+            out.append(s)
+    return tuple(out)
+
+
+def _reduces_empty_axis(shape, axis):
+    # True when the reduction covers an axis of size 0. Use builtins.any since
+    # this module defines its own `any`.
+    if axis is None:
+        return 0 in shape
+    axes = (axis,) if isinstance(axis, int) else tuple(axis)
+    return builtins.any(shape[a % len(shape)] == 0 for a in axes)
+
+
 def max(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
     if 0 in x.shape:
-        if initial is None:
+        # mlx cannot reduce a zero size array, so build the result directly.
+        # An initial value is only required when a reduced axis is empty and
+        # the output is non-empty, matching numpy.
+        out_shape = _reduced_shape(x.shape, axis, keepdims)
+        needs_initial = (
+            _reduces_empty_axis(x.shape, axis) and 0 not in out_shape
+        )
+        if needs_initial and initial is None:
             raise ValueError("Cannot compute the max of an empty tensor.")
-        elif keepdims:
-            return mx.full((1,) * len(x.shape), initial)
-        else:
-            return mx.array(initial)
+        fill = initial if needs_initial else 0
+        return mx.full(out_shape, fill, dtype=x.dtype)
 
     result = mx.max(x, axis=axis, keepdims=keepdims)
     if initial is not None:
@@ -404,7 +434,8 @@ def ceil(x):
 
 def clip(x, x_min, x_max):
     x, x_min, x_max = convert_to_tensors(x, x_min, x_max)
-    return mx.maximum(x_min, mx.minimum(x, x_max))
+    # Match numpy and jax: when x_min > x_max the upper bound wins.
+    return mx.minimum(mx.maximum(x, x_min), x_max)
 
 
 def concatenate(xs, axis=0):
@@ -817,12 +848,17 @@ def meshgrid(*x, indexing="xy"):
 def min(x, axis=None, keepdims=False, initial=None):
     x = convert_to_tensor(x)
     if 0 in x.shape:
-        if initial is None:
+        # mlx cannot reduce a zero size array, so build the result directly.
+        # An initial value is only required when a reduced axis is empty and
+        # the output is non-empty, matching numpy.
+        out_shape = _reduced_shape(x.shape, axis, keepdims)
+        needs_initial = (
+            _reduces_empty_axis(x.shape, axis) and 0 not in out_shape
+        )
+        if needs_initial and initial is None:
             raise ValueError("Cannot compute the min of an empty tensor.")
-        elif keepdims:
-            return mx.full((1,) * len(x.shape), initial)
-        else:
-            return mx.array(initial)
+        fill = initial if needs_initial else 0
+        return mx.full(out_shape, fill, dtype=x.dtype)
 
     result = mx.min(x, axis=axis, keepdims=keepdims)
     if initial is not None:
@@ -1138,7 +1174,7 @@ def trace(x, offset=0, axis1=0, axis2=1):
 
 def tri(N, M=None, k=0, dtype=None):
     dtype = to_mlx_dtype(dtype or config.floatx())
-    M = M or N
+    M = N if M is None else M
     x = mx.ones((N, M), dtype=dtype)
 
     return tril(x, k=k)
@@ -1312,7 +1348,13 @@ def floor_divide(x1, x2):
     )
     x1 = convert_to_tensor(x1, dtype=dtype)
     x2 = convert_to_tensor(x2, dtype=dtype)
-    return mx.floor(x1 // x2)
+    if "int" in standardize_dtype(dtype):
+        # mlx `//` truncates toward zero for integers, so correct the quotient
+        # down by one when the remainder forces a floor toward -inf.
+        q = x1 // x2
+        r = x1 - q * x2
+        return mx.where((r != 0) & ((r < 0) != (x2 < 0)), q - 1, q)
+    return mx.floor(x1 / x2)
 
 
 def logical_xor(x1, x2):
@@ -1385,6 +1427,9 @@ def select(condlist, choicelist, default=0):
 def slogdet(x):
     # TODO: Swap to mlx.linalg.slogdet when supported (or with determinant)
     x = convert_to_tensor(x)
+    # numpy cannot consume bfloat16 buffers, so compute in float32.
+    if x.dtype == mx.bfloat16:
+        x = x.astype(mx.float32)
     x = np.array(x)
     output = np.linalg.slogdet(x)
     return (mx.array(output[0]), mx.array(output[1]))
@@ -1482,9 +1527,12 @@ def searchsorted_binary(a, b, side="left"):
 
     size = a.shape[0]
     steps = math.ceil(math.log2(size))
-    indices = mx.full(b_flat.shape, vals=size // 2, dtype=mx.uint32)
+    indices = mx.full(b_flat.shape, vals=size // 2, dtype=mx.int32)
 
-    comparison = lambda x, y: x <= y if side == "left" else lambda x, y: x < y
+    if side == "left":
+        comparison = lambda x, y: x <= y
+    else:
+        comparison = lambda x, y: x < y
 
     upper = size
     lower = 0
