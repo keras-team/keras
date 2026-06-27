@@ -3258,7 +3258,13 @@ def nancumsum(x, axis=None, dtype=None):
 
 
 def nancumprod(x, axis=None, dtype=None):
-    return cumprod(nan_to_num(x, nan=1.0), axis=axis, dtype=dtype)
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if not (x_type.is_integral() or x_type == Type.boolean):
+        nan_mask = ov_opset.is_nan(x).output(0)
+        one = ov_opset.constant(1.0, x_type).output(0)
+        x = ov_opset.select(nan_mask, one, x).output(0)
+    return cumprod(x, axis=axis, dtype=dtype)
 
 
 def nanmax(x, axis=None, keepdims=False):

@@ -1406,7 +1406,7 @@ def nancumsum(x, axis=None, dtype=None):
 
 
 def nancumprod(x, axis=None, dtype=None):
-    x = nan_to_num(x, nan=1.0)
+    x = nan_to_num(x, nan=1.0, posinf=float("inf"), neginf=float("-inf"))
     return cumprod(x, axis=axis, dtype=dtype)
 
 
