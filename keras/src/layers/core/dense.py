@@ -129,7 +129,9 @@ class Dense(Layer):
                 mode=self.quantization_mode,
                 config=self.quantization_config,
             )
-        if self.quantization_mode not in ("int8", "int4", "gptq", "awq", "ternary"):
+        if self.quantization_mode not in (
+            "int8", "int4", "gptq", "awq", "ternary"
+        ):
             # Quantized modes manage their own weight storage in quantized_build.
             self._kernel = self.add_weight(
                 name="kernel",

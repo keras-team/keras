@@ -32,7 +32,8 @@ class TernaryDense(Layer):
 
     For post-training quantization of a regular `Dense` layer (no STE), use
     `keras.layers.Dense` with `layer.quantize("ternary")` instead. That path
-    packs the trained float kernel to `~1.58 bits/weight` for checkpoint storage.
+    packs the trained float kernel to `~1.58 bits/weight` for checkpoint
+    storage.
 
     Call `layer.quantize("ternary")` on a `TernaryDense` after training to
     freeze the ternarized kernel into a packed representation. The packed

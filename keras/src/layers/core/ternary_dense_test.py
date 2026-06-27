@@ -309,7 +309,7 @@ class TernaryDenseTest(testing.TestCase):
     def test_quantize_skips_dtype_policy_update_when_already_set(self):
         # When dtype_policy.quantization_mode is already set after the first
         # quantize(), a second call hits the "already quantized" guard before
-        # reaching the policy block — which verifies the policy guard is not None.
+        # reaching the policy block — verifies the policy guard is not None.
         layer = layers.TernaryDense(8)
         layer.build((None, 6))
         layer.quantize("ternary")
