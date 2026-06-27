@@ -3248,7 +3248,13 @@ def nanargmin(x, axis=None, keepdims=False):
 
 
 def nancumsum(x, axis=None, dtype=None):
-    return cumsum(nan_to_num(x, nan=0.0), axis=axis, dtype=dtype)
+    x = get_ov_output(x)
+    x_type = x.get_element_type()
+    if not (x_type.is_integral() or x_type == Type.boolean):
+        nan_mask = ov_opset.is_nan(x).output(0)
+        zero = ov_opset.constant(0.0, x_type).output(0)
+        x = ov_opset.select(nan_mask, zero, x).output(0)
+    return cumsum(x, axis=axis, dtype=dtype)
 
 
 def nancumprod(x, axis=None, dtype=None):
