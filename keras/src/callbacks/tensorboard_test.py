@@ -615,6 +615,11 @@ class TestTensorBoardV2(testing.TestCase):
         backend.backend() == "torch",
         reason="Torch backend requires blocking numpy conversion.",
     )
+    @pytest.mark.skipif(
+        backend.backend() == "mlx",
+        reason="mlx arrays have no settable numpy attribute, so the blocking "
+        "trap cannot be installed.",
+    )
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_non_blocking(self):
         logdir, _, _ = self._get_log_dirs()
@@ -632,9 +637,7 @@ class TestTensorBoardV2(testing.TestCase):
                 "NumPy conversion."
             )
 
-        if backend.backend() != "mlx":
-            # mlx arrays do not have a __dict__ attribute
-            tensor.numpy = mock_numpy
+        tensor.numpy = mock_numpy
 
         logs = {"metric": tensor}
 
