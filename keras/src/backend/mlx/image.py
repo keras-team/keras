@@ -168,8 +168,18 @@ def _is_integer(a):
     )
 
 
+def _round_half_away_from_zero(x):
+    # Match jax lax.round: round halves away from zero. mx.round rounds halves
+    # to even, which picks the wrong sample at .5 coordinates.
+    return mx.sign(x) * mx.floor(mx.abs(x) + 0.5)
+
+
 def _nearest_indices_and_weights(coordinate):
-    coordinate = coordinate if _is_integer(coordinate) else mx.round(coordinate)
+    coordinate = (
+        coordinate
+        if _is_integer(coordinate)
+        else _round_half_away_from_zero(coordinate)
+    )
     index = coordinate.astype(mx.int32)
     return [(index, 1)]
 
@@ -259,7 +269,11 @@ def map_coordinates(
         outputs.append(functools.reduce(operator.mul, weights) * contribution)
     result = functools.reduce(operator.add, outputs)
     if _is_integer(input_arr):
-        result = result if _is_integer(result) else mx.round(result)
+        result = (
+            result
+            if _is_integer(result)
+            else _round_half_away_from_zero(result)
+        )
     return result.astype(input_arr.dtype)
 
 
@@ -1004,10 +1018,11 @@ def gaussian_blur(
     kernel_size = tuple(int(k) for k in kernel_size)
     kernel = _create_gaussian_kernel(kernel_size, sigma, dtype, num_channels)
 
-    # get padding for 'same' behavior
-    pad_h = max(0, (kernel_size[0] - 1) // 2)
-    pad_w = max(0, (kernel_size[1] - 1) // 2)
-    padding = ((pad_h, pad_h), (pad_w, pad_w))
+    # 'same' padding, split asymmetrically so even kernels keep the input size
+    # like jax padding='SAME'. mlx conv padding is (low_per_dim, high_per_dim).
+    low = ((kernel_size[0] - 1) // 2, (kernel_size[1] - 1) // 2)
+    high = (kernel_size[0] // 2, kernel_size[1] // 2)
+    padding = (low, high)
 
     blurred_images = mx.conv_general(
         images,
@@ -1078,11 +1093,8 @@ def elastic_transform(
         batch_size, channels, height, width = images.shape
         channel_axis = 1
 
-    mlx_seed = mlx_draw_seed(seed)
-    if mlx_seed is not None:
-        seed_dx, seed_dy = mx.random.split(mlx_seed)
-    else:
-        seed_dx, seed_dy = mlx_draw_seed(None), mlx_draw_seed(None)
+    # jax uses the same seed for both dx and dy, so mirror that for parity.
+    seed_dx = seed_dy = mlx_draw_seed(seed)
 
     dx = mx.random.normal(
         shape=(batch_size, height, width),
