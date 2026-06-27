@@ -80,7 +80,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
     seed = mlx_draw_seed(seed)
     keep_prob = 1.0 - rate
     # The `noise_shape` may contain `None` so we need to convert it
-    # into a concrete shape before passing it on to jax.
+    # into a concrete shape before passing it on to mlx.
     noise_shape = _get_concrete_noise_shape(inputs, noise_shape)
     mask = mx.random.bernoulli(p=keep_prob, shape=noise_shape, key=seed)
     mask = mx.broadcast_to(mask, inputs.shape)
@@ -101,8 +101,12 @@ def gamma(shape, alpha, dtype=None, seed=None):
     if isinstance(shape, int):
         shape = (shape,)
 
-    dtype = to_mlx_dtype(dtype)
+    dtype = to_mlx_dtype(dtype or floatx())
 
+    if mx.array(alpha).size > 1:
+        raise NotImplementedError(
+            "The mlx backend only supports a scalar `alpha` for `gamma`."
+        )
     if alpha <= 0:
         raise ValueError(
             "Invalid for argument `alpha`. Alpha must "
@@ -160,7 +164,7 @@ def gamma(shape, alpha, dtype=None, seed=None):
 
 def beta(shape, alpha, beta, dtype=None, seed=None):
     # beta distribution using Gamma(alpha) / (Gamma(alpha) + Gamma(beta))
-    dtype = to_mlx_dtype(dtype)
+    dtype = to_mlx_dtype(dtype or floatx())
 
     if isinstance(shape, int):
         shape = (shape,)
@@ -178,13 +182,6 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
             "Invalid value for argument `beta`. All beta "
             f"values must be > 0, received beta={beta}"
         )
-    if alpha_arr.shape != beta_arr.shape:
-        raise ValueError(
-            "Invalid shapes received for `beta` and `alpha`. "
-            "Alpha and beta must both be scalar values or "
-            f"the same shape, received alpha shape: {alpha_arr.shape}, "
-            f"beta shape: {beta_arr.shape}"
-        )
 
     key = mlx_draw_seed(seed)
     if alpha_arr.size == 1 and beta_arr.size == 1:
@@ -195,40 +192,25 @@ def beta(shape, alpha, beta, dtype=None, seed=None):
         y = gamma(shape, beta_scalar, dtype=dtype, seed=key_y)
         return (x / (x + y)).astype(dtype)
     else:
-        # how can we check shape and alpha/beta shapes are broadcastable?
-        # are scalar values okay when output shape dimension > 1?
-        if len(shape) != alpha_arr.ndim:
-            raise ValueError(
-                "Output shape and `alpha` and `beta` shapes cannot be "
-                f"broadcast. Received shape={shape}, alpha shape="
-                f"{alpha_arr.shape}, beta shape={beta_arr.shape}"
-            )
-
-        def _sample_gamma(shape, a, b, key):
-            carry_key, key_x = mx.random.split(key)
-            x = gamma(shape, a, dtype=dtype, seed=key_x)
-
-            carry_key, key_y = mx.random.split(carry_key)
-            y = gamma(shape, b, dtype=dtype, seed=key_y)
-
-            return x / (x + y), carry_key
-
-        sample_shape = tuple(
-            s for s, a in zip(shape, alpha_arr.shape) if s != a
-        )
+        # Broadcast alpha and beta to the output shape, then draw each element
+        # independently. mlx has no array-parameter gamma. This mirrors how
+        # binomial broadcasts its parameters.
+        zeros_for_bcast = mx.zeros(shape, dtype=mx.float32)
+        alpha_flat = (alpha_arr + zeros_for_bcast).reshape(-1)
+        beta_flat = (beta_arr + zeros_for_bcast).reshape(-1)
         carry_key = key
         results = []
-        for a, b in zip(alpha_arr.flatten(), beta_arr.flatten()):
-            result, carry_key = _sample_gamma(sample_shape, a, b, carry_key)
-            results.append(result)
-
-        result = mx.stack(results, axis=-1)
-        return result.reshape(shape).astype(dtype)
+        for i in range(alpha_flat.size):
+            carry_key, key_x, key_y = mx.random.split(carry_key, 3)
+            x = gamma((1,), alpha_flat[i].item(), dtype=dtype, seed=key_x)
+            y = gamma((1,), beta_flat[i].item(), dtype=dtype, seed=key_y)
+            results.append((x / (x + y))[0])
+        return mx.stack(results).reshape(shape).astype(dtype)
 
 
 def binomial(shape, counts, probabilities, dtype=None, seed=None):
     # Binomial(n, p) distribution by summing n Bernoulli(p) samples
-    dtype = to_mlx_dtype(dtype)
+    dtype = to_mlx_dtype(dtype or floatx())
     key = mlx_draw_seed(seed)
 
     if isinstance(shape, int):
@@ -268,7 +250,7 @@ def binomial(shape, counts, probabilities, dtype=None, seed=None):
     # draw a single Binomial(n_i, p_i) sample by summing n_i Bernoulli draws
     carry_key = key
     for i in range(flat_size):
-        n_i = counts_flat[i].astype(mx.int64).item()
+        n_i = counts_flat[i].astype(mx.int32).item()
         p_i = probs_flat[i].item()
 
         if n_i == 0:
