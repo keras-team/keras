@@ -23,13 +23,21 @@ def _det_3x3(a):
 
 
 def det(a):
+    a = convert_to_tensor(a)
+    # Promote integer and bool inputs to float, matching jax and so the 2x2
+    # and 3x3 fast paths do not return an integer determinant.
+    std = standardize_dtype(a.dtype)
+    if "int" in std or std == "bool":
+        a = a.astype(mx.float32)
     a_shape = a.shape
     if len(a_shape) >= 2 and a_shape[-1] == 2 and a_shape[-2] == 2:
         return _det_2x2(a)
     elif len(a_shape) >= 2 and a_shape[-1] == 3 and a_shape[-2] == 3:
         return _det_3x3(a)
-    # elif len(a_shape) >= 2 and a_shape[-1] == a_shape[-2]:
-    # TODO: Swap to mlx.linalg.det when supported
+    # TODO: Swap to mlx.linalg.det when supported.
+    # numpy cannot consume bfloat16 buffers, so compute in float32.
+    if a.dtype == mx.bfloat16:
+        a = a.astype(mx.float32)
     a = np.array(a)
     output = np.linalg.det(a)
     return mx.array(output)
@@ -96,7 +104,15 @@ def svd(x, full_matrices=True, compute_uv=True):
 
 def cholesky(a, upper=False):
     with mx.stream(mx.cpu):
-        return mx.linalg.cholesky(a, upper=upper)
+        out = mx.linalg.cholesky(a, upper=upper)
+    # Match numpy and jax: surface a non positive definite input as an error
+    # in eager mode. mlx returns nan for some such inputs.
+    if mx.any(mx.isnan(out)):
+        raise ValueError(
+            "Cholesky decomposition failed. The input might not be a valid "
+            "positive definite matrix."
+        )
+    return out
 
 
 def norm(x, ord=None, axis=None, keepdims=False):
@@ -105,6 +121,9 @@ def norm(x, ord=None, axis=None, keepdims=False):
         dtype = dtypes.result_type(x.dtype, "float32")
     x = convert_to_tensor(x, dtype=dtype)
     # TODO: swap to mlx.linalg.norm when it support singular value norms
+    # numpy cannot consume bfloat16 buffers, so compute in float32.
+    if x.dtype == mx.bfloat16:
+        x = x.astype(mx.float32)
     x = np.array(x)
     output = np.linalg.norm(x, ord=ord, axis=axis, keepdims=keepdims)
     return mx.array(output)
@@ -135,14 +154,10 @@ def lstsq(a, b, rcond=None):
     dtype = a.dtype
 
     eps = np.finfo(np.array(a).dtype).eps
-    if a.shape == ():
-        s = mx.zeros((0,), dtype=dtype)
-        x = mx.zeros((n, *b.shape[1:]), dtype=dtype)
+    if rcond is None:
+        rcond = eps * max(m, n)
     else:
-        if rcond is None:
-            rcond = eps * max(m, n)
-        else:
-            rcond = mx.where(rcond < 0, eps, rcond)
+        rcond = mx.where(rcond < 0, eps, rcond)
     u, s, vt = svd(a, full_matrices=False)
 
     mask = s >= mx.array(rcond, dtype=s.dtype) * s[0]

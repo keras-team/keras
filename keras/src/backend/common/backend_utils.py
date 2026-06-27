@@ -296,7 +296,7 @@ def compute_conv_transpose_padding_args_for_mlx(
     return (start_paddings, end_paddings)
 
 
-def compute_transpose_padding_args_for_mlx(
+def compute_conv_padding_args_for_mlx(
     padding,
     input_spatial_shape,
     kernel_spatial_shape,
