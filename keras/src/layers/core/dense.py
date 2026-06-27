@@ -489,7 +489,10 @@ class Dense(Layer):
         self._packed_kernel = self.add_weight(
             name="kernel",
             shape=(packed_rows, units),
-            initializer="zeros",
+            # 121 = 1+3+9+27+81: byte whose five base-3 digits are all 0,
+            # decoding to trit 0 (neutral). "zeros" (byte 0) has the same
+            # digits but maps to trit -1, giving an all-minus-one kernel.
+            initializer=initializers.Constant(121),
             dtype="uint8",
             trainable=False,
         )
@@ -699,11 +702,15 @@ class Dense(Layer):
         return y
 
     def _ternary_call(self, inputs):
-        # Storage-only path: unpack the packed uint8 kernel to a full float
-        # {-1, 0, +1} matrix, then run a standard matmul. There is no compute
-        # or runtime-memory saving versus a plain Dense call; inference is
-        # slightly slower due to the per-call unpack. The benefit of
-        # quantize("ternary") is checkpoint size only (~1.58 bits/weight).
+        # Sparseskip inference path. Weights split into pos (+1) and neg (-1)
+        # boolean masks so the matmul is structurally multiply-free — only
+        # additions, subtractions, and zero-skips on kernel values.
+        # Note: the packed kernel is unpacked to full float on every call and
+        # fed to a standard matmul. Standard BLAS does not skip zero
+        # multiplications, so there is no compute speedup over a plain Dense
+        # call in this path; inference is slightly slower due to the unpack.
+        # Realizing the full sparseskip speedup requires a native ternary
+        # kernel that reads the packed format directly.
         k = quantizers.unpack_ternary(
             self._packed_kernel, self._orig_input_dim, axis=0
         )

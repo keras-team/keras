@@ -40,14 +40,20 @@ class TernaryDense(Layer):
     `log2(3) ~= 1.58` bits/value: five trits per byte
     (`3 ** 5 == 243 <= 256`), denser than int4 or int8.
 
-    **Storage optimization only.** `quantize("ternary")` reduces checkpoint
-    size (~5× vs float32, ~2.5× vs int4). At inference the packed kernel is
-    unpacked to a full-precision matrix on every forward pass and fed to a
-    standard matmul, so there is no compute or runtime-memory saving versus
-    a plain `Dense` layer (inference is slightly slower due to the per-call
-    unpack). Realizing BitNet-style multiply-free speedups requires a native
-    ternary matmul kernel that reads the packed format directly; that is out
-    of scope for this layer.
+    **Checkpoint size.** `quantize("ternary")` stores weights at ~1.58
+    bits/value (~5× smaller than float32, ~2.5× smaller than int4).
+
+    **Inference note.** The current inference path (`_ternary_call`) unpacks
+    the packed kernel to a full `{-1, 0, +1}` matrix on every forward pass
+    and feeds it to a standard matmul. Standard BLAS does not skip zero
+    multiplications, so there is no compute speedup in this path and
+    inference is slightly slower than a plain `Dense` call (due to the
+    per-call unpack). The *design* of the inference path is sparseskip —
+    weights are split into two boolean masks (+1 and -1) so the matmul is
+    structurally multiply-free (only additions, subtractions, and zero-skips
+    on kernel values). Realizing that speedup end-to-end requires a native
+    ternary kernel that reads the packed format directly rather than going
+    through a generic float matmul.
 
     Args:
         units: Positive integer, dimensionality of the output space.
@@ -216,7 +222,11 @@ class TernaryDense(Layer):
         self._packed_kernel = self.add_weight(
             name="kernel",
             shape=(packed_rows, units),
-            initializer="zeros",
+            # 121 = 1+3+9+27+81 is the byte whose five base-3 trits all decode
+            # to digit 0, i.e. trit 0. "zeros" would give byte 0, whose digits
+            # are all 0 as well, but digit 0 maps to trit 0-1 = -1, so a
+            # zero-initialized kernel would decode to all -1, not all 0.
+            initializer=initializers.Constant(121),
             dtype="uint8",
             trainable=False,
         )

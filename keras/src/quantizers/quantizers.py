@@ -919,7 +919,8 @@ def pack_ternary(arr, axis=0):
 
     Args:
         arr: A tensor whose values are in `{-1, 0, +1}` (any numeric dtype;
-            values are rounded to the nearest integer before packing).
+            values are rounded to the nearest integer and clipped to
+            `[-1, 1]` before packing).
         axis: The axis along which to pack the tensor. Defaults to 0.
 
     Returns:
@@ -962,7 +963,9 @@ def pack_ternary(arr, axis=0):
         )
 
     # Map {-1, 0, +1} -> digits {0, 1, 2} and combine groups of 5 in base 3.
-    digits = np.round(arr_np).astype(np.int32) + 1
+    # Clip before shifting: rounding alone can produce 2 (e.g. round(1.6)=2),
+    # which overflows a base-3 digit and corrupts the adjacent trit on unpack.
+    digits = np.clip(np.round(arr_np).astype(np.int32), -1, 1) + 1
     groups = digits.reshape((-1, 5) + digits.shape[1:])
     place = np.array([1, 3, 9, 27, 81], dtype=np.int32).reshape(
         (1, 5) + (1,) * (digits.ndim - 1)
@@ -1007,12 +1010,32 @@ def unpack_ternary(packed, orig_len, axis=0):
     True
     ```
     """
+    from keras.src import backend as _backend
+
+    packed_dtype = _backend.standardize_dtype(packed.dtype)
+    if packed_dtype not in ("uint8", "int8"):
+        raise TypeError(
+            "`unpack_ternary` expects a `uint8` or `int8` tensor produced by "
+            f"`pack_ternary`. Received dtype: {packed_dtype}"
+        )
+
     rank = getattr(packed.shape, "rank", None) or len(packed.shape)
     if axis < 0:
         axis += rank
 
-    # Move the pack axis to the front, recover the five base-3 digits, then
-    # interleave them back along that axis.
+    # Fast path: axis=0 on a rank-2 tensor — no transposes needed.
+    if axis == 0 and rank == 2:
+        codes = ops.cast(packed, "int32")
+        digits = []
+        for place in (1, 3, 9, 27, 81):
+            digit = ops.mod(ops.floor_divide(codes, place), 3)
+            digits.append(ops.subtract(digit, 1))
+        stacked = ops.stack(digits, axis=1)
+        unpacked = ops.reshape(stacked, (-1, ops.shape(packed)[1]))
+        unpacked = unpacked[:orig_len, ...]
+        return ops.cast(unpacked, "int8")
+
+    # General path: move the pack axis to the front, decode, restore layout.
     perm = [axis] + [i for i in range(rank) if i != axis]
     inv_perm = [perm.index(i) for i in range(rank)]
     transposed = ops.transpose(packed, perm)
