@@ -6,6 +6,7 @@ import numpy as np
 
 from keras.src import backend
 from keras.src.backend import standardize_dtype
+from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import check_conv_input_channels
 from keras.src.backend.common.backend_utils import (
     check_conv_transpose_input_channels,
@@ -1361,9 +1362,7 @@ def dot_product_attention(
             f"value.shape={value.shape}."
         )
 
-    from keras.src.backend.common import dtypes as _dtypes
-
-    compute_dtype = _dtypes.result_type(query.dtype, key.dtype, value.dtype)
+    compute_dtype = dtypes.result_type(query.dtype, key.dtype, value.dtype)
     query = _cast(query, compute_dtype)
     key = _cast(key, compute_dtype)
     value = _cast(value, compute_dtype)
