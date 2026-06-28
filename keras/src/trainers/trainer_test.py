@@ -39,6 +39,8 @@ elif backend.backend() == "numpy":
     from keras.src.backend.numpy.trainer import NumpyTrainer as Trainer
 elif backend.backend() == "openvino":
     from keras.src.backend.openvino.trainer import OpenVINOTrainer as Trainer
+elif backend.backend() == "mlx":
+    from keras.src.backend.mlx.trainer import MlxTrainer as Trainer
 else:
     raise ImportError(f"Invalid backend: {backend.backend()}")
 
@@ -166,6 +168,7 @@ class TestPyDataset(py_dataset_adapter.PyDataset):
             "tensorflow": "CPU:0",
             "jax": "cpu:0",
             "torch": "cpu",
+            "mlx": "cpu",
         }
         with backend.device(CPU_DEVICES[backend.backend()]):
             return ops.ones((5, 4)), ops.zeros((5, 3))
@@ -1006,8 +1009,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "mlx"),
+        reason="`steps_per_execution > 1` not implemented for this backend",
     )
     def test_steps_per_execution_steps_count(self, steps_per_execution, mode):
         data_size = 100
@@ -1235,8 +1238,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "mlx"),
+        reason="`steps_per_execution > 1` not implemented for this backend",
     )
     def test_steps_per_execution_steps_count_unknown_dataset_size(
         self, steps_per_execution, mode
@@ -1318,8 +1321,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "mlx"),
+        reason="`steps_per_execution > 1` not implemented for this backend",
     )
     def test_steps_per_execution_steps_per_epoch(
         self, steps_per_epoch_test, mode
@@ -1594,8 +1597,8 @@ class TestTrainer(testing.TestCase):
     )
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "mlx"),
+        reason="`steps_per_execution > 1` not implemented for this backend",
     )
     def test_steps_per_execution_steps_per_epoch_unknown_data_size(
         self, steps_per_epoch_test, mode
@@ -1713,8 +1716,8 @@ class TestTrainer(testing.TestCase):
             )
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "mlx"),
+        reason="`steps_per_execution > 1` not implemented for this backend",
     )
     def test_steps_per_execution_steps_count_without_training(self):
         test_obj = self
@@ -2812,8 +2815,8 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "mlx"),
+        reason="`steps_per_execution > 1` not implemented for this backend",
     )
     def test_retracing(self):
         x = np.ones((100, 4))
@@ -2848,8 +2851,8 @@ class TestTrainer(testing.TestCase):
 
     @pytest.mark.requires_trainable_backend
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="`steps_per_execution` not implemented for torch yet",
+        backend.backend() in ("torch", "mlx"),
+        reason="`steps_per_execution > 1` not implemented for this backend",
     )
     @pytest.mark.skipif(
         backend.backend() == "tensorflow",

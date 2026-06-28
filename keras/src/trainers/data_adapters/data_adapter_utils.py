@@ -355,6 +355,16 @@ def is_torch_tensor(value):
     return False
 
 
+def is_mlx_array(value):
+    if hasattr(value, "__class__"):
+        for parent in value.__class__.__mro__:
+            if parent.__name__ == "array" and str(parent.__module__).endswith(
+                "mlx.core"
+            ):
+                return True
+    return False
+
+
 class DistributedBatchSampler:
     """Sampler that shards a batch sampler.
 

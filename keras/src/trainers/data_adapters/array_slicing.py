@@ -342,6 +342,7 @@ def can_slice_array(x):
         or data_adapter_utils.is_tensorflow_tensor(x)
         or data_adapter_utils.is_jax_array(x)
         or data_adapter_utils.is_torch_tensor(x)
+        or data_adapter_utils.is_mlx_array(x)
         or data_adapter_utils.is_scipy_sparse(x)
         or hasattr(x, "__array__")
     )
@@ -403,6 +404,10 @@ def convert_to_sliceable(arrays, target_backend=None):
             sliceable_class = PandasSeriesSliceable
         elif data_adapter_utils.is_scipy_sparse(x):
             sliceable_class = ScipySparseSliceable
+        elif data_adapter_utils.is_mlx_array(x):
+            # MLX arrays have no `__array__`; materialize to numpy for slicing.
+            x = np.asarray(backend.convert_to_numpy(x))
+            sliceable_class = NumpySliceable
         elif hasattr(x, "__array__"):
             x = np.asarray(x)
             sliceable_class = NumpySliceable

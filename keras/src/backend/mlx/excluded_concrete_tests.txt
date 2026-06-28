@@ -1,0 +1,2 @@
+test_argmin_negative_zero
+test_argmax_negative_zero
