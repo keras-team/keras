@@ -3987,10 +3987,12 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.isclose(2, x), np.isclose(2, x))
 
         special_x = np.array(
-            [np.nan, np.inf, -np.inf, 0.0, np.inf], dtype="float32"
+            [np.nan, np.inf, -np.inf, 0.0, np.inf, np.inf, -np.inf],
+            dtype="float32",
         )
         special_y = np.array(
-            [np.nan, np.inf, -np.inf, np.inf, 0.0], dtype="float32"
+            [np.nan, np.inf, -np.inf, np.inf, 0.0, -np.inf, np.inf],
+            dtype="float32",
         )
         self.assertAllClose(
             knp.isclose(special_x, special_y),
