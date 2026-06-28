@@ -793,7 +793,11 @@ def _pool(
     nd = inputs.ndim
     pool_size = tuple(int(s) for s in pool_size)
     strides = tuple(int(s) for s in strides)
-    spatial_axes = [i for i in range(nd) if pool_size[i] != 1]
+    # Process any axis that has a non-unit window OR a non-unit stride. A
+    # stride>1 with window==1 is a pure strided subsample (e.g. ResNetV2's
+    # `MaxPooling2D(1, strides=stride)` shortcut); it must NOT be skipped, or
+    # the spatial size stays unchanged and downstream residual adds mismatch.
+    spatial_axes = [i for i in range(nd) if pool_size[i] != 1 or strides[i] != 1]
 
     if len(spatial_axes) == 0:
         # Nothing to reduce over.

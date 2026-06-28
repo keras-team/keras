@@ -1,4 +1,5 @@
 import mlx.core as mx
+import ml_dtypes
 import numpy as np
 
 from keras.src import backend
@@ -94,7 +95,8 @@ def rgb_to_hsv(images, data_format=None):
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={dtype}"
         )
-    eps = np.finfo(dtype).eps
+    # `ml_dtypes.finfo` (not `np.finfo`) so bfloat16 is accepted.
+    eps = ml_dtypes.finfo(dtype).eps
     images = mx.where(mx.abs(images) < eps, 0.0, images)
     red, green, blue = mx.split(
         images, [1, 2], axis=channels_axis
@@ -698,9 +700,12 @@ def compute_homography_matrix(start_points, end_points):
     target_vector = mx.expand_dims(target_vector, axis=-1)
     coefficient_matrix = coefficient_matrix.astype(_mlx_dtype(compute_dtype))
     target_vector = target_vector.astype(_mlx_dtype(compute_dtype))
-    homography_matrix = mx.linalg.solve(coefficient_matrix, target_vector)
-    homography_matrix = mx.reshape(homography_matrix, [-1, 8])
-    return homography_matrix.astype(_mlx_dtype(dtype))
+    # `mx.linalg.solve` is CPU-only; run it on a CPU stream (and keep the
+    # dependent reshape/cast inside the same context).
+    with mx.stream(mx.Device(mx.DeviceType.cpu, 0)):
+        homography_matrix = mx.linalg.solve(coefficient_matrix, target_vector)
+        homography_matrix = mx.reshape(homography_matrix, [-1, 8])
+        return homography_matrix.astype(_mlx_dtype(dtype))
 
 
 def map_coordinates(

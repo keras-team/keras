@@ -3,3 +3,13 @@ test_argmax_negative_zero
 float8
 test_standardize_dtype_float64
 test_standardize_dtype_complex128
+# MLX's compiled __matmul__ does not honor the __mlx_array__ coercion protocol
+# (unlike +, *, -), so `mlx_array @ KerasVariable` raises TypeError instead of
+# falling back to KerasVariable.__rmatmul__. This breaks shape inference for any
+# custom layer whose call() uses the `inputs @ self.kernel` pattern.
+test_comprehensive_model_state_restoration
+# MLX has no float8 dtype. These two tests exercise float8 quantization inline
+# (not dtype-parametrized), so they cannot run; int8 quantization has its own
+# dedicated test coverage.
+test_quantize_and_dequantize
+test_quantized_layer_with_remat

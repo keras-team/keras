@@ -463,7 +463,11 @@ class TestTensorBoardV2(testing.TestCase):
                 name, "scalar_summary", values=[data, step]
             ) as (tag, _):
                 tensor = backend.convert_to_tensor(data, dtype="float32")
-                if backend.backend() == "torch":
+                if backend.backend() == "mlx":
+                    # mlx arrays have no `__array__`, so tf.summary.write
+                    # cannot convert them; pass a numpy array instead.
+                    tensor = backend.convert_to_numpy(tensor)
+                elif backend.backend() == "torch":
                     # TODO: Use device scope after the API is added.
                     if tensor.is_cuda:
                         tensor = tensor.cpu()
@@ -608,8 +612,10 @@ class TestTensorBoardV2(testing.TestCase):
         return result
 
     @pytest.mark.skipif(
-        backend.backend() == "torch",
-        reason="Torch backend requires blocking numpy conversion.",
+        backend.backend() in ("torch", "mlx"),
+        reason="Torch/MLX tensors do not support the `.numpy` attribute "
+        "assignment this test relies on; the callback path uses "
+        "convert_to_numpy, not .numpy().",
     )
     @pytest.mark.requires_trainable_backend
     def test_TensorBoard_non_blocking(self):

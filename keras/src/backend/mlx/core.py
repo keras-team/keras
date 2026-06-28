@@ -166,8 +166,12 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
 def convert_to_numpy(x):
     if isinstance(x, Variable):
         x = x.value
-    else:
-        x = convert_to_tensor(x)
+    # If `x` is not already an MLX array (e.g. it is a numpy array, python
+    # scalar, or nested structure of such), convert it directly to numpy to
+    # avoid an MLX round-trip that would downcast float64 -> float32 (and
+    # otherwise needlessly materialize on device).
+    if not isinstance(x, mx.array):
+        return np.asarray(x)
     # bfloat16 can't round-trip to numpy without `ml_dtypes`.
     if str(x.dtype) == "mlx.core.bfloat16":
         x = x.astype(mx.float32)
