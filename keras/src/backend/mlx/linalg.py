@@ -1,12 +1,10 @@
+import mlx.core as mx
 import numpy as np
 import scipy.linalg as sl
-
-import mlx.core as mx
 
 from keras.src.backend import standardize_dtype
 from keras.src.backend.common import dtypes
 from keras.src.backend.mlx.core import _cast
-from keras.src.backend.mlx.core import _mlx_dtype
 from keras.src.backend.mlx.core import convert_to_numpy
 from keras.src.backend.mlx.core import convert_to_tensor
 
@@ -170,7 +168,11 @@ def svd(x, full_matrices=True, compute_uv=True):
     # MLX `svd` has no `full_matrices` argument and is GPU-unsupported; the
     # numpy reference is sign-dependent, so use numpy for an exact match.
     return _wrap_tuple(
-        np.linalg.svd(_to_np(x), full_matrices=full_matrices, compute_uv=compute_uv)
+        np.linalg.svd(
+            _to_np(x),
+            full_matrices=full_matrices,
+            compute_uv=compute_uv,
+        )
     )
 
 

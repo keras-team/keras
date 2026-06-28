@@ -1,4 +1,3 @@
-import builtins
 import math
 
 import mlx.core as mx
@@ -15,7 +14,6 @@ from keras.src.backend.common.backend_utils import (
     compute_adaptive_pooling_window_sizes,
 )
 from keras.src.backend.mlx.core import _cast
-from keras.src.backend.mlx.core import _mlx_dtype
 from keras.src.backend.mlx.core import convert_to_numpy
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.utils.module_utils import scipy
@@ -28,6 +26,7 @@ def cast(x, dtype):
 # ======================================================================
 # Group: activations
 # ======================================================================
+
 
 def relu(x):
     x = convert_to_tensor(x)
@@ -53,9 +52,7 @@ def sparse_sigmoid(x):
     return mx.where(
         x <= -1,
         mx.array(0.0, x.dtype),
-        mx.where(
-            x >= 1, mx.array(1.0, x.dtype), 0.5 * (x + 1)
-        ),
+        mx.where(x >= 1, mx.array(1.0, x.dtype), 0.5 * (x + 1)),
     )
 
 
@@ -96,9 +93,7 @@ def sparse_plus(x):
     return mx.where(
         x <= -1,
         mx.zeros_like(x),
-        mx.where(
-            x < 1, (0.25 * (x + 1) ** 2), x
-        ),
+        mx.where(x < 1, (0.25 * (x + 1) ** 2), x),
     )
 
 
@@ -170,12 +165,9 @@ def gelu(x, approximate=True):
         return x * cdf
     else:
         sqrt_2 = mx.sqrt(mx.array(2.0, x.dtype))
+        erf = mx.array(scipy.special.erf(convert_to_numpy(x / sqrt_2)))
         return (
-            x
-            * (mx.array(scipy.special.erf(convert_to_numpy(x / sqrt_2))).astype(x.dtype) + 1).astype(
-                x.dtype
-            )
-            / mx.array(2, x.dtype)
+            x * (erf.astype(x.dtype) + 1).astype(x.dtype) / mx.array(2, x.dtype)
         )
 
 
@@ -209,16 +201,12 @@ def hard_tanh(x):
 def hard_shrink(x, threshold=0.5):
     x = convert_to_tensor(x)
     threshold = mx.array(threshold, x.dtype)
-    return mx.where(
-        mx.abs(x) > threshold, x, mx.array(0.0, dtype=x.dtype)
-    )
+    return mx.where(mx.abs(x) > threshold, x, mx.array(0.0, dtype=x.dtype))
 
 
 def threshold(x, threshold, default_value):
     x = convert_to_tensor(x)
-    return mx.where(
-        x > threshold, x, mx.array(default_value, dtype=x.dtype)
-    )
+    return mx.where(x > threshold, x, mx.array(default_value, dtype=x.dtype))
 
 
 def softmax(x, axis=-1):
@@ -301,7 +289,6 @@ def multi_hot(x, num_classes, axis=-1, dtype=None, sparse=False):
     return outputs
 
 
-
 # ======================================================================
 # Group: conv
 # ======================================================================
@@ -353,7 +340,8 @@ def _compute_forward_padding(
     ``"same"`` / ``"valid"`` strings), so we port the jax padding math here.
 
     Returns a tuple ``(before, after)`` where each is a list of length
-    ``num_spatial_dims`` (suitable for ``mx.conv_general(padding=(before, after))``).
+    ``num_spatial_dims`` (suitable for
+    ``mx.conv_general(padding=(before, after))``).
     """
     num_spatial_dims = len(input_shape) - 2
     if data_format == "channels_last":
@@ -411,7 +399,8 @@ def _from_channels_last(x, data_format):
 
 
 def _transpose_conv_kernel_forward(kernel, num_spatial_dims):
-    """Keras conv kernel ``(spatial..., C_in, C_out)`` -> MLX ``(C_out, spatial..., C_in)``."""
+    """Keras conv kernel ``(spatial..., C_in, C_out)`` -> MLX
+    ``(C_out, spatial..., C_in)``."""
     if num_spatial_dims == 1:
         perm = (2, 0, 1)
     elif num_spatial_dims == 2:
@@ -453,7 +442,6 @@ def conv(
     dilation_rate=1,
 ):
     from keras.src import backend
-    from keras.src.backend.mlx.core import is_tensor
 
     data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
@@ -464,7 +452,10 @@ def conv(
     dilation_rate = _to_spatial_list(dilation_rate, num_spatial_dims)
 
     # Validate input channels against the kernel.
-    channels = inputs.shape[-1] if data_format == "channels_last" else inputs.shape[1]
+    if data_format == "channels_last":
+        channels = inputs.shape[-1]
+    else:
+        channels = inputs.shape[1]
     kernel_in_channels = kernel.shape[-2]
     if (
         isinstance(channels, int)
@@ -549,7 +540,6 @@ def depthwise_conv(
     dilation_rate=1,
 ):
     from keras.src import backend
-    from keras.src.backend.common.backend_utils import check_conv_input_channels
 
     data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
@@ -562,9 +552,10 @@ def depthwise_conv(
     )
     depth_multiplier = kernel.shape[-1]
 
-    # Keras depthwise kernel is (spatial..., C_in, depth_multiplier). Reshape to
-    # a regular conv kernel (spatial..., C_in_new=1, C_out=C_in*depth_multiplier)
-    # so that one convolution with groups=C_in reproduces depthwise behaviour.
+    # Keras depthwise kernel is (spatial..., C_in, depth_multiplier). Reshape
+    # to a regular conv kernel
+    # (spatial..., C_in_new=1, C_out=C_in*depth_multiplier) so that one
+    # convolution with groups=C_in reproduces depthwise behaviour.
     new_shape = kernel.shape[:-2] + (1, feature_group_count * depth_multiplier)
     kernel = mx.reshape(kernel, new_shape)
 
@@ -605,7 +596,6 @@ def separable_conv(
     dilation_rate=1,
 ):
     from keras.src import backend
-    from keras.src.backend.common.backend_utils import check_conv_input_channels
 
     data_format = backend.standardize_data_format(data_format)
     inputs = convert_to_tensor(inputs)
@@ -642,9 +632,6 @@ def conv_transpose(
 ):
     from keras.src import backend
     from keras.src.backend.common.backend_utils import (
-        check_conv_transpose_input_channels,
-    )
-    from keras.src.backend.common.backend_utils import (
         compute_conv_transpose_output_crops_for_torch,
     )
 
@@ -654,10 +641,10 @@ def conv_transpose(
     check_conv_transpose_input_channels(inputs, kernel, data_format)
     num_spatial_dims = inputs.ndim - 2
 
-    # MLX's conv_transpose{1,2,3}d only supports symmetric padding + a right-side
-    # output_padding, which cannot express the asymmetric padding Keras "same"
-    # semantics require. Mirror the torch backend's strategy: run with
-    # padding=0, output_padding=0 (the largest "natural" output) and then
+    # MLX's conv_transpose{1,2,3}d only supports symmetric padding + a
+    # right-side output_padding, which cannot express the asymmetric padding
+    # Keras "same" semantics require. Mirror the torch backend's strategy: run
+    # with padding=0, output_padding=0 (the largest "natural" output) and then
     # asymmetrically crop / zero-pad the spatial dims to the window JAX would
     # compute.
     crops = compute_conv_transpose_output_crops_for_torch(
@@ -736,10 +723,10 @@ def conv_transpose(
     return _from_channels_last(outputs, data_format)
 
 
-
 # ======================================================================
 # Group: pool
 # ======================================================================
+
 
 def _convert_to_spatial_operand(
     x,
@@ -798,7 +785,9 @@ def _pool(
     # stride>1 with window==1 is a pure strided subsample (e.g. ResNetV2's
     # `MaxPooling2D(1, strides=stride)` shortcut); it must NOT be skipped, or
     # the spatial size stays unchanged and downstream residual adds mismatch.
-    spatial_axes = [i for i in range(nd) if pool_size[i] != 1 or strides[i] != 1]
+    spatial_axes = [
+        i for i in range(nd) if pool_size[i] != 1 or strides[i] != 1
+    ]
 
     if len(spatial_axes) == 0:
         # Nothing to reduce over.
@@ -858,7 +847,6 @@ def _pool(
             reduced = mx.sum(gathered, axis=ax + 1)
         if len(axes) == 1:
             return reduced
-        remaining_axes = [a if a < ax else a - 0 for a in axes[1:]]
         # The remaining axes keep their positions relative to the new tensor,
         # but since we reduced a window axis (didn't remove the spatial axis
         # itself, just merged), axis numbering is unchanged.
@@ -985,9 +973,7 @@ def _strided_view_1d(x, window_size):
     shape = (n, out, window_size, c)
     new_strides = (strides[0], strides[1], strides[1], strides[2])
 
-    return np.lib.stride_tricks.as_strided(
-        x, shape=shape, strides=new_strides
-    )
+    return np.lib.stride_tricks.as_strided(x, shape=shape, strides=new_strides)
 
 
 def _adaptive_pool1d_impl(inputs, output_size, mode, data_format):
@@ -1014,9 +1000,7 @@ def _adaptive_pool1d_impl(inputs, output_size, mode, data_format):
 
     sv_big = _strided_view_1d(inputs, big)
     big_pool = (
-        np.mean(sv_big, axis=2)
-        if mode == "average"
-        else np.max(sv_big, axis=2)
+        np.mean(sv_big, axis=2) if mode == "average" else np.max(sv_big, axis=2)
     )
 
     combined = np.concatenate([small_pool, big_pool], axis=1)
@@ -1131,9 +1115,7 @@ def _adaptive_pool3d_impl(inputs, output_size, mode, data_format):
     small_h, big_h = compute_adaptive_pooling_window_sizes(h, out_h)
     gather_h = _compute_adaptive_pooling_gather_indices(h, out_h, big_h)
 
-    x_h = np.transpose(pooled_d, (0, 1, 3, 2, 4)).reshape(
-        n * out_d * w, h, c
-    )
+    x_h = np.transpose(pooled_d, (0, 1, 3, 2, 4)).reshape(n * out_d * w, h, c)
 
     sv_small_h = _strided_view_1d(x_h, small_h)
     small_pool_h = (
@@ -1211,10 +1193,10 @@ def adaptive_max_pool(inputs, output_size, data_format=None):
     raise ValueError("adaptive_max_pool supports only 1D/2D/3D")
 
 
-
 # ======================================================================
 # Group: attn_norm
 # ======================================================================
+
 
 def moments(x, axes, keepdims=False, synchronized=False):
     if synchronized:
@@ -1299,7 +1281,8 @@ def _build_additive_attention_mask(mask, is_causal, query_len, key_len, dtype):
 
     Returns None when nothing needs masking.
     """
-    # Use a large-negative python float for masked positions (mlx broadcasts it).
+    # Use a large-negative python float for masked positions (mlx broadcasts
+    # it).
     # This is added to the attention logits before softmax, so masked positions
     # get ~zero weight (exp(-1e9) ~= 0, same as -inf to machine precision).
     neg_inf = -1e9
@@ -1405,10 +1388,10 @@ def dot_product_attention(
     return _cast(out, compute_dtype)
 
 
-
 # ======================================================================
 # Group: losses
 # ======================================================================
+
 
 def _log_softmax(x, axis=-1):
     x = convert_to_tensor(x)
@@ -1564,10 +1547,10 @@ def psnr(x1, x2, max_val):
     return 20.0 * _log10(max_val) - 10.0 * _log10(mse)
 
 
-
 # ======================================================================
 # Group: ctc
 # ======================================================================
+
 
 def ctc_loss(target, output, target_length, output_length, mask_index=0):
     # Ref: https://github.com/google-deepmind/optax
@@ -1577,7 +1560,8 @@ def ctc_loss(target, output, target_length, output_length, mask_index=0):
     # utilities (logaddexp, einsum, boolean masks, padded scans). It is almost
     # never on the autograd path, so we materialize the inputs to numpy and run
     # the exact reference computation, then return the result as an mlx tensor.
-    # This keeps behaviour and numerical stability identical to the numpy backend.
+    # This keeps behaviour and numerical stability identical to the numpy
+    # backend.
     target = convert_to_tensor(target, dtype="int32")
     output = convert_to_tensor(output)
     target_length = convert_to_tensor(target_length, "int32")
@@ -1946,7 +1930,8 @@ def ctc_decode(
     mask_index=0,
 ):
     inputs = convert_to_tensor(inputs)
-    dtype = backend.result_type(str(np.asarray(convert_to_numpy(inputs)).dtype), "float32")
+    np_dtype = str(np.asarray(convert_to_numpy(inputs)).dtype)
+    dtype = backend.result_type(np_dtype, "float32")
     inputs = _cast(inputs, dtype)
 
     if strategy == "greedy":
@@ -1971,10 +1956,10 @@ def ctc_decode(
         )
 
 
-
 # ======================================================================
 # Group: misc
 # ======================================================================
+
 
 def unfold(input, kernel_size, dilation=1, padding=0, stride=1):
     """MLX implementation of Unfold.
@@ -2099,7 +2084,6 @@ def fold(x, output_size, kernel_size, dilation=1, padding=0, stride=1):
     return output
 
 
-
 def depth_to_space(x, block_size, data_format="channels_last"):
     """MLX implementation of depth_to_space (pixel shuffle).
 
@@ -2178,6 +2162,3 @@ def space_to_depth(x, block_size, data_format="channels_last"):
         # Reshape: -> (N, C*bH*bW, new_H, new_W)
         x = mx.reshape(x, (n, c * block_size**2, new_h, new_w))
     return x
-
-
-

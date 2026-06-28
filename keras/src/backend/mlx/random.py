@@ -40,8 +40,9 @@ def uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 def categorical(logits, num_samples, dtype="int64", seed=None):
     # `logits` shape: (batch_size, num_classes); sample `num_samples` per row.
-    # `mx.random.categorical` requires an MLX array and natively supports drawing
-    # `num_samples` per row in one call (output shape (batch, num_samples)).
+    # `mx.random.categorical` requires an MLX array and natively supports
+    # drawing `num_samples` per row in one call
+    # (output shape (batch, num_samples)).
     logits = convert_to_tensor(logits)
     out = mx.random.categorical(logits, num_samples=num_samples, key=_key(seed))
     return out.astype(_mlx_dtype(dtype))
@@ -94,7 +95,7 @@ def dropout(inputs, rate, noise_shape=None, seed=None):
         ]
 
     mask = mx.random.bernoulli(
-        mx.array(keep_prob), shape=tuple(noise_shape)
+        mx.array(keep_prob), shape=tuple(noise_shape), key=key
     )
     mask = mx.broadcast_to(mask, inputs.shape)
     return mx.where(

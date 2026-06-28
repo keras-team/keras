@@ -4,7 +4,6 @@ import math
 import mlx.core as mx
 import numpy as np
 
-from keras.src import backend
 from keras.src import tree
 from keras.src.backend import config
 from keras.src.backend import standardize_dtype
@@ -12,7 +11,6 @@ from keras.src.backend.common import dtypes
 from keras.src.backend.common.backend_utils import canonicalize_axis
 from keras.src.backend.common.backend_utils import standardize_axis_for_numpy
 from keras.src.backend.mlx.core import _mlx_dtype
-from keras.src.backend.mlx.core import _mlx_dtype_to_str
 from keras.src.backend.mlx.core import convert_to_numpy
 from keras.src.backend.mlx.core import convert_to_tensor
 from keras.src.backend.mlx.core import is_tensor
@@ -147,9 +145,7 @@ def matmul(x1, x2):
     # Cast to the wider result dtype first so numpy accumulates without
     # overflow (e.g. int8 @ int8 must accumulate in int32, not int8).
     if dtype in dtypes.INT_TYPES or dtype == "bool":
-        out = np.matmul(
-            _to_np(x1).astype(dtype), _to_np(x2).astype(dtype)
-        )
+        out = np.matmul(_to_np(x1).astype(dtype), _to_np(x2).astype(dtype))
         return _cast(convert_to_tensor(out), dtype)
     x1 = _cast(x1, dtype)
     x2 = _cast(x2, dtype)
@@ -175,9 +171,7 @@ def einsum(subscripts, *operands, **kwargs):
     # mx.einsum does not support bfloat16.
     if compute_dtype == "bfloat16":
         compute_dtype = "float32"
-    operands = tree.map_structure(
-        lambda x: _cast(x, compute_dtype), operands
-    )
+    operands = tree.map_structure(lambda x: _cast(x, compute_dtype), operands)
     return _cast(mx.einsum(subscripts, *operands, **kwargs), result_dtype)
 
 
@@ -472,7 +466,15 @@ def nanargmax(x, axis=None, keepdims=False):
     return mx.where(
         mx.all(nan_mask, axis=axis, keepdims=keepdims),
         _cast(mx.full((), -1), mx.int32),
-        argmax(mx.where(nan_mask, _cast(mx.full(x.shape, -np.inf), standardize_dtype(x.dtype)), x), axis=axis, keepdims=keepdims),
+        argmax(
+            mx.where(
+                nan_mask,
+                _cast(mx.full(x.shape, -np.inf), standardize_dtype(x.dtype)),
+                x,
+            ),
+            axis=axis,
+            keepdims=keepdims,
+        ),
     )
 
 
@@ -484,7 +486,15 @@ def nanargmin(x, axis=None, keepdims=False):
     return mx.where(
         mx.all(nan_mask, axis=axis, keepdims=keepdims),
         _cast(mx.full((), -1), mx.int32),
-        argmin(mx.where(nan_mask, _cast(mx.full(x.shape, np.inf), standardize_dtype(x.dtype)), x), axis=axis, keepdims=keepdims),
+        argmin(
+            mx.where(
+                nan_mask,
+                _cast(mx.full(x.shape, np.inf), standardize_dtype(x.dtype)),
+                x,
+            ),
+            axis=axis,
+            keepdims=keepdims,
+        ),
     )
 
 
@@ -770,7 +780,7 @@ def round(x, decimals=0):
         return mx.round(x)
     # `10 ** decimals` as a python float avoids integer power (which yields 0
     # for negative exponents and then NaNs the division).
-    factor = float(10 ** decimals)
+    factor = float(10**decimals)
     return mx.round(x * factor) / factor
 
 
@@ -842,9 +852,17 @@ def nan_to_num(x, nan=0.0, posinf=None, neginf=None):
     x = convert_to_tensor(x)
     dtype = standardize_dtype(x.dtype)
     if posinf is None:
-        posinf = np.finfo(np.float32).max if dtype != "float64" else np.finfo(np.float64).max
+        posinf = (
+            np.finfo(np.float32).max
+            if dtype != "float64"
+            else np.finfo(np.float64).max
+        )
     if neginf is None:
-        neginf = np.finfo(np.float32).min if dtype != "float64" else np.finfo(np.float64).min
+        neginf = (
+            np.finfo(np.float32).min
+            if dtype != "float64"
+            else np.finfo(np.float64).min
+        )
     out = mx.where(mx.isnan(x), _cast(mx.array(nan), dtype), x)
     out = mx.where(mx.isposinf(out), _cast(mx.array(posinf), dtype), out)
     out = mx.where(mx.isneginf(out), _cast(mx.array(neginf), dtype), out)
@@ -944,7 +962,9 @@ def logical_xor(x1, x2):
 def count_nonzero(x, axis=None):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    nonzero = mx.not_equal(x, _cast(mx.zeros_like(x), standardize_dtype(x.dtype)))
+    nonzero = mx.not_equal(
+        x, _cast(mx.zeros_like(x), standardize_dtype(x.dtype))
+    )
     return _cast(mx.sum(nonzero, axis=axis, keepdims=False), "int32")
 
 
@@ -971,7 +991,13 @@ def isposinf(x):
 def isreal(x):
     x = convert_to_tensor(x)
     if str(x.dtype) == "mlx.core.complex64":
-        return mx.equal(mx.imag(x), _cast(mx.zeros_like(mx.imag(x)), standardize_dtype(mx.imag(x).dtype)))
+        return mx.equal(
+            mx.imag(x),
+            _cast(
+                mx.zeros_like(mx.imag(x)),
+                standardize_dtype(mx.imag(x).dtype),
+            ),
+        )
     return mx.ones_like(x).astype(mx.bool_)
 
 
@@ -979,7 +1005,12 @@ def isin(x1, x2, assume_unique=False, invert=False):
     # numpy fallback (data-dependent membership is rarely on the hot path).
     x1 = convert_to_tensor(x1)
     x2 = convert_to_tensor(x2)
-    result = np.isin(_to_np(x1), _to_np(x2), assume_unique=assume_unique, invert=invert)
+    result = np.isin(
+        _to_np(x1),
+        _to_np(x2),
+        assume_unique=assume_unique,
+        invert=invert,
+    )
     return convert_to_tensor(result)
 
 
@@ -1006,14 +1037,19 @@ def where(condition, x1=None, x2=None):
     else:
         # Index form (data-dependent shape) -> numpy fallback.
         result = np.nonzero(_to_np(convert_to_tensor(condition)))
-        return tuple(convert_to_tensor(indices).astype(mx.int32) for indices in result)
+        return tuple(
+            convert_to_tensor(indices).astype(mx.int32) for indices in result
+        )
 
 
 def select(condlist, choicelist, default=0):
     # Chain of mx.where, right fold from default.
     condlist = [convert_to_tensor(c) for c in condlist]
     choicelist = [convert_to_tensor(c) for c in choicelist]
-    dtype = dtypes.result_type(*[c.dtype for c in choicelist], type(default) if not isinstance(default, (int, float)) else float)
+    dtype = dtypes.result_type(
+        *[c.dtype for c in choicelist],
+        type(default) if not isinstance(default, (int, float)) else float,
+    )
     out = _cast(mx.full((), default), dtype)
     out = mx.broadcast_to(out, condlist[0].shape) if condlist else out
     for cond, choice in zip(condlist, choicelist):
@@ -1023,7 +1059,9 @@ def select(condlist, choicelist, default=0):
 
 def nonzero(x):
     result = np.nonzero(_to_np(convert_to_tensor(x)))
-    return tuple(convert_to_tensor(indices).astype(mx.int32) for indices in result)
+    return tuple(
+        convert_to_tensor(indices).astype(mx.int32) for indices in result
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1133,7 +1171,9 @@ def concatenate(xs, axis=0):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tree.map_structure(lambda x: _cast(convert_to_tensor(x), dtype), xs)
+        xs = tree.map_structure(
+            lambda x: _cast(convert_to_tensor(x), dtype), xs
+        )
     else:
         xs = [convert_to_tensor(x) for x in xs]
     return mx.concatenate(xs, axis=axis)
@@ -1215,7 +1255,9 @@ def dstack(xs):
     dtype_set = set([getattr(x, "dtype", type(x)) for x in xs])
     if len(dtype_set) > 1:
         dtype = dtypes.result_type(*dtype_set)
-        xs = tree.map_structure(lambda x: _cast(convert_to_tensor(x), dtype), xs)
+        xs = tree.map_structure(
+            lambda x: _cast(convert_to_tensor(x), dtype), xs
+        )
     else:
         xs = [convert_to_tensor(x) for x in xs]
     xs = [mx.atleast_3d(x) for x in xs]
@@ -1367,7 +1409,15 @@ def _arange_scalar(x):
     return x
 
 
-def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):
+def linspace(
+    start,
+    stop,
+    num=50,
+    endpoint=True,
+    retstep=False,
+    dtype=None,
+    axis=0,
+):
     # `num` may arrive as an MLX/numpy tensor (e.g. convert_to_tensor(5)).
     if isinstance(num, mx.array):
         num = int(convert_to_numpy(num))
@@ -1379,8 +1429,16 @@ def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis
             getattr(stop, "dtype", type(stop)),
             float,
         )
-    start_np = start if isinstance(start, (int, float)) else _to_np(convert_to_tensor(start))
-    stop_np = stop if isinstance(stop, (int, float)) else _to_np(convert_to_tensor(stop))
+    start_np = (
+        start
+        if isinstance(start, (int, float))
+        else _to_np(convert_to_tensor(start))
+    )
+    stop_np = (
+        stop
+        if isinstance(stop, (int, float))
+        else _to_np(convert_to_tensor(stop))
+    )
     result = np.linspace(
         start_np, stop_np, num, endpoint=endpoint, retstep=retstep, axis=axis
     )
@@ -1471,7 +1529,9 @@ def diagflat(x, k=0):
 def diagonal(x, offset=0, axis1=0, axis2=1):
     axis1 = standardize_axis_for_numpy(axis1)
     axis2 = standardize_axis_for_numpy(axis2)
-    return mx.diagonal(convert_to_tensor(x), offset=offset, axis1=axis1, axis2=axis2)
+    return mx.diagonal(
+        convert_to_tensor(x), offset=offset, axis1=axis1, axis2=axis2
+    )
 
 
 def trace(x, offset=0, axis1=0, axis2=1):
@@ -1479,7 +1539,10 @@ def trace(x, offset=0, axis1=0, axis2=1):
     axis2 = standardize_axis_for_numpy(axis2)
     x = convert_to_tensor(x)
     dtype = _accum_dtype(standardize_dtype(x.dtype))
-    return _cast(mx.trace(_cast(x, dtype), offset=offset, axis1=axis1, axis2=axis2), dtype)
+    return _cast(
+        mx.trace(_cast(x, dtype), offset=offset, axis1=axis1, axis2=axis2),
+        dtype,
+    )
 
 
 def tri(N, M=None, k=0, dtype=None):
@@ -1644,12 +1707,19 @@ def take(x, indices, axis=None):
 
 def take_along_axis(x, indices, axis=None):
     axis = standardize_axis_for_numpy(axis)
-    return mx.take_along_axis(convert_to_tensor(x), convert_to_tensor(indices), axis=axis)
+    return mx.take_along_axis(
+        convert_to_tensor(x), convert_to_tensor(indices), axis=axis
+    )
 
 
 def put_along_axis(x, indices, values, axis):
     axis = standardize_axis_for_numpy(axis)
-    return mx.put_along_axis(convert_to_tensor(x), convert_to_tensor(indices), convert_to_tensor(values), axis)
+    return mx.put_along_axis(
+        convert_to_tensor(x),
+        convert_to_tensor(indices),
+        convert_to_tensor(values),
+        axis,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1680,8 +1750,14 @@ def argmax(x, axis=None, keepdims=False):
     dtype = dtypes.result_type(dtype, "float32")
     xc = _cast(x, dtype)
     # Flip negative zero to break ties the same way numpy does.
-    is_neg_zero = mx.equal(xc, _cast(mx.zeros_like(xc), dtype)) & mx.less(xc, _cast(mx.zeros_like(xc), dtype))
-    xc = mx.where(is_neg_zero, _cast(mx.full(xc.shape, -np.finfo(np.float32).tiny), dtype), xc)
+    is_neg_zero = mx.equal(xc, _cast(mx.zeros_like(xc), dtype)) & mx.less(
+        xc, _cast(mx.zeros_like(xc), dtype)
+    )
+    xc = mx.where(
+        is_neg_zero,
+        _cast(mx.full(xc.shape, -np.finfo(np.float32).tiny), dtype),
+        xc,
+    )
     return _cast(mx.argmax(xc, axis=axis, keepdims=keepdims), "int32")
 
 
@@ -1693,8 +1769,14 @@ def argmin(x, axis=None, keepdims=False):
         return _cast(mx.argmin(x, axis=axis, keepdims=keepdims), "int32")
     dtype = dtypes.result_type(dtype, "float32")
     xc = _cast(x, dtype)
-    is_neg_zero = mx.equal(xc, _cast(mx.zeros_like(xc), dtype)) & mx.less(xc, _cast(mx.zeros_like(xc), dtype))
-    xc = mx.where(is_neg_zero, _cast(mx.full(xc.shape, -np.finfo(np.float32).tiny), dtype), xc)
+    is_neg_zero = mx.equal(xc, _cast(mx.zeros_like(xc), dtype)) & mx.less(
+        xc, _cast(mx.zeros_like(xc), dtype)
+    )
+    xc = mx.where(
+        is_neg_zero,
+        _cast(mx.full(xc.shape, -np.finfo(np.float32).tiny), dtype),
+        xc,
+    )
     return _cast(mx.argmin(xc, axis=axis, keepdims=keepdims), "int32")
 
 
@@ -1762,7 +1844,7 @@ def _quantile_core(x, q, axis=None, method="linear", keepdims=False):
     perm = kept_axes + list(axes)
     x = mx.transpose(x, perm) if perm != list(range(orig_ndim)) else x
     kept_shape = list(x.shape[: len(kept_axes)])
-    red_shape = list(x.shape[len(kept_axes):])
+    red_shape = list(x.shape[len(kept_axes) :])
     n = builtins.max(1, math.prod(red_shape))
     m = builtins.max(1, math.prod(kept_shape))
     x = mx.reshape(x, (m, n))
@@ -1835,8 +1917,12 @@ def quantile(x, q, axis=None, method="linear", keepdims=False):
 
 def nanmedian(x, axis=None, keepdims=False):
     # numpy fallback (nan handling is intricate; rarely on the autograd path).
-    dtype = dtypes.result_type(standardize_dtype(convert_to_tensor(x).dtype), float)
-    res = np.nanmedian(_to_np(convert_to_tensor(x)), axis=axis, keepdims=keepdims)
+    dtype = dtypes.result_type(
+        standardize_dtype(convert_to_tensor(x).dtype), float
+    )
+    res = np.nanmedian(
+        _to_np(convert_to_tensor(x)), axis=axis, keepdims=keepdims
+    )
     return _cast(convert_to_tensor(res), dtype)
 
 
@@ -1846,7 +1932,13 @@ def nanpercentile(x, q, axis=None, method="linear", keepdims=False):
     if ori_dtype == "bool":
         x = _cast(x, config.floatx())
     dtype = dtypes.result_type(x.dtype, float)
-    res = np.nanpercentile(_to_np(x), _to_np(convert_to_tensor(q)), axis=axis, method=method, keepdims=keepdims)
+    res = np.nanpercentile(
+        _to_np(x),
+        _to_np(convert_to_tensor(q)),
+        axis=axis,
+        method=method,
+        keepdims=keepdims,
+    )
     return _cast(convert_to_tensor(res), dtype)
 
 
@@ -1856,7 +1948,13 @@ def nanquantile(x, q, axis=None, method="linear", keepdims=False):
     if ori_dtype == "bool":
         x = _cast(x, config.floatx())
     dtype = dtypes.result_type(x.dtype, float)
-    res = np.nanquantile(_to_np(x), _to_np(convert_to_tensor(q)), axis=axis, method=method, keepdims=keepdims)
+    res = np.nanquantile(
+        _to_np(x),
+        _to_np(convert_to_tensor(q)),
+        axis=axis,
+        method=method,
+        keepdims=keepdims,
+    )
     return _cast(convert_to_tensor(res), dtype)
 
 
@@ -1886,7 +1984,9 @@ def fmod(x1, x2):
     a = _cast(x1, dtype)
     b = _cast(x2, dtype)
     r = mx.remainder(a, b)
-    flip = mx.not_equal(r, mx.zeros_like(r)) & mx.not_equal(mx.sign(a), mx.sign(b))
+    flip = mx.not_equal(r, mx.zeros_like(r)) & mx.not_equal(
+        mx.sign(a), mx.sign(b)
+    )
     return _cast(mx.where(flip, r - b, r), dtype)
 
 
@@ -1978,7 +2078,18 @@ def heaviside(x1, x2):
         dtype = "float32"
     x1 = _cast(x1, dtype)
     x2 = _cast(x2, dtype)
-    return _cast(mx.where(mx.greater(x1, mx.zeros_like(x1)), mx.ones_like(x1), mx.where(mx.equal(x1, mx.zeros_like(x1)), x2, mx.zeros_like(x1))), dtype)
+    return _cast(
+        mx.where(
+            mx.greater(x1, mx.zeros_like(x1)),
+            mx.ones_like(x1),
+            mx.where(
+                mx.equal(x1, mx.zeros_like(x1)),
+                x2,
+                mx.zeros_like(x1),
+            ),
+        ),
+        dtype,
+    )
 
 
 def hypot(x1, x2):
@@ -1989,7 +2100,10 @@ def hypot(x1, x2):
         dtype = config.floatx()
     elif dtype in ["int64"]:
         dtype = "float32"
-    return _cast(mx.sqrt(mx.square(_cast(x1, dtype)) + mx.square(_cast(x2, dtype))), dtype)
+    return _cast(
+        mx.sqrt(mx.square(_cast(x1, dtype)) + mx.square(_cast(x2, dtype))),
+        dtype,
+    )
 
 
 def sinc(x):
@@ -1997,7 +2111,14 @@ def sinc(x):
     dtype = _angle_dtype(x)
     x = _cast(x, dtype)
     pi_x = mx.multiply(x, mx.array(np.pi))
-    return _cast(mx.where(mx.equal(x, mx.zeros_like(x)), mx.ones_like(x), mx.divide(mx.sin(pi_x), pi_x)), dtype)
+    return _cast(
+        mx.where(
+            mx.equal(x, mx.zeros_like(x)),
+            mx.ones_like(x),
+            mx.divide(mx.sin(pi_x), pi_x),
+        ),
+        dtype,
+    )
 
 
 def ldexp(x1, x2):
@@ -2006,9 +2127,13 @@ def ldexp(x1, x2):
     dtype = dtypes.result_type(x1.dtype, x2.dtype, float)
     if standardize_dtype(x2.dtype) not in dtypes.INT_TYPES:
         raise TypeError(
-            f"ldexp exponent must be an integer type. Received: x2 dtype={x2.dtype}"
+            "ldexp exponent must be an integer type. "
+            f"Received: x2 dtype={x2.dtype}"
         )
-    return _cast(mx.multiply(_cast(x1, dtype), mx.power(2, _cast(x2, dtype))), dtype)
+    return _cast(
+        mx.multiply(_cast(x1, dtype), mx.power(2, _cast(x2, dtype))),
+        dtype,
+    )
 
 
 def nextafter(x1, x2):
@@ -2043,7 +2168,10 @@ def lcm(x1, x2):
 def ptp(x, axis=None, keepdims=False):
     axis = standardize_axis_for_numpy(axis)
     x = convert_to_tensor(x)
-    return mx.subtract(mx.max(x, axis=axis, keepdims=keepdims), mx.min(x, axis=axis, keepdims=keepdims))
+    return mx.subtract(
+        mx.max(x, axis=axis, keepdims=keepdims),
+        mx.min(x, axis=axis, keepdims=keepdims),
+    )
 
 
 def diff(a, n=1, axis=-1):
@@ -2107,7 +2235,12 @@ def blackman(x):
     n = mx.arange(x, dtype=_mlx_dtype(config.floatx()))
     if x == 1:
         return mx.ones_like(n)
-    return _cast(0.42 - 0.5 * mx.cos(2 * np.pi * n / (x - 1)) + 0.08 * mx.cos(4 * np.pi * n / (x - 1)), config.floatx())
+    return _cast(
+        0.42
+        - 0.5 * mx.cos(2 * np.pi * n / (x - 1))
+        + 0.08 * mx.cos(4 * np.pi * n / (x - 1)),
+        config.floatx(),
+    )
 
 
 def kaiser(x, beta):
@@ -2129,7 +2262,9 @@ def i0(x):
 
 
 def digitize(x, bins):
-    result = np.digitize(_to_np(convert_to_tensor(x)), _to_np(convert_to_tensor(bins)))
+    result = np.digitize(
+        _to_np(convert_to_tensor(x)), _to_np(convert_to_tensor(bins))
+    )
     return convert_to_tensor(result).astype(mx.int32)
 
 
@@ -2144,7 +2279,9 @@ def bincount(x, weights=None, minlength=0, sparse=False):
         dtype = "int32"
     if len(x.shape) == 2:
         if weights is None:
-            bincounts = [np.bincount(arr, minlength=minlength) for arr in _to_np(x)]
+            bincounts = [
+                np.bincount(arr, minlength=minlength) for arr in _to_np(x)
+            ]
         else:
             wnp = _to_np(weights)
             bincounts = [
@@ -2152,11 +2289,22 @@ def bincount(x, weights=None, minlength=0, sparse=False):
                 for a, b in zip(_to_np(x), wnp)
             ]
         return _cast(convert_to_tensor(np.stack(bincounts)), dtype)
-    return _cast(convert_to_tensor(np.bincount(_to_np(x), _to_np(weights) if weights is not None else None, minlength)), dtype)
+    return _cast(
+        convert_to_tensor(
+            np.bincount(
+                _to_np(x),
+                _to_np(weights) if weights is not None else None,
+                minlength,
+            )
+        ),
+        dtype,
+    )
 
 
 def histogram(x, bins=10, range=None):
-    counts, edges = np.histogram(_to_np(convert_to_tensor(x)), bins=bins, range=range)
+    counts, edges = np.histogram(
+        _to_np(convert_to_tensor(x)), bins=bins, range=range
+    )
     return convert_to_tensor(counts), convert_to_tensor(edges)
 
 
@@ -2173,7 +2321,11 @@ def searchsorted(sorted_sequence, values, side="left"):
         if sorted_sequence.shape[0] <= np.iinfo(np.int32).max
         else "int64"
     )
-    result = np.searchsorted(_to_np(convert_to_tensor(sorted_sequence)), _to_np(convert_to_tensor(values)), side=side)
+    result = np.searchsorted(
+        _to_np(convert_to_tensor(sorted_sequence)),
+        _to_np(convert_to_tensor(values)),
+        side=side,
+    )
     return convert_to_tensor(result).astype(_mlx_dtype(out_type))
 
 
@@ -2294,7 +2446,9 @@ def unique(
             fill = 0 if fill_value is None else fill_value
             values = mx.pad(values, pad_width, constant_values=fill)
             if return_counts:
-                output[-1] = np.pad(output[-1], pad_width[dim], constant_values=0)
+                output[-1] = np.pad(
+                    output[-1], pad_width[dim], constant_values=0
+                )
             if return_index:
                 output[1] = np.pad(output[1], pad_width[dim], constant_values=1)
 
@@ -2320,7 +2474,9 @@ def pad(x, pad_width, mode="constant", constant_values=None):
         out = mx.pad(x, pad_width, mode=mode, **kwargs)
     else:
         # Modes mlx lacks (reflect, symmetric, wrap, ...) -> numpy fallback.
-        out = convert_to_tensor(np.pad(_to_np(x), pad_width, mode=mode, **kwargs))
+        out = convert_to_tensor(
+            np.pad(_to_np(x), pad_width, mode=mode, **kwargs)
+        )
     # mx.pad can upcast bfloat16; restore the input dtype.
     return _cast(out, dtype)
 

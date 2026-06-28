@@ -43,6 +43,7 @@ def _ensure_default_device():
     except Exception:
         pass
 
+
 # Keras dtype string -> mlx dtype.
 _DTYPE_BY_NAME = {
     "bool": mx.bool_,
@@ -88,7 +89,8 @@ def _mlx_dtype_to_str(dtype):
 
 
 def _cast(x, dtype):
-    """Cast an mlx tensor to a keras dtype string (or mlx/numpy dtype object)."""
+    """Cast an mlx tensor to a keras dtype string
+    (or mlx/numpy dtype object)."""
     return x.astype(_mlx_dtype(dtype))
 
 
@@ -151,6 +153,7 @@ def convert_to_tensor(x, dtype=None, sparse=None, ragged=None):
 
     # Lists / tuples / numpy arrays / nested structures.
     flat = tree.flatten(x)
+
     # Build a keras result dtype, mapping mlx/numpy dtypes to strings.
     def _kind(item):
         d = getattr(item, "dtype", type(item))
@@ -263,7 +266,10 @@ def compute_output_spec(fn, *args, **kwargs):
                     if e != shape[i]:
                         shape[i] = None
                 flat_out.append(
-                    KerasTensor(shape, standardize_dtype(_mlx_dtype_to_str(x1.dtype)))
+                    KerasTensor(
+                        shape,
+                        standardize_dtype(_mlx_dtype_to_str(x1.dtype)),
+                    )
                 )
             outputs = tree.pack_sequence_as(outputs_1, flat_out)
 
@@ -479,7 +485,8 @@ def scatter_update(inputs, indices, updates, reduction=None):
     idx = tuple(indices)
 
     if reduction is None:
-        # Overwrite: out[idx] = updates. Achieved by adding (updates - inputs[idx]).
+        # Overwrite: out[idx] = updates.
+        # Achieved by adding (updates - inputs[idx]).
         return inputs.at[idx].add(updates - inputs[idx])
     elif reduction == "add" or reduction == "sum":
         return inputs.at[idx].add(updates)

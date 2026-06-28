@@ -22,7 +22,9 @@ def _segment_reduction_fn(
     data = convert_to_tensor(data)
     segment_ids = convert_to_tensor(segment_ids).astype(mx.int32)
     if num_segments is None:
-        num_segments = int(np.amax(np.asarray(convert_to_numpy(segment_ids)))) + 1
+        num_segments = (
+            int(np.amax(np.asarray(convert_to_numpy(segment_ids)))) + 1
+        )
 
     # MLX has no boolean-mask indexing. Route rows whose `segment_id == -1`
     # (ignored per Keras semantics) into a scratch bucket past the end, then
@@ -47,21 +49,15 @@ def _segment_reduction_fn(
 
 
 def segment_sum(data, segment_ids, num_segments=None, sorted=False):
-    return _segment_reduction_fn(
-        data, segment_ids, "sum", num_segments, sorted
-    )
+    return _segment_reduction_fn(data, segment_ids, "sum", num_segments, sorted)
 
 
 def segment_max(data, segment_ids, num_segments=None, sorted=False):
-    return _segment_reduction_fn(
-        data, segment_ids, "max", num_segments, sorted
-    )
+    return _segment_reduction_fn(data, segment_ids, "max", num_segments, sorted)
 
 
 def segment_min(data, segment_ids, num_segments=None, sorted=False):
-    return _segment_reduction_fn(
-        data, segment_ids, "min", num_segments, sorted
-    )
+    return _segment_reduction_fn(data, segment_ids, "min", num_segments, sorted)
 
 
 def segment_prod(data, segment_ids, num_segments=None, sorted=False):
@@ -90,9 +86,7 @@ def in_top_k(targets, predictions, k):
     targets = convert_to_tensor(targets).astype(mx.int32)
     predictions = convert_to_tensor(predictions)
     topk_values = top_k(predictions, k)[0]
-    targets_values = mx.take_along_axis(
-        predictions, targets[:, None], axis=-1
-    )
+    targets_values = mx.take_along_axis(predictions, targets[:, None], axis=-1)
     mask = targets_values >= topk_values
     return mx.any(mask, axis=-1)
 
@@ -119,9 +113,7 @@ def cdist(x, y):
 def extract_sequences(x, sequence_length, sequence_stride):
     x = convert_to_tensor(x)
     *batch_shape, seq_len = x.shape
-    num_seq = (
-        seq_len - (sequence_length - sequence_stride)
-    ) // sequence_stride
+    num_seq = (seq_len - (sequence_length - sequence_stride)) // sequence_stride
     starts = mx.arange(num_seq, dtype=mx.int32) * sequence_stride
     offsets = mx.arange(sequence_length, dtype=mx.int32)
     idx = starts[:, None] + offsets[None, :]  # (num_seq, sequence_length)
@@ -253,9 +245,9 @@ def stft(
     # scale and swap to (..., num_sequences, fft_bins)
     x_np = x_np / np.sqrt(1.0 / win.sum() ** 2)
     x_np = np.swapaxes(x_np, -2, -1)
-    return convert_to_tensor(np.real(x_np).astype(np.dtype(ori_dtype))), convert_to_tensor(
-        np.imag(x_np).astype(np.dtype(ori_dtype))
-    )
+    return convert_to_tensor(
+        np.real(x_np).astype(np.dtype(ori_dtype))
+    ), convert_to_tensor(np.imag(x_np).astype(np.dtype(ori_dtype)))
 
 
 def istft(
@@ -268,7 +260,6 @@ def istft(
     center=True,
 ):
     x = _get_complex_tensor_from_tuple(x)
-    dtype = standardize_dtype(mx.real(x).dtype)
     x_np = np.asarray(convert_to_numpy(x))
 
     expected_output_len = fft_length + sequence_stride * (x_np.shape[-2] - 1)

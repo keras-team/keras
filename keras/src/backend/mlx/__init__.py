@@ -6,12 +6,6 @@ from keras.src.backend.mlx import math
 from keras.src.backend.mlx import nn
 from keras.src.backend.mlx import numpy
 from keras.src.backend.mlx import random
-from keras.src.backend.mlx.rnn import bidirectional_gru
-from keras.src.backend.mlx.rnn import bidirectional_lstm
-from keras.src.backend.mlx.rnn import cudnn_ok
-from keras.src.backend.mlx.rnn import gru
-from keras.src.backend.mlx.rnn import lstm
-from keras.src.backend.mlx.rnn import rnn
 from keras.src.backend.mlx.core import IS_THREAD_SAFE
 from keras.src.backend.mlx.core import SUPPORTS_COMPLEX_DTYPES
 from keras.src.backend.mlx.core import SUPPORTS_RAGGED_TENSORS
@@ -27,3 +21,9 @@ from keras.src.backend.mlx.core import is_tensor
 from keras.src.backend.mlx.core import random_seed_dtype
 from keras.src.backend.mlx.core import shape
 from keras.src.backend.mlx.core import vectorized_map
+from keras.src.backend.mlx.rnn import bidirectional_gru
+from keras.src.backend.mlx.rnn import bidirectional_lstm
+from keras.src.backend.mlx.rnn import cudnn_ok
+from keras.src.backend.mlx.rnn import gru
+from keras.src.backend.mlx.rnn import lstm
+from keras.src.backend.mlx.rnn import rnn

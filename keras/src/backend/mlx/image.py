@@ -1,5 +1,5 @@
-import mlx.core as mx
 import ml_dtypes
+import mlx.core as mx
 import numpy as np
 
 from keras.src import backend
@@ -67,13 +67,9 @@ def rgb_to_grayscale(images, data_format=None):
     images = images.astype(_mlx_dtype(compute_dtype))
 
     # Ref: tf.image.rgb_to_grayscale
-    rgb_weights = mx.array(
-        [0.2989, 0.5870, 0.1140], dtype=images.dtype
-    )
+    rgb_weights = mx.array([0.2989, 0.5870, 0.1140], dtype=images.dtype)
     # mlx tensordot wants axes as [[a_axes], [b_axes]] (no tuples).
-    grayscales = mx.tensordot(
-        images, rgb_weights, axes=[[channels_axis], [-1]]
-    )
+    grayscales = mx.tensordot(images, rgb_weights, axes=[[channels_axis], [-1]])
     grayscales = mx.expand_dims(grayscales, axis=channels_axis)
     return grayscales.astype(original_dtype)
 
@@ -98,9 +94,7 @@ def rgb_to_hsv(images, data_format=None):
     # `ml_dtypes.finfo` (not `np.finfo`) so bfloat16 is accepted.
     eps = ml_dtypes.finfo(dtype).eps
     images = mx.where(mx.abs(images) < eps, 0.0, images)
-    red, green, blue = mx.split(
-        images, [1, 2], axis=channels_axis
-    )
+    red, green, blue = mx.split(images, [1, 2], axis=channels_axis)
     red = mx.squeeze(red, channels_axis)
     green = mx.squeeze(green, channels_axis)
     blue = mx.squeeze(blue, channels_axis)
@@ -122,9 +116,7 @@ def rgb_to_hsv(images, data_format=None):
             norm * (r - g) + 4.0 / 6.0,
         )
         hue = mx.where(value == r, norm * (g - b), hue)
-        hue = mx.where(range_ > 0, hue, 0.0) + (
-            hue < 0.0
-        ).astype(hue.dtype)
+        hue = mx.where(range_ > 0, hue, 0.0) + (hue < 0.0).astype(hue.dtype)
         return hue, saturation, value
 
     images = mx.stack(
@@ -150,9 +142,7 @@ def hsv_to_rgb(images, data_format=None):
             "Invalid images dtype: expected float dtype. "
             f"Received: images.dtype={backend.standardize_dtype(dtype)}"
         )
-    hue, saturation, value = mx.split(
-        images, [1, 2], axis=channels_axis
-    )
+    hue, saturation, value = mx.split(images, [1, 2], axis=channels_axis)
     hue = mx.squeeze(hue, channels_axis)
     saturation = mx.squeeze(saturation, channels_axis)
     value = mx.squeeze(value, channels_axis)
@@ -567,9 +557,7 @@ def _scale_and_translate(
         output = mx.moveaxis(output, -1, d)
 
     if use_rounding:
-        output = mx.clip(
-            mx.round(output), mx.min(x), mx.max(x)
-        )
+        output = mx.clip(mx.round(output), mx.min(x), mx.max(x))
         output = output.astype(x.dtype)
     return output
 
@@ -679,8 +667,16 @@ def compute_homography_matrix(start_points, end_points):
     ]
     # rows[k] is (row_a, row_b); stack the 8 rows along axis 1.
     coefficient_matrix = mx.stack(
-        [rows[0][0], rows[0][1], rows[1][0], rows[1][1],
-         rows[2][0], rows[2][1], rows[3][0], rows[3][1]],
+        [
+            rows[0][0],
+            rows[0][1],
+            rows[1][0],
+            rows[1][1],
+            rows[2][0],
+            rows[2][1],
+            rows[3][0],
+            rows[3][1],
+        ],
         axis=1,
     )
 
@@ -882,10 +878,6 @@ def sobel_edges(images, data_format=None):
         backend.convert_to_numpy(images), data_format=data_format
     )
     return convert_to_tensor(result, dtype=images.dtype)
-
-
-# Late import to avoid a circular dependency at module load time.
-from keras.src.backend.mlx.core import _mlx_dtype  # noqa: E402
 
 
 def _np_dtype(mx_dt):

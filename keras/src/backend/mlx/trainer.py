@@ -7,8 +7,8 @@ from keras.src import callbacks as callbacks_module
 from keras.src import optimizers as optimizers_module
 from keras.src import tree
 from keras.src.backend import config
-from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common import standardize_dtype
+from keras.src.backend.common.keras_tensor import KerasTensor
 from keras.src.backend.common.stateless_scope import StatelessScope
 from keras.src.backend.mlx.core import convert_to_numpy
 from keras.src.backend.mlx.core import is_tensor
@@ -209,10 +209,10 @@ class MlxTrainer(base_trainer.Trainer):
             and not self._compile_metrics.built
         )
         compile_loss_unbuilt = (
-            self._compile_loss is not None
-            and not self._compile_loss.built
+            self._compile_loss is not None and not self._compile_loss.built
         )
         if model_unbuilt or compile_metrics_unbuilt or compile_loss_unbuilt:
+
             def to_symbolic_input(v):
                 if is_tensor(v):
                     return KerasTensor(v.shape, standardize_dtype(str(v.dtype)))
@@ -373,7 +373,9 @@ class MlxTrainer(base_trainer.Trainer):
                     return_dict=True,
                     _use_cached_eval_dataset=True,
                 )
-                val_logs = {f"val_{name}": val for name, val in val_logs.items()}
+                val_logs = {
+                    f"val_{name}": val for name, val in val_logs.items()
+                }
                 epoch_logs.update(val_logs)
 
             callbacks.on_epoch_end(epoch, epoch_logs)
