@@ -104,6 +104,15 @@ class Variable(KerasVariable):
     def _convert_to_tensor(self, value, dtype=None):
         return convert_to_tensor(value, dtype=dtype)
 
+    # MLX's binary operators (e.g. `mx_array * x`) hard-raise a `ValueError`
+    # instead of returning `NotImplemented` for unknown operand types, which
+    # would short-circuit Python's reflected-operator fallback
+    # (`KerasVariable.__rmul__`). Declaring the `__mlx_array__` protocol lets
+    # MLX coerce this Variable into an `mlx.core.array` so that expressions like
+    # `mlx_array * variable` (common in shape inference / model code) work.
+    def __mlx_array__(self, stream=None):
+        return self.value
+
     # Overload native accessor for `np.array(variable)` / `variable.numpy()`.
     def __array__(self, dtype=None):
         arr = self.value
@@ -329,7 +338,13 @@ def associative_scan(f, elems, reverse=False, axis=0):
     elems_flat = tree.flatten(elems)
     elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
     if reverse:
-        elems_flat = [mx.flip(elem, (axis,)) for elem in elems_flat]
+        # `mx.flip` does not exist; reverse along `axis` via slice stepping.
+        def _reverse_axis(x, ax):
+            idx = [builtins.slice(None)] * x.ndim
+            idx[ax] = builtins.slice(None, None, -1)
+            return x[tuple(idx)]
+
+        elems_flat = [_reverse_axis(elem, axis) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):
         a = tree.pack_sequence_as(elems, a_flat)
@@ -368,7 +383,9 @@ def associative_scan(f, elems, reverse=False, axis=0):
         nd = a.ndim
 
         def _idx(positions):
-            full = [slice(None)] * nd
+            # `builtins.slice` — this module defines a keras `slice` op below,
+            # which would otherwise shadow Python's `slice` here.
+            full = [builtins.slice(None)] * nd
             full[axis] = positions
             return tuple(full)
 
@@ -427,7 +444,7 @@ def associative_scan(f, elems, reverse=False, axis=0):
 
     scans = _scan(elems_flat)
     if reverse:
-        scans = [mx.flip(scanned, (axis,)) for scanned in scans]
+        scans = [_reverse_axis(scanned, axis) for scanned in scans]
 
     return tree.pack_sequence_as(elems, scans)
 

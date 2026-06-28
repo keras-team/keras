@@ -1,2 +1,5 @@
 test_argmin_negative_zero
 test_argmax_negative_zero
+float8
+test_standardize_dtype_float64
+test_standardize_dtype_complex128

@@ -1,5 +1,6 @@
 from keras.src.backend.common.name_scope import name_scope
 from keras.src.backend.mlx import core
+from keras.src.backend.mlx import image
 from keras.src.backend.mlx import linalg
 from keras.src.backend.mlx import math
 from keras.src.backend.mlx import nn

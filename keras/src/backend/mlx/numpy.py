@@ -144,8 +144,12 @@ def matmul(x1, x2):
         dtype = dtypes.result_type(x1.dtype, x2.dtype)
     # MLX matmul supports inexact (float/complex) types only. For integer
     # inputs fall back to numpy (which matches JAX's integer matmul dtype).
+    # Cast to the wider result dtype first so numpy accumulates without
+    # overflow (e.g. int8 @ int8 must accumulate in int32, not int8).
     if dtype in dtypes.INT_TYPES or dtype == "bool":
-        out = np.matmul(_to_np(x1), _to_np(x2))
+        out = np.matmul(
+            _to_np(x1).astype(dtype), _to_np(x2).astype(dtype)
+        )
         return _cast(convert_to_tensor(out), dtype)
     x1 = _cast(x1, dtype)
     x2 = _cast(x2, dtype)
@@ -162,8 +166,10 @@ def einsum(subscripts, *operands, **kwargs):
         result_dtype = dtypes.result_type(*dtypes_to_resolve)
         compute_dtype = result_dtype
     # mx.einsum is backed by matmul and rejects integer types.
+    # Cast to the wider result dtype first so numpy accumulates without
+    # overflow (e.g. int8 einsum must accumulate in int32, not int8).
     if result_dtype in dtypes.INT_TYPES or result_dtype == "bool":
-        np_ops = [_to_np(x) for x in operands]
+        np_ops = [_to_np(x).astype(result_dtype) for x in operands]
         out = np.einsum(subscripts, *np_ops, **kwargs)
         return _cast(convert_to_tensor(out), result_dtype)
     # mx.einsum does not support bfloat16.
@@ -1342,8 +1348,23 @@ def arange(start, stop=None, step=None, dtype=None):
         start, stop = 0, start
     if step is None:
         step = 1
+    # MLX arange only accepts python int/float scalars for start/stop/step,
+    # not mlx.core.array or numpy scalars. Coerce them to python scalars.
+    start = _arange_scalar(start)
+    stop = _arange_scalar(stop)
+    step = _arange_scalar(step)
     # MLX arange takes (start, stop, step) positionally; keyword form differs.
     return mx.arange(start, stop, step, dtype=_mlx_dtype(dtype))
+
+
+def _arange_scalar(x):
+    if x is None or isinstance(x, (int, float)):
+        return x
+    if isinstance(x, mx.array):
+        x = convert_to_numpy(x)
+    if isinstance(x, (np.ndarray, np.number)):
+        return x.item()
+    return x
 
 
 def linspace(start, stop, num=50, endpoint=True, retstep=False, dtype=None, axis=0):

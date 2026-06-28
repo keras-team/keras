@@ -493,14 +493,40 @@ def conv(
         data_format,
     )
 
-    outputs = mx.conv_general(
-        inputs_cl,
-        kernel_mlx,
-        stride=strides,
-        padding=(before, after),
-        kernel_dilation=dilation_rate,
-        groups=feature_group_count,
-    )
+    if feature_group_count > 1 and num_spatial_dims == 3:
+        # MLX's `conv_general` supports grouped convolution only for 1D/2D
+        # inputs (it raises "Can only handle groups != 1 in 1D or 2D" for 3D).
+        # Fall back to `feature_group_count` independent groups=1 convolutions:
+        # split the input along its channel axis and the kernel along its
+        # output-channel axis, convolve each pair, then concatenate. This is
+        # numerically identical to a single grouped conv (verified against the
+        # native groups path for 1D/2D).
+        groups = feature_group_count
+        in_splits = mx.split(inputs_cl, groups, axis=-1)
+        w_splits = mx.split(kernel_mlx, groups, axis=0)
+        outputs = mx.concatenate(
+            [
+                mx.conv_general(
+                    in_splits[i],
+                    w_splits[i],
+                    stride=strides,
+                    padding=(before, after),
+                    kernel_dilation=dilation_rate,
+                    groups=1,
+                )
+                for i in range(groups)
+            ],
+            axis=-1,
+        )
+    else:
+        outputs = mx.conv_general(
+            inputs_cl,
+            kernel_mlx,
+            stride=strides,
+            padding=(before, after),
+            kernel_dilation=dilation_rate,
+            groups=feature_group_count,
+        )
 
     if outputs.size == 0 and inputs.size != 0:
         raise ValueError(
@@ -914,6 +940,12 @@ def average_pool(
 # is not autograd-critical in the keras pipeline (it is used for inference
 # paths such as adaptive pooling layers).
 # ---------------------------------------------------------------------------
+
+
+def _to_np(x):
+    if hasattr(x, "dtype") and "mlx" in str(type(x)):
+        return np.asarray(convert_to_numpy(x))
+    return np.asarray(x)
 
 
 def _compute_adaptive_pooling_gather_indices(
