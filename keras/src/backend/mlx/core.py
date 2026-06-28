@@ -339,15 +339,16 @@ def associative_scan(f, elems, reverse=False, axis=0):
     # Ref: jax.lax.associative_scan
     if not callable(f):
         raise TypeError(f"`f` should be a callable. Received: f={f}")
+
+    def _reverse_axis(x, ax):
+        # `mx.flip` does not exist; reverse along `axis` via slice stepping.
+        idx = [builtins.slice(None)] * x.ndim
+        idx[ax] = builtins.slice(None, None, -1)
+        return x[tuple(idx)]
+
     elems_flat = tree.flatten(elems)
     elems_flat = [convert_to_tensor(elem) for elem in elems_flat]
     if reverse:
-        # `mx.flip` does not exist; reverse along `axis` via slice stepping.
-        def _reverse_axis(x, ax):
-            idx = [builtins.slice(None)] * x.ndim
-            idx[ax] = builtins.slice(None, None, -1)
-            return x[tuple(idx)]
-
         elems_flat = [_reverse_axis(elem, axis) for elem in elems_flat]
 
     def _combine(a_flat, b_flat):

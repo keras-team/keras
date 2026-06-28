@@ -27,6 +27,23 @@ class MlxTrainer(base_trainer.Trainer):
         self.test_function = None
         self.predict_function = None
 
+    def _materialize_step_state(self, loss):
+        # MLX is lazy: an array holds its computation graph until it is forced
+        # with `mx.eval`. Any value updated during a step but never evaluated
+        # (e.g. BatchNorm moving averages, optimizer state, metric
+        # accumulators) keeps that step's graph alive, so active memory grows
+        # linearly with the number of steps and eventually OOMs. Force every
+        # step-mutated array (weights, non-trainable weights, optimizer state,
+        # metric variables, and the loss) in a single `mx.eval`.
+        arrays = [loss]
+        arrays += [v.value for v in self.trainable_variables]
+        arrays += [v.value for v in self.non_trainable_variables]
+        if self.optimizer is not None:
+            arrays += [v.value for v in self.optimizer.variables]
+        for metric in self.metrics:
+            arrays += [v.value for v in metric.variables]
+        mx.eval(arrays)
+
     def test_step(self, data):
         (
             x,
@@ -46,7 +63,9 @@ class MlxTrainer(base_trainer.Trainer):
                 i for i in tree.flatten(x) if i is not None
             ).shape[0],
         )
-        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
+        logs = self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
+        self._materialize_step_state(loss)
+        return logs
 
     def train_step(self, data):
         x, y, sample_weight = data_adapter_utils.unpack_x_y_sample_weight(data)
@@ -104,12 +123,12 @@ class MlxTrainer(base_trainer.Trainer):
                     loss_fn, argnums=tuple(range(len(values)))
                 )(*values)
                 self.optimizer.apply(grads, trainable_weights)
-                # Materialize the updated weights + loss in one eval per step.
-                mx.eval([w.value for w in trainable_weights] + [loss])
             else:
                 warnings.warn("The model does not have any trainable weights.")
 
-        return self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
+        logs = self.compute_metrics(x, y, y_pred, sample_weight=sample_weight)
+        self._materialize_step_state(loss)
+        return logs
 
     def predict_step(self, data):
         x, _, _ = data_adapter_utils.unpack_x_y_sample_weight(data)
