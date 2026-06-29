@@ -929,12 +929,6 @@ def erfc(x):
 
 
 def erfinv(x):
-    # OpenVINO opset17 ships a native `erfinv` op which produces correct
-    # `±inf` and `NaN` at the boundary / out-of-domain inputs on float32.
-    # The float64 path still hits the upstream CPU clamping bug — see
-    # https://github.com/openvinotoolkit/openvino/issues/34138 — so the
-    # excluded tests (test_erfinv_operation_basic / _dtype) remain gated
-    # on the upstream fix.
     x = get_ov_output(x)
     return OpenVINOKerasTensor(ov_opset17.erfinv(x).output(0))
 
