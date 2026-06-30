@@ -2069,3 +2069,27 @@ class LayerTest(testing.TestCase):
         np.testing.assert_array_equal(
             ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
         )
+
+    def test_called_and_built_flags_set_once(self):
+        # Verify that built and _called are True after the first call and
+        # remain True on repeated calls, and that build() is invoked exactly
+        # once regardless of how many times the layer is called.
+        build_count = []
+
+        class CountingLayer(layers.Layer):
+            def build(self, input_shape):
+                build_count.append(1)
+                self.built = True
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+        layer(x)
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
