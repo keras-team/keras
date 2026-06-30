@@ -1947,3 +1947,51 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def test_called_and_built_flags_set_once(self):
+        # Verify that built and _called are True after the first call and
+        # remain True on repeated calls, that build() is invoked exactly
+        # once regardless of how many times the layer is called, and that
+        # `built`/`_called` are not reassigned once already True (the
+        # optimization this test guards against regressing).
+        build_count = []
+
+        class CountingLayer(layers.Layer):
+            def __init__(self, *args, **kwargs):
+                # Set up before calling `super().__init__()` since that
+                # call already triggers `__setattr__` for `built` and
+                # `_called`.
+                object.__setattr__(self, "setattr_calls", [])
+                super().__init__(*args, **kwargs)
+
+            def __setattr__(self, name, value):
+                if name in ("built", "_called"):
+                    self.setattr_calls.append((name, value))
+                super().__setattr__(name, value)
+
+            def build(self, input_shape):
+                build_count.append(1)
+                self.built = True
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
+
+        # Reset the recorded setattr traffic and call the already
+        # built/called layer a couple more times: `built` and `_called`
+        # must not be reassigned since they are already True.
+        layer.setattr_calls.clear()
+        layer(x)
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
+        self.assertEqual(len(layer.setattr_calls), 0)
