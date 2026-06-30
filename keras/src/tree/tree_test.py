@@ -2506,3 +2506,74 @@ class TreeTest(testing.TestCase):
                 (7, None, 9),
             ],
         )
+
+    @pytest.mark.skipif(backend.backend() != "torch", reason="torch only")
+    def test_dict_to_ordered_dict_leaf_shortcircuit(self, t):
+        # RC19: _dict_to_ordered_dict must return leaves unchanged without
+        # invoking a torch tree_flatten round-trip.
+        from collections import OrderedDict as OD
+
+        import torch
+
+        from keras.src.tree import torchtree_impl as impl
+
+        tensor = torch.tensor([1.0, 2.0, 3.0])
+
+        # Leaf: plain tensor returned as-is (identity, not a copy).
+        result = impl._dict_to_ordered_dict(tensor)
+        self.assertIs(result, tensor)
+
+        # flatten of a bare tensor returns [tensor].
+        flat = t.flatten(tensor)
+        self.assertEqual(len(flat), 1)
+        self.assertTrue(torch.equal(flat[0], tensor))
+
+        # pack_sequence_as round-trips: flatten then pack gives back equivalent.
+        packed = t.pack_sequence_as(tensor, flat)
+        self.assertTrue(torch.equal(packed, tensor))
+
+        # List of tensors: flatten and pack round-trip, leaf short-circuit fires
+        # for each element during recursive descent.
+        t2 = torch.tensor([4.0, 5.0])
+        lst = [tensor, t2]
+        flat_lst = t.flatten(lst)
+        self.assertEqual(len(flat_lst), 2)
+        self.assertTrue(torch.equal(flat_lst[0], tensor))
+        self.assertTrue(torch.equal(flat_lst[1], t2))
+        packed_lst = t.pack_sequence_as(lst, flat_lst)
+        self.assertTrue(torch.equal(packed_lst[0], tensor))
+        self.assertTrue(torch.equal(packed_lst[1], t2))
+
+        # dict: key order is sorted (deterministic) and values match.
+        d = {"b": t2, "a": tensor}
+        flat_d = t.flatten(d)
+        self.assertEqual(len(flat_d), 2)
+        self.assertTrue(torch.equal(flat_d[0], tensor))
+        self.assertTrue(torch.equal(flat_d[1], t2))
+        packed_d = t.pack_sequence_as(d, flat_d)
+        self.assertIn("a", packed_d)
+        self.assertIn("b", packed_d)
+        self.assertTrue(torch.equal(packed_d["a"], tensor))
+        self.assertTrue(torch.equal(packed_d["b"], t2))
+
+        # OrderedDict: insertion order preserved by torchtree (not sorted).
+        od = OD([("b", t2), ("a", tensor)])
+        flat_od = t.flatten(od)
+        self.assertEqual(len(flat_od), 2)
+        packed_od = t.pack_sequence_as(od, flat_od)
+        self.assertIsInstance(packed_od, OD)
+        keys = list(packed_od.keys())
+        self.assertEqual(keys, ["b", "a"])
+
+        # Nested dict-of-lists: leaves are tensors, shape structure is correct.
+        nested = {"x": [tensor, t2], "y": [t2]}
+        flat_n = t.flatten(nested)
+        self.assertEqual(len(flat_n), 3)
+        packed_n = t.pack_sequence_as(nested, flat_n)
+        self.assertEqual(len(packed_n["x"]), 2)
+        self.assertEqual(len(packed_n["y"]), 1)
+
+        # map_shape_structure with a shape-tuple leaf (not a tensor node).
+        shape = (2, 3)
+        result_shape = t.map_shape_structure(lambda x: x, shape)
+        self.assertEqual(result_shape, shape)
