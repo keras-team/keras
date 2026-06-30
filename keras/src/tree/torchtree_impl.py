@@ -21,6 +21,10 @@ def _tree_is_leaf(tree, is_leaf=None):
 
 
 def _dict_to_ordered_dict(structure):
+    # Short-circuit: leaves need no reordering; avoid a torch_tree round-trip.
+    if _tree_is_leaf(structure):
+        return structure
+
     # We need to sort dict and defaultdict to ensure a deterministic order that
     # that is consistent with other tree implementations.
     def func(x):
