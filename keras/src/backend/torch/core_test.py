@@ -5,7 +5,10 @@ import torch
 
 from keras.src import backend
 from keras.src import testing
+from keras.src.backend.torch.core import DEFAULT_DEVICE
 from keras.src.backend.torch.core import convert_to_tensor
+from keras.src.backend.torch.core import device_scope
+from keras.src.backend.torch.core import get_device
 from keras.src.backend.torch.core import slice as torch_slice
 
 
@@ -104,3 +107,11 @@ class TorchCoreTest(testing.TestCase):
         shape = [batch, 2, 2]
         result = torch_slice(x, start_indices, shape)
         self.assertEqual(tuple(result.shape), (2, 2, 2))
+
+    def test_get_device_reflects_device_scope(self):
+        """get_device() returns the default device outside any scope and the
+        scoped device inside device_scope."""
+        self.assertEqual(get_device(), DEFAULT_DEVICE)
+        with device_scope("cpu:0"):
+            self.assertEqual(get_device(), "cpu:0")
+        self.assertEqual(get_device(), DEFAULT_DEVICE)
