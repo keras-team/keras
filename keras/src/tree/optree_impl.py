@@ -46,10 +46,12 @@ def is_nested(structure):
 
 def traverse(func, structure, top_down=True):
     # From https://github.com/google/jax/pull/19695
+    structure_id = id(structure)
+
     def traverse_children():
         children, treedef = optree.tree_flatten(
             structure,
-            is_leaf=lambda x: x is not structure,
+            is_leaf=lambda x: id(x) != structure_id,
             none_is_leaf=True,
             namespace="keras",
         )
