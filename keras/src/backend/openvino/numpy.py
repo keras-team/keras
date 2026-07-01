@@ -2230,7 +2230,19 @@ def hypot(x1, x2):
         max_val,
         ov_opset.sqrt(ov_opset.add(one, ov_opset.multiply(ratio, ratio))),
     )
-    return OpenVINOKerasTensor(result.output(0))
+    is_inf_mask = ov_opset.logical_or(
+        get_ov_output(isinf(x1_abs.output(0))),
+        get_ov_output(isinf(x2_abs.output(0))),
+    )
+    result_output = result.output(0)
+    result = ov_opset.select(
+        is_inf_mask,
+        ov_opset.divide(
+            one, ov_opset.constant(0, result_output.get_element_type())
+        ),
+        result_output,
+    ).output(0)
+    return OpenVINOKerasTensor(result)
 
 
 def identity(n, dtype=None):
