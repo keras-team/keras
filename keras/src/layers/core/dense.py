@@ -3,6 +3,7 @@ import math
 import ml_dtypes
 
 from keras.src import activations
+from keras.src import backend
 from keras.src import constraints
 from keras.src import initializers
 from keras.src import ops
@@ -154,6 +155,14 @@ class Dense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank)
+        # Flag set at build; lora_enabled re-checked at call time.
+        self._torch_backend = backend.backend() == "torch"
+        if self._torch_backend:
+            import torch as _torch
+            import torch.nn.functional as _torch_F
+
+            self._torch = _torch
+            self._torch_F = _torch_F
 
     @property
     def kernel(self):
@@ -219,6 +228,29 @@ class Dense(Layer):
         return kernel
 
     def call(self, inputs, training=None):
+        # Fast path: F.linear bypasses Keras ops dispatch.
+        # Quantization routes to quantized_call() before reaching here.
+        # kernel is [in, out]; F.linear wants [out, in] so we pass kernel.t().
+        if self._torch_backend and not self.lora_enabled:
+            # Skip under torch.compile: meta-device weights cause fake-tensor
+            # issues with F.linear.
+            if not (
+                hasattr(self._torch.compiler, "is_compiling")
+                and self._torch.compiler.is_compiling()
+            ):
+                kernel = self._kernel.value
+                if inputs.device != kernel.device:
+                    inputs = inputs.to(kernel.device)
+                if inputs.dtype != kernel.dtype:
+                    kernel = kernel.to(inputs.dtype)
+                bias = self.bias.value if self.bias is not None else None
+                if bias is not None and inputs.dtype != bias.dtype:
+                    bias = bias.to(inputs.dtype)
+                x = self._torch_F.linear(inputs, kernel.t(), bias)
+                if self.activation is not None:
+                    x = self.activation(x)
+                return x
+        # Standard path: non-torch, LoRA, or torch.compile.
         x = ops.matmul(inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)

@@ -1436,3 +1436,163 @@ class DenseTest(testing.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    # ------------------------------------------------------------------
+    # Torch fast-path numeric-equivalence tests
+    # ------------------------------------------------------------------
+
+    @parameterized.named_parameters(
+        ("none_bias", None, True),
+        ("none_nobias", None, False),
+        ("relu_bias", "relu", True),
+        ("relu_nobias", "relu", False),
+        ("gelu_bias", "gelu", True),
+        ("gelu_nobias", "gelu", False),
+        ("tanh_bias", "tanh", True),
+        ("tanh_nobias", "tanh", False),
+        ("sigmoid_bias", "sigmoid", True),
+        ("sigmoid_nobias", "sigmoid", False),
+    )
+    def test_torch_fast_path_float32(self, activation, use_bias):
+        """Fast-path F.linear vs ops.matmul numeric equivalence."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        torch.manual_seed(42)
+        in_dim, out_dim, batch = 128, 64, 8
+        layer = layers.Dense(out_dim, activation=activation, use_bias=use_bias)
+        x_t = torch.tensor(np.random.randn(batch, in_dim).astype("float32"))
+        _ = layer(x_t)
+        self.assertTrue(
+            getattr(layer, "_torch_backend", False),
+            "Dense._torch_backend must be True on torch backend after build",
+        )
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_3d_input(self):
+        """Dense with [batch, seq, in_dim] input exercises batched matmul."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        torch.manual_seed(7)
+        layer = layers.Dense(32, activation="gelu")
+        x_t = torch.randn(4, 16, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_lora_stays_slow(self):
+        """LoRA-enabled Dense must NOT use the fast path."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        torch.manual_seed(0)
+        layer = layers.Dense(32, activation="relu")
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        layer.enable_lora(rank=4)
+        self.assertTrue(layer.lora_enabled, "LoRA should be enabled")
+        out = layer(x_t)
+        self.assertFalse(torch.isnan(out).any(), "LoRA output must not be NaN")
+        self.assertFalse(torch.isinf(out).any(), "LoRA output must not be Inf")
+
+    def test_torch_fast_path_flag_false_non_torch(self):
+        """_torch_backend flag must be False when backend != torch."""
+        if backend.backend() == "torch":
+            self.skipTest("only meaningful on non-torch backends")
+        layer = layers.Dense(16)
+        _ = layer(np.zeros((2, 8), dtype="float32"))
+        flag = getattr(layer, "_torch_backend", False)
+        self.assertFalse(
+            flag,
+            f"_torch_backend must be False on {backend.backend()} backend",
+        )
+
+    def test_torch_fast_path_manual_kernel_check(self):
+        """Verify Dense fast path: F.linear(x, W.t(), b) == x @ W + b."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+        import torch.nn.functional as F
+
+        torch.manual_seed(42)
+        layer = layers.Dense(16, use_bias=True)
+        x_t = torch.randn(4, 32)
+        _ = layer(x_t)
+        W = layer._kernel.value
+        b = layer.bias.value
+        x_t = x_t.to(W.device)
+        expected = torch.matmul(x_t, W) + b
+        fast_result = F.linear(x_t, W.t(), b)
+        self.assertAllClose(fast_result, expected, rtol=1e-6, atol=1e-6)
+        out = layer(x_t)
+        self.assertAllClose(out, expected, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_symbolic_input(self):
+        """Verify Dense works with symbolic KerasTensor on torch backend."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        inputs = layers.Input(shape=(10,))
+        outputs = layers.Dense(5)(inputs)
+        self.assertEqual(outputs.shape, (None, 5))
+
+    def test_torch_fast_path_device_alignment(self):
+        """Dense/EinsumDense fast path must handle CPU inputs on CUDA layer.
+
+        Regression test: F.linear / torch.einsum skipped the device move that
+        ops.matmul performs implicitly. On CUDA with CPU inputs this raised:
+            RuntimeError: Expected all tensors to be on the same device
+        """
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        # Build Dense and EinsumDense layers (weights land on the default
+        # device).
+        dense = layers.Dense(8)
+        dense.build((None, 4))
+        einsum_dense = layers.EinsumDense("ab,bc->ac", output_shape=8)
+        einsum_dense.build((None, 4))
+
+        # Always feed a CPU tensor; on a CPU-only machine this is a no-op,
+        # on a CUDA machine it exercises the device-move.
+        cpu_input = torch.zeros(2, 4, device="cpu")
+
+        out_dense = dense(cpu_input)
+        out_einsum = einsum_dense(cpu_input)
+
+        # Outputs must land on the layer's weight device (same as kernel).
+        kernel_device = dense._kernel.value.device
+        self.assertEqual(out_dense.device, kernel_device)
+        einsum_kernel_device = einsum_dense._kernel.value.device
+        self.assertEqual(out_einsum.device, einsum_kernel_device)
+
+        # Shape check only; assertAllClose handles device/dtype.
+        self.assertEqual(out_dense.cpu().shape, (2, 8))
+        self.assertEqual(out_einsum.cpu().shape, (2, 8))
+
+    def test_torch_fast_path_mixed_float16(self):
+        """Fast-path vs slow-path equivalence with mixed_float16 policy."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        torch.manual_seed(0)
+        layer = layers.Dense(32, activation="relu", dtype="mixed_float16")
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)

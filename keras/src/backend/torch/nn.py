@@ -283,7 +283,7 @@ def _apply_same_padding(
     return tnn.pad(inputs, pad=tuple(flattened_padding), mode=mode), 0
 
 
-def _transpose_spatial_inputs(inputs):
+def _transpose_spatial_inputs(inputs, channels_last_format=False):
     """Transpose inputs from channels_last to channels_first format."""
     # Torch pooling does not support `channels_last` format, so
     # we need to transpose to `channels_first` format.
@@ -291,13 +291,23 @@ def _transpose_spatial_inputs(inputs):
     # failures in view-based ops (e.g., conv2d, torch.export) that
     # require contiguous memory. Adding .contiguous() ensures
     # compatible memory layout.
+    # For 2D/3D conv inputs, `channels_last_format=True` requests the
+    # channels_last memory format directly. A permuted NHWC->NCHW view of
+    # a contiguous tensor is already channels_last-contiguous, so this is
+    # zero-copy and avoids a redundant standard contiguous copy.
     ndim = inputs.ndim - 2
     if ndim == 1:  # 1D case
         return torch.permute(inputs, (0, 2, 1)).contiguous()
     elif ndim == 2:  # 2D case
-        return torch.permute(inputs, (0, 3, 1, 2)).contiguous()
+        inputs = torch.permute(inputs, (0, 3, 1, 2))
+        if channels_last_format:
+            return inputs.contiguous(memory_format=torch.channels_last)
+        return inputs.contiguous()
     elif ndim == 3:  # 3D case
-        return torch.permute(inputs, (0, 4, 1, 2, 3)).contiguous()
+        inputs = torch.permute(inputs, (0, 4, 1, 2, 3))
+        if channels_last_format:
+            return inputs.contiguous(memory_format=torch.channels_last_3d)
+        return inputs.contiguous()
     raise ValueError(
         "Inputs must have ndim=3, 4 or 5, "
         "corresponding to 1D, 2D and 3D inputs. "
@@ -585,12 +595,14 @@ def conv(
 
     data_format = backend.standardize_data_format(data_format)
     if data_format == "channels_last":
-        inputs = _transpose_spatial_inputs(inputs)
+        # Permute NHWC->NCHW and convert to channels_last in one step.
+        # This drops the redundant standard contiguous copy that a
+        # separate `_maybe_convert_to_channels_last(inputs)` call required.
+        inputs = _transpose_spatial_inputs(inputs, channels_last_format=True)
 
     kernel = _transpose_conv_kernel(kernel)
 
     if data_format == "channels_last":
-        inputs = _maybe_convert_to_channels_last(inputs)
         kernel = _maybe_convert_to_channels_last(kernel)
 
     # calc. groups snippet
