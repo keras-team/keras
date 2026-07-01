@@ -4550,6 +4550,20 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.nextafter(x, y), np.nextafter(x, y))
         self.assertAllClose(knp.Nextafter()(x, y), np.nextafter(x, y))
 
+    @pytest.mark.skipif(
+        backend.backend() == "openvino",
+        reason="OpenVINO nextafter uses a separate approximation path.",
+    )
+    def test_nextafter_inf_towards_negative_inf(self):
+        x = np.array([np.nan, np.inf, -0.0], dtype="float32")
+        y = np.array([1.0, -np.inf, 0.0], dtype="float32")
+
+        result = backend.convert_to_numpy(knp.nextafter(x, y)).astype("float32")
+        expected = np.nextafter(x, y).astype("float32")
+
+        self.assertTrue(np.isnan(result[0]))
+        self.assertAllClose(result[1:], expected[1:])
+
     def test_not_equal(self):
         x = np.array([[1, 2], [3, 4]])
         y = np.array([[5, 6], [7, 8]])
