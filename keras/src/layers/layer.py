@@ -332,6 +332,48 @@ class Layer(BackendLayer, Operation):
             for arg in self._call_context_args
         }
 
+        # Precompute an eager fast path for CallSpec that covers the common
+        # case of a single positional tensor and no keyword arguments. It
+        # reproduces every CallSpec field without inspect.Signature.bind.
+        call_params = list(self._call_signature.parameters.values())
+        self._call_arg_names = self.call_signature_parameters
+        self._call_first_arg_name = None
+        self._call_arg_defaults = {}
+        self._call_spec_fast_path = False
+        if call_params:
+            first_param = call_params[0]
+            self._call_first_arg_name = first_param.name
+            self._call_arg_defaults = {
+                p.name: p.default
+                for p in call_params[1:]
+                if p.default is not inspect.Parameter.empty
+            }
+            has_var_arg = any(
+                p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD) for p in call_params
+            )
+            non_first_have_defaults = all(
+                p.default is not inspect.Parameter.empty
+                for p in call_params[1:]
+            )
+            # A default that is itself a tensor or a non-empty nested
+            # structure would land in tensor_arguments_dict in the slow path,
+            # so such signatures must fall through.
+            defaults_are_safe = all(
+                not is_backend_tensor_or_symbolic(v)
+                and not (tree.is_nested(v) and len(v) > 0)
+                for v in self._call_arg_defaults.values()
+            )
+            self._call_spec_fast_path = (
+                first_param.kind
+                in (
+                    first_param.POSITIONAL_OR_KEYWORD,
+                    first_param.POSITIONAL_ONLY,
+                )
+                and not has_var_arg
+                and non_first_have_defaults
+                and defaults_are_safe
+            )
+
         self._supports_masking = not utils.is_default(self.compute_mask)
         # Whether to automatically convert (+ auto-cast) inputs to `call()`.
         self._convert_input_args = True
@@ -872,7 +914,8 @@ class Layer(BackendLayer, Operation):
     @traceback_utils.filter_traceback
     def __call__(self, *args, **kwargs):
         self._check_super_called()
-        self._called = True
+        if not self._called:
+            self._called = True
 
         original_args = args
         original_kwargs = kwargs
@@ -911,10 +954,25 @@ class Layer(BackendLayer, Operation):
                         f"(of type {type(arg)})"
                     )
 
-        # Caches info about `call()` signature, args, kwargs.
-        call_spec = CallSpec(
-            self._call_signature, self._call_context_args, args, kwargs
-        )
+        # Caches info about `call()` signature, args, kwargs. The fast path
+        # reproduces CallSpec for the common single-tensor, no-kwargs call
+        # without paying for inspect.Signature.bind.
+        if (
+            self._call_spec_fast_path
+            and not kwargs
+            and len(args) == 1
+            and is_backend_tensor_or_symbolic(args[0], allow_none=False)
+        ):
+            call_spec = CallSpec._fast(
+                self._call_arg_names,
+                self._call_arg_defaults,
+                self._call_first_arg_name,
+                args[0],
+            )
+        else:
+            call_spec = CallSpec(
+                self._call_signature, self._call_context_args, args, kwargs
+            )
 
         ############################################
         # 3. Check input spec for 1st positional arg.
@@ -1013,7 +1071,8 @@ class Layer(BackendLayer, Operation):
                             outputs, layout
                         )
 
-                self.built = True
+                if not self.built:
+                    self.built = True
                 # Record activity regularizer loss.
                 if self.activity_regularizer is not None:
                     for output in tree.flatten(outputs):
@@ -1919,6 +1978,25 @@ class CallSpec:
             self.eager = True
         else:
             self.eager = False
+
+    @classmethod
+    def _fast(cls, arg_names, defaults, first_name, x):
+        # Fast path mirror of __init__ for a single positional tensor `x`
+        # (a backend tensor or KerasTensor) and no keyword arguments.
+        # `arg_names` is the full ordered list of call() parameter names,
+        # `defaults` maps every non-first parameter to its non-tensor
+        # default, and `first_name` is the first parameter name. The fields
+        # set here match those produced by __init__ for this case exactly.
+        call_spec = cls.__new__(cls)
+        call_spec.user_arguments_dict = {first_name: x}
+        call_spec.arguments_dict = {first_name: x, **defaults}
+        call_spec.argument_names = arg_names
+        call_spec.tensor_arguments_dict = {first_name: x}
+        call_spec.tensor_arguments_names = [first_name]
+        call_spec.nested_tensor_argument_names = []
+        call_spec.first_arg = x
+        call_spec.eager = backend.is_tensor(x)
+        return call_spec
 
 
 def get_arguments_dict(fn, args, kwargs):

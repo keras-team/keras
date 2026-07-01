@@ -126,97 +126,70 @@ def filter_traceback(fn):
     return error_handler
 
 
-def inject_argument_info_in_traceback(fn, object_name=None):
-    """Add information about call argument values to an error message.
+def inject_argument_info_in_error(e, fn, args, kwargs, object_name=None):
+    """Add call argument info to an already-caught exception.
 
-    Arguments:
-        fn: Function to wrap. Exceptions raised by the this function will be
-            re-raised with additional information added to the error message,
-            displaying the values of the different arguments that the function
-            was called with.
-        object_name: String, display name of the class/function being called,
-            e.g. `'layer "layer_name" (LayerClass)'`.
+    Processes the exception in-place on the error path only, avoiding
+    per-call overhead on the happy path.
 
-    Returns:
-        A wrapped version of `fn`.
+    Returns the augmented exception, or ``None`` if augmentation was not
+    possible (e.g. arguments could not be bound to the signature).
     """
     if backend.backend() == "tensorflow":
         from tensorflow import errors as tf_errors
     else:
         tf_errors = None
 
-    @wraps(fn)
-    def error_handler(*args, **kwargs):
-        if not is_traceback_filtering_enabled():
-            return fn(*args, **kwargs)
+    try:
+        signature = inspect.signature(fn)
+        bound_signature = signature.bind(*args, **kwargs)
+    except (ValueError, TypeError):
+        return None
 
-        signature = None
-        bound_signature = None
-        try:
-            return fn(*args, **kwargs)
-        except Exception as e:
-            if hasattr(e, "_keras_call_info_injected"):
-                # Only inject info for the innermost failing call
-                raise e
-            signature = inspect.signature(fn)
+    arguments_context = []
+    for arg in signature.parameters.values():
+        if arg.name in bound_signature.arguments:
             try:
-                # The first argument is `self`, so filter it out
-                bound_signature = signature.bind(*args, **kwargs)
-            except TypeError:
-                # Likely unbindable arguments
-                raise e
-
-            # Add argument context
-            arguments_context = []
-            for arg in list(signature.parameters.values()):
-                if arg.name in bound_signature.arguments:
-                    value = tree.map_structure(
-                        format_argument_value,
-                        bound_signature.arguments[arg.name],
-                    )
-                else:
-                    value = arg.default
-                arguments_context.append(f"  • {arg.name}={value}")
-            if arguments_context:
-                arguments_context = "\n".join(arguments_context)
-                # Get original error message and append information to it.
-                if tf_errors is not None and isinstance(e, tf_errors.OpError):
-                    message = e.message
-                elif e.args:
-                    # Canonically, the 1st argument in an exception is the error
-                    # message. This works for all built-in Python exceptions.
-                    message = e.args[0]
-                else:
-                    message = ""
-                display_name = f"{object_name if object_name else fn.__name__}"
-                message = (
-                    f"Exception encountered when calling {display_name}.\n\n"
-                    f"\x1b[1m{message}\x1b[0m\n\n"
-                    f"Arguments received by {display_name}:\n"
-                    f"{arguments_context}"
+                value = tree.map_structure(
+                    format_argument_value,
+                    bound_signature.arguments[arg.name],
                 )
+            except Exception:
+                return None
+        else:
+            value = arg.default
+        arguments_context.append(f"  • {arg.name}={value}")
 
-                # Reraise exception, with added context
-                if tf_errors is not None and isinstance(e, tf_errors.OpError):
-                    new_e = e.__class__(e.node_def, e.op, message, e.error_code)
-                else:
-                    try:
-                        # For standard exceptions such as ValueError, TypeError,
-                        # etc.
-                        new_e = e.__class__(message)
-                    except TypeError:
-                        # For any custom error that doesn't have a standard
-                        # signature.
-                        new_e = RuntimeError(message)
-                new_e._keras_call_info_injected = True
-            else:
-                new_e = e
-            raise new_e.with_traceback(e.__traceback__) from None
-        finally:
-            del signature
-            del bound_signature
+    if not arguments_context:
+        return None
 
-    return error_handler
+    arguments_context = "\n".join(arguments_context)
+    if tf_errors is not None and isinstance(e, tf_errors.OpError):
+        message = e.message
+    elif e.args:
+        message = e.args[0]
+    else:
+        message = ""
+    display_name = f"{object_name if object_name else fn.__name__}"
+    message = (
+        f"Exception encountered when calling {display_name}.\n\n"
+        f"\x1b[1m{message}\x1b[0m\n\n"
+        f"Arguments received by {display_name}:\n"
+        f"{arguments_context}"
+    )
+
+    if tf_errors is not None and isinstance(e, tf_errors.OpError):
+        new_e = e.__class__(e.node_def, e.op, message, e.error_code)
+    else:
+        try:
+            new_e = e.__class__(message)
+        except Exception:
+            new_e = RuntimeError(message)
+    try:
+        new_e._keras_call_info_injected = True
+    except Exception:
+        pass
+    return new_e
 
 
 def format_argument_value(value):
