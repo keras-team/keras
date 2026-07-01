@@ -61,6 +61,7 @@ def is_nested(structure):
 
 
 def traverse(func, structure, top_down=True):
+    structure = _dict_to_ordered_dict(structure)
     structure_id = id(structure)
 
     def traverse_children():
@@ -76,7 +77,6 @@ def traverse(func, structure, top_down=True):
                 treedef,
             )
 
-    structure = _dict_to_ordered_dict(structure)
     if top_down:
         ret = func(structure)
         if ret is None:
