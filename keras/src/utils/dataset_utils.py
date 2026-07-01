@@ -907,18 +907,17 @@ def get_training_or_validation_split(samples, labels, validation_split, subset):
         return samples, labels
 
     num_val_samples = int(validation_split * len(samples))
+    num_train_samples = len(samples) - num_val_samples
     if subset == "training":
-        io_utils.print_msg(
-            f"Using {len(samples) - num_val_samples} files for training."
-        )
-        samples = samples[:-num_val_samples]
+        io_utils.print_msg(f"Using {num_train_samples} files for training.")
+        samples = samples[:num_train_samples]
         if labels is not None:
-            labels = labels[:-num_val_samples]
+            labels = labels[:num_train_samples]
     elif subset == "validation":
         io_utils.print_msg(f"Using {num_val_samples} files for validation.")
-        samples = samples[-num_val_samples:]
+        samples = samples[num_train_samples:]
         if labels is not None:
-            labels = labels[-num_val_samples:]
+            labels = labels[num_train_samples:]
     else:
         raise ValueError(
             '`subset` must be either "training" '
