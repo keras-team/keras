@@ -233,6 +233,12 @@ class EinsumDense(Layer):
         self.built = True
         if self.lora_rank:
             self.enable_lora(self.lora_rank, lora_alpha=self.lora_alpha)
+        # Flag set at build; lora_enabled re-checked at call time.
+        self._torch_backend = backend.backend() == "torch"
+        if self._torch_backend:
+            import torch as _torch
+
+            self._torch = _torch
 
     @property
     def kernel(self):
@@ -310,6 +316,30 @@ class EinsumDense(Layer):
         return tuple(full_output_shape)
 
     def call(self, inputs, training=None):
+        # Fast path: torch.einsum bypasses Keras ops dispatch.
+        # Quantization routes to quantized_call() before reaching here.
+        if self._torch_backend and not self.lora_enabled:
+            # Skip under torch.compile: meta-device weights cause fake-tensor
+            # issues with torch.einsum.
+            if not (
+                hasattr(self._torch.compiler, "is_compiling")
+                and self._torch.compiler.is_compiling()
+            ):
+                kernel = self._kernel.value
+                if inputs.device != kernel.device:
+                    inputs = inputs.to(kernel.device)
+                if inputs.dtype != kernel.dtype:
+                    kernel = kernel.to(inputs.dtype)
+                x = self._torch.einsum(self.equation, inputs, kernel)
+                if self.bias is not None:
+                    bias = self.bias.value
+                    if inputs.dtype != bias.dtype:
+                        bias = bias.to(inputs.dtype)
+                    x = x + bias
+                if self.activation is not None:
+                    x = self.activation(x)
+                return x
+        # Standard path: non-torch, LoRA, or torch.compile.
         x = ops.einsum(self.equation, inputs, self.kernel)
         if self.bias is not None:
             x = ops.add(x, self.bias)
