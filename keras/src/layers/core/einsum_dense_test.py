@@ -1845,3 +1845,118 @@ class EinsumDenseTest(testing.TestCase):
         # Verify outputs match
         y_after = loaded_model(x)
         self.assertAllClose(y_before, y_after)
+
+    # ------------------------------------------------------------------
+    # Torch fast-path numeric-equivalence tests
+    # ------------------------------------------------------------------
+
+    @parameterized.named_parameters(
+        ("2d_matmul", "ab,bc->ac", 64, "c", (8, 128)),
+        ("3d_matmul", "abc,cd->abd", (16, 64), "d", (4, 16, 128)),
+        ("ellipsis", "...x,xy->...y", 64, "y", (4, 8, 128)),
+    )
+    def test_torch_fast_path_fast_vs_slow(
+        self, equation, output_shape, bias_axes, input_shape
+    ):
+        """Fast-path torch.einsum vs ops.einsum numeric equivalence."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        torch.manual_seed(99)
+        layer = layers.EinsumDense(
+            equation,
+            output_shape=output_shape,
+            bias_axes=bias_axes,
+            activation="gelu",
+        )
+        x_t = torch.randn(*input_shape)
+        _ = layer(x_t)
+        self.assertTrue(
+            getattr(layer, "_torch_backend", False),
+            "EinsumDense._torch_backend must be True on torch backend",
+        )
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_no_bias(self):
+        """EinsumDense fast-path with no bias."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=32, bias_axes=None)
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_lora_stays_slow(self):
+        """LoRA-enabled EinsumDense must NOT use the fast path."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        layer = layers.EinsumDense(
+            "ab,bc->ac", output_shape=32, bias_axes="c", activation=None
+        )
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        layer.enable_lora(rank=4)
+        self.assertTrue(layer.lora_enabled)
+        out = layer(x_t)
+        self.assertFalse(torch.isnan(out).any())
+        self.assertFalse(torch.isinf(out).any())
+
+    def test_torch_fast_path_manual_kernel_check(self):
+        """Manually verify fast path result against the expected formula."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        torch.manual_seed(42)
+        layer = layers.EinsumDense("ab,bc->ac", output_shape=16, bias_axes="c")
+        x_t = torch.randn(4, 32)
+        _ = layer(x_t)
+        W = layer._kernel.value
+        b = layer.bias.value
+        x_t = x_t.to(W.device)
+        expected = torch.einsum("ab,bc->ac", x_t, W) + b
+        out_fast = layer(x_t)
+        self.assertAllClose(out_fast, expected, rtol=1e-5, atol=1e-5)
+
+    def test_torch_fast_path_symbolic_input(self):
+        """EinsumDense must not crash on symbolic KerasTensor (torch)."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        inputs = layers.Input(shape=(10,))
+        outputs = layers.EinsumDense("ab,bc->ac", output_shape=5)(inputs)
+        self.assertEqual(outputs.shape, (None, 5))
+
+    def test_torch_fast_path_mixed_float16(self):
+        """Fast-path vs slow-path equivalence with mixed_float16 policy."""
+        if backend.backend() != "torch":
+            self.skipTest("torch backend only")
+        import torch
+
+        torch.manual_seed(0)
+        layer = layers.EinsumDense(
+            "ab,bc->ac",
+            output_shape=32,
+            bias_axes="c",
+            activation="relu",
+            dtype="mixed_float16",
+        )
+        x_t = torch.randn(4, 64)
+        _ = layer(x_t)
+        out_fast = layer(x_t)
+        layer._torch_backend = False
+        out_slow = layer(x_t)
+        layer._torch_backend = True
+        self.assertAllClose(out_fast, out_slow, rtol=1e-3, atol=1e-3)
