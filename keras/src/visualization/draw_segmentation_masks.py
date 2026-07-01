@@ -76,9 +76,13 @@ def draw_segmentation_masks(
 
     # Infer num_classes. Class indices are 0-based and cover the range
     # `[0, num_classes - 1]`, so the largest valid index in the mask is
-    # `num_classes - 1`.
+    # `num_classes - 1`. We exclude `ignore_index` from the inference.
     if num_classes is None:
-        num_classes = int(ops.convert_to_numpy(ops.max(segmentation_masks))) + 1
+        valid_masks = ops.not_equal(segmentation_masks, ignore_index)
+        masked_masks = ops.where(valid_masks, segmentation_masks, -1)
+        num_classes = max(
+            int(ops.convert_to_numpy(ops.max(masked_masks))) + 1, 1
+        )
     if color_mapping is None:
         colors = _generate_color_palette(num_classes)
     else:
