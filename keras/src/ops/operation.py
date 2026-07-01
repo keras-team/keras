@@ -56,11 +56,24 @@ class Operation(KerasSaveable):
                         call_fn = self.quantized_call
                     else:
                         call_fn = self.call
-            call_fn = traceback_utils.inject_argument_info_in_traceback(
-                call_fn,
-                object_name=(f"{self.__class__.__name__}.call()"),
-            )
-            return call_fn(*args, **kwargs)
+            # Call directly; inject argument info only on exception.
+            # Avoids creating a closure wrapper on every call (hot path).
+            try:
+                return call_fn(*args, **kwargs)
+            except Exception as e:
+                if not getattr(e, "_keras_call_info_injected", False):
+                    augmented = traceback_utils.inject_argument_info_in_error(
+                        e,
+                        call_fn,
+                        args,
+                        kwargs,
+                        object_name=(f"{self.__class__.__name__}.call()"),
+                    )
+                    if augmented is not None:
+                        raise augmented.with_traceback(
+                            e.__traceback__
+                        ) from None
+                raise
 
         # Plain flow.
         if any_symbolic_tensors(args, kwargs):
