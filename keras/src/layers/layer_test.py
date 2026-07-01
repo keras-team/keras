@@ -15,6 +15,7 @@ from keras.src import ops
 from keras.src import testing
 from keras.src.backend.common import global_state
 from keras.src.backend.common.remat import RematScope
+from keras.src.layers.layer import CallSpec
 from keras.src.models import Model
 
 
@@ -1947,3 +1948,148 @@ class LayerTest(testing.TestCase):
         mask = np.ones((2, 1), dtype="float32")
         y = layer(x, attention_mask=mask)
         self.assertEqual(y.shape, (2, 3))
+
+    def _assert_callspec_dict_equal(self, fast_dict, slow_dict):
+        # Compare CallSpec arg dicts. Tensor/symbolic values are the same
+        # object in both specs (compare by identity); everything else by
+        # value. This avoids elementwise tensor comparisons.
+        self.assertEqual(list(fast_dict.keys()), list(slow_dict.keys()))
+        for key in fast_dict:
+            fast_value = fast_dict[key]
+            slow_value = slow_dict[key]
+            if backend.is_tensor(fast_value) or isinstance(
+                fast_value, backend.KerasTensor
+            ):
+                self.assertIs(fast_value, slow_value)
+            else:
+                self.assertEqual(fast_value, slow_value)
+
+    def test_callspec_fast_path_matches_slow_path(self):
+        class OneArg(layers.Layer):
+            def call(self, inputs):
+                return inputs
+
+        class TrainingArg(layers.Layer):
+            def call(self, inputs, training=None):
+                return inputs
+
+        class TrainingMaskArg(layers.Layer):
+            def call(self, inputs, training=None, mask=None):
+                return inputs
+
+        class ScalarDefaultArg(layers.Layer):
+            def call(self, inputs, scale=1.0):
+                return inputs
+
+        eager_input = ops.convert_to_tensor(
+            np.random.rand(2, 3).astype("float32")
+        )
+        symbolic_input = backend.KerasTensor((2, 3))
+
+        for layer_cls in (
+            OneArg,
+            TrainingArg,
+            TrainingMaskArg,
+            ScalarDefaultArg,
+        ):
+            layer = layer_cls()
+            self.assertTrue(
+                layer._call_spec_fast_path,
+                msg=f"{layer_cls.__name__} should be fast-path eligible",
+            )
+            for x in (eager_input, symbolic_input):
+                fast = CallSpec._fast(
+                    layer._call_arg_names,
+                    layer._call_arg_defaults,
+                    layer._call_first_arg_name,
+                    x,
+                )
+                slow = CallSpec(
+                    layer._call_signature,
+                    layer._call_context_args,
+                    (x,),
+                    {},
+                )
+                self.assertEqual(fast.argument_names, slow.argument_names)
+                self.assertEqual(
+                    fast.tensor_arguments_names, slow.tensor_arguments_names
+                )
+                self.assertEqual(
+                    fast.nested_tensor_argument_names,
+                    slow.nested_tensor_argument_names,
+                )
+                self.assertEqual(fast.eager, slow.eager)
+                self.assertIs(fast.first_arg, slow.first_arg)
+                self._assert_callspec_dict_equal(
+                    fast.user_arguments_dict, slow.user_arguments_dict
+                )
+                self._assert_callspec_dict_equal(
+                    fast.arguments_dict, slow.arguments_dict
+                )
+                self._assert_callspec_dict_equal(
+                    fast.tensor_arguments_dict, slow.tensor_arguments_dict
+                )
+
+    def test_callspec_fast_path_excludes_unsupported_signatures(self):
+        class MultiArg(layers.Layer):
+            def call(self, inputs, other):
+                return inputs
+
+        class VarArgs(layers.Layer):
+            def call(self, inputs, *args, **kwargs):
+                return inputs
+
+        class RequiredKwOnly(layers.Layer):
+            def call(self, inputs, *, state):
+                return inputs
+
+        self.assertFalse(MultiArg()._call_spec_fast_path)
+        self.assertFalse(VarArgs()._call_spec_fast_path)
+        self.assertFalse(RequiredKwOnly()._call_spec_fast_path)
+
+        # A tensor-valued default would land in tensor_arguments_dict in the
+        # slow path, so it must fall through.
+        tensor_default = ops.convert_to_tensor(np.zeros((3,), dtype="float32"))
+
+        class TensorDefault(layers.Layer):
+            def call(self, inputs, bias=tensor_default):
+                return inputs
+
+        self.assertFalse(TensorDefault()._call_spec_fast_path)
+
+    def test_callspec_fast_path_dense_numeric(self):
+        x = ops.convert_to_tensor(np.random.rand(4, 8).astype("float32"))
+        dense = layers.Dense(16)
+        # First call builds and runs through the fast path.
+        self.assertTrue(dense._call_spec_fast_path)
+        y_fast = dense(x)
+        # Force the slow path on the same built layer and rerun.
+        dense._call_spec_fast_path = False
+        y_slow = dense(x)
+        np.testing.assert_array_equal(
+            ops.convert_to_numpy(y_fast), ops.convert_to_numpy(y_slow)
+        )
+
+    def test_called_and_built_flags_set_once(self):
+        # Verify that built and _called are True after the first call and
+        # remain True on repeated calls, and that build() is invoked exactly
+        # once regardless of how many times the layer is called.
+        build_count = []
+
+        class CountingLayer(layers.Layer):
+            def build(self, input_shape):
+                build_count.append(1)
+                self.built = True
+
+            def call(self, x):
+                return x
+
+        layer = CountingLayer()
+        x = np.ones((2, 4), dtype="float32")
+        layer(x)
+        layer(x)
+        layer(x)
+
+        self.assertTrue(layer.built)
+        self.assertTrue(layer._called)
+        self.assertEqual(len(build_count), 1)
