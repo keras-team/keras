@@ -1744,6 +1744,31 @@ class SafeZipReadTest(testing.TestCase):
             with self.assertRaisesRegex(ValueError, "decompression bomb"):
                 saving_lib.load_model(evil)
 
+    def test_load_model_rejects_extraction_bomb(self):
+        # A >3-member archive triggers the disk-backed asset store, which
+        # extracts *every* member via `extractall`. `_reject_zip_bomb` only
+        # guards the in-memory reads, so a bomb member added here would be
+        # decompressed to disk unchecked; it must be rejected before extraction.
+        import keras
+
+        model = keras.Sequential([keras.Input((4,)), keras.layers.Dense(3)])
+        good = os.path.join(self.get_temp_dir(), "good.keras")
+        model.save(good)
+        with zipfile.ZipFile(good) as zf:
+            base = {n: zf.read(n) for n in zf.namelist()}
+
+        evil = os.path.join(self.get_temp_dir(), "evil.keras")
+        with zipfile.ZipFile(evil, "w") as zf:
+            for name, data in base.items():
+                zf.writestr(name, data)  # genuine members stored (ratio ~1)
+            info = zipfile.ZipInfo("assets/bomb.bin")
+            info.compress_type = zipfile.ZIP_DEFLATED
+            zf.writestr(info, b"\x00" * 200_000)  # 4th member, deflated bomb
+
+        with mock.patch.object(saving_lib, "_ZIP_EXTRACT_BOMB_FLOOR_BYTES", 64):
+            with self.assertRaisesRegex(ValueError, "decompression bomb"):
+                saving_lib.load_model(evil)
+
 
 class SafeGetH5DatasetTest(testing.TestCase):
     def _shape_bomb_file(self):
