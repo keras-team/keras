@@ -3378,6 +3378,11 @@ class NumpyTwoInputOpsCorrectnessTest(testing.TestCase):
         self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
         self.assertAllClose(knp.Hypot()(x, y), np.hypot(x, y))
 
+        x = np.array([np.nan, np.inf, np.nan, -0.0], dtype=np.float32)
+        y = np.array([1.0, -np.inf, np.inf, 0.0], dtype=np.float32)
+        self.assertAllClose(knp.hypot(x, y), np.hypot(x, y))
+        self.assertAllClose(knp.Hypot()(x, y), np.hypot(x, y))
+
     def test_subtract(self):
         x = np.array([[1, 2, 3], [3, 2, 1]])
         y = np.array([[4, 5, 6], [3, 2, 1]])

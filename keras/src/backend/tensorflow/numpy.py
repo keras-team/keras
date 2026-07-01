@@ -1762,7 +1762,12 @@ def hypot(x1, x2):
     min_val = tf.minimum(x1_abs, x2_abs)
 
     ratio = tf.math.divide_no_nan(min_val, max_val)
-    return max_val * tf.sqrt(1.0 + tf.square(ratio))
+    result = max_val * tf.sqrt(1.0 + tf.square(ratio))
+    return tf.where(
+        tf.math.is_inf(x1_abs) | tf.math.is_inf(x2_abs),
+        tf.constant(float("inf"), dtype=result.dtype),
+        result,
+    )
 
 
 def identity(n, dtype=None):
