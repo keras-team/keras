@@ -252,7 +252,12 @@ class Embedding(Layer):
             dtype="float32",
             regularizer=self.embeddings_regularizer,
         )
-        self.embeddings.trainable = False
+        # Set `trainable=False` on the underlying variable (`self._embeddings`),
+        # not the `self.embeddings` property. For int8/int4-quantized layers the
+        # property returns an unpacked raw tensor (e.g. an immutable
+        # `mlx.core.array` without `__dict__`), on which attribute assignment
+        # fails. The variable is the actual trainable/non-trainable object.
+        self._embeddings.trainable = False
         self._tracker.lock()
         self.lora_enabled = True
         self.lora_rank = rank

@@ -61,6 +61,8 @@ elif backend.backend() == "numpy":
     from keras.src.backend.numpy.layer import NumpyLayer as BackendLayer
 elif backend.backend() == "openvino":
     from keras.src.backend.openvino.layer import OpenvinoLayer as BackendLayer
+elif backend.backend() == "mlx":
+    from keras.src.backend.mlx.layer import MlxLayer as BackendLayer
 else:
     raise RuntimeError(
         f"Backend '{backend.backend()}' must implement a layer mixin class."

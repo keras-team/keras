@@ -132,6 +132,16 @@ class RandomCrop(BaseImagePreprocessingLayer):
         if training:
             images = self.backend.cast(images, self.compute_dtype)
             crop_box_hstart, crop_box_wstart = transformation
+            # MLX int32 scalars are not valid Python slice bounds, so coerce
+            # concrete scalars to python ints. tf SymbolicTensors (graph mode,
+            # e.g. when the layer runs inside a tf.data pipeline) are NOT
+            # int()-coercible but ARE valid slice bounds for tensor slicing, so
+            # leave them untouched for the slices below.
+            try:
+                crop_box_hstart = int(crop_box_hstart)
+                crop_box_wstart = int(crop_box_wstart)
+            except TypeError:
+                pass
             crop_height = self.height
             crop_width = self.width
 

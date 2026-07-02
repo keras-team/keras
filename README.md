@@ -1,6 +1,6 @@
 # Keras 3: Deep Learning for Humans
 
-Keras 3 is a multi-backend deep learning framework, with support for JAX, TensorFlow, PyTorch, and OpenVINO (for inference-only).
+Keras 3 is a multi-backend deep learning framework, with support for JAX, TensorFlow, PyTorch, OpenVINO (for inference-only), and MLX (for Apple Silicon).
 Effortlessly build and train models for computer vision, natural language processing, audio processing,
 timeseries forecasting, recommender systems, etc.
 
@@ -29,6 +29,7 @@ pip install keras --upgrade
 
 To use `keras`, you should also install the backend of choice: `tensorflow`, `jax`, or `torch`. Additionally,
 The `openvino` backend is available with support for model inference only.
+The `mlx` backend is available for Apple Silicon (training and inference, leveraging unified memory).
 
 ### Local installation
 
@@ -65,6 +66,7 @@ The following table lists the minimum supported versions of each backend for the
 | JAX        | 0.4.20                    |
 | PyTorch    | 2.1.0                     |
 | OpenVINO   | 2025.3.0                  |
+| MLX        | 0.25.0                    |
 
 #### Adding GPU support
 
