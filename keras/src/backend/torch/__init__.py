@@ -33,6 +33,7 @@ from keras.src.backend.torch.core import cond
 from keras.src.backend.torch.core import convert_to_numpy
 from keras.src.backend.torch.core import convert_to_tensor
 from keras.src.backend.torch.core import device_scope
+from keras.src.backend.torch.core import get_memory_info
 from keras.src.backend.torch.core import is_tensor
 from keras.src.backend.torch.core import random_seed_dtype
 from keras.src.backend.torch.core import scatter

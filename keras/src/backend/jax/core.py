@@ -690,3 +690,22 @@ def device_scope(device_name):
     else:
         jax_device = device_name
     return jax.default_device(jax_device)
+
+
+def get_memory_info(device):
+    from keras.src.backend.jax import distribution_lib
+
+    try:
+        if isinstance(device, str):
+            jax_device = distribution_lib._to_backend_device(device.lower())
+        else:
+            jax_device = device
+        stats = jax_device.memory_stats()
+        if stats is None:
+            return {"allocated": 0, "peak": 0}
+        return {
+            "allocated": stats.get("bytes_in_use", 0),
+            "peak": stats.get("peak_bytes_in_use", 0),
+        }
+    except (IndexError, RuntimeError, NotImplementedError, ValueError):
+        return {"allocated": 0, "peak": 0}

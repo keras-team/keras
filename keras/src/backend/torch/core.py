@@ -832,3 +832,37 @@ class CustomGradientFunction(torch.autograd.Function):
         if not isinstance(grads, tuple):
             grads = (grads,)
         return (None,) + grads
+
+
+def get_memory_info(device):
+    import torch
+
+    if isinstance(device, torch.device):
+        device_type = device.type
+        idx = device.index or 0
+    elif isinstance(device, str):
+        device = device.lower()
+        device_type = "cuda" if device.startswith(("cuda", "gpu")) else "cpu"
+        idx = int(device.split(":")[-1]) if ":" in device else 0
+    else:
+        device_type = "cpu"
+        idx = 0
+
+    if device_type == "cuda":
+        if not torch.cuda.is_available():
+            return {"allocated": 0, "peak": 0}
+        return {
+            "allocated": torch.cuda.memory_allocated(idx),
+            "peak": torch.cuda.max_memory_allocated(idx),
+        }
+
+    import os
+
+    try:
+        import psutil
+
+        proc = psutil.Process(os.getpid())
+        mem = proc.memory_info()
+        return {"allocated": mem.rss, "peak": mem.vms}
+    except ImportError:
+        return {"allocated": 0, "peak": 0}
